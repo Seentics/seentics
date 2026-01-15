@@ -1,4 +1,3 @@
-'use client';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -9,9 +8,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Check, CreditCard, Download, Zap } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/stores/useAuthStore';
+import { useSubscription } from '@/hooks/useSubscription';
+import { Check, CreditCard, Loader2, Zap } from 'lucide-react';
 
 interface BillingModalProps {
   isOpen: boolean;
@@ -19,90 +21,163 @@ interface BillingModalProps {
 }
 
 export function BillingModal({ isOpen, onClose }: BillingModalProps) {
+  const { user } = useAuth();
+  const { subscription, loading: subscriptionLoading, getUsagePercentage } = useSubscription();
+  
+  const currentPlan = subscription?.plan || 'free';
+  const usage = subscription?.usage?.monthlyEvents?.current || 0;
+  const percentage = getUsagePercentage('monthlyEvents');
+
+  const plans = [
+    {
+      name: 'Free',
+      price: '$0',
+      description: 'For personal projects',
+      features: ['3 Websites', '10k Events/mo', '1 Year Retention', 'Community Support'],
+      current: currentPlan === 'free',
+    },
+    {
+      name: 'Pro',
+      price: '$19',
+      description: 'For growing businesses',
+      features: ['Unlimited Websites', '1M Events/mo', 'Unlimited Retention', 'Priority Support', 'No Branding'],
+      current: currentPlan === 'pro',
+    },
+    {
+        name: 'Enterprise',
+        price: 'Custom',
+        description: 'For large organizations',
+        features: ['Unlimited Everything', 'SLA', 'Dedicated Account Manager', 'SSO', 'Custom Contracts'],
+        current: currentPlan === 'enterprise',
+    }
+  ];
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Billing & Subscription</DialogTitle>
           <DialogDescription>
-            Manage your subscription plan and payment details.
+            Manage your plan, usage, and billing details.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-6 py-4">
-          {/* Current Plan Card */}
-          <div className="bg-gradient-to-br from-primary/5 to-primary/10 border rounded-xl p-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Zap className="w-24 h-24" />
+        {subscriptionLoading ? (
+            <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-            
-            <div className="relative z-10 flex justify-between items-start mb-6">
-                <div>
-                    <div className="flex items-center gap-2 mb-2">
-                        <h3 className="font-bold text-xl">Pro Plan</h3>
-                        <Badge variant="default" className="bg-primary/20 text-primary hover:bg-primary/20 border-0">ACTIVE</Badge>
-                    </div>
-                    <p className="text-muted-foreground text-sm">$29/month • Next billing date: Feb 15, 2026</p>
-                </div>
-                <div className="text-right">
-                    <Button variant="outline" className="bg-background/50 backdrop-blur-sm">Change Plan</Button>
-                </div>
-            </div>
+        ) : (
+             <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="plans">Plans</TabsTrigger>
+                    <TabsTrigger value="invoices">Invoices</TabsTrigger>
+                </TabsList>
 
-            <div className="space-y-4">
-                <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Monthly Events Usage</span>
-                        <span className="font-medium">450,000 / 1,000,000</span>
+                {/* OVERVIEW TAB */}
+                <TabsContent value="overview" className="space-y-4 py-4">
+                     <div className="grid gap-4 md:grid-cols-2">
+                        <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium">Current Plan</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold capitalize">{currentPlan} Plan</div>
+                                <p className="text-xs text-muted-foreground">Renews on Feb 1, 2026</p>
+                            </CardContent>
+                        </Card>
+                         <Card>
+                            <CardHeader className="pb-2">
+                                <CardTitle className="text-sm font-medium">Payment Method</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-2xl font-bold flex items-center gap-2">
+                                    <CreditCard className="h-6 w-6" /> •••• 4242
+                                </div>
+                                <p className="text-xs text-muted-foreground">Expires 12/28</p>
+                            </CardContent>
+                        </Card>
                     </div>
-                    <Progress value={45} className="h-2" />
-                    <p className="text-xs text-muted-foreground">You have used 45% of your monthly event limit.</p>
-                </div>
-            </div>
-          </div>
 
-          {/* Payment Method */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-sm">Payment Method</h4>
-            <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-secondary rounded-md">
-                        <CreditCard className="h-4 w-4" />
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium">Visa ending in 4242</p>
-                        <p className="text-xs text-muted-foreground">Expires 12/2028</p>
-                    </div>
-                </div>
-                <Button variant="ghost" size="sm">Update</Button>
-            </div>
-          </div>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Usage This Month</CardTitle>
+                            <CardDescription>
+                                You have used {usage.toLocaleString()} events out of your plan limit.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                             <div className="flex justify-between text-sm">
+                                <span>{usage.toLocaleString()} events</span>
+                                <span className="text-muted-foreground">{percentage.toFixed(1)}%</span>
+                             </div>
+                             <Progress value={percentage} className="h-2" />
+                             {percentage > 80 && (
+                                 <p className="text-sm text-amber-600 dark:text-amber-400 font-medium pt-2">
+                                     You are approaching your plan limits. Consider upgrading to avoid specialized data sampling.
+                                 </p>
+                             )}
+                        </CardContent>
+                    </Card>
+                </TabsContent>
 
-          {/* Recent Invoices */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-sm">Recent Invoices</h4>
-            <div className="space-y-1">
-                {[
-                    { date: 'Jan 15, 2026', amount: '$29.00', status: 'Paid' },
-                    { date: 'Dec 15, 2025', amount: '$29.00', status: 'Paid' },
-                    { date: 'Nov 15, 2025', amount: '$29.00', status: 'Paid' },
-                ].map((invoice, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-lg text-sm transition-colors">
-                        <div className="flex items-center gap-4">
-                            <span className="text-muted-foreground w-24">{invoice.date}</span>
-                            <span className="font-medium">{invoice.amount}</span>
-                            <Badge variant="outline" className="text-xs font-normal h-5 border-green-200 text-green-700 bg-green-50 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800">
-                                {invoice.status}
-                            </Badge>
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <Download className="h-3.5 w-3.5" />
-                        </Button>
+                {/* PLANS TAB */}
+                <TabsContent value="plans" className="space-y-4 py-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {plans.map((plan) => (
+                            <Card key={plan.name} className={`flex flex-col ${plan.current ? 'border-primary ring-1 ring-primary' : ''}`}>
+                                <CardHeader>
+                                    <CardTitle className="flex justify-between items-center">
+                                        {plan.name}
+                                        {plan.current && <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full">Current</span>}
+                                    </CardTitle>
+                                    <div className="text-3xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                                    <CardDescription>{plan.description}</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex-1">
+                                    <ul className="space-y-2 text-sm">
+                                        {plan.features.map((feature) => (
+                                            <li key={feature} className="flex items-center gap-2">
+                                                <Check className="h-4 w-4 text-green-500 shrink-0" />
+                                                {feature}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </CardContent>
+                                <CardFooter>
+                                    <Button className="w-full" variant={plan.current ? "outline" : "default"} disabled={plan.current}>
+                                        {plan.current ? "Current Plan" : "Upgrade"}
+                                    </Button>
+                                </CardFooter>
+                            </Card>
+                        ))}
                     </div>
-                ))}
-            </div>
-          </div>
-        </div>
+                </TabsContent>
+
+                 {/* INVOICES TAB */}
+                 <TabsContent value="invoices" className="space-y-4 py-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Invoice History</CardTitle>
+                            <CardDescription>View and download past invoices.</CardDescription>
+                        </CardHeader>
+                         <CardContent>
+                             <div className="text-sm text-center py-8 text-muted-foreground">
+                                No invoices found.
+                             </div>
+                             {/* Future implementation: List of invoices */}
+                        </CardContent>
+                    </Card>
+                 </TabsContent>
+
+             </Tabs>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Close
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -12,8 +12,8 @@ import (
 )
 
 type EventHandler struct {
-	service               *services.EventService
-	logger                zerolog.Logger
+	service                *services.EventService
+	logger                 zerolog.Logger
 	subscriptionMiddleware *middleware.SubscriptionMiddleware
 }
 
@@ -58,7 +58,10 @@ func (h *EventHandler) TrackEvent(c *gin.Context) {
 	}
 
 	// Increment event usage counter after successful tracking
-	userID := c.GetHeader("x-user-id")
+	userID := c.GetHeader("X-Website-User-ID")
+	if userID == "" {
+		userID = c.GetHeader("X-User-ID")
+	}
 	if userID != "" {
 		if err := h.subscriptionMiddleware.IncrementEventUsage(userID, 1); err != nil {
 			h.logger.Error().Err(err).Str("user_id", userID).Msg("Failed to increment event usage")
@@ -94,7 +97,7 @@ func (h *EventHandler) TrackBatchEvents(c *gin.Context) {
 
 	// Capture client IP for geolocation
 	clientIP := c.ClientIP()
-	
+
 	// Set IP address for all events in the batch
 	for i := range req.Events {
 		if req.Events[i].IPAddress == nil || *req.Events[i].IPAddress == "" {
@@ -128,7 +131,10 @@ func (h *EventHandler) TrackBatchEvents(c *gin.Context) {
 	}
 
 	// Increment event usage counter after successful batch tracking
-	userID := c.GetHeader("x-user-id")
+	userID := c.GetHeader("X-Website-User-ID")
+	if userID == "" {
+		userID = c.GetHeader("X-User-ID")
+	}
 	if userID != "" {
 		eventCount := len(req.Events)
 		if err := h.subscriptionMiddleware.IncrementEventUsage(userID, eventCount); err != nil {
@@ -147,17 +153,17 @@ func (h *EventHandler) optimizeEventBatch(req *models.BatchEventRequest) {
 	var sessionBrowser string
 	var sessionDevice string
 	var sessionOS string
-	
+
 	for i := range req.Events {
 		event := &req.Events[i]
-		
+
 		// Fallback: Parse user agent server-side only if device info is still missing
 		if event.UserAgent != nil && *event.UserAgent != "" {
 			if sessionUserAgent != *event.UserAgent {
 				sessionUserAgent = *event.UserAgent
 				sessionBrowser, sessionDevice, sessionOS = h.parseUserAgent(sessionUserAgent)
 			}
-			
+
 			// Only set parsed values if still missing
 			if event.Browser == nil || *event.Browser == "" {
 				if sessionBrowser != "" {
@@ -174,11 +180,11 @@ func (h *EventHandler) optimizeEventBatch(req *models.BatchEventRequest) {
 					event.OS = &sessionOS
 				}
 			}
-			
+
 			// Clear user agent to save bandwidth
 			event.UserAgent = nil
 		}
-		
+
 		// Optimize referrer - only keep if it's different from previous
 		if event.Referrer != nil && *event.Referrer != "" {
 			if sessionReferrer == *event.Referrer {
@@ -187,7 +193,7 @@ func (h *EventHandler) optimizeEventBatch(req *models.BatchEventRequest) {
 				sessionReferrer = *event.Referrer
 			}
 		}
-		
+
 		// Set website_id from batch if not set
 		if event.WebsiteID == "" {
 			event.WebsiteID = req.SiteID
@@ -199,7 +205,7 @@ func (h *EventHandler) optimizeEventBatch(req *models.BatchEventRequest) {
 func (h *EventHandler) parseUserAgent(userAgent string) (browser, device, os string) {
 	// Simple user agent parsing
 	ua := userAgent
-	
+
 	// Browser detection
 	if contains(ua, "Chrome") {
 		browser = "Chrome"
@@ -212,7 +218,7 @@ func (h *EventHandler) parseUserAgent(userAgent string) (browser, device, os str
 	} else {
 		browser = "Other"
 	}
-	
+
 	// Device detection
 	if contains(ua, "iPad") || (contains(ua, "Android") && contains(ua, "Mobile")) {
 		device = "Tablet"
@@ -221,7 +227,7 @@ func (h *EventHandler) parseUserAgent(userAgent string) (browser, device, os str
 	} else {
 		device = "Desktop"
 	}
-	
+
 	// OS detection
 	if contains(ua, "Windows") {
 		os = "Windows"
@@ -236,7 +242,7 @@ func (h *EventHandler) parseUserAgent(userAgent string) (browser, device, os str
 	} else {
 		os = "Other"
 	}
-	
+
 	return browser, device, os
 }
 

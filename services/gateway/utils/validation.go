@@ -25,13 +25,13 @@ func ValidatePublicRequest(w http.ResponseWriter, r *http.Request, validateWebsi
 
 	// Extract websiteID from request data
 	websiteID := requestData.SiteID
-	
+
 	// SECURITY: Domain must ONLY come from Origin/Referer headers, never from payload
 	origin := r.Header.Get("Origin")
 	if origin == "" {
 		origin = r.Header.Get("Referer")
 	}
-	
+
 	var domain string
 	if origin != "" {
 		// Extract domain from Origin/Referer header
@@ -45,7 +45,7 @@ func ValidatePublicRequest(w http.ResponseWriter, r *http.Request, validateWebsi
 			domain = strings.Split(domain, ":")[0]
 		}
 	}
-	
+
 	// Require both siteID and origin for tracking requests
 	if websiteID == "" {
 		return fmt.Errorf("siteId required")
@@ -71,13 +71,13 @@ func ValidatePublicRequest(w http.ResponseWriter, r *http.Request, validateWebsi
 	}
 
 	// For tracking endpoints, use origin validation from the already extracted origin
-	
+
 	// Check if this is a tracking endpoint that needs origin validation
 	isTrackingEndpoint := isTrackingRequest(r.URL.Path)
-	
+
 	var websiteData map[string]interface{}
 	var validationErr error
-	
+
 	if isTrackingEndpoint && origin != "" {
 		// Try origin validation first for tracking endpoints
 		if validateOriginFunc, ok := validateWebsiteFunc.(func(string, string, string) (map[string]interface{}, error)); ok {
@@ -96,7 +96,7 @@ func ValidatePublicRequest(w http.ResponseWriter, r *http.Request, validateWebsi
 			return fmt.Errorf("invalid validation function type")
 		}
 	}
-	
+
 	if validationErr != nil {
 		return fmt.Errorf("website validation failed: %v", validationErr)
 	}
@@ -124,15 +124,14 @@ func isTrackingRequest(path string) bool {
 		"/api/v1/analytics/track",
 		"/api/v1/workflows/analytics/track",
 		"/api/v1/workflows/analytics/track/batch",
-		"/api/v1/funnels/track",
 	}
-	
+
 	for _, trackingPath := range trackingPaths {
 		if strings.HasPrefix(path, trackingPath) {
 			return true
 		}
 	}
-	
+
 	return false
 }
 

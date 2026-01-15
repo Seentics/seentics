@@ -35,17 +35,17 @@ export default function Hero() {
             </span>
 
             <span className="block mb-3 sm:mb-4 md:mb-6">
-              Automate <span className="text-purple-500">everything</span>
+              Respect <span className="text-purple-500">Privacy</span>
             </span>
 
             <span className="block text-2xl sm:text-3xl md:text-4xl font-bold text-green-600 dark:text-green-400">
-              popups, webhook & beyond
+              real-time, cookieless & simple
             </span>
           </h1>
 
           {/* Simple value proposition */}
           <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-300 max-w-3xl mx-auto mb-6 sm:mb-8 leading-relaxed px-4 sm:px-0">
-            Get website analytics that show what visitors do and where they come from. Create automated workflows that turn visitors into customers. Build conversion funnels that <span className="font-semibold text-slate-900 dark:text-white">boost sales automatically.</span>
+            Get website analytics that show what visitors do and where they come from. Understand your traffic without compromising user privacy. Build a better web with <span className="font-semibold text-slate-900 dark:text-white">transparent and ethical tracking.</span>
           </p>
 
           {/* Clean CTA buttons */}

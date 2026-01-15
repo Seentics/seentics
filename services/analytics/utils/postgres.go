@@ -52,11 +52,11 @@ func (h *PostgreSQLHelper) GetTableStats(ctx context.Context, tableName string) 
 		}
 
 		columns = append(columns, map[string]interface{}{
-			"column_name":        attName,
-			"n_distinct":         nDistinct,
-			"correlation":        correlation,
-			"most_common_vals":   mostCommonVals,
-			"most_common_freqs":  mostCommonFreqs,
+			"column_name":       attName,
+			"n_distinct":        nDistinct,
+			"correlation":       correlation,
+			"most_common_vals":  mostCommonVals,
+			"most_common_freqs": mostCommonFreqs,
 		})
 	}
 
@@ -117,8 +117,6 @@ func (h *PostgreSQLHelper) OptimizeQueries(ctx context.Context) error {
 	// Update table statistics for better query planning
 	optimizations := []string{
 		"ANALYZE events",
-		"ANALYZE funnel_events", 
-		"ANALYZE funnels",
 		"ANALYZE custom_events_aggregated",
 		"ANALYZE privacy_requests",
 	}
@@ -192,7 +190,7 @@ func (h *PostgreSQLHelper) CreateMaterializedView(ctx context.Context, name, que
 // RefreshMaterializedView refreshes a materialized view
 func (h *PostgreSQLHelper) RefreshMaterializedView(ctx context.Context, name string) error {
 	refreshSQL := fmt.Sprintf("REFRESH MATERIALIZED VIEW %s", name)
-	
+
 	_, err := h.db.Exec(ctx, refreshSQL)
 	if err != nil {
 		return fmt.Errorf("failed to refresh materialized view %s: %w", name, err)
@@ -207,13 +205,13 @@ func (h *PostgreSQLHelper) SetupPerformanceOptimizations(ctx context.Context) er
 		// Enable parallel query execution
 		"SET max_parallel_workers_per_gather = 4",
 		"SET max_parallel_workers = 8",
-		
+
 		// Optimize for analytics workloads
 		"SET random_page_cost = 1.1",
 		"SET effective_cache_size = '1GB'",
 		"SET shared_buffers = '256MB'",
 		"SET work_mem = '64MB'",
-		
+
 		// Enable query plan caching
 		"SET plan_cache_mode = 'auto'",
 	}
@@ -235,14 +233,13 @@ func (h *PostgreSQLHelper) CreateIndexes(ctx context.Context) error {
 		// Time-based indexes for faster range queries
 		"CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_timestamp_hour ON events (date_trunc('hour', timestamp))",
 		"CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_timestamp_day ON events (date_trunc('day', timestamp))",
-		
+
 		// Composite indexes for common query patterns
 		"CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_website_event_type_timestamp ON events (website_id, event_type, timestamp DESC)",
 		"CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_visitor_timestamp ON events (visitor_id, timestamp DESC)",
-		
+
 		// GIN indexes for JSONB properties
 		"CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_events_properties_gin ON events USING GIN (properties)",
-		"CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_funnel_events_properties_gin ON funnel_events USING GIN (properties)",
 	}
 
 	for _, indexSQL := range indexes {

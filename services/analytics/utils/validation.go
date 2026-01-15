@@ -49,55 +49,6 @@ func ValidateEvent(event *models.Event) error {
 	return nil
 }
 
-// ValidateFunnel validates a funnel configuration
-func ValidateFunnel(funnel *models.Funnel) error {
-	if funnel.Name == "" {
-		return errors.New("funnel name is required")
-	}
-
-	if funnel.WebsiteID == "" {
-		return errors.New("website_id is required")
-	}
-
-	if len(funnel.Steps) == 0 {
-		return errors.New("funnel must have at least one step")
-	}
-
-	// Validate each step
-	for _, step := range funnel.Steps {
-		if step.Name == "" {
-			return errors.New("step name is required")
-		}
-
-		if step.Type == "" {
-			return errors.New("step type is required")
-		}
-
-		validStepTypes := []string{"page", "event", "custom"}
-		if !contains(validStepTypes, step.Type) {
-			return errors.New("step has invalid type")
-		}
-
-		// Validate step conditions based on type
-		switch step.Type {
-		case "page":
-			if step.Condition.Page == nil || *step.Condition.Page == "" {
-				return errors.New("step of type 'page' requires page condition")
-			}
-		case "event":
-			if step.Condition.Event == nil || *step.Condition.Event == "" {
-				return errors.New("step of type 'event' requires event condition")
-			}
-		case "custom":
-			if step.Condition.Custom == nil || *step.Condition.Custom == "" {
-				return errors.New("step of type 'custom' requires custom condition")
-			}
-		}
-	}
-
-	return nil
-}
-
 // Helper functions
 func isValidURL(urlString string) bool {
 	// Allow relative URLs for pages

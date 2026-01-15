@@ -47,13 +47,13 @@ type ComparisonMetrics struct {
 
 // PageStat - USED in top_pages_analytics.go
 type PageStat struct {
-	Page          string   `json:"page" db:"page"`
-	Views         int      `json:"views" db:"views"`
-	Unique        int      `json:"unique" db:"unique"`
-	BounceRate    *float64 `json:"bounce_rate" db:"bounce_rate"`
-	AvgTime       *float64 `json:"avg_time" db:"avg_time"`
-	EntryRate     *float64 `json:"entry_rate" db:"entry_rate"`
-	ExitRate      *float64 `json:"exit_rate" db:"exit_rate"`
+	Page       string   `json:"page" db:"page"`
+	Views      int      `json:"views" db:"views"`
+	Unique     int      `json:"unique" db:"unique"`
+	BounceRate *float64 `json:"bounce_rate" db:"bounce_rate"`
+	AvgTime    *float64 `json:"avg_time" db:"avg_time"`
+	EntryRate  *float64 `json:"entry_rate" db:"entry_rate"`
+	ExitRate   *float64 `json:"exit_rate" db:"exit_rate"`
 }
 
 // ReferrerStat - USED in top_referrers_analytics.go
@@ -150,20 +150,22 @@ type GeolocationBreakdown struct {
 
 // DashboardData - USED in analytics_service.go
 type DashboardData struct {
-	WebsiteID       string               `json:"website_id"`
-	DateRange       int                  `json:"date_range"`
-	TotalVisitors   int                  `json:"total_visitors"`
-	UniqueVisitors  int                  `json:"unique_visitors"`
-	LiveVisitors    int                  `json:"live_visitors"`
-	PageViews       int                  `json:"page_views"`
-	SessionDuration float64              `json:"session_duration"`
-	BounceRate      float64              `json:"bounce_rate"`
-	Comparison      *ComparisonMetrics   `json:"comparison"`
-	Metrics         *DashboardMetrics    `json:"metrics"`
-	TopPages        []PageStat           `json:"top_pages"`
-	TopSources      []SourceStat         `json:"top_sources"`
-	TopCountries    []CountryStat        `json:"top_countries"`
-	Geolocation     GeolocationBreakdown `json:"geolocation"`
+	WebsiteID         string               `json:"website_id"`
+	DateRange         int                  `json:"date_range"`
+	TotalVisitors     int                  `json:"total_visitors"`
+	UniqueVisitors    int                  `json:"unique_visitors"`
+	LiveVisitors      int                  `json:"live_visitors"`
+	PageViews         int                  `json:"page_views"`
+	SessionDuration   float64              `json:"session_duration"`
+	BounceRate        float64              `json:"bounce_rate"`
+	NewVisitors       int                  `json:"new_visitors"`
+	ReturningVisitors int                  `json:"returning_visitors"`
+	Comparison        *ComparisonMetrics   `json:"comparison"`
+	Metrics           *DashboardMetrics    `json:"metrics"`
+	TopPages          []PageStat           `json:"top_pages"`
+	TopSources        []SourceStat         `json:"top_sources"`
+	TopCountries      []CountryStat        `json:"top_countries"`
+	Geolocation       GeolocationBreakdown `json:"geolocation"`
 }
 
 // LEGACY MODELS - Keep these for compatibility but they might not be actively used
@@ -177,14 +179,6 @@ type SessionAnalytics struct {
 	AvgUniquePages     int     `json:"avg_unique_pages" db:"avg_unique_pages"`
 	ExitIntentSessions int     `json:"exit_intent_sessions" db:"exit_intent_sessions"`
 	AvgScrollDepth     int     `json:"avg_scroll_depth" db:"avg_scroll_depth"`
-}
-
-// ConversionStep represents a step in the conversion funnel
-type ConversionStep struct {
-	StepName       string  `json:"step_name" db:"step_name"`
-	StepOrder      int     `json:"step_order" db:"step_order"`
-	Visitors       int     `json:"visitors" db:"visitors"`
-	ConversionRate float64 `json:"conversion_rate" db:"conversion_rate"`
 }
 
 // TimeBucketStat represents time-bucketed statistics

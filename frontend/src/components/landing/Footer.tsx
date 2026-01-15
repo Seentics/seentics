@@ -11,7 +11,7 @@ export default function Footer() {
               <Logo size="xl" showText={true} textClassName="text-lg md:text-xl font-bold text-slate-900 dark:text-white" className="gap-3" />
             </div>
             <p className="text-sm md:text-base text-slate-600 dark:text-slate-300 leading-relaxed mb-4 md:mb-0">
-              Transform your website into a conversion machine with intelligent analytics and automated workflows.
+              Get real-time insights into your website traffic while respecting user privacy. Lightweight, cookieless, and powerful analytics.
             </p>
           </div>
           

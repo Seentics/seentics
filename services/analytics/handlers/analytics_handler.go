@@ -176,8 +176,8 @@ func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"website_id":   websiteID,
-		"date_range":   fmt.Sprintf("%d days", days),
+		"website_id":  websiteID,
+		"date_range":  fmt.Sprintf("%d days", days),
 		"top_sources": sources,
 	})
 }
@@ -440,12 +440,10 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 	// Calculate totals from custom events data
 	totalEvents := 0
 	uniqueEvents := 0
-	if customEvents != nil {
-		for _, event := range customEvents {
-			totalEvents += event.Count
-			// For now, assume each event type represents a unique event
-			uniqueEvents++
-		}
+	for _, event := range customEvents {
+		totalEvents += event.Count
+		// For now, assume each event type represents a unique event
+		uniqueEvents++
 	}
 
 	// Get UTM performance data for this website
@@ -472,16 +470,14 @@ func (h *AnalyticsHandler) GetActivityTrends(c *gin.Context) {
 		return
 	}
 
-	// For now, return a basic response since the service method doesn't exist yet
-	// This will be enhanced when the service method is implemented
-	c.JSON(http.StatusOK, gin.H{
-		"website_id": websiteID,
-		"trends": gin.H{
-			"page_views": []gin.H{},
-			"visitors":   []gin.H{},
-			"sessions":   []gin.H{},
-		},
-	})
+	trends, err := h.service.GetActivityTrends(c.Request.Context(), websiteID)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get activity trends")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get activity trends"})
+		return
+	}
+
+	c.JSON(http.StatusOK, trends)
 }
 
 // GetLiveVisitors returns the number of currently active visitors
@@ -530,4 +526,54 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, breakdown)
+}
+
+// GetUserRetention returns user retention cohort data
+func (h *AnalyticsHandler) GetUserRetention(c *gin.Context) {
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	days := 30 // Default to 30 days for retention
+	if d := c.Query("days"); d != "" {
+		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
+			days = parsedDays
+		}
+	}
+
+	retention, err := h.service.GetUserRetention(c.Request.Context(), websiteID, days)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get user retention data")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user retention data"})
+		return
+	}
+
+	c.JSON(http.StatusOK, retention)
+}
+
+// GetVisitorInsights returns visitor insights (new vs returning)
+func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	days := 7
+	if d := c.Query("days"); d != "" {
+		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
+			days = parsedDays
+		}
+	}
+
+	insights, err := h.service.GetVisitorInsights(c.Request.Context(), websiteID, days)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get visitor insights")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get visitor insights"})
+		return
+	}
+
+	c.JSON(http.StatusOK, insights)
 }

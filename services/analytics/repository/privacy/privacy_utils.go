@@ -28,11 +28,11 @@ func (r *PrivacyRepository) GetUserWebsitesFromUserService(userID string) ([]str
 	// Make HTTP call to user service to get websites
 	userServiceURL := os.Getenv("USER_SERVICE_URL")
 	if userServiceURL == "" {
-		userServiceURL = "http://user-service:3001" // Default fallback
+		userServiceURL = "http://api-gateway:8080" // Default fallback (Gateway now handles user info)
 	}
 
 	url := fmt.Sprintf("%s/api/internal/users/%s/websites", userServiceURL, userID)
-	
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return []string{}, fmt.Errorf("failed to create request: %w", err)
@@ -85,7 +85,7 @@ func (r *PrivacyRepository) GetUserWebsitesFromUserService(userID string) ([]str
 // getWebsitesFromAnalyticsData is a fallback method to get websites from analytics data
 func (r *PrivacyRepository) getWebsitesFromAnalyticsData(userID string) ([]string, error) {
 	fmt.Printf("Using fallback method to get websites from analytics data for user %s\n", userID)
-	
+
 	query := `SELECT DISTINCT website_id FROM events WHERE visitor_id = $1 OR session_id LIKE $2`
 
 	rows, err := r.db.Query(context.Background(), query, userID, userID+"%")

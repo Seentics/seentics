@@ -28,7 +28,7 @@ func GetRouteType(path string) string {
 		"/api/v1/user/webhooks/",
 		"/api/v1/webhooks/",
 		"/api/v1/admin/", // Admin routes - authentication handled at frontend level
-		"/webhook-test", // Webhook test endpoint
+		"/webhook-test",  // Webhook test endpoint
 		"/health",
 		"/metrics",
 		"/favicon.ico",
@@ -52,8 +52,6 @@ func GetRouteType(path string) string {
 		"/api/v1/workflows/site/",
 		"/api/v1/workflows/active",           // Active workflows for tracker (public)
 		"/api/v1/workflows/execution/action", // Workflow execution (public with validation)
-		"/api/v1/funnels/track",              // Funnel event tracking (public)
-		"/api/v1/funnels/active",             // Active funnels for tracker (public)
 	}
 
 	for _, prefix := range publicPrefixes {

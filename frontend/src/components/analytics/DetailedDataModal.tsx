@@ -48,25 +48,28 @@ const getModalTitle = (modalType: string) => {
 };
 
 const getModalContent = (modalType: string, data: any, isLoading: any) => {
+  const metrics = data.dashboard || {};
+  const legacyMetrics = metrics.metrics || {};
+  
   switch (modalType) {
     case 'traffic':
       return (
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(data.dashboard?.metrics?.page_views || 0)}</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Total Page Views</div>
             </div>
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(data.dashboard?.metrics?.unique_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Unique Visitors</div>
             </div>
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(data.dashboard?.metrics?.sessions || 0)}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Sessions</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Total Visits</div>
             </div>
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatPercentage(data.dashboard?.metrics?.bounce_rate || 0)}</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatPercentage(metrics.bounce_rate || legacyMetrics.bounce_rate || 0)}</div>
               <div className="text-sm text-gray-600 dark:text-gray-400">Bounce Rate</div>
             </div>
           </div>
@@ -79,19 +82,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(data.dashboard?.metrics?.page_views || 0)}</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
               <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Total Page Views</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(data.dashboard?.metrics?.unique_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
               <div className="text-sm text-green-700 dark:text-green-300 font-medium">Unique Visitors</div>
             </div>
             <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(data.dashboard?.metrics?.pages_per_session || 0)}</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(metrics.pages_per_session || legacyMetrics.pages_per_session || 0)}</div>
               <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Pages per Session</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(data.dashboard?.enhanced_metrics?.avg_time_on_page || 0)}</div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</div>
               <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Avg Time on Page</div>
             </div>
           </div>
@@ -104,19 +107,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(data.dashboard?.metrics?.unique_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
               <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Total Visitors</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(data.dashboard?.enhanced_metrics?.new_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.new_visitors || 0)}</div>
               <div className="text-sm text-green-700 dark:text-green-300 font-medium">New Visitors</div>
             </div>
             <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(data.dashboard?.enhanced_metrics?.returning_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(metrics.returning_visitors || 0)}</div>
               <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Returning Visitors</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatPercentage(data.dashboard?.metrics?.bounce_rate || 0)}</div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatPercentage(metrics.bounce_rate || legacyMetrics.bounce_rate || 0)}</div>
               <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Bounce Rate</div>
             </div>
           </div>
@@ -129,19 +132,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(data.dashboard?.metrics?.unique_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
               <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Total Visitors</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(data.dashboard?.metrics?.page_views || 0)}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
               <div className="text-sm text-green-700 dark:text-green-300 font-medium">Total Page Views</div>
             </div>
             <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(data.dashboard?.metrics?.sessions || 0)}</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</div>
               <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Total Sessions</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(data.dashboard?.metrics?.avg_session_time || 0)}</div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</div>
               <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Avg Session Time</div>
             </div>
           </div>
@@ -154,19 +157,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(data.dashboard?.metrics?.unique_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
               <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Total Visitors</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(data.dashboard?.metrics?.page_views || 0)}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
               <div className="text-sm text-green-700 dark:text-green-300 font-medium">Total Page Views</div>
             </div>
             <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(data.dashboard?.metrics?.sessions || 0)}</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</div>
               <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Total Sessions</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(data.dashboard?.metrics?.avg_session_time || 0)}</div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</div>
               <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Avg Session Time</div>
             </div>
           </div>
@@ -179,19 +182,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(data.dashboard?.metrics?.unique_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
               <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Total Visitors</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(data.dashboard?.metrics?.page_views || 0)}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
               <div className="text-sm text-green-700 dark:text-green-300 font-medium">Total Page Views</div>
             </div>
             <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(data.dashboard?.metrics?.sessions || 0)}</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</div>
               <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Total Sessions</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatPercentage(data.dashboard?.metrics?.bounce_rate || 0)}</div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatPercentage(metrics.bounce_rate || legacyMetrics.bounce_rate || 0)}</div>
               <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Bounce Rate</div>
             </div>
           </div>
@@ -204,19 +207,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(data.dashboard?.metrics?.unique_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
               <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Total Visitors</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(data.dashboard?.enhanced_metrics?.new_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.new_visitors || 0)}</div>
               <div className="text-sm text-green-700 dark:text-green-300 font-medium">New Visitors</div>
             </div>
             <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(data.dashboard?.enhanced_metrics?.returning_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(metrics.returning_visitors || 0)}</div>
               <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Returning Visitors</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatNumber(data.dashboard?.metrics?.sessions || 0)}</div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</div>
               <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Total Sessions</div>
             </div>
           </div>
@@ -226,21 +229,21 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600 dark:text-gray-400">New Visitors</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(data.dashboard?.enhanced_metrics?.new_visitors || 0)}</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(metrics.new_visitors || 0)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Returning Visitors</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(data.dashboard?.enhanced_metrics?.returning_visitors || 0)}</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(metrics.returning_visitors || 0)}</span>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Total Sessions</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(data.dashboard?.metrics?.sessions || 0)}</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Avg Session Time</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatDuration(data.dashboard?.metrics?.avg_session_time || 0)}</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</span>
                 </div>
               </div>
             </div>
@@ -253,19 +256,19 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(data.dashboard?.metrics?.page_views || 0)}</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{formatNumber(metrics.page_views || legacyMetrics.page_views || 0)}</div>
               <div className="text-sm text-blue-700 dark:text-blue-300 font-medium">Total Page Views</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(data.dashboard?.metrics?.unique_visitors || 0)}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{formatNumber(metrics.unique_visitors || legacyMetrics.unique_visitors || 0)}</div>
               <div className="text-sm text-green-700 dark:text-green-300 font-medium">Unique Visitors</div>
             </div>
             <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
-              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(data.dashboard?.metrics?.pages_per_session || 0)}</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(metrics.pages_per_session || legacyMetrics.pages_per_session || 0)}</div>
               <div className="text-sm text-purple-700 dark:text-purple-300 font-medium">Pages per Session</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-800">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(data.dashboard?.enhanced_metrics?.avg_time_on_page || 0)}</div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</div>
               <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Avg Time on Page</div>
             </div>
           </div>

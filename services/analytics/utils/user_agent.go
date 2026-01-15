@@ -79,7 +79,7 @@ func normalizeBrowserName(browser string) string {
 		return "Edge"
 	case strings.Contains(browser, "opera"):
 		return "Opera"
-	case strings.Contains(browser, "ie") || strings.Contains(browser, "ie") || strings.Contains(browser, "internet explorer"):
+	case strings.Contains(browser, "ie") || strings.Contains(browser, "internet explorer"):
 		return "Internet Explorer"
 	default:
 		return "Unknown"

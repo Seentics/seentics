@@ -7,7 +7,7 @@ const testimonials = [
     name: "Alex Chen",
     role: "Head of Growth",
     company: "TechFlow",
-    content: "Seentics analytics and workflow automation transformed our conversion strategy. We saw a 40% increase in revenue within the first quarter. The automated workflows are game-changing.",
+    content: "Seentics analytics transformed our conversion strategy. We saw a 40% increase in revenue within the first quarter by understanding exactly where users were dropping off.",
     rating: 5,
     avatar: "AC"
   },
@@ -15,7 +15,7 @@ const testimonials = [
     name: "Sarah Rodriguez",
     role: "E-commerce Director",
     company: "ShopSmart",
-    content: "The workflow automation and analytics alone paid for itself in the first month. We automated cart recovery and customer engagement, recovering $75K in lost sales.",
+    content: "The behavioral insights and privacy-first approach alone paid for itself in the first month. We optimized our customer engagement based on real data, recovering $75K in lost sales.",
     rating: 5,
     avatar: "SR"
   },
@@ -23,7 +23,7 @@ const testimonials = [
     name: "Michael Thompson",
     role: "Marketing Lead",
     company: "StartupXYZ",
-    content: "Finally, a tool that combines analytics and automated workflows. The real-time insights and automation have revolutionized our approach to conversion optimization.",
+    content: "Finally, an analytics tool that respects user privacy while still giving us the data we need. The real-time insights have revolutionized our approach to conversion optimization.",
     rating: 5,
     avatar: "MT"
   }

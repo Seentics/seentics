@@ -14,7 +14,7 @@ export default function Developers() {
             </div>
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-slate-900 dark:text-white">Identify users & track custom events</h2>
           </div>
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-slate-600 dark:text-slate-300 max-w-4xl mx-auto px-2 sm:px-0">Pass a user id or email to personalize actions and attach rich context to analytics and workflows.</p>
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-slate-600 dark:text-slate-300 max-w-4xl mx-auto px-2 sm:px-0">Pass a user id or email to personalize actions and attach rich context to analytics.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 md:gap-10 mb-10 sm:mb-12 md:mb-16">
@@ -53,7 +53,7 @@ export default function Developers() {
               </div>
               <div className="mt-3 sm:mt-4 flex items-center gap-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                 <Database className="h-3 w-3 sm:h-4 sm:w-4 text-slate-500" />
-                <span>The identification is used by server-side workflow actions and attached to analytics events for richer insights.</span>
+                <span>The identification is used to attach identity to analytics events for richer insights and user-level tracking.</span>
               </div>
             </CardContent>
           </Card>
@@ -95,7 +95,7 @@ window.seentics?.track('purchase_completed', {
               </div>
               <div className="mt-3 sm:mt-4 flex items-center gap-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
                 <Eye className="h-3 w-3 sm:h-4 sm:w-4 text-purple-500" />
-                <span>Events are processed in real-time and can trigger automated workflows based on user behavior patterns.</span>
+                <span>Events are processed in real-time and provide detailed insights into user behavior and business metrics.</span>
               </div>
             </CardContent>
           </Card>
@@ -163,7 +163,7 @@ function onPurchaseCompleted(order) {
             </div>
             <div className="mt-3 sm:mt-4 flex items-center gap-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
               <Cpu className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
-              <span>This setup enables powerful automation workflows based on user behavior, purchase patterns, and engagement metrics.</span>
+              <span>This setup enables powerful behavioral tracking and business pattern analysis to optimize your website.</span>
             </div>
           </CardContent>
         </Card>

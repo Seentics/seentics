@@ -56,7 +56,7 @@ export function TrackingCodeModal({
                 <div>
                   <p className="font-semibold text-green-900 dark:text-green-100">Website Created Successfully! 🎉</p>
                   <p className="text-sm text-green-800 dark:text-green-200 mt-1">
-                    Now let's install the tracking code to start collecting data and creating workflows.
+                    Now let's install the tracking code to start collecting analytics data.
                   </p>
                 </div>
               </div>
@@ -68,7 +68,7 @@ export function TrackingCodeModal({
             Install Tracking Code
           </DialogTitle>
           <DialogDescription className="text-base">
-            Copy and paste this snippet into the {'<head>'} section of your website to start tracking visitors and enabling workflows.
+            Copy and paste this snippet into the {'<head>'} section of your website to start tracking visitors.
           </DialogDescription>
         </DialogHeader>
         
@@ -116,7 +116,7 @@ export function TrackingCodeModal({
                   <li>• Copy the tracking code above</li>
                   <li>• Paste it into your website's {'<head>'} section</li>
                   <li>• Save and publish your website</li>
-                  <li>• Start creating workflows in Seentics!</li>
+                  <li>• View real-time stats in your dashboard!</li>
                 </ol>
               </div>
             </div>
@@ -126,7 +126,7 @@ export function TrackingCodeModal({
               <div className="text-sm">
                 <p className="font-semibold text-amber-900 dark:text-amber-100">What happens next?</p>
                 <p className="mt-2 text-amber-800 dark:text-amber-200">
-                  Once installed, Seentics will automatically track visitor behavior and enable you to create smart workflows that convert more visitors into customers. You'll see real-time data in your dashboard within minutes.
+                  Once installed, Seentics will automatically track visitor behavior and generate deep insights. You'll see real-time data in your dashboard within minutes.
                 </p>
               </div>
             </div>
@@ -145,11 +145,10 @@ export function TrackingCodeModal({
               className="flex-1"
               onClick={() => {
                 onOpenChange(false);
-                // You could navigate to workflows page here
-                window.open(`/websites/${siteId}/workflows`, '_blank');
+                window.location.href = `/websites/${siteId}`;
               }}
             >
-              Create First Workflow
+              Go to Dashboard
             </Button>
           </div>
         </div>

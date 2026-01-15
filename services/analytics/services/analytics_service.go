@@ -55,15 +55,18 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 		Msg("Retrieved live visitors for dashboard")
 
 	return &models.DashboardData{
-		WebsiteID:       websiteID,
-		DateRange:       days,
-		TotalVisitors:   metrics.TotalVisitors,
-		UniqueVisitors:  metrics.UniqueVisitors,
-		LiveVisitors:    liveVisitors,
-		PageViews:       metrics.PageViews,
-		SessionDuration: metrics.AvgSessionTime,
-		BounceRate:      metrics.BounceRate,
-		Comparison:      comparison,
+		WebsiteID:         websiteID,
+		DateRange:         days,
+		TotalVisitors:     metrics.TotalVisitors,
+		UniqueVisitors:    metrics.UniqueVisitors,
+		LiveVisitors:      liveVisitors,
+		PageViews:         metrics.PageViews,
+		SessionDuration:   metrics.AvgSessionTime,
+		BounceRate:        metrics.BounceRate,
+		Comparison:        comparison,
+		Metrics:           metrics,
+		NewVisitors:       0, // TODO: Implement real calculation
+		ReturningVisitors: 0, // TODO: Implement real calculation
 	}, nil
 }
 
@@ -232,7 +235,7 @@ func (s *AnalyticsService) GetGeolocationBreakdown(ctx context.Context, websiteI
 	// If no data found, return dummy data for testing (temporary)
 	if breakdown == nil || (len(breakdown.Countries) == 0 && len(breakdown.Cities) == 0 && len(breakdown.Continents) == 0) {
 		s.logger.Info().Msg("No geolocation data found, returning dummy data for testing")
-		
+
 		return &models.GeolocationBreakdown{
 			Countries: []models.TopItem{
 				{Name: "United States", Count: 2450, Percentage: 35.2},
@@ -274,4 +277,31 @@ func (s *AnalyticsService) GetGeolocationBreakdown(ctx context.Context, websiteI
 	}
 
 	return breakdown, nil
+} // User Retention Service Method
+func (s *AnalyticsService) GetUserRetention(ctx context.Context, websiteID string, days int) (*models.RetentionData, error) {
+	s.logger.Info().
+		Str("website_id", websiteID).
+		Int("days", days).
+		Msg("Getting user retention data")
+
+	return s.repo.GetUserRetention(ctx, websiteID)
+}
+
+// Visitor Insights Service Method
+func (s *AnalyticsService) GetVisitorInsights(ctx context.Context, websiteID string, days int) (*models.VisitorInsights, error) {
+	s.logger.Info().
+		Str("website_id", websiteID).
+		Int("days", days).
+		Msg("Getting visitor insights")
+
+	return s.repo.GetVisitorInsights(ctx, websiteID, days)
+}
+
+// Activity Trends Service Method
+func (s *AnalyticsService) GetActivityTrends(ctx context.Context, websiteID string) (*models.ActivityTrendsResponse, error) {
+	s.logger.Info().
+		Str("website_id", websiteID).
+		Msg("Getting activity trends")
+
+	return s.repo.GetActivityTrends(ctx, websiteID)
 }

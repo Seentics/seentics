@@ -7,7 +7,8 @@ A high-performance Go-based API gateway that provides unified access to all Seen
 ### **Intelligent Routing**
 - **Service Discovery**: Routes requests to appropriate microservices
 - **Load Balancing**: Distributes traffic across service instances
-- **Path-based Routing**: `/api/v1/user/*` → Users Service, `/api/v1/analytics/*` → Analytics Service
+- **Path-based Routing**: `/api/v1/analytics/*` → Analytics Service
+- **Internal Handling**: `/api/v1/user/*` → Internal User/Website management
 
 ### **Security & Authentication**
 - **JWT Validation**: Secure token-based authentication
@@ -32,9 +33,11 @@ A high-performance Go-based API gateway that provides unified access to all Seen
 ```
 Gateway Service
 ├── Main Router          # HTTP server and route definitions
-├── Proxy Layer         # Reverse proxy to microservices
+├── Internal Handlers   # User, Website, and Billing management
+├── Proxy Layer         # Reverse proxy to Analytics service
 ├── Middleware Stack    # Authentication, CORS, rate limiting
 ├── Cache Layer         # Redis-based caching system
+├── Database Layer      # PostgreSQL-based user/website storage
 └── Utils               # Helper functions and utilities
 ```
 
@@ -68,16 +71,15 @@ NODE_ENV=development
 
 # Redis Configuration
 REDIS_URL=redis://localhost:6379
-REDIS_PASSWORD=
 
 # Service URLs
-USER_SERVICE_URL=http://localhost:3001
 ANALYTICS_SERVICE_URL=http://localhost:3002
-WORKFLOW_SERVICE_URL=http://localhost:3003
-ADMIN_SERVICE_URL=http://localhost:3004
+
+# Database (Internal)
+DATABASE_URL=postgres://seentics:seentics_gateway_pass@localhost:5432/seentics_gateway
 
 # CORS Configuration
-CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://localhost:8080
+CORS_ORIGIN=http://localhost:3000,http://localhost:8080
 
 # Rate Limiting
 RATE_LIMIT_PUBLIC=1000
@@ -119,13 +121,9 @@ The gateway automatically classifies routes into three types:
 - `/api/v1/track` - Website tracking
 - `/api/v1/analytics/event` - Event tracking
 - `/api/v1/analytics/track` - Analytics tracking
-- `/api/v1/workflows/site/*` - Public workflow access
-- `/api/v1/execution/action` - Action execution
-- `/api/v1/funnels/track` - Funnel tracking
 
 #### **Protected Routes** (JWT + website ownership validation)
 - `/api/v1/analytics/dashboard/*` - Analytics dashboard
-- `/api/v1/workflows/*` - Workflow management
 - `/api/v1/websites/*` - Website management
 - `/api/v1/user/profile` - User profile
 - `/api/v1/admin/*` - Admin operations
@@ -149,10 +147,8 @@ The gateway automatically classifies routes into three types:
 ### **Proxied Endpoints**
 All `/api/v1/*` requests are automatically routed to appropriate services:
 
-- **Users Service**: `/api/v1/user/*`
-- **Analytics Service**: `/api/v1/analytics/*`, `/api/v1/funnels/*`
-- **Workflows Service**: `/api/v1/workflows/*`
-- **Admin Service**: `/api/v1/admin/*`
+- **Analytics Service**: `/api/v1/analytics/*`
+- **Internal User Logic**: `/api/v1/user/*`
 
 ## 🗄️ Caching Strategy
 
@@ -187,14 +183,14 @@ stats := GetCacheStats()
 
 ### **Authentication Flow**
 1. **Token Extraction**: Extract JWT from Authorization header
-2. **Token Validation**: Validate with Users service
+2. **Token Validation**: Validate with internal database
 3. **User Context**: Inject user data into request context
 4. **Route Protection**: Apply appropriate validation based on route type
 
 ### **Website Validation**
 1. **Data Extraction**: Extract domain/siteId from request
 2. **Cache Check**: Check Redis for cached validation
-3. **Service Call**: Call Users service for validation
+3. **Local Validation**: Validate against internal database and cache
 4. **Result Caching**: Cache validation results
 5. **Header Injection**: Add website context to request
 
@@ -210,7 +206,7 @@ stats := GetCacheStats()
 ```
 [15:04:05] GET /api/v1/analytics/dashboard/123 - 45ms
 [15:04:06] POST /api/v1/track - 12ms
-[15:04:07] GET /api/v1/workflows - 89ms ⚠️ SLOW REQUEST
+[15:04:07] GET /api/v1/user/websites - 89ms ⚠️ SLOW REQUEST
 ```
 
 ### **Performance Metrics**
@@ -244,10 +240,8 @@ CMD ["./gateway"]
 # Production
 export NODE_ENV=production
 export REDIS_URL=redis://redis:6379
-export USER_SERVICE_URL=https://users.seentics.com
+export DATABASE_URL=postgres://seentics:pass@gateway-db:5432/seentics_gateway
 export ANALYTICS_SERVICE_URL=https://analytics.seentics.com
-export WORKFLOW_SERVICE_URL=https://workflows.seentics.com
-export ADMIN_SERVICE_URL=https://admin.seentics.com
 ```
 
 ### **Load Balancing**
@@ -302,7 +296,7 @@ hey -n 1000 -c 10 http://localhost:8080/api/v1/track
 
 **Authentication Failures**
 - Verify JWT secrets
-- Check Users service availability
+- Check Gateway database connectivity
 - Review token expiration
 
 **Rate Limiting Issues**
@@ -347,8 +341,8 @@ LOG_LEVEL=debug
 ## 📚 Resources
 
 ### **Documentation**
-- [System Architecture](../../SYSTEM_ARCHITECTURE_OVERVIEW.md)
-- [API Reference](../../docs/API_REFERENCE.md)
+- [Main Project README](../../README.md)
+- [Analytics Service README](../analytics/README.md)
 - [Contributing Guide](../../CONTRIBUTING.md)
 
 ### **External Resources**

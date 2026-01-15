@@ -49,9 +49,6 @@ import { ThemeToggle } from './theme-toggle';
 const navItems = [
   { href: '/websites', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/analytics', label: 'Analytics', icon: BarChart },
-  { href: '/funnels', label: 'Funnels', icon: Target },
-  { href: '/workflows', label: 'Workflows', icon: Workflow },
-  { href: '/templates', label: 'Templates', icon: FileText },
 ];
 
 function CollapseButton() {
@@ -168,7 +165,6 @@ function ShellContent({ children }: { children: React.ReactNode }) {
   const isNavItemActive = (href: string) => {
     const baseHref = href.split('?')[0];
     if (baseHref === '/websites') return pathname === '/websites';
-    if (baseHref === '/workflows') return pathname.startsWith('/workflows');
     return pathname.startsWith(baseHref);
   };
   
@@ -176,8 +172,6 @@ function ShellContent({ children }: { children: React.ReactNode }) {
     if (siteId) {
       return `${url}?siteId=${siteId}`;
     }
-    // Templates page doesn't require a siteId to view
-    if (url === '/templates') return url;
     return url;
   }
 
@@ -199,7 +193,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
                     asChild
                     isActive={isNavItemActive(item.href)}
                     tooltip={item.label}
-                    disabled={!siteId && !['/templates'].includes(item.href)}
+                    disabled={!siteId}
                   >
                     <Link href={contextualizeUrl(item.href)}>
                       <item.icon />

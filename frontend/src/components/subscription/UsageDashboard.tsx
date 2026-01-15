@@ -53,10 +53,8 @@ export const UsageDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <UsageCard type="websites" title="Websites" icon={Globe} />
-          <UsageCard type="workflows" title="Workflows" icon={Workflow} />
-          <UsageCard type="funnels" title="Funnels" icon={Filter} />
           <UsageCard type="monthlyEvents" title="Monthly Events" icon={BarChart3} />
         </div>
       </div>

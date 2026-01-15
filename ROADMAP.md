@@ -1,7 +1,7 @@
 # Seentics Roadmap
 
 ## What We've Built
-Analytics platform with funnels, workflows, and real-time tracking. Core features are working - funnel tracking, workflow automation, and basic analytics dashboard.
+Analytics platform for real-time tracking and behavior analysis. Core features are working - event tracking, site management, and real-time analytics dashboard.
 
 ---
 
@@ -115,13 +115,13 @@ Analytics platform with funnels, workflows, and real-time tracking. Core feature
 - Add keyboard shortcuts to common actions
 - Create component documentation with Storybook
 - Write unit tests for utility functions
-- Add more workflow action types (email, SMS)
+- Add more report types (heatmaps, scroll depth)
 - Improve form validation and error handling
 
 ### 🟡 Intermediate
 - Implement real-time chart updates
 - Add data export functionality
-- Create workflow templates
+- Create dashboard templates
 - Build integration with popular services
 - Optimize database queries
 - Add advanced filtering to analytics
@@ -132,7 +132,7 @@ Analytics platform with funnels, workflows, and real-time tracking. Core feature
 - Implement machine learning for insights
 - Create custom dashboard builder
 - Add multi-tenant architecture
-- Build advanced workflow conditions
+- Build advanced analytics segments
 - Implement cross-device tracking
 
 ---

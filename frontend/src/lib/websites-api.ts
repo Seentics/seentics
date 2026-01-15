@@ -15,6 +15,9 @@ export type Website = {
     allowedOrigins: string[];
     trackingEnabled: boolean;
     dataRetentionDays: number;
+    useIpAnonymization: boolean;
+    respectDoNotTrack: boolean;
+    allowRawDataExport: boolean;
   };
   stats: {
     totalPageviews: number;
@@ -28,20 +31,32 @@ export type Website = {
 export async function getWebsites(): Promise<Website[]> {
   try {
     const response = await api.get('/user/websites');
-    const websites = response?.data?.data?.websites || [];
+    const websites = response?.data?.data || [];
     return websites.map((w: any) => ({
-      id: w._id,
+      id: w.id,
       name: w.name,
       url: w.url,
-      userId: w.userId,
-      siteId: w._id,
-      createdAt: w.createdAt,
-      updatedAt: w.updatedAt,
-      isVerified: w.isVerified,
-      isActive: w.isActive,
-      verificationToken: w.verificationToken,
-      settings: w.settings,
-      stats: w.stats,
+      userId: w.user_id,
+      siteId: w.site_id,
+      createdAt: w.created_at,
+      updatedAt: w.updated_at,
+      isVerified: w.is_verified,
+      isActive: w.is_active,
+      verificationToken: w.verification_token,
+      settings: w.settings || {
+        allowedOrigins: [],
+        trackingEnabled: true,
+        dataRetentionDays: 365,
+        useIpAnonymization: false,
+        respectDoNotTrack: false,
+        allowRawDataExport: false
+      },
+      stats: w.stats || {
+        totalPageviews: 0,
+        uniqueVisitors: 0,
+        averageSessionDuration: 0,
+        bounceRate: 0
+      },
     }));
   } catch (error) {
     console.error('Error fetching websites:', error);
@@ -57,30 +72,33 @@ export async function addWebsite(website: { name: string; url: string }, userId:
     const response: any = await api.post('/user/websites', { ...website, userId });
     console.log('Full API response:', response);
     console.log('Response data:', response?.data);
-    
+
     // Try different possible response structures
     const websiteData = response?.data?.data?.website || response?.data?.website || response?.data?.data || response?.data || response;
     console.log('Parsed website data:', websiteData);
-    
+
     if (!websiteData || (!websiteData._id && !websiteData.id)) {
       throw new Error('Invalid website data received from server');
     }
-    
+
     return {
-      id: websiteData._id || websiteData.id,
-      siteId: websiteData._id || websiteData.id || websiteData.siteId,
+      id: websiteData.id,
+      siteId: websiteData.site_id,
       name: websiteData.name,
       url: websiteData.url,
-      userId: websiteData.userId,
-      createdAt: websiteData.createdAt,
-      updatedAt: websiteData.updatedAt,
-      isVerified: websiteData.isVerified || false,
-      isActive: websiteData.isActive || true,
-      verificationToken: websiteData.verificationToken || '',
+      userId: websiteData.user_id,
+      createdAt: websiteData.created_at,
+      updatedAt: websiteData.updated_at,
+      isVerified: websiteData.is_verified || false,
+      isActive: websiteData.is_active || true,
+      verificationToken: websiteData.verification_token || '',
       settings: websiteData.settings || {
         allowedOrigins: [],
         trackingEnabled: true,
-        dataRetentionDays: 365
+        dataRetentionDays: 365,
+        useIpAnonymization: false,
+        respectDoNotTrack: false,
+        allowRawDataExport: false
       },
       stats: websiteData.stats || {
         totalPageviews: 0,
@@ -91,18 +109,18 @@ export async function addWebsite(website: { name: string; url: string }, userId:
     };
   } catch (error: any) {
     console.error('Error adding website: ', error);
-    
+
     // Check for limit reached error
     if (error.response?.status === 403 && error.response?.data?.error === 'LIMIT_REACHED') {
       const errorData = error.response.data.data;
       throw new Error(`Website limit reached! You've used ${errorData.currentUsage}/${errorData.limit} websites on your ${errorData.currentPlan} plan. Please upgrade to add more websites.`);
     }
-    
+
     // Check for other limit-related errors
     if (error.response?.data?.message?.includes('limit')) {
       throw new Error(error.response.data.message);
     }
-    
+
     throw error;
   }
 }
@@ -121,23 +139,79 @@ export async function deleteWebsite(siteId: string, userId: string): Promise<voi
 export async function getWebsiteBySiteId(siteId: string): Promise<Website | null> {
   if (!siteId) return null;
   try {
-    const w: any = await api.get(`/user/websites/by-site-id/${siteId}`);
+    const response = await api.get(`/user/websites/by-site-id/${siteId}`);
+    const w = response.data.data;
+    if (!w) return null;
     return {
-      id: w._id,
-      siteId: w._id,
+      id: w.id,
+      siteId: w.site_id,
       name: w.name,
       url: w.url,
-      userId: w.userId,
-      createdAt: w.createdAt,
-      updatedAt: w.updatedAt,
-      isVerified: w.isVerified,
-      isActive: w.isActive,
-      verificationToken: w.verificationToken,
-      settings: w.settings,
-      stats: w.stats
+      userId: w.user_id,
+      createdAt: w.created_at,
+      updatedAt: w.updated_at,
+      isVerified: w.is_verified,
+      isActive: w.is_active,
+      verificationToken: w.verification_token,
+      settings: w.settings || {
+        allowedOrigins: [],
+        trackingEnabled: true,
+        dataRetentionDays: 365,
+        useIpAnonymization: false,
+        respectDoNotTrack: false,
+        allowRawDataExport: false
+      },
+      stats: w.stats || {
+        totalPageviews: 0,
+        uniqueVisitors: 0,
+        averageSessionDuration: 0,
+        bounceRate: 0
+      }
     };
   } catch (error) {
     console.error('Error fetching website by siteId:', error);
     return null;
+  }
+}
+
+// Updates an existing website.
+export async function updateWebsite(
+  websiteId: string,
+  data: Partial<Pick<Website, 'name' | 'url' | 'settings'>>,
+  userId: string
+): Promise<Website> {
+  try {
+    const response = await api.put(`/user/websites/${websiteId}`, { ...data, userId });
+    const w = response.data.data;
+
+    return {
+      id: w.id,
+      siteId: w.site_id,
+      name: w.name,
+      url: w.url,
+      userId: w.user_id,
+      createdAt: w.created_at,
+      updatedAt: w.updated_at,
+      isVerified: w.is_verified,
+      isActive: w.is_active,
+      verificationToken: w.verification_token,
+      settings: w.settings || {
+        allowedOrigins: [],
+        trackingEnabled: true,
+        dataRetentionDays: 365,
+        useIpAnonymization: false,
+        respectDoNotTrack: false,
+        allowRawDataExport: false
+      },
+      stats: w.stats || {
+        totalPageviews: 0,
+        uniqueVisitors: 0,
+        averageSessionDuration: 0,
+        bounceRate: 0
+      }
+    };
+  } catch (error) {
+    console.error('Error updating website:', error);
+    throw error;
   }
 }

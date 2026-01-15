@@ -80,26 +80,23 @@ func main() {
 
 	// Initialize repositories
 	eventRepo := repository.NewEventRepository(db, logger)
-	funnelRepo := repository.NewFunnelRepository(db)
 	analyticsRepo := repository.NewMainAnalyticsRepository(db)
 	privacyRepo := privacy.NewPrivacyRepository(db)
 
 	// Initialize services
 	eventService := services.NewEventService(eventRepo, db, logger)
-	funnelService := services.NewFunnelService(funnelRepo, logger, redisClient)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, logger)
 	privacyService := services.NewPrivacyService(privacyRepo, logger)
 
 	// Initialize handlers
 	eventHandler := handlers.NewEventHandler(eventService, logger)
-	funnelHandler := handlers.NewFunnelHandler(funnelService, logger)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService, logger)
 	privacyHandler := handlers.NewPrivacyHandler(privacyService, logger)
 	healthHandler := handlers.NewHealthHandler(db, logger)
-	adminHandler := handlers.NewAdminHandler(funnelRepo, eventRepo, logger)
+	adminHandler := handlers.NewAdminHandler(eventRepo, logger)
 
 	// Setup router
-	router := setupRouter(cfg, eventService, eventHandler, funnelHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, logger)
+	router := setupRouter(cfg, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -189,7 +186,6 @@ func setupRouter(
 	cfg *config.Config,
 	eventService *services.EventService,
 	eventHandler *handlers.EventHandler,
-	funnelHandler *handlers.FunnelHandler,
 	analyticsHandler *handlers.AnalyticsHandler,
 	privacyHandler *handlers.PrivacyHandler,
 	healthHandler *handlers.HealthHandler,
@@ -259,23 +255,8 @@ func setupRouter(
 			analytics.GET("/custom-events/:website_id", analyticsHandler.GetCustomEvents)
 			analytics.GET("/live-visitors/:website_id", analyticsHandler.GetLiveVisitors)
 			analytics.GET("/geolocation-breakdown/:website_id", analyticsHandler.GetGeolocationBreakdown)
-		}
-
-		// Public funnel routes (no auth required) - must be before parameterized routes
-		v1.GET("/funnels/active", funnelHandler.GetActiveFunnels)
-		v1.POST("/funnels/track", funnelHandler.TrackFunnelEvent)
-
-		// Funnel routes (authenticated)
-		funnels := v1.Group("/funnels")
-		{
-			funnels.POST("/", subscriptionMiddleware.CheckFunnelLimit(), funnelHandler.CreateFunnel)
-			funnels.GET("/", funnelHandler.GetFunnels)
-			funnels.GET("/:funnel_id", funnelHandler.GetFunnel)
-			funnels.PUT("/:funnel_id", funnelHandler.UpdateFunnel)
-			funnels.DELETE("/:funnel_id", funnelHandler.DeleteFunnel)
-			funnels.GET("/:funnel_id/analytics", funnelHandler.GetFunnelAnalytics)
-			funnels.GET("/:funnel_id/analytics/detailed", funnelHandler.GetDetailedFunnelAnalytics)
-			funnels.POST("/compare", funnelHandler.CompareFunnels)
+			analytics.GET("/user-retention/:website_id", analyticsHandler.GetUserRetention)
+			analytics.GET("/visitor-insights/:website_id", analyticsHandler.GetVisitorInsights)
 		}
 
 		// Privacy routes
@@ -292,9 +273,7 @@ func setupRouter(
 		// Admin routes
 		admin := v1.Group("/admin")
 		{
-			admin.GET("/funnels/stats", adminHandler.GetFunnelStats)
 			admin.GET("/analytics/stats", adminHandler.GetAnalyticsStats)
-			admin.GET("/funnels", adminHandler.GetFunnelsList)
 		}
 	}
 

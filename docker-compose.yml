@@ -6,44 +6,20 @@ services:
       - "${API_GATEWAY_PORT:-8080}:8080"
     environment:
       - API_GATEWAY_PORT=${API_GATEWAY_PORT:-8080}
-      - USER_SERVICE_URL=http://user-service:3001
+      - DATABASE_URL=postgres://seentics:seentics_gateway_pass@gateway-db:5432/seentics_gateway?sslmode=disable
       - ANALYTICS_SERVICE_URL=http://analytics-service:3002
-      - WORKFLOW_SERVICE_URL=http://workflows-service:3003
       - REDIS_URL=redis://:seentics_redis_pass@redis:6379
       - GLOBAL_API_KEY=${GLOBAL_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - CLOUD_ENABLED=${CLOUD_ENABLED:-false}
     depends_on:
       redis:
         condition: service_healthy
-      user-service:
-        condition: service_started
-    networks:
-      - seentics-network
-  user-service:
-    build: ./services/users
-    container_name: user-service
-    ports:
-      - "3001:3001"
-    env_file: .env
-    environment:
-      - PORT=3001
-      - MONGODB_URI=mongodb://seentics:seentics_mongo_pass@mongodb:27017/seentics?authSource=admin
-      - USER_JWT_SECRET=${JWT_SECRET}
-      - CLOUD_FEATURES_ENABLED=${CLOUD_FEATURES_ENABLED:-false}
-      - FRONTEND_URL=${FRONTEND_URL}
-      - CORS_ORIGIN=${FRONTEND_URL}
-      - GLOBAL_API_KEY=${GLOBAL_API_KEY}
-    depends_on:
-      mongodb:
+      gateway-db:
         condition: service_healthy
     networks:
       - seentics-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3001/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
 
   analytics-service:
     build: ./services/analytics
@@ -60,10 +36,10 @@ services:
       - REDIS_URL=redis://:seentics_redis_pass@redis:6379
       - REDIS_PASSWORD=seentics_redis_pass
       - GLOBAL_API_KEY=${GLOBAL_API_KEY}
-      - USER_SERVICE_URL=http://user-service:3001
+      - USER_SERVICE_URL=http://api-gateway:8080
       - MAXMIND_LICENSE_KEY=${MAXMIND_LICENSE_KEY}
       - MAXMIND_DB_PATH=/data/GeoLite2-City.mmdb
-      - CLOUD_FEATURES_ENABLED=${CLOUD_FEATURES_ENABLED:-false}
+      - CLOUD_ENABLED=${CLOUD_ENABLED:-false}
     volumes:
       - maxmind-data:/data
     depends_on:
@@ -75,63 +51,29 @@ services:
     networks:
       - seentics-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3002/health || exit 1"]
+      test: [ "CMD-SHELL", "curl -f http://localhost:3002/health || exit 1" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 5s
 
-  workflows-service:
-    build: ./services/workflows
-    container_name: workflows-service
-    ports:
-      - "3003:3003"
-    env_file: .env
+  gateway-db:
+    image: postgres:15-alpine
+    container_name: gateway-db
     environment:
-      - PORT=3003
-      - MONGODB_URI=mongodb://seentics:seentics_mongo_pass@mongodb:27017/seentics_workflows?authSource=admin
-      - REDIS_URL=redis://:seentics_redis_pass@redis:6379
-      - JWT_SECRET=${JWT_SECRET}
-      - API_GATEWAY_URL=http://api-gateway:8080
-      - GLOBAL_API_KEY=${GLOBAL_API_KEY}
-      - USERS_SERVICE_URL=http://user-service:3001
-      - RESEND_API_KEY=${RESEND_API_KEY}
-      - RESEND_FROM=${RESEND_FROM}
-      - CLOUD_FEATURES_ENABLED=${CLOUD_FEATURES_ENABLED:-false}
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - seentics-network
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3003/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
-
-  mongodb:
-    image: mongo:7
-    container_name: mongodb
-    ports:
-      - "27017:27017"
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=seentics
-      - MONGO_INITDB_ROOT_PASSWORD=seentics_mongo_pass
+      POSTGRES_USER: seentics
+      POSTGRES_PASSWORD: seentics_gateway_pass
+      POSTGRES_DB: seentics_gateway
     volumes:
-      - mongo-data:/data/db
+      - gateway-db-data:/var/lib/postgresql/data
     networks:
       - seentics-network
     restart: unless-stopped
-    command: mongod --auth --wiredTigerCacheSizeGB 1 --maxConns 100
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --username seentics --password seentics_mongo_pass --eval 'db.adminCommand(\"ping\")'"]
-      interval: 10s
+      test: [ "CMD-SHELL", "pg_isready -U seentics -d seentics_gateway -h localhost -p 5432" ]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 20
       start_period: 10s
 
   postgres:
@@ -149,7 +91,7 @@ services:
       - seentics-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U seentics -d seentics_analytics -h localhost -p 5432"]
+      test: [ "CMD-SHELL", "pg_isready -U seentics -d seentics_analytics -h localhost -p 5432" ]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -167,17 +109,18 @@ services:
       - seentics-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "seentics_redis_pass", "ping"]
+      test: [ "CMD", "redis-cli", "-a", "seentics_redis_pass", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 5s
 
 volumes:
-  mongo-data:
+  gateway-db-data:
   postgres-data:
   redis-data:
   maxmind-data:
+
 
 networks:
   seentics-network:

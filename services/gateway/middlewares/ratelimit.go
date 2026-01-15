@@ -19,10 +19,10 @@ var rateLimits = map[string]struct {
 	burstLimit  int
 	burstWindow time.Duration
 }{
-	"public":      {1000, time.Hour, 100, time.Minute},    // 1000/hour, max 100/minute burst
-	"protected":   {5000, time.Hour, 200, time.Minute},    // 5000/hour, max 200/minute burst  
-	"unprotected": {100, time.Hour, 20, time.Minute},      // 100/hour, max 20/minute burst
-	"auth":        {50, time.Hour, 10, time.Minute},       // 50/hour, max 10/minute burst (stricter for auth)
+	"public":      {1000, time.Hour, 100, time.Minute}, // 1000/hour, max 100/minute burst
+	"protected":   {5000, time.Hour, 200, time.Minute}, // 5000/hour, max 200/minute burst
+	"unprotected": {100, time.Hour, 20, time.Minute},   // 100/hour, max 20/minute burst
+	"auth":        {50, time.Hour, 10, time.Minute},    // 50/hour, max 10/minute burst (stricter for auth)
 }
 
 // Rate limiter middleware
@@ -54,9 +54,9 @@ func RateLimiterMiddleware(next http.Handler) http.Handler {
 
 		// Check rate limit with burst protection
 		allowed, count, err := utils.CheckRateLimitWithBurst(
-			cache.GetRedisClient(), 
-			key, 
-			config.requests, 
+			cache.GetRedisClient(),
+			key,
+			config.requests,
 			config.window,
 			config.burstLimit,
 			config.burstWindow,

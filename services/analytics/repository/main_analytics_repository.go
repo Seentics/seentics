@@ -11,35 +11,41 @@ import (
 
 // MainAnalyticsRepository combines all specialized analytics repositories
 type MainAnalyticsRepository struct {
-	dashboard      *DashboardAnalytics
-	topPages       *TopPagesAnalytics
-	topReferrers   *TopReferrersAnalytics
-	topSources     *TopSourcesAnalytics
-	topCountries   *TopCountriesAnalytics
-	topBrowsers    *TopBrowsersAnalytics
-	topDevices     *TopDevicesAnalytics
-	topOS          *TopOSAnalytics
-	geolocation    *TopGeolocationAnalytics
-	trafficSummary *TrafficSummaryAnalytics
-	timeSeries     *TimeSeriesAnalytics
-	customEvents   *CustomEventsAnalytics
+	dashboard       *DashboardAnalytics
+	topPages        *TopPagesAnalytics
+	topReferrers    *TopReferrersAnalytics
+	topSources      *TopSourcesAnalytics
+	topCountries    *TopCountriesAnalytics
+	topBrowsers     *TopBrowsersAnalytics
+	topDevices      *TopDevicesAnalytics
+	topOS           *TopOSAnalytics
+	geolocation     *TopGeolocationAnalytics
+	trafficSummary  *TrafficSummaryAnalytics
+	timeSeries      *TimeSeriesAnalytics
+	customEvents    *CustomEventsAnalytics
+	retention       *RetentionAnalytics
+	visitorInsights *VisitorInsightsAnalytics
+	activityTrends  *ActivityTrendsAnalytics
 }
 
 // NewMainAnalyticsRepository creates a new main analytics repository
 func NewMainAnalyticsRepository(db *pgxpool.Pool) *MainAnalyticsRepository {
 	return &MainAnalyticsRepository{
-		dashboard:      NewDashboardAnalytics(db),
-		topPages:       NewTopPagesAnalytics(db),
-		topReferrers:   NewTopReferrersAnalytics(db),
-		topSources:     NewTopSourcesAnalytics(db),
-		topCountries:   NewTopCountriesAnalytics(db),
-		topBrowsers:    NewTopBrowsersAnalytics(db),
-		topDevices:     NewTopDevicesAnalytics(db),
-		topOS:          NewTopOSAnalytics(db),
-		geolocation:    NewTopGeolocationAnalytics(db),
-		trafficSummary: NewTrafficSummaryAnalytics(db),
-		timeSeries:     NewTimeSeriesAnalytics(db),
-		customEvents:   NewCustomEventsAnalytics(db),
+		dashboard:       NewDashboardAnalytics(db),
+		topPages:        NewTopPagesAnalytics(db),
+		topReferrers:    NewTopReferrersAnalytics(db),
+		topSources:      NewTopSourcesAnalytics(db),
+		topCountries:    NewTopCountriesAnalytics(db),
+		topBrowsers:     NewTopBrowsersAnalytics(db),
+		topDevices:      NewTopDevicesAnalytics(db),
+		topOS:           NewTopOSAnalytics(db),
+		geolocation:     NewTopGeolocationAnalytics(db),
+		trafficSummary:  NewTrafficSummaryAnalytics(db),
+		timeSeries:      NewTimeSeriesAnalytics(db),
+		customEvents:    NewCustomEventsAnalytics(db),
+		retention:       NewRetentionAnalytics(db),
+		visitorInsights: NewVisitorInsightsAnalytics(db),
+		activityTrends:  NewActivityTrendsAnalytics(db),
 	}
 }
 
@@ -150,4 +156,19 @@ func (r *MainAnalyticsRepository) GetTopRegions(ctx context.Context, websiteID s
 
 func (r *MainAnalyticsRepository) GetGeolocationBreakdown(ctx context.Context, websiteID string, startDate, endDate time.Time) (*models.GeolocationBreakdown, error) {
 	return r.geolocation.GetGeolocationBreakdown(ctx, websiteID, startDate, endDate)
+}
+
+// User Retention Analytics Methods
+func (r *MainAnalyticsRepository) GetUserRetention(ctx context.Context, websiteID string) (*models.RetentionData, error) {
+	return r.retention.GetUserRetention(ctx, websiteID)
+}
+
+// Visitor Insights Analytics Methods
+func (r *MainAnalyticsRepository) GetVisitorInsights(ctx context.Context, websiteID string, days int) (*models.VisitorInsights, error) {
+	return r.visitorInsights.GetVisitorInsights(ctx, websiteID, days)
+}
+
+// Activity Trends Analytics Methods
+func (r *MainAnalyticsRepository) GetActivityTrends(ctx context.Context, websiteID string) (*models.ActivityTrendsResponse, error) {
+	return r.activityTrends.GetActivityTrends(ctx, websiteID)
 }

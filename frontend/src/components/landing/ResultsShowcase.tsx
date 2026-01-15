@@ -17,8 +17,8 @@ const results = [
   {
     icon: DollarSign,
     metric: "15-25%",
-    label: "Cart recovery rate",
-    description: "Automatically recover 15-25% of abandoned carts with smart workflows",
+    label: "Growth through insights",
+    description: "Identify and fix drop-off points with real-time visitor behavior analytics",
     color: "from-slate-500 to-slate-600",
     bgColor: "from-slate-50 to-slate-100",
     darkBgColor: "from-slate-950/20 to-slate-900/10"
@@ -26,8 +26,8 @@ const results = [
   {
     icon: Users,
     metric: "8-12%",
-    label: "Revenue increase",
-    description: "Typical revenue boost from automated customer engagement",
+    label: "User retention",
+    description: "Improve retention by understanding user flows and engagement patterns",
     color: "from-purple-500 to-violet-600",
     bgColor: "from-purple-50 to-violet-50",
     darkBgColor: "from-purple-950/20 to-violet-950/10"
@@ -36,7 +36,7 @@ const results = [
     icon: Clock,
     metric: "2 min",
     label: "Setup time",
-    description: "Get your first workflow running in under 2 minutes",
+    description: "Install our lightweight tracker and see live data in under 2 minutes",
     color: "from-orange-500 to-red-600",
     bgColor: "from-orange-50 to-red-50",
     darkBgColor: "from-orange-950/20 to-red-950/10"
@@ -54,7 +54,7 @@ const results = [
     icon: BarChart3,
     metric: "Real-time",
     label: "Analytics & insights",
-    description: "See the impact of your automations in real-time",
+    description: "See the impact of every change in real-time with live reporting",
     color: "from-pink-500 to-rose-600",
     bgColor: "from-pink-50 to-rose-50",
     darkBgColor: "from-pink-950/20 to-rose-950/10"
@@ -72,16 +72,16 @@ const testimonials = [
     highlight: "40% revenue increase"
   },
   {
-    quote: "The workflow automation alone paid for itself in the first month. We recovered $75K in lost sales.",
+    quote: "The behavioral insights helped us optimize our landing page in days. We saved thousands in lost traffic.",
     author: "Sarah Rodriguez",
     role: "E-commerce Director",
     company: "ShopSmart",
     avatar: "SR",
     rating: 5,
-    highlight: "$75K recovered"
+    highlight: "Simplified tracking"
   },
   {
-    quote: "Finally, a tool that combines analytics and automated workflows. Game-changing for conversion optimization.",
+    quote: "Finally, an analytics tool that is actually easy to use. Game-changing for conversion optimization.",
     author: "Michael Thompson",
     role: "Marketing Lead",
     company: "StartupXYZ",

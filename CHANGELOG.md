@@ -18,6 +18,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed sensitive environment file references
 - Added environment setup documentation
 
+## [1.0.0] - 2026-01-15
+
+### Added
+- **Consolidated Architecture**
+  - Unified API Gateway with internal User and Website management
+  - High-performance Analytics Service focus purely on event tracking
+  - PostgreSQL-backed user and website storage in the Gateway
+  - Core analytics features: page views, sessions, custom events
+  - Modern, premium dashboard UI and brand identity
+  - Lemon Squeezy integration for cloud-enabled billing
+
+### Removed
+- **Funnel Features**: Removed all funnel-related code and UI to focus on core metrics
+- **Visual Workflow Builder**: Removed workflow service and UI
+- **Legacy Microservices**: Removed separate `user-service` and `workflows-service`
+- **MongoDB Dependency**: Migrated all relational data to PostgreSQL
+
 ## [0.1.0] - 2024-12-19
 
 ### Added

@@ -63,7 +63,6 @@ func getCORSOrigins() []string {
 		// Clean up your defaults - remove duplicates and trailing slashes
 		return []string{
 			"http://localhost:3000",
-			"http://localhost:3001",
 			"http://localhost:8080",
 			"https://seentics.com",
 			"https://www.seentics.com",
@@ -111,13 +110,6 @@ func isPublicTrackingRoute(path string) bool {
 		"/api/v1/analytics/event",
 		"/api/v1/analytics/event/batch",
 		"/api/v1/analytics/track",
-		"/api/v1/workflows/analytics/track",
-		"/api/v1/workflows/analytics/track/batch",
-		"/api/v1/workflows/site/",
-		"/api/v1/workflows/active",           // Active workflows for tracker (public)
-		"/api/v1/workflows/execution/action", // Workflow execution (public with validation)
-		"/api/v1/funnels/track",              // Funnel event tracking (public)
-		"/api/v1/funnels/active",             // Active funnels for tracker (public)
 	}
 
 	for _, prefix := range publicTrackingPrefixes {

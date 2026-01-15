@@ -1,9 +1,14 @@
 package middlewares
 
 import (
+	"context"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/seentics/seentics/services/gateway/cache"
+	"github.com/seentics/seentics/services/gateway/database"
+	"github.com/seentics/seentics/services/gateway/models"
 	"github.com/seentics/seentics/services/gateway/utils"
 )
 
@@ -24,11 +29,38 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			}
 
 		case "protected":
-			// Validate JWT token and website ownership for dashboard
-			if err := utils.ValidateProtectedRequest(w, r, cache.ValidateJWTToken, UserContextKey); err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
+			// Validate JWT token
+			authHeader := r.Header.Get("Authorization")
+			if authHeader == "" {
+				http.Error(w, "Authorization header required", http.StatusUnauthorized)
 				return
 			}
+			token := strings.TrimPrefix(authHeader, "Bearer ")
+
+			// Validate token and get claims
+			claims, err := cache.ValidateJWTToken(token)
+			if err != nil {
+				http.Error(w, "Invalid token", http.StatusUnauthorized)
+				return
+			}
+
+			// Fetch full user from DB for roles/permissions
+			var user models.User
+			userID := uint(claims["user_id"].(float64))
+			if err := database.DB.First(&user, userID).Error; err != nil {
+				http.Error(w, "User not found", http.StatusUnauthorized)
+				return
+			}
+
+			// Propagate user info to downstream services via headers
+			r.Header.Set("X-User-ID", strconv.FormatUint(uint64(user.ID), 10))
+			r.Header.Set("X-User-Email", user.Email)
+			r.Header.Set("X-User-Plan", user.Plan)
+			r.Header.Set("X-User-Role", user.Role)
+
+			// Add full user object to context for internal handlers
+			ctx := context.WithValue(r.Context(), UserContextKey, &user)
+			*r = *r.WithContext(ctx)
 		}
 
 		next.ServeHTTP(w, r)

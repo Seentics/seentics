@@ -26,7 +26,7 @@ import { LimitReachedTopBar } from '@/components/subscription';
 
 export const metadata: Metadata = {
   title: 'Seentics',
-  description: 'Build smart website workflows that automatically respond to user behavior - no coding required.',
+  description: 'Privacy-focused real-time website analytics. Understand your traffic without compromise.',
 };
 
 export default function RootLayout({

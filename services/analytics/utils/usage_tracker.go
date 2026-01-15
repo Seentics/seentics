@@ -26,34 +26,34 @@ type UserUsageCache struct {
 
 // UsageTracker manages in-memory usage tracking with periodic database flushes
 type UsageTracker struct {
-	cache           map[string]*UserUsageCache
-	cacheMutex      sync.RWMutex
-	logger          zerolog.Logger
-	userServiceURL  string
-	globalAPIKey    string
-	flushInterval   time.Duration
-	ctx             context.Context
-	cancel          context.CancelFunc
-	wg              sync.WaitGroup
+	cache          map[string]*UserUsageCache
+	cacheMutex     sync.RWMutex
+	logger         zerolog.Logger
+	userServiceURL string
+	globalAPIKey   string
+	flushInterval  time.Duration
+	ctx            context.Context
+	cancel         context.CancelFunc
+	wg             sync.WaitGroup
 }
 
 // NewUsageTracker creates a new usage tracker with in-memory caching
 func NewUsageTracker(logger zerolog.Logger) *UsageTracker {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	tracker := &UsageTracker{
 		cache:          make(map[string]*UserUsageCache),
 		logger:         logger,
-		userServiceURL: getEnvOrDefault("USER_SERVICE_URL", "http://user-service:3001"),
+		userServiceURL: getEnvOrDefault("USER_SERVICE_URL", "http://api-gateway:8080"),
 		globalAPIKey:   getEnvOrDefault("GLOBAL_API_KEY", ""),
-		flushInterval:  10 * time.Minute, // Flush every 10 minutes as requested
+		flushInterval:  10 * time.Minute,
 		ctx:            ctx,
 		cancel:         cancel,
 	}
 
 	// Start background flush routine
 	tracker.startFlushRoutine()
-	
+
 	return tracker
 }
 
@@ -67,32 +67,30 @@ func getEnvOrDefault(key, defaultValue string) string {
 // CheckEventLimit checks if user can track events (in-memory check)
 func (ut *UsageTracker) CheckEventLimit(userID string, eventCount int) (bool, error) {
 	if userID == "" {
-		return true, nil // Allow anonymous tracking
+		return true, nil
 	}
 
 	ut.cacheMutex.RLock()
 	userCache, exists := ut.cache[userID]
 	ut.cacheMutex.RUnlock()
 
-	// If not in cache, fetch from database
 	if !exists || time.Since(userCache.LastUpdated) > 30*time.Minute {
 		if err := ut.refreshUserCache(userID); err != nil {
 			ut.logger.Error().Err(err).Str("user_id", userID).Msg("Failed to refresh user cache")
-			return true, nil // Fail open on error
+			return true, nil
 		}
-		
+
 		ut.cacheMutex.RLock()
 		userCache = ut.cache[userID]
 		ut.cacheMutex.RUnlock()
 	}
 
 	if userCache == nil {
-		return true, nil // Fail open if still no cache
+		return true, nil
 	}
 
-	// Check if adding events would exceed limit
 	totalUsage := userCache.CurrentUsage + userCache.PendingEvents + eventCount
-	if totalUsage > userCache.MonthlyLimit {
+	if totalUsage > userCache.MonthlyLimit && userCache.MonthlyLimit > 0 {
 		return false, nil
 	}
 
@@ -102,7 +100,7 @@ func (ut *UsageTracker) CheckEventLimit(userID string, eventCount int) (bool, er
 // TrackEvents increments the pending event count in memory
 func (ut *UsageTracker) TrackEvents(userID string, eventCount int) error {
 	if userID == "" {
-		return nil // Skip anonymous events
+		return nil
 	}
 
 	ut.cacheMutex.Lock()
@@ -110,10 +108,8 @@ func (ut *UsageTracker) TrackEvents(userID string, eventCount int) error {
 
 	userCache, exists := ut.cache[userID]
 	if !exists {
-		// If user not in cache, try to refresh first
 		ut.cacheMutex.Unlock()
 		if err := ut.refreshUserCache(userID); err != nil {
-			ut.logger.Error().Err(err).Str("user_id", userID).Msg("Failed to refresh user cache for tracking")
 			return err
 		}
 		ut.cacheMutex.Lock()
@@ -122,11 +118,6 @@ func (ut *UsageTracker) TrackEvents(userID string, eventCount int) error {
 
 	if userCache != nil {
 		userCache.PendingEvents += eventCount
-		ut.logger.Debug().
-			Str("user_id", userID).
-			Int("event_count", eventCount).
-			Int("pending_events", userCache.PendingEvents).
-			Msg("Tracked events in memory")
 	}
 
 	return nil
@@ -140,14 +131,14 @@ func (ut *UsageTracker) refreshUserCache(userID string) error {
 
 	client := &http.Client{Timeout: 5 * time.Second}
 	url := fmt.Sprintf("%s/api/v1/user/billing/usage", ut.userServiceURL)
-	
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
 
 	req.Header.Set("X-API-Key", ut.globalAPIKey)
-	req.Header.Set("x-user-id", userID)
+	req.Header.Set("X-User-ID", userID)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -188,18 +179,11 @@ func (ut *UsageTracker) refreshUserCache(userID string) error {
 		Plan:          usageResp.Data.Plan,
 		MonthlyLimit:  usageResp.Data.Usage.MonthlyEvents.Limit,
 		CurrentUsage:  usageResp.Data.Usage.MonthlyEvents.Current,
-		PendingEvents: 0, // Reset pending events when refreshing from DB
+		PendingEvents: 0,
 		LastUpdated:   time.Now(),
 		CanTrack:      usageResp.Data.Usage.MonthlyEvents.CanTrack,
 	}
 	ut.cacheMutex.Unlock()
-
-	ut.logger.Debug().
-		Str("user_id", userID).
-		Str("plan", usageResp.Data.Plan).
-		Int("current_usage", usageResp.Data.Usage.MonthlyEvents.Current).
-		Int("limit", usageResp.Data.Usage.MonthlyEvents.Limit).
-		Msg("Refreshed user usage cache")
 
 	return nil
 }
@@ -209,14 +193,13 @@ func (ut *UsageTracker) startFlushRoutine() {
 	ut.wg.Add(1)
 	go func() {
 		defer ut.wg.Done()
-		
+
 		ticker := time.NewTicker(ut.flushInterval)
 		defer ticker.Stop()
 
 		for {
 			select {
 			case <-ut.ctx.Done():
-				// Final flush before shutdown
 				ut.flushPendingEvents()
 				return
 			case <-ticker.C:
@@ -226,93 +209,38 @@ func (ut *UsageTracker) startFlushRoutine() {
 	}()
 }
 
-// flushPendingEvents sends all pending events to the user service
+// flushPendingEvents sends all pending events
 func (ut *UsageTracker) flushPendingEvents() {
 	ut.cacheMutex.Lock()
-	
-	// Collect all users with pending events
 	usersToFlush := make(map[string]int)
 	for userID, userCache := range ut.cache {
 		if userCache.PendingEvents > 0 {
 			usersToFlush[userID] = userCache.PendingEvents
-			// Move pending to current and reset pending
 			userCache.CurrentUsage += userCache.PendingEvents
 			userCache.PendingEvents = 0
 		}
 	}
-	
 	ut.cacheMutex.Unlock()
 
 	if len(usersToFlush) == 0 {
 		return
 	}
 
-	ut.logger.Info().Int("users_count", len(usersToFlush)).Msg("Flushing pending events to database")
-
-	// Flush each user's events
 	for userID, eventCount := range usersToFlush {
 		if err := ut.flushUserEvents(userID, eventCount); err != nil {
-			ut.logger.Error().
-				Err(err).
-				Str("user_id", userID).
-				Int("event_count", eventCount).
-				Msg("Failed to flush user events")
-			
-			// Rollback the cache update on failure
 			ut.cacheMutex.Lock()
 			if userCache, exists := ut.cache[userID]; exists {
 				userCache.CurrentUsage -= eventCount
 				userCache.PendingEvents += eventCount
 			}
 			ut.cacheMutex.Unlock()
-		} else {
-			ut.logger.Debug().
-				Str("user_id", userID).
-				Int("event_count", eventCount).
-				Msg("Successfully flushed user events")
 		}
 	}
 }
 
-// flushUserEvents sends a single user's pending events to the user service
+// flushUserEvents sends a single user's pending events
 func (ut *UsageTracker) flushUserEvents(userID string, eventCount int) error {
-	if ut.userServiceURL == "" || ut.globalAPIKey == "" {
-		return fmt.Errorf("user service not configured")
-	}
-
-	incrementData := map[string]interface{}{
-		"type":  "monthlyEvents",
-		"count": eventCount,
-	}
-
-	jsonData, err := json.Marshal(incrementData)
-	if err != nil {
-		return fmt.Errorf("failed to marshal increment data: %w", err)
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	url := fmt.Sprintf("%s/api/v1/user/billing/usage/increment", ut.userServiceURL)
-	
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return fmt.Errorf("failed to create increment request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-API-Key", ut.globalAPIKey)
-	req.Header.Set("x-user-id", userID)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to increment usage: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("increment usage returned status %d", resp.StatusCode)
-	}
-
-	return nil
+	return ut.IncrementUsage(userID, "monthlyEvents", eventCount)
 }
 
 // GetCacheStats returns statistics about the usage cache
@@ -333,14 +261,10 @@ func (ut *UsageTracker) GetCacheStats() map[string]interface{} {
 	}
 }
 
-// IncrementUsage increments usage count for a specific resource type
+// IncrementUsage increments usage count
 func (ut *UsageTracker) IncrementUsage(userID, resourceType string, count int) error {
-	if userID == "" {
-		return fmt.Errorf("user ID is required")
-	}
-
-	if ut.userServiceURL == "" || ut.globalAPIKey == "" {
-		return fmt.Errorf("user service not configured")
+	if userID == "" || ut.userServiceURL == "" || ut.globalAPIKey == "" {
+		return nil
 	}
 
 	incrementData := map[string]interface{}{
@@ -350,48 +274,38 @@ func (ut *UsageTracker) IncrementUsage(userID, resourceType string, count int) e
 
 	jsonData, err := json.Marshal(incrementData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal increment data: %w", err)
+		return err
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	url := fmt.Sprintf("%s/api/v1/user/billing/usage/increment", ut.userServiceURL)
-	
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to create increment request: %w", err)
+		return err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-API-Key", ut.globalAPIKey)
-	req.Header.Set("x-user-id", userID)
+	req.Header.Set("X-User-ID", userID)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to increment usage: %w", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("increment usage returned status %d", resp.StatusCode)
+		return fmt.Errorf("increment usage failed with status: %d", resp.StatusCode)
 	}
-
-	ut.logger.Debug().
-		Str("user_id", userID).
-		Str("resource_type", resourceType).
-		Int("count", count).
-		Msg("Successfully incremented usage")
 
 	return nil
 }
 
-// DecrementUsage decrements usage count for a specific resource type
+// DecrementUsage decrements usage count
 func (ut *UsageTracker) DecrementUsage(userID, resourceType string, count int) error {
-	if userID == "" {
-		return fmt.Errorf("user ID is required")
-	}
-
-	if ut.userServiceURL == "" || ut.globalAPIKey == "" {
-		return fmt.Errorf("user service not configured")
+	if userID == "" || ut.userServiceURL == "" || ut.globalAPIKey == "" {
+		return nil
 	}
 
 	decrementData := map[string]interface{}{
@@ -401,44 +315,32 @@ func (ut *UsageTracker) DecrementUsage(userID, resourceType string, count int) e
 
 	jsonData, err := json.Marshal(decrementData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal decrement data: %w", err)
+		return err
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	url := fmt.Sprintf("%s/api/v1/user/billing/usage/decrement", ut.userServiceURL)
-	
+
 	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to create decrement request: %w", err)
+		return err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-API-Key", ut.globalAPIKey)
-	req.Header.Set("x-user-id", userID)
+	req.Header.Set("X-User-ID", userID)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to decrement usage: %w", err)
+		return err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("decrement usage returned status %d", resp.StatusCode)
-	}
-
-	ut.logger.Debug().
-		Str("user_id", userID).
-		Str("resource_type", resourceType).
-		Int("count", count).
-		Msg("Successfully decremented usage")
 
 	return nil
 }
 
 // Shutdown gracefully shuts down the usage tracker
 func (ut *UsageTracker) Shutdown() {
-	ut.logger.Info().Msg("Shutting down usage tracker")
 	ut.cancel()
 	ut.wg.Wait()
-	ut.logger.Info().Msg("Usage tracker shutdown complete")
 }

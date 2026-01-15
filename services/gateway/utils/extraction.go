@@ -151,7 +151,7 @@ func ExtractWebsiteIDFromPath(path string) string {
 	// Check if last part looks like a websiteId (basic validation)
 	// Website IDs should be MongoDB ObjectIds (24 hex characters) or similar
 	// Avoid extracting common path segments like 'triggers', 'events', 'analytics', etc.
-	commonPathSegments := []string{"triggers", "events", "analytics", "dashboard", "workflows", "funnels", "sessions", "users", "websites"}
+	commonPathSegments := []string{"triggers", "events", "analytics", "dashboard", "workflows", "sessions", "users", "websites"}
 
 	for _, segment := range commonPathSegments {
 		if lastPart == segment {

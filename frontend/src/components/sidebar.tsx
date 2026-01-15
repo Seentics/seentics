@@ -51,16 +51,6 @@ export default function Sidebar() {
         href: 'analytics',
         icon: BarChart3,
       },
-      {
-        name: 'Workflows',
-        href: 'workflows',
-        icon: Workflow,
-      },
-      {
-        name: 'Funnels',
-        href: 'funnels',
-        icon: Target,
-      },
     ];
 
     // Add cloud-only features if enabled

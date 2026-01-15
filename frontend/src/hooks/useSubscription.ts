@@ -20,7 +20,7 @@ export interface SubscriptionUsage {
 
 export interface SubscriptionData {
   id: string;
-  plan: 'free' | 'standard' | 'pro';
+  plan: 'free' | 'standard' | 'pro' | 'enterprise';
   status: string;
   usage: SubscriptionUsage;
   features: string[];
@@ -80,7 +80,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
 
       // Cloud mode - fetch from API
       const response = await api.get('/user/billing/usage');
-      
+
       if (response.data.success) {
         setSubscription({
           id: user.id,
@@ -95,7 +95,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
       }
     } catch (err: any) {
       console.error('Error fetching subscription:', err);
-      
+
       // In open source mode, fallback to unlimited on API error
       if (isOpenSource()) {
         setSubscription({
@@ -127,7 +127,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const canCreateWebsite = subscription?.usage?.websites?.canCreate ?? false;
   const canCreateWorkflow = subscription?.usage?.workflows?.canCreate ?? false;
   const canCreateFunnel = subscription?.usage?.funnels?.canCreate ?? false;
-  
+
   const canTrackEvents = useCallback((count: number = 1): boolean => {
     if (!subscription?.usage?.monthlyEvents) return false;
     const { current, limit } = subscription.usage.monthlyEvents;

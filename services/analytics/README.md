@@ -1,11 +1,10 @@
 # Analytics Service
 
-A high-performance analytics microservice built with Go, designed to handle real-time website analytics, funnel tracking, and user behavior analysis using PostgreSQL.
+A high-performance analytics microservice built with Go, designed to handle real-time website analytics and user behavior analysis using PostgreSQL.
 
 ## Features
 
 - **Real-time Analytics**: Track page views, user sessions, and custom events
-- **Funnel Tracking**: Monitor user journey through conversion funnels
 - **Performance Optimized**: Uses PostgreSQL with native partitioning for time-series data optimization
 - **Scalable Architecture**: Built with Go for high performance and low resource usage
 - **RESTful API**: Clean HTTP API for easy integration
@@ -144,17 +143,6 @@ go build -o analytics-app .
 - `GET /api/v1/analytics/daily-stats/:website_id` - Get daily statistics
 - `GET /api/v1/analytics/hourly-stats/:website_id` - Get hourly statistics
 - `GET /api/v1/analytics/custom-events/:website_id` - Get custom events
-
-### Funnels
-- `POST /api/v1/funnels/` - Create funnel
-- `GET /api/v1/funnels/` - Get all funnels
-- `GET /api/v1/funnels/:funnel_id` - Get specific funnel
-- `PUT /api/v1/funnels/:funnel_id` - Update funnel
-- `DELETE /api/v1/funnels/:funnel_id` - Delete funnel
-- `POST /api/v1/funnels/track` - Track funnel event
-- `GET /api/v1/funnels/:funnel_id/analytics` - Get basic funnel analytics
-- `GET /api/v1/funnels/:funnel_id/analytics/detailed` - Get detailed step-by-step analytics
-- `POST /api/v1/funnels/compare` - Compare multiple funnels
 
 ## Configuration
 

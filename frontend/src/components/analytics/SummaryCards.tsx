@@ -101,7 +101,7 @@ const SummaryCard = ({
           <div className="text-xs text-muted-foreground font-medium truncate">{subtitle}</div>
         )}
         {format === 'duration' && !subtitle && (
-          <div className="text-xs text-muted-foreground font-medium truncate">Average time per session</div>
+          <div className="text-xs text-muted-foreground font-medium truncate">&nbsp;</div>
         )}
       </div>
     </div>
@@ -158,7 +158,7 @@ export function SummaryCards({ data }: SummaryCardsProps) {
     {
       title: 'Bounce Rate',
       value: data.bounce_rate || 0,
-      previousValue: undefined, // Don't use bounce_change to avoid calculation errors
+      previousValue: data.comparison?.bounce_change,
       icon: TrendingDown,
       format: 'percentage' as const,
       inverse: true,

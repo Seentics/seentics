@@ -1,11 +1,10 @@
 # Seentics Frontend
 
-The frontend application for [Seentics](https://github.com/seentics/seentics) - an intelligent website automation platform built with Next.js, React, and TypeScript.
+The frontend application for [Seentics](https://github.com/seentics/seentics) - an open-source real-time analytics platform built with Next.js, React, and TypeScript.
 
 ## 🚀 Features
 
-- **🎯 Visual Workflow Builder**: Drag-and-drop interface for creating automation workflows
-- **📊 Real-time Analytics Dashboard**: Live insights into user behavior and workflow performance
+- **📊 Real-time Analytics Dashboard**: Live insights into user behavior, sessions, and events
 - **🎨 Modern UI/UX**: Built with Tailwind CSS and ShadCN UI components
 - **📱 Responsive Design**: Mobile-first approach with excellent cross-device support
 - **🌙 Theme Support**: Dark/light mode with system preference detection
@@ -20,8 +19,7 @@ The frontend application for [Seentics](https://github.com/seentics/seentics) - 
 - **State Management**: [Zustand](https://zustand-demo.pmnd.rs/) for global state
 - **Data Fetching**: [TanStack Query](https://tanstack.com/query) for server state
 - **Forms**: [React Hook Form](https://react-hook-form.com/) with Zod validation
-- **Charts**: [Recharts](https://recharts.org/) for data visualization
-- **Workflows**: [React Flow](https://reactflow.dev/) for visual workflow builder
+- **Data Visualization**: [Recharts](https://recharts.org/) for beautiful, responsive charts
 
 ## 📦 Installation
 
@@ -79,13 +77,10 @@ frontend/
 │   ├── app/                    # Next.js App Router pages
 │   │   ├── (auth)/            # Authentication routes
 │   │   ├── admin/              # Admin panel
-│   │   ├── demo/               # Demo/landing pages
 │   │   ├── websites/           # Website management
-│   │   └── workflows/          # Workflow management
 │   ├── components/             # Reusable React components
 │   │   ├── ui/                 # Base UI components (ShadCN)
 │   │   ├── analytics/          # Analytics-specific components
-│   │   ├── workflows/          # Workflow-specific components
 │   │   └── landing/            # Landing page components
 │   ├── hooks/                  # Custom React hooks
 │   ├── lib/                    # Utility functions and API clients
@@ -106,7 +101,6 @@ frontend/
 
 ### Feature Components
 - **Analytics**: Charts, metrics, and data visualization
-- **Workflows**: Flow builder, node palette, and execution panel
 - **Authentication**: Login forms, OAuth providers, and user management
 - **Settings**: Configuration panels and preference management
 
@@ -114,17 +108,15 @@ frontend/
 
 The frontend communicates with backend services through:
 
-- **Users Service**: Authentication, user management, subscriptions
 - **Analytics Service**: Event tracking and analytics data
-- **Workflows Service**: Workflow CRUD and execution
-- **API Gateway**: Unified endpoint for all services
+- **API Gateway**: Unified endpoint for user management, websites, and analytics
 
 ### API Client Setup
 ```typescript
 // Example API call
 import { api } from '@/lib/api'
 
-const workflows = await api.get('/workflows')
+const stats = await api.get('/analytics/dashboard/123')
 ```
 
 ## 🧪 Development

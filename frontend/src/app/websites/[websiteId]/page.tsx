@@ -36,12 +36,14 @@ import {
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { format } from 'date-fns';
-import { CalendarIcon, Download, Globe } from 'lucide-react';
+import { getDemoData, getDemoWebsite } from '@/lib/demo-data';
+import { CalendarIcon, Download, Globe, PlusCircle } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
 import { EventsDetails } from '@/components/analytics/EventsDetails';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
+import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 
 export default function WebsiteDashboardPage() {
   const params = useParams();
@@ -53,6 +55,7 @@ export default function WebsiteDashboardPage() {
   const [websites, setWebsites] = useState<Website[]>([]);
   const [selectedModal, setSelectedModal] = useState<string | null>(null);
   const [modalType, setModalType] = useState<string>('');
+  const [showAddWebsiteModal, setShowAddWebsiteModal] = useState(false);
 
 
   // Filter state
@@ -62,20 +65,35 @@ export default function WebsiteDashboardPage() {
   const [isCustomRange, setIsCustomRange] = useState<boolean>(false);
   const [utmTab, setUtmTab] = useState<'sources' | 'mediums' | 'campaigns' | 'terms' | 'content'>('sources');
 
+  // Check if we're in demo mode
+  const isDemoMode = websiteId === 'demo';
+
   // Fetch websites for switcher
   useEffect(() => {
     const loadWebsites = async () => {
       if (user) {
         try {
           const data = await getWebsites();
-          setWebsites(data);
+          // Add demo website to the list if in demo mode
+          if (isDemoMode) {
+            setWebsites([getDemoWebsite(), ...data]);
+          } else {
+            setWebsites(data);
+          }
         } catch (error) {
           console.error('Failed to load websites', error);
+          // If in demo mode and API fails, still show demo website
+          if (isDemoMode) {
+            setWebsites([getDemoWebsite()]);
+          }
         }
+      } else if (isDemoMode) {
+        // Allow demo mode even without authentication
+        setWebsites([getDemoWebsite()]);
       }
     };
     loadWebsites();
-  }, [user]);
+  }, [user, isDemoMode]);
 
   const currentWebsite = websites.find(w => w.id === websiteId);
 
@@ -118,9 +136,11 @@ export default function WebsiteDashboardPage() {
   };
 
 
-  // Data hooks with dynamic date range - using real API data
-  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange);
+  // Data hooks with dynamic date range - using real API data OR demo data
+  // In demo mode, we skip API calls and use static demo data
+  const demoData = isDemoMode ? getDemoData() : null;
 
+  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange);
   const { data: topPages, isLoading: pagesLoading, error: pagesError } = useTopPages(websiteId, dateRange);
   const { data: topReferrers, isLoading: referrersLoading, error: referrersError } = useTopReferrers(websiteId, dateRange);
   const { data: topCountries, isLoading: countriesLoading, error: countriesError } = useTopCountries(websiteId, dateRange);
@@ -130,8 +150,8 @@ export default function WebsiteDashboardPage() {
   const { data: dailyStats, isLoading: dailyLoading, error: dailyError } = useDailyStats(websiteId, dateRange);
   
   // Note: trafficSummaryChart removed - use dailyStats for chart data instead
-  const trafficSummaryChart = dailyStats; // Use daily stats for chart visualization
-  const trafficChartLoading = dailyLoading;
+  const trafficSummaryChart = isDemoMode ? demoData?.dailyStats : dailyStats;
+  const trafficChartLoading = isDemoMode ? false : dailyLoading;
 
   const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(websiteId, dateRange);
   const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, dateRange);
@@ -142,9 +162,24 @@ export default function WebsiteDashboardPage() {
   // Fetch activity trends data
   const { data: activityTrends, isLoading: trendsLoading, error: trendsError } = useActivityTrends(websiteId);
 
+  // Use demo data when in demo mode, otherwise use API data
+  const finalDashboardData = isDemoMode ? demoData?.dashboardData : dashboardData;
+  const finalTopPages = isDemoMode ? demoData?.topPages : topPages;
+  const finalTopReferrers = isDemoMode ? demoData?.topReferrers : topReferrers;
+  const finalTopCountries = isDemoMode ? demoData?.topCountries : topCountries;
+  const finalTopBrowsers = isDemoMode ? demoData?.topBrowsers : topBrowsers;
+  const finalTopDevices = isDemoMode ? demoData?.topDevices : topDevices;
+  const finalTopOS = isDemoMode ? demoData?.topOS : topOS;
+  const finalDailyStats = isDemoMode ? demoData?.dailyStats : dailyStats;
+  const finalHourlyStats = isDemoMode ? demoData?.hourlyStats : hourlyStats;
+  const finalGeolocationData = isDemoMode ? demoData?.geolocationData : geolocationData;
+  const finalVisitorInsights = isDemoMode ? demoData?.visitorInsights : visitorInsights;
+  const finalCustomEvents = isDemoMode ? demoData?.customEvents : customEvents;
+  const finalActivityTrends = isDemoMode ? demoData?.activityTrends : activityTrends;
+
   // Transform API data to match demo component expectations
-  const transformedTopPages = topPages ? {
-    top_pages: topPages.top_pages?.map((page: any) => ({
+  const transformedTopPages = finalTopPages ? {
+    top_pages: finalTopPages.top_pages?.map((page: any) => ({
       page: page.page || '/',
       views: page.views || 0,
       unique_visitors: page.unique || 0,
@@ -155,8 +190,8 @@ export default function WebsiteDashboardPage() {
     top_pages: []
   };
 
-  const transformedTopReferrers = topReferrers ? {
-    top_referrers: topReferrers.top_referrers?.map((ref: any) => {
+  const transformedTopReferrers = finalTopReferrers ? {
+    top_referrers: finalTopReferrers.top_referrers?.map((ref: any) => {
         const referrer = ref.referrer || 'Direct';
         const categorizedReferrer = categorizeReferrer(referrer);
       return {
@@ -170,8 +205,8 @@ export default function WebsiteDashboardPage() {
     top_referrers: []
   };
 
-  const transformedTopCountries = topCountries ? {
-    top_countries: topCountries.top_countries?.map((country: any) => ({
+  const transformedTopCountries = finalTopCountries ? {
+    top_countries: finalTopCountries.top_countries?.map((country: any) => ({
       country: country.country || 'Unknown',
       visitors: country.unique || 0,
       page_views: country.views || 0,
@@ -181,8 +216,8 @@ export default function WebsiteDashboardPage() {
     top_countries: []
   };
 
-  const transformedTopBrowsers = topBrowsers ? {
-    top_browsers: topBrowsers.top_browsers?.map((browser: any) => ({
+  const transformedTopBrowsers = finalTopBrowsers ? {
+    top_browsers: finalTopBrowsers.top_browsers?.map((browser: any) => ({
       browser: browser.browser || 'Unknown',
       visitors: browser.unique || 0,
       views: browser.views || 0,
@@ -193,8 +228,8 @@ export default function WebsiteDashboardPage() {
     top_browsers: []
   };
 
-  const transformedTopDevices = topDevices ? {
-    top_devices: topDevices.top_devices?.map((device: any) => ({
+  const transformedTopDevices = finalTopDevices ? {
+    top_devices: finalTopDevices.top_devices?.map((device: any) => ({
       device: device.device || 'Unknown',
       visitors: device.unique || 0,
       page_views: device.views || 0,
@@ -204,8 +239,8 @@ export default function WebsiteDashboardPage() {
     top_devices: []
   };
   
-    const transformedTopOS = topOS ? {
-    top_os: topOS.top_os?.map((os: any) => ({
+    const transformedTopOS = finalTopOS ? {
+    top_os: finalTopOS.top_os?.map((os: any) => ({
       os: os.os || 'Unknown',
       visitors: os.unique || 0,
       page_views: os.views || 0,
@@ -217,12 +252,12 @@ export default function WebsiteDashboardPage() {
 
 
   // Transform custom events data for the component
-  const transformedCustomEvents = customEvents ? {
-    timeseries: customEvents.timeseries || [],
-    top_events: customEvents.top_events || [],
-    total_events: customEvents.top_events?.reduce((sum: number, event: any) => sum + event.count, 0) || 0,
-    unique_events: customEvents.top_events?.length || 0,
-    utm_performance: customEvents.utm_performance || {
+  const transformedCustomEvents = finalCustomEvents ? {
+    timeseries: finalCustomEvents.timeseries || [],
+    top_events: finalCustomEvents.top_events || [],
+    total_events: finalCustomEvents.top_events?.reduce((sum: number, event: any) => sum + event.count, 0) || 0,
+    unique_events: finalCustomEvents.top_events?.length || 0,
+    utm_performance: finalCustomEvents.utm_performance || {
       sources: {},
       mediums: {},
       campaigns: {},
@@ -291,9 +326,9 @@ export default function WebsiteDashboardPage() {
   }, [transformedCustomEvents]);
 
   // Add pageview data from dashboard data to custom events (but don't show in breakdown)
-  if (dashboardData?.page_views && transformedCustomEvents) {
+  if (finalDashboardData?.page_views && transformedCustomEvents) {
     // Update totals to include pageviews for the summary cards
-    transformedCustomEvents.total_events += dashboardData.page_views;
+    transformedCustomEvents.total_events += finalDashboardData.page_views;
     // Don't add pageviews to top_events since they're not custom events
   }
 
@@ -346,12 +381,21 @@ export default function WebsiteDashboardPage() {
   };
 
   const handleWebsiteChange = (siteId: string) => {
+    if (siteId === 'add-new') {
+      setShowAddWebsiteModal(true);
+    } else {
       router.push(`/websites/${siteId}`);
+    }
+  };
+
+  const handleWebsiteAdded = (websiteId: string) => {
+    // Redirect to the newly added website
+    router.push(`/websites/${websiteId}`);
   };
 
 
   const renderContent = () => {
-    if (dashboardLoading) {
+    if (!isDemoMode && dashboardLoading) {
         return (
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -371,8 +415,8 @@ export default function WebsiteDashboardPage() {
         );
       }
     
-      // Handle errors (simplified)
-      if (dashboardError) {
+      // Handle errors (simplified) - skip in demo mode
+      if (!isDemoMode && dashboardError) {
         return (
           <div className="p-8 text-center bg-red-50 text-red-800 rounded-lg">
              Failed to load analytics data.
@@ -385,13 +429,19 @@ export default function WebsiteDashboardPage() {
         {/* Header Section inside Content (Title + Filters) */}
         <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
             <div className="flex items-center gap-2">
+                 {/* Demo Mode Badge */}
+                 {isDemoMode && (
+                   <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-sm font-medium border border-blue-500/20">
+                     <span className="font-semibold">DEMO</span>
+                   </div>
+                 )}
                  {/* Live Visitors Badge - Standalone */}
                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 text-sm font-medium border border-green-500/20">
                     <span className="relative flex h-2.5 w-2.5 mr-1">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
                     </span>
-                    {dashboardData?.live_visitors || 0} current visitors
+                    {finalDashboardData?.live_visitors || 0} current visitors
                 </div>
             </div>
 
@@ -411,6 +461,17 @@ export default function WebsiteDashboardPage() {
                                 {site.name}
                             </SelectItem>
                         ))}
+                        {websites.length > 0 && (
+                          <>
+                            <div className="h-px bg-border my-1" />
+                            <SelectItem value="add-new" className="text-primary">
+                              <div className="flex items-center">
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Add Website
+                              </div>
+                            </SelectItem>
+                          </>
+                        )}
                     </SelectContent>
                 </Select>
              </div>
@@ -464,7 +525,7 @@ export default function WebsiteDashboardPage() {
 
         {/* Summary Cards */}
         <SummaryCards
-            data={dashboardData || {
+            data={finalDashboardData || {
             total_visitors: 0,
             unique_visitors: 0,
             live_visitors: 0,
@@ -477,17 +538,17 @@ export default function WebsiteDashboardPage() {
 
         {/* Traffic Overview */}
         <TrafficOverview
-            dailyStats={trafficSummaryChart || dailyStats}
-            hourlyStats={hourlyStats}
-            isLoading={dashboardLoading || dailyLoading || trafficChartLoading}
+            dailyStats={trafficSummaryChart || finalDailyStats}
+            hourlyStats={finalHourlyStats}
+            isLoading={!isDemoMode && (dashboardLoading || dailyLoading || trafficChartLoading)}
             className="border shadow-sm bg-white dark:bg-gray-800 rounded-md"
         />
 
 
         {/* Row 4: Map */}
          <GeolocationOverview
-            data={geolocationData}
-            isLoading={geolocationLoading}
+            data={finalGeolocationData}
+            isLoading={!isDemoMode && geolocationLoading}
         />
 
         {/* DETAILS GRID START */}
@@ -550,8 +611,8 @@ export default function WebsiteDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
              {/* Visitor Insights */}
              <VisitorInsightsCard 
-                data={visitorInsights?.visitor_insights} 
-                isLoading={visitorInsightsLoading}
+                data={finalVisitorInsights?.visitor_insights} 
+                isLoading={!isDemoMode && visitorInsightsLoading}
              />
 
             {/* Goal Conversions (Events) */}
@@ -613,12 +674,12 @@ export default function WebsiteDashboardPage() {
             onClose={handleModalClose}
             modalType={modalType}
             data={{
-                topPages: topPages,
-                topReferrers: topReferrers,
-                topCountries: topCountries,
-                topBrowsers: topBrowsers,
-                topDevices: topDevices,
-                dashboard: dashboardData,
+                topPages: finalTopPages,
+                topReferrers: finalTopReferrers,
+                topCountries: finalTopCountries,
+                topBrowsers: finalTopBrowsers,
+                topDevices: finalTopDevices,
+                dashboard: finalDashboardData,
 
             }}
             isLoading={{
@@ -644,6 +705,13 @@ export default function WebsiteDashboardPage() {
         {renderContent()}
       </main>
       <DashboardFooter />
+      
+      {/* Add Website Modal */}
+      <AddWebsiteModal 
+        open={showAddWebsiteModal} 
+        onOpenChange={setShowAddWebsiteModal}
+        onSuccess={handleWebsiteAdded}
+      />
     </div>
   );
 }

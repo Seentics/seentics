@@ -126,7 +126,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
         <div className="space-y-3">
           {sourceData.slice(0, 5).map((item) => {
             return (
-              <div key={item.source} className="flex items-center justify-between p-3 border-b">
+              <div key={item.source} className="flex items-center justify-between p-3 border-b ">
                 <div className="flex items-center gap-3">
                   <div className="flex items-center gap-2">
                     <div className="p-2 rounded-lg overflow-hidden" style={{ backgroundColor: `${item.color}20` }}>

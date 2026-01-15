@@ -30,24 +30,24 @@ export default function Features() {
             </CardHeader>
             <CardContent className="text-center">
               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
-                Real-time visitor tracking, conversion funnels, and detailed insights to optimize your website performance.
+                Real-time visitor tracking and detailed insights to optimize your website performance.
               </p>
             </CardContent>
           </Card>
 
-          {/* Workflow Automation */}
+          {/* Custom Events & Tracking */}
           <Card className="border-slate-200 dark:border-slate-700 hover:shadow-lg transition-all duration-300">
             <CardHeader className="text-center">
               <div className="mx-auto p-3 bg-green-100 dark:bg-green-900/20 rounded-xl mb-4">
-                <Zap className="h-8 w-8 text-green-600" />
+                <TargetIcon className="h-8 w-8 text-green-600" />
               </div>
               <CardTitle className="text-lg sm:text-xl text-slate-900 dark:text-slate-100">
-                Smart Workflows
+                Custom Events
               </CardTitle>
             </CardHeader>
             <CardContent className="text-center">
               <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
-                Visual workflow builder to automate customer interactions, lead capture, and business processes.
+                Track custom user interactions and events to understand exactly how users engage with your features.
               </p>
             </CardContent>
           </Card>
