@@ -143,7 +143,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
 
     if (isLoading) {
         return (
-            <Card className={`bg-card border-0 shadow-md mb-6 rounded-none ${className}`}>
+            <Card className={`bg-card border-0 shadow-md mb-6 rounded-md dark:bg-gray-800 ${className}`}>
                 <CardHeader>
                     <div className="animate-pulse">
                         <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-48 mb-2"></div>
@@ -171,7 +171,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
     }
 
     return (
-        <Card className={`bg-card border-0 shadow-md mb-6 rounded-none ${className}`}>
+        <Card className={`bg-card border mb-6 rounded-md dark:bg-gray-800 ${className}`}>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex-1 min-w-0">
                     <CardTitle className="text-base sm:text-lg font-medium text-foreground flex items-center gap-2">
@@ -300,7 +300,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                 const color = colors[index % colors.length];
 
                                 return (
-                                    <div key={continent.name} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800/50 border-b border-gray-200 dark:border-gray-700 hover:shadow-sm transition-shadow">
+                                    <div key={continent.name} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 hover:shadow-sm transition-shadow">
                                         <div className="flex items-center gap-3">
                                             <span className="text-sm font-medium text-gray-500 w-6">#{index + 1}</span>
                                             <div className="p-2 rounded-lg" style={{ backgroundColor: `${color}20` }}>

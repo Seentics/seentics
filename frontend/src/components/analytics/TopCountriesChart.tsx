@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface TopCountriesChartProps {
   data?: {
@@ -15,7 +16,7 @@ interface TopCountriesChartProps {
   onViewMore?: () => void;
 }
 
-export default function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesChartProps) {
+export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesChartProps) {
   // Country name to ISO code mapping
   const getCountryCode = (countryName: string): string => {
     const countryMap: Record<string, string> = {
@@ -264,73 +265,7 @@ export default function TopCountriesChart({ data, isLoading, onViewMore }: TopCo
             </div>
           ))}
         </div>
-
-        {/* Chart */}
-        {/* <div className="mt-6 h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={countryData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis 
-                dataKey="countryCode" 
-                tick={{ fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <Tooltip 
-                content={({ active, payload, label }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    return (
-                                              <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="relative w-6 h-4 rounded overflow-hidden">
-                              <Image
-                                src={data.flag}
-                                alt={`${data.country} flag`}
-                                width={24}
-                                height={16}
-                                className="object-cover"
-                                onError={(e) => {
-                                  // Try alternative flag API if primary fails
-                                  const target = e.target as HTMLImageElement;
-                                  const countryCode = data.countryCode.toLowerCase();
-                                  if (target.src.includes('flagcdn.com')) {
-                                    // Try alternative flag API
-                                    target.src = `https://restcountries.eu/data/${countryCode}.svg`;
-                                  } else {
-                                    // Fallback to country code if both APIs fail
-                                    target.style.display = 'none';
-                                  }
-                                }}
-                              />
-                            </div>
-                            <p className="font-semibold">{data.country}</p>
-                          </div>
-                          <p className="text-blue-600">
-                            {(data.visitors || 0).toLocaleString()} visitors ({data.percentage}%)
-                          </p>
-                        </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Bar dataKey="visitors" radius={[4, 4, 0, 0]}>
-                {countryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div> */}
-
-
       </div>
     </div>
   );
-} 
+}

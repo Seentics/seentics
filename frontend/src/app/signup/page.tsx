@@ -1,32 +1,37 @@
 'use client';
 
-import { GithubIcon, GoogleIcon } from '@/components/icons';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { initiateGitHubOAuth, initiateGoogleOAuth } from '@/lib/oauth';
-import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, CheckCircle } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, CheckCircle, Mail, Lock, User, Globe, ArrowRight } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { useAuth } from '@/stores/useAuthStore';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { addWebsite } from '@/lib/websites-api';
 
 export default function SignUpPage() {
+  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    websiteName: '',
+    websiteUrl: ''
   });
+  
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const { setAuth } = useAuth();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -37,7 +42,7 @@ export default function SignUpPage() {
     if (error) setError(null);
   };
 
-  const validateForm = () => {
+  const validateStep1 = () => {
     if (!formData.name.trim()) {
       setError('Name is required');
       return false;
@@ -65,44 +70,86 @@ export default function SignUpPage() {
     return true;
   };
 
-  const handleEmailSignUp = async (e: React.FormEvent) => {
+  const validateStep2 = () => {
+    if (!formData.websiteName.trim()) {
+      setError('Website name is required');
+      return false;
+    }
+    if (!formData.websiteUrl.trim()) {
+      setError('Website URL is required');
+      return false;
+    }
+    try {
+        new URL(formData.websiteUrl.startsWith('http') ? formData.websiteUrl : `https://${formData.websiteUrl}`);
+    } catch (e) {
+        setError('Please enter a valid website URL');
+        return false;
+    }
+    return true;
+  };
+
+  const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) return;
+    if (validateStep1()) {
+      setStep(2);
+      setError(null);
+    }
+  };
+
+  const handleFinalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateStep2()) return;
 
     try {
       setError(null);
       setIsLoading(true);
 
-      const response = await api.post('/user/auth/register', {
+      // 1. Register the user
+      const regResponse = await api.post('/user/auth/register', {
         name: formData.name.trim(),
         email: formData.email.trim(),
         password: formData.password,
       });
 
-      const data = response.data;
+      // 2. Login to get tokens (assuming register doesn't return tokens directly)
+      const loginResponse = await api.post('/user/auth/login', {
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+
+      const authData = loginResponse.data.data;
+      
+      // Update Auth Store
+      if (authData?.tokens && authData?.user) {
+        setAuth({
+          user: authData.user,
+          access_token: authData.tokens.accessToken,
+          refresh_token: authData.tokens.refreshToken,
+          rememberMe: false
+        });
+
+        // 3. Add the first website
+        try {
+            await addWebsite({
+                name: formData.websiteName.trim(),
+                url: formData.websiteUrl.trim()
+            }, authData.user.id);
+        } catch (wsError) {
+            console.error('Failed to add initial website:', wsError);
+            // We don't block the whole process if website creation fails, 
+            // the user can add it later, but we should notify them.
+        }
+      }
 
       toast({
-        title: "Account Created Successfully",
-        description: "Welcome to Seentics! Redirecting to sign in...",
-        variant: "default",
+        title: "Account Created!",
+        description: "Welcome to Seentics. Your dashboard is ready.",
       });
 
-      // Clear form
-      setFormData({
-        name: '',
-        email: '',
-        password: '',
-        confirmPassword: ''
-      });
-
-      // Redirect to signin page after a brief delay
-      setTimeout(() => {
-        router.push('/signin');
-      }, 1500);
+      router.push('/websites');
 
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.error('Signup error:', error);
       setError(error.message || 'Registration failed');
       toast({
         title: "Registration Failed",
@@ -114,220 +161,206 @@ export default function SignUpPage() {
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      initiateGoogleOAuth();
-    } catch (error: any) {
-      console.error('Google sign up error:', error);
-      setError(error.message || 'Google sign up failed');
-      toast({
-        title: "Sign Up Failed",
-        description: error.message || 'Google sign up failed',
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGithubSignUp = async () => {
-    try {
-      setError(null);
-      setIsLoading(true);
-      initiateGitHubOAuth();
-    } catch (error: any) {
-      console.error('GitHub sign up error:', error);
-      setError(error.message || 'GitHub sign up failed');
-      toast({
-        title: "Sign Up Failed",
-        description: error.message || 'GitHub sign up failed',
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center p-4">
-      {/* Back Button */}
-      <div className="absolute top-6 left-6 z-20">
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-        </Link>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
+      {/* Background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl animate-pulse" />
       </div>
 
-      {/* Main Content */}
-      <div className="w-full max-w-sm">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <Logo size="xl" className="w-14 h-14 rounded-2xl" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Create account</h1>
-          <p className="text-slate-600 dark:text-slate-400">Get started with Seentics</p>
-        </div>
-
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Success Alert */}
-        {success && (
-          <Alert className="mb-6 border-green-200 bg-green-50 dark:bg-green-950/20">
-            <CheckCircle className="h-4 w-4 text-green-600" />
-            <AlertDescription className="text-green-800 dark:text-green-200">{success}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* OAuth Buttons */}
-        <div className="space-y-3 mb-6">
-          <Button 
-            variant="outline" 
-            className="w-full h-11"
-            onClick={handleGoogleSignUp}
-            disabled={isLoading}
-          >
-            <GoogleIcon className="mr-2 h-4 w-4" />
-            Continue with Google
-          </Button>
-
-          <Button 
-            variant="outline" 
-            className="w-full h-11"
-            onClick={handleGithubSignUp}
-            disabled={isLoading}
-          >
-            <GithubIcon className="mr-2 h-4 w-4" />
-            Continue with GitHub
-          </Button>
-        </div>
-
-        {/* Divider */}
-        <div className="relative mb-6">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-slate-200 dark:border-slate-700" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white dark:bg-slate-950 px-2 text-slate-500 dark:text-slate-400">
-              Or create account with email
-            </span>
-          </div>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleEmailSignUp} className="space-y-4 mb-6">
-          <div>
-            <Input
-              name="name"
-              type="text"
-              placeholder="Full name"
-              value={formData.name}
-              onChange={handleInputChange}
-              className="h-11"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div>
-            <Input
-              name="email"
-              type="email"
-              placeholder="Email address"
-              value={formData.email}
-              onChange={handleInputChange}
-              className="h-11"
-              disabled={isLoading}
-            />
-          </div>
-
-          <div className="relative">
-            <Input
-              name="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleInputChange}
-              className="h-11 pr-10"
-              disabled={isLoading}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="absolute right-0 top-0 h-11 px-3 hover:bg-transparent"
-              onClick={() => setShowPassword(!showPassword)}
-            >
-              {showPassword ? (
-                <EyeOff className="h-4 w-4 text-slate-500" />
-              ) : (
-                <Eye className="h-4 w-4 text-slate-500" />
-              )}
-            </Button>
-          </div>
-
-          <div className="relative">
-            <Input
-              name="confirmPassword"
-              type={showConfirmPassword ? "text" : "password"}
-              placeholder="Confirm password"
-              value={formData.confirmPassword}
-              onChange={handleInputChange}
-              className="h-11 pr-10"
-              disabled={isLoading}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="absolute right-0 top-0 h-11 px-3 hover:bg-transparent"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-            >
-              {showConfirmPassword ? (
-                <EyeOff className="h-4 w-4 text-slate-500" />
-              ) : (
-                <Eye className="h-4 w-4 text-slate-500" />
-              )}
-            </Button>
-          </div>
-
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Password must be at least 8 characters with uppercase, lowercase, and number
-          </p>
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating account...
-              </>
-            ) : (
-              'Create account with email'
-            )}
-          </Button>
-        </form>
-
-        {/* Footer */}
-        <div className="text-center">
-          <p className="text-sm text-slate-600 dark:text-slate-400">
-            Already have an account?{' '}
-            <Link href="/signin" className="text-slate-900 dark:text-white hover:underline font-medium">
-              Sign in
+      <div className="w-full max-w-md relative z-10">
+        <div className="flex justify-center mb-8">
+            <Link href="/">
+                <Logo size="xl" showText={true} textClassName="text-2xl font-bold" />
             </Link>
-          </p>
+        </div>
+
+        <Card className="border-0 shadow-2xl dark:bg-gray-800 rounded-2xl overflow-hidden">
+          <CardHeader className="space-y-1 pb-8">
+            <div className="flex items-center justify-between mb-2">
+                <span className={`h-1.5 flex-1 rounded-full mx-1 ${step >= 1 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
+                <span className={`h-1.5 flex-1 rounded-full mx-1 ${step >= 2 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
+            </div>
+            <CardTitle className="text-2xl font-bold text-center">
+                {step === 1 ? 'Create account' : 'Setup your website'}
+            </CardTitle>
+            <CardDescription className="text-center">
+                {step === 1 ? 'Join Seentics and get started today' : 'Add your first website to start tracking'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {error && (
+              <Alert variant="destructive" className="mb-6 animate-in fade-in slide-in-from-top-2">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {step === 1 ? (
+              <form onSubmit={handleNextStep} className="space-y-4">
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    name="name"
+                    placeholder="Full name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
+
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    name="email"
+                    type="email"
+                    placeholder="Email address"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      className="h-12 pl-10 pr-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
+                      disabled={isLoading}
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-12 px-3 hover:bg-transparent text-slate-400"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      name="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      placeholder="Confirm password"
+                      value={formData.confirmPassword}
+                      onChange={handleInputChange}
+                      className="h-12 pl-10 pr-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
+                      disabled={isLoading}
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-12 px-3 hover:bg-transparent text-slate-400"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-muted-foreground text-center px-4">
+                  Minimum 8 characters with at least one uppercase, one lowercase, and one number.
+                </p>
+
+                <Button
+                  type="submit"
+                  className="w-full h-12 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all rounded-xl"
+                  disabled={isLoading}
+                >
+                  Continue
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleFinalSubmit} className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    name="websiteName"
+                    placeholder="Website Name (e.g. My Awesome Blog)"
+                    value={formData.websiteName}
+                    onChange={handleInputChange}
+                    className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
+
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    name="websiteUrl"
+                    placeholder="Website URL (e.g. myblog.com)"
+                    value={formData.websiteUrl}
+                    onChange={handleInputChange}
+                    className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        className="flex-1 h-12 rounded-xl"
+                        onClick={() => setStep(1)}
+                        disabled={isLoading}
+                    >
+                        Back
+                    </Button>
+                    <Button
+                        type="submit"
+                        className="flex-[2] h-12 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all rounded-xl"
+                        disabled={isLoading}
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Setting up...
+                            </>
+                        ) : (
+                            'Complete Setup'
+                        )}
+                    </Button>
+                </div>
+              </form>
+            )}
+
+            <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 text-center">
+              <p className="text-sm text-muted-foreground">
+                Already have an account?{' '}
+                <Link href="/signin" className="text-primary hover:underline font-semibold">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="mt-8 text-center">
+             <Link href="/">
+                <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100">
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Back to home
+                </Button>
+            </Link>
         </div>
       </div>
     </div>

@@ -59,7 +59,7 @@ export function WebsiteCard({ website, stats, onDelete, onShowTrackingCode }: We
   };
 
   return (
-    <Card className="group flex flex-col h-full hover:shadow-lg transition-all duration-200 border hover:border-primary/20">
+    <Card className="group flex flex-col h-full hover:shadow-lg transition-all duration-200 border hover:border-primary/20 dark:bg-gray-800 rounded-md">
       <Link href={`/websites/${website.id}`} className="flex flex-col flex-grow">
         <CardHeader className="flex-row items-start justify-between pb-3">
           <div className="min-w-0 flex-1">
@@ -168,13 +168,13 @@ export function WebsiteCard({ website, stats, onDelete, onShowTrackingCode }: We
 
           {/* Quick Actions */}
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
+            <Button variant="secondary" size="sm" className="h-8 text-xs" asChild>
               <Link href={`/websites/${website.id}/analytics`}>
                 <BarChart3 className="mr-1 h-3 w-3" />
                 Analytics
               </Link>
             </Button>
-            <Button variant="outline" size="sm" className="h-8 text-xs" asChild>
+            <Button variant="secondary" size="sm" className="h-8 text-xs" asChild>
               <Link href={`/websites/${website.id}/workflows`}>
                 <Workflow className="mr-1 h-3 w-3" />
                 Workflows

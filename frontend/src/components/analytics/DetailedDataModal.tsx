@@ -6,11 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber, formatDuration, formatPercentage } from '@/lib/analytics-api';
 import { TrafficChart } from './TrafficChart';
-import { TopPagesChart } from './TopPagesChart';
-import { TopSourcesChart } from './TopSourcesChart';
-import { TopCountriesChart } from './TopCountriesChart';
-import { TopDevicesChart } from './TopDevicesChart';
-import { TopBrowsersChart } from './TopBrowsersChart';
+import { TopPagesChart } from '@/components/analytics/TopPagesChart';
+import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
+import { TopCountriesChart } from '@/components/analytics/TopCountriesChart';
+import { TopDevicesChart } from '@/components/analytics/TopDevicesChart';
+import { TopBrowsersChart } from '@/components/analytics/TopBrowsersChart';
 
 interface DetailedDataModalProps {
   isOpen: boolean;

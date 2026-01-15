@@ -16,7 +16,7 @@ interface TopSourcesChartProps {
   onViewMore?: () => void;
 }
 
-export default function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChartProps) {
+export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChartProps) {
   // Helpers to classify categories
   const isOrganic = (r: string) => {
     const s = (r || '').toLowerCase();
@@ -184,4 +184,4 @@ export default function TopSourcesChart({ data, isLoading, onViewMore }: TopSour
       </div>
     </div>
   );
-} 
+}

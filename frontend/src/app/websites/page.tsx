@@ -172,7 +172,7 @@ export default function WebsitesPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen">
         <div className="text-center">
           <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
           <p className="text-muted-foreground">Loading...</p>
@@ -182,7 +182,7 @@ export default function WebsitesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background ">
+    <div className="min-h-screen  ">
       <WebsitesHeader onCreateWebsite={() => setWebsiteModalOpen(true)} />
 
       <main className="p-4 sm:p-6  max-w-7xl mx-auto">

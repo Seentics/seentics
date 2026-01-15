@@ -1,7 +1,8 @@
 'use client';
 
-import { Monitor, Smartphone, Tablet } from 'lucide-react';
+import { Monitor, PieChart, Smartphone, Tablet } from 'lucide-react';
 import Image from 'next/image';
+import { Cell, Legend, Pie, ResponsiveContainer, Tooltip } from 'recharts';
 
 interface TopDevicesChartProps {
   data?: {
@@ -16,7 +17,7 @@ interface TopDevicesChartProps {
   onViewMore?: () => void;
 }
 
-export default function TopDevicesChart({ data, isLoading, onViewMore }: TopDevicesChartProps) {
+export function TopDevicesChart({ data, isLoading, onViewMore }: TopDevicesChartProps) {
   // Use real data if available, otherwise show empty state
   const deviceData = data?.top_devices?.map((item, index) => {
     const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -131,56 +132,7 @@ export default function TopDevicesChart({ data, isLoading, onViewMore }: TopDevi
             );
           })}
         </div>
-
-        {/* Device Distribution Chart */}
-        {/* <div className="h-64 mt-6">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={deviceData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ device, percentage }) => `${device} ${percentage}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="percentage"
-              >
-                {deviceData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const data = payload[0].payload;
-                    return (
-                      <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-                        <p className="font-semibold">{data.device}</p>
-                        <p className="text-blue-600">
-                          {(data.visitors || 0).toLocaleString()} visitors ({data.percentage}%)
-                        </p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Legend 
-                verticalAlign="bottom" 
-                height={36}
-                formatter={(value, entry: any) => (
-                  <span style={{ color: entry.color }} className="text-sm">
-                  {value}
-                  </span>
-                )}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div> */}
-
-
       </div>
     </div>
   );
-} 
+}
