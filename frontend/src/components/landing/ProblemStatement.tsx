@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { BarChart3, CheckCircle, Target, Zap } from 'lucide-react';
+import { BarChart3, CheckCircle } from 'lucide-react';
 
 export default function ProblemStatement() {
   const features = [
@@ -20,38 +20,6 @@ export default function ProblemStatement() {
       ],
       technical: ["Real-time tracking", "Easy reports", "Smart alerts", "Growth insights"]
     },
-    {
-      icon: Zap,
-      title: "Workflows",
-      subtitle: "Automate Like Magic",
-      description: "Set up smart automations that work 24/7. Show the right message to the right person at the perfect moment - without lifting a finger.",
-      benefits: [
-        "Drag-and-drop automation builder (no coding needed)",
-        "Welcome new visitors automatically",
-        "Send emails based on visitor behavior",
-        "Show popups when people are about to leave",
-        "Create custom triggers for any action",
-        "Ready-made templates to get started fast",
-        "See which automations make you money"
-      ],
-      technical: ["Visual builder", "Smart triggers", "Auto-emails", "Pre-built templates"]
-    },
-    {
-      icon: Target,
-      title: "Funnels",
-      subtitle: "Turn Visitors Into Customers",
-      description: "Create step-by-step journeys that guide visitors to buy, subscribe, or take action. Test different approaches to see what works best.",
-      benefits: [
-        "Build conversion paths that actually work",
-        "Test different versions to find winners",
-        "Guide visitors through your sales process",
-        "Track every step from visit to purchase",
-        "Get suggestions on how to improve",
-        "Connect with your email and payment tools",
-        "Watch your conversion rates grow"
-      ],
-      technical: ["A/B testing", "Conversion tracking", "Smart recommendations", "Easy integrations"]
-    }
   ];
   return (
     <section className="py-20 bg-white dark:bg-slate-950 relative overflow-hidden">
@@ -69,22 +37,22 @@ export default function ProblemStatement() {
           <div className="text-center mb-16 sm:mb-20">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-700 dark:text-blue-300 text-sm font-medium mb-6">
               <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-              Complete Solution
+              Privacy-First Analytics
             </div>
 
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 text-slate-900 dark:text-white px-4 sm:px-0">
-              Everything You Need
+              Powerful Analytics
               <span className="block text-blue-600 dark:text-blue-400 mt-1 sm:mt-2">
-                In One Simple Platform
+                Without Compromising Privacy
               </span>
             </h2>
             <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-4xl mx-auto px-4 sm:px-0">
-              Understand your visitors, automate your marketing, and grow your business - all without the technical headaches
+              Understand your visitors with cookieless tracking that respects privacy and complies with GDPR
             </p>
           </div>
 
           {/* Enhanced Feature Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 mb-20">
+          <div className="grid grid-cols-1 max-w-2xl mx-auto gap-8 md:gap-12 mb-20">
             {features.map((feature, index) => (
               <Card key={index} className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-lg hover:shadow-2xl transition-all duration-500 border border-slate-200/50 dark:border-slate-700/50 h-full hover:-translate-y-2 relative overflow-hidden group">
                 {/* Card Overlay */}

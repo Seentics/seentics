@@ -11,22 +11,18 @@ const plans = [
     name: "Free",
     price: "$0",
     period: "forever",
-    description: "Perfect for getting started",
+    description: "Perfect for personal projects",
     icon: Star,
     popular: false,
     features: [
       "1 Website",
-      "1,000 Monthly Events",
-      "1 Workflow",
-      "1 Funnel",
-      "Basic Analytics",
-      "Email Support",
-      "Privacy Compliant"
+      "Unlimited Events",
+      "Real-time Analytics",
+      "Privacy Compliant",
+      "Data Export",
+      "Email Support"
     ],
-    limitations: [
-      "Limited integrations",
-      "Basic reporting"
-    ]
+    limitations: []
   },
   {
     name: "Standard",
@@ -36,16 +32,15 @@ const plans = [
     icon: Zap,
     popular: true,
     features: [
-      "5 Websites",
-      "100,000 Monthly Events",
-      "10 Workflows",
-      "10 Funnels",
+      "10 Websites",
+      "Unlimited Events",
       "Advanced Analytics",
       "Priority Support",
       "Custom Domains",
       "API Access",
-      "Advanced Integrations",
-      "A/B Testing"
+      "Data Import/Export",
+      "Team Collaboration",
+      "Custom Reports"
     ],
     limitations: []
   },
@@ -57,18 +52,17 @@ const plans = [
     icon: Crown,
     popular: false,
     features: [
-      "10 Websites",
-      "500,000 Monthly Events",
-      "30 Workflows",
-      "30 Funnels",
+      "Unlimited Websites",
+      "Unlimited Events",
       "Enterprise Analytics",
       "24/7 Priority Support",
       "White-label Options",
       "Advanced API Access",
       "Custom Integrations",
-      "Advanced A/B Testing",
       "Team Collaboration",
-      "Custom Reports"
+      "Custom Reports",
+      "Dedicated Account Manager",
+      "SLA Guarantee"
     ],
     limitations: []
   }
@@ -100,7 +94,7 @@ export default function Pricing() {
           </h2>
           
           <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto px-4 sm:px-0">
-            Start free and scale as you grow. No hidden fees, no surprises.
+            Start free forever. Upgrade when you need more websites. No hidden fees.
           </p>
         </div>
         
@@ -177,24 +171,6 @@ export default function Pricing() {
                     ))}
                   </ul>
                   
-                  {/* Enhanced Limitations (if any) */}
-                  {plan.limitations.length > 0 && (
-                    <div className="pt-4 border-t border-slate-200/50 dark:border-slate-700/50 mb-6">
-                      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wide flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
-                        Limitations
-                      </p>
-                      <ul className="space-y-2">
-                        {plan.limitations.map((limitation, limitIndex) => (
-                          <li key={limitIndex} className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                            <span className="w-1 h-1 bg-slate-400 rounded-full flex-shrink-0"></span>
-                            {limitation}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  
                   {/* Enhanced CTA Button at bottom - always aligned */}
                   <div className="mt-auto">
                     {plan.name === 'Free' ? (
@@ -236,7 +212,7 @@ export default function Pricing() {
               Questions About Pricing?
             </h3>
             <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-2xl mx-auto">
-              All plans include our core features: real-time analytics, GDPR compliance, and no data limits.
+              All plans include unlimited events, real-time analytics, GDPR compliance, and data export.
             </p>
             
             <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-sm text-slate-500 dark:text-slate-400 mb-8">
@@ -255,12 +231,16 @@ export default function Pricing() {
             </div>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button variant="outline" className="px-6 py-3 font-semibold border-2 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">
-                Contact Sales
-              </Button>
-              <Button className="px-6 py-3 font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
-                Start Free Trial
-              </Button>
+              <Link href="/contact">
+                <Button variant="outline" className="px-6 py-3 font-semibold border-2 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">
+                  Contact Sales
+                </Button>
+              </Link>
+              <Link href="/signup">
+                <Button className="px-6 py-3 font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+                  Start Free Now
+                </Button>
+              </Link>
             </div>
           </div>
         </div>

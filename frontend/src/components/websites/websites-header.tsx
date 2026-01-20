@@ -46,10 +46,13 @@ export function WebsitesHeader({}: WebsitesHeaderProps) {
   const nextRouter = useNextRouter();
   const params = useParams();
   
+  // Check if we're in demo mode
+  const isDemoMode = params?.websiteId === 'demo';
+  
   const { data: websites = [] } = useQuery({
     queryKey: ['websites'],
     queryFn: getWebsites,
-    enabled: !!user,
+    enabled: !!user && !isDemoMode, // Don't fetch websites in demo mode without user
   });
   const [activeModal, setActiveModal] = useState<'team' | 'billing' | 'settings' | 'docs' | 'support' | 'manage-websites' | 'privacy' | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -88,7 +91,8 @@ export function WebsitesHeader({}: WebsitesHeaderProps) {
         <div className='flex items-center gap-2 sm:gap-4'>
             {/* ... Theme Toggle & Contact Support ... */}
              <ThemeToggle />
-             <Button 
+             {!isDemoMode && (
+              <Button 
                 variant="ghost" 
                 size="icon" 
                 className="h-9 w-9 text-muted-foreground hover:text-foreground"
@@ -97,9 +101,16 @@ export function WebsitesHeader({}: WebsitesHeaderProps) {
               >
                 <Contact className="h-5 w-5" />
               </Button>
+             )}
 
-            {/* ... User Profile ... */}
-            {user && (
+            {/* Demo Mode: Show Sign In button instead of user profile */}
+            {isDemoMode && !user ? (
+              <Link href="/signin">
+                <Button variant="default" size="sm">
+                  Sign In
+                </Button>
+              </Link>
+            ) : user && (
             <DropdownMenu>
                 {/* ... existing User Profile content ... */}
                 <DropdownMenuTrigger asChild>
@@ -132,7 +143,8 @@ export function WebsitesHeader({}: WebsitesHeaderProps) {
             </DropdownMenu>
             )}
 
-            {/* Menu Sheet */}
+            {/* Menu Sheet - Only show if not in demo mode or if user is authenticated */}
+            {(!isDemoMode || user) && (
             <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
               <SheetTrigger asChild>
                  <Button variant="default"  className="md:ml-2">
