@@ -201,6 +201,7 @@ export function WebsitesHeader({}: WebsitesHeaderProps) {
                 </div>
               </SheetContent>
             </Sheet>
+            )}
         </div>
       </header>
     </div>

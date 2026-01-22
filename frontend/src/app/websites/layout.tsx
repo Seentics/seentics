@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/stores/useAuthStore';
 import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function WebsitesLayout({
@@ -12,13 +12,15 @@ export default function WebsitesLayout({
 }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
+  const params = useParams();
+  const isDemoMode = params?.websiteId === 'demo';
 
   useEffect(() => {
-    // Only redirect if we're not loading and there's no user
-    if (!isLoading && !user) {
+    // Only redirect if we're not loading, there's no user, AND we're not in demo mode
+    if (!isLoading && !user && !isDemoMode) {
       router.push('/signin');
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, router, isDemoMode]);
 
   if (isLoading) {
     return (
@@ -31,7 +33,7 @@ export default function WebsitesLayout({
     );
   }
 
-  if (!user) {
+  if (!user && !isDemoMode) {
     return null;
   }
 
