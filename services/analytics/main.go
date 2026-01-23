@@ -4,6 +4,7 @@ import (
 	"analytics-app/config"
 	"analytics-app/database"
 	"analytics-app/handlers"
+	"analytics-app/kafka"
 	"analytics-app/middleware"
 	"analytics-app/migrations"
 	"analytics-app/repository"
@@ -83,8 +84,11 @@ func main() {
 	analyticsRepo := repository.NewMainAnalyticsRepository(db)
 	privacyRepo := privacy.NewPrivacyRepository(db)
 
+	// Initialize Kafka service
+	kafkaService := kafka.NewKafkaService(cfg.KafkaBootstrapServers, cfg.KafkaTopicEvents, logger)
+
 	// Initialize services
-	eventService := services.NewEventService(eventRepo, db, logger)
+	eventService := services.NewEventService(eventRepo, db, kafkaService, logger)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, logger)
 	privacyService := services.NewPrivacyService(privacyRepo, logger)
 
@@ -130,6 +134,13 @@ func main() {
 	logger.Info().Msg("Flushing buffered events...")
 	if err := eventService.Shutdown(10 * time.Second); err != nil {
 		logger.Error().Err(err).Msg("Failed to shutdown event service gracefully")
+	}
+
+	// Close Kafka service
+	if kafkaService != nil {
+		if err := kafkaService.Close(); err != nil {
+			logger.Error().Err(err).Msg("Failed to close Kafka service")
+		}
 	}
 
 	// Then shutdown HTTP server

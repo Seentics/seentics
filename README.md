@@ -54,14 +54,16 @@ Seentics is designed as a **fully-featured open source platform** with unlimited
 |---------|------------|------|---------|
 | **API Gateway** | Go/Gin | 8080 | Request routing, auth, user management, rate limiting |
 | **Analytics Service** | Go | 3002 | Event tracking, analytics, reporting |
+| **Automation Service** | Go | - | Event-driven workflows (Consumes Kafka events) |
 | **Frontend** | Next.js/React | 3000 | User interface and dashboard |
 
-### **Data Storage**
+### **Data Storage & Messaging**
 
-| Database | Purpose | Data Type |
+| Component | Purpose | Data Type |
 |----------|---------|-----------|
 | **PostgreSQL** | User accounts, websites, analytics data | Relational / Time-series |
 | **Redis** | Caching, rate limiting, sessions | In-memory storage |
+| **Kafka** | Event-driven backbone, analytics buffer | Distributed Log / Stream |
 
 ## 🚀 **Quick Start**
 

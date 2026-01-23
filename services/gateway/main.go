@@ -13,6 +13,7 @@ import (
 	"github.com/seentics/seentics/services/gateway/config"
 	"github.com/seentics/seentics/services/gateway/database"
 	"github.com/seentics/seentics/services/gateway/handlers"
+	"github.com/seentics/seentics/services/gateway/kafka"
 	middlewares "github.com/seentics/seentics/services/gateway/middlewares"
 	"github.com/seentics/seentics/services/gateway/models"
 )
@@ -37,6 +38,15 @@ func main() {
 	if redis_err != nil {
 		log.Println("Redis connection warning (proceeding without it):", redis_err)
 	}
+
+	// Initialize Kafka
+	kafkaBootstrap := os.Getenv("KAFKA_BOOTSTRAP_SERVERS")
+	if kafkaBootstrap == "" {
+		kafkaBootstrap = "localhost:9092"
+	}
+	kafkaSvc := kafka.NewKafkaService(kafkaBootstrap)
+	handlers.SetKafkaService(kafkaSvc)
+	defer kafkaSvc.Close()
 
 	mux := http.NewServeMux()
 

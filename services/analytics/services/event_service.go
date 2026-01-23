@@ -1,6 +1,7 @@
 package services
 
 import (
+	"analytics-app/kafka"
 	"analytics-app/models"
 	"analytics-app/repository"
 	"context"
@@ -24,9 +25,9 @@ type EventService struct {
 	repo   *repository.EventRepository
 	db     *pgxpool.Pool
 	logger zerolog.Logger
+	kafka  *kafka.KafkaService
 
-	// Simple event channel for async processing
-	eventChan chan models.Event
+	// Simple event channel for async processing (now fed from Kafka)
 	batchChan chan []models.Event
 
 	// Shutdown control
@@ -37,21 +38,21 @@ type EventService struct {
 	shutdownMu sync.RWMutex
 }
 
-func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, logger zerolog.Logger) *EventService {
+func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, logger zerolog.Logger) *EventService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	service := &EventService{
 		repo:      repo,
 		db:        db,
+		kafka:     kafkaSvc,
 		logger:    logger,
-		eventChan: make(chan models.Event, 1000), // Buffered channel
 		batchChan: make(chan []models.Event, 500),
 		ctx:       ctx,
 		cancel:    cancel,
 	}
 
-	// Start background workers
-	service.startBatchCollector()
+	// Start Kafka consumer and internal batch processor
+	service.startKafkaConsumer()
 	service.startBatchProcessor()
 
 	return service
@@ -120,18 +121,10 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 	// Enrich event data
 	s.enrichEventData(ctx, event)
 
-	// Try to send to channel (non-blocking)
-	select {
-	case s.eventChan <- *event:
-		s.logger.Debug().
-			Str("website_id", event.WebsiteID).
-			Str("visitor_id", event.VisitorID).
-			Str("event_type", event.EventType).
-			Msg("Event queued")
-	default:
-		// Channel full, log warning but don't block
-		s.logger.Warn().Msg("Event channel full, dropping event")
-		return nil, fmt.Errorf("event queue full")
+	// Produce to Kafka
+	if err := s.kafka.ProduceEvent(ctx, *event); err != nil {
+		s.logger.Error().Err(err).Msg("Failed to produce event to Kafka")
+		return nil, fmt.Errorf("failed to process event")
 	}
 
 	return &models.EventResponse{
@@ -161,9 +154,10 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	s.logger.Info().
 		Str("site_id", req.SiteID).
 		Int("events_count", len(req.Events)).
-		Msg("Processing batch events")
+		Msg("Processing batch events to Kafka")
 
 	// Process and enrich all events
+	accepted := 0
 	for i := range req.Events {
 		if req.Events[i].WebsiteID == "" {
 			req.Events[i].WebsiteID = req.SiteID
@@ -175,42 +169,15 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 			req.Events[i].Timestamp = time.Now()
 		}
 
-		// Debug logging for each event
-		s.logger.Debug().
-			Str("website_id", req.Events[i].WebsiteID).
-			Str("visitor_id", req.Events[i].VisitorID).
-			Str("session_id", req.Events[i].SessionID).
-			Str("event_type", req.Events[i].EventType).
-			Str("page", req.Events[i].Page).
-			Time("timestamp", req.Events[i].Timestamp).
-			Msg("Processing individual event")
-
 		s.enrichEventData(ctx, &req.Events[i])
-	}
 
-	// Send each event to the channel
-	accepted := 0
-	for _, event := range req.Events {
-		select {
-		case s.eventChan <- event:
-			accepted++
-			s.logger.Debug().
-				Str("event_id", event.ID.String()).
-				Str("event_type", event.EventType).
-				Msg("Event queued successfully")
-		default:
-			s.logger.Warn().
-				Str("event_type", event.EventType).
-				Msg("Event channel full during batch")
-			break
+		// Produce to Kafka
+		if err := s.kafka.ProduceEvent(ctx, req.Events[i]); err != nil {
+			s.logger.Error().Err(err).Msg("Failed to produce batch event to Kafka")
+			continue
 		}
+		accepted++
 	}
-
-	s.logger.Info().
-		Str("site_id", req.SiteID).
-		Int("total_events", len(req.Events)).
-		Int("accepted_events", accepted).
-		Msg("Batch events processing completed")
 
 	return &models.BatchEventResponse{
 		Status:      "accepted",
@@ -219,8 +186,8 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	}, nil
 }
 
-// startBatchCollector collects events into small batches
-func (s *EventService) startBatchCollector() {
+// startKafkaConsumer consumes from Kafka and feeds into the batch processor
+func (s *EventService) startKafkaConsumer() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
@@ -230,28 +197,31 @@ func (s *EventService) startBatchCollector() {
 
 		batch := make([]models.Event, 0, BatchSize)
 
+		// Create a handler that appends to our local batch
+		handler := func(event models.Event) error {
+			batch = append(batch, event)
+			if len(batch) >= BatchSize {
+				s.sendBatch(batch)
+				batch = make([]models.Event, 0, BatchSize)
+				ticker.Reset(FlushInterval)
+			}
+			return nil
+		}
+
+		// Run Kafka consumer in a separate goroutine so we can still handle ticker
+		kafkaCtx, kafkaCancel := context.WithCancel(s.ctx)
+		defer kafkaCancel()
+
+		go s.kafka.ConsumeEvents(kafkaCtx, handler)
+
 		for {
 			select {
 			case <-s.ctx.Done():
-				// Flush remaining batch before exit
 				if len(batch) > 0 {
 					s.sendBatch(batch)
 				}
-				close(s.batchChan)
 				return
-
-			case event := <-s.eventChan:
-				batch = append(batch, event)
-
-				// Send batch when it's full
-				if len(batch) >= BatchSize {
-					s.sendBatch(batch)
-					batch = make([]models.Event, 0, BatchSize)
-					ticker.Reset(FlushInterval) // Reset timer
-				}
-
 			case <-ticker.C:
-				// Send batch on timer (even if not full)
 				if len(batch) > 0 {
 					s.sendBatch(batch)
 					batch = make([]models.Event, 0, BatchSize)
@@ -418,8 +388,6 @@ func (s *EventService) GetEvents(ctx context.Context, websiteID string, limit in
 // GetStats returns service statistics
 func (s *EventService) GetStats() map[string]interface{} {
 	return map[string]interface{}{
-		"event_queue_size": len(s.eventChan),
-		"event_queue_cap":  cap(s.eventChan),
 		"batch_queue_size": len(s.batchChan),
 		"batch_queue_cap":  cap(s.batchChan),
 		"batch_size":       BatchSize,

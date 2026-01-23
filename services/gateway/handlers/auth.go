@@ -61,6 +61,16 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Emit user_registered event
+	if kafkaService != nil {
+		kafkaService.ProduceEvent(r.Context(), "user_events", "user_registered", map[string]interface{}{
+			"user_id":       user.ID,
+			"name":          user.Name,
+			"email":         user.Email,
+			"registered_at": user.CreatedAt,
+		})
+	}
+
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{"message": "User created successfully"})
 }

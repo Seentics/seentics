@@ -9,8 +9,10 @@ import (
 type Config struct {
 	Environment string
 	Port        string
-	DatabaseURL string
-	LogLevel    string
+	DatabaseURL           string
+	LogLevel              string
+	KafkaBootstrapServers string
+	KafkaTopicEvents      string
 }
 
 func Load() (*Config, error) {
@@ -18,10 +20,12 @@ func Load() (*Config, error) {
 	// _ = godotenv.Load()
 
 	cfg := &Config{
-		Environment: getEnvOrDefault("ENVIRONMENT", "development"),
-		Port:        getEnvOrDefault("PORT", "3002"),
-		DatabaseURL: getEnvOrDefault("DATABASE_URL", ""),
-		LogLevel:    getEnvOrDefault("LOG_LEVEL", "info"),
+		Environment:           getEnvOrDefault("ENVIRONMENT", "development"),
+		Port:                  getEnvOrDefault("PORT", "3002"),
+		DatabaseURL:           getEnvOrDefault("DATABASE_URL", ""),
+		LogLevel:              getEnvOrDefault("LOG_LEVEL", "info"),
+		KafkaBootstrapServers: getEnvOrDefault("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
+		KafkaTopicEvents:      getEnvOrDefault("KAFKA_TOPIC_EVENTS", "analytics_events"),
 	}
 
 	// Validate required fields for production
