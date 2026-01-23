@@ -1,107 +1,64 @@
-# Contributing to Seentics
+# Contributing to Seentics Analytics
 
-Thank you for your interest in contributing to Seentics! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to the Seentics Analytics engine! This document provides guidelines for contributors to the Open Source analytics stack.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- Go 1.21+
-- Docker (for local development)
-- Git
+- **Node.js** 18+
+- **Go** 1.23+
+- **Docker** & Docker Compose
+- **Git**
 
 ### Development Setup
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/seentics/seentics.git`
+2. Clone your fork: `git clone https://github.com/skshohagmiah/seentics-analytics.git`
 3. Install dependencies:
    ```bash
-   # Frontend
-   cd frontend && npm install
+   # Analytics Backend
+   cd backend && go mod tidy
    
-   # Services
-   cd services/users && npm install
-   cd services/workflows && npm install
-   cd services/analytics && go mod tidy
+   # Analytics Frontend
+   cd ../frontend && npm install
    ```
-4. Set up environment variables (see `.env.example` files)
-5. Start dependencies: `docker compose up -d`
+4. Set up environment variables:
+   - Create `.env` in `backend/` based on `.env.example`
+   - Create `.env.local` in `frontend/` based on `frontend/.env.example`
+5. Start infrastructure: `docker compose up -d` (Postgres, Redis, Kafka)
 
 ## 📝 How to Contribute
 
 ### 1. Reporting Issues
-- Use the issue templates
-- Provide clear reproduction steps
-- Include system information and logs
-- Check existing issues first
+- Use GitHub Issues for bug reports.
+- Provide clear reproduction steps and environment details.
 
-### 2. Suggesting Features
-- Open a feature request issue
-- Describe the use case and benefits
-- Consider if it fits the project scope
-
-### 3. Submitting Code Changes
+### 2. Submitting Code Changes
 1. Create a feature branch: `git checkout -b feature/your-feature-name`
-2. Make your changes
-3. Add tests if applicable
-4. Ensure code follows style guidelines
-5. Commit with clear messages: `git commit -m "feat: add new analytics endpoint"`
-6. Push and create a pull request
+2. Make your changes and add tests.
+3. Ensure Go code is formatted: `go fmt ./...`
+4. Commit with clear messages.
+5. Open a Pull Request.
 
 ## 🎯 Development Guidelines
 
 ### Code Style
-- **Frontend**: Follow Next.js and React best practices
-- **Backend**: Use consistent naming conventions
-- **Go**: Follow Go formatting standards (`go fmt`)
-- **JavaScript/TypeScript**: Use Prettier and ESLint
+- **Backend (Go)**: Follow standard Go conventions and use `zerolog` for logging.
+- **Frontend (Next.js)**: Use TailwindCSS (if enabled) and follow React best practices.
 
 ### Testing
-- Write tests for new functionality
-- Ensure existing tests pass
-- Test both success and error cases
-
-### Documentation
-- Update README.md if adding new features
-- Document API changes
-- Add inline comments for complex logic
+- **Backend**: Run tests with `go test ./...`
+- **Frontend**: Run tests with `npm test`
 
 ## 🔧 Project Structure
 
 ```
-Seentics/
-├── frontend/                 # Next.js application
-├── services/
-│   ├── users/               # User management service
-│   ├── analytics/           # Analytics service (Go)
-│   ├── workflows/           # Workflow management service
-│   └── admin/               # Admin panel service
-├── docs/                    # Documentation
-├── nginx/                   # Nginx configuration
-└── docker-compose.yml       # Development environment
+analytics/
+├── backend/                 # Go Analytics Engine
+├── frontend/                # Next.js Dashboard UI
+├── docker-compose.yml       # Standalone OSS stack
+└── README.md                # Project overview
 ```
 
-## 🐛 Common Issues
+---
 
-### Database Connection Issues
-- Ensure MongoDB, TimescaleDB, and Redis are running
-- Check environment variables
-- Verify network connectivity
-
-### Frontend Build Issues
-- Clear `.next` directory: `rm -rf .next`
-- Reinstall dependencies: `rm -rf node_modules && npm install`
-
-## 📞 Getting Help
-
-- **Issues**: Use GitHub issues for bugs and feature requests
-- **Discussions**: Use GitHub Discussions for questions and ideas
-- **Documentation**: Check the docs/ directory and README files
-
-## 🎉 Recognition
-
-Contributors will be recognized in:
-- GitHub contributors list
-- Release notes
-- Project documentation
-
-Thank you for contributing to Seentics! 🚀
+Thank you for helping make Seentics better! 🚀

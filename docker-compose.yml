@@ -1,56 +1,25 @@
 services:
-  api-gateway:
-    build: ./services/gateway
-    container_name: api-gateway
-    ports:
-      - "8085:8080"
-    environment:
-      - API_GATEWAY_PORT=${API_GATEWAY_PORT:-8080}
-      - DB_HOST=gateway-db
-      - DB_USER=seentics
-      - DB_PASSWORD=seentics_gateway_pass
-      - DB_NAME=seentics_gateway
-      - DB_PORT=5432
-      - DB_SSLMODE=disable
-      - ANALYTICS_SERVICE_URL=http://analytics-service:3002
-      - REDIS_URL=redis://:seentics_redis_pass@redis:6379
-      - GLOBAL_API_KEY=${GLOBAL_API_KEY}
-      - JWT_SECRET=${JWT_SECRET}
-      - CLOUD_ENABLED=${CLOUD_ENABLED:-false}
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    depends_on:
-      redis:
-        condition: service_healthy
-      gateway-db:
-        condition: service_healthy
-    networks:
-      - seentics-network
-    restart: unless-stopped
-
-  analytics-service:
-    build: ./services/analytics
-    container_name: analytics-service
+  # ---------------------------------------------------------------------------
+  # Analytics Backend (OSS)
+  # ---------------------------------------------------------------------------
+  analytics-backend:
+    build:
+      context: ./backend
+    container_name: analytics-backend
     ports:
       - "3002:3002"
-    env_file: .env
     environment:
-      - ENVIRONMENT
+      - ENVIRONMENT=development
       - PORT=3002
       - DATABASE_URL=postgres://seentics:seentics_postgres_pass@postgres:5432/seentics_analytics?sslmode=disable
-      - LOG_LEVEL=info
-      - JWT_SECRET=${JWT_SECRET}
+      - LOG_LEVEL=debug
+      - JWT_SECRET=${JWT_SECRET:-dev_secret_for_oss}
       - REDIS_URL=redis://:seentics_redis_pass@redis:6379
       - REDIS_PASSWORD=seentics_redis_pass
-      - GLOBAL_API_KEY=${GLOBAL_API_KEY}
-      - DATABASE_URL=postgres://seentics:seentics_postgres_pass@postgres:5432/seentics_analytics?sslmode=disable
-      - USER_SERVICE_URL=http://api-gateway:8080
-      - MAXMIND_LICENSE_KEY=${MAXMIND_LICENSE_KEY}
-      - MAXMIND_DB_PATH=/data/GeoLite2-City.mmdb
-      - CLOUD_ENABLED=${CLOUD_ENABLED:-false}
+      - GLOBAL_API_KEY=${GLOBAL_API_KEY:-dev_api_key}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - KAFKA_TOPIC_EVENTS=analytics_events
-    volumes:
-      - maxmind-data:/data
+      - CLOUD_ENABLED=false # Always false in the OSS version
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,25 +37,26 @@ services:
       retries: 3
       start_period: 5s
 
-  gateway-db:
-    image: postgres:15-alpine
-    container_name: gateway-db
+  # ---------------------------------------------------------------------------
+  # Analytics Frontend (OSS)
+  # ---------------------------------------------------------------------------
+  analytics-frontend:
+    build:
+      context: ./frontend
+    container_name: analytics-frontend
+    ports:
+      - "3000:3000"
     environment:
-      POSTGRES_USER: seentics
-      POSTGRES_PASSWORD: seentics_gateway_pass
-      POSTGRES_DB: seentics_gateway
-    volumes:
-      - gateway-db-data:/var/lib/postgresql/data
+      - NEXT_PUBLIC_API_URL=http://localhost:3002
+    depends_on:
+      - analytics-backend
     networks:
       - seentics-network
     restart: unless-stopped
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U seentics -d seentics_gateway -h localhost -p 5432" ]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
 
+  # ---------------------------------------------------------------------------
+  # Infrastructure
+  # ---------------------------------------------------------------------------
   postgres:
     image: postgres:15-alpine
     container_name: postgres
@@ -165,23 +135,9 @@ services:
     networks:
       - seentics-network
 
-  automation-service:
-    build: ./services/automation
-    container_name: automation-service
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    depends_on:
-      kafka:
-        condition: service_started
-    networks:
-      - seentics-network
-    restart: unless-stopped
-
 volumes:
-  gateway-db-data:
   postgres-data:
   redis-data:
-  maxmind-data:
   kafka-data:
 
 
