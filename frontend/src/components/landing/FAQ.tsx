@@ -1,134 +1,162 @@
 import React from 'react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
+import { HelpCircle, MessageCircle, ArrowRight, Sparkles, CheckCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
 
 const faqs = [
   {
-    question: "How does Seentics differ from traditional analytics tools?",
-    answer:
-      "While traditional analytics tools focus on reporting what happened, Seentics goes beyond by automatically taking action based on user behavior. We not only track what users do, but we also engage them with personalized experiences to increase conversions in real-time. Our platform combines analytics, automation, and AI to create a complete conversion optimization solution.",
+    question: "Is Seentics really free forever?",
+    answer: "Yes. Our Starter plan is 100% free and includes everything you need for a single website. We don't even ask for a credit card. We believe high-quality analytics should be accessible to everyone."
   },
   {
-    question: "Will the tracking script affect my website's performance?",
-    answer:
-      "No, our tracking script is lightweight and optimized for performance. It loads asynchronously and won't impact your website's speed or user experience. We prioritize performance to ensure your site remains fast. The script is only 15KB gzipped and loads in under 100ms on average.",
-  },
-  {
-    question: "Can I track custom events from my application?",
-    answer:
-      "Absolutely. Seentics supports comprehensive custom event tracking. You can track any user interaction, form submissions, button clicks, or any other custom events that are important to your business goals. Our API makes it easy to integrate with any framework or technology stack.",
-  },
-  {
-    question: "How does the AI optimization work?",
-    answer:
-      "Our AI analyzes your website's performance data and automatically suggests optimizations for your workflows, helping you improve conversion rates without manual intervention. It learns from your data to provide increasingly accurate recommendations over time, identifying patterns and opportunities you might miss.",
-  },
-  {
-    question: "Do I own my data?",
-    answer:
-      "Yes, you own 100% of your data. We provide data export capabilities and ensure your data is secure and private. You can export your data at any time, and we never share your data with third parties. Your data is stored securely with enterprise-grade encryption.",
-  },
-  {
-    question: "How many websites can I track with one account?",
-    answer:
-      "Our free tier allows you to track up to 3 websites, while premium plans support unlimited websites. Each website gets its own analytics dashboard, workflow automation, and AI insights. You can manage all your websites from a single, unified dashboard.",
-  },
-  {
-    question: "What kind of ROI can I expect from Seentics?",
-    answer:
-      "Most of our customers see a 20-40% increase in conversion rates within the first 3 months. The ROI comes from automated engagement, personalized experiences, and AI-driven optimizations that convert more visitors into customers. Many businesses see payback within the first month of use.",
+    question: "How does the tracking script affect performance?",
+    answer: "Our script is ultra-lightweight (under 2KB). It's designed for performance and won't affect your Core Web Vitals or page load speed. It's significantly faster than Google Analytics and other legacy trackers."
   },
   {
     question: "Is Seentics GDPR and CCPA compliant?",
-    answer:
-      "Yes, Seentics is fully compliant with GDPR (European Union), CCPA (California), and other privacy regulations. We provide built-in cookie consent management, data export/deletion capabilities, and automated data retention policies. Users have full control over their data and can exercise their privacy rights at any time through our comprehensive privacy dashboard.",
+    answer: "Absolutely. We are cookieless by default and don't collect any personally identifiable information (PII). All data is processed and stored in compliance with the strictest privacy regulations."
   },
   {
-    question: "How long does it take to set up and see results?",
-    answer:
-      "Setup takes just 5 minutes - simply add our tracking code to your website. You'll start seeing real-time analytics immediately. For workflow automation and AI insights, we recommend 2-4 weeks of data collection to provide the most accurate recommendations and optimizations.",
+    question: "Can I import my data from Google Analytics?",
+    answer: "Yes! We offer a seamless import tool for both Universal Analytics and GA4 property data. You can bring your entire history into Seentics and continue your growth without losing context."
   },
   {
-    question: "Can I integrate Seentics with other tools I'm already using?",
-    answer:
-      "Absolutely! Seentics integrates with popular platforms like Shopify, WordPress, Zapier, and many others. We also provide webhooks and APIs for custom integrations. You can connect your existing tools to create powerful automated workflows that work across your entire tech stack.",
-  },
-  {
-    question: "How do you handle user consent and privacy preferences?",
-    answer:
-      "We provide granular cookie consent management that allows users to choose which types of tracking they accept (essential, analytics, marketing, preferences). Users can modify their preferences at any time, and we respect their choices across all sessions. Our system automatically adapts tracking based on user consent.",
-  },
-  {
-    question: "What happens to user data over time?",
-    answer:
-      "We implement automated data retention policies that comply with privacy regulations. Analytics data is retained for 2 years, session data for 1 year, and workflow logs for 6 months. Before deletion, personal identifiers are anonymized to maintain data integrity while ensuring privacy compliance.",
-  },
+    question: "Do you offer custom enterprise solutions?",
+    answer: "We do. For high-volume websites or specific infrastructure needs, we offer dedicated environments, volume discounts, and white-labeling. Contact our sales team for a custom quote."
+  }
 ];
 
 export default function FAQ() {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
+    }
+  };
+
   return (
-    <section className="py-20 bg-slate-50 dark:bg-slate-900 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-10 left-10 w-32 h-32 bg-blue-200/20 dark:bg-blue-800/10 rounded-full blur-2xl"></div>
-        <div className="absolute bottom-10 right-10 w-40 h-40 bg-purple-200/20 dark:bg-purple-800/10 rounded-full blur-2xl"></div>
-        <div className="absolute top-1/3 left-1/3 w-64 h-64 bg-green-100/10 dark:bg-green-900/5 rounded-full blur-3xl"></div>
-      </div>
-      
-      <div className="px-4 relative z-10">
-        <div className="text-center mb-16 sm:mb-20">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-700 dark:text-blue-300 text-sm font-medium mb-6">
-            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-            FAQ
-          </div>
-          
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 text-slate-900 dark:text-white px-4 sm:px-0">
-            Frequently Asked Questions
-          </h2>
-          <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto px-4 sm:px-0">
-            Everything you need to know about Seentics and how it can transform your website analytics
+    <section id="faq" className="py-24 sm:py-32 relative overflow-hidden bg-background">
+      <div className="container mx-auto px-6 relative z-10">
+        
+        {/* Header Section */}
+        <div className="text-center mb-16 sm:mb-28 px-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-6"
+          >
+            Resolution
+          </motion.div>
+          <motion.h2 
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="text-4xl sm:text-6xl md:text-7xl font-[1000] tracking-[-0.03em] mb-10 leading-[0.95]"
+          >
+            Common questions. <br />
+            <span className="gradient-text">Instant answers.</span>
+          </motion.h2>
+          <p className="text-lg sm:text-xl text-muted-foreground/60 max-w-2xl mx-auto font-medium tracking-tight">
+            Everything you need to know about getting started with the most powerful analytics engine.
           </p>
         </div>
-        
-        <div className="max-w-5xl mx-auto mb-20">
-          <Accordion type="single" collapsible className="w-full space-y-6">
+
+        {/* FAQs */}
+        <div className="max-w-4xl mx-auto mb-32 sm:mb-48">
+          <Accordion type="single" collapsible className="space-y-4">
             {faqs.map((faq, index) => (
-              <AccordionItem
+              <motion.div
                 key={index}
-                value={`item-${index}`}
-                className="border border-slate-200/50 dark:border-slate-700/50 rounded-2xl bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group"
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
               >
-                <AccordionTrigger className="text-left text-base sm:text-lg font-semibold text-slate-900 dark:text-white px-6 sm:px-8 py-6 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 transition-colors duration-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                  {faq.question}
-                </AccordionTrigger>
-                <AccordionContent className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed px-6 sm:px-8 pb-6">
-                  {faq.answer}
-                </AccordionContent>
-              </AccordionItem>
+                <AccordionItem 
+                  value={`item-${index}`} 
+                  className="glass-card border-white/10 dark:border-white/[0.05] rounded-[2rem] px-8 overflow-hidden data-[state=open]:bg-white/[0.02] transition-all"
+                >
+                  <AccordionTrigger className="text-sm sm:text-lg font-black tracking-tight py-6 hover:no-underline hover:text-primary transition-colors text-left group">
+                    <span className="flex items-center gap-4">
+                      <div className="p-2 bg-primary/5 rounded-xl border border-primary/20 group-hover:bg-primary/20 transition-colors">
+                        <HelpCircle className="h-4 w-4 text-primary" />
+                      </div>
+                      {faq.question}
+                    </span>
+                  </AccordionTrigger>
+                  <AccordionContent className="text-base text-muted-foreground/70 leading-relaxed font-medium tracking-tight pb-8 pl-12 pr-4">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              </motion.div>
             ))}
           </Accordion>
         </div>
-        
-        {/* Enhanced Bottom CTA */}
-        <div className="text-center">
-          <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-3xl p-8 sm:p-12 border border-slate-200/50 dark:border-slate-700/50 shadow-xl max-w-4xl mx-auto">
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-4">
-              Still Have Questions?
-            </h3>
-            <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-2xl mx-auto">
-              Can't find the answer you're looking for? Our team is here to help you get started.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button variant="outline" className="px-6 py-3 font-semibold border-2 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">
-                Contact Support
-              </Button>
-              <Button className="px-6 py-3 font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
-                Start Free Trial
-              </Button>
+
+        {/* Final CTA */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.98 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          className="max-w-6xl mx-auto"
+        >
+          <div className="relative glass p-10 sm:p-24 rounded-[4rem] border-white/10 shadow-glow/10 overflow-hidden bg-gradient-to-tr from-white/5 to-transparent">
+             {/* Background Mesh */}
+             <div className="absolute top-0 right-0 w-[50rem] h-[50rem] bg-primary/10 blur-[140px] rounded-full -mr-40 -mt-40 opacity-40" />
+             
+            <div className="relative z-10 text-center max-w-3xl mx-auto">
+              <h3 className="text-4xl sm:text-6xl font-[1000] mb-8 leading-[0.9] tracking-[-0.04em]">
+                Ready to reclaim <br />
+                <span className="text-primary text-shadow-glow">your intelligence?</span>
+              </h3>
+              <p className="text-lg sm:text-2xl text-muted-foreground/60 mb-12 font-medium tracking-tight">
+                Join 500+ businesses who have already upgraded to a faster, cleaner, and more sovereign analytics engine.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
+                <Link href="/signup" className="w-full sm:w-auto">
+                  <Button variant="brand" size="lg" className="w-full sm:w-auto h-16 px-12 rounded-full font-black text-[10px] uppercase tracking-[0.25em] active:scale-95 group">
+                    Get Started Free
+                    <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+                <Link href="/websites/demo" className="w-full sm:w-auto">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto h-16 px-12 rounded-full glass border-white/10 font-black text-[10px] uppercase tracking-[0.25em] hover:bg-white/5 transition-all active:scale-95">
+                    View Live Demo
+                  </Button>
+                </Link>
+              </div>
+              
+              <div className="mt-12 flex flex-wrap items-center justify-center gap-8 opacity-40 grayscale group-hover:grayscale-0 transition-all">
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  No card required
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  GDPR Sovereign
+                </div>
+                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  Instant Activation
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

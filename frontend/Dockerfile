@@ -10,9 +10,7 @@ WORKDIR /app
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
 # Install all dependencies first (including dev deps for postinstall)
-RUN npm ci
-# Remove dev dependencies after postinstall runs
-RUN npm prune --omit=dev
+RUN npm ci --legacy-peer-deps
 
 # Rebuild the source code only when needed
 FROM base AS builder

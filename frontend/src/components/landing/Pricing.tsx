@@ -1,250 +1,221 @@
-'use client';
-
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckCircle, Star, Zap, Crown } from 'lucide-react';
+import { CheckCircle, Zap, Star, Crown, ArrowRight, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/stores/useAuthStore';
+import { motion } from 'framer-motion';
 
 const plans = [
   {
-    name: "Free",
-    price: "$0",
+    name: "Starter",
+    price: "0",
     period: "forever",
-    description: "Perfect for personal projects",
+    description: "Ideal for personal projects & experiments.",
     icon: Star,
     popular: false,
+    color: "text-primary bg-primary/10 border-primary/20",
     features: [
       "1 Website",
       "Unlimited Events",
-      "Real-time Analytics",
+      "Real-time Intelligence",
       "Privacy Compliant",
       "Data Export",
-      "Email Support"
-    ],
-    limitations: []
+      "Community Support"
+    ]
   },
   {
     name: "Standard",
-    price: "$19",
+    price: "19",
     period: "per month",
-    description: "Great for growing businesses",
+    description: "Built for scaling businesses and creators.",
     icon: Zap,
     popular: true,
+    color: "text-primary bg-primary/10 border-primary/20",
     features: [
       "10 Websites",
-      "Unlimited Events",
-      "Advanced Analytics",
-      "Priority Support",
+      "Priority Ingestion",
+      "Advanced Intelligence",
+      "24/7 Priority Support",
       "Custom Domains",
       "API Access",
-      "Data Import/Export",
-      "Team Collaboration",
-      "Custom Reports"
-    ],
-    limitations: []
+      "Premium Reports"
+    ]
   },
   {
-    name: "Pro",
-    price: "$49",
+    name: "Enterprise",
+    price: "49",
     period: "per month",
-    description: "For scaling teams and agencies",
+    description: "Unmatched scale for heavy hitters.",
     icon: Crown,
     popular: false,
+    color: "text-primary bg-primary/10 border-primary/20",
     features: [
       "Unlimited Websites",
-      "Unlimited Events",
-      "Enterprise Analytics",
-      "24/7 Priority Support",
-      "White-label Options",
-      "Advanced API Access",
+      "Highest Throughput",
       "Custom Integrations",
-      "Team Collaboration",
-      "Custom Reports",
-      "Dedicated Account Manager",
-      "SLA Guarantee"
-    ],
-    limitations: []
+      "Dedicated Manager",
+      "SLA Guarantee",
+      "White-label Reports",
+      "SSO & Security"
+    ]
   }
 ];
 
 export default function Pricing() {
   const { isAuthenticated, user } = useAuth();
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 15 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
+    }
+  };
+
   return (
-    <section id="pricing" className="py-20 bg-slate-50 dark:bg-slate-900 relative overflow-hidden">
-      {/* Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-20 left-20 w-32 h-32 bg-blue-200/20 dark:bg-blue-800/10 rounded-full blur-2xl"></div>
-        <div className="absolute bottom-20 right-20 w-40 h-40 bg-purple-200/20 dark:bg-purple-800/10 rounded-full blur-2xl"></div>
-        <div className="absolute top-1/2 left-1/4 w-64 h-64 bg-green-100/10 dark:bg-green-900/5 rounded-full blur-3xl"></div>
-      </div>
-      
-      <div className="px-4 relative z-10">
+    <section id="pricing" className="py-24 sm:py-32 relative overflow-hidden bg-background">
+      <div className="container mx-auto px-6 relative z-10">
         
-        {/* Enhanced Header */}
-        <div className="text-center mb-16 sm:mb-20">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 rounded-full text-blue-700 dark:text-blue-300 text-sm font-medium mb-6">
-            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-            Flexible Plans
-          </div>
+        {/* Header */}
+        <div className="text-center mb-16 sm:mb-28 px-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-6"
+          >
+            Investment
+          </motion.div>
           
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 text-slate-900 dark:text-white px-4 sm:px-0">
-            Simple, Transparent Pricing
-          </h2>
+          <motion.h2 
+            initial={{ opacity: 0, scale: 0.98 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="text-4xl sm:text-6xl md:text-7xl font-[1000] tracking-[-0.03em] mb-10 leading-[0.95]"
+          >
+            Scalable plans for <br />
+            <span className="gradient-text">every stage.</span>
+          </motion.h2>
           
-          <p className="text-base sm:text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto px-4 sm:px-0">
-            Start free forever. Upgrade when you need more websites. No hidden fees.
+          <p className="text-lg sm:text-xl text-muted-foreground/60 max-w-2xl mx-auto font-medium tracking-tight">
+            Start free forever. No credit card required. Our infrastructure scales as your traffic grows.
           </p>
         </div>
         
-        {/* Enhanced Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-12 max-w-7xl mx-auto mb-20">
+        {/* Pricing Cards */}
+        <motion.div 
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto mb-32"
+        >
           {plans.map((plan, index) => (
-            <div key={index} className="relative group">
-              
-              {/* Enhanced Popular Badge */}
-              {plan.popular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-20">
-                  <div className="bg-blue-600 text-white px-4 py-2 rounded-full text-xs font-semibold shadow-lg animate-pulse">
-                    ⭐ Most Popular
+            <motion.div 
+              key={index} 
+              variants={itemVariants}
+              whileHover={{ y: -8, transition: { duration: 0.3 } }}
+              className={`relative glass-card p-1 rounded-[3rem] transition-all duration-500 ${
+                plan.popular ? 'ring-1 ring-primary/40 shadow-glow/20' : 'border-white/10'
+              }`}
+            >
+              <div className="bg-card/30 backdrop-blur-2xl h-full rounded-[2.8rem] p-10 flex flex-col relative overflow-hidden">
+                {plan.popular && (
+                  <div className="absolute top-0 right-0 py-2 px-6 bg-primary text-white text-[9px] font-black uppercase tracking-[0.25em] rounded-bl-3xl shadow-glow">
+                    Most Popular
                   </div>
-                </div>
-              )}
-              
-              {/* Enhanced Card */}
-              <Card className={`bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm shadow-lg hover:shadow-2xl transition-all duration-500 border border-slate-200/50 dark:border-slate-700/50 flex flex-col h-full hover:-translate-y-2 relative overflow-hidden ${
-                plan.popular ? 'ring-2 ring-blue-500 scale-105' : ''
-              }`}>
-                {/* Card Overlay */}
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${
-                  plan.popular ? 'bg-blue-50/50 dark:bg-blue-900/20' : 'bg-slate-50/50 dark:bg-slate-700/20'
-                }`}></div>
-                <CardHeader className="text-center pb-6 relative z-10">
-                  
-                  {/* Enhanced Icon */}
-                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110 ${
-                    plan.popular 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-slate-600 dark:bg-slate-700 text-white'
-                  }`}>
-                    <plan.icon className="h-10 w-10" />
+                )}
+
+                <div className="mb-10">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-8 border ${plan.color} shadow-sm transition-transform group-hover:scale-110`}>
+                    <plan.icon className="h-6 w-6" />
                   </div>
-                  
-                  {/* Plan Name */}
-                  <CardTitle className={`text-xl sm:text-2xl font-bold mb-2 transition-colors duration-300 ${
-                    plan.popular 
-                      ? 'text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400' 
-                      : 'text-slate-900 dark:text-white group-hover:text-slate-600 dark:group-hover:text-slate-300'
-                  }`}>
-                    {plan.name}
-                  </CardTitle>
-                  
-                  {/* Price */}
-                  <div className="mb-4">
-                    <span className="text-4xl font-black text-slate-900 dark:text-white">
-                      {plan.price}
-                    </span>
-                    <span className="text-slate-600 dark:text-slate-400 ml-2">
-                      {plan.period}
-                    </span>
+                  <h3 className="text-2xl font-black mb-2 tracking-tight">{plan.name}</h3>
+                  <div className="flex items-baseline gap-1 mb-4">
+                    <span className="text-5xl font-black tracking-[-0.04em]">${plan.price}</span>
+                    <span className="text-muted-foreground/60 font-black text-[10px] uppercase tracking-widest pl-1">/{plan.period === 'forever' ? 'forever' : 'mo'}</span>
                   </div>
-                  
-                  {/* Description */}
-                  <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 mb-4">
+                  <p className="text-muted-foreground/60 font-medium text-sm leading-relaxed tracking-tight">
                     {plan.description}
                   </p>
-                </CardHeader>
-                
-                <CardContent className="flex flex-col flex-grow relative z-10">
-                  {/* Enhanced Features List */}
-                  <ul className="space-y-3 mb-6 flex-grow">
-                    {plan.features.map((feature, featureIndex) => (
-                      <li key={featureIndex} className="flex items-start gap-3 group/item">
-                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 group-hover/item:scale-110 transition-transform duration-200">
-                          <CheckCircle className="h-3 w-3 text-white" />
-                        </div>
-                        <span className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed group-hover/item:text-slate-900 dark:group-hover/item:text-slate-200 transition-colors duration-200">
-                          {feature}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  
-                  {/* Enhanced CTA Button at bottom - always aligned */}
-                  <div className="mt-auto">
-                    {plan.name === 'Free' ? (
-                      <Link href={isAuthenticated ? "/websites" : "/signup"}>
-                        <Button 
-                          className="w-full py-3 font-semibold bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100 shadow-lg hover:shadow-xl transition-all duration-300 group/btn"
-                        >
-                          Start Free
-                        </Button>
-                      </Link>
-                    ) : (
-                      <a 
-                        href={`https://seentics.lemonsqueezy.com/buy/39b59b36-94d3-40a5-821c-e31b6836345c${user?.id ? `?checkout[custom_data][user_id]=${user.id}&checkout[email]=${encodeURIComponent(user.email || '')}` : ''}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        <Button 
-                          className={`w-full py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group/btn ${
-                            plan.popular 
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                              : 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-100'
-                          }`}
-                        >
-                          Get {plan.name}
-                        </Button>
-                      </a>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                </div>
+
+                <div className="space-y-4 mb-10 flex-grow">
+                  {plan.features.map((feature, i) => (
+                    <div key={i} className="flex items-center gap-4 group/item">
+                      <div className="flex-shrink-0 p-1 bg-primary/10 rounded-full border border-primary/20 group-hover/item:bg-primary/20 transition-colors">
+                        <CheckCircle className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <span className="text-[13px] font-bold text-foreground/70 group-hover/item:text-foreground transition-colors tracking-tight">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <Link href={isAuthenticated ? "/websites" : "/signup"} className="mt-auto">
+                  <Button 
+                    variant={plan.popular ? "brand" : "default"}
+                    className={`w-full h-14 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
+                      !plan.popular && 'glass border-white/10 hover:bg-white/5 active:scale-95 text-foreground'
+                    }`}
+                  >
+                    {plan.name === 'Starter' ? 'Start Free' : `Purchase ${plan.name}`}
+                    <ArrowRight className="ml-2 h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
         
-        {/* Enhanced Bottom Section */}
-        <div className="text-center">
-          <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-3xl p-8 sm:p-12 border border-slate-200/50 dark:border-slate-700/50 shadow-xl max-w-4xl mx-auto">
-            <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-4">
-              Questions About Pricing?
+        {/* Guarantee Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-4xl mx-auto text-center"
+        >
+          <div className="glass p-12 sm:p-20 rounded-[3.5rem] border-white/10 shadow-2xl relative overflow-hidden">
+             {/* Background Mesh */}
+             <div className="absolute top-0 left-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full -ml-32 -mt-32 opacity-30" />
+             
+            <h3 className="text-3xl sm:text-4xl font-black mb-8 tracking-tight relative z-10">
+              Enterprise requirements? <br />
+              <span className="text-primary italic font-serif underline decoration-primary/30 decoration-4 underline-offset-8">Let's talk scale.</span>
             </h3>
-            <p className="text-slate-600 dark:text-slate-400 mb-8 max-w-2xl mx-auto">
-              All plans include unlimited events, real-time analytics, GDPR compliance, and data export.
+            <p className="text-muted-foreground/60 mb-12 font-medium max-w-2xl mx-auto text-lg leading-relaxed tracking-tight relative z-10">
+              We provide custom infrastructure, massive volume discounts, and white-labeling for heavy hitters.
             </p>
             
-            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-sm text-slate-500 dark:text-slate-400 mb-8">
-              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 rounded-full">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>No setup fees</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 rounded-full">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>Cancel anytime</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-slate-700/50 rounded-full">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span>30-day money back</span>
-              </div>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/contact">
-                <Button variant="outline" className="px-6 py-3 font-semibold border-2 border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-5 relative z-10">
+              <Link href="/contact" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full sm:w-auto h-16 px-12 rounded-full glass border-white/10 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white/5 transition-all active:scale-95">
                   Contact Sales
                 </Button>
               </Link>
-              <Link href="/signup">
-                <Button className="px-6 py-3 font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+              <Link href="/signup" className="w-full sm:w-auto">
+                <Button variant="brand" className="w-full sm:w-auto h-16 px-12 rounded-full font-black text-[10px] uppercase tracking-[0.2em] active:scale-95">
                   Start Free Now
                 </Button>
               </Link>
             </div>
+            
+            <div className="mt-16 pt-10 border-t border-white/5 flex flex-wrap items-center justify-center gap-x-12 gap-y-6 text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 relative z-10">
+              <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary opacity-60" /> No Setup Fees</span>
+              <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary opacity-60" /> Cancel Anytime</span>
+              <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary opacity-60" /> GDPR Sovereign</span>
+            </div>
           </div>
-        </div>
+        </motion.div>
       </div>
     </section>
   );
 }
+

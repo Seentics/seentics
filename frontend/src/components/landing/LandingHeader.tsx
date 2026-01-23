@@ -1,181 +1,149 @@
-'use client';
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Sparkles, MoveRight, Github, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '../ui/logo';
-import { FaGithub, FaDiscord } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LandingHeader() {
   const { user, isAuthenticated } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const navLinks = [
+    { name: 'Features', href: '#features' },
+    { name: 'Pricing', href: '#pricing' },
+    { name: 'Docs', href: '/docs' },
+    { name: 'Contact', href: '/contact' },
+  ];
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-xl shadow-sm">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 md:h-20">
-          
-          {/* Brand - Left */}
-          <Link href="/" className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            <Logo size='xl'/>
-            <span className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white">Seentics</span>
-          </Link>
+    <header 
+      className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${
+        scrolled 
+          ? 'glass bg-background/60 border-b border-white/10 backdrop-blur-xl h-16 sm:h-20' 
+          : 'bg-transparent h-20 sm:h-24'
+      }`}
+    >
+      <div className="container mx-auto px-6 h-full flex items-center justify-between">
+        {/* Brand */}
+        <Link href="/" className="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
+          <Logo size='xl' className="group-hover:rotate-12 transition-transform duration-300" />
+          <span className="text-xl sm:text-2xl font-black tracking-tighter text-foreground">
+            Seentics
+          </span>
+        </Link>
 
-          {/* Desktop Nav - Center */}
-          <nav className="hidden lg:flex items-center gap-8">
-            <Link href="#features" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
-              Features
-            </Link>
-            <Link href="#pricing" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
-              Pricing
-            </Link>
-            <Link href="/docs" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
-              Docs
-            </Link>
-            <Link href="/contact" className="text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
-              Contact
-            </Link>
-          </nav>
-
-          {/* Desktop Actions - Right */}
-          <div className="hidden lg:flex items-center gap-3">
-            {/* Social Icons */}
-            <div className="flex items-center gap-2 mr-2">
-              <a 
-                href="https://github.com/skshohagmiah/Seentics" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                aria-label="Visit our GitHub repository"
-                className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
+        {/* Centered Navigation */}
+        <nav className="hidden lg:flex items-center absolute left-1/2 -translate-x-1/2">
+          <div className="flex items-center gap-2">
+            {navLinks.map((link) => (
+              <Link
+                key={link.name}
+                href={link.href}
+                className="px-5 py-2 rounded-full text-[13px] font-bold text-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-all tracking-wider"
               >
-                <FaGithub className="h-5 w-5" />
-              </a>
-              <a 
-                href="https://discord.gg/seentics" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                aria-label="Join our Discord community"
-                className="p-2 rounded-lg text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200"
-              >
-                <FaDiscord className="h-5 w-5" />
-              </a>
-            </div>
+                {link.name}
+              </Link>
+            ))}
+          </div>
+        </nav>
 
+        {/* Actions */}
+        <div className="hidden lg:flex items-center gap-6">
+          <div className="flex items-center gap-4 pr-6 border-r border-border/50">
             <ThemeToggle />
+            <Link
+              href="https://github.com/skshohagmiah/Seentics"
+              target="_blank"
+              className="p-2.5 rounded-full hover:bg-foreground/5 transition-colors text-foreground/40 hover:text-primary"
+              title="GitHub Repo"
+            >
+              <Github size={20} />
+            </Link>
+          </div>
 
-            {/* CTA Buttons */}
-            {isAuthenticated && user ? (
+          <div className="flex items-center gap-4">
+            {isAuthenticated ? (
               <Link href="/websites">
-                <Button size="sm" className="font-semibold">Dashboard</Button>
+                <Button variant="brand" className="h-11 px-8 rounded-full font-bold text-xs uppercase tracking-widest active:scale-95">
+                  Dashboard
+                </Button>
               </Link>
             ) : (
               <>
                 <Link href="/signin">
-                  <Button size="sm" variant="ghost" className="font-medium">Sign In</Button>
+                  <span className="text-sm font-bold text-foreground/60 hover:text-foreground transition-colors cursor-pointer mr-2">
+                    Sign In
+                  </span>
                 </Link>
                 <Link href="/signup">
-                  <Button size="sm" className="font-semibold shadow-md">Get Started</Button>
+                  <Button variant="brand" className="h-11 px-8 rounded-full font-bold text-xs uppercase tracking-widest active:scale-95">
+                    Start Free
+                  </Button>
                 </Link>
               </>
             )}
           </div>
-
-          {/* Mobile Actions - Right */}
-          <div className="flex lg:hidden items-center gap-2">
-            <ThemeToggle />
-            <button
-              className="inline-flex items-center justify-center rounded-lg p-2 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
-              aria-label="Toggle navigation"
-              aria-expanded={mobileOpen}
-              onClick={() => setMobileOpen(v => !v)}
-            >
-              {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
-          </div>
         </div>
+
+        {/* Mobile Toggle */}
+        <button 
+          className="lg:hidden p-3 rounded-full hover:bg-foreground/5 text-foreground transition-all"
+          onClick={() => setMobileOpen(!mobileOpen)}
+        >
+          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
       </div>
 
-      {/* Mobile Nav Panel */}
-      {mobileOpen && (
-        <div className="lg:hidden border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
-          <div className="container mx-auto px-4 py-4 space-y-3">
-            {/* Navigation Links */}
-            <Link 
-              href="#features" 
-              className="block py-2.5 px-3 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" 
-              onClick={() => setMobileOpen(false)}
-            >
-              Features
-            </Link>
-            <Link 
-              href="#pricing" 
-              className="block py-2.5 px-3 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" 
-              onClick={() => setMobileOpen(false)}
-            >
-              Pricing
-            </Link>
-            <Link 
-              href="/docs" 
-              className="block py-2.5 px-3 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" 
-              onClick={() => setMobileOpen(false)}
-            >
-              Documentation
-            </Link>
-            <Link 
-              href="/contact" 
-              className="block py-2.5 px-3 text-base font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" 
-              onClick={() => setMobileOpen(false)}
-            >
-              Contact
-            </Link>
-            
-            {/* Social Icons - Mobile */}
-            <div className="flex items-center gap-3 pt-3 pb-2 border-t border-slate-200 dark:border-slate-700">
-              <a 
-                href="https://github.com/skshohagmiah/Seentics" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                aria-label="Visit our GitHub repository"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-1 justify-center font-medium"
-              >
-                <FaGithub className="h-5 w-5" />
-                <span className="text-sm">GitHub</span>
-              </a>
-              <a 
-                href="https://discord.gg/seentics" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                aria-label="Join our Discord community"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors flex-1 justify-center font-medium"
-              >
-                <FaDiscord className="h-5 w-5" />
-                <span className="text-sm">Discord</span>
-              </a>
-            </div>
-            
-            {/* CTA Buttons - Mobile */}
-            <div className="pt-2 space-y-2">
-              {isAuthenticated && user ? (
-                <Link href="/websites" onClick={() => setMobileOpen(false)}>
-                  <Button className="w-full font-semibold">Go to Dashboard</Button>
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="absolute top-full left-0 right-0 border-b border-border bg-background/95 backdrop-blur-2xl lg:hidden"
+          >
+            <div className="container mx-auto px-6 py-10 flex flex-col gap-8">
+              <nav className="flex flex-col gap-2">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-between py-4 border-b border-border/50 group"
+                  >
+                    <span className="text-xl font-bold tracking-tight">{link.name}</span>
+                    <ArrowRight className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-all -translate-x-4 group-hover:translate-x-0" />
+                  </Link>
+                ))}
+              </nav>
+              
+              <div className="flex flex-col gap-4">
+                <Link href="/signup" onClick={() => setMobileOpen(false)}>
+                  <Button variant="brand" className="w-full h-14 rounded-full font-bold text-sm uppercase tracking-widest">
+                    Start Free Forever
+                  </Button>
                 </Link>
-              ) : (
-                <>
-                  <Link href="/signin" onClick={() => setMobileOpen(false)}>
-                    <Button variant="outline" className="w-full font-medium">Sign In</Button>
-                  </Link>
-                  <Link href="/signup" onClick={() => setMobileOpen(false)}>
-                    <Button className="w-full font-semibold shadow-md">Get Started Free</Button>
-                  </Link>
-                </>
-              )}
+                <div className="flex items-center justify-between px-2">
+                  <span className="text-sm font-bold text-muted-foreground">Dark mode</span>
+                  <ThemeToggle />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 }
+

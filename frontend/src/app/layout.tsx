@@ -39,13 +39,23 @@ export default function RootLayout({
       <body className={cn('antialiased font-sans')}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
+          defaultTheme="dark"
+          enableSystem
           disableTransitionOnChange
         >
 
           <QueryProvider>
               <LimitReachedTopBar />
-              {children}
+              <div className="relative min-h-screen isolate overflow-x-hidden">
+                {/* Ambient Background Blobs */}
+                <div className="ambient-blob w-[500px] h-[500px] bg-primary/20 -top-24 -left-24 animate-[pulse_8s_infinite]" />
+                <div className="ambient-blob w-[400px] h-[400px] bg-violet-600/10 top-1/2 -right-24 animate-[pulse_10s_infinite] delay-1000" />
+                <div className="ambient-blob w-[600px] h-[600px] bg-indigo-500/10 -bottom-48 left-1/4 animate-[pulse_12s_infinite] delay-500" />
+                
+                <div className="relative z-10">
+                  {children}
+                </div>
+              </div>
           </QueryProvider>
           <Toaster />
         </ThemeProvider>

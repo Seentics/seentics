@@ -61,6 +61,12 @@ func UnifiedAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		// 2. OSS Mode: Standalone JWT validation
+		// Allow public tracking endpoints
+		if c.Request.URL.Path == "/api/v1/analytics/event" || c.Request.URL.Path == "/api/v1/analytics/event/batch" {
+			c.Next()
+			return
+		}
+
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
