@@ -23,11 +23,12 @@ func main() {
 
 	// Consumer for user registration events
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  []string{bootstrapServers},
-		GroupID:  "automation-group",
-		Topic:    "user_events",
-		MinBytes: 10e3, // 10KB
-		MaxBytes: 10e6, // 10MB
+		Brokers:     []string{bootstrapServers},
+		GroupID:     "automation-group-new", // New group to force re-reading
+		Topic:       "user_events",
+		MinBytes:    10,   // Small for testing
+		MaxBytes:    10e6, // 10MB
+		StartOffset: kafka.FirstOffset,
 	})
 	defer reader.Close()
 

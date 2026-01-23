@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/lib/pq"
 	"github.com/seentics/seentics/services/gateway/database"
 	"github.com/seentics/seentics/services/gateway/models"
 	"golang.org/x/crypto/bcrypt"
@@ -53,7 +54,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		Password:    string(hashedPassword),
 		Role:        "user",
 		Plan:        "free",
-		Permissions: []string{"manage_websites", "view_analytics"},
+		Permissions: pq.StringArray{"manage_websites", "view_analytics"},
 	}
 
 	if err := database.DB.Create(&user).Error; err != nil {

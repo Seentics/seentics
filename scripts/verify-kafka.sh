@@ -16,9 +16,9 @@ if ! command -v curl &> /dev/null; then echo -e "${RED}Error: curl not found${NC
 if ! command -v jq &> /dev/null; then echo -e "${RED}Error: jq not found${NC}"; exit 1; fi
 
 # Configuration
-API_GATEWAY_URL="http://localhost:8080"
+API_GATEWAY_URL="http://localhost:8085"
 ANALYTICS_URL="http://localhost:3002"
-GLOBAL_API_KEY="seentics_at_2025_key" # Adjust if your .env differs
+GLOBAL_API_KEY="your-global-api-key-for-service-communication" # Adjust if your .env differs
 
 echo -e "\n${BLUE}1. Testing Analytics Event Ingestion (Kafka Producer)${NC}"
 TRACK_RES=$(curl -s -X POST "${ANALYTICS_URL}/api/v1/analytics/event" \

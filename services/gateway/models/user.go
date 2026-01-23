@@ -3,6 +3,7 @@ package models
 import (
 	"time"
 
+	"github.com/lib/pq"
 	"gorm.io/gorm"
 )
 
@@ -13,7 +14,7 @@ type User struct {
 	Password       string         `gorm:"not null" json:"-"`
 	Role           string         `gorm:"default:'user'" json:"role"`     // admin, user
 	Plan           string         `gorm:"default:'free'" json:"plan"`     // free, standard, pro, enterprise
-	Permissions    []string       `gorm:"type:text[]" json:"permissions"` // e.g. ["manage_websites", "view_analytics"]
+	Permissions    pq.StringArray `gorm:"type:text[]" json:"permissions"` // e.g. ["manage_websites", "view_analytics"]
 	Status         string         `gorm:"default:'active'" json:"status"`
 	CustomerID     string         `json:"customer_id,omitempty"`     // Lemon Squeezy Customer ID
 	SubscriptionID string         `json:"subscription_id,omitempty"` // Lemon Squeezy Subscription ID
