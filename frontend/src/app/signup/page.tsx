@@ -169,7 +169,7 @@ export default function SignUpPage() {
         <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl animate-pulse" />
       </div>
 
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-xl relative z-10">
         <div className="flex justify-center mb-8">
             <Link href="/">
                 <Logo size="xl" showText={true} textClassName="text-2xl font-bold" />
@@ -280,7 +280,8 @@ export default function SignUpPage() {
 
                 <Button
                   type="submit"
-                  className="w-full h-12 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all rounded-xl"
+                  variant='brand'
+                  className="w-full h-12 text-base font-semibold shadow-lg  transition-all rounded-xl"
                   disabled={isLoading}
                 >
                   Continue
@@ -327,6 +328,7 @@ export default function SignUpPage() {
                     </Button>
                     <Button
                         type="submit"
+                        variant={'brand'}
                         className="flex-[2] h-12 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all rounded-xl"
                         disabled={isLoading}
                     >

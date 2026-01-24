@@ -14,7 +14,7 @@ const protectedRoutes = [
 // Define public routes that don't require authentication
 const publicRoutes = [
   '/',
-  '/login',
+  '/signin',
   '/forgot-password',
   '/reset-password',
   '/verify-email',
@@ -22,20 +22,20 @@ const publicRoutes = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
   // Check if the path is protected
-  const isProtectedRoute = protectedRoutes.some(route => 
+  const isProtectedRoute = protectedRoutes.some(route =>
     pathname.startsWith(route)
   );
-  
+
   // Check if the path is public
-  const isPublicRoute = publicRoutes.some(route => 
+  const isPublicRoute = publicRoutes.some(route =>
     pathname === route || pathname.startsWith(route)
   );
 
   // Get auth token from cookies
   const authToken = request.cookies.get('auth-storage')?.value;
-  
+
   // Parse the auth storage to check if user is authenticated
   let isAuthenticated = false;
   if (authToken) {
@@ -49,13 +49,13 @@ export function middleware(request: NextRequest) {
 
   // If it's a protected route and user is not authenticated, redirect to login
   if (isProtectedRoute && !isAuthenticated) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+    const signInUrl = new URL('/signin', request.url);
+    signInUrl.searchParams.set('redirect', pathname);
+    return NextResponse.redirect(signInUrl);
   }
 
-  // If user is authenticated and trying to access login, redirect to dashboard
-  if (isAuthenticated && pathname === '/login') {
+  // If user is authenticated and trying to access signin, redirect to dashboard
+  if (isAuthenticated && pathname === '/signin') {
     return NextResponse.redirect(new URL('/websites', request.url));
   }
 

@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"analytics-app/middleware"
 	"analytics-app/models"
 	"analytics-app/services"
 	"fmt"
@@ -12,16 +11,14 @@ import (
 )
 
 type EventHandler struct {
-	service                *services.EventService
-	logger                 zerolog.Logger
-	subscriptionMiddleware *middleware.SubscriptionMiddleware
+	service *services.EventService
+	logger  zerolog.Logger
 }
 
 func NewEventHandler(service *services.EventService, logger zerolog.Logger) *EventHandler {
 	return &EventHandler{
-		service:                service,
-		logger:                 logger,
-		subscriptionMiddleware: middleware.NewSubscriptionMiddleware(logger),
+		service: service,
+		logger:  logger,
 	}
 }
 
@@ -55,18 +52,6 @@ func (h *EventHandler) TrackEvent(c *gin.Context) {
 			"error": "Failed to track event",
 		})
 		return
-	}
-
-	// Increment event usage counter after successful tracking
-	userID := c.GetHeader("X-Website-User-ID")
-	if userID == "" {
-		userID = c.GetHeader("X-User-ID")
-	}
-	if userID != "" {
-		if err := h.subscriptionMiddleware.IncrementEventUsage(userID, 1); err != nil {
-			h.logger.Error().Err(err).Str("user_id", userID).Msg("Failed to increment event usage")
-			// Don't fail the request if usage increment fails
-		}
 	}
 
 	c.JSON(http.StatusCreated, response)
@@ -128,19 +113,6 @@ func (h *EventHandler) TrackBatchEvents(c *gin.Context) {
 			"error": "Failed to track batch events",
 		})
 		return
-	}
-
-	// Increment event usage counter after successful batch tracking
-	userID := c.GetHeader("X-Website-User-ID")
-	if userID == "" {
-		userID = c.GetHeader("X-User-ID")
-	}
-	if userID != "" {
-		eventCount := len(req.Events)
-		if err := h.subscriptionMiddleware.IncrementEventUsage(userID, eventCount); err != nil {
-			h.logger.Error().Err(err).Str("user_id", userID).Int("event_count", eventCount).Msg("Failed to increment batch event usage")
-			// Don't fail the request if usage increment fails
-		}
 	}
 
 	c.JSON(http.StatusCreated, response)

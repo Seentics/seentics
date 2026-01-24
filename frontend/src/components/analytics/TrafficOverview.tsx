@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrafficChart } from './TrafficChart';
 import { HourlyTrafficChart } from './HourlyTrafficChart';
@@ -29,8 +29,11 @@ export function TrafficOverview({
   return (
     <Card className={cn("col-span-full shadow-sm border-gray-200 dark:border-gray-800", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
-        <CardTitle className="text-base font-semibold">Traffic Overview</CardTitle>
+        <div>
+          <CardTitle className="text-base font-semibold">Traffic Overview</CardTitle>
+        <CardDescription>Site traffic overview a over period</CardDescription>
         
+        </div>
         {/* View Tabs */}
         <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-auto">
           <TabsList className="grid w-full grid-cols-3 h-9">
@@ -50,9 +53,9 @@ export function TrafficOverview({
         </Tabs>
       </CardHeader>
       
-      <CardContent>
+      <CardContent className='p-0'>
         {view === 'chart' && (
-          <div className="h-[350px]">
+          <div className="h-[450px]">
             <TrafficChart data={dailyStats} isLoading={isLoading} />
           </div>
         )}

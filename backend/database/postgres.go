@@ -19,15 +19,15 @@ type PostgresConfig struct {
 // DefaultPostgresConfig returns sensible defaults for PostgreSQL
 func DefaultPostgresConfig() *PostgresConfig {
 	return &PostgresConfig{
-		MaxConns:        100,                  // High concurrency for analytics
-		MinConns:        25,                   // Good warmup pool
-		MaxConnLifetime: 2 * time.Hour,       // Longer for stable connections
-		MaxConnIdleTime: 15 * time.Minute,    // Reasonable idle timeout
+		MaxConns:        100,              // High concurrency for analytics
+		MinConns:        25,               // Good warmup pool
+		MaxConnLifetime: 2 * time.Hour,    // Longer for stable connections
+		MaxConnIdleTime: 15 * time.Minute, // Reasonable idle timeout
 	}
 }
 
 // ConnectPostgres creates a connection pool optimized for PostgreSQL
-func ConnectPostgres(databaseURL string) (*pgxpool.Pool, error) {
+func ConnectPostgres(databaseURL string, maxConns, minConns int) (*pgxpool.Pool, error) {
 	config, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse database URL: %w", err)
@@ -35,8 +35,8 @@ func ConnectPostgres(databaseURL string) (*pgxpool.Pool, error) {
 
 	// Apply optimized connection pool settings for high-throughput analytics
 	pgConfig := DefaultPostgresConfig()
-	config.MaxConns = pgConfig.MaxConns
-	config.MinConns = pgConfig.MinConns
+	config.MaxConns = int32(maxConns)
+	config.MinConns = int32(minConns)
 	config.MaxConnLifetime = pgConfig.MaxConnLifetime
 	config.MaxConnIdleTime = pgConfig.MaxConnIdleTime
 	config.HealthCheckPeriod = 1 * time.Minute
@@ -77,7 +77,7 @@ func verifyPostgreSQL(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 
 	fmt.Printf("PostgreSQL version: %s\n", version)
-	
+
 	// Check if UUID extension is available (required for our schema)
 	var hasUuidExtension bool
 	query := "SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp') OR EXISTS(SELECT 1 FROM pg_proc WHERE proname = 'gen_random_uuid')"
@@ -113,27 +113,27 @@ func CreatePartition(ctx context.Context, pool *pgxpool.Pool, tableName, partiti
 // SetupMonthlyPartitions creates monthly partitions for the events table for the next 12 months
 func SetupMonthlyPartitions(ctx context.Context, pool *pgxpool.Pool) error {
 	now := time.Now()
-	
+
 	for i := 0; i < 12; i++ {
 		month := now.AddDate(0, i, 0)
 		nextMonth := month.AddDate(0, 1, 0)
-		
+
 		partitionName := fmt.Sprintf("events_y%dm%02d", month.Year(), month.Month())
 		startDate := month.Format("2006-01-02")
 		endDate := nextMonth.Format("2006-01-02")
-		
+
 		if err := CreatePartition(ctx, pool, "events", partitionName, startDate, endDate); err != nil {
 			return fmt.Errorf("failed to create partition for %s: %w", month.Format("2006-01"), err)
 		}
 	}
-	
+
 	return nil
 }
 
 // DropOldPartitions removes partitions older than the specified retention period
 func DropOldPartitions(ctx context.Context, pool *pgxpool.Pool, retentionMonths int) error {
 	cutoffDate := time.Now().AddDate(0, -retentionMonths, 0)
-	
+
 	// Query to find old partitions
 	query := `
 		SELECT schemaname, tablename 
@@ -141,24 +141,24 @@ func DropOldPartitions(ctx context.Context, pool *pgxpool.Pool, retentionMonths 
 		WHERE tablename LIKE 'events_y%m%' 
 		AND schemaname = 'public'
 	`
-	
+
 	rows, err := pool.Query(ctx, query)
 	if err != nil {
 		return fmt.Errorf("failed to query partitions: %w", err)
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		var schema, tableName string
 		if err := rows.Scan(&schema, &tableName); err != nil {
 			continue
 		}
-		
+
 		// Parse partition date from table name (events_y2024m01 format)
 		var year, month int
 		if n, _ := fmt.Sscanf(tableName, "events_y%dm%d", &year, &month); n == 2 {
 			partitionDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-			
+
 			if partitionDate.Before(cutoffDate) {
 				dropQuery := fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)
 				if _, err := pool.Exec(ctx, dropQuery); err != nil {
@@ -169,6 +169,6 @@ func DropOldPartitions(ctx context.Context, pool *pgxpool.Pool, retentionMonths 
 			}
 		}
 	}
-	
+
 	return nil
 }

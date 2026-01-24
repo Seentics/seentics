@@ -79,7 +79,7 @@ export default function WorldMap({ data = [], isLoading = false, className = '' 
     const getCountryColor = (countryName: string): string => {
         const country = data.find(d => d.name === countryName);
 
-        if (!country) return '#E5E7EB'; // Gray for no data
+        if (!country) return '#3a3e44ff'; // Gray for no data
 
         const maxCount = Math.max(...data.map(d => d.count));
         const intensity = country.count / maxCount;
@@ -99,7 +99,7 @@ export default function WorldMap({ data = [], isLoading = false, className = '' 
     };
 
     return (
-        <div className={`h-[32rem] rounded-lg overflow-hidden relative ${className}`}>
+        <div className={`h-[30rem] rounded-lg overflow-hidden relative ${className}`}>
             {/* Header */}
             {/* <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center justify-between">
@@ -111,7 +111,7 @@ export default function WorldMap({ data = [], isLoading = false, className = '' 
             </div> */}
 
             {/* Map */}
-            <div className="h-full pt-4">
+            <div className="h-full">
                 <ComposableMap
                     projection="geoMercator"
                     projectionConfig={{
@@ -145,7 +145,7 @@ export default function WorldMap({ data = [], isLoading = false, className = '' 
                                                 outline: 'none',
                                             },
                                             hover: {
-                                                fill: hasData ? '#F59E0B' : '#E5E7EB',
+                                                fill: hasData ? '#F59E0B' : '#a6b1c8ff',
                                                 outline: 'none',
                                                 cursor: hasData ? 'pointer' : 'default'
                                             },

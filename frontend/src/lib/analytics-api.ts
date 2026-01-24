@@ -232,6 +232,8 @@ export interface VisitorInsightsData {
   new_visitors: number;
   returning_visitors: number;
   avg_session_duration: number;
+  top_entry_pages?: Array<{ page: string; sessions: number; bounce_rate: number }>;
+  top_exit_pages?: Array<{ page: string; sessions: number; exit_rate: number }>;
 }
 
 export interface TrafficSummary {
@@ -410,7 +412,7 @@ export const getTopOS = async (websiteId: string, days: number = 7): Promise<Get
 export const getTrafficSummary = async (websiteId: string, days: number = 7): Promise<TrafficSummary> => {
   const response = await api.get(`/analytics/traffic-summary/${websiteId}?days=${days}`);
   const data = response.data;
-  
+
   // Backend returns { website_id, date_range, summary }
   // Frontend expects the data directly with website_id and date_range included
   if (data.summary) {
@@ -420,7 +422,7 @@ export const getTrafficSummary = async (websiteId: string, days: number = 7): Pr
       ...data.summary,
     };
   }
-  
+
   return data;
 };
 
@@ -430,14 +432,14 @@ export const getTrafficSummary = async (websiteId: string, days: number = 7): Pr
 // Hourly Stats
 export const getHourlyStats = async (websiteId: string, days: number = 7): Promise<GetHourlyStatsResponse> => {
   const response = await api.get(`/analytics/hourly-stats/${websiteId}?days=${days}`);
-  
+
   // Convert UTC timestamps to local time
   if (response.data.hourly_stats) {
     response.data.hourly_stats = response.data.hourly_stats.map((stat: any) => {
       const utcTime = new Date(stat.timestamp);
       const localHour = utcTime.getHours();
       const localMinute = utcTime.getMinutes();
-      
+
       return {
         ...stat,
         hour: localHour,
@@ -446,7 +448,7 @@ export const getHourlyStats = async (websiteId: string, days: number = 7): Promi
       };
     });
   }
-  
+
   return response.data;
 };
 
@@ -479,7 +481,7 @@ export const getCustomEventsStats = async (websiteId: string, days: number = 7):
 export const getUserRetention = async (websiteId: string, days: number = 7): Promise<RetentionData> => {
   const response = await api.get(`/analytics/user-retention/${websiteId}?days=${days}`);
   const data = response.data;
-  
+
   // Backend returns { website_id, date_range, retention }
   // Frontend expects the data directly with website_id and date_range included
   if (data.retention) {
@@ -489,7 +491,7 @@ export const getUserRetention = async (websiteId: string, days: number = 7): Pro
       ...data.retention,
     };
   }
-  
+
   return data;
 };
 
@@ -691,12 +693,12 @@ export const useVisitorInsights = (websiteId: string, days: number = 7) => {
 // Track Event Mutation
 export const useTrackEvent = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<TrackEventResponse, Error, EventData>({
     mutationFn: trackEvent,
     onSuccess: (data, variables) => {
-      
-      
+
+
       // Optionally invalidate dashboard data as well
       queryClient.invalidateQueries({
         queryKey: [...analyticsKeys.all, 'dashboard', variables.website_id],
@@ -708,14 +710,14 @@ export const useTrackEvent = () => {
 // Track Batch Events Mutation
 export const useTrackBatchEvents = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation<BatchEventResponse, Error, BatchEventRequest>({
     mutationFn: trackBatchEvents,
     onSuccess: (data, variables) => {
       // Get website_id from first event
       const websiteId = variables.events[0]?.website_id;
       if (websiteId) {
-        
+
         queryClient.invalidateQueries({
           queryKey: [...analyticsKeys.all, 'dashboard', websiteId],
         });
@@ -731,7 +733,7 @@ export const useTrackBatchEvents = () => {
 // Hook to invalidate all analytics data for a website
 export const useInvalidateAnalytics = () => {
   const queryClient = useQueryClient();
-  
+
   return (websiteId: string) => {
     queryClient.invalidateQueries({
       queryKey: [...analyticsKeys.all],
@@ -764,11 +766,11 @@ export const formatDuration = (seconds: number): string => {
   if (!seconds || seconds <= 0) {
     return '0s';
   }
-  
+
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-  
+
   if (hours > 0) {
     return `${hours}h ${minutes}m ${secs}s`;
   }
@@ -788,7 +790,7 @@ export const formatGrowthRate = (rate: number): { value: string; isPositive: boo
   const isPositive = rate > 0;
   const isNeutral = rate === 0;
   const formattedRate = Math.abs(rate).toFixed(1);
-  
+
   return {
     value: `${isPositive ? '+' : isNeutral ? '' : '-'}${formattedRate}%`,
     isPositive,
@@ -828,7 +830,7 @@ export default {
   // detectAnomalies, // REMOVED: Backend doesn't support this endpoint for MVP
   getUserRetention,
   getVisitorInsights,
-  
+
   // Hooks
   useDashboardData,
 
@@ -848,10 +850,10 @@ export default {
   useTrackEvent,
   useTrackBatchEvents,
   useInvalidateAnalytics,
-  
+
   // Query Keys
   analyticsKeys,
-  
+
   // Helper functions
   formatNumber,
   formatDuration,
@@ -946,17 +948,17 @@ export async function createFunnel(websiteId: string, funnelData: Omit<Funnel, '
     }
   } catch (error: any) {
     console.error('Error creating funnel:', error);
-    
+
     // Check for limit reached error
     if (error.response?.status === 403 && error.response?.data?.error === 'Funnel limit reached') {
       throw new Error(`Funnel limit reached! You've reached your plan's funnel limit. Please upgrade to create more funnels.`);
     }
-    
+
     // Check for other limit-related errors  
     if (error.response?.data?.message?.includes('limit')) {
       throw new Error(error.response.data.message);
     }
-    
+
     throw error;
   }
 }
@@ -967,7 +969,7 @@ export async function getFunnels(websiteId: string): Promise<Funnel[]> {
     const response = await api.get(`/funnels/`, {
       params: { website_id: websiteId }
     });
-    
+
     // Handle both direct object response and wrapped response
     if (response.data && response.data.funnels) {
       return response.data.funnels;
@@ -1026,7 +1028,7 @@ export async function getFunnelAnalytics(funnelId: string, dateRange: number = 7
     const response = await api.get(`/funnels/${funnelId}/analytics`, {
       params: { days: dateRange }
     });
-    
+
     // Handle different response formats from the analytics service
     if (response.data && typeof response.data === 'object') {
       // If the response has a 'data' wrapper, unwrap it
@@ -1036,7 +1038,7 @@ export async function getFunnelAnalytics(funnelId: string, dateRange: number = 7
       // If it's a direct analytics object, return it
       return response.data;
     }
-    
+
     // Return empty analytics if no valid data
     return {
       status: 'success',
@@ -1131,7 +1133,7 @@ export const useFunnelAnalytics = (funnelId: string, dateRange: number = 7) => {
 
 export const useCreateFunnel = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ websiteId, funnelData }: { websiteId: string; funnelData: Omit<Funnel, 'id' | 'website_id' | 'created_at' | 'updated_at'> }) =>
       createFunnel(websiteId, funnelData),
@@ -1143,7 +1145,7 @@ export const useCreateFunnel = () => {
 
 export const useUpdateFunnel = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ funnelId, funnelData }: { funnelId: string; funnelData: Partial<Funnel> }) =>
       updateFunnel(funnelId, funnelData),
@@ -1156,7 +1158,7 @@ export const useUpdateFunnel = () => {
 
 export const useDeleteFunnel = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (funnelId: string) => deleteFunnel(funnelId),
     onSuccess: () => {
@@ -1178,10 +1180,10 @@ export const useDetailedFunnelAnalytics = (funnelId: string, dateRange: number =
 
 export const useCompareFunnels = () => {
   return useMutation({
-    mutationFn: ({ websiteId, funnelIds, dateRange }: { 
-      websiteId: string; 
-      funnelIds: string[]; 
-      dateRange?: number 
+    mutationFn: ({ websiteId, funnelIds, dateRange }: {
+      websiteId: string;
+      funnelIds: string[];
+      dateRange?: number
     }) => compareFunnels(websiteId, funnelIds, dateRange || 7),
   });
 };

@@ -27,7 +27,7 @@ func NewCustomEventsAggregatedRepository(db *pgxpool.Pool, logger zerolog.Logger
 }
 
 // UpsertCustomEvent creates or updates a custom event aggregation
-func (r *CustomEventsAggregatedRepository) UpsertCustomEvent(ctx context.Context, event *models.Event) error {
+func (r *CustomEventsAggregatedRepository) UpsertCustomEvent(ctx context.Context, event *models.Event, increment int) error {
 	if event.EventType == "pageview" || event.EventType == "session_start" || event.EventType == "session_end" {
 		// Don't aggregate system events
 		return nil
@@ -47,51 +47,42 @@ func (r *CustomEventsAggregatedRepository) UpsertCustomEvent(ctx context.Context
 		}
 	}
 
-	// Use a different approach for PostgreSQL - check if exists and update or insert
-	// First, try to find existing record within recent time window
-	checkQuery := `
-		SELECT id, count, first_seen FROM custom_events_aggregated 
-		WHERE website_id = $1 AND event_signature = $2 
-		AND last_seen >= $3
-		ORDER BY last_seen DESC LIMIT 1
-	`
-	
 	now := time.Now()
 	oneHourAgo := now.Add(-time.Hour)
-	var existingID string
-	var existingCount int
-	var firstSeen time.Time
-	
-	err := r.db.QueryRow(ctx, checkQuery, event.WebsiteID, signature, oneHourAgo).Scan(&existingID, &existingCount, &firstSeen)
-	
-	var query string
-	var args []interface{}
-	
-	if err != nil {
-		// No existing record found, insert new one
-		query = `
-			INSERT INTO custom_events_aggregated (
-				website_id, event_type, event_signature, count, sample_properties, 
-				first_seen, last_seen, created_at, updated_at
-			) VALUES ($1, $2, $3, 1, $4, $5, $5, $5, $5)
-		`
-		args = []interface{}{event.WebsiteID, event.EventType, signature, propertiesJSON, now}
-	} else {
-		// Update existing record
-		query = `
-			UPDATE custom_events_aggregated 
-			SET count = $3, last_seen = $4, updated_at = $4,
-				sample_properties = CASE 
-					WHEN last_seen < $4 THEN $5
-					ELSE sample_properties
-				END
-			WHERE id = $1 AND website_id = $2
-		`
-		args = []interface{}{existingID, event.WebsiteID, existingCount + 1, now, propertiesJSON}
+
+	// OPTIMIZATION: Try UPDATE first (most common case for high volume)
+	// This avoids a SELECT round-trip
+	updateQuery := `
+		UPDATE custom_events_aggregated 
+		SET count = count + $4, last_seen = $5, updated_at = $5,
+			sample_properties = CASE 
+				WHEN last_seen < $5 THEN $6
+				ELSE sample_properties
+			END
+		WHERE website_id = $1 AND event_signature = $2 
+		AND last_seen >= $3
+		RETURNING id
+	`
+
+	var id string
+	err := r.db.QueryRow(ctx, updateQuery, event.WebsiteID, signature, oneHourAgo, increment, now, propertiesJSON).Scan(&id)
+
+	if err == nil {
+		// Update successful
+		return nil
 	}
 
-	_, err = r.db.Exec(ctx, query, args...)
+	// If UPDATE failed (no rows), then INSERT
+	// Note: In high concurrency, a race condition could still cause duplicates here
+	// without a UNIQUE constraint, but this reduces the window significantly compared to Read-then-Write.
+	insertQuery := `
+		INSERT INTO custom_events_aggregated (
+			website_id, event_type, event_signature, count, sample_properties, 
+			first_seen, last_seen, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $6, $6, $6)
+	`
 
+	_, err = r.db.Exec(ctx, insertQuery, event.WebsiteID, event.EventType, signature, increment, propertiesJSON, now)
 	if err != nil {
 		r.logger.Error().Err(err).
 			Str("website_id", event.WebsiteID).
@@ -104,7 +95,7 @@ func (r *CustomEventsAggregatedRepository) UpsertCustomEvent(ctx context.Context
 	r.logger.Debug().
 		Str("website_id", event.WebsiteID).
 		Str("event_type", event.EventType).
-		Str("signature", signature).
+		Int("increment", increment).
 		Msg("Custom event aggregated successfully")
 
 	return nil
@@ -178,7 +169,7 @@ func (r *CustomEventsAggregatedRepository) createEventSignature(eventType string
 	// Use only event type for signature to enable proper aggregation
 	// Properties are stored separately as sample_properties for analysis
 	signatureData := strings.ToLower(eventType)
-	
+
 	// Create hash of the event type only
 	hash := sha256.Sum256([]byte(signatureData))
 	return hex.EncodeToString(hash[:])

@@ -21,7 +21,7 @@ interface TrafficChartProps {
   subtitle?: string;
 }
 
-const primaryChartColor = '#3b82f6'; // blue-500
+const primaryChartColor = '#8f3aabff'; // blue-500
 const secondaryChartColor = '#10b981'; // emerald-500
 
 const commonTooltipProps = {
@@ -88,7 +88,7 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
         )}
         <div className="flex items-center space-x-6 text-sm ml-auto">
           <div className="flex items-center space-x-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <div className="w-3 h-3 rounded-full bg-purple-500" />
             <span className="text-muted-foreground">Page Views</span>
           </div>
           <div className="flex items-center space-x-2">

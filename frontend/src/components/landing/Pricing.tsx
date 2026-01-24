@@ -15,7 +15,8 @@ const plans = [
     color: "text-primary bg-primary/10 border-primary/20",
     features: [
       "1 Website",
-      "Unlimited Events",
+      "1K Events",
+      "3 Months Retention",
       "Real-time Intelligence",
       "Privacy Compliant",
       "Data Export",
@@ -24,14 +25,16 @@ const plans = [
   },
   {
     name: "Standard",
-    price: "19",
+    price: "9",
     period: "per month",
     description: "Built for scaling businesses and creators.",
     icon: Zap,
     popular: true,
     color: "text-primary bg-primary/10 border-primary/20",
     features: [
-      "10 Websites",
+      "3 Websites",
+      "15K Events",
+      "13 Months Retention",
       "Priority Ingestion",
       "Advanced Intelligence",
       "24/7 Priority Support",
@@ -42,14 +45,16 @@ const plans = [
   },
   {
     name: "Enterprise",
-    price: "49",
+    price: "20",
     period: "per month",
     description: "Unmatched scale for heavy hitters.",
     icon: Crown,
     popular: false,
     color: "text-primary bg-primary/10 border-primary/20",
     features: [
-      "Unlimited Websites",
+      "10 Websites",
+      "100K Events",
+      "36 Months Retention",
       "Highest Throughput",
       "Custom Integrations",
       "Dedicated Manager",
@@ -99,7 +104,7 @@ export default function Pricing() {
             initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="text-4xl sm:text-6xl md:text-7xl font-[1000] tracking-[-0.03em] mb-10 leading-[0.95]"
+            className="text-4xl sm:text-6xl  font-[1000] tracking-[-0.03em] mb-10 leading-[0.95]"
           >
             Scalable plans for <br />
             <span className="gradient-text">every stage.</span>

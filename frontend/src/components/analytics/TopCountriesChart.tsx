@@ -215,7 +215,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
             <div key={item.country} className="flex items-center justify-between border-b p-3">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="relative w-8  rounded overflow-hidden shadow-sm border border-gray-200 dark:border-gray-600">
+                  <div className="relative w-8  rounded overflow-hidden shadow-sm">
                     <Image
                       src={item.flag}
                       alt={`${item.country} flag`}

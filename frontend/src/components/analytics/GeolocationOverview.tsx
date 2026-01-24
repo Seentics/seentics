@@ -171,7 +171,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
     }
 
     return (
-        <Card className={`bg-card border mb-6 rounded-md dark:bg-gray-800 ${className}`}>
+        <Card className={`bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none mb-6 rounded-md dark:bg-gray-800 ${className}`}>
             <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex-1 min-w-0">
                     <CardTitle className="text-base sm:text-lg font-medium text-foreground flex items-center gap-2">
@@ -210,7 +210,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                     <div key={country.name} className="flex items-center justify-between p-3 border-b hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                         <div className="flex items-center gap-3">
                                             <span className="text-sm font-medium text-gray-500 w-6">#{index + 1}</span>
-                                            <div className="relative w-8 h-6 rounded overflow-hidden shadow-sm border border-gray-200 dark:border-gray-600">
+                                            <div className="relative w-8 h-4 rounded overflow-hidden shadow-sm">
                                                 <Image
                                                     src={getCountryFlag(country.name)}
                                                     alt={`${country.name} flag`}
@@ -238,7 +238,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                                 <p className="text-sm font-semibold">{formatNumber(country.count)}</p>
                                                 <p className="text-xs text-muted-foreground">visitors</p>
                                             </div>
-                                            <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                            {/* <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full rounded-full transition-all duration-300"
                                                     style={{
@@ -246,7 +246,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                                         backgroundColor: color
                                                     }}
                                                 />
-                                            </div>
+                                            </div> */}
                                         </div>
                                     </div>
                                 );
@@ -264,7 +264,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                     <div key={city.name} className="flex items-center justify-between p-3 border-b hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                         <div className="flex items-center gap-3">
                                             <span className="text-sm font-medium text-gray-500 w-6">#{index + 1}</span>
-                                            <div className="p-2 rounded-lg" style={{ backgroundColor: `${color}20` }}>
+                                            <div className="p-2 rounded-lg" >
                                                 <MapPin className="h-4 w-4" style={{ color }} />
                                             </div>
                                             <div>
@@ -277,7 +277,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                                 <p className="text-sm font-semibold">{formatNumber(city.count)}</p>
                                                 <p className="text-xs text-muted-foreground">visitors</p>
                                             </div>
-                                            <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                            {/* <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full rounded-full transition-all duration-300"
                                                     style={{
@@ -285,7 +285,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                                         backgroundColor: color
                                                     }}
                                                 />
-                                            </div>
+                                            </div> */}
                                         </div>
                                     </div>
                                 );
@@ -303,7 +303,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                     <div key={continent.name} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 hover:shadow-sm transition-shadow">
                                         <div className="flex items-center gap-3">
                                             <span className="text-sm font-medium text-gray-500 w-6">#{index + 1}</span>
-                                            <div className="p-2 rounded-lg" style={{ backgroundColor: `${color}20` }}>
+                                            <div className="p-2 rounded-lg" >
                                                 <div className="text-lg">{getContinentEmoji(continent.name)}</div>
                                             </div>
                                             <div>
@@ -316,7 +316,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                                 <p className="text-sm font-semibold">{formatNumber(continent.count)}</p>
                                                 <p className="text-xs text-muted-foreground">visitors</p>
                                             </div>
-                                            <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                                            {/* <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                                                 <div
                                                     className="h-full rounded-full transition-all duration-300"
                                                     style={{
@@ -324,7 +324,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                                         backgroundColor: color
                                                     }}
                                                 />
-                                            </div>
+                                            </div> */}
                                         </div>
                                     </div>
                                 );

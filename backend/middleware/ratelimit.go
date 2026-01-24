@@ -20,24 +20,28 @@ func RateLimitMiddleware(redisClient *redis.Client) gin.HandlerFunc {
 			return
 		}
 
-		// Skip rate limiting for tracking endpoints (those have their own limits/buffers)
+		// Determine limit and window based on endpoint
+		limit := 100
+		window := time.Minute
+		keyPrefix := "rl:analytics"
+
+		// Higher limits for ingestion endpoints
 		if c.Request.URL.Path == "/api/v1/analytics/event" || c.Request.URL.Path == "/api/v1/analytics/event/batch" {
-			c.Next()
-			return
+			limit = 5000 // 5000 events per minute per IP for ingestion
+			keyPrefix = "rl:ingest"
 		}
 
 		// Get client identifier (IP or User ID)
 		identifier := c.ClientIP()
-		if userID, exists := c.Get("user_id"); exists {
-			identifier = userID.(string)
+		// Only use UserID for non-ingestion endpoints (ingestion is usually anonymous/public)
+		if keyPrefix == "rl:analytics" {
+			if userID, exists := c.Get("user_id"); exists {
+				identifier = userID.(string)
+			}
 		}
 
+		key := fmt.Sprintf("%s:%s", keyPrefix, identifier)
 		ctx := context.Background()
-		key := fmt.Sprintf("rl:analytics:%s", identifier)
-
-		// Simple fixed window rate limit (e.g., 100 requests per minute)
-		limit := 100
-		window := time.Minute
 
 		count, err := redisClient.Incr(ctx, key).Result()
 		if err != nil {

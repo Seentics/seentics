@@ -47,7 +47,7 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
   };
 
   return (
-    <Card className={`bg-card border shadow-sm dark:bg-gray-800 rounded-md ${className}`}>
+    <Card className={`bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md ${className}`}>
       <CardHeader className="pb-2">
         <CardTitle className="text-base font-medium text-foreground">Visitor Insights</CardTitle>
         <p className="text-xs text-muted-foreground">New vs Returning & Session Duration</p>

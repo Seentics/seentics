@@ -268,6 +268,22 @@ export const getDemoData = () => {
                 ],
             },
         },
+
+        // Retention data
+        retentionData: {
+            website_id: 'demo',
+            date_range: '30',
+            day_1: 45.2,
+            day_7: 22.8,
+            day_30: 12.5,
+            cohorts: [
+                { week: 'Dec 25', size: 1200, retention: [100, 42, 35, 28, 22] },
+                { week: 'Jan 01', size: 1500, retention: [100, 38, 30, 25] },
+                { week: 'Jan 08', size: 1100, retention: [100, 45, 33] },
+                { week: 'Jan 15', size: 1350, retention: [100, 40] },
+                { week: 'Jan 22', size: 900, retention: [100] },
+            ]
+        },
     };
 };
 

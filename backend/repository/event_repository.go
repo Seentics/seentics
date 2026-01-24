@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	MaxBatchSize = 2000               // Increased from 1000 for better throughput
-	BatchTimeout = 30 * time.Second   // Keep timeout reasonable for reliability
+	MaxBatchSize = 2000             // Increased from 1000 for better throughput
+	BatchTimeout = 30 * time.Second // Keep timeout reasonable for reliability
 )
 
 type EventRepository struct {
@@ -77,7 +77,7 @@ func (r *EventRepository) Create(ctx context.Context, event *models.Event) error
 	// Handle custom events with aggregation
 	if event.EventType != "pageview" && event.EventType != "session_start" && event.EventType != "session_end" {
 		// For custom events, aggregate them instead of storing individually
-		if err := r.customEventsAggregated.UpsertCustomEvent(ctx, event); err != nil {
+		if err := r.customEventsAggregated.UpsertCustomEvent(ctx, event, 1); err != nil {
 			r.logger.Error().Err(err).Str("event_id", event.ID.String()).Msg("Failed to aggregate custom event")
 			return err
 		}
@@ -143,13 +143,39 @@ func (r *EventRepository) CreateBatch(ctx context.Context, events []models.Event
 		}
 	}
 
-	// Process custom events with aggregation
-	for _, event := range customEvents {
-		if err := r.customEventsAggregated.UpsertCustomEvent(ctx, &event); err != nil {
-			result.Failed++
-			result.Errors = append(result.Errors, fmt.Errorf("custom event aggregation failed: %w", err))
+	// Process custom events with in-memory aggregation first
+	// This significantly reduces DB calls by grouping same event types
+	type aggEvent struct {
+		Count int
+		Event *models.Event
+	}
+	// key format: website_id:event_type
+	aggregation := make(map[string]*aggEvent)
+
+	for i := range customEvents {
+		event := &customEvents[i]
+		key := fmt.Sprintf("%s:%s", event.WebsiteID, event.EventType)
+
+		if agg, exists := aggregation[key]; exists {
+			agg.Count++
+			// Keep the latest event as sample (optional, but good for freshness)
+			if event.Timestamp.After(agg.Event.Timestamp) {
+				agg.Event = event
+			}
 		} else {
-			result.Processed++
+			aggregation[key] = &aggEvent{
+				Count: 1,
+				Event: event,
+			}
+		}
+	}
+
+	for _, agg := range aggregation {
+		if err := r.customEventsAggregated.UpsertCustomEvent(ctx, agg.Event, agg.Count); err != nil {
+			result.Failed += agg.Count
+			result.Errors = append(result.Errors, fmt.Errorf("custom event aggregation failed for %s: %w", agg.Event.EventType, err))
+		} else {
+			result.Processed += agg.Count
 		}
 	}
 

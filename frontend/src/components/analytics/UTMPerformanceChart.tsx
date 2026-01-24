@@ -2,8 +2,10 @@
 
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Target } from 'lucide-react';
+import { Target, TrendingUp, Info, Layers, Globe } from 'lucide-react';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
+import { formatNumber } from '@/lib/analytics-api';
 
 interface UTMPerformanceData {
   sources: Array<{
@@ -55,158 +57,106 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
 
   if (isLoading) {
     return (
-      <div className="bg-muted/30 rounded-lg p-4">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-muted rounded w-1/4"></div>
-          <div className="h-20 bg-muted rounded"></div>
-        </div>
+      <div className="space-y-4">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse">
+            <div className="flex items-center space-x-4">
+              <div className="w-8 h-8 bg-muted rounded-md" />
+              <div className="h-4 w-32 bg-muted rounded" />
+            </div>
+            <div className="h-4 w-12 bg-muted rounded" />
+          </div>
+        ))}
       </div>
     );
   }
 
-  const getTabTitle = (tab: string) => {
-    switch (tab) {
-      case 'sources': return 'UTM Sources';
-      case 'mediums': return 'UTM Mediums';
-      case 'campaigns': return 'UTM Campaigns';
-      case 'terms': return 'UTM Terms';
-      case 'content': return 'UTM Content';
-      default: return 'UTM Data';
-    }
-  };
-
-  const getTabDescription = (tab: string) => {
-    switch (tab) {
-      case 'sources': return 'Traffic sources driving visitors to your site';
-      case 'mediums': return 'Marketing channels and mediums used';
-      case 'campaigns': return 'Active marketing campaigns and their performance';
-      case 'terms': return 'Search terms and keywords driving traffic';
-      case 'content': return 'Content variations and their effectiveness';
-      default: return 'UTM parameter performance data';
-    }
-  };
-
   const getListData = (utmType: string) => {
     const utmData = data[utmType as keyof UTMPerformanceData] as Array<any>;
-    if (!utmData || !Array.isArray(utmData)) return [] as Array<{ name: string; visitors: number; events: number; sessions?: number }>;
+    if (!utmData || !Array.isArray(utmData)) return [] as Array<{ name: string; visitors: number; events: number }>;
     
     return utmData
-      .map((item: any) => {
-        let name = '';
-        let visitors = 0;
-        let events = 0;
-        
-        // Handle different UTM types
-        if (utmType === 'sources') {
-          name = item.source || 'Unknown';
-          visitors = Number(item.unique_visitors) || 0;
-          events = Number(item.visits || item.pageviews) || 0; // Handle both field names
-        } else if (utmType === 'mediums') {
-          name = item.medium || 'Unknown';
-          visitors = Number(item.unique_visitors) || 0;
-          events = Number(item.visits || item.pageviews) || 0; // Handle both field names
-        } else if (utmType === 'campaigns') {
-          name = item.campaign || 'Unknown';
-          visitors = Number(item.unique_visitors) || 0;
-          events = Number(item.visits || item.pageviews) || 0; // Handle both field names
-        } else if (utmType === 'terms') {
-          name = item.term || 'Unknown';
-          visitors = Number(item.unique_visitors) || 0;
-          events = Number(item.visits || item.pageviews) || 0; // Handle both field names
-        } else if (utmType === 'content') {
-          name = item.content || 'Unknown';
-          visitors = Number(item.unique_visitors) || 0;
-          events = Number(item.visits || item.pageviews) || 0; // Handle both field names
-        }
-        
-        return {
-          name: name === 'None' ? 'Direct' : name,
-          visitors: visitors,
-          events: events,
-          sessions: undefined, // Not available in new format
-        };
-      })
-      .sort((a, b) => b.visitors - a.visitors)
-      .slice(0, 10);
+      .map((item: any) => ({
+        name: (item.source || item.medium || item.campaign || item.term || item.content || 'Unknown') === 'None' ? 'Direct' : (item.source || item.medium || item.campaign || item.term || item.content || 'Unknown'),
+        visitors: Number(item.unique_visitors) || 0,
+        events: Number(item.visits || item.pageviews || 0),
+      }))
+      .sort((a, b) => b.visitors - a.visitors);
   };
 
-  const listData = getListData(utmTab);
+  const listData = getListData(utmTab).slice(0, 8);
+  const maxVal = Math.max(...listData.map(d => d.visitors), 1);
 
-  if (!data || Object.keys(data).length === 0) {
+  if (!data || listData.length === 0) {
     return (
-      <div className="bg-muted/30 rounded-lg p-4">
-        <div className="text-center py-8 text-muted-foreground">
-          <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-          <div className="text-sm font-medium">No UTM data available</div>
-          <div className="text-xs">Start adding UTM parameters to your links to track campaign performance</div>
-        </div>
+      <div className="h-64 flex flex-col items-center justify-center text-center space-y-2 opacity-50">
+        <Layers className="h-10 w-10 text-muted-foreground mb-2" />
+        <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">No Campaign Data</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-muted/30 rounded-lg p-4">
-      {!hideTabs && (
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-          <div>
-            <h4 className="font-semibold text-foreground text-sm">{getTabTitle(utmTab)}</h4>
-            <p className="text-xs text-muted-foreground">{getTabDescription(utmTab)}</p>
-          </div>
-          <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full sm:w-auto">
-            <TabsList className="grid w-full grid-cols-5 h-9 sm:h-8">
-              <TabsTrigger value="sources" className="text-xs px-2">Sources</TabsTrigger>
-              <TabsTrigger value="mediums" className="text-xs px-2">Mediums</TabsTrigger>
-              <TabsTrigger value="campaigns" className="text-xs px-2">Campaigns</TabsTrigger>
-              <TabsTrigger value="terms" className="text-xs px-2">Terms</TabsTrigger>
-              <TabsTrigger value="content" className="text-xs px-2">Content</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      )}
-
-      {listData.length > 0 ? (
-        <div className="space-y-2">
-          {listData.map((item, idx) => (
-            <div key={`${item.name}-${idx}`} className="flex items-center justify-between p-3 bg-background rounded-lg dark:border border-border">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-muted overflow-hidden">
-                  <Image src={getImageForName(item.name, utmTab)} alt={item.name} width={20} height={20} className="object-contain" />
-                </div>
-                <span className="text-sm font-medium">{item.name}</span>
+    <div className="space-y-0 animate-in fade-in duration-500">
+      {listData.map((item, idx) => {
+        const percentage = (item.visitors / maxVal) * 100;
+        return (
+          <div key={idx} className="flex items-center justify-between p-2 py-3 border-b transition-all hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
+            <div className="flex items-center space-x-4 flex-1 min-w-0">
+              <div className="w-8 h-8 rounded-md flex items-center justify-center  shadow-sm shrink-0 overflow-hidden p-1.5 group-hover:scale-110 transition-transform">
+                <Image 
+                  src={getImageForName(item.name, utmTab)} 
+                  alt={item.name} 
+                  width={16} 
+                  height={16} 
+                  className="object-contain" 
+                  onError={(e) => {
+                    const target = e.target as HTMLElement;
+                    target.style.display = 'none';
+                    target.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+                <Globe className="h-4 w-4 text-muted-foreground hidden" />
               </div>
-              <div className="text-right text-xs text-muted-foreground">
-                <div>{item.visitors} visitors</div>
-                <div>{item.events} events{item.sessions ? ` • ${item.sessions} sessions` : ''}</div>
+
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-sm text-foreground truncate" title={item.name}>
+                  {item.name}
+                </div>
+                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate">
+                  {utmTab.slice(0, -1)} Insight
+                </div>
               </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-8 text-muted-foreground">
-          <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-          <div className="text-sm">No {utmTab} data available</div>
-          <div className="text-xs">Add UTM parameters to your links to see {utmTab} performance</div>
-        </div>
-      )}
+
+            <div className="shrink-0 text-right">
+              <div className="text-right">
+                <div className="font-bold text-base leading-tight">
+                  {formatNumber(item.visitors)}
+                </div>
+                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                  Visitors
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 const getImageForName = (name: string, tab: string) => {
   const lower = (name || '').toLowerCase();
-  if (tab === 'sources' || tab === 'campaigns' || tab === 'mediums') {
-    if (lower.includes('google')) return '/images/search.png';
-    if (lower.includes('facebook')) return '/images/facebook.png';
-    if (lower.includes('twitter')) return '/images/twitter.png';
-    if (lower.includes('linkedin')) return '/images/linkedin.png';
-    if (lower.includes('instagram')) return '/images/instagram.png';
-    if (lower.includes('youtube')) return '/images/search.png';
-    if (lower.includes('tiktok')) return '/images/tiktok.png';
-    if (lower.includes('pinterest')) return '/images/pinterest.png';
-    if (lower.includes('email')) return '/images/search.png';
-    if (lower.includes('direct')) return '/images/link.png';
-  }
+  if (lower.includes('google')) return '/images/search.png';
+  if (lower.includes('facebook')) return '/images/facebook.png';
+  if (lower.includes('twitter') || lower.includes('x.com')) return '/images/twitter.png';
+  if (lower.includes('linkedin')) return '/images/linkedin.png';
+  if (lower.includes('instagram')) return '/images/instagram.png';
+  if (lower.includes('youtube')) return '/images/search.png';
+  if (lower.includes('tiktok')) return '/images/tiktok.png';
+  if (lower.includes('pinterest')) return '/images/pinterest.png';
+  if (lower.includes('email') || lower.includes('mail')) return '/images/search.png';
+  if (lower.includes('direct')) return '/images/link.png';
   return '/images/planet-earth.png';
 };
-
-

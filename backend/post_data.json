@@ -1,0 +1,10 @@
+{
+    "website_id": "TEST-SITE-LOAD",
+    "visitor_id": "LOAD-USER",
+    "event_type": "custom_click",
+    "page": "/load-test",
+    "properties": {
+        "action": "submit",
+        "value": 1
+    }
+}

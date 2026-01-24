@@ -41,7 +41,7 @@ func main() {
 	logger := setupLogger(cfg)
 
 	// Initialize database
-	db, err := database.Connect(cfg.DatabaseURL)
+	db, err := database.Connect(cfg.DatabaseURL, cfg.DbMaxConns, cfg.DbMinConns)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to connect to database")
 	}
@@ -230,27 +230,15 @@ func setupRouter(
 	// Health check with buffer stats
 	router.GET("/health", healthHandler.HealthCheck)
 
-	// Initialize subscription middleware
-	subscriptionMiddleware := middleware.NewSubscriptionMiddleware(logger)
-
-	// Usage cache stats endpoint for monitoring
-	router.GET("/usage-stats", func(c *gin.Context) {
-		stats := subscriptionMiddleware.GetUsageCacheStats()
-		c.JSON(200, gin.H{
-			"success": true,
-			"data":    stats,
-		})
-	})
-
 	// API routes
 	v1 := router.Group("/api/v1")
 	{
 		// Analytics routes
 		analytics := v1.Group("/analytics")
 		{
-			// Event tracking routes with usage limit enforcement
-			analytics.POST("/event", subscriptionMiddleware.CheckEventLimit(), eventHandler.TrackEvent)
-			analytics.POST("/event/batch", subscriptionMiddleware.CheckBatchEventLimit(), eventHandler.TrackBatchEvents)
+			// Event tracking routes
+			analytics.POST("/event", eventHandler.TrackEvent)
+			analytics.POST("/event/batch", eventHandler.TrackBatchEvents)
 			analytics.GET("/dashboard/:website_id", analyticsHandler.GetDashboard)
 
 			analytics.GET("/top-pages/:website_id", analyticsHandler.GetTopPages)

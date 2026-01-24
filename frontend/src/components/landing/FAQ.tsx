@@ -64,7 +64,7 @@ export default function FAQ() {
             initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="text-4xl sm:text-6xl md:text-7xl font-[1000] tracking-[-0.03em] mb-10 leading-[0.95]"
+            className="text-4xl sm:text-6xl  font-[1000] tracking-[-0.03em] mb-10 leading-[0.95]"
           >
             Common questions. <br />
             <span className="gradient-text">Instant answers.</span>

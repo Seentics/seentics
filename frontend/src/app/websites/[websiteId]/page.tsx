@@ -31,19 +31,21 @@ import {
   useTopOS,
   useTopPages,
   useTopReferrers,
+  useUserRetention,
   useVisitorInsights,
 } from '@/lib/analytics-api';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { format } from 'date-fns';
 import { getDemoData, getDemoWebsite } from '@/lib/demo-data';
-import { CalendarIcon, Download, Globe, PlusCircle } from 'lucide-react';
+import { CalendarIcon, Download, Globe, PlusCircle, Target } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
 import { EventsDetails } from '@/components/analytics/EventsDetails';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
+import { LandingExitAnalysis } from '@/components/analytics/LandingExitAnalysis';
 
 export default function WebsiteDashboardPage() {
   const params = useParams();
@@ -162,6 +164,9 @@ export default function WebsiteDashboardPage() {
   // Fetch activity trends data
   const { data: activityTrends, isLoading: trendsLoading, error: trendsError } = useActivityTrends(websiteId);
 
+  // Fetch retention data
+  const { data: retentionData, isLoading: retentionLoading } = useUserRetention(websiteId, dateRange);
+
   // Use demo data when in demo mode, otherwise use API data
   const finalDashboardData = isDemoMode ? demoData?.dashboardData : dashboardData;
   const finalTopPages = isDemoMode ? demoData?.topPages : topPages;
@@ -176,6 +181,7 @@ export default function WebsiteDashboardPage() {
   const finalVisitorInsights = isDemoMode ? demoData?.visitorInsights : visitorInsights;
   const finalCustomEvents = isDemoMode ? demoData?.customEvents : customEvents;
   const finalActivityTrends = isDemoMode ? demoData?.activityTrends : activityTrends;
+  const finalRetentionData = isDemoMode ? demoData?.retentionData : retentionData;
 
   // Transform API data to match demo component expectations
   const transformedTopPages = finalTopPages ? {
@@ -400,7 +406,7 @@ export default function WebsiteDashboardPage() {
           <div className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
-                <Card key={i} className="bg-card border-0 shadow-sm">
+                <Card key={i} className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none">
                   <CardHeader className="pb-2">
                     <div className="h-4 bg-muted rounded animate-pulse" />
                   </CardHeader>
@@ -536,12 +542,13 @@ export default function WebsiteDashboardPage() {
             }}
         />
 
+
         {/* Traffic Overview */}
         <TrafficOverview
             dailyStats={trafficSummaryChart || finalDailyStats}
             hourlyStats={finalHourlyStats}
             isLoading={!isDemoMode && (dashboardLoading || dailyLoading || trafficChartLoading)}
-            className="border shadow-sm bg-white dark:bg-gray-800 rounded-md"
+            className="border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-white dark:bg-gray-800 rounded-md"
         />
 
 
@@ -551,80 +558,57 @@ export default function WebsiteDashboardPage() {
             isLoading={!isDemoMode && geolocationLoading}
         />
 
+
         {/* DETAILS GRID START */}
         
         {/* Row 1: Top Pages & Top Sources */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-card border shadow-sm dark:bg-gray-800 rounded-md">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-base font-medium">Top Pages</CardTitle>
-                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleModalOpen('pages')}>View All</Button>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-[300px] overflow-y-auto">
-                        <TopPagesChart data={transformedTopPages} isLoading={pagesLoading} />
-                    </div>
+            <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md">
+                <CardContent className="p-6">
+                    <TopPagesChart 
+                        data={transformedTopPages} 
+                        entryPages={finalVisitorInsights?.visitor_insights?.top_entry_pages}
+                        exitPages={finalVisitorInsights?.visitor_insights?.top_exit_pages}
+                        isLoading={pagesLoading || visitorInsightsLoading} 
+                    />
                 </CardContent>
             </Card>
 
-            <Card className="bg-card border shadow-sm dark:bg-gray-800 rounded-md">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-base font-medium">Top Sources</CardTitle>
-                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleModalOpen('sources')}>View All</Button>
-                </CardHeader>
-                <CardContent>
-                     <div className="h-[300px] overflow-y-auto">
-                        <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
-                    </div>
+            <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md">
+                <CardContent className="p-6">
+                    <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
                 </CardContent>
             </Card>
         </div>
 
-        {/* Row 2: Locations & Devices */}
+        {/* Row 2: System Insights & Goal Conversions */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             <Card className="bg-card border shadow-sm dark:bg-gray-800 rounded-md">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-base font-medium">Locations</CardTitle>
-                     <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleModalOpen('countries')}>View All</Button>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-[300px] overflow-y-auto">
-                         <TopCountriesChart data={transformedTopCountries} isLoading={countriesLoading} />
-                    </div>
+             {/* System Insights */}
+             <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md">
+                <CardContent className="p-6">
+                    <TopDevicesChart 
+                        data={transformedTopDevices} 
+                        osData={transformedTopOS}
+                        isLoading={devicesLoading || osLoading} 
+                    />
                 </CardContent>
             </Card>
-
-             <Card className="bg-card border shadow-sm dark:bg-gray-800 rounded-md">
-                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-base font-medium">Devices</CardTitle>
-                     <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => handleModalOpen('devices')}>View All</Button>
-                </CardHeader>
-                <CardContent>
-                    <div className="h-[300px] overflow-y-auto">
-                         <TopDevicesChart data={transformedTopDevices} isLoading={devicesLoading} />
-                    </div>
-                </CardContent>
-            </Card>
-        </div>
-
-        {/* Row 3: Visitor Insights & Goal Conversions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             {/* Visitor Insights */}
-             <VisitorInsightsCard 
-                data={finalVisitorInsights?.visitor_insights} 
-                isLoading={!isDemoMode && visitorInsightsLoading}
-             />
 
             {/* Goal Conversions (Events) */}
-            <Card className="bg-card border shadow-sm dark:bg-gray-800 rounded-md">
-              <CardHeader className="pb-4">
-                  <div className="space-y-1">
-                  <CardTitle className="text-base font-medium text-foreground">Goal Conversions</CardTitle>
-                  <p className="text-xs text-muted-foreground">Custom events</p>
+            <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md">
+              <CardHeader className="bg-muted/10 pb-4 border-b">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <CardTitle className="text-base font-semibold">Goal Conversions</CardTitle>
+                      <p className="text-xs text-muted-foreground">Custom events tracked on your site</p>
+                    </div>
+                    {/* <div className="p-2 rounded-lg bg-background border shadow-sm">
+                      <Target className="h-4 w-4 text-purple-500" />
+                    </div> */}
                   </div>
               </CardHeader>
-              <CardContent>
-                <div className="h-[300px] overflow-y-auto">
+              <CardContent className="pt-4">
+                <div className="max-h-[380px] overflow-y-auto pr-1">
                   <EventsDetails
                   items={(transformedCustomEvents.top_events as any[])
                       .filter(e => !['pageview', 'page_view', 'page_visible', 'page_hidden', 'exit_intent'].includes(e.event_type))}
@@ -636,33 +620,35 @@ export default function WebsiteDashboardPage() {
         
       
 
-        {/* Row 5: UTM */}
-        <div className="space-y-4">
-            <Card className="bg-card border shadow-sm dark:bg-gray-800 rounded-md">
-            <CardHeader className="pb-4">
-                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                <div className="space-y-1">
-                    <CardTitle className="text-base font-medium text-foreground">UTM & Marketing</CardTitle>
-                </div>
-                <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full sm:w-auto">
-                    <TabsList className="grid w-full grid-cols-5 h-8 sm:h-8">
-                    <TabsTrigger value="sources" className="text-xs px-1 sm:px-2">Sources</TabsTrigger>
-                    <TabsTrigger value="mediums" className="text-xs px-1 sm:px-2">Mediums</TabsTrigger>
-                    <TabsTrigger value="campaigns" className="text-xs px-1 sm:px-2">Campaigns</TabsTrigger>
-                    <TabsTrigger value="terms" className="text-xs px-1 sm:px-2">Terms</TabsTrigger>
-                    <TabsTrigger value="content" className="text-xs px-1 sm:px-2">Content</TabsTrigger>
-                    </TabsList>
-                </Tabs>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <UTMPerformanceChart
-                data={transformedCustomEvents.utm_performance as any}
-                isLoading={customEventsLoading}
-                hideTabs={true}
-                controlledTab={utmTab}
-                />
-            </CardContent>
+        {/* Row 5: UTM Marketing Performance */}
+        <div className="grid grid-cols-1 gap-6">
+
+            <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md overflow-hidden">
+                <CardHeader className="bg-muted/10 pb-4 border-b">
+                    <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                        <div className="space-y-1">
+                            <CardTitle className="text-base font-semibold">UTM & Marketing</CardTitle>
+                            <p className="text-xs text-muted-foreground whitespace-nowrap">Campaign and traffic source performance</p>
+                        </div>
+                        <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full sm:w-auto">
+                            <TabsList className="grid w-full grid-cols-5 h-9 sm:h-9">
+                                <TabsTrigger value="sources" className="text-xs px-1 font-semibold">Sources</TabsTrigger>
+                                <TabsTrigger value="mediums" className="text-xs px-1 font-semibold">Mediums</TabsTrigger>
+                                <TabsTrigger value="campaigns" className="text-xs px-1 font-semibold">Campaigns</TabsTrigger>
+                                <TabsTrigger value="terms" className="text-xs px-1 font-semibold">Terms</TabsTrigger>
+                                <TabsTrigger value="content" className="text-xs px-1 font-semibold">Content</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+                </CardHeader>
+                <CardContent className="pt-4">
+                    <UTMPerformanceChart
+                        data={transformedCustomEvents.utm_performance as any}
+                        isLoading={customEventsLoading}
+                        hideTabs={true}
+                        controlledTab={utmTab}
+                    />
+                </CardContent>
             </Card>
         </div>
 

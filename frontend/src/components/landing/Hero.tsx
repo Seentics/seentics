@@ -22,7 +22,7 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-32 pb-40 overflow-hidden bg-background">
+    <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-40 pb-40 overflow-hidden bg-background">
       {/* Soft Mesh Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/10 blur-[120px] rounded-full animate-pulse" />
@@ -37,7 +37,7 @@ export default function Hero() {
           className="max-w-5xl mx-auto flex flex-col items-center text-center"
         >
           {/* Status Badge */}
-          <motion.div variants={itemVariants} className="mb-8">
+          {/* <motion.div variants={itemVariants} className="mb-8">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-md text-[11px] font-bold uppercase tracking-wider text-primary shadow-sm">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
@@ -45,12 +45,12 @@ export default function Hero() {
               </span>
               Next-Gen Analytics Engine
             </div>
-          </motion.div>
+          </motion.div> */}
 
           {/* Headline */}
           <motion.h1 
             variants={itemVariants}
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.1] mb-8 text-foreground"
+            className="text-4xl sm:text-6xl md:text-7xl  font-black tracking-tight leading-[1.1] mb-8 text-foreground"
           >
             Better data. <br />
             <span className="gradient-text font-black">Better results.</span>
@@ -73,7 +73,7 @@ export default function Hero() {
               </Button>
             </Link>
             <Link href="/websites/demo" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="h-14 px-10 text-[13px] font-bold uppercase tracking-wider rounded-full w-full sm:w-auto glass border-white/10 hover:bg-white/5 transition-all flex items-center gap-3">
+              <Button size="lg" variant="secondary" className="h-14 px-10 text-[13px] font-bold uppercase tracking-wider rounded-full w-full sm:w-auto glass border-white/10 hover:bg-white/5 transition-all flex items-center gap-3">
                 <Play className="h-3 w-3 fill-current" />
                 Live Preview
               </Button>

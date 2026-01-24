@@ -37,9 +37,10 @@ export default function LandingHeader() {
         {/* Brand */}
         <Link href="/" className="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
           <Logo size='xl' className="group-hover:rotate-12 transition-transform duration-300" />
-          <span className="text-xl sm:text-2xl font-black tracking-tighter text-foreground">
+          <p className="flex flex-col gap-0 text-xl font-black tracking-tighter text-foreground">
             Seentics
-          </span>
+            <small className='text-xs text-purple-500 -mt-1'>Analytics</small>
+          </p>
         </Link>
 
         {/* Centered Navigation */}

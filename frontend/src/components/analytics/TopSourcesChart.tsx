@@ -1,7 +1,22 @@
 'use client';
 
-import { ExternalLink, LinkIcon, Mail, Search, Share2 } from 'lucide-react';
+import { 
+  ExternalLink, 
+  LinkIcon, 
+  Mail, 
+  Search, 
+  Share2, 
+  BarChart3, 
+  Globe, 
+  Layers 
+} from 'lucide-react';
 import Image from 'next/image';
+import React, { useState } from 'react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
+import { formatNumber } from '@/lib/analytics-api';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TopSourcesChartProps {
   data?: {
@@ -16,7 +31,23 @@ interface TopSourcesChartProps {
   onViewMore?: () => void;
 }
 
+const getSourceImage = (label: string) => {
+  const lower = label.toLowerCase();
+  if (lower.includes('google') || lower.includes('search') || lower.includes('bing') || lower.includes('yahoo')) return '/images/search.png';
+  if (lower.includes('facebook') || lower.includes('fb')) return '/images/facebook.png';
+  if (lower.includes('twitter') || lower.includes('x.com')) return '/images/twitter.png';
+  if (lower.includes('linkedin')) return '/images/linkedin.png';
+  if (lower.includes('instagram')) return '/images/instagram.png';
+  if (lower.includes('tiktok')) return '/images/tiktok.png';
+  if (lower.includes('pinterest')) return '/images/pinterest.png';
+  if (lower.includes('email') || lower.includes('mail')) return '/images/search.png'; // Fallback for email
+  if (lower.includes('direct') || lower.includes('referral') || lower.includes('link')) return '/images/link.png';
+  return '/images/planet-earth.png';
+};
+
 export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChartProps) {
+  const [activeTab, setActiveTab] = useState('overview');
+
   // Helpers to classify categories
   const isOrganic = (r: string) => {
     const s = (r || '').toLowerCase();
@@ -31,157 +62,158 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
     const s = (r || '').toLowerCase();
     return s.includes('email') || s.includes('mail');
   };
-  const isInternal = (r: string) => {
-    const s = (r || '').toLowerCase();
-    return s.includes('localhost') || s.includes('127.0.0.1') || s.includes('internal');
-  };
-
-  // Aggregate into categories
-  const totals = {
-    'Direct': 0,
-    'Organic Search': 0,
-    'Social': 0,
-    'Email': 0,
-    'Internal Navigation': 0,
-    'Other Referral': 0,
-  } as Record<string, number>;
-
-  const items = data?.top_referrers || [];
-  for (const item of items) {
-    const ref = item.referrer || '';
-    if (isDirect(ref)) totals['Direct'] += item.visitors || 0;
-    else if (isOrganic(ref)) totals['Organic Search'] += item.visitors || 0;
-    else if (isSocial(ref)) totals['Social'] += item.visitors || 0;
-    else if (isEmail(ref)) totals['Email'] += item.visitors || 0;
-    else if (isInternal(ref)) totals['Internal Navigation'] += item.visitors || 0;
-    else totals['Other Referral'] += item.visitors || 0;
-  }
-
-  const palette = ['#4285F4', '#34A853', '#EA4335', '#FBBC05', '#8B5CF6', '#06B6D4'];
-  const colorFor = (name: string) => {
-    const idx = Object.keys(totals).indexOf(name);
-    return palette[idx % palette.length];
-  };
-  const imageFor = (name: string) => {
-    const n = name.toLowerCase();
-    if (n.includes('organic')) return '/images/search.png';
-    if (n.includes('social')) return '/images/facebook.png';
-    if (n.includes('email')) return '/images/search.png';
-    if (n.includes('direct')) return '/images/link.png';
-    if (n.includes('internal')) return '/images/link.png';
-    return '/images/planet-earth.png';
-  };
-
-  const totalVisitors = Object.values(totals).reduce((a, b) => a + b, 0);
-  const sourceData = Object.entries(totals)
-    .filter(([, v]) => v > 0)
-    .map(([name, v]) => ({
-      source: name,
-      visitors: v,
-      percentage: totalVisitors > 0 ? Math.round((v / totalVisitors) * 100) : 0,
-      color: colorFor(name),
-      image: imageFor(name),
-      type: name,
-    }));
 
   if (isLoading) {
     return (
       <div className="space-y-4">
-        <div className="animate-pulse">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
-                <div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-2"></div>
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 mb-1"></div>
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
-                </div>
-                <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-              </div>
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse">
+            <div className="flex items-center space-x-4">
+              <div className="w-4 h-4 bg-muted rounded" />
+              <div className="h-4 w-32 bg-muted rounded" />
             </div>
-          ))}
-        </div>
+            <div className="h-4 w-12 bg-muted rounded" />
+          </div>
+        ))}
       </div>
     );
   }
 
-  if (!data?.top_referrers || data.top_referrers.length === 0 || sourceData.length === 0) {
+  const referrers = data?.top_referrers || [];
+  const totalVisitors = referrers.reduce((sum, item) => sum + (item.visitors || 0), 0);
+
+  const getSourceData = (type: 'overview' | 'referrers' | 'search' | 'social') => {
+    if (type === 'overview') {
+      const totals: Record<string, { visitors: number, color: string }> = {
+        'Direct': { visitors: 0, color: '#4285F4' },
+        'Search': { visitors: 0, color: '#34A853' },
+        'Social': { visitors: 0, color: '#EA4335' },
+        'Email': { visitors: 0, color: '#FBBC05' },
+        'Referral': { visitors: 0, color: '#8B5CF6' },
+      };
+
+      referrers.forEach(item => {
+        const ref = item.referrer || '';
+        if (isDirect(ref)) totals['Direct'].visitors += item.visitors;
+        else if (isOrganic(ref)) totals['Search'].visitors += item.visitors;
+        else if (isSocial(ref)) totals['Social'].visitors += item.visitors;
+        else if (isEmail(ref)) totals['Email'].visitors += item.visitors;
+        else totals['Referral'].visitors += item.visitors;
+      });
+
+      return Object.entries(totals)
+        .filter(([, v]) => v.visitors > 0)
+        .map(([name, v]) => ({
+          label: name,
+          visitors: v.visitors,
+          color: v.color,
+          image: getSourceImage(name),
+          percentage: totalVisitors > 0 ? (v.visitors / totalVisitors) * 100 : 0
+        }));
+    }
+
+    let filtered = referrers;
+    if (type === 'search') filtered = referrers.filter(r => isOrganic(r.referrer));
+    if (type === 'social') filtered = referrers.filter(r => isSocial(r.referrer));
+
+    const maxVal = Math.max(...filtered.map(r => r.visitors), 1);
+    return filtered
+      .sort((a, b) => b.visitors - a.visitors)
+      .slice(0, 8)
+      .map(r => ({
+        label: r.referrer || 'Direct',
+        visitors: r.visitors,
+        color: type === 'search' ? '#34A853' : type === 'social' ? '#EA4335' : '#4285F4',
+        image: getSourceImage(r.referrer || 'Direct'),
+        percentage: (r.visitors / maxVal) * 100
+      }));
+  };
+
+  const PageList = ({ type }: { type: 'overview' | 'referrers' | 'search' | 'social' }) => {
+    const items = getSourceData(type);
+
+    if (items.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground opacity-50">
+          <Layers className="h-10 w-10 mb-2" />
+          <p className="text-sm">No traffic data available</p>
+        </div>
+      );
+    }
+
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <div className="text-sm">No source data available</div>
-        <div className="text-xs">Source data will appear here once visitors start coming to your site</div>
-      </div>
-    );
-  }
-  return (
-    <div className="space-y-4">
-      <div className="space-y-4">
-        {/* Top Sources (categories) */}
-        <div className="space-y-3">
-          {sourceData.slice(0, 5).map((item) => {
-            return (
-              <div key={item.source} className="flex items-center justify-between p-3 border-b ">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="p-2 rounded-lg overflow-hidden" style={{ backgroundColor: `${item.color}20` }}>
-                      <Image
-                        src={item.image}
-                        alt={item.source}
-                        width={16}
-                        height={16}
-                        className="object-contain"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          target.nextElementSibling?.classList.remove('hidden');
-                        }}
-                      />
-                      <div className="hidden">
-                        {item.source.toLowerCase().includes('organic') ? (
-                          <Search className="h-4 w-4" style={{ color: item.color }} />
-                        ) : item.source.toLowerCase().includes('social') ? (
-                          <Share2 className="h-4 w-4" style={{ color: item.color }} />
-                        ) : item.source.toLowerCase().includes('email') ? (
-                          <Mail className="h-4 w-4" style={{ color: item.color }} />
-                        ) : item.source.toLowerCase().includes('direct') ? (
-                          <ExternalLink className="h-4 w-4" style={{ color: item.color }} />
-                        ) : (
-                          <LinkIcon className="h-4 w-4" style={{ color: item.color }} />
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{item.source}</p>
-                      <p className="text-xs text-muted-foreground">{item.type}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">{(item.visitors || 0).toLocaleString()}</p>
-                    <p className="text-xs text-muted-foreground">{item.percentage}%</p>
-                  </div>
-                  <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{
-                        width: `${item.percentage}%`,
-                        backgroundColor: item.color
-                      }}
-                    />
-                  </div>
+      <div className="space-y-0">
+        {items.map((item, index) => (
+          <div key={index} className="flex items-center justify-between p-2 py-3 border-b transition-all hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
+            <div className="flex items-center space-x-4 flex-1 min-w-0">
+              <div className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center  shadow-sm overflow-hidden p-1.5 transition-transform hover:scale-110">
+                <Image
+                  src={item.image}
+                  alt={item.label}
+                  width={16}
+                  height={16}
+                  className="object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLElement;
+                    target.style.display = 'none';
+                    target.nextElementSibling?.classList.remove('hidden');
+                  }}
+                />
+                <Globe className="h-4 w-4 text-muted-foreground hidden" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-sm text-foreground truncate" title={item.label}>{item.label}</div>
+                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate">
+                   {type === 'overview' ? 'Channel' : 'Platform'} Insight
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+
+            <div className="shrink-0 text-right">
+              <div className="text-right">
+                <div className="font-bold text-base leading-tight">
+                  {formatNumber(item.visitors)}
+                </div>
+                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                  Visitors
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
+           <div>
+              <CardTitle className="text-base font-semibold">Traffic Sources</CardTitle>
+              <p className="text-xs text-muted-foreground">Main acquisition channels</p>
+           </div>
+           <TabsList className="grid grid-cols-4 h-9 w-full sm:w-auto p-1 ">
+             <TabsTrigger value="overview" className="text-[11px] font-semibold px-2">Total</TabsTrigger>
+             <TabsTrigger value="referrers" className="text-[11px] font-semibold px-2">Refer</TabsTrigger>
+             <TabsTrigger value="search" className="text-[11px] font-semibold px-2">Search</TabsTrigger>
+             <TabsTrigger value="social" className="text-[11px] font-semibold px-2">Social</TabsTrigger>
+           </TabsList>
+        </div>
+        
+        <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
+          <PageList type="overview" />
+        </TabsContent>
+        <TabsContent value="referrers" className="mt-0 focus-visible:outline-none">
+          <PageList type="referrers" />
+        </TabsContent>
+        <TabsContent value="search" className="mt-0 focus-visible:outline-none">
+          <PageList type="search" />
+        </TabsContent>
+        <TabsContent value="social" className="mt-0 focus-visible:outline-none">
+          <PageList type="social" />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -17,6 +17,8 @@ type Config struct {
 	KafkaTopicEvents      string
 	JWTSecret             string
 	GlobalAPIKey          string
+	DbMaxConns            int
+	DbMinConns            int
 }
 
 func Load() (*Config, error) {
@@ -32,6 +34,8 @@ func Load() (*Config, error) {
 		KafkaTopicEvents:      getEnvOrDefault("KAFKA_TOPIC_EVENTS", "analytics_events"),
 		JWTSecret:             getEnvOrDefault("JWT_SECRET", "seentics-default-secret-change-me"),
 		GlobalAPIKey:          getEnvOrDefault("GLOBAL_API_KEY", ""),
+		DbMaxConns:            GetEnvAsInt("DB_MAX_CONNS", 100),
+		DbMinConns:            GetEnvAsInt("DB_MIN_CONNS", 25),
 	}
 
 	// Validate required fields for production

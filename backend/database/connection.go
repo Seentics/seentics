@@ -10,9 +10,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func Connect(databaseURL string) (*pgxpool.Pool, error) {
+func Connect(databaseURL string, maxConns, minConns int) (*pgxpool.Pool, error) {
 	// Use the optimized PostgreSQL connection function
-	return ConnectPostgres(databaseURL)
+	return ConnectPostgres(databaseURL, maxConns, minConns)
 }
 
 func InitializeSchema(db *pgxpool.Pool) error {
