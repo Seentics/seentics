@@ -1,15 +1,15 @@
 package services
 
 import (
-	"analytics-app/kafka"
-	"analytics-app/models"
-	"analytics-app/repository"
+	"analytics-app/internal/modules/analytics/models"
+	"analytics-app/internal/modules/analytics/repository"
+	"analytics-app/internal/shared/kafka"
 	"context"
 	"fmt"
 	"sync"
 	"time"
 
-	"analytics-app/utils"
+	"analytics-app/internal/shared/utils"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"

@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"analytics-app/utils"
+	"analytics-app/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"

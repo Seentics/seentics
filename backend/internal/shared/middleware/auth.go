@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"analytics-app/config"
+	"analytics-app/internal/shared/config"
 	"fmt"
 	"net/http"
 	"os"

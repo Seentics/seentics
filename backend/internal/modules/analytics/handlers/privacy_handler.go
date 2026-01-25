@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"analytics-app/services"
+	"analytics-app/internal/modules/analytics/services"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

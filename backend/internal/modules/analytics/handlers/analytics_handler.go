@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"analytics-app/services"
+	"analytics-app/internal/modules/analytics/services"
 	"fmt"
 	"net/http"
 	"strconv"

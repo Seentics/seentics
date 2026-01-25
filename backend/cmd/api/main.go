@@ -1,15 +1,25 @@
 package main
 
 import (
-	"analytics-app/config"
-	"analytics-app/database"
-	"analytics-app/handlers"
-	"analytics-app/kafka"
-	"analytics-app/middleware"
-	"analytics-app/migrations"
-	"analytics-app/repository"
-	"analytics-app/repository/privacy"
-	"analytics-app/services"
+	"analytics-app/internal/modules/analytics/handlers"
+	"analytics-app/internal/modules/analytics/repository"
+	"analytics-app/internal/modules/analytics/repository/privacy"
+	"analytics-app/internal/modules/analytics/services"
+
+	// New Modules
+	autoHandlerPkg "analytics-app/internal/modules/automations/handlers"
+	autoRepoPkg "analytics-app/internal/modules/automations/repository"
+	autoServicePkg "analytics-app/internal/modules/automations/services"
+
+	funnelHandlerPkg "analytics-app/internal/modules/funnels/handlers"
+	funnelRepoPkg "analytics-app/internal/modules/funnels/repository"
+	funnelServicePkg "analytics-app/internal/modules/funnels/services"
+
+	"analytics-app/internal/shared/config"
+	"analytics-app/internal/shared/database"
+	"analytics-app/internal/shared/kafka"
+	"analytics-app/internal/shared/middleware"
+	"analytics-app/internal/shared/migrations"
 	"context"
 	"log"
 	"net/http"
@@ -99,8 +109,19 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(db, logger)
 	adminHandler := handlers.NewAdminHandler(eventRepo, logger)
 
+	// Initialize new modules (Automations & Funnels)
+	// Automations
+	autoRepo := autoRepoPkg.NewAutomationRepository(db)
+	autoService := autoServicePkg.NewAutomationService(autoRepo)
+	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
+
+	// Funnels
+	funnelRepo := funnelRepoPkg.NewFunnelRepository(db)
+	funnelService := funnelServicePkg.NewFunnelService(funnelRepo)
+	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
+
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, logger)
+	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -202,6 +223,8 @@ func setupRouter(
 	privacyHandler *handlers.PrivacyHandler,
 	healthHandler *handlers.HealthHandler,
 	adminHandler *handlers.AdminHandler,
+	autoHandler *autoHandlerPkg.AutomationHandler,
+	funnelHandler *funnelHandlerPkg.FunnelHandler,
 	logger zerolog.Logger,
 ) *gin.Engine {
 	if cfg.Environment == "production" {
@@ -275,6 +298,18 @@ func setupRouter(
 		admin := v1.Group("/admin")
 		{
 			admin.GET("/analytics/stats", adminHandler.GetAnalyticsStats)
+		}
+
+		// Automations routes
+		automations := v1.Group("/automations")
+		{
+			automations.GET("/:website_id", autoHandler.GetAutomations)
+		}
+
+		// Funnels routes
+		funnels := v1.Group("/funnels")
+		{
+			funnels.GET("/:website_id", funnelHandler.GetFunnels)
 		}
 	}
 

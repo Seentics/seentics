@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"analytics-app/models"
-	"analytics-app/services"
+	"analytics-app/internal/modules/analytics/models"
+	"analytics-app/internal/modules/analytics/services"
 	"fmt"
 	"net/http"
 
