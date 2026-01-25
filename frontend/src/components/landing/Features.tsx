@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { BarChart3, Shield, Zap, Globe, Check, Layers, Database, MoveRight } from 'lucide-react';
+import { BarChart3, Shield, Zap, Globe, Check, Layers, Database, MoveRight, Workflow } from 'lucide-react';
 import React from 'react';
 
 export default function Features() {
@@ -35,10 +35,10 @@ export default function Features() {
       color: "text-violet-500 bg-violet-500/10"
     },
     {
-      icon: Database,
-      title: "Total Sovereignty",
-      description: "Fully open source. No vendor lock-in. Export your data in CSV or JSON at any scale.",
-      color: "text-primary bg-primary/10"
+      icon: Workflow,
+      title: "Built-in Automation",
+      description: "Sync your analytics with Seentics Automation. Trigger marketing workflows and webhooks instantly based on user behavior.",
+      color: "text-indigo-500 bg-indigo-500/10"
     },
   ];
 

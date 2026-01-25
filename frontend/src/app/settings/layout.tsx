@@ -48,7 +48,7 @@ export default function GlobalSettingsLayout({ children }: { children: React.Rea
   const sidebarLinks = [
     {
       title: 'Websites',
-      href: '/settings',
+      href: '/settings/websites',
       icon: Globe,
       description: 'Properties'
     },

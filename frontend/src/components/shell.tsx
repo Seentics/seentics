@@ -44,6 +44,7 @@ import {
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { ThemeToggle } from './theme-toggle';
+import { PromotionBanner } from './promotion-banner';
 
 
 const navItems = [
@@ -209,12 +210,25 @@ function ShellContent({ children }: { children: React.ReactNode }) {
            </SidebarFooter>
         </Sidebar>
           <div className="flex flex-1 flex-col overflow-auto bg-background">
+            <PromotionBanner />
             <header className="sticky top-0 z-10 flex h-16 items-center border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/60 sm:px-6 lg:px-8">
               <div className="flex items-center gap-2 flex-1">
                  <SidebarTrigger className="md:hidden" />
                  <CollapseButton />
               </div>
               <div className="flex items-center gap-2 md:gap-4">
+                {/* Automation Link */}
+                <Link 
+                  href="https://automation.seentics.com" 
+                  target="_blank"
+                  className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all text-xs font-bold"
+                >
+                  <Workflow size={14} />
+                  <span>Automation</span>
+                </Link>
+
+                <div className="h-6 w-[1px] bg-border hidden md:block" />
+
                 <SiteSelector selectedSiteId={siteId} onSiteChange={handleSiteChange} />
                 <ThemeToggle />
                 <UserMenu />

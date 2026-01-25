@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, CheckCircle, Mail, Lock, User, Globe, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, Shield, Workflow, ArrowRight, User, Zap, CheckCircle } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -12,17 +12,13 @@ import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/stores/useAuthStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { addWebsite } from '@/lib/websites-api';
 
 export default function SignUpPage() {
-  const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    websiteName: '',
-    websiteUrl: ''
   });
   
   const [error, setError] = useState<string | null>(null);
@@ -70,48 +66,23 @@ export default function SignUpPage() {
     return true;
   };
 
-  const validateStep2 = () => {
-    if (!formData.websiteName.trim()) {
-      setError('Website name is required');
-      return false;
-    }
-    if (!formData.websiteUrl.trim()) {
-      setError('Website URL is required');
-      return false;
-    }
-    try {
-        new URL(formData.websiteUrl.startsWith('http') ? formData.websiteUrl : `https://${formData.websiteUrl}`);
-    } catch (e) {
-        setError('Please enter a valid website URL');
-        return false;
-    }
-    return true;
-  };
 
-  const handleNextStep = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateStep1()) {
-      setStep(2);
-      setError(null);
-    }
-  };
-
-  const handleFinalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateStep2()) return;
+    if (!validateStep1()) return;
 
     try {
       setError(null);
       setIsLoading(true);
 
       // 1. Register the user
-      const regResponse = await api.post('/user/auth/register', {
+      await api.post('/user/auth/register', {
         name: formData.name.trim(),
         email: formData.email.trim(),
         password: formData.password,
       });
 
-      // 2. Login to get tokens (assuming register doesn't return tokens directly)
+      // 2. Login to get tokens
       const loginResponse = await api.post('/user/auth/login', {
         email: formData.email.trim(),
         password: formData.password,
@@ -127,23 +98,11 @@ export default function SignUpPage() {
           refresh_token: authData.tokens.refreshToken,
           rememberMe: false
         });
-
-        // 3. Add the first website
-        try {
-            await addWebsite({
-                name: formData.websiteName.trim(),
-                url: formData.websiteUrl.trim()
-            }, authData.user.id);
-        } catch (wsError) {
-            console.error('Failed to add initial website:', wsError);
-            // We don't block the whole process if website creation fails, 
-            // the user can add it later, but we should notify them.
-        }
       }
 
       toast({
         title: "Account Created!",
-        description: "Welcome to Seentics. Your dashboard is ready.",
+        description: "Welcome to Seentics. Let's add your first website.",
       });
 
       router.push('/websites');
@@ -162,205 +121,208 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl animate-pulse" />
+    <div className="min-h-screen flex flex-col md:flex-row bg-background">
+      {/* Left Column: Branding Section */}
+      <div className="hidden lg:flex flex-col justify-between p-12 w-full max-w-lg bg-indigo-50 dark:bg-slate-950 relative overflow-hidden border-r border-indigo-100 dark:border-white/5">
+        {/* Animated Background blobs */}
+        <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[100px] animate-pulse delay-700" />
+        </div>
+
+        <div className="relative z-10">
+          <Link href="/">
+            <Logo size="xl" showText={true} textClassName="text-2xl font-bold text-slate-900 dark:text-white" />
+          </Link>
+          
+          <div className="mt-20">
+            <h1 className="text-4xl font-black tracking-tight mb-6 leading-tight text-slate-900 dark:text-white">
+              Scale without <br />
+              <span className="text-primary italic">Boundaries.</span>
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400 text-lg font-medium leading-relaxed max-w-md">
+                Get the most powerful analytics engine on the market. Start for free, upgrade when you're ready to win.
+            </p>
+          </div>
+        </div>
+
+        <div className="relative z-10">
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-xl bg-white/50 dark:bg-white/5 border border-indigo-100 dark:border-white/10 flex items-center justify-center text-primary">
+                <CheckCircle className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-bold text-sm text-slate-900 dark:text-white">Real-time Dashboard</p>
+                <p className="text-xs text-slate-500">Zero-latency event streaming.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-xl bg-white/50 dark:bg-white/5 border border-indigo-100 dark:border-white/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                <Zap className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-bold text-sm text-slate-900 dark:text-white">One-Click Install</p>
+                <p className="text-xs text-slate-500">Under 2KB script size.</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-12 pt-8 border-t border-indigo-100 dark:border-white/5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-600 mb-4">Empowering next-gen data teams</p>
+            <div className="flex items-center gap-4 opacity-40 grayscale saturate-0 text-slate-900 dark:text-white">
+                <span className="text-xl font-black italic tracking-tighter">CLOUDCORE</span>
+                <span className="text-xl font-black italic tracking-tighter">NEXUS</span>
+                <span className="text-xl font-black italic tracking-tighter">DATASTREAM</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="w-full max-w-xl relative z-10">
-        <div className="flex justify-center mb-8">
-            <Link href="/">
-                <Logo size="xl" showText={true} textClassName="text-2xl font-bold" />
+      {/* Right Column: Form Section */}
+      <div className="flex-1 flex flex-col relative overflow-hidden px-4 py-8 md:p-12 bg-white dark:bg-slate-950">
+        <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20 flex items-center justify-center overflow-hidden -z-10">
+            <div className="w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full" />
+        </div>
+
+        <div className="lg:hidden mb-8 self-center">
+             <Link href="/">
+                <Logo size="xl" showText={true} textClassName="text-2xl font-bold text-slate-900 dark:text-white" />
             </Link>
         </div>
 
-        <Card className="border-0 shadow-2xl dark:bg-gray-800 rounded-2xl overflow-hidden">
-          <CardHeader className="space-y-1 pb-8">
-            <div className="flex items-center justify-between mb-2">
-                <span className={`h-1.5 flex-1 rounded-full mx-1 ${step >= 1 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
-                <span className={`h-1.5 flex-1 rounded-full mx-1 ${step >= 2 ? 'bg-primary' : 'bg-slate-200 dark:bg-slate-700'}`} />
-            </div>
-            <CardTitle className="text-2xl font-bold text-center">
-                {step === 1 ? 'Create account' : 'Setup your website'}
-            </CardTitle>
-            <CardDescription className="text-center">
-                {step === 1 ? 'Join Seentics and get started today' : 'Add your first website to start tracking'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <Alert variant="destructive" className="mb-6 animate-in fade-in slide-in-from-top-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {step === 1 ? (
-              <form onSubmit={handleNextStep} className="space-y-4">
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    name="name"
-                    placeholder="Full name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
-                    disabled={isLoading}
-                    required
-                  />
+        <div className="flex-1 flex items-center justify-center">
+            <div className="w-full max-w-md">
+                <div className="mb-8 text-center md:text-left">
+                    <h2 className="text-3xl font-black tracking-tight mb-2 text-slate-900 dark:text-white">Create account</h2>
+                    <p className="text-muted-foreground font-medium">
+                        Join 5,000+ developers and start tracking today.
+                    </p>
                 </div>
 
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    name="email"
-                    type="email"
-                    placeholder="Email address"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
-                    disabled={isLoading}
-                    required
-                  />
-                </div>
+                {error && (
+                  <Alert variant="destructive" className="mb-6 rounded-2xl border-0 bg-red-500/10 text-red-500">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="font-bold">{error}</AlertDescription>
+                  </Alert>
+                )}
 
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="relative group">
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Password"
-                      value={formData.password}
+                      name="name"
+                      placeholder="Full name"
+                      value={formData.name}
                       onChange={handleInputChange}
-                      className="h-12 pl-10 pr-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
+                      className="h-14 pl-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded-2xl transition-all"
                       disabled={isLoading}
                       required
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-12 px-3 hover:bg-transparent text-slate-400"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
                   </div>
 
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <div className="relative group">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <Input
-                      name="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Confirm password"
-                      value={formData.confirmPassword}
+                      name="email"
+                      type="email"
+                      placeholder="Email address"
+                      value={formData.email}
                       onChange={handleInputChange}
-                      className="h-12 pl-10 pr-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
+                      className="h-14 pl-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded-2xl transition-all"
                       disabled={isLoading}
                       required
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="absolute right-0 top-0 h-12 px-3 hover:bg-transparent text-slate-400"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
                   </div>
-                </div>
 
-                <p className="text-[10px] text-muted-foreground text-center px-4">
-                  Minimum 8 characters with at least one uppercase, one lowercase, and one number.
-                </p>
-
-                <Button
-                  type="submit"
-                  variant='brand'
-                  className="w-full h-12 text-base font-semibold shadow-lg  transition-all rounded-xl"
-                  disabled={isLoading}
-                >
-                  Continue
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </form>
-            ) : (
-              <form onSubmit={handleFinalSubmit} className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    name="websiteName"
-                    placeholder="Website Name (e.g. My Awesome Blog)"
-                    value={formData.websiteName}
-                    onChange={handleInputChange}
-                    className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
-                    disabled={isLoading}
-                    required
-                  />
-                </div>
-
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    name="websiteUrl"
-                    placeholder="Website URL (e.g. myblog.com)"
-                    value={formData.websiteUrl}
-                    onChange={handleInputChange}
-                    className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
-                    disabled={isLoading}
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                    <Button
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Input
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className="h-14 pl-12 pr-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded-2xl transition-all"
+                        disabled={isLoading}
+                        required
+                      />
+                      <Button
                         type="button"
-                        variant="secondary"
-                        className="flex-1 h-12 rounded-xl"
-                        onClick={() => setStep(1)}
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 hover:bg-transparent text-slate-400"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </Button>
+                    </div>
+
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Input
+                        name="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm password"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        className="h-14 pl-12 pr-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded-2xl transition-all"
                         disabled={isLoading}
-                    >
-                        Back
-                    </Button>
-                    <Button
-                        type="submit"
-                        variant={'brand'}
-                        className="flex-[2] h-12 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all rounded-xl"
-                        disabled={isLoading}
-                    >
-                        {isLoading ? (
-                            <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Setting up...
-                            </>
-                        ) : (
-                            'Complete Setup'
-                        )}
-                    </Button>
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 hover:bg-transparent text-slate-400"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <p className="text-[10px] text-muted-foreground text-center px-4 font-medium italic">
+                    Min. 8 chars with uppercase, lowercase, and one number.
+                  </p>
+
+                  <Button
+                    type="submit"
+                    variant='brand'
+                    className="w-full h-14 text-base font-black shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded-2xl active:scale-[0.98]"
+                    disabled={isLoading}
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Generating your console...
+                      </>
+                    ) : (
+                        <span className="flex items-center gap-2">
+                            Create Account
+                            <ArrowRight size={18} />
+                        </span>
+                    )}
+                  </Button>
+                </form>
+
+                <div className="mt-8 text-center md:text-left">
+                  <p className="text-sm text-muted-foreground font-medium">
+                    Already have an account?{' '}
+                    <Link href="/signin" className="text-primary hover:underline font-black">
+                      Sign in
+                    </Link>
+                  </p>
                 </div>
-              </form>
-            )}
-
-            <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 text-center">
-              <p className="text-sm text-muted-foreground">
-                Already have an account?{' '}
-                <Link href="/signin" className="text-primary hover:underline font-semibold">
-                  Sign in
-                </Link>
-              </p>
             </div>
-          </CardContent>
-        </Card>
+        </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 self-center lg:self-start">
              <Link href="/">
-                <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to home
+                <Button variant="ghost" size="sm" className="text-slate-500 font-bold hover:bg-transparent px-0">
+                    <ArrowLeft size={16} className="mr-2" />
+                    Back to the website
                 </Button>
             </Link>
         </div>

@@ -19,12 +19,14 @@ import {
   LogOut,
   Menu,
   Settings,
-  User
+  User,
+  Workflow
 } from 'lucide-react'
 import Link from 'next/link'
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Suspense, useEffect } from 'react'
 import { SiteSelector } from './site-selector'
+import { PromotionBanner } from './promotion-banner'
 
 function HeaderContent() {
   const {
@@ -86,7 +88,9 @@ function HeaderContent() {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60 shadow-sm">
+    <>
+      <PromotionBanner />
+      <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60 shadow-sm">
       <div className="flex justify-between items-center h-16 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-4">
           {/* Mobile Menu Button */}
@@ -126,6 +130,18 @@ function HeaderContent() {
         </div>
 
         <div className="flex items-center space-x-3">
+          {/* Automation Link */}
+          <Link 
+            href="https://automation.seentics.com" 
+            target="_blank"
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/20 transition-all text-xs font-bold"
+          >
+            <Workflow size={14} />
+            <span>Automation</span>
+          </Link>
+
+          <Separator orientation="vertical" className="h-6 hidden md:block" />
+
           {/* Theme Toggle */}
           <ThemeToggle />
 
@@ -213,6 +229,7 @@ function HeaderContent() {
         </div>
       </div>
     </header>
+    </>
   )
 }
 

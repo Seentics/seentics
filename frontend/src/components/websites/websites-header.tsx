@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Settings, LogOut, Globe, PlusCircle, LifeBuoy } from 'lucide-react';
+import { Settings, LogOut, Globe, PlusCircle, Workflow } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { ThemeToggle } from '../theme-toggle';
 import {
@@ -45,30 +45,45 @@ export function WebsitesHeader() {
         </Link>
 
         <div className='flex items-center gap-2 sm:gap-4'>
+
              <ThemeToggle />
-             {user && !isDemoMode && (
-              <Link href="/settings/support">
-                <Button 
-                  variant="brand" 
-                  size="icon" 
-                  className="h-9 w-9 text-muted-foreground hover:text-foreground"
-                  title="Support"
+
+             <div className='flex items-center gap-2'>
+                {/* Automation Link */}
+                <Link 
+                    href="https://automation.seentics.com" 
+                    target="_blank"
                 >
-                  <LifeBuoy className="h-5 w-5" />
-                </Button>
-              </Link>
-             )}
+                    <Button 
+                        variant="brand" 
+                        size="sm" 
+                        className="hidden md:flex gap-2 font-black uppercase tracking-wider text-[11px] h-9 px-4 shadow-lg shadow-primary/20"
+                    >
+                        <Workflow size={14} />
+                        <span>AUTOMATION</span>
+                    </Button>
+                </Link>
+
+                {user && (
+                <Link href={params?.websiteId && !isDemoMode ? `/websites/${params.websiteId}/settings` : '/settings'}>
+                    <Button variant="secondary" className="gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4 border border-border">
+                    <Settings className="h-3.5 w-3.5" />
+                    SETTINGS
+                    </Button>
+                </Link>
+                )}
+             </div>
 
             {isDemoMode && !user ? (
               <Link href="/signin">
-                <Button variant="brand" size="sm">
+                <Button variant="outline" size="sm" className='font-bold text-[11px] uppercase tracking-wider'>
                   Sign In
                 </Button>
               </Link>
             ) : user && (
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0">
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={(user as any).user_metadata?.avatar_url} />
                     <AvatarFallback>{user.email?.charAt(0).toUpperCase()}</AvatarFallback>
@@ -95,15 +110,6 @@ export function WebsitesHeader() {
                     </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            )}
-
-            {user && (
-              <Link href={params?.websiteId && !isDemoMode ? `/websites/${params.websiteId}/settings` : '/settings'}>
-                <Button variant="default" className="md:ml-2 gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4">
-                  <Settings className="h-3.5 w-3.5" />
-                  SETTINGS
-                </Button>
-              </Link>
             )}
         </div>
       </header>

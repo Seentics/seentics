@@ -46,6 +46,7 @@ import { EventsDetails } from '@/components/analytics/EventsDetails';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { LandingExitAnalysis } from '@/components/analytics/LandingExitAnalysis';
+import { AutomationInsightTable } from '@/components/analytics/AutomationSynergyChart';
 
 export default function WebsiteDashboardPage() {
   const params = useParams();
@@ -651,6 +652,12 @@ export default function WebsiteDashboardPage() {
                 </CardContent>
             </Card>
         </div>
+
+        {/* Row 6: Workflow Automation Synergy */}
+        <AutomationInsightTable 
+            data={finalDailyStats} 
+            isLoading={dailyLoading} 
+        />
 
 
         {/* Detailed Data Modal */}

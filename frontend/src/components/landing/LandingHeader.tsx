@@ -6,6 +6,7 @@ import { Menu, X, Sparkles, MoveRight, Github, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '../ui/logo';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PromotionBanner } from '../promotion-banner';
 
 export default function LandingHeader() {
   const { user, isAuthenticated } = useAuth();
@@ -29,11 +30,12 @@ export default function LandingHeader() {
     <header 
       className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${
         scrolled 
-          ? 'glass bg-background/60 border-b border-white/10 backdrop-blur-xl h-16 sm:h-20' 
-          : 'bg-transparent h-20 sm:h-24'
+          ? 'glass bg-background/60 border-b border-white/10 backdrop-blur-xl h-auto' 
+          : 'bg-transparent h-auto'
       }`}
     >
-      <div className="container mx-auto px-6 h-full flex items-center justify-between">
+      <PromotionBanner />
+      <div className="container mx-auto px-6 h-16 sm:h-20 flex items-center justify-between">
         {/* Brand */}
         <Link href="/" className="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
           <Logo size='xl' className="group-hover:rotate-12 transition-transform duration-300" />

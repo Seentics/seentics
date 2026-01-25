@@ -1,0 +1,7 @@
+{
+    "version": 2,
+    "framework": "nextjs",
+    "name": "seentics-analytics-site",
+    "installCommand": "npm install",
+    "buildCommand": "npm run build"
+}

@@ -22,7 +22,7 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-40 pb-40 overflow-hidden bg-background">
+    <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-60 pb-40 overflow-hidden bg-background">
       {/* Soft Mesh Background */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/10 blur-[120px] rounded-full animate-pulse" />
@@ -50,18 +50,18 @@ export default function Hero() {
           {/* Headline */}
           <motion.h1 
             variants={itemVariants}
-            className="text-4xl sm:text-6xl md:text-7xl  font-black tracking-tight leading-[1.1] mb-8 text-foreground"
+            className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.1] mb-8 text-foreground"
           >
-            Better data. <br />
-            <span className="gradient-text font-black">Better results.</span>
+            Privacy First Analytics. <br />
+            <span className="gradient-text font-black text-indigo-600 dark:text-indigo-400">Automation Built In.</span>
           </motion.h1>
 
           {/* Subheadline */}
           <motion.p 
             variants={itemVariants}
-            className="text-lg sm:text-xl text-muted-foreground/70 max-w-2xl mx-auto mb-12 leading-relaxed font-medium"
+            className="text-lg sm:text-xl text-muted-foreground/70 max-w-3xl mx-auto mb-12 leading-relaxed font-medium"
           >
-            Simple, privacy-first analytics for modern teams. Grow your business with data you actually understand.
+            <span className="text-foreground font-bold">Turn insights into action.</span> Seentics Pro combines deep, privacy-first analytics with full access to the Seentics Automation suite.
           </motion.p>
 
           {/* Action Hub */}

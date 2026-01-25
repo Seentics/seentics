@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, Shield, Workflow, ArrowRight } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -96,122 +96,178 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[10%] -left-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-[10%] -right-[10%] w-[40%] h-[40%] bg-primary/5 rounded-full blur-3xl animate-pulse" />
+    <div className="min-h-screen flex flex-col md:flex-row bg-background">
+      {/* Left Column: Branding Section */}
+      <div className="hidden lg:flex flex-col justify-between p-12 w-full max-w-lg bg-slate-50 dark:bg-slate-950 relative overflow-hidden border-r border-slate-200 dark:border-white/5">
+        {/* Animated Background blobs */}
+        <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[100px] animate-pulse delay-700" />
+        </div>
+
+        <div className="relative z-10">
+          <Link href="/">
+            <Logo size="xl" showText={true} textClassName="text-2xl font-bold text-slate-900 dark:text-white" />
+          </Link>
+          
+          <div className="mt-20">
+            <h1 className="text-4xl font-black tracking-tight mb-6 leading-tight text-slate-900 dark:text-white">
+              Privacy First Analytics. <br />
+              <span className="text-primary italic">Better Intelligence.</span>
+            </h1>
+            <p className="text-slate-600 dark:text-slate-400 text-lg font-medium leading-relaxed max-w-md">
+              Understand your users without compromise. Built-in automation to turn insights into growth instantly.
+            </p>
+          </div>
+        </div>
+
+        <div className="relative z-10">
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-xl bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 flex items-center justify-center text-primary">
+                <Shield className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-bold text-sm text-slate-900 dark:text-white">GDPR & CCPA Compliant</p>
+                <p className="text-xs text-slate-500">Cookieless tracking by default.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-white/5 border border-indigo-100 dark:border-white/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                <Workflow className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-bold text-sm text-slate-900 dark:text-white">Automation Integrated</p>
+                <p className="text-xs text-slate-500">Trigger actions from behavior.</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="mt-12 pt-8 border-t border-slate-200 dark:border-white/5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-600 mb-4">Trusted by modern teams</p>
+            <div className="flex items-center gap-4 opacity-40 grayscale saturate-0 text-slate-900 dark:text-white">
+                <span className="text-xl font-black italic tracking-tighter">TECHLEAP</span>
+                <span className="text-xl font-black italic tracking-tighter">DATASTREAM</span>
+                <span className="text-xl font-black italic tracking-tighter">VNET</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="w-full max-w-xl relative z-10">
-        <div className="flex justify-center mb-8">
-            <Link href="/">
-                <Logo size="xl" showText={true} textClassName="text-2xl font-bold" />
+      {/* Right Column: Form Section */}
+      <div className="flex-1 flex flex-col relative overflow-hidden px-4 py-8 md:p-12 bg-white dark:bg-slate-950">
+        <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20 flex items-center justify-center overflow-hidden -z-10">
+            <div className="w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full" />
+        </div>
+
+        <div className="lg:hidden mb-8 self-center">
+             <Link href="/">
+                <Logo size="xl" showText={true} textClassName="text-2xl font-bold text-slate-900 dark:text-white" />
             </Link>
         </div>
 
-        <Card className="border-0 shadow-2xl dark:bg-gray-800 rounded-2xl overflow-hidden">
-          <CardHeader className="space-y-1 pb-8">
-            <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
-            <CardDescription className="text-center">
-              Enter your credentials to access your account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {error && (
-              <Alert variant="destructive" className="mb-6 animate-in fade-in slide-in-from-top-2">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <form onSubmit={handleEmailSignIn} className="space-y-5">
-              <div className="space-y-2">
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    name="email"
-                    type="email"
-                    placeholder="name@example.com"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="h-12 pl-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
-                    disabled={isLoading}
-                    required
-                  />
+        <div className="flex-1 flex items-center justify-center">
+            <div className="w-full max-w-md">
+                <div className="mb-8 text-center md:text-left">
+                    <h2 className="text-3xl font-black tracking-tight mb-2 text-slate-900 dark:text-white">Welcome back</h2>
+                    <p className="text-muted-foreground font-medium">
+                        Log in to your dashboard to manage your analytics.
+                    </p>
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    className="h-12 pl-10 pr-10 bg-slate-50 dark:bg-slate-900 border-0 focus-visible:ring-1"
-                    disabled={isLoading}
-                    required
-                  />
+                {error && (
+                  <Alert variant="destructive" className="mb-6 rounded-2xl border-0 bg-red-500/10 text-red-500">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="font-bold">{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                <form onSubmit={handleEmailSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Input
+                        name="email"
+                        type="email"
+                        placeholder="name@example.com"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="h-14 pl-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded-2xl transition-all"
+                        disabled={isLoading}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="relative group">
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                      <Input
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        className="h-14 pl-12 pr-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded-2xl transition-all"
+                        disabled={isLoading}
+                        required
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 hover:bg-transparent text-slate-400"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </Button>
+                    </div>
+                    <div className="flex justify-end">
+                      <Link 
+                        href="/forgot-password" 
+                        className="text-xs text-primary hover:underline font-bold"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                  </div>
+
                   <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-12 px-3 hover:bg-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                    onClick={() => setShowPassword(!showPassword)}
+                    type="submit"
+                    variant={'brand'}
+                    className="w-full h-14 text-base font-black shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded-2xl active:scale-[0.98]"
+                    disabled={isLoading}
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4" />
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Logging you in...
+                      </>
                     ) : (
-                      <Eye className="h-4 w-4" />
+                        <span className="flex items-center gap-2">
+                            Sign in to Dashboard
+                            <ArrowRight size={18} />
+                        </span>
                     )}
                   </Button>
-                </div>
-                <div className="flex justify-end">
-                  <Link 
-                    href="/forgot-password" 
-                    className="text-xs text-primary hover:underline font-medium"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-              </div>
+                </form>
 
-              <Button
-                type="submit"
-                variant={'brand'}
-                className="w-full h-12 text-base font-semibold shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all rounded-xl"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign in'
-                )}
-              </Button>
-            </form>
-
-            <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700 text-center">
-              <p className="text-sm text-muted-foreground">
-                Don't have an account?{' '}
-                <Link href="/signup" className="text-primary hover:underline font-semibold">
-                  Create account
-                </Link>
-              </p>
+                <div className="mt-8 text-center md:text-left">
+                  <p className="text-sm text-muted-foreground font-medium">
+                    New to Seentics?{' '}
+                    <Link href="/signup" className="text-primary hover:underline font-black">
+                      Create a free account
+                    </Link>
+                  </p>
+                </div>
             </div>
-          </CardContent>
-        </Card>
+        </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-8 self-center lg:self-start">
              <Link href="/">
-                <Button variant="ghost" size="sm" className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-100">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    Back to home
+                <Button variant="ghost" size="sm" className="text-slate-500 font-bold hover:bg-transparent px-0">
+                    <ArrowLeft size={16} className="mr-2" />
+                    Back to the website
                 </Button>
             </Link>
         </div>
