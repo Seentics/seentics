@@ -49,26 +49,13 @@ export function WebsitesHeader() {
              <ThemeToggle />
 
              <div className='flex items-center gap-2'>
-                {/* Automation Link */}
-                <Link 
-                    href="https://automation.seentics.com" 
-                    target="_blank"
-                >
-                    <Button 
-                        variant="brand" 
-                        size="sm" 
-                        className="hidden md:flex gap-2 font-black uppercase tracking-wider text-[11px] h-9 px-4 shadow-lg shadow-primary/20"
-                    >
-                        <Workflow size={14} />
-                        <span>AUTOMATION</span>
-                    </Button>
-                </Link>
+               
 
                 {user && (
                 <Link href={params?.websiteId && !isDemoMode ? `/websites/${params.websiteId}/settings` : '/settings'}>
-                    <Button variant="secondary" className="gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4 border border-border">
+                    <Button variant="brand" className="gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4 ">
                     <Settings className="h-3.5 w-3.5" />
-                    SETTINGS
+                    Workspace
                     </Button>
                 </Link>
                 )}

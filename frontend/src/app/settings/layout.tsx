@@ -12,7 +12,8 @@ import {
   Globe,
   User,
   ShieldCheck,
-  LifeBuoy
+  LifeBuoy,
+  Workflow
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,18 @@ export default function GlobalSettingsLayout({ children }: { children: React.Rea
       description: 'Subscription'
     },
     {
+      title: 'Automations',
+      href: '/settings/automations',
+      icon: Workflow,
+      description: 'Workflows'
+    },
+    {
+      title: 'Funnels',
+      href: '/settings/funnels',
+      icon: Settings,
+      description: 'Conversions'
+    },
+    {
       title: 'Privacy & Safety',
       href: '/settings/privacy',
       icon: ShieldCheck,
@@ -88,7 +101,7 @@ export default function GlobalSettingsLayout({ children }: { children: React.Rea
     <div className="min-h-screen bg-background">
       <WebsitesHeader />
       
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col md:flex-row gap-8">
           {/* Sidebar */}
           <aside className="w-full md:w-64 shrink-0">

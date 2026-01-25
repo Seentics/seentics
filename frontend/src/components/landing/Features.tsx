@@ -112,6 +112,88 @@ export default function Features() {
             </motion.div>
           ))}
         </motion.div>
+        
+        {/* Intelligence Engine - New Section */}
+        <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="mb-32 sm:mb-48"
+        >
+             <div className="text-center mb-16 px-4">
+                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600 mb-6">Intelligence Engine</div>
+                <h3 className="text-3xl sm:text-5xl font-black mb-6 tracking-tight leading-tight">
+                    Build flows. <br/>
+                    <span className="gradient-text">Visualize growth.</span>
+                </h3>
+                <p className="text-lg text-muted-foreground/70 max-w-2xl mx-auto font-medium">
+                    Stop guessing where users drop off. Design sophisticated conversion funnels and automated workflows in minutes.
+                </p>
+             </div>
+
+             <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+                <div className="glass p-8 sm:p-12 rounded-[2.5rem] border-white/10 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full -mr-20 -mt-20 group-hover:bg-blue-500/20 transition-all duration-1000" />
+                    <div className="relative z-10">
+                        <div className="h-12 w-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 mb-8 border border-blue-500/20">
+                            <Workflow size={24} />
+                        </div>
+                        <h4 className="text-2xl font-black mb-4">Visual Automation</h4>
+                        <p className="text-muted-foreground/80 mb-8 leading-relaxed font-medium">
+                            Chain triggers and actions on an infinite canvas. Send Slack alerts on high-value signups or sync leads to your CRM instantly.
+                        </p>
+                        <div className="p-4 rounded-2xl bg-slate-950/50 border border-white/5 backdrop-blur-sm">
+                           <div className="flex items-center gap-3 text-xs font-bold text-slate-300 font-mono mb-2">
+                                <span className="text-amber-500">TRIGGER</span>
+                                <span className="text-slate-600">→</span>
+                                <span className="text-blue-500">ACTION</span>
+                                <span className="text-slate-600">→</span>
+                                <span className="text-green-500">RESULT</span>
+                           </div>
+                           <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
+                                <div className="h-full w-2/3 bg-blue-500 animate-pulse" />
+                           </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="glass p-8 sm:p-12 rounded-[2.5rem] border-white/10 shadow-2xl relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-[80px] rounded-full -mr-20 -mt-20 group-hover:bg-emerald-500/20 transition-all duration-1000" />
+                    <div className="relative z-10">
+                        <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 mb-8 border border-emerald-500/20">
+                            <Layers size={24} />
+                        </div>
+                        <h4 className="text-2xl font-black mb-4">Conversion Funnels</h4>
+                        <p className="text-muted-foreground/80 mb-8 leading-relaxed font-medium">
+                            Define linear user journeys and spot bottlenecks instantly. See exactly where you're losing revenue and fix it fast.
+                        </p>
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-4">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground w-12">Step 1</span>
+                                <div className="flex-1 h-3 bg-emerald-500/20 rounded-full overflow-hidden">
+                                    <div className="h-full w-full bg-emerald-500" />
+                                </div>
+                                <span className="text-xs font-bold text-emerald-500">100%</span>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground w-12">Step 2</span>
+                                <div className="flex-1 h-3 bg-emerald-500/20 rounded-full overflow-hidden">
+                                    <div className="h-full w-[65%] bg-emerald-500" />
+                                </div>
+                                <span className="text-xs font-bold text-emerald-500">65%</span>
+                            </div>
+                             <div className="flex items-center gap-4">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground w-12">Step 3</span>
+                                <div className="flex-1 h-3 bg-emerald-500/20 rounded-full overflow-hidden">
+                                    <div className="h-full w-[22%] bg-emerald-500" />
+                                </div>
+                                <span className="text-xs font-bold text-emerald-500">22%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+             </div>
+        </motion.div>
 
         {/* Data Integration - Expanded Visual */}
         <motion.div 

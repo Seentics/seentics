@@ -41,7 +41,7 @@ export default function LandingHeader() {
           <Logo size='xl' className="group-hover:rotate-12 transition-transform duration-300" />
           <p className="flex flex-col gap-0 text-xl font-black tracking-tighter text-foreground">
             Seentics
-            <small className='text-xs text-purple-500 -mt-1'>Analytics</small>
+            <small className='text-xs text-blue-500 -mt-1'>Analytics</small>
           </p>
         </Link>
 

@@ -102,7 +102,7 @@ export default function SignInPage() {
         {/* Animated Background blobs */}
         <div className="absolute top-0 left-0 w-full h-full">
             <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[100px] animate-pulse delay-700" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/5 rounded-full blur-[100px] animate-pulse delay-700" />
         </div>
 
         <div className="relative z-10">
@@ -133,7 +133,7 @@ export default function SignInPage() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-white/5 border border-indigo-100 dark:border-white/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+              <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-white/5 border border-blue-100 dark:border-white/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
                 <Workflow className="h-6 w-6" />
               </div>
               <div>

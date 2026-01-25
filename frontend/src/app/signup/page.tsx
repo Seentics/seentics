@@ -123,11 +123,11 @@ export default function SignUpPage() {
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-background">
       {/* Left Column: Branding Section */}
-      <div className="hidden lg:flex flex-col justify-between p-12 w-full max-w-lg bg-indigo-50 dark:bg-slate-950 relative overflow-hidden border-r border-indigo-100 dark:border-white/5">
+      <div className="hidden lg:flex flex-col justify-between p-12 w-full max-w-lg bg-blue-50 dark:bg-slate-950 relative overflow-hidden border-r border-blue-100 dark:border-white/5">
         {/* Animated Background blobs */}
         <div className="absolute top-0 left-0 w-full h-full">
             <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[100px] animate-pulse delay-700" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/5 rounded-full blur-[100px] animate-pulse delay-700" />
         </div>
 
         <div className="relative z-10">
@@ -168,7 +168,7 @@ export default function SignUpPage() {
             </div>
           </div>
           
-          <div className="mt-12 pt-8 border-t border-indigo-100 dark:border-white/5">
+          <div className="mt-12 pt-8 border-t border-blue-100 dark:border-white/5">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-600 mb-4">Empowering next-gen data teams</p>
             <div className="flex items-center gap-4 opacity-40 grayscale saturate-0 text-slate-900 dark:text-white">
                 <span className="text-xl font-black italic tracking-tighter">CLOUDCORE</span>

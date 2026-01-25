@@ -9,9 +9,9 @@ export function PromotionBanner() {
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative z-[60] overflow-hidden bg-[#0f172a] border-b border-indigo-500/10"
+      className="relative z-[60] overflow-hidden bg-[#0f172a] border-b border-blue-500/10"
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 opacity-50" />
+      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-sky-500/10 to-cyan-500/10 opacity-50" />
       
       <div className="container mx-auto relative">
         <div className="flex flex-col md:flex-row items-center justify-between py-2 gap-3 md:gap-0">
@@ -27,8 +27,8 @@ export function PromotionBanner() {
               </p>
               <div className="flex items-center gap-2">
                 <span className="h-1 w-1 rounded-full bg-white/20 hidden md:block" />
-                <p className="text-sm text-indigo-100/80">
-                  Get <span className="text-white font-bold underline decoration-indigo-500/50 underline-offset-4 decoration-2 text-md">Lifetime Access</span> for only <span className="text-white font-black text-lg ml-1 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">$99</span>
+                <p className="text-sm text-blue-100/80">
+                  Get <span className="text-white font-bold underline decoration-blue-500/50 underline-offset-4 decoration-2 text-md">Lifetime Access</span> for only <span className="text-white font-black text-lg ml-1 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">$99</span>
                 </p>
               </div>
             </div>
@@ -37,8 +37,8 @@ export function PromotionBanner() {
           {/* Right Side: Scarcity & CTA */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-              <Timer size={14} className="text-purple-400" />
-              <p className="text-[11px] font-bold text-purple-300 uppercase tracking-tighter">
+              <Timer size={14} className="text-blue-400" />
+              <p className="text-[11px] font-bold text-blue-300 uppercase tracking-tighter">
                 Limited Time Offer
               </p>
             </div>
@@ -52,14 +52,14 @@ export function PromotionBanner() {
                 Claim Offer
                 <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
               </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-indigo-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity" />
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity" />
             </Link>
           </div>
         </div>
       </div>
 
       {/* Glossy line effect */}
-      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
+      <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-blue-500/30 to-transparent" />
       
       {/* Moving shimmer effect */}
       <motion.div 

@@ -21,7 +21,7 @@ interface TrafficChartProps {
   subtitle?: string;
 }
 
-const primaryChartColor = '#8f3aabff'; // blue-500
+const primaryChartColor = '#325cb6ff'; // blue-500
 const secondaryChartColor = '#10b981'; // emerald-500
 
 const commonTooltipProps = {

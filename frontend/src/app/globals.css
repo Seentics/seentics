@@ -14,7 +14,7 @@
     --card-foreground: 224 71.4% 4.1%;
     --popover: 0 0% 100%;
     --popover-foreground: 224 71.4% 4.1%;
-    --primary: 265 80% 60%;
+    --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 20% 98%;
     --secondary: 215 25% 95%;
     --secondary-foreground: 215 80% 25%;
@@ -26,10 +26,10 @@
     --destructive-foreground: 210 20% 98%;
     --border: 220 13% 91%;
     --input: 220 13% 91%;
-    --ring: 265 80% 60%;
+    --ring: 221.2 83.2% 53.3%;
     --radius: 0.75rem;
 
-    --chart-1: 258 83% 58%;
+    --chart-1: 221.2 83.2% 53.3%;
     --chart-2: 160 60% 45%;
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
@@ -52,7 +52,7 @@
     --card-foreground: 210 20% 98%;
     --popover: 222 47% 11.2%;
     --popover-foreground: 210 20% 98%;
-    --primary: 255 92% 76%;
+    --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 210 20% 98%;
     --secondary: 215 25% 18%;
     --secondary-foreground: 215 20% 95%;
@@ -64,7 +64,7 @@
     --destructive-foreground: 210 20% 98%;
     --border: 240 5% 26%;
     --input: 215 27.9% 16.9%;
-    --ring: 255 92% 76%;
+    --ring: 217.2 91.2% 59.8%;
 
     --sidebar-background: 222 47% 11.2%;
     --sidebar-foreground: 210 20% 98%;
@@ -116,23 +116,23 @@
 
   .glass-card:hover {
     @apply border-primary/20 bg-card/40;
-    box-shadow: 0 20px 40px -20px rgba(124, 58, 237, 0.1);
+    box-shadow: 0 20px 40px -20px rgba(59, 130, 246, 0.1);
   }
 
   /* Mesh Gradient Utilities */
   .mesh-gradient {
-    background-color: hsla(258, 83%, 58%, 1);
+    background-color: hsla(221, 83%, 53%, 1);
     background-image:
       radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 1) 0, transparent 50%),
-      radial-gradient(at 50% 0%, hsla(258, 83%, 58%, 0.15) 0, transparent 50%),
+      radial-gradient(at 50% 0%, hsla(221, 83%, 53%, 0.15) 0, transparent 50%),
       radial-gradient(at 100% 0%, hsla(240, 5%, 26%, 1) 0, transparent 50%);
   }
 
   .dark .mesh-gradient {
     background-color: hsla(222, 47%, 11%, 1);
     background-image:
-      radial-gradient(at 0% 0%, hsla(258, 83%, 58%, 0.1) 0, transparent 50%),
-      radial-gradient(at 100% 100%, hsla(255, 92%, 76%, 0.05) 0, transparent 50%);
+      radial-gradient(at 0% 0%, hsla(221, 83%, 53%, 0.1) 0, transparent 50%),
+      radial-gradient(at 100% 100%, hsla(217, 91%, 60%, 0.05) 0, transparent 50%);
   }
 
   /* Ambient Background Utilities */
@@ -145,15 +145,15 @@
 
   /* Shadow Systems */
   .shadow-glow {
-    box-shadow: 0 0 30px -10px rgba(168, 85, 247, 0.4);
+    box-shadow: 0 0 30px -10px rgba(59, 130, 246, 0.4);
   }
 
   .shadow-glow-lg {
-    box-shadow: 0 0 60px -15px rgba(168, 85, 247, 0.5);
+    box-shadow: 0 0 60px -15px rgba(59, 130, 246, 0.5);
   }
 
   .text-shadow-glow {
-    text-shadow: 0 0 15px rgba(168, 85, 247, 0.5);
+    text-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
   }
 }
 
@@ -220,5 +220,5 @@
 
 /* Gradient text animation */
 .gradient-text {
-  @apply bg-clip-text text-transparent bg-gradient-to-br from-primary via-violet-500 to-indigo-400 font-black;
+  @apply bg-clip-text text-transparent bg-gradient-to-br from-primary via-blue-500 to-sky-400 font-black;
 }

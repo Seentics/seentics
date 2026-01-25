@@ -46,6 +46,7 @@ import { EventsDetails } from '@/components/analytics/EventsDetails';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { LandingExitAnalysis } from '@/components/analytics/LandingExitAnalysis';
+import { FunnelInsightsCard } from '@/components/analytics/FunnelInsightsCard';
 import { AutomationInsightTable } from '@/components/analytics/AutomationSynergyChart';
 
 export default function WebsiteDashboardPage() {
@@ -652,14 +653,18 @@ export default function WebsiteDashboardPage() {
                 </CardContent>
             </Card>
         </div>
-
-        {/* Row 6: Workflow Automation Synergy */}
-        <AutomationInsightTable 
-            data={finalDailyStats} 
-            isLoading={dailyLoading} 
-        />
-
-
+        
+        {/* Row 6: Workflow & Funnel Intelligence */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AutomationInsightTable 
+                data={finalDailyStats} 
+                isLoading={dailyLoading} 
+            />
+            <FunnelInsightsCard 
+                isLoading={dailyLoading}
+            />
+        </div>
+        
         {/* Detailed Data Modal */}
         {selectedModal && (
             <DetailedDataModal
