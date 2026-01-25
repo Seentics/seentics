@@ -26,6 +26,7 @@ coverage/
 *.dylib
 *.test
 *.out
+*.api
 
 
 
