@@ -1,7 +1,7 @@
 package privacy
 
 import (
-	"analytics-app/models"
+	"analytics-app/internal/modules/analytics/models"
 	"context"
 	"encoding/json"
 	"fmt"

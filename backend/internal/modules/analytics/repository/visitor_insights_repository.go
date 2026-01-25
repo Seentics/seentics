@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"analytics-app/models"
+	"analytics-app/internal/modules/analytics/models"
 	"context"
 	"time"
 

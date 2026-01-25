@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"analytics-app/models"
+	"analytics-app/internal/modules/analytics/models"
 	"context"
 	"fmt"
 	"time"
@@ -35,7 +35,7 @@ func (ts *TimeSeriesAnalytics) GetDailyStats(ctx context.Context, websiteID stri
 
 	// Format the query with days parameter
 	formattedQuery := fmt.Sprintf(query, days, days)
-	
+
 	rows, err := ts.db.Query(ctx, formattedQuery, websiteID)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)

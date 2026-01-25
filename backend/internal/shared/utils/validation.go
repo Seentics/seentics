@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"analytics-app/models"
+	"analytics-app/internal/modules/analytics/models"
 	"errors"
 	"net/url"
 	"strings"

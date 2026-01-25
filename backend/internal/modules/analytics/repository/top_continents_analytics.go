@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"analytics-app/models"
+	"analytics-app/internal/modules/analytics/models"
 	"context"
 	"database/sql"
 	"time"
@@ -46,16 +46,16 @@ func (r *TopGeolocationAnalytics) GetTopContinents(ctx context.Context, websiteI
 	for rows.Next() {
 		var item models.TopItem
 		var percentage sql.NullFloat64
-		
+
 		err := rows.Scan(&item.Name, &item.Count, &percentage)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if percentage.Valid {
 			item.Percentage = percentage.Float64
 		}
-		
+
 		results = append(results, item)
 	}
 
@@ -89,16 +89,16 @@ func (r *TopGeolocationAnalytics) GetTopRegions(ctx context.Context, websiteID s
 	for rows.Next() {
 		var item models.TopItem
 		var percentage sql.NullFloat64
-		
+
 		err := rows.Scan(&item.Name, &item.Count, &percentage)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if percentage.Valid {
 			item.Percentage = percentage.Float64
 		}
-		
+
 		results = append(results, item)
 	}
 
@@ -132,16 +132,16 @@ func (r *TopGeolocationAnalytics) GetTopCountries(ctx context.Context, websiteID
 	for rows.Next() {
 		var item models.TopItem
 		var percentage sql.NullFloat64
-		
+
 		err := rows.Scan(&item.Name, &item.Count, &percentage)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if percentage.Valid {
 			item.Percentage = percentage.Float64
 		}
-		
+
 		results = append(results, item)
 	}
 
@@ -209,16 +209,16 @@ func (r *TopGeolocationAnalytics) GetTopCities(ctx context.Context, websiteID st
 	for rows.Next() {
 		var item models.TopItem
 		var percentage sql.NullFloat64
-		
+
 		err := rows.Scan(&item.Name, &item.Count, &percentage)
 		if err != nil {
 			return nil, err
 		}
-		
+
 		if percentage.Valid {
 			item.Percentage = percentage.Float64
 		}
-		
+
 		results = append(results, item)
 	}
 

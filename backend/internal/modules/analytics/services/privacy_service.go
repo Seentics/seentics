@@ -1,7 +1,7 @@
 package services
 
 import (
-	"analytics-app/repository/privacy"
+	"analytics-app/internal/modules/analytics/repository/privacy"
 	"time"
 
 	"github.com/rs/zerolog"

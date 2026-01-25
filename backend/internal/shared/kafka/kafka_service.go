@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"analytics-app/models"
+	"analytics-app/internal/modules/analytics/models"
 
 	"github.com/rs/zerolog"
 	"github.com/segmentio/kafka-go"

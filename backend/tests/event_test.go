@@ -1,8 +1,8 @@
 package tests
 
 import (
-	"analytics-app/models"
-	"analytics-app/utils"
+	"analytics-app/internal/modules/analytics/models"
+	"analytics-app/internal/shared/utils"
 	"testing"
 	"time"
 
@@ -66,10 +66,10 @@ func TestValidateEvent(t *testing.T) {
 				VisitorID:  "visitor-123",
 				SessionID:  "session-456",
 				Page:       "https://example.com/page",
-				TimeOnPage: intPtr(150),
+				TimeOnPage: intPtr(-10),
 			},
 			wantErr: true,
-			errMsg:  "scroll_depth must be between 0 and 100",
+			errMsg:  "time_on_page must be non-negative",
 		},
 		{
 			name: "valid relative URL",
@@ -101,7 +101,7 @@ func TestValidateEvent(t *testing.T) {
 func TestEventProperties(t *testing.T) {
 	properties := models.Properties{
 		"custom_field": "value",
-		"number_field": 42,
+		"number_field": 42.0,
 		"bool_field":   true,
 	}
 

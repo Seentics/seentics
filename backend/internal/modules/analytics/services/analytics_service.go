@@ -1,8 +1,8 @@
 package services
 
 import (
-	"analytics-app/models"
-	"analytics-app/repository"
+	"analytics-app/internal/modules/analytics/models"
+	"analytics-app/internal/modules/analytics/repository"
 	"context"
 	"fmt"
 	"time"

@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"analytics-app/models"
+	"analytics-app/internal/modules/analytics/models"
 	"context"
 
 	"github.com/jackc/pgx/v5/pgxpool"
