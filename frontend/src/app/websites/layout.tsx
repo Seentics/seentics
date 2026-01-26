@@ -38,7 +38,7 @@ export default function WebsitesLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background dark:bg-black">
+    <div className="min-h-screen bg-background">
       {children}
     </div>
   );

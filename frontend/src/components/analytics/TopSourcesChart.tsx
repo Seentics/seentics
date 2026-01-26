@@ -134,24 +134,24 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
 
     if (items.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground opacity-50">
-          <Layers className="h-10 w-10 mb-2" />
-          <p className="text-sm">No traffic data available</p>
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-2xl border border-dashed border-border/60">
+          <Layers className="h-10 w-10 mb-2 opacity-20" />
+          <p className="text-[10px] font-bold uppercase tracking-widest">No traffic data</p>
         </div>
       );
     }
 
     return (
-      <div className="space-y-0">
+      <div className="space-y-2 mt-4">
         {items.map((item, index) => (
-          <div key={index} className="flex items-center justify-between p-2 py-3 border-b transition-all hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
+          <div key={index} className="flex items-center justify-between p-3 rounded-xl border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
             <div className="flex items-center space-x-4 flex-1 min-w-0">
-              <div className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center  shadow-sm overflow-hidden p-1.5 transition-transform hover:scale-110">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                 <Image
                   src={item.image}
                   alt={item.label}
-                  width={16}
-                  height={16}
+                  width={20}
+                  height={20}
                   className="object-contain"
                   onError={(e) => {
                     const target = e.target as HTMLElement;
@@ -159,11 +159,11 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
                     target.nextElementSibling?.classList.remove('hidden');
                   }}
                 />
-                <Globe className="h-4 w-4 text-muted-foreground hidden" />
+                <Globe className="h-4 w-4 text-primary hidden" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="font-medium text-sm text-foreground truncate" title={item.label}>{item.label}</div>
-                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate">
+                <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={item.label}>{item.label}</div>
+                <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-60 truncate">
                    {type === 'overview' ? 'Channel' : 'Platform'} Insight
                 </div>
               </div>
@@ -171,10 +171,10 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
 
             <div className="shrink-0 text-right">
               <div className="text-right">
-                <div className="font-bold text-base leading-tight">
+                <div className="font-black text-base leading-tight">
                   {formatNumber(item.visitors)}
                 </div>
-                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                <div className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] opacity-60">
                   Visitors
                 </div>
               </div>
@@ -188,29 +188,29 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
   return (
     <div className="flex flex-col h-full">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-           <div>
-              <CardTitle className="text-base font-semibold">Traffic Sources</CardTitle>
-              <p className="text-xs text-muted-foreground">Main acquisition channels</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
+           <div className="space-y-1">
+              <CardTitle className="text-xl font-black tracking-tight">Traffic Sources</CardTitle>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Main acquisition channels</p>
            </div>
-           <TabsList className="grid grid-cols-4 h-9 w-full sm:w-auto p-1 ">
-             <TabsTrigger value="overview" className="text-[11px] font-semibold px-2">Total</TabsTrigger>
-             <TabsTrigger value="referrers" className="text-[11px] font-semibold px-2">Refer</TabsTrigger>
-             <TabsTrigger value="search" className="text-[11px] font-semibold px-2">Search</TabsTrigger>
-             <TabsTrigger value="social" className="text-[11px] font-semibold px-2">Social</TabsTrigger>
+           <TabsList className="grid grid-cols-4 h-9 w-full sm:w-[320px] bg-accent/20 p-1 rounded-xl">
+             <TabsTrigger value="overview" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Total</TabsTrigger>
+             <TabsTrigger value="referrers" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Refer</TabsTrigger>
+             <TabsTrigger value="search" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Search</TabsTrigger>
+             <TabsTrigger value="social" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Social</TabsTrigger>
            </TabsList>
         </div>
         
-        <TabsContent value="overview" className="mt-0 focus-visible:outline-none">
+        <TabsContent value="overview" className="mt-0 focus-visible:outline-none focus:outline-none">
           <PageList type="overview" />
         </TabsContent>
-        <TabsContent value="referrers" className="mt-0 focus-visible:outline-none">
+        <TabsContent value="referrers" className="mt-0 focus-visible:outline-none focus:outline-none">
           <PageList type="referrers" />
         </TabsContent>
-        <TabsContent value="search" className="mt-0 focus-visible:outline-none">
+        <TabsContent value="search" className="mt-0 focus-visible:outline-none focus:outline-none">
           <PageList type="search" />
         </TabsContent>
-        <TabsContent value="social" className="mt-0 focus-visible:outline-none">
+        <TabsContent value="social" className="mt-0 focus-visible:outline-none focus:outline-none">
           <PageList type="social" />
         </TabsContent>
       </Tabs>

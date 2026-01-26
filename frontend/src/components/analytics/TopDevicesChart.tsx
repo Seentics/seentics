@@ -80,9 +80,9 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
 
       if (!displayItems || displayItems.length === 0) {
         return (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground opacity-50">
-            <Layers className="h-10 w-10 mb-2" />
-            <p className="text-sm">No data available</p>
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-2xl border border-dashed border-border/60">
+            <Layers className="h-10 w-10 mb-2 opacity-20" />
+            <p className="text-[10px] font-bold uppercase tracking-widest">No data available</p>
           </div>
         );
       }
@@ -96,21 +96,21 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
     }).slice(0, 8);
 
     return (
-      <div className="space-y-0">
+      <div className="space-y-2 mt-4">
         {sortedItems.map((item, index) => {
           const val = item.visitors || item.views || item.value || 0;
           const label = item.device || item.os || item.name || 'Unknown';
           const img = getSystemImage(label, type);
 
           return (
-            <div key={index} className="flex items-center justify-between p-2 py-3 border-b transition-all hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
+            <div key={index} className="flex items-center justify-between p-3 rounded-xl border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
               <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <div className="flex-shrink-0 w-8 h-8 rounded-md flex items-center justify-center shadow-sm overflow-hidden p-1.5 transition-transform hover:scale-110">
+                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                   <Image
                     src={img}
                     alt={label}
-                    width={16}
-                    height={16}
+                    width={20}
+                    height={20}
                     className="object-contain"
                     onError={(e) => {
                       const target = e.target as HTMLElement;
@@ -118,11 +118,11 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
                       target.nextElementSibling?.classList.remove('hidden');
                     }}
                   />
-                  <Globe className="h-4 w-4 text-muted-foreground hidden" />
+                  <Globe className="h-4 w-4 text-primary hidden" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-sm text-foreground truncate">{label}</div>
-                  <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate">
+                  <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors">{label}</div>
+                  <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-60 truncate">
                     {type === 'device' ? 'Hardware' : type === 'os' ? 'Software' : 'Resolution'} Insight
                   </div>
                 </div>
@@ -130,10 +130,10 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
 
               <div className="shrink-0 text-right">
                 <div className="text-right">
-                  <div className="font-bold text-base leading-tight">
+                  <div className="font-black text-base leading-tight">
                     {formatNumber(val)}
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                  <div className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] opacity-60">
                     Visitors
                   </div>
                 </div>
@@ -148,25 +148,25 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
   return (
     <div className="flex flex-col h-full">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-           <div>
-              <CardTitle className="text-base font-semibold">System Insights</CardTitle>
-              <p className="text-xs text-muted-foreground">Devices, OS, and Screen Resolutions</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
+           <div className="space-y-1">
+              <CardTitle className="text-xl font-black tracking-tight">System Insights</CardTitle>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Devices, OS, & Tech Specs</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-auto p-1">
-             <TabsTrigger value="devices" className="text-xs font-semibold px-4">Devices</TabsTrigger>
-             <TabsTrigger value="os" className="text-xs font-semibold px-4">OS</TabsTrigger>
-             <TabsTrigger value="screens" className="text-xs font-semibold px-4">Screens</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/20 p-1 rounded-xl">
+             <TabsTrigger value="devices" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Devices</TabsTrigger>
+             <TabsTrigger value="os" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">OS</TabsTrigger>
+             <TabsTrigger value="screens" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Screens</TabsTrigger>
            </TabsList>
         </div>
         
-        <TabsContent value="devices" className="mt-0 focus-visible:outline-none">
+        <TabsContent value="devices" className="mt-0 focus-visible:outline-none focus:outline-none">
           <PageList items={data?.top_devices || []} type="device" />
         </TabsContent>
-        <TabsContent value="os" className="mt-0 focus-visible:outline-none">
+        <TabsContent value="os" className="mt-0 focus-visible:outline-none focus:outline-none">
           <PageList items={osData?.top_os || []} type="os" />
         </TabsContent>
-        <TabsContent value="screens" className="mt-0 focus-visible:outline-none">
+        <TabsContent value="screens" className="mt-0 focus-visible:outline-none focus:outline-none">
           <PageList items={screenData} type="screen" />
         </TabsContent>
       </Tabs>

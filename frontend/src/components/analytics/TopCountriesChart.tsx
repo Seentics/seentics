@@ -1,6 +1,8 @@
 'use client';
 
 import Image from 'next/image';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Globe } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface TopCountriesChartProps {
@@ -176,96 +178,86 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <div className="animate-pulse">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-6 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                <div>
-                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-2"></div>
-                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 mb-1"></div>
-                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
+      <div className="space-y-3">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-border/20">
+            <div className="flex items-center gap-4">
+              <Skeleton className="w-8 h-6 rounded" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-12" />
               </div>
             </div>
-          ))}
-        </div>
+            <div className="flex items-center gap-4">
+                <div className="space-y-2 text-right">
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                    <Skeleton className="h-3 w-8 ml-auto" />
+                </div>
+                <Skeleton className="w-16 h-2 rounded-full" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
   if (!data?.top_countries || data.top_countries.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <div className="text-sm">No country data available</div>
-        <div className="text-xs">Country data will appear here once visitors start coming to your site</div>
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-2xl border border-dashed border-border/60">
+        <Globe className="h-10 w-10 mb-2 opacity-20" />
+        <p className="text-[10px] font-bold uppercase tracking-widest">No country data</p>
       </div>
     );
   }
   return (
-    <div className="">
-      <div className="">
-        {/* Top Countries List */}
-        <div className="space-y-3">
-          {countryData.slice(0, 5).map((item, index) => (
-            <div key={item.country} className="flex items-center justify-between border-b p-3">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="relative w-8  rounded overflow-hidden shadow-sm">
-                    <Image
-                      src={item.flag}
-                      alt={`${item.country} flag`}
-                      width={32}
-                      height={24}
-                      className="object-cover"
-                      onError={(e) => {
-                        // Try alternative flag API if primary fails
-                        const target = e.target as HTMLImageElement;
-                        const countryCode = item.countryCode.toLowerCase();
-                        if (target.src.includes('flagcdn.com')) {
-                          // Try alternative flag API
-                          target.src = `https://restcountries.eu/data/${countryCode}.svg`;
-                        } else {
-                          // Fallback to country code if both APIs fail
-                          target.style.display = 'none';
-                          const fallback = target.parentElement?.querySelector('.flag-fallback') as HTMLElement;
-                          if (fallback) fallback.style.display = 'flex';
-                        }
-                      }}
-                    />
-                    <div className="flag-fallback hidden absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded text-xs font-bold text-gray-600 dark:text-gray-300 items-center justify-center">
-                      {item.countryCode}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">{item.country}</p>
-                    <p className="text-xs text-muted-foreground">{item.countryCode}</p>
-                  </div>
+    <div className="space-y-3">
+        {countryData.slice(0, 5).map((item, index) => (
+        <div key={item.country} className="flex items-center justify-between p-3 rounded-xl border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+            <div className="flex items-center gap-4">
+                <div className="relative w-8 h-6 rounded overflow-hidden shadow-sm border border-border/20">
+                <Image
+                    src={item.flag}
+                    alt={`${item.country} flag`}
+                    fill
+                    className="object-cover"
+                    onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    const countryCode = item.countryCode.toLowerCase();
+                    if (target.src.includes('flagcdn.com')) {
+                        target.src = `https://restcountries.eu/data/${countryCode}.svg`;
+                    } else {
+                        target.style.display = 'none';
+                        const fallback = target.parentElement?.querySelector('.flag-fallback') as HTMLElement;
+                        if (fallback) fallback.style.display = 'flex';
+                    }
+                    }}
+                />
+                <div className="flag-fallback hidden absolute inset-0 bg-accent rounded text-[8px] font-black items-center justify-center">
+                    {item.countryCode}
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
+                </div>
+                <div className="min-w-0">
+                <p className="font-bold text-[13px] leading-tight text-foreground truncate">{item.country}</p>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">{item.countryCode}</p>
+                </div>
+            </div>
+            <div className="flex items-center gap-6">
                 <div className="text-right">
-                  <p className="text-sm font-semibold">{(item.visitors || 0).toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">{item.percentage}%</p>
+                    <p className="font-black text-sm leading-tight">{(item.visitors || 0).toLocaleString()}</p>
+                    <p className="text-[9px] font-black text-muted-foreground uppercase opacity-60 tracking-wider font-mono">{item.percentage}%</p>
                 </div>
-                <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div
+                <div className="w-16 h-1.5 bg-accent/20 rounded-full overflow-hidden shrink-0">
+                <div
                     className="h-full rounded-full transition-all duration-300"
                     style={{
-                      width: `${item.percentage}%`,
-                      backgroundColor: item.color
+                    width: `${item.percentage}%`,
+                    backgroundColor: item.color
                     }}
-                  />
+                />
                 </div>
-              </div>
             </div>
-          ))}
         </div>
-      </div>
+        ))}
     </div>
   );
 }

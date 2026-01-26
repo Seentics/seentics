@@ -119,9 +119,9 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   const PageList = ({ items, type }: { items: any[], type: 'top' | 'entry' | 'exit' }) => {
     if (items.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground opacity-50">
-          <FileText className="h-10 w-10 mb-2" />
-          <p className="text-sm">No page data available</p>
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-2xl border border-dashed border-border/60">
+          <FileText className="h-10 w-10 mb-2 opacity-20" />
+          <p className="text-[10px] font-bold uppercase tracking-widest">No page data</p>
         </div>
       );
     }
@@ -130,7 +130,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
     const maxVal = Math.max(...sortedItems.map(item => item.views || item.sessions || 1));
 
     return (
-      <div className="space-y-0">
+      <div className="space-y-2 mt-4">
         {sortedItems.map((item, index) => {
           const val = item.views || item.sessions || 0;
           const percentage = ((val / maxVal) * 100).toFixed(1);
@@ -139,16 +139,16 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
           const secondaryMetric = type === 'top' ? null : item.bounce_rate !== undefined ? `${item.bounce_rate}% bounce` : item.exit_rate !== undefined ? `${item.exit_rate}% exit` : null;
 
           return (
-            <div key={index} className="flex items-center justify-between p-2 py-3 border-b transition-all hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
+            <div key={index} className="flex items-center justify-between p-3 rounded-xl border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
               <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 p-2 bg-accent/10 rounded-lg group-hover:bg-primary/10 transition-colors">
                   {getPageIcon(item.page)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-sm text-foreground truncate" title={name}>
+                  <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={name}>
                     {name}
                   </div>
-                  <div className="text-xs text-muted-foreground truncate" title={path}>
+                  <div className="text-[10px] text-muted-foreground font-medium truncate opacity-60" title={path}>
                     {truncatePath(path)}
                   </div>
                 </div>
@@ -156,10 +156,10 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
 
               <div className="shrink-0 text-right">
                 <div className="text-right">
-                  <div className="font-bold text-base leading-tight">
+                  <div className="font-black text-base leading-tight">
                     {formatNumber(val)}
                   </div>
-                  <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                  <div className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] opacity-60">
                     {secondaryMetric || (type === 'top' ? 'Views' : 'Sessions')}
                   </div>
                 </div>
@@ -173,27 +173,27 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4">
-             <div>
-                <CardTitle className="text-base font-semibold">Top Pages</CardTitle>
-                <p className="text-xs text-muted-foreground">Most visited and landing pages</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
+             <div className="space-y-1">
+                <CardTitle className="text-xl font-black tracking-tight">Top Pages</CardTitle>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Most visited & landing destinations</p>
              </div>
-             <TabsList className="grid grid-cols-3 h-9 w-full sm:w-auto p-1 ">
-               <TabsTrigger value="top" className="text-xs font-semibold px-4">Top</TabsTrigger>
-               <TabsTrigger value="entry" className="text-xs font-semibold px-4">Entry</TabsTrigger>
-               <TabsTrigger value="exit" className="text-xs font-semibold px-4">Exit</TabsTrigger>
+             <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/20 p-1 rounded-xl">
+               <TabsTrigger value="top" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Top</TabsTrigger>
+               <TabsTrigger value="entry" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Entry</TabsTrigger>
+               <TabsTrigger value="exit" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Exit</TabsTrigger>
              </TabsList>
           </div>
           
-          <TabsContent value="top" className="mt-0 focus-visible:outline-none">
+          <TabsContent value="top" className="mt-0 focus-visible:outline-none focus:outline-none">
             <PageList items={data?.top_pages || []} type="top" />
           </TabsContent>
-          <TabsContent value="entry" className="mt-0 focus-visible:outline-none">
+          <TabsContent value="entry" className="mt-0 focus-visible:outline-none focus:outline-none">
             <PageList items={entryPages} type="entry" />
           </TabsContent>
-          <TabsContent value="exit" className="mt-0 focus-visible:outline-none">
+          <TabsContent value="exit" className="mt-0 focus-visible:outline-none focus:outline-none">
             <PageList items={exitPages} type="exit" />
           </TabsContent>
         </Tabs>

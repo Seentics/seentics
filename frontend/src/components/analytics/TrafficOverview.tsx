@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrafficChart } from './TrafficChart';
 import { HourlyTrafficChart } from './HourlyTrafficChart';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 import { BarChart3, List, Clock } from 'lucide-react';
 
 interface TrafficOverviewProps {
@@ -27,25 +28,24 @@ export function TrafficOverview({
   const listData = dailyStats?.daily_stats || [];
 
   return (
-    <Card className={cn("col-span-full shadow-sm border-gray-200 dark:border-gray-800", className)}>
+    <Card className={cn("col-span-full border-border bg-card shadow-sm shadow-black/5", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
-        <div>
-          <CardTitle className="text-base font-semibold">Traffic Overview</CardTitle>
-        <CardDescription>Site traffic overview a over period</CardDescription>
-        
+        <div className="space-y-1">
+          <CardTitle className="text-xl font-black tracking-tight">Traffic Overview</CardTitle>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Visitor volume over time</p>
         </div>
         {/* View Tabs */}
         <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-auto">
-          <TabsList className="grid w-full grid-cols-3 h-9">
-            <TabsTrigger value="chart" className="text-xs px-3 gap-1.5">
+          <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/20 p-1 rounded-xl">
+            <TabsTrigger value="chart" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-lg active:bg-background">
               <BarChart3 className="h-3.5 w-3.5" />
               Chart
             </TabsTrigger>
-            <TabsTrigger value="list" className="text-xs px-3 gap-1.5">
+            <TabsTrigger value="list" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-lg active:bg-background">
               <List className="h-3.5 w-3.5" />
               List
             </TabsTrigger>
-            <TabsTrigger value="hourly" className="text-xs px-3 gap-1.5">
+            <TabsTrigger value="hourly" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-lg active:bg-background">
               <Clock className="h-3.5 w-3.5" />
               Hourly
             </TabsTrigger>
@@ -53,54 +53,56 @@ export function TrafficOverview({
         </Tabs>
       </CardHeader>
       
-      <CardContent className='p-0'>
+      <CardContent className='p-6 pt-0'>
         {view === 'chart' && (
-          <div className="h-[450px]">
+          <div className="h-[400px]">
             <TrafficChart data={dailyStats} isLoading={isLoading} />
           </div>
         )}
 
         {view === 'list' && (
-          <div className="h-[350px] overflow-y-auto">
+          <div className="h-[400px] overflow-y-auto pr-2 custom-scrollbar">
             {isLoading ? (
-              <div className="space-y-2">
-                {[...Array(10)].map((_, i) => (
-                  <div key={i} className="h-16 bg-muted rounded animate-pulse" />
+              <div className="space-y-3">
+                {[...Array(6)].map((_, i) => (
+                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
                 ))}
               </div>
             ) : listData.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {listData.map((stat: any, idx: number) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex items-center justify-between p-4 bg-accent/5 border border-border/40 rounded-xl hover:bg-accent/10 transition-all duration-300 group"
                   >
                     <div className="flex-1">
-                      <div className="text-sm font-medium text-foreground">
+                      <div className="text-sm font-bold text-foreground">
                         {new Date(stat.date).toLocaleDateString('en-US', {
                           weekday: 'short',
                           month: 'short',
                           day: 'numeric',
-                          year: 'numeric',
                         })}
                       </div>
+                      <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                         {new Date(stat.date).getFullYear()}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-6 text-sm">
+                    <div className="flex items-center gap-8 text-sm">
                       <div className="text-right">
-                        <div className="text-muted-foreground text-xs">Page Views</div>
-                        <div className="font-semibold text-blue-600 dark:text-blue-400">
+                        <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Views</div>
+                        <div className="font-black text-primary">
                           {stat.views?.toLocaleString() || 0}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-muted-foreground text-xs">Unique Visitors</div>
-                        <div className="font-semibold text-emerald-600 dark:text-emerald-400">
+                        <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Unique</div>
+                        <div className="font-black text-foreground">
                           {stat.unique?.toLocaleString() || 0}
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-muted-foreground text-xs">Bounce Rate</div>
-                        <div className="font-semibold">
+                      <div className="text-right hidden sm:block">
+                        <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Bounce</div>
+                        <div className="font-black">
                           {stat.bounce_rate?.toFixed(1) || 0}%
                         </div>
                       </div>
@@ -109,11 +111,11 @@ export function TrafficOverview({
                 ))}
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground">
+              <div className="h-full flex items-center justify-center text-muted-foreground bg-accent/5 rounded-2xl border border-dashed border-border/60">
                 <div className="text-center">
-                  <List className="h-12 w-12 mx-auto mb-4 text-muted-foreground/50" />
-                  <p className="text-sm font-medium">No traffic data available</p>
-                  <p className="text-xs text-muted-foreground">Data will appear here once visitors start coming to your site</p>
+                  <List className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
+                  <p className="text-sm font-bold uppercase tracking-widest opacity-60">No traffic data</p>
+                  <p className="text-xs text-muted-foreground/60 italic">Waiting for your first visitors...</p>
                 </div>
               </div>
             )}
@@ -121,7 +123,7 @@ export function TrafficOverview({
         )}
 
         {view === 'hourly' && (
-          <div className="h-[350px]">
+          <div className="h-[400px]">
             <HourlyTrafficChart data={hourlyStats} isLoading={isLoading} />
           </div>
         )}

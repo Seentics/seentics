@@ -530,7 +530,7 @@ export default function WebsiteDashboardPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="">
           {/* SummaryCards already inside dashboard. Transforming to use better container if needed. */}
           <SummaryCards
             data={finalDashboardData || {
@@ -694,13 +694,11 @@ export default function WebsiteDashboardPage() {
 
 
   return (
-    <div className="min-h-screen bg-slate-50/30 dark:bg-black/20">
-      <main className="p-4 md:p-8 w-full max-w-[1280px] mx-auto">
+    <div className="min-h-screen bg-background">
+      <main className="p-6 md:p-8 lg:p-10 w-full max-w-[1400px] mx-auto">
         {renderContent()}
       </main>
-      {/* Footer removed */}
-
-
+      
       {/* Add Website Modal */}
       <AddWebsiteModal
         open={showAddWebsiteModal}

@@ -10,7 +10,6 @@ import {
     CreditCard,
     Settings,
     LogOut,
-    ChevronLeft,
     Globe
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
@@ -66,48 +65,38 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
     ];
 
     return (
-        <aside className="w-[280px] h-screen sticky top-0 border-r bg-card/40 backdrop-blur-3xl flex flex-col hidden lg:flex shadow-2xl shadow-black/5 z-50">
+        <aside className="w-[280px] h-screen sticky top-0 border-r border-border bg-background/50 backdrop-blur-xl flex flex-col hidden lg:flex z-50">
             <div className="p-8 pb-4">
                 <Link href="/" className="flex items-center gap-3 mb-10 group">
-                    <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-                        <span className="text-white font-black text-xl">S</span>
-                    </div>
-                    <div>
-                        <span className="block text-lg font-black tracking-tight text-foreground leading-none">Seentics</span>
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest leading-none">Platform</span>
-                    </div>
+                    <Logo size="xl" showText={true} textClassName="text-xl font-bold text-foreground" />
                 </Link>
 
                 <div className="px-2 mb-4">
-                    <p className="text-[10px] font-black tracking-[0.2em] text-muted-foreground/60 uppercase">Management</p>
+                    <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase opacity-60">Management</p>
                 </div>
             </div>
 
-            <nav className="flex-1 px-5 space-y-1 overflow-y-auto custom-scrollbar">
+            <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
                 {links.map((link) => {
                     const isActive = link.matchExact
                         ? pathname === link.href
                         : pathname.startsWith(link.href);
 
                     return (
-                        <Link key={link.href} href={link.href}>
+                        <Link key={link.href} href={link.href} className="block relative">
                             <div className={cn(
-                                "group flex items-center gap-4 px-4 py-3 rounded-2xl transition-all duration-300 relative border border-transparent",
+                                "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative border border-transparent",
                                 isActive
-                                    ? "bg-primary text-primary-foreground shadow-xl shadow-primary/20"
-                                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                                    ? "bg-primary/10 text-primary shadow-sm"
+                                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                             )}>
-                                <link.icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary")} />
+                                <link.icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
                                 <div className="flex flex-col min-w-0">
-                                    <span className={cn("font-bold text-[13px] leading-tight truncate", isActive ? "text-primary-foreground" : "text-foreground/90")}>{link.title}</span>
-                                    <span className={cn("text-[9px] font-medium opacity-60 truncate", isActive ? "text-primary-foreground/80" : "text-muted-foreground")}>{link.description}</span>
+                                    <span className={cn("font-bold text-[13px] leading-tight truncate", isActive ? "text-primary" : "text-foreground")}>{link.title}</span>
+                                    <span className={cn("text-[9px] font-medium opacity-60 truncate", isActive ? "text-primary/80" : "text-muted-foreground")}>{link.description}</span>
                                 </div>
                                 {isActive && (
-                                    <motion.div
-                                        layoutId="sidebar-active"
-                                        className="absolute inset-0 bg-primary rounded-2xl -z-10"
-                                        initial={false}
-                                    />
+                                    <div className="absolute left-0 w-1 h-6 bg-primary rounded-full" />
                                 )}
                             </div>
                         </Link>
@@ -115,41 +104,37 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                 })}
             </nav>
 
-            <div className="p-6 mt-auto">
+            <div className="p-6 mt-auto border-t border-border/50">
                 <div className="flex justify-between items-center mb-6 px-2">
-                    <p className="text-[10px] font-black tracking-[0.2em] text-muted-foreground/60 uppercase">Settings</p>
+                    <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase opacity-60">Settings</p>
                     <ThemeToggle />
                 </div>
 
                 {user && (
-                    <div className="relative group p-1 rounded-[2rem] bg-gradient-to-br from-border/50 to-transparent border border-border/40 overflow-hidden">
-                        <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="relative bg-card/50 backdrop-blur-md rounded-[1.8rem] p-4 shadow-sm">
-                            <div className="flex items-center gap-3 mb-4">
-                                <Avatar className="h-10 w-10 border-2 border-background ring-2 ring-primary/10">
-                                    <AvatarImage src={(user as any).user_metadata?.avatar_url} />
-                                    <AvatarFallback className="bg-primary/10 text-primary font-bold">
-                                        {user.email?.charAt(0).toUpperCase()}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="min-w-0 flex-1">
-                                    <p className="text-xs font-black truncate text-foreground">{user.email?.split('@')[0]}</p>
-                                    <p className="text-[10px] text-primary font-black uppercase tracking-widest flex items-center gap-1">
-                                        <div className="w-1 h-1 rounded-full bg-primary" />
-                                        Free Tier
-                                    </p>
-                                </div>
+                    <div className="p-4 rounded-2xl bg-accent/30 border border-border/40 backdrop-blur-sm">
+                        <div className="flex items-center gap-3 mb-4">
+                            <Avatar className="h-9 w-9 border border-border">
+                                <AvatarImage src={user.avatar || undefined} />
+                                <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                                    {user.name?.[0]?.toUpperCase() || 'U'}
+                                </AvatarFallback>
+                            </Avatar>
+                            <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold truncate text-foreground">{user.name || user.email?.split('@')[0]}</p>
+                                <p className="text-[10px] text-muted-foreground font-medium truncate uppercase tracking-widest">
+                                    Free Plan
+                                </p>
                             </div>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => logout()}
-                                className="w-full h-9 text-[10px] font-black uppercase tracking-wider text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 gap-2 rounded-xl transition-all border border-transparent hover:border-red-200/50"
-                            >
-                                <LogOut size={12} />
-                                Sign Out
-                            </Button>
                         </div>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => logout()}
+                            className="w-full h-8 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-2 rounded-lg transition-all"
+                        >
+                            <LogOut size={12} />
+                            Sign Out
+                        </Button>
                     </div>
                 )}
             </div>

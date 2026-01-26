@@ -16,9 +16,7 @@ export default function LandingPage() {
       <LandingHeader />
       <main>
         <Hero />
-        <ResultsShowcase />
         <Features />
-        <VisualFunnels />
         <Pricing />
         <LifetimeDeal />
         <FAQ />
