@@ -9,7 +9,9 @@ import {
   ArrowRight,
   TrendingUp
 } from 'lucide-react';
-
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 interface FunnelInsightsCardProps {
@@ -27,17 +29,17 @@ const mockFunnels = [
 export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoading }) => {
   if (isLoading) {
     return (
-      <div className="space-y-4 dark:bg-gray-800 rounded-md">
+      <div className="space-y-3">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse text-muted">
+          <div key={i} className="flex items-center justify-between p-4 rounded-lg border border-border/20">
              <div className="flex items-center space-x-4 flex-1">
-                <div className="w-10 h-10 bg-muted rounded-xl" />
+                <Skeleton className="w-10 h-10 rounded-lg" />
                 <div className="space-y-2">
-                   <div className="h-4 w-32 bg-muted rounded" />
-                   <div className="h-3 w-20 bg-muted rounded" />
+                   <Skeleton className="h-4 w-32" />
+                   <Skeleton className="h-3 w-24" />
                 </div>
              </div>
-             <div className="h-8 w-16 bg-muted rounded" />
+             <Skeleton className="h-8 w-16" />
           </div>
         ))}
       </div>
@@ -45,15 +47,17 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
   }
 
   return (
-    <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between border-b pb-4">
+    <Card className="bg-card border-border shadow-sm shadow-black/5 rounded-xl overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 pb-6">
         <div className="space-y-1">
-          <CardTitle className="text-base font-semibold">Funnel Performance</CardTitle>
-          <CardDescription className="text-xs">Conversion rates and drop-offs</CardDescription>
+          <CardTitle className="text-xl font-black tracking-tight">Conversion Funnels</CardTitle>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Conversion rates & drop-off analysis</p>
         </div>
-        <Link href="/settings/funnels" className="text-xs font-black text-primary flex items-center gap-1 hover:underline">
-            View All
-            <ArrowUpRight size={14} />
+        <Link href="/settings/funnels">
+            <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 hover:bg-primary/5 gap-1.5 rounded-md px-3">
+                All Funnels
+                <ArrowUpRight size={14} />
+            </Button>
         </Link>
       </CardHeader>
       
@@ -61,52 +65,58 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b bg-muted/10">
-                <th className="p-4 text-xs font-black uppercase tracking-widest text-muted-foreground w-2/5">Funnel</th>
-                <th className="p-4 text-xs font-black uppercase tracking-widest text-muted-foreground text-center">Conv. Rate</th>
-                <th className="p-4 text-xs font-black uppercase tracking-widest text-muted-foreground text-right">Main Drop-off</th>
+              <tr className="bg-accent/5">
+                <th className="p-4 px-6 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 w-2/5">Funnel Path</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 text-center">Efficiency</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 text-right px-8">Critical Drop-off</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/40">
               {mockFunnels.map((funnel) => (
-                <tr key={funnel.id} className="group hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 min-w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 transition-colors">
+                <tr key={funnel.id} className="group hover:bg-accent/5 transition-all duration-300">
+                  <td className="p-4 px-6">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 min-w-10 rounded-lg bg-accent/10 flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
                         <Filter size={16} />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-sm truncate text-foreground">{funnel.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] font-medium text-muted-foreground">
+                        <p className="font-bold text-[13px] leading-tight text-foreground truncate ">{funnel.name}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-60">
                                 {funnel.steps} Steps
                             </span>
-                            {funnel.trend === 'up' && <TrendingUp size={10} className="text-emerald-500" />}
-                            {funnel.trend === 'down' && <TrendingDown size={10} className="text-rose-500" />}
+                            {funnel.trend === 'up' && <TrendingUp size={10} strokeWidth={3} className="text-emerald-500" />}
+                            {funnel.trend === 'down' && <TrendingDown size={10} strokeWidth={3} className="text-rose-500" />}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="p-4">
-                    <div className="flex flex-col items-center gap-1">
-                      <span className={`text-sm font-black ${funnel.conversion > 50 ? 'text-emerald-500' : 'text-slate-900 dark:text-white'}`}>
+                    <div className="flex flex-col items-center gap-1.5">
+                      <span className={cn(
+                        "text-sm font-black tracking-tight",
+                        funnel.conversion > 50 ? 'text-emerald-500' : 'text-foreground'
+                      )}>
                         {funnel.conversion}%
                       </span>
-                      <div className="h-1.5 w-16 bg-muted/50 rounded-full overflow-hidden">
+                      <div className="h-1.5 w-16 bg-accent/10 rounded-full overflow-hidden shrink-0">
                         <div 
-                            className={`h-full rounded-full ${funnel.conversion > 50 ? 'bg-emerald-500' : 'bg-primary'}`} 
+                            className={cn(
+                                "h-full rounded-full transition-all duration-300",
+                                funnel.conversion > 50 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-primary shadow-[0_0_8px_var(--primary)]'
+                            )}
                             style={{ width: `${funnel.conversion}%` }} 
                         />
                       </div>
                     </div>
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="p-4 text-right px-8">
                     <div className="flex flex-col items-end">
-                      <span className="text-xs font-bold text-rose-500 flex items-center gap-1">
-                        <ArrowRight size={10} />
+                      <span className="text-[11px] font-bold text-rose-500 flex items-center gap-1 bg-rose-500/10 px-2 py-0.5 rounded-md">
+                        <ArrowRight size={10} strokeWidth={3} />
                         {funnel.dropoff}
                       </span>
-                      <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Bottleneck</span>
+                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.15em] opacity-60 mt-1">Primary Bottleneck</span>
                     </div>
                   </td>
                 </tr>
@@ -114,8 +124,6 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
             </tbody>
           </table>
         </div>
-        
-       
       </CardContent>
     </Card>
   );

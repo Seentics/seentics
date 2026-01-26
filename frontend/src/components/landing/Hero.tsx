@@ -52,8 +52,8 @@ export default function Hero() {
             variants={itemVariants}
             className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.1] mb-8 text-foreground"
           >
-            Privacy-friendly analytics. <br />
-            <span className="gradient-text font-black text-indigo-600 dark:text-indigo-400">Funnels & Automations built-in.</span>
+            Smart Analytics. <br />
+            <span className="gradient-text font-black text-indigo-600 dark:text-indigo-400">Instant Action.</span>
           </motion.h1>
 
           {/* Subheadline */}
@@ -61,23 +61,39 @@ export default function Hero() {
             variants={itemVariants}
             className="text-lg sm:text-xl text-muted-foreground/70 max-w-3xl mx-auto mb-12 leading-relaxed font-medium"
           >
-            <span className="text-foreground font-bold">Understand every journey.</span> Seentics combines ultra-lightweight analytics with visual conversion funnels and behavior-triggered automations.
+            Seentics combines <span className="text-foreground font-bold">privacy-first tracking</span> with built-in conversion funnels and automated marketing workflows to help you grow faster.
           </motion.p>
 
           {/* Action Hub */}
-          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-20">
-            <Link href="/signup" className="w-full sm:w-auto">
-              <Button variant="brand" size="lg" className="h-14 px-10 text-[13px] font-bold uppercase tracking-wider rounded-full w-full sm:w-auto active:scale-95 group">
-                Start Free Forever
-                <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </Link>
-            <Link href="/websites/demo" className="w-full sm:w-auto">
-              <Button size="lg" variant="secondary" className="h-14 px-10 text-[13px] font-bold uppercase tracking-wider rounded-full w-full sm:w-auto glass border-white/10 hover:bg-white/5 transition-all flex items-center gap-3">
-                <Play className="h-3 w-3 fill-current" />
-                Live Preview
-              </Button>
-            </Link>
+          <motion.div variants={itemVariants} className="flex flex-col items-center gap-8 w-full mb-24">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+              <Link href="/signup" className="w-full sm:w-auto">
+                <Button variant="brand" size="lg" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded-lg w-full sm:w-auto active:scale-95 group shadow-xl shadow-primary/20">
+                  Start Free Forever
+                  <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/websites/demo" className="w-full sm:w-auto">
+                <Button size="lg" variant="secondary" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded-lg w-full sm:w-auto bg-white/10 border-white/20 hover:bg-white/20 text-foreground transition-all flex items-center justify-center gap-3 backdrop-blur-md">
+                  <Play className="h-3 w-3 fill-current" />
+                  Live Demo Preview
+                </Button>
+              </Link>
+            </div>
+
+            {/* Feature Tags */}
+            <div className="flex flex-wrap justify-center gap-3 max-w-2xl px-6">
+              {[
+                "Website Analytics",
+                "Conversion Funnels",
+                "GDPR Compliant"
+              ].map((tag) => (
+                <div key={tag} className="px-3 py-1.5 rounded-md bg-accent/5 border border-border/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
+                  <div className="w-1 h-1 rounded-full bg-primary" />
+                  {tag}
+                </div>
+              ))}
+            </div>
           </motion.div>
 
           {/* High-Fidelity Dashboard Card */}
@@ -87,8 +103,8 @@ export default function Hero() {
           >
             <div className="absolute -inset-10 bg-primary/10 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
 
-            <div className="relative glass p-2 rounded-[2.5rem] border-white/10 shadow-2xl overflow-hidden aspect-[16/10] bg-black/5 dark:bg-white/5 backdrop-blur-[40px]">
-              <div className="w-full h-full rounded-[2rem] bg-background/50 p-6 sm:p-10 flex flex-col items-start justify-start text-left relative overflow-hidden">
+            <div className="relative glass p-2 rounded-xl border-white/10 shadow-2xl overflow-hidden aspect-[16/10] bg-black/5 dark:bg-white/5 backdrop-blur-[40px]">
+              <div className="w-full h-full rounded-lg bg-background/50 p-6 sm:p-10 flex flex-col items-start justify-start text-left relative overflow-hidden">
 
                 {/* Mock UI Header */}
                 <div className="w-full flex items-center justify-between mb-8 pb-4 border-b border-border/40">
@@ -104,10 +120,9 @@ export default function Hero() {
                   </div>
                 </div>
 
-                {/* Mock Charts/Stats */}
                 <div className="grid grid-cols-3 gap-6 w-full mb-8">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="p-5 rounded-2xl bg-white/5 border border-white/5 flex flex-col gap-3">
+                    <div key={i} className="p-5 rounded-xl bg-white/5 border border-white/5 flex flex-col gap-3">
                       <div className="h-2 w-16 bg-muted-foreground/20 rounded" />
                       <div className="h-6 w-24 bg-foreground/10 rounded" />
                     </div>
@@ -131,7 +146,7 @@ export default function Hero() {
 
                 {/* Floating Snippets */}
                 <div className="absolute top-1/4 -right-12 hidden xl:block">
-                  <div className="glass p-4 rounded-2xl shadow-xl border-white/10 w-48 animate-float" style={{ animationDelay: '1s' }}>
+                  <div className="glass p-4 rounded-xl shadow-xl border-white/10 w-48 animate-float" style={{ animationDelay: '1s' }}>
                     <div className="flex items-center gap-3 mb-2">
                       <MousePointer2 className="h-3 w-3 text-primary" />
                       <div className="h-1.5 w-12 bg-foreground/20 rounded" />

@@ -649,17 +649,13 @@ export default function WebsiteDashboardPage() {
 
         {/* Workflow & Funnel Intelligence */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <section className="glass-card shadow-2xl shadow-black/5 rounded-[2rem] border-white/5 bg-card/30 backdrop-blur-md p-2">
             <AutomationInsightTable
               data={finalDailyStats}
               isLoading={dailyLoading}
             />
-          </section>
-          <section className="glass-card shadow-2xl shadow-black/5 rounded-[2rem] border-white/5 bg-card/30 backdrop-blur-md p-2">
             <FunnelInsightsCard
               isLoading={dailyLoading}
             />
-          </section>
         </div>
 
         {/* Detailed Data Modal */}

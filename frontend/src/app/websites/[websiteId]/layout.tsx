@@ -17,7 +17,7 @@ export default function Layout({ children }: LayoutProps) {
     <div className="flex min-h-screen bg-background">
       <TrackerScript />
       <NavSidebar websiteId={websiteId} />
-      <main className="flex-1 w-full relative min-w-0">
+      <main className="flex-1 w-full relative min-w-0 lg:ml-[280px]">
         {children}
       </main>
     </div>

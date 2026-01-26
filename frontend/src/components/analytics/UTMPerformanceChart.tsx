@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Target, TrendingUp, Info, Layers, Globe } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/lib/analytics-api';
@@ -50,21 +51,20 @@ interface UTMPerformanceChartProps {
 export function UTMPerformanceChart({ data, isLoading = false, controlledTab, onTabChange, hideTabs = false }: UTMPerformanceChartProps) {
   const [internalTab, setInternalTab] = useState<'sources' | 'mediums' | 'campaigns' | 'terms' | 'content'>('sources');
   const utmTab = controlledTab ?? internalTab;
-  const setUtmTab = (tab: 'sources' | 'mediums' | 'campaigns' | 'terms' | 'content') => {
-    if (onTabChange) onTabChange(tab);
-    else setInternalTab(tab);
-  };
-
+  
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse">
+      <div className="space-y-2 mt-4">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-border/20 animate-pulse">
             <div className="flex items-center space-x-4">
-              <div className="w-8 h-8 bg-muted rounded-md" />
-              <div className="h-4 w-32 bg-muted rounded" />
+              <Skeleton className="w-10 h-10 rounded-xl" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-20" />
+              </div>
             </div>
-            <div className="h-4 w-12 bg-muted rounded" />
+            <Skeleton className="h-8 w-16" />
           </div>
         ))}
       </div>
@@ -85,63 +85,60 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
   };
 
   const listData = getListData(utmTab).slice(0, 8);
-  const maxVal = Math.max(...listData.map(d => d.visitors), 1);
 
   if (!data || listData.length === 0) {
     return (
-      <div className="h-64 flex flex-col items-center justify-center text-center space-y-2 opacity-50">
-        <Layers className="h-10 w-10 text-muted-foreground mb-2" />
-        <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">No Campaign Data</p>
+      <div className="flex flex-col items-center justify-center py-24 text-muted-foreground/40 bg-accent/5 rounded-2xl border border-dashed border-border/60">
+        <Layers className="h-16 w-16 mb-4 opacity-10" />
+        <div className="text-sm font-black uppercase tracking-[0.2em] mb-2">No Campaign Data</div>
+        <div className="text-xs italic opacity-60 text-center px-8">Campaign performance will scale with your marketing efforts</div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-0 animate-in fade-in duration-500">
-      {listData.map((item, idx) => {
-        const percentage = (item.visitors / maxVal) * 100;
-        return (
-          <div key={idx} className="flex items-center justify-between p-2 py-3 border-b transition-all hover:bg-gray-50/50 dark:hover:bg-gray-800/20">
-            <div className="flex items-center space-x-4 flex-1 min-w-0">
-              <div className="w-8 h-8 rounded-md flex items-center justify-center  shadow-sm shrink-0 overflow-hidden p-1.5 group-hover:scale-110 transition-transform">
-                <Image 
-                  src={getImageForName(item.name, utmTab)} 
-                  alt={item.name} 
-                  width={16} 
-                  height={16} 
-                  className="object-contain" 
-                  onError={(e) => {
-                    const target = e.target as HTMLElement;
-                    target.style.display = 'none';
-                    target.nextElementSibling?.classList.remove('hidden');
-                  }}
-                />
-                <Globe className="h-4 w-4 text-muted-foreground hidden" />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-sm text-foreground truncate" title={item.name}>
-                  {item.name}
-                </div>
-                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest truncate">
-                  {utmTab.slice(0, -1)} Insight
-                </div>
-              </div>
+    <div className="space-y-2 mt-4 animate-in fade-in duration-500">
+      {listData.map((item, idx) => (
+        <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+          <div className="flex items-center space-x-4 flex-1 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shadow-sm shrink-0 overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
+              <Image 
+                src={getImageForName(item.name, utmTab)} 
+                alt={item.name} 
+                width={20} 
+                height={20} 
+                className="object-contain" 
+                onError={(e) => {
+                  const target = e.target as HTMLElement;
+                  target.style.display = 'none';
+                  target.nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+              <Globe className="h-4 w-4 text-primary hidden" />
             </div>
 
-            <div className="shrink-0 text-right">
-              <div className="text-right">
-                <div className="font-bold text-base leading-tight">
-                  {formatNumber(item.visitors)}
-                </div>
-                <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                  Visitors
-                </div>
+            <div className="min-w-0 flex-1">
+              <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={item.name}>
+                {item.name}
+              </div>
+              <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-60 truncate">
+                {utmTab.slice(0, -1)} Analytics
               </div>
             </div>
           </div>
-        );
-      })}
+
+          <div className="shrink-0 text-right">
+            <div className="text-right">
+              <div className="font-black text-base leading-tight">
+                {formatNumber(item.visitors)}
+              </div>
+              <div className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] opacity-60">
+                Visitors
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

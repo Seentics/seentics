@@ -28,7 +28,7 @@ export function TrafficOverview({
   const listData = dailyStats?.daily_stats || [];
 
   return (
-    <Card className={cn("col-span-full border-border bg-card shadow-sm shadow-black/5", className)}>
+    <Card className={cn("col-span-full border-border bg-card shadow-sm shadow-black/5 rounded-xl overflow-hidden", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
         <div className="space-y-1">
           <CardTitle className="text-xl font-black tracking-tight">Traffic Overview</CardTitle>
@@ -36,16 +36,16 @@ export function TrafficOverview({
         </div>
         {/* View Tabs */}
         <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-auto">
-          <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/20 p-1 rounded-xl">
-            <TabsTrigger value="chart" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-lg active:bg-background">
+          <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/20 p-1 rounded-lg">
+            <TabsTrigger value="chart" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-md active:bg-background">
               <BarChart3 className="h-3.5 w-3.5" />
               Chart
             </TabsTrigger>
-            <TabsTrigger value="list" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-lg active:bg-background">
+            <TabsTrigger value="list" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-md active:bg-background">
               <List className="h-3.5 w-3.5" />
               List
             </TabsTrigger>
-            <TabsTrigger value="hourly" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-lg active:bg-background">
+            <TabsTrigger value="hourly" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-md active:bg-background">
               <Clock className="h-3.5 w-3.5" />
               Hourly
             </TabsTrigger>
@@ -65,7 +65,7 @@ export function TrafficOverview({
             {isLoading ? (
               <div className="space-y-3">
                 {[...Array(6)].map((_, i) => (
-                  <Skeleton key={i} className="h-16 w-full rounded-xl" />
+                  <Skeleton key={i} className="h-16 w-full rounded-lg" />
                 ))}
               </div>
             ) : listData.length > 0 ? (
@@ -73,7 +73,7 @@ export function TrafficOverview({
                 {listData.map((stat: any, idx: number) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-4 bg-accent/5 border border-border/40 rounded-xl hover:bg-accent/10 transition-all duration-300 group"
+                    className="flex items-center justify-between p-4 bg-accent/5 border border-border/40 rounded-lg hover:bg-accent/10 transition-all duration-300 group"
                   >
                     <div className="flex-1">
                       <div className="text-sm font-bold text-foreground">

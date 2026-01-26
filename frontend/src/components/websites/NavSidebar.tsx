@@ -10,7 +10,9 @@ import {
     CreditCard,
     Settings,
     LogOut,
-    Globe
+    Globe,
+    User,
+    ChevronUp
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -18,6 +20,12 @@ import { useAuth } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '../theme-toggle';
 import { motion } from 'framer-motion';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
 
 export function NavSidebar({ websiteId }: { websiteId: string }) {
     const pathname = usePathname();
@@ -65,7 +73,7 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
     ];
 
     return (
-        <aside className="w-[280px] h-screen sticky top-0 border-r border-border bg-background/50 backdrop-blur-xl flex flex-col hidden lg:flex z-50">
+        <aside className="w-[280px] h-screen fixed top-0 left-0 border-r border-border bg-background/50 backdrop-blur-xl flex flex-col hidden lg:flex z-50">
             <div className="p-8 pb-4">
                 <Link href="/" className="flex items-center gap-3 mb-10 group">
                     <Logo size="xl" showText={true} textClassName="text-xl font-bold text-foreground" />
@@ -85,7 +93,7 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                     return (
                         <Link key={link.href} href={link.href} className="block relative">
                             <div className={cn(
-                                "group flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 relative border border-transparent",
+                                "group flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 relative border border-transparent",
                                 isActive
                                     ? "bg-primary/10 text-primary shadow-sm"
                                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -104,38 +112,49 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                 })}
             </nav>
 
-            <div className="p-6 mt-auto border-t border-border/50">
-                <div className="flex justify-between items-center mb-6 px-2">
-                    <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase opacity-60">Settings</p>
-                    <ThemeToggle />
-                </div>
-
+            <div className="p-4 mt-auto border-t border-border/40">
                 {user && (
-                    <div className="p-4 rounded-2xl bg-accent/30 border border-border/40 backdrop-blur-sm">
-                        <div className="flex items-center gap-3 mb-4">
-                            <Avatar className="h-9 w-9 border border-border">
-                                <AvatarImage src={user.avatar || undefined} />
-                                <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
-                                    {user.name?.[0]?.toUpperCase() || 'U'}
-                                </AvatarFallback>
-                            </Avatar>
-                            <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold truncate text-foreground">{user.name || user.email?.split('@')[0]}</p>
-                                <p className="text-[10px] text-muted-foreground font-medium truncate uppercase tracking-widest">
-                                    Free Plan
-                                </p>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <button className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 transition-all text-left group">
+                                <Avatar className="h-8 w-8 border border-border/40">
+                                    <AvatarImage src={user.avatar || undefined} />
+                                    <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs uppercase text-center flex items-center justify-center pt-0.5">
+                                        {user.name?.[0] || user.email?.[0] || 'U'}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-foreground truncate">{user.name || 'User'}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate font-medium">Account Settings</p>
+                                </div>
+                                <ChevronUp className="h-4 w-4 text-muted-foreground group-hover:text-foreground opacity-40 transition-opacity" />
+                            </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2 mb-2 rounded-lg border-border/40 shadow-xl" side="right" align="end" sideOffset={12}>
+                             <div className="p-3">
+                                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">{user.name || 'Account'}</p>
+                                <p className="text-[10px] text-muted-foreground opacity-60 truncate">{user.email}</p>
                             </div>
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => logout()}
-                            className="w-full h-8 text-[10px] font-bold uppercase tracking-wider text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-2 rounded-lg transition-all"
-                        >
-                            <LogOut size={12} />
-                            Sign Out
-                        </Button>
-                    </div>
+                            <Separator className="my-2 opacity-10" />
+                            <div className="space-y-1">
+                                <Link href={`/websites/${websiteId}/settings`}>
+                                    <Button variant="ghost" size="sm" className="w-full justify-start h-9 text-xs font-bold gap-2 rounded-md">
+                                        <Settings size={14} />
+                                        Profile Settings
+                                    </Button>
+                                </Link>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => logout()}
+                                    className="w-full justify-start h-9 text-xs font-bold gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-md"
+                                >
+                                    <LogOut size={14} />
+                                    Sign Out
+                                </Button>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
                 )}
             </div>
         </aside>

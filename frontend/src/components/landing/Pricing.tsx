@@ -140,18 +140,18 @@ export default function Pricing() {
               key={index}
               variants={itemVariants}
               whileHover={{ y: -8, transition: { duration: 0.3 } }}
-              className={`relative glass-card p-1 rounded-[3rem] transition-all duration-500 ${plan.popular ? 'ring-1 ring-primary/40 shadow-glow/20' : 'border-white/10'
+              className={`relative glass-card p-1 rounded-xl transition-all duration-500 ${plan.popular ? 'ring-1 ring-primary/40 shadow-glow/20' : 'border-white/10'
                 }`}
             >
-              <div className="bg-card/30 backdrop-blur-2xl h-full rounded-[2.8rem] p-10 flex flex-col relative overflow-hidden">
+              <div className="bg-card/30 backdrop-blur-2xl h-full rounded-[0.7rem] p-10 flex flex-col relative overflow-hidden">
                 {plan.popular && (
-                  <div className="absolute top-0 right-0 py-2 px-6 bg-primary text-white text-[9px] font-black uppercase tracking-[0.25em] rounded-bl-3xl shadow-glow">
+                  <div className="absolute top-0 right-0 py-2 px-6 bg-primary text-white text-[9px] font-black uppercase tracking-[0.25em] rounded-bl-xl shadow-glow">
                     Most Popular
                   </div>
                 )}
 
                 <div className="mb-10">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-8 border ${plan.color} shadow-sm transition-transform group-hover:scale-110`}>
+                  <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-8 border ${plan.color} shadow-sm transition-transform group-hover:scale-110`}>
                     <plan.icon className="h-6 w-6" />
                   </div>
                   <h3 className="text-2xl font-black mb-2 tracking-tight">{plan.name}</h3>
@@ -178,7 +178,7 @@ export default function Pricing() {
                 <Link href={isAuthenticated ? "/websites" : "/signup"} className="mt-auto">
                   <Button
                     variant={plan.popular ? "brand" : "default"}
-                    className={`w-full h-14 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${!plan.popular && 'glass border-white/10 hover:bg-white/5 active:scale-95 text-foreground'
+                    className={`w-full h-14 rounded-md font-black text-[10px] uppercase tracking-[0.2em] transition-all ${!plan.popular && 'glass border-white/10 hover:bg-white/5 active:scale-95 text-foreground'
                       }`}
                   >
                     {plan.name === 'Starter' ? 'Start Free' : `Purchase ${plan.name}`}
@@ -197,7 +197,7 @@ export default function Pricing() {
           viewport={{ once: true }}
           className="max-w-4xl mx-auto text-center"
         >
-          <div className="glass p-12 sm:p-20 rounded-[3.5rem] border-white/10 shadow-2xl relative overflow-hidden">
+          <div className="glass p-12 sm:p-20 rounded-xl border-white/10 shadow-2xl relative overflow-hidden">
             {/* Background Mesh */}
             <div className="absolute top-0 left-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full -ml-32 -mt-32 opacity-30" />
 
@@ -211,12 +211,12 @@ export default function Pricing() {
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-5 relative z-10">
               <Link href="/contact" className="w-full sm:w-auto">
-                <Button variant="outline" className="w-full sm:w-auto h-16 px-12 rounded-full glass border-white/10 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white/5 transition-all active:scale-95">
+                <Button variant="outline" className="w-full sm:w-auto h-16 px-12 rounded-lg glass border-white/10 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white/5 transition-all active:scale-95">
                   Contact Sales
                 </Button>
               </Link>
               <Link href="/signup" className="w-full sm:w-auto">
-                <Button variant="brand" className="w-full sm:w-auto h-16 px-12 rounded-full font-black text-[10px] uppercase tracking-[0.2em] active:scale-95">
+                <Button variant="brand" className="w-full sm:w-auto h-16 px-12 rounded-lg font-black text-[10px] uppercase tracking-[0.2em] active:scale-95">
                   Start Free Now
                 </Button>
               </Link>

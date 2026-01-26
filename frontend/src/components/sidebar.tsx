@@ -162,7 +162,7 @@ export default function Sidebar() {
     <>
       {/* Desktop Sidebar */}
       <div className={`${isSidebarOpen ? 'w-64' : 'w-16'
-        } hidden lg:block transition-all duration-300 ease-in-out bg-white dark:bg-slate-950 shadow-sm border-r border-slate-200 dark:border-slate-700`}>
+        } hidden lg:block transition-all duration-300 ease-in-out bg-white dark:bg-slate-950 shadow-sm `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center h-16 px-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">

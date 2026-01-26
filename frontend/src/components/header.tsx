@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/stores/useAuthStore'
 import { useLayoutStore } from '@/stores/useLayoutStore'
 import {
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   HelpCircle,
@@ -90,13 +91,13 @@ function HeaderContent() {
   return (
     <>
       <PromotionBanner />
-      <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200/60 dark:border-gray-700/60 shadow-sm">
-      <div className="flex justify-between items-center h-16 px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-40 w-full bg-background/60 backdrop-blur-xl border-b border-border/40 transition-all duration-300">
+      <div className="flex justify-between items-center h-16 px-4 sm:px-6 lg:px-10">
+        <div className="flex items-center gap-6">
           {/* Mobile Menu Button */}
           <button
             onClick={toggleMobileMenu}
-            className="lg:hidden inline-flex items-center justify-center h-10 w-10 rounded-lg text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors"
+            className="lg:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/10 focus:outline-none transition-all"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -104,18 +105,18 @@ function HeaderContent() {
           {/* Desktop Sidebar Toggle */}
           <button
             onClick={toggleSidebar}
-            className="hidden lg:flex items-center px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+            className="hidden lg:flex items-center px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-accent/10 rounded-lg transition-all gap-2"
             title={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
             {isSidebarOpen ? (
               <>
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Collapse</span>
+                <ChevronLeft className="h-4 w-4" strokeWidth={3} />
+                Collapse
               </>
             ) : (
               <>
-                <ChevronRight className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Expand</span>
+                <ChevronRight className="h-4 w-4" strokeWidth={3} />
+                Expand
               </>
             )}
           </button>
@@ -129,9 +130,8 @@ function HeaderContent() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-3">
-
-          <Separator orientation="vertical" className="h-6 hidden md:block" />
+        <div className="flex items-center space-x-4">
+          <Separator orientation="vertical" className="h-6 hidden md:block opacity-20" />
 
           {/* Theme Toggle */}
           <ThemeToggle />
@@ -140,25 +140,24 @@ function HeaderContent() {
           <Popover>
             <PopoverTrigger asChild>
               <Button
-                className="flex items-center space-x-3 h-auto px-4 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 hover:border-slate-300 dark:hover:border-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 transition-colors shadow-sm"
+                variant="ghost"
+                className="flex items-center space-x-3 h-11 px-3 bg-accent/5 border border-border/40 hover:bg-accent/10 rounded-lg transition-all shadow-sm"
               >
-                <Avatar className="h-8 w-8 ring-2 ring-gray-100 dark:ring-gray-700">
+                <Avatar className="h-7 w-7 ring-2 ring-primary/20">
                   <AvatarImage src={user?.avatar || undefined} alt={user?.name || 'User'} />
-                  <AvatarFallback className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-medium">
-                    {user?.name ? user.name.charAt(0).toUpperCase() : <User className="h-4 w-4" />}
+                  <AvatarFallback className="bg-primary text-primary-foreground font-black text-xs">
+                    {user?.name ? user.name.charAt(0).toUpperCase() : <User className="h-3 w-3" />}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden md:block text-left min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                    {user?.name || 'User'}
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
-                    {user?.email || 'user@example.com'}
+                  <p className="text-[11px] font-black text-foreground uppercase tracking-wider truncate">
+                    {user?.name || 'Explorer'}
                   </p>
                 </div>
+                <ChevronDown className="h-3 w-3 opacity-40 hidden md:block" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-72 p-0" align="end">
+            <PopoverContent className="w-72 p-0 rounded-2xl border-border/40 shadow-2xl overflow-hidden" align="end">
               <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-12 w-12 ring-2 ring-white dark:ring-slate-700">

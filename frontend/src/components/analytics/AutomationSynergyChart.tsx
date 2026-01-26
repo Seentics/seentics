@@ -16,6 +16,7 @@ import {
 import { formatNumber } from '@/lib/analytics-api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
 
 interface AutomationInsightTableProps {
@@ -34,85 +35,87 @@ const workflows = [
 export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ data, isLoading }) => {
   if (isLoading) {
     return (
-      <div className="space-y-4 dark:bg-gray-800 rounded-md">
+      <div className="space-y-3">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse text-muted">
+          <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-border/20">
              <div className="flex items-center space-x-4 flex-1">
-                <div className="w-10 h-10 bg-muted rounded-xl" />
+                <Skeleton className="w-10 h-10 rounded-xl" />
                 <div className="space-y-2">
-                   <div className="h-4 w-32 bg-muted rounded" />
-                   <div className="h-3 w-20 bg-muted rounded" />
+                   <Skeleton className="h-4 w-32" />
+                   <Skeleton className="h-3 w-24" />
                 </div>
              </div>
-             <div className="h-8 w-16 bg-muted rounded" />
+             <div className="flex items-center gap-6">
+                <Skeleton className="h-8 w-16" />
+                <Skeleton className="h-8 w-16" />
+             </div>
           </div>
         ))}
       </div>
     );
   }
 
-  // Generate some semi-random numbers based on traffic data for demo
   const insightMultiplier = (data?.dashboardData?.total_visitors || 1000) / 5000;
 
   return (
-    <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between border-b  pb-4">
+    <Card className="bg-card border-border shadow-sm shadow-black/5 rounded-2xl overflow-hidden">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 pb-6">
         <div className="space-y-1">
-          <CardTitle className="text-base font-semibold">Workflow Automation</CardTitle>
-          <CardDescription className="text-xs">Real-time automation status</CardDescription>
+          <CardTitle className="text-xl font-black tracking-tight">Automation Engine</CardTitle>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Real-time workflow execution</p>
         </div>
-        <button className="text-xs font-black text-primary flex items-center gap-1 hover:underline">
-            Manage All
+        <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 hover:bg-primary/5 gap-1.5 rounded-lg px-3">
+            Manage
             <ArrowUpRight size={14} />
-        </button>
+        </Button>
       </CardHeader>
       
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b bg-muted/10">
-                <th className="p-4 text-xs font-black uppercase tracking-widest text-muted-foreground w-1/2">Automation Name</th>
-                <th className="p-4 text-xs font-black uppercase tracking-widest text-muted-foreground text-center">Triggers</th>
-                <th className="p-4 text-xs font-black uppercase tracking-widest text-muted-foreground text-right px-6"> A/Executed</th>
+              <tr className="bg-accent/5">
+                <th className="p-4 px-6 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 w-1/2">Automation Flow</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 text-center">Triggers</th>
+                <th className="p-4 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 text-right px-8">Executed</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/40">
               {workflows.map((wf) => {
                 const triggers = Math.floor(wf.baseTrigger * (1 + (insightMultiplier * Math.random())));
                 const actions = Math.floor(triggers * (wf.baseAction / wf.baseTrigger));
                 
                 return (
-                  <tr key={wf.id} className="group hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
-                    <td className="p-4">
+                  <tr key={wf.id} className="group hover:bg-accent/5 transition-all duration-300">
+                    <td className="p-4 px-6">
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 min-w-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                          {wf.icon}
+                        <div className="h-10 w-10 min-w-10 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                          {React.cloneElement(wf.icon as React.ReactElement, { className: 'h-4 w-4 text-primary' })}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium text-sm truncate text-foreground">{wf.name}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            IF {wf.trigger}
+                          <p className="font-bold text-[13px] leading-tight text-foreground truncate ">{wf.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60 mt-0.5">
+                            Trigger: {wf.trigger}
                           </p>
                         </div>
                       </div>
                     </td>
                     <td className="p-4 text-center">
                       <div className="inline-flex flex-col items-center">
-                        <span className="text-base font-black text-slate-900 dark:text-white">{formatNumber(triggers)}</span>
-                        <div className="flex items-center gap-1 text-[10px] font-bold text-green-500">
-                           <ArrowUpRight size={10} />
-                           +{Math.floor(Math.random() * 15)}%
+                        <span className="text-base font-black text-foreground tracking-tight">{formatNumber(triggers)}</span>
+                        <div className="flex items-center gap-1 text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase">
+                           <ArrowUpRight size={10} strokeWidth={3} />
+                           {Math.floor(Math.random() * 15)}%
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 text-right px-6">
+                    <td className="p-4 text-right px-8">
                       <div className="inline-flex flex-col items-end">
                         <div className="flex items-center gap-2">
-                           <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                           <span className="text-base font-black text-slate-900 dark:text-white">{formatNumber(actions)}</span>
+                           <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_var(--primary)] animate-pulse" />
+                           <span className="text-base font-black text-foreground tracking-tight">{formatNumber(actions)}</span>
                         </div>
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Successful</span>
+                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.15em] opacity-60">Successful</span>
                       </div>
                     </td>
                   </tr>
@@ -121,8 +124,6 @@ export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ 
             </tbody>
           </table>
         </div>
-        
-        
       </CardContent>
     </Card>
   );

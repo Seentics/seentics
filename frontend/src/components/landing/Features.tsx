@@ -98,9 +98,9 @@ export default function Features() {
             <motion.div
               key={index}
               variants={itemVariants}
-              className="glass-card p-10 rounded-[2.5rem] group border-white/10 dark:border-white/[0.05] hover:bg-white/[0.02] active:scale-[0.99] transition-all"
+              className="glass-card p-10 rounded-xl group border-white/10 dark:border-white/[0.05] hover:bg-white/[0.02] active:scale-[0.99] transition-all"
             >
-              <div className={`p-4 rounded-2xl w-fit mb-8 ${feature.color} group-hover:scale-110 transition-transform duration-500 shadow-sm border border-white/10`}>
+              <div className={`p-4 rounded-lg w-fit mb-8 ${feature.color} group-hover:scale-110 transition-transform duration-500 shadow-sm border border-white/10`}>
                 <feature.icon className="h-6 w-6" />
               </div>
               <h3 className="text-2xl font-black mb-4 tracking-[-0.02em]">
@@ -132,17 +132,17 @@ export default function Features() {
           </div>
 
           <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
-            <div className="glass p-8 sm:p-12 rounded-[2.5rem] border-white/10 shadow-2xl relative overflow-hidden group">
+            <div className="glass p-8 sm:p-12 rounded-xl border-white/10 shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full -mr-20 -mt-20 group-hover:bg-blue-500/20 transition-all duration-1000" />
               <div className="relative z-10">
-                <div className="h-12 w-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-600 mb-8 border border-blue-500/20">
+                <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600 mb-8 border border-blue-500/20">
                   <Workflow size={24} />
                 </div>
                 <h4 className="text-2xl font-black mb-4">Visual Automation</h4>
                 <p className="text-muted-foreground/80 mb-8 leading-relaxed font-medium">
                   Chain triggers and actions on an infinite canvas. Send Slack alerts on high-value signups or sync leads to your CRM instantly.
                 </p>
-                <div className="p-4 rounded-2xl bg-slate-950/50 border border-white/5 backdrop-blur-sm">
+                <div className="p-4 rounded-lg bg-slate-950/50 border border-white/5 backdrop-blur-sm">
                   <div className="flex items-center gap-3 text-xs font-bold text-slate-300 font-mono mb-2">
                     <span className="text-amber-500">TRIGGER</span>
                     <span className="text-slate-600">→</span>
@@ -157,10 +157,10 @@ export default function Features() {
               </div>
             </div>
 
-            <div className="glass p-8 sm:p-12 rounded-[2.5rem] border-white/10 shadow-2xl relative overflow-hidden group">
+            <div className="glass p-8 sm:p-12 rounded-xl border-white/10 shadow-2xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 blur-[80px] rounded-full -mr-20 -mt-20 group-hover:bg-emerald-500/20 transition-all duration-1000" />
               <div className="relative z-10">
-                <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 mb-8 border border-emerald-500/20">
+                <div className="h-12 w-12 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 mb-8 border border-emerald-500/20">
                   <Layers size={24} />
                 </div>
                 <h4 className="text-2xl font-black mb-4">Conversion Funnels</h4>
@@ -202,7 +202,7 @@ export default function Features() {
           viewport={{ once: true }}
           className="max-w-6xl mx-auto"
         >
-          <div className="relative glass p-8 sm:p-20 rounded-[3rem] overflow-hidden border-white/10 shadow-2xl bg-gradient-to-br from-white/5 to-transparent">
+          <div className="relative glass p-8 sm:p-20 rounded-xl overflow-hidden border-white/10 shadow-2xl bg-gradient-to-br from-white/5 to-transparent">
             {/* Background Mesh */}
             <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-primary/10 blur-[120px] rounded-full -mr-40 -mt-40 opacity-50" />
 
@@ -233,19 +233,19 @@ export default function Features() {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="glass p-8 rounded-3xl border-white/10 animate-float shadow-xl flex flex-col items-center text-center">
+                <div className="glass p-8 rounded-xl border-white/10 animate-float shadow-xl flex flex-col items-center text-center">
                   <div className="h-2 w-12 bg-primary/30 rounded-full mb-6" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2 opacity-60">Source</p>
                   <p className="text-sm font-black">Google Analytics</p>
                 </div>
-                <div className="glass p-8 rounded-3xl border-white/10 animate-float delay-500 shadow-xl flex flex-col items-center text-center">
+                <div className="glass p-8 rounded-xl border-white/10 animate-float delay-500 shadow-xl flex flex-col items-center text-center">
                   <div className="h-2 w-12 bg-green-500/30 rounded-full mb-6" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-green-500 mb-2 opacity-60">Export</p>
                   <p className="text-sm font-black">Raw JSON/CSV</p>
                 </div>
-                <div className="glass p-8 rounded-3xl border-white/10 animate-float delay-1000 col-span-2 shadow-xl flex items-center justify-between group cursor-pointer hover:bg-white/5 transition-all">
+                <div className="glass p-8 rounded-xl border-white/10 animate-float delay-1000 col-span-2 shadow-xl flex items-center justify-between group cursor-pointer hover:bg-white/5 transition-all">
                   <div className="flex items-center gap-4">
-                    <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20">
+                    <div className="p-3 bg-primary/10 rounded-lg border border-primary/20">
                       <Database className="h-5 w-5 text-primary" />
                     </div>
                     <div>

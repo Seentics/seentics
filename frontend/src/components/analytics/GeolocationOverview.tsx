@@ -3,6 +3,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatNumber } from '@/lib/analytics-api';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 import { Globe, MapPin } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
@@ -57,11 +59,6 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
             { name: 'Japan', count: 156, percentage: 2.3 },
             { name: 'India', count: 134, percentage: 2.0 },
             { name: 'Brazil', count: 98, percentage: 1.5 },
-            { name: 'Spain', count: 87, percentage: 1.3 },
-            { name: 'Italy', count: 76, percentage: 1.1 },
-            { name: 'Sweden', count: 65, percentage: 1.0 },
-            { name: 'Norway', count: 54, percentage: 0.8 },
-            { name: 'Denmark', count: 43, percentage: 0.6 }
         ],
         cities: [
             { name: 'New York, NY', count: 1245, percentage: 18.6 },
@@ -69,21 +66,6 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
             { name: 'San Francisco, CA', count: 756, percentage: 11.3 },
             { name: 'Toronto, ON', count: 634, percentage: 9.5 },
             { name: 'Berlin, DE', count: 523, percentage: 7.8 },
-            { name: 'Los Angeles, CA', count: 456, percentage: 6.8 },
-            { name: 'Paris, FR', count: 398, percentage: 5.9 },
-            { name: 'Sydney, AU', count: 287, percentage: 4.3 },
-            { name: 'Amsterdam, NL', count: 234, percentage: 3.5 },
-            { name: 'Chicago, IL', count: 198, percentage: 3.0 },
-            { name: 'Tokyo, JP', count: 176, percentage: 2.6 },
-            { name: 'Vancouver, BC', count: 154, percentage: 2.3 },
-            { name: 'Munich, DE', count: 132, percentage: 2.0 },
-            { name: 'Boston, MA', count: 123, percentage: 1.8 },
-            { name: 'Melbourne, AU', count: 109, percentage: 1.6 },
-            { name: 'Madrid, ES', count: 98, percentage: 1.5 },
-            { name: 'Stockholm, SE', count: 87, percentage: 1.3 },
-            { name: 'Copenhagen, DK', count: 76, percentage: 1.1 },
-            { name: 'Oslo, NO', count: 65, percentage: 1.0 },
-            { name: 'Dublin, IE', count: 54, percentage: 0.8 }
         ],
         continents: [
             { name: 'North America', count: 3892, percentage: 58.1 },
@@ -97,36 +79,16 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
             { name: 'California', count: 1456, percentage: 21.7 },
             { name: 'New York', count: 1234, percentage: 18.4 },
             { name: 'England', count: 987, percentage: 14.7 },
-            { name: 'Ontario', count: 756, percentage: 11.3 },
-            { name: 'Berlin', count: 634, percentage: 9.5 },
-            { name: 'Texas', count: 523, percentage: 7.8 },
-            { name: 'Île-de-France', count: 456, percentage: 6.8 },
-            { name: 'New South Wales', count: 398, percentage: 5.9 },
-            { name: 'North Holland', count: 287, percentage: 4.3 },
-            { name: 'Illinois', count: 234, percentage: 3.5 }
         ]
     };
 
-    // Check if running on localhost and use dummy data if no real data is available
     const isLocalhost = typeof window !== 'undefined' &&
         (window.location.hostname === 'localhost' ||
             window.location.hostname === '127.0.0.1' ||
             window.location.hostname === '0.0.0.0');
 
-    // More robust check for empty data - check if data exists and has meaningful content
-    const hasRealData = data &&
-        data.countries &&
-        Array.isArray(data.countries) &&
-        data.countries.length > 0;
-
-    // Always use dummy data on localhost, ignore API data
     const displayData = isLocalhost ? dummyGeolocationData : data;
 
-
-    // Note: Country flag function now imported from utils/countries.ts
-    // This provides comprehensive coverage of all 194 UN member states
-
-    // Helper function to get continent emoji
     const getContinentEmoji = (continent: string): string => {
         const continentMap: Record<string, string> = {
             'North America': '🌎',
@@ -143,56 +105,42 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
 
     if (isLoading) {
         return (
-            <Card className={`bg-card border-0 shadow-md mb-6 rounded-md dark:bg-gray-800 ${className}`}>
+            <Card className={cn("bg-card border-border shadow-sm shadow-black/5 rounded-xl overflow-hidden mb-6", className)}>
                 <CardHeader>
-                    <div className="animate-pulse">
-                        <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-48 mb-2"></div>
-                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-64"></div>
+                    <div className="animate-pulse space-y-2">
+                        <div className="h-6 bg-accent/10 rounded w-48 mb-2"></div>
+                        <div className="h-4 bg-accent/10 rounded w-64"></div>
                     </div>
                 </CardHeader>
-                <CardContent>
-                    <div className="animate-pulse space-y-4">
-                        {[...Array(5)].map((_, i) => (
-                            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-6 bg-gray-200 dark:bg-gray-700 rounded"></div>
-                                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
-                                </div>
-                                <div className="text-right">
-                                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-16 mb-1"></div>
-                                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-12"></div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                <CardContent className="p-6">
+                    <div className="animate-pulse h-[400px] bg-accent/5 rounded-xl" />
                 </CardContent>
             </Card>
         );
     }
 
     return (
-        <Card className={`bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none mb-6 rounded-md dark:bg-gray-800 ${className}`}>
-            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                    <CardTitle className="text-base sm:text-lg font-medium text-foreground flex items-center gap-2">
-                        Geographic Analytics
+        <Card className={cn("bg-card border-border shadow-sm shadow-black/5 rounded-xl overflow-hidden mb-6", className)}>
+            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-border/40">
+                <div className="space-y-1">
+                    <CardTitle className="text-xl font-black tracking-tight flex items-center gap-2">
+                        Geographic Intelligence
                     </CardTitle>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">Visitor distribution across locations worldwide</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Visitor distribution across global regions</p>
                 </div>
-                <Tabs value={geoTab} onValueChange={setGeoTab} className="w-full sm:w-auto flex-shrink-0">
-                    <TabsList className="grid w-full grid-cols-4 h-9 sm:h-8 gap-1">
-                        <TabsTrigger className='text-xs px-1 sm:px-2 md:px-3 truncate' value="map">Map</TabsTrigger>
-                        <TabsTrigger className='text-xs px-1 sm:px-2 md:px-3 truncate' value="countries">Countries</TabsTrigger>
-                        <TabsTrigger className='text-xs px-1 sm:px-2 md:px-3 truncate' value="cities">Cities</TabsTrigger>
-                        <TabsTrigger className='text-xs px-1 sm:px-2 md:px-3 truncate' value="continents">Continents</TabsTrigger>
+                <Tabs value={geoTab} onValueChange={setGeoTab} className="w-full lg:w-auto">
+                    <TabsList className="grid w-full grid-cols-4 h-9 bg-accent/20 p-1 rounded-lg">
+                        <TabsTrigger className='text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background' value="map">Map</TabsTrigger>
+                        <TabsTrigger className='text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background' value="countries">Countries</TabsTrigger>
+                        <TabsTrigger className='text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background' value="cities">Cities</TabsTrigger>
+                        <TabsTrigger className='text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background' value="continents">Continents</TabsTrigger>
                     </TabsList>
                 </Tabs>
             </CardHeader>
-            <CardContent className="p-4 sm:px-6 pt-0">
-                <div className="mt-0">
+            <CardContent className="p-6 pt-6">
+                <div className="min-h-[400px]">
                     {geoTab === 'map' && (
-                        <div>
-                            {/* Interactive World Map */}
+                        <div className="h-[450px] relative rounded-xl overflow-hidden border border-border/40">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}
@@ -201,143 +149,94 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     )}
 
                     {geoTab === 'countries' && (
-                        <div className="space-y-3">
-                            {displayData?.countries?.slice(0, 15).map((country, index) => {
-                                const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4'];
-                                const color = colors[index % colors.length];
-
-                                return (
-                                    <div key={country.name} className="flex items-center justify-between p-3 border-b hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-sm font-medium text-gray-500 w-6">#{index + 1}</span>
-                                            <div className="relative w-8 h-4 rounded overflow-hidden shadow-sm">
-                                                <Image
-                                                    src={getCountryFlag(country.name)}
-                                                    alt={`${country.name} flag`}
-                                                    width={32}
-                                                    height={24}
-                                                    className="object-cover"
-                                                    onError={(e) => {
-                                                        const target = e.target as HTMLImageElement;
-                                                        target.style.display = 'none';
-                                                        const fallback = target.parentElement?.querySelector('.flag-fallback') as HTMLElement;
-                                                        if (fallback) fallback.style.display = 'flex';
-                                                    }}
-                                                />
-                                                <div className="flag-fallback hidden absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded text-xs font-bold text-gray-600 dark:text-gray-300 items-center justify-center">
-                                                    {country.name.substring(0, 2).toUpperCase()}
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-sm">{country.name}</p>
-                                                <p className="text-xs text-muted-foreground">{country.percentage.toFixed(1)}% of total visitors</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {displayData?.countries?.slice(0, 14).map((country, index) => (
+                                <div key={country.name} className="flex items-center justify-between p-3 rounded-lg border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+                                    <div className="flex items-center gap-4 min-w-0">
+                                        <span className="text-[10px] font-black text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
+                                        <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border/40">
+                                            <Image
+                                                src={getCountryFlag(country.name)}
+                                                alt={`${country.name} flag`}
+                                                fill
+                                                className="object-cover"
+                                                onError={(e) => {
+                                                    const target = e.target as HTMLImageElement;
+                                                    target.style.display = 'none';
+                                                    const fallback = target.parentElement?.querySelector('.flag-fallback') as HTMLElement;
+                                                    if (fallback) fallback.style.display = 'flex';
+                                                }}
+                                            />
+                                            <div className="flag-fallback hidden absolute inset-0 bg-accent rounded-sm text-[8px] font-black items-center justify-center">
+                                                {country.name.substring(0, 2).toUpperCase()}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="text-right">
-                                                <p className="text-sm font-semibold">{formatNumber(country.count)}</p>
-                                                <p className="text-xs text-muted-foreground">visitors</p>
-                                            </div>
-                                            {/* <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full rounded-full transition-all duration-300"
-                                                    style={{
-                                                        width: `${Math.min(country.percentage, 100)}%`,
-                                                        backgroundColor: color
-                                                    }}
-                                                />
-                                            </div> */}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors">{country.name}</p>
+                                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">{country.percentage.toFixed(1)}% of Traffic</p>
                                         </div>
                                     </div>
-                                );
-                            })}
+                                    <div className="text-right">
+                                        <p className="font-black text-sm leading-tight">{formatNumber(country.count)}</p>
+                                        <p className="text-[9px] font-black text-muted-foreground uppercase opacity-60 tracking-wider font-mono">Visitors</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
 
                     {geoTab === 'cities' && (
-                        <div className="space-y-3">
-                            {displayData?.cities?.slice(0, 20).map((city, index) => {
-                                const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4'];
-                                const color = colors[index % colors.length];
-
-                                return (
-                                    <div key={city.name} className="flex items-center justify-between p-3 border-b hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-sm font-medium text-gray-500 w-6">#{index + 1}</span>
-                                            <div className="p-2 rounded-lg" >
-                                                <MapPin className="h-4 w-4" style={{ color }} />
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-sm">{city.name}</p>
-                                                <p className="text-xs text-muted-foreground">{city.percentage.toFixed(1)}% of total visitors</p>
-                                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {displayData?.cities?.slice(0, 14).map((city, index) => (
+                                <div key={city.name} className="flex items-center justify-between p-3 rounded-lg border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+                                    <div className="flex items-center gap-4 min-w-0">
+                                        <span className="text-[10px] font-black text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
+                                        <div className="p-2 rounded-lg bg-accent/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300" >
+                                            <MapPin className="h-4 w-4" />
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="text-right">
-                                                <p className="text-sm font-semibold">{formatNumber(city.count)}</p>
-                                                <p className="text-xs text-muted-foreground">visitors</p>
-                                            </div>
-                                            {/* <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full rounded-full transition-all duration-300"
-                                                    style={{
-                                                        width: `${Math.min(city.percentage, 100)}%`,
-                                                        backgroundColor: color
-                                                    }}
-                                                />
-                                            </div> */}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors">{city.name}</p>
+                                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">{city.percentage.toFixed(1)}% of Traffic</p>
                                         </div>
                                     </div>
-                                );
-                            })}
+                                    <div className="text-right">
+                                        <p className="font-black text-sm leading-tight">{formatNumber(city.count)}</p>
+                                        <p className="text-[9px] font-black text-muted-foreground uppercase opacity-60 tracking-wider font-mono">Visitors</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
 
                     {geoTab === 'continents' && (
-                        <div className="space-y-3">
-                            {displayData?.continents?.map((continent, index) => {
-                                const colors = ['#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4'];
-                                const color = colors[index % colors.length];
-
-                                return (
-                                    <div key={continent.name} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 hover:shadow-sm transition-shadow">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-sm font-medium text-gray-500 w-6">#{index + 1}</span>
-                                            <div className="p-2 rounded-lg" >
-                                                <div className="text-lg">{getContinentEmoji(continent.name)}</div>
-                                            </div>
-                                            <div>
-                                                <p className="font-medium text-sm">{continent.name}</p>
-                                                <p className="text-xs text-muted-foreground">{continent.percentage.toFixed(1)}% of total visitors</p>
-                                            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {displayData?.continents?.map((continent, index) => (
+                                <div key={continent.name} className="flex items-center justify-between p-3 rounded-lg border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+                                    <div className="flex items-center gap-4 min-w-0">
+                                        <span className="text-[10px] font-black text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
+                                        <div className="p-2 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent hover:scale-110 transition-all duration-300" >
+                                            <div className="text-lg">{getContinentEmoji(continent.name)}</div>
                                         </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="text-right">
-                                                <p className="text-sm font-semibold">{formatNumber(continent.count)}</p>
-                                                <p className="text-xs text-muted-foreground">visitors</p>
-                                            </div>
-                                            {/* <div className="w-16 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full rounded-full transition-all duration-300"
-                                                    style={{
-                                                        width: `${Math.min(continent.percentage, 100)}%`,
-                                                        backgroundColor: color
-                                                    }}
-                                                />
-                                            </div> */}
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors">{continent.name}</p>
+                                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">{continent.percentage.toFixed(1)}% of Traffic</p>
                                         </div>
                                     </div>
-                                );
-                            })}
+                                    <div className="text-right">
+                                        <p className="font-black text-sm leading-tight">{formatNumber(continent.count)}</p>
+                                        <p className="text-[9px] font-black text-muted-foreground uppercase opacity-60 tracking-wider font-mono">Visitors</p>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     )}
 
                     {/* Empty State */}
                     {!displayData?.countries?.length && !isLoading && (
-                        <div className="text-center py-12 text-muted-foreground">
-                            <Globe className="h-16 w-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
-                            <div className="text-lg font-medium mb-2">No geographic data available</div>
-                            <div className="text-sm">Geographic analytics will appear here once visitors start coming to your site</div>
+                        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground/40 bg-accent/5 rounded-xl border border-dashed border-border/60">
+                            <Globe className="h-16 w-16 mb-4 opacity-10" />
+                            <div className="text-sm font-black uppercase tracking-[0.2em] mb-2">No data recorded</div>
+                            <div className="text-xs italic opacity-60">Global insights will appear as visitors connect</div>
                         </div>
                     )}
                 </div>
