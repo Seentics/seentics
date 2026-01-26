@@ -39,7 +39,7 @@ const GrowthIndicator = ({ current, previous, inverse = false }: {
 
   return (
     <div className={cn(
-        "flex items-center text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ml-2",
+        "flex items-center text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ml-2",
         isPositive ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10'
     )}>
       {isPositive ? <ArrowUpRight className="h-2.5 w-2.5 mr-0.5" strokeWidth={3} /> : <ArrowDownRight className="h-2.5 w-2.5 mr-0.5" strokeWidth={3} />}
@@ -96,21 +96,21 @@ const SummaryCard = ({
   return (
     <div className="group relative p-6 transition-all duration-300 hover:bg-accent/5 overflow-hidden">
       <div className="flex items-center justify-between pb-3">
-        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.15em] opacity-60 group-hover:opacity-100 transition-opacity whitespace-nowrap overflow-hidden text-ellipsis">
+        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50 group-hover:opacity-100 transition-opacity whitespace-nowrap overflow-hidden text-ellipsis">
           {title}
         </div>
-        <div className="h-7 w-7 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-          <Icon className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+        <div className="h-7 w-7 rounded-lg bg-accent/5 flex items-center justify-center group-hover:bg-primary/5 transition-colors">
+          <Icon className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors" />
         </div>
       </div>
       
       <div className="flex items-end justify-between">
         <div className="space-y-0 relative z-10">
-          <div className="text-2xl font-black tracking-tighter text-foreground group-hover:text-primary transition-all duration-300">
+          <div className="text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-all duration-300">
             {formatValue(value)}
           </div>
           {subtitle && (
-            <div className="text-[9px] text-muted-foreground font-black uppercase tracking-widest opacity-40 mt-1">{subtitle}</div>
+            <div className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider opacity-40 mt-1">{subtitle}</div>
           )}
         </div>
         

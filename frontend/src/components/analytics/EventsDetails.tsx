@@ -132,16 +132,16 @@ export function EventsDetails({ items }: EventsDetailsProps) {
 								
 								<div className="min-w-0 flex-1">
 									<div className="flex items-center gap-2 mb-1">
-                    <div className="font-bold text-[13px] leading-tight text-foreground truncate " title={meta.label}>
+                    <div className="font-semibold text-sm leading-tight text-foreground truncate " title={meta.label}>
                       {meta.label}
                     </div>
                     {chips.slice(0, 1).map((c, i) => (
-                      <Badge key={i} variant="outline" className="hidden sm:inline-flex text-[9px] px-1.5 py-0 font-black uppercase tracking-widest h-4 bg-primary/5 border-primary/20 text-primary">
+                      <Badge key={i} variant="outline" className="hidden sm:inline-flex text-[9px] px-1.5 py-0 font-bold uppercase tracking-wider h-4 bg-primary/5 border-primary/20 text-primary">
                         {truncate(c.label, 20)}
                       </Badge>
                     ))}
                   </div>
-                  <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-60 truncate">
+                  <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-50 truncate">
                     {event.event_type}
                   </div>
 								</div>
@@ -149,10 +149,10 @@ export function EventsDetails({ items }: EventsDetailsProps) {
 
               <div className="flex items-center gap-6 shrink-0 text-right">
                 <div className="text-right">
-                  <div className="font-black text-base leading-tight tracking-tighter">
+                  <div className="font-bold text-base leading-tight tracking-tight">
                     {formatNumber(event.count)}
                   </div>
-                  <div className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] opacity-60">
+                  <div className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider opacity-50">
                     Conversions
                   </div>
                 </div>
@@ -176,13 +176,13 @@ export function EventsDetails({ items }: EventsDetailsProps) {
                   <div className="bg-accent/5 rounded-lg p-6 border border-border/40 shadow-inner relative group/payload overflow-hidden">
                     <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/20">
                       <div className="flex items-center gap-2">
-                         <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">Event Payload Structure</span>
+                         <div className="w-1.25 h-1.25 rounded-full bg-primary/60" />
+                         <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground opacity-50">Event Payload Structure</span>
                       </div>
                       <Button 
                         size="sm" 
                         variant="ghost" 
-                        className="h-8 px-4 text-[10px] font-black uppercase tracking-widest gap-2 hover:bg-primary/10 text-primary rounded-md transition-all" 
+                        className="h-8 px-4 text-[10px] font-bold uppercase tracking-widest gap-2 hover:bg-primary/10 text-primary rounded-md transition-all" 
                         onClick={() => copyToClipboard(pretty(filtered))}
                       >
                         <Copy className="h-3.5 w-3.5" />

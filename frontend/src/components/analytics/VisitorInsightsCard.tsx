@@ -54,8 +54,8 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
     <Card className={cn("bg-card border-border shadow-sm shadow-black/5 rounded-2xl overflow-hidden", className)}>
       <CardHeader className="pb-4">
         <div className="space-y-1">
-          <CardTitle className="text-xl font-black tracking-tight">Visitor Insights</CardTitle>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Retention & Session depth</p>
+          <CardTitle className="text-lg font-bold tracking-tight">Visitor Insights</CardTitle>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Retention & Session depth</p>
         </div>
       </CardHeader>
       <CardContent className="p-6 pt-0">
@@ -65,7 +65,7 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={chartData} layout="vertical" margin={{ left: -20, right: 20, top: 10, bottom: 10 }}>
                      <XAxis type="number" hide />
-                     <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 700, fill: 'currentColor', opacity: 0.6}} axisLine={false} tickLine={false} />
+                     <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 10, fontWeight: 600, fill: 'currentColor', opacity: 0.5}} axisLine={false} tickLine={false} />
                      <Tooltip 
                         cursor={{fill: 'var(--accent)', opacity: 0.1}}
                         contentStyle={{ 
@@ -91,14 +91,14 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
                     <div className="flex items-center gap-3">
                         <div className="w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-primary/10"></div>
                         <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">New</p>
-                            <p className="text-lg font-black text-foreground">
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50">New</p>
+                            <p className="text-lg font-bold text-foreground">
                                 {data?.new_visitors?.toLocaleString() || 0}
                             </p>
                         </div>
                     </div>
                     <div className="text-right">
-                        <span className="text-xs font-black text-primary bg-primary/10 px-2 py-1 rounded-md">{total > 0 ? Math.round(((data?.new_visitors || 0) / total) * 100) : 0}%</span>
+                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded-md">{total > 0 ? Math.round(((data?.new_visitors || 0) / total) * 100) : 0}%</span>
                     </div>
                 </div>
 
@@ -106,20 +106,20 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
                     <div className="flex items-center gap-3">
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10"></div>
                         <div>
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">Returning</p>
-                            <p className="text-lg font-black text-foreground">
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50">Returning</p>
+                            <p className="text-lg font-bold text-foreground">
                                 {data?.returning_visitors?.toLocaleString() || 0}
                             </p>
                         </div>
                     </div>
                     <div className="text-right">
-                        <span className="text-xs font-black text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-md">{total > 0 ? Math.round(((data?.returning_visitors || 0) / total) * 100) : 0}%</span>
+                        <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-md">{total > 0 ? Math.round(((data?.returning_visitors || 0) / total) * 100) : 0}%</span>
                     </div>
                 </div>
 
                  <div className="pt-4 border-t border-border/40 mt-2">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-60 mb-1">Avg Session Duration</p>
-                       <div className="text-2xl font-black text-foreground tracking-tight">
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50 mb-1">Avg Session Duration</p>
+                       <div className="text-xl font-bold text-foreground tracking-tight">
                             {formatDuration(data?.avg_session_duration || 0)}
                         </div>
                  </div>

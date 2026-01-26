@@ -50,11 +50,11 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
     <Card className="bg-card border-border shadow-sm shadow-black/5 rounded-xl overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 pb-6">
         <div className="space-y-1">
-          <CardTitle className="text-xl font-black tracking-tight">Conversion Funnels</CardTitle>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Conversion rates & drop-off analysis</p>
+          <CardTitle className="text-lg font-bold tracking-tight">Conversion Funnels</CardTitle>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Conversion rates & drop-off analysis</p>
         </div>
         <Link href="/settings/funnels">
-            <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 hover:bg-primary/5 gap-1.5 rounded-md px-3">
+            <Button variant="ghost" size="sm" className="text-[10px] font-bold uppercase tracking-wider text-primary hover:text-primary/80 hover:bg-primary/5 gap-1.5 rounded-md px-3">
                 All Funnels
                 <ArrowUpRight size={14} />
             </Button>
@@ -66,9 +66,9 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-accent/5">
-                <th className="p-4 px-6 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 w-2/5">Funnel Path</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 text-center">Efficiency</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 text-right px-8">Critical Drop-off</th>
+                <th className="p-4 px-6 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground opacity-50 w-2/5">Funnel Path</th>
+                <th className="p-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground opacity-50 text-center">Efficiency</th>
+                <th className="p-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground opacity-50 text-right px-8">Critical Drop-off</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
@@ -80,9 +80,9 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
                         <Filter size={16} />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-bold text-[13px] leading-tight text-foreground truncate ">{funnel.name}</p>
+                        <p className="font-semibold text-sm leading-tight text-foreground truncate ">{funnel.name}</p>
                         <div className="flex items-center gap-2 mt-1">
-                            <span className="text-[9px] font-black text-muted-foreground uppercase tracking-widest opacity-60">
+                            <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50">
                                 {funnel.steps} Steps
                             </span>
                             {funnel.trend === 'up' && <TrendingUp size={10} strokeWidth={3} className="text-emerald-500" />}
@@ -94,7 +94,7 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
                   <td className="p-4">
                     <div className="flex flex-col items-center gap-1.5">
                       <span className={cn(
-                        "text-sm font-black tracking-tight",
+                        "text-sm font-bold tracking-tight",
                         funnel.conversion > 50 ? 'text-emerald-500' : 'text-foreground'
                       )}>
                         {funnel.conversion}%
@@ -112,11 +112,11 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
                   </td>
                   <td className="p-4 text-right px-8">
                     <div className="flex flex-col items-end">
-                      <span className="text-[11px] font-bold text-rose-500 flex items-center gap-1 bg-rose-500/10 px-2 py-0.5 rounded-md">
+                      <span className="text-[11px] font-semibold text-rose-500 flex items-center gap-1 bg-rose-500/10 px-2 py-0.5 rounded-md">
                         <ArrowRight size={10} strokeWidth={3} />
                         {funnel.dropoff}
                       </span>
-                      <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.15em] opacity-60 mt-1">Primary Bottleneck</span>
+                      <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest opacity-40 mt-1">Primary Bottleneck</span>
                     </div>
                   </td>
                 </tr>

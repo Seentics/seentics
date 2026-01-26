@@ -121,7 +121,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
       return (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-xl border border-dashed border-border/60">
           <FileText className="h-10 w-10 mb-2 opacity-20" />
-          <p className="text-[10px] font-bold uppercase tracking-widest">No page data</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">No page data</p>
         </div>
       );
     }
@@ -145,10 +145,10 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
                   {getPageIcon(item.page)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={name}>
+                  <div className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={name}>
                     {name}
                   </div>
-                  <div className="text-[10px] text-muted-foreground font-medium truncate opacity-60" title={path}>
+                  <div className="text-[10px] text-muted-foreground font-medium truncate opacity-50" title={path}>
                     {truncatePath(path)}
                   </div>
                 </div>
@@ -156,10 +156,10 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
 
               <div className="shrink-0 text-right">
                 <div className="text-right">
-                  <div className="font-black text-base leading-tight">
+                  <div className="font-bold text-base leading-tight tracking-tight">
                     {formatNumber(val)}
                   </div>
-                  <div className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] opacity-60">
+                  <div className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider opacity-50">
                     {secondaryMetric || (type === 'top' ? 'Views' : 'Sessions')}
                   </div>
                 </div>
@@ -177,13 +177,13 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
              <div className="space-y-1">
-                <CardTitle className="text-xl font-black tracking-tight">Top Pages</CardTitle>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Most visited & landing destinations</p>
+                <CardTitle className="text-lg font-bold tracking-tight">Top Pages</CardTitle>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Most visited & landing destinations</p>
              </div>
-             <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/20 p-1 rounded-lg">
-               <TabsTrigger value="top" className="text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background">Top</TabsTrigger>
-               <TabsTrigger value="entry" className="text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background">Entry</TabsTrigger>
-               <TabsTrigger value="exit" className="text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background">Exit</TabsTrigger>
+             <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded-lg">
+               <TabsTrigger value="top" className="text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background">Top</TabsTrigger>
+               <TabsTrigger value="entry" className="text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background">Entry</TabsTrigger>
+               <TabsTrigger value="exit" className="text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background">Exit</TabsTrigger>
              </TabsList>
           </div>
           

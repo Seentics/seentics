@@ -123,17 +123,17 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
         <Card className={cn("bg-card border-border shadow-sm shadow-black/5 rounded-xl overflow-hidden mb-6", className)}>
             <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-border/40">
                 <div className="space-y-1">
-                    <CardTitle className="text-xl font-black tracking-tight flex items-center gap-2">
+                    <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
                         Geographic Intelligence
                     </CardTitle>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Visitor distribution across global regions</p>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Visitor distribution across global regions</p>
                 </div>
                 <Tabs value={geoTab} onValueChange={setGeoTab} className="w-full lg:w-auto">
-                    <TabsList className="grid w-full grid-cols-4 h-9 bg-accent/20 p-1 rounded-lg">
-                        <TabsTrigger className='text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background' value="map">Map</TabsTrigger>
-                        <TabsTrigger className='text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background' value="countries">Countries</TabsTrigger>
-                        <TabsTrigger className='text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background' value="cities">Cities</TabsTrigger>
-                        <TabsTrigger className='text-[10px] font-bold uppercase tracking-widest rounded-md active:bg-background' value="continents">Continents</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-4 h-9 bg-accent/10 p-1 rounded-lg">
+                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background' value="map">Map</TabsTrigger>
+                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background' value="countries">Countries</TabsTrigger>
+                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background' value="cities">Cities</TabsTrigger>
+                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background' value="continents">Continents</TabsTrigger>
                     </TabsList>
                 </Tabs>
             </CardHeader>
@@ -172,13 +172,13 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                             </div>
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors">{country.name}</p>
-                                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">{country.percentage.toFixed(1)}% of Traffic</p>
+                                            <p className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{country.name}</p>
+                                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-50">{country.percentage.toFixed(1)}% of Traffic</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="font-black text-sm leading-tight">{formatNumber(country.count)}</p>
-                                        <p className="text-[9px] font-black text-muted-foreground uppercase opacity-60 tracking-wider font-mono">Visitors</p>
+                                        <p className="font-bold text-sm leading-tight text-foreground">{(country.count || 0).toLocaleString()}</p>
+                                        <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-40 tracking-wider font-mono">Visitors</p>
                                     </div>
                                 </div>
                             ))}
@@ -195,13 +195,13 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                             <MapPin className="h-4 w-4" />
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors">{city.name}</p>
-                                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">{city.percentage.toFixed(1)}% of Traffic</p>
+                                            <p className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{city.name}</p>
+                                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-50">{city.percentage.toFixed(1)}% of Traffic</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="font-black text-sm leading-tight">{formatNumber(city.count)}</p>
-                                        <p className="text-[9px] font-black text-muted-foreground uppercase opacity-60 tracking-wider font-mono">Visitors</p>
+                                        <p className="font-bold text-sm leading-tight text-foreground">{(city.count || 0).toLocaleString()}</p>
+                                        <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-40 tracking-wider font-mono">Visitors</p>
                                     </div>
                                 </div>
                             ))}
@@ -218,13 +218,13 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                                             <div className="text-lg">{getContinentEmoji(continent.name)}</div>
                                         </div>
                                         <div className="min-w-0 flex-1">
-                                            <p className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors">{continent.name}</p>
-                                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">{continent.percentage.toFixed(1)}% of Traffic</p>
+                                            <p className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{continent.name}</p>
+                                            <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-50">{continent.percentage.toFixed(1)}% of Traffic</p>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <p className="font-black text-sm leading-tight">{formatNumber(continent.count)}</p>
-                                        <p className="text-[9px] font-black text-muted-foreground uppercase opacity-60 tracking-wider font-mono">Visitors</p>
+                                        <p className="font-bold text-sm leading-tight text-foreground">{(continent.count || 0).toLocaleString()}</p>
+                                        <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-40 tracking-wider font-mono">Visitors</p>
                                     </div>
                                 </div>
                             ))}

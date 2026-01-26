@@ -48,6 +48,8 @@ import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { LandingExitAnalysis } from '@/components/analytics/LandingExitAnalysis';
 import { FunnelInsightsCard } from '@/components/analytics/FunnelInsightsCard';
 import { AutomationInsightTable } from '@/components/analytics/AutomationSynergyChart';
+import { FilterModal } from '@/components/analytics/FilterModal';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export default function WebsiteDashboardPage() {
   const params = useParams();
@@ -439,7 +441,7 @@ export default function WebsiteDashboardPage() {
           <div className="flex items-center gap-3">
             {/* Demo Mode Badge */}
             {isDemoMode && (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-500/20 shadow-sm shadow-blue-500/5">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wider border border-blue-500/20 shadow-sm shadow-blue-500/5">
                 DEMO MODE
               </div>
             )}
@@ -482,50 +484,20 @@ export default function WebsiteDashboardPage() {
               </SelectContent>
             </Select>
 
-            {/* Date Range Filter */}
-            <Select value={isCustomRange ? 'custom' : dateRange.toString()} onValueChange={handleDateRangeChange}>
-              <SelectTrigger className="w-[160px] h-10 bg-card/50 backdrop-blur-md border border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm">
-                <SelectValue placeholder="Select range" />
-              </SelectTrigger>
-              <SelectContent className="rounded-xl border-border/40 shadow-2xl">
-                <SelectItem value="1">Today</SelectItem>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-                <SelectItem value="custom">Custom range</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {/* Custom Date Range Picker */}
-            {isCustomRange && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-10 px-4 bg-card/50 backdrop-blur-md border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm font-bold text-xs uppercase tracking-widest">
-                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
-                    {customStartDate && customEndDate ? (
-                      `${format(customStartDate, 'MMM dd')} - ${format(customEndDate, 'MMM dd')}`
-                    ) : (
-                      'Pick dates'
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 rounded-2xl border-border/40 shadow-2xl overflow-hidden" align="end">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={customStartDate}
-                    selected={{ from: customStartDate, to: customEndDate }}
-                    onSelect={(range) => { handleCustomDateChange(range?.from, range?.to); }}
-                    numberOfMonths={window.innerWidth < 768 ? 1 : 2}
-                  />
-                </PopoverContent>
-              </Popover>
-            )}
-
-            {/* Export Data Button */}
-            <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 bg-card/50 backdrop-blur-md border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm" onClick={handleExport} title="Export Data">
-              <Download className="h-4 w-4 text-primary" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <FilterModal 
+                dateRange={dateRange}
+                isCustomRange={isCustomRange}
+                customStartDate={customStartDate}
+                customEndDate={customEndDate}
+                onDateRangeChange={handleDateRangeChange}
+                onCustomDateChange={handleCustomDateChange}
+                onExport={handleExport}
+              />
+              <div className="h-10 w-10 flex items-center justify-center bg-card/50 backdrop-blur-md border border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm">
+                <ThemeToggle />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -599,8 +571,8 @@ export default function WebsiteDashboardPage() {
             <CardHeader className="p-8 pb-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
-                  <CardTitle className="text-xl font-black tracking-tight">Goal Conversions</CardTitle>
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Behavioral Targets</p>
+                  <CardTitle className="text-lg font-bold tracking-tight">Goal Conversions</CardTitle>
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Behavioral Targets</p>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
                   <Target className="h-5 w-5 text-purple-500" />
@@ -623,16 +595,16 @@ export default function WebsiteDashboardPage() {
           <CardHeader className="p-8 pb-6 border-b border-border/40">
             <div className="flex flex-col space-y-6 md:flex-row md:items-center md:justify-between md:space-y-0">
               <div className="space-y-1 text-center md:text-left">
-                <CardTitle className="text-2xl font-black tracking-tight">Campaign Intelligence</CardTitle>
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">UTM Source & Performance</p>
+                <CardTitle className="text-xl font-bold tracking-tight">Campaign Intelligence</CardTitle>
+                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">UTM Source & Performance</p>
               </div>
               <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto">
                 <TabsList className="grid w-full grid-cols-5 h-11 bg-muted/20 p-1 rounded-xl">
-                  <TabsTrigger value="sources" className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Sources</TabsTrigger>
-                  <TabsTrigger value="mediums" className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Mediums</TabsTrigger>
-                  <TabsTrigger value="campaigns" className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Campaigns</TabsTrigger>
-                  <TabsTrigger value="terms" className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Terms</TabsTrigger>
-                  <TabsTrigger value="content" className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Content</TabsTrigger>
+                  <TabsTrigger value="sources" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Sources</TabsTrigger>
+                  <TabsTrigger value="mediums" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Mediums</TabsTrigger>
+                  <TabsTrigger value="campaigns" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Campaigns</TabsTrigger>
+                  <TabsTrigger value="terms" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Terms</TabsTrigger>
+                  <TabsTrigger value="content" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Content</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>

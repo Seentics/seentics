@@ -31,21 +31,21 @@ export function TrafficOverview({
     <Card className={cn("col-span-full border-border bg-card shadow-sm shadow-black/5 rounded-xl overflow-hidden", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
         <div className="space-y-1">
-          <CardTitle className="text-xl font-black tracking-tight">Traffic Overview</CardTitle>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Visitor volume over time</p>
+          <CardTitle className="text-lg font-bold tracking-tight">Traffic Overview</CardTitle>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Visitor volume over time</p>
         </div>
         {/* View Tabs */}
         <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-auto">
-          <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/20 p-1 rounded-lg">
-            <TabsTrigger value="chart" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-md active:bg-background">
+          <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/10 p-1 rounded-lg">
+            <TabsTrigger value="chart" className="text-[10px] font-semibold uppercase tracking-wider px-3 gap-1.5 rounded-md active:bg-background">
               <BarChart3 className="h-3.5 w-3.5" />
               Chart
             </TabsTrigger>
-            <TabsTrigger value="list" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-md active:bg-background">
+            <TabsTrigger value="list" className="text-[10px] font-semibold uppercase tracking-wider px-3 gap-1.5 rounded-md active:bg-background">
               <List className="h-3.5 w-3.5" />
               List
             </TabsTrigger>
-            <TabsTrigger value="hourly" className="text-[10px] font-bold uppercase tracking-wider px-3 gap-1.5 rounded-md active:bg-background">
+            <TabsTrigger value="hourly" className="text-[10px] font-semibold uppercase tracking-wider px-3 gap-1.5 rounded-md active:bg-background">
               <Clock className="h-3.5 w-3.5" />
               Hourly
             </TabsTrigger>
@@ -76,33 +76,33 @@ export function TrafficOverview({
                     className="flex items-center justify-between p-4 bg-accent/5 border border-border/40 rounded-lg hover:bg-accent/10 transition-all duration-300 group"
                   >
                     <div className="flex-1">
-                      <div className="text-sm font-bold text-foreground">
+                      <div className="text-sm font-semibold text-foreground">
                         {new Date(stat.date).toLocaleDateString('en-US', {
                           weekday: 'short',
                           month: 'short',
                           day: 'numeric',
                         })}
                       </div>
-                      <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+                      <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">
                          {new Date(stat.date).getFullYear()}
                       </div>
                     </div>
                     <div className="flex items-center gap-8 text-sm">
                       <div className="text-right">
-                        <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Views</div>
-                        <div className="font-black text-primary">
+                        <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest opacity-50">Views</div>
+                        <div className="font-bold text-primary">
                           {stat.views?.toLocaleString() || 0}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Unique</div>
-                        <div className="font-black text-foreground">
+                        <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest opacity-50">Unique</div>
+                        <div className="font-bold text-foreground">
                           {stat.unique?.toLocaleString() || 0}
                         </div>
                       </div>
                       <div className="text-right hidden sm:block">
-                        <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-60">Bounce</div>
-                        <div className="font-black">
+                        <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest opacity-50">Bounce</div>
+                        <div className="font-bold">
                           {stat.bounce_rate?.toFixed(1) || 0}%
                         </div>
                       </div>

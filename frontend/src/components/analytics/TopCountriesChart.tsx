@@ -203,9 +203,9 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
 
   if (!data?.top_countries || data.top_countries.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-2xl border border-dashed border-border/60">
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-xl border border-dashed border-border/60">
         <Globe className="h-10 w-10 mb-2 opacity-20" />
-        <p className="text-[10px] font-bold uppercase tracking-widest">No country data</p>
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">No country data</p>
       </div>
     );
   }
@@ -237,14 +237,14 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
                 </div>
                 </div>
                 <div className="min-w-0">
-                <p className="font-bold text-[13px] leading-tight text-foreground truncate">{item.country}</p>
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">{item.countryCode}</p>
+                <p className="font-semibold text-sm leading-tight text-foreground truncate">{item.country}</p>
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-50">{item.countryCode}</p>
                 </div>
             </div>
             <div className="flex items-center gap-6">
                 <div className="text-right">
-                    <p className="font-black text-sm leading-tight">{(item.visitors || 0).toLocaleString()}</p>
-                    <p className="text-[9px] font-black text-muted-foreground uppercase opacity-60 tracking-wider font-mono">{item.percentage}%</p>
+                    <p className="font-bold text-sm leading-tight">{(item.visitors || 0).toLocaleString()}</p>
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-40 tracking-wider font-mono">{item.percentage}%</p>
                 </div>
                 <div className="w-16 h-1.5 bg-accent/20 rounded-full overflow-hidden shrink-0">
                 <div

@@ -61,10 +61,10 @@ export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ 
     <Card className="bg-card border-border shadow-sm shadow-black/5 rounded-2xl overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 pb-6">
         <div className="space-y-1">
-          <CardTitle className="text-xl font-black tracking-tight">Automation Engine</CardTitle>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Real-time workflow execution</p>
+          <CardTitle className="text-lg font-bold tracking-tight">Automation Engine</CardTitle>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Real-time workflow execution</p>
         </div>
-        <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 hover:bg-primary/5 gap-1.5 rounded-lg px-3">
+        <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider text-primary hover:text-primary transition-all gap-1.5 rounded-lg px-3">
             Manage
             <ArrowUpRight size={14} />
         </Button>
@@ -75,9 +75,9 @@ export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ 
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-accent/5">
-                <th className="p-4 px-6 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 w-1/2">Automation Flow</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 text-center">Triggers</th>
-                <th className="p-4 text-[10px] font-black uppercase tracking-[0.15em] text-muted-foreground opacity-60 text-right px-8">Executed</th>
+                <th className="p-4 px-6 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground opacity-50 w-1/2">Automation Flow</th>
+                <th className="p-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground opacity-50 text-center">Triggers</th>
+                <th className="p-4 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground opacity-50 text-right px-8">Executed</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
@@ -93,8 +93,8 @@ export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ 
                           {React.cloneElement(wf.icon as React.ReactElement, { className: 'h-4 w-4 text-primary' })}
                         </div>
                         <div className="min-w-0">
-                          <p className="font-bold text-[13px] leading-tight text-foreground truncate ">{wf.name}</p>
-                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60 mt-0.5">
+                          <p className="font-semibold text-sm leading-tight text-foreground truncate ">{wf.name}</p>
+                          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-50 mt-0.5">
                             Trigger: {wf.trigger}
                           </p>
                         </div>
@@ -102,8 +102,8 @@ export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ 
                     </td>
                     <td className="p-4 text-center">
                       <div className="inline-flex flex-col items-center">
-                        <span className="text-base font-black text-foreground tracking-tight">{formatNumber(triggers)}</span>
-                        <div className="flex items-center gap-1 text-[9px] font-black text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase">
+                        <span className="text-base font-bold text-foreground tracking-tight">{formatNumber(triggers)}</span>
+                        <div className="flex items-center gap-1 text-[9px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded uppercase">
                            <ArrowUpRight size={10} strokeWidth={3} />
                            {Math.floor(Math.random() * 15)}%
                         </div>
@@ -113,9 +113,9 @@ export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ 
                       <div className="inline-flex flex-col items-end">
                         <div className="flex items-center gap-2">
                            <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_var(--primary)] animate-pulse" />
-                           <span className="text-base font-black text-foreground tracking-tight">{formatNumber(actions)}</span>
+                           <span className="text-base font-bold text-foreground tracking-tight">{formatNumber(actions)}</span>
                         </div>
-                        <span className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.15em] opacity-60">Successful</span>
+                        <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50">Successful</span>
                       </div>
                     </td>
                   </tr>
