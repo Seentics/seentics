@@ -15,6 +15,11 @@ import (
 	funnelRepoPkg "analytics-app/internal/modules/funnels/repository"
 	funnelServicePkg "analytics-app/internal/modules/funnels/services"
 
+	billingHandlerPkg "analytics-app/internal/modules/billing/handlers"
+	"analytics-app/internal/modules/billing/models"
+	billingRepoPkg "analytics-app/internal/modules/billing/repository"
+	billingServicePkg "analytics-app/internal/modules/billing/services"
+
 	"analytics-app/internal/shared/config"
 	"analytics-app/internal/shared/database"
 	"analytics-app/internal/shared/kafka"
@@ -94,11 +99,16 @@ func main() {
 	analyticsRepo := repository.NewMainAnalyticsRepository(db)
 	privacyRepo := privacy.NewPrivacyRepository(db)
 
+	// Initialize new modules (Billing first, then others that depend on it)
+	billingRepo := billingRepoPkg.NewBillingRepository(db)
+	billingService := billingServicePkg.NewBillingService(billingRepo)
+	billingHandler := billingHandlerPkg.NewBillingHandler(billingService, logger)
+
 	// Initialize Kafka service
 	kafkaService := kafka.NewKafkaService(cfg.KafkaBootstrapServers, cfg.KafkaTopicEvents, logger)
 
 	// Initialize services
-	eventService := services.NewEventService(eventRepo, db, kafkaService, logger)
+	eventService := services.NewEventService(eventRepo, db, kafkaService, billingService, logger)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, logger)
 	privacyService := services.NewPrivacyService(privacyRepo, logger)
 
@@ -109,7 +119,6 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(db, logger)
 	adminHandler := handlers.NewAdminHandler(eventRepo, logger)
 
-	// Initialize new modules (Automations & Funnels)
 	// Automations
 	autoRepo := autoRepoPkg.NewAutomationRepository(db)
 	autoService := autoServicePkg.NewAutomationService(autoRepo)
@@ -121,7 +130,7 @@ func main() {
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, logger)
+	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, billingService, logger)
 
 	// Start server
 	server := &http.Server{
@@ -225,6 +234,8 @@ func setupRouter(
 	adminHandler *handlers.AdminHandler,
 	autoHandler *autoHandlerPkg.AutomationHandler,
 	funnelHandler *funnelHandlerPkg.FunnelHandler,
+	billingHandler *billingHandlerPkg.BillingHandler,
+	billingService *billingServicePkg.BillingService,
 	logger zerolog.Logger,
 ) *gin.Engine {
 	if cfg.Environment == "production" {
@@ -301,16 +312,44 @@ func setupRouter(
 		}
 
 		// Automations routes
-		automations := v1.Group("/automations")
+		automations := v1.Group("/websites/:website_id/automations")
 		{
-			automations.GET("/:website_id", autoHandler.GetAutomations)
+			automations.GET("", autoHandler.ListAutomations)
+			automations.POST("", middleware.BillingLimitMiddleware(billingService, models.ResourceAutomations), autoHandler.CreateAutomation)
+			automations.GET("/:automation_id", autoHandler.GetAutomation)
+			automations.PUT("/:automation_id", autoHandler.UpdateAutomation)
+			automations.DELETE("/:automation_id", autoHandler.DeleteAutomation)
+			automations.POST("/:automation_id/toggle", autoHandler.ToggleAutomation)
+			automations.GET("/:automation_id/stats", autoHandler.GetAutomationStats)
 		}
 
+		// Public Workflow/Automation routes (for trackers)
+		v1.GET("/workflows/site/:website_id/active", autoHandler.GetActiveWorkflows)
+		v1.POST("/workflows/execution/action", autoHandler.TrackExecution)
+
 		// Funnels routes
-		funnels := v1.Group("/funnels")
+		funnels := v1.Group("/websites/:website_id/funnels")
 		{
-			funnels.GET("/:website_id", funnelHandler.GetFunnels)
+			funnels.GET("", funnelHandler.ListFunnels)
+			funnels.POST("", middleware.BillingLimitMiddleware(billingService, models.ResourceFunnels), funnelHandler.CreateFunnel)
+			funnels.GET("/:funnel_id", funnelHandler.GetFunnel)
+			funnels.PUT("/:funnel_id", funnelHandler.UpdateFunnel)
+			funnels.DELETE("/:funnel_id", funnelHandler.DeleteFunnel)
+			funnels.GET("/:funnel_id/stats", funnelHandler.GetFunnelStats)
 		}
+
+		// Public Funnel routes (for trackers)
+		v1.GET("/funnels/active", funnelHandler.GetActiveFunnels)
+		v1.POST("/funnels/track", funnelHandler.TrackFunnelEvent)
+		// Billing routes
+		billing := v1.Group("/user/billing")
+		{
+			billing.GET("/usage", billingHandler.GetUsage)
+			billing.POST("/checkout", billingHandler.CreateCheckout)
+		}
+
+		// Public Billing routes (Webhooks)
+		v1.POST("/billing/paddle-webhook", billingHandler.PaddleWebhook)
 	}
 
 	return router

@@ -15,8 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { WebsitesHeader } from '@/components/websites/websites-header';
-import { DashboardFooter } from '@/components/websites/dashboard-footer';
+// Imports removed
+
 import { useToast } from '@/hooks/use-toast';
 import {
   useActivityTrends,
@@ -55,7 +55,7 @@ export default function WebsiteDashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
-  
+
   const [websites, setWebsites] = useState<Website[]>([]);
   const [selectedModal, setSelectedModal] = useState<string | null>(null);
   const [modalType, setModalType] = useState<string>('');
@@ -101,8 +101,8 @@ export default function WebsiteDashboardPage() {
 
   const currentWebsite = websites.find(w => w.id === websiteId);
 
-   // Helper function to categorize referrers for better display
-   const categorizeReferrer = (referrer: string): string => {
+  // Helper function to categorize referrers for better display
+  const categorizeReferrer = (referrer: string): string => {
     if (!referrer || referrer === 'Direct') return 'Direct';
 
     const lowerReferrer = referrer.toLowerCase();
@@ -152,7 +152,7 @@ export default function WebsiteDashboardPage() {
   const { data: topDevices, isLoading: devicesLoading, error: devicesError } = useTopDevices(websiteId, dateRange);
   const { data: topOS, isLoading: osLoading, error: osError } = useTopOS(websiteId, dateRange);
   const { data: dailyStats, isLoading: dailyLoading, error: dailyError } = useDailyStats(websiteId, dateRange);
-  
+
   // Note: trafficSummaryChart removed - use dailyStats for chart data instead
   const trafficSummaryChart = isDemoMode ? demoData?.dailyStats : dailyStats;
   const trafficChartLoading = isDemoMode ? false : dailyLoading;
@@ -200,8 +200,8 @@ export default function WebsiteDashboardPage() {
 
   const transformedTopReferrers = finalTopReferrers ? {
     top_referrers: finalTopReferrers.top_referrers?.map((ref: any) => {
-        const referrer = ref.referrer || 'Direct';
-        const categorizedReferrer = categorizeReferrer(referrer);
+      const referrer = ref.referrer || 'Direct';
+      const categorizedReferrer = categorizeReferrer(referrer);
       return {
         referrer: categorizedReferrer,
         visitors: ref.unique || 0,
@@ -246,13 +246,13 @@ export default function WebsiteDashboardPage() {
   } : {
     top_devices: []
   };
-  
-    const transformedTopOS = finalTopOS ? {
+
+  const transformedTopOS = finalTopOS ? {
     top_os: finalTopOS.top_os?.map((os: any) => ({
       os: os.os || 'Unknown',
       visitors: os.unique || 0,
       page_views: os.views || 0,
-      avg_session_duration: 0, 
+      avg_session_duration: 0,
     })) || []
   } : {
     top_os: []
@@ -287,7 +287,7 @@ export default function WebsiteDashboardPage() {
     }
   };
 
-    // Check for UTM parameters in URL and create sample data if present
+  // Check for UTM parameters in URL and create sample data if present
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const utmSource = urlParams.get('utm_source');
@@ -404,309 +404,306 @@ export default function WebsiteDashboardPage() {
 
   const renderContent = () => {
     if (!isDemoMode && dashboardLoading) {
-        return (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none">
-                  <CardHeader className="pb-2">
-                    <div className="h-4 bg-muted rounded animate-pulse" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-8 bg-muted rounded animate-pulse mb-2" />
-                    <div className="h-4 bg-muted rounded animate-pulse w-1/2" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        );
-      }
-    
-      // Handle errors (simplified) - skip in demo mode
-      if (!isDemoMode && dashboardError) {
-        return (
-          <div className="p-8 text-center bg-red-50 text-red-800 rounded-lg">
-             Failed to load analytics data.
-          </div>
-        );
-      }
-
       return (
-        <div className="space-y-6">
-        {/* Header Section inside Content (Title + Filters) */}
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-            <div className="flex items-center gap-2">
-                 {/* Demo Mode Badge */}
-                 {isDemoMode && (
-                   <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-sm font-medium border border-blue-500/20">
-                     <span className="font-semibold">DEMO</span>
-                   </div>
-                 )}
-                 {/* Live Visitors Badge - Standalone */}
-                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 text-sm font-medium border border-green-500/20">
-                    <span className="relative flex h-2.5 w-2.5 mr-1">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
-                    </span>
-                    {finalDashboardData?.live_visitors || 0} current visitors
-                </div>
-            </div>
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none">
+                <CardHeader className="pb-2">
+                  <div className="h-4 bg-muted rounded animate-pulse" />
+                </CardHeader>
+                <CardContent>
+                  <div className="h-8 bg-muted rounded animate-pulse mb-2" />
+                  <div className="h-4 bg-muted rounded animate-pulse w-1/2" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      );
+    }
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+    // Handle errors (simplified) - skip in demo mode
+    if (!isDemoMode && dashboardError) {
+      return (
+        <div className="p-8 text-center bg-red-50 text-red-800 rounded-lg">
+          Failed to load analytics data.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {/* Header Section inside Content (Title + Filters) */}
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 pb-2">
+          <div className="flex items-center gap-3">
+            {/* Demo Mode Badge */}
+            {isDemoMode && (
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest border border-blue-500/20 shadow-sm shadow-blue-500/5">
+                DEMO MODE
+              </div>
+            )}
+            {/* Live Visitors Badge - Standalone */}
+            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-500/20 shadow-sm shadow-emerald-500/5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              {finalDashboardData?.live_visitors || 0} active now
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
             {/* Website Switcher */}
-             <div className="w-full sm:w-[200px]">
-                <Select value={websiteId} onValueChange={handleWebsiteChange}>
-                    <SelectTrigger className="w-full bg-secondary text-secondary-foreground border-0 hover:bg-secondary/80">
-                        <div className="flex items-center truncate">
-                             <Globe className="mr-2 h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="truncate">{currentWebsite?.name || 'Select website'}</span>
-                        </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                        {websites.map((site) => (
-                            <SelectItem key={site.id} value={site.id}>
-                                {site.name}
-                            </SelectItem>
-                        ))}
-                        {websites.length > 0 && (
-                          <>
-                            <div className="h-px bg-border my-1" />
-                            <SelectItem value="add-new" className="text-primary">
-                              <div className="flex items-center">
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Add Website
-                              </div>
-                            </SelectItem>
-                          </>
-                        )}
-                    </SelectContent>
-                </Select>
-             </div>
+            <Select value={websiteId} onValueChange={handleWebsiteChange}>
+              <SelectTrigger className="w-full sm:w-[220px] h-10 bg-card/50 backdrop-blur-md border border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm">
+                <div className="flex items-center truncate">
+                  <Globe className="mr-2 h-4 w-4 text-primary shrink-0" />
+                  <span className="truncate font-bold text-sm tracking-tight">{currentWebsite?.name || 'Select website'}</span>
+                </div>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-border/40 shadow-2xl">
+                {websites.map((site) => (
+                  <SelectItem key={site.id} value={site.id} className="rounded-lg py-2">
+                    <span className="font-medium">{site.name}</span>
+                  </SelectItem>
+                ))}
+                {websites.length > 0 && (
+                  <>
+                    <div className="h-px bg-border my-1 mx-2" />
+                    <SelectItem value="add-new" className="text-primary rounded-lg py-2">
+                      <div className="flex items-center font-bold">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Website
+                      </div>
+                    </SelectItem>
+                  </>
+                )}
+              </SelectContent>
+            </Select>
 
             {/* Date Range Filter */}
             <Select value={isCustomRange ? 'custom' : dateRange.toString()} onValueChange={handleDateRangeChange}>
-                <SelectTrigger className="w-full sm:w-40 bg-secondary text-secondary-foreground border-0 hover:bg-secondary/80">
+              <SelectTrigger className="w-[160px] h-10 bg-card/50 backdrop-blur-md border border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm">
                 <SelectValue placeholder="Select range" />
-                </SelectTrigger>
-                <SelectContent>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-border/40 shadow-2xl">
                 <SelectItem value="1">Today</SelectItem>
                 <SelectItem value="7">Last 7 days</SelectItem>
                 <SelectItem value="30">Last 30 days</SelectItem>
                 <SelectItem value="90">Last 90 days</SelectItem>
                 <SelectItem value="custom">Custom range</SelectItem>
-                </SelectContent>
+              </SelectContent>
             </Select>
 
             {/* Custom Date Range Picker */}
             {isCustomRange && (
-                <Popover>
+              <Popover>
                 <PopoverTrigger asChild>
-                    <Button variant="secondary" size="sm" className="w-full sm:w-48 h-9 justify-start text-left font-normal border-0">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
+                  <Button variant="outline" size="sm" className="h-10 px-4 bg-card/50 backdrop-blur-md border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm font-bold text-xs uppercase tracking-widest">
+                    <CalendarIcon className="mr-2 h-3.5 w-3.5" />
                     {customStartDate && customEndDate ? (
-                        `${format(customStartDate, 'MMM dd')} - ${format(customEndDate, 'MMM dd, yyyy')}`
+                      `${format(customStartDate, 'MMM dd')} - ${format(customEndDate, 'MMM dd')}`
                     ) : (
-                        'Pick a date range'
+                      'Pick dates'
                     )}
-                    </Button>
+                  </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="end">
-                    <Calendar
+                <PopoverContent className="w-auto p-0 rounded-2xl border-border/40 shadow-2xl overflow-hidden" align="end">
+                  <Calendar
                     initialFocus
                     mode="range"
                     defaultMonth={customStartDate}
                     selected={{ from: customStartDate, to: customEndDate }}
                     onSelect={(range) => { handleCustomDateChange(range?.from, range?.to); }}
                     numberOfMonths={window.innerWidth < 768 ? 1 : 2}
-                    />
+                  />
                 </PopoverContent>
-                </Popover>
+              </Popover>
             )}
 
             {/* Export Data Button */}
-            <Button variant="secondary" size="icon" className="h-9 w-9 shrink-0 border-0" onClick={handleExport} title="Export Data">
-                <Download className="h-4 w-4" />
+            <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 bg-card/50 backdrop-blur-md border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm" onClick={handleExport} title="Export Data">
+              <Download className="h-4 w-4 text-primary" />
             </Button>
-            </div>
+          </div>
         </div>
 
         {/* Summary Cards */}
-        <SummaryCards
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {/* SummaryCards already inside dashboard. Transforming to use better container if needed. */}
+          <SummaryCards
             data={finalDashboardData || {
-            total_visitors: 0,
-            unique_visitors: 0,
-            live_visitors: 0,
-            page_views: 0,
-            session_duration: 0,
-            bounce_rate: 0,
-            comparison: {}
+              total_visitors: 0,
+              unique_visitors: 0,
+              live_visitors: 0,
+              page_views: 0,
+              session_duration: 0,
+              bounce_rate: 0,
+              comparison: {}
             }}
-        />
+          />
+        </div>
 
 
         {/* Traffic Overview */}
-        <TrafficOverview
+        <section className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md overflow-hidden">
+          <TrafficOverview
             dailyStats={trafficSummaryChart || finalDailyStats}
             hourlyStats={finalHourlyStats}
             isLoading={!isDemoMode && (dashboardLoading || dailyLoading || trafficChartLoading)}
-            className="border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-white dark:bg-gray-800 rounded-md"
-        />
-
-
-        {/* Row 4: Map */}
-         <GeolocationOverview
-            data={finalGeolocationData}
-            isLoading={!isDemoMode && geolocationLoading}
-        />
-
+          />
+        </section>
 
         {/* DETAILS GRID START */}
-        
-        {/* Row 1: Top Pages & Top Sources */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md">
-                <CardContent className="p-6">
-                    <TopPagesChart 
-                        data={transformedTopPages} 
-                        entryPages={finalVisitorInsights?.visitor_insights?.top_entry_pages}
-                        exitPages={finalVisitorInsights?.visitor_insights?.top_exit_pages}
-                        isLoading={pagesLoading || visitorInsightsLoading} 
-                    />
-                </CardContent>
-            </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
+          <Card className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md">
+            <CardContent className="p-8">
+              <TopPagesChart
+                data={transformedTopPages}
+                entryPages={finalVisitorInsights?.visitor_insights?.top_entry_pages}
+                exitPages={finalVisitorInsights?.visitor_insights?.top_exit_pages}
+                isLoading={pagesLoading || visitorInsightsLoading}
+              />
+            </CardContent>
+          </Card>
 
-            <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md">
-                <CardContent className="p-6">
-                    <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
-                </CardContent>
-            </Card>
+          <Card className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md">
+            <CardContent className="p-8">
+              <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
+            </CardContent>
+          </Card>
         </div>
 
-        {/* Row 2: System Insights & Goal Conversions */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             {/* System Insights */}
-             <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md">
-                <CardContent className="p-6">
-                    <TopDevicesChart 
-                        data={transformedTopDevices} 
-                        osData={transformedTopOS}
-                        isLoading={devicesLoading || osLoading} 
-                    />
-                </CardContent>
-            </Card>
+        {/* Map & Geolocation */}
+        <section className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md overflow-hidden">
+          <GeolocationOverview
+            data={finalGeolocationData}
+            isLoading={!isDemoMode && geolocationLoading}
+          />
+        </section>
 
-            {/* Goal Conversions (Events) */}
-            <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md">
-              <CardHeader className="bg-muted/10 pb-4 border-b">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <CardTitle className="text-base font-semibold">Goal Conversions</CardTitle>
-                      <p className="text-xs text-muted-foreground">Custom events tracked on your site</p>
-                    </div>
-                    {/* <div className="p-2 rounded-lg bg-background border shadow-sm">
-                      <Target className="h-4 w-4 text-purple-500" />
-                    </div> */}
-                  </div>
-              </CardHeader>
-              <CardContent className="pt-4">
-                <div className="max-h-[380px] overflow-y-auto pr-1">
-                  <EventsDetails
-                  items={(transformedCustomEvents.top_events as any[])
-                      .filter(e => !['pageview', 'page_view', 'page_visible', 'page_hidden', 'exit_intent'].includes(e.event_type))}
-                  />
+        {/* System & Events */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Card className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md">
+            <CardContent className="p-8">
+              <TopDevicesChart
+                data={transformedTopDevices}
+                osData={transformedTopOS}
+                isLoading={devicesLoading || osLoading}
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md overflow-hidden flex flex-col">
+            <CardHeader className="p-8 pb-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <CardTitle className="text-xl font-black tracking-tight">Goal Conversions</CardTitle>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-widest">Behavioral Targets</p>
                 </div>
-              </CardContent>
-            </Card>
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                  <Target className="h-5 w-5 text-purple-500" />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-8 pt-4 flex-1">
+              <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                <EventsDetails
+                  items={(transformedCustomEvents.top_events as any[])
+                    .filter(e => !['pageview', 'page_view', 'page_visible', 'page_hidden', 'exit_intent'].includes(e.event_type))}
+                />
+              </div>
+            </CardContent>
+          </Card>
         </div>
-        
-      
 
-        {/* Row 5: UTM Marketing Performance */}
-        <div className="grid grid-cols-1 gap-6">
+        {/* UTM Performance */}
+        <Card className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md overflow-hidden">
+          <CardHeader className="p-8 pb-6 border-b border-border/40">
+            <div className="flex flex-col space-y-6 md:flex-row md:items-center md:justify-between md:space-y-0">
+              <div className="space-y-1 text-center md:text-left">
+                <CardTitle className="text-2xl font-black tracking-tight">Campaign Intelligence</CardTitle>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">UTM Source & Performance</p>
+              </div>
+              <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto">
+                <TabsList className="grid w-full grid-cols-5 h-11 bg-muted/20 p-1 rounded-xl">
+                  <TabsTrigger value="sources" className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Sources</TabsTrigger>
+                  <TabsTrigger value="mediums" className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Mediums</TabsTrigger>
+                  <TabsTrigger value="campaigns" className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Campaigns</TabsTrigger>
+                  <TabsTrigger value="terms" className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Terms</TabsTrigger>
+                  <TabsTrigger value="content" className="text-[10px] sm:text-xs font-black uppercase tracking-widest">Content</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </CardHeader>
+          <CardContent className="p-8">
+            <UTMPerformanceChart
+              data={transformedCustomEvents.utm_performance as any}
+              isLoading={customEventsLoading}
+              hideTabs={true}
+              controlledTab={utmTab}
+            />
+          </CardContent>
+        </Card>
 
-            <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md overflow-hidden">
-                <CardHeader className="bg-muted/10 pb-4 border-b">
-                    <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-                        <div className="space-y-1">
-                            <CardTitle className="text-base font-semibold">UTM & Marketing</CardTitle>
-                            <p className="text-xs text-muted-foreground whitespace-nowrap">Campaign and traffic source performance</p>
-                        </div>
-                        <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full sm:w-auto">
-                            <TabsList className="grid w-full grid-cols-5 h-9 sm:h-9">
-                                <TabsTrigger value="sources" className="text-xs px-1 font-semibold">Sources</TabsTrigger>
-                                <TabsTrigger value="mediums" className="text-xs px-1 font-semibold">Mediums</TabsTrigger>
-                                <TabsTrigger value="campaigns" className="text-xs px-1 font-semibold">Campaigns</TabsTrigger>
-                                <TabsTrigger value="terms" className="text-xs px-1 font-semibold">Terms</TabsTrigger>
-                                <TabsTrigger value="content" className="text-xs px-1 font-semibold">Content</TabsTrigger>
-                            </TabsList>
-                        </Tabs>
-                    </div>
-                </CardHeader>
-                <CardContent className="pt-4">
-                    <UTMPerformanceChart
-                        data={transformedCustomEvents.utm_performance as any}
-                        isLoading={customEventsLoading}
-                        hideTabs={true}
-                        controlledTab={utmTab}
-                    />
-                </CardContent>
-            </Card>
-        </div>
-        
-        {/* Row 6: Workflow & Funnel Intelligence */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <AutomationInsightTable 
-                data={finalDailyStats} 
-                isLoading={dailyLoading} 
+        {/* Workflow & Funnel Intelligence */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <section className="glass-card shadow-2xl shadow-black/5 rounded-[2rem] border-white/5 bg-card/30 backdrop-blur-md p-2">
+            <AutomationInsightTable
+              data={finalDailyStats}
+              isLoading={dailyLoading}
             />
-            <FunnelInsightsCard 
-                isLoading={dailyLoading}
+          </section>
+          <section className="glass-card shadow-2xl shadow-black/5 rounded-[2rem] border-white/5 bg-card/30 backdrop-blur-md p-2">
+            <FunnelInsightsCard
+              isLoading={dailyLoading}
             />
+          </section>
         </div>
-        
+
         {/* Detailed Data Modal */}
         {selectedModal && (
-            <DetailedDataModal
+          <DetailedDataModal
             isOpen={!!selectedModal}
             onClose={handleModalClose}
             modalType={modalType}
             data={{
-                topPages: finalTopPages,
-                topReferrers: finalTopReferrers,
-                topCountries: finalTopCountries,
-                topBrowsers: finalTopBrowsers,
-                topDevices: finalTopDevices,
-                dashboard: finalDashboardData,
+              topPages: finalTopPages,
+              topReferrers: finalTopReferrers,
+              topCountries: finalTopCountries,
+              topBrowsers: finalTopBrowsers,
+              topDevices: finalTopDevices,
+              dashboard: finalDashboardData,
 
             }}
             isLoading={{
-                topPages: pagesLoading,
-                topReferrers: referrersLoading,
-                topCountries: countriesLoading,
-                topBrowsers: browsersLoading,
-                topDevices: devicesLoading,
-                dashboard: dashboardLoading,
+              topPages: pagesLoading,
+              topReferrers: referrersLoading,
+              topCountries: countriesLoading,
+              topBrowsers: browsersLoading,
+              topDevices: devicesLoading,
+              dashboard: dashboardLoading,
 
             }}
-            />
+          />
         )}
-        </div>
-      );
+      </div>
+    );
   };
 
 
   return (
-    <div className="min-h-screen">
-      <WebsitesHeader />
-      <main className="p-4 sm:p-6 max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50/30 dark:bg-black/20">
+      <main className="p-4 md:p-8 w-full max-w-[1280px] mx-auto">
         {renderContent()}
       </main>
-      <DashboardFooter />
-      
+      {/* Footer removed */}
+
+
       {/* Add Website Modal */}
-      <AddWebsiteModal 
-        open={showAddWebsiteModal} 
+      <AddWebsiteModal
+        open={showAddWebsiteModal}
         onOpenChange={setShowAddWebsiteModal}
         onSuccess={handleWebsiteAdded}
       />

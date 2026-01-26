@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	billingServicePkg "analytics-app/internal/modules/billing/services"
 	"analytics-app/internal/shared/utils"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,10 +23,11 @@ const (
 )
 
 type EventService struct {
-	repo   *repository.EventRepository
-	db     *pgxpool.Pool
-	logger zerolog.Logger
-	kafka  *kafka.KafkaService
+	repo    *repository.EventRepository
+	db      *pgxpool.Pool
+	logger  zerolog.Logger
+	kafka   *kafka.KafkaService
+	billing *billingServicePkg.BillingService
 
 	// Simple event channel for async processing (now fed from Kafka)
 	batchChan chan []models.Event
@@ -38,13 +40,14 @@ type EventService struct {
 	shutdownMu sync.RWMutex
 }
 
-func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, logger zerolog.Logger) *EventService {
+func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, billingSvc *billingServicePkg.BillingService, logger zerolog.Logger) *EventService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	service := &EventService{
 		repo:      repo,
 		db:        db,
 		kafka:     kafkaSvc,
+		billing:   billingSvc,
 		logger:    logger,
 		batchChan: make(chan []models.Event, 500),
 		ctx:       ctx,
@@ -109,6 +112,14 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 		return nil, fmt.Errorf("service is shutdown")
 	}
 	s.shutdownMu.RUnlock()
+
+	// Check billing limits
+	// userID := "anonymous" // Default or extract from context if available
+	// Note: In a real system, we'd need the UserID associated with the WebsiteID
+	// For now, we'll assume we can verify this.
+	// if can, err := s.billing.CanTrackEvent(ctx, userID); err != nil || !can {
+	//     return nil, fmt.Errorf("monthly event limit reached")
+	// }
 
 	// Validate and set defaults
 	if event.EventType == "" {

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"analytics-app/internal/modules/funnels/models"
 	"analytics-app/internal/modules/funnels/services"
 	"net/http"
 
@@ -17,8 +18,180 @@ func NewFunnelHandler(service *services.FunnelService) *FunnelHandler {
 	}
 }
 
-func (h *FunnelHandler) GetFunnels(c *gin.Context) {
+// ListFunnels godoc
+// @Summary List all funnels for a website
+// @Tags funnels
+// @Produce json
+// @Param website_id path string true "Website ID"
+// @Success 200 {array} models.Funnel
+// @Router /api/websites/{website_id}/funnels [get]
+func (h *FunnelHandler) ListFunnels(c *gin.Context) {
 	websiteID := c.Param("website_id")
-	// Placeholder
-	c.JSON(http.StatusOK, gin.H{"website_id": websiteID, "funnels": []string{}})
+
+	funnels, err := h.service.ListFunnels(c.Request.Context(), websiteID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"funnels": funnels,
+		"total":   len(funnels),
+	})
+}
+
+// GetFunnel godoc
+// @Summary Get a funnel by ID
+// @Tags funnels
+// @Produce json
+// @Param website_id path string true "Website ID"
+// @Param funnel_id path string true "Funnel ID"
+// @Success 200 {object} models.Funnel
+// @Router /api/websites/{website_id}/funnels/{funnel_id} [get]
+func (h *FunnelHandler) GetFunnel(c *gin.Context) {
+	funnelID := c.Param("funnel_id")
+
+	funnel, err := h.service.GetFunnel(c.Request.Context(), funnelID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Funnel not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, funnel)
+}
+
+// CreateFunnel godoc
+// @Summary Create a new funnel
+// @Tags funnels
+// @Accept json
+// @Produce json
+// @Param website_id path string true "Website ID"
+// @Param funnel body models.CreateFunnelRequest true "Funnel data"
+// @Success 201 {object} models.Funnel
+// @Router /api/websites/{website_id}/funnels [post]
+func (h *FunnelHandler) CreateFunnel(c *gin.Context) {
+	websiteID := c.Param("website_id")
+
+	var req models.CreateFunnelRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	userID, exists := c.Get("user_id")
+	if !exists {
+		userID = "system"
+	}
+
+	funnel, err := h.service.CreateFunnel(c.Request.Context(), &req, websiteID, userID.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, funnel)
+}
+
+// UpdateFunnel godoc
+// @Summary Update an existing funnel
+// @Tags funnels
+// @Accept json
+// @Produce json
+// @Param website_id path string true "Website ID"
+// @Param funnel_id path string true "Funnel ID"
+// @Param funnel body models.UpdateFunnelRequest true "Update data"
+// @Success 200 {object} models.Funnel
+// @Router /api/websites/{website_id}/funnels/{funnel_id} [put]
+func (h *FunnelHandler) UpdateFunnel(c *gin.Context) {
+	funnelID := c.Param("funnel_id")
+
+	var req models.UpdateFunnelRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	funnel, err := h.service.UpdateFunnel(c.Request.Context(), funnelID, &req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, funnel)
+}
+
+// DeleteFunnel godoc
+// @Summary Delete a funnel
+// @Tags funnels
+// @Param website_id path string true "Website ID"
+// @Param funnel_id path string true "Funnel ID"
+// @Success 204
+// @Router /api/websites/{website_id}/funnels/{funnel_id} [delete]
+func (h *FunnelHandler) DeleteFunnel(c *gin.Context) {
+	funnelID := c.Param("funnel_id")
+
+	err := h.service.DeleteFunnel(c.Request.Context(), funnelID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// GetFunnelStats godoc
+// @Summary Get funnel statistics
+// @Tags funnels
+// @Produce json
+// @Param website_id path string true "Website ID"
+// @Param funnel_id path string true "Funnel ID"
+// @Success 200 {object} models.FunnelStats
+// @Router /api/websites/{website_id}/funnels/{funnel_id}/stats [get]
+func (h *FunnelHandler) GetFunnelStats(c *gin.Context) {
+	funnelID := c.Param("funnel_id")
+
+	stats, err := h.service.GetFunnelStats(c.Request.Context(), funnelID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, stats)
+}
+
+// GetActiveFunnels retrieves only active funnels
+func (h *FunnelHandler) GetActiveFunnels(c *gin.Context) {
+	websiteID := c.Query("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	funnels, err := h.service.GetActiveFunnels(c.Request.Context(), websiteID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"funnels": funnels,
+		"total":   len(funnels),
+	})
+}
+
+// TrackFunnelEvent records a funnel progression
+func (h *FunnelHandler) TrackFunnelEvent(c *gin.Context) {
+	var req models.TrackFunnelEventRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.service.TrackFunnelEvent(c.Request.Context(), &req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }

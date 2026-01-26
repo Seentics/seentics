@@ -9,58 +9,70 @@ const plans = [
     name: "Starter",
     price: "0",
     period: "forever",
-    description: "Ideal for personal projects & experiments.",
+    description: "Perfect for exploring our unique analytics power.",
     icon: Star,
     popular: false,
     color: "text-primary bg-primary/10 border-primary/20",
     features: [
       "1 Website",
-      "1K Events",
-      "3 Months Retention",
-      "Real-time Intelligence",
-      "Privacy Compliant",
-      "Data Export",
+      "10,000 Monthly Events",
+      "1 Conversion Funnel",
+      "30 Days Data Retention",
+      "Real-time Dashboard",
       "Community Support"
     ]
   },
   {
-    name: "Standard",
-    price: "9",
+    name: "Growth",
+    price: "29",
     period: "per month",
-    description: "Built for scaling businesses and creators.",
+    description: "Scaling fast? Get the deep insights you need.",
     icon: Zap,
     popular: true,
-    color: "text-primary bg-primary/10 border-primary/20",
+    color: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
     features: [
       "3 Websites",
-      "15K Events",
-      "13 Months Retention",
-      "Priority Ingestion",
-      "Advanced Intelligence",
-      "24/7 Priority Support",
-      "Custom Domains",
-      "API Access",
-      "Premium Reports"
+      "100,000 Monthly Events",
+      "5 Conversion Funnels",
+      "3 Active Automations",
+      "1 Year Data Retention",
+      "Priority Email Support"
     ]
   },
   {
-    name: "Enterprise",
-    price: "20",
+    name: "Scale",
+    price: "79",
     period: "per month",
-    description: "Unmatched scale for heavy hitters.",
+    description: "Dominate your market with automation.",
     icon: Crown,
     popular: false,
-    color: "text-primary bg-primary/10 border-primary/20",
+    color: "text-violet-500 bg-violet-500/10 border-violet-500/20",
     features: [
       "10 Websites",
-      "100K Events",
-      "36 Months Retention",
-      "Highest Throughput",
-      "Custom Integrations",
-      "Dedicated Manager",
-      "SLA Guarantee",
+      "500,000 Monthly Events",
+      "Unlimited Funnels",
+      "10 Active Automations",
+      "2 Years Data Retention",
+      "24/7 Priority Support",
+      "API Access"
+    ]
+  },
+  {
+    name: "Pro+",
+    price: "199",
+    period: "per month",
+    description: "The ultimate power for large-scale operations.",
+    icon: Sparkles,
+    popular: false,
+    color: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+    features: [
+      "Unlimited Websites",
+      "5,000,000 Monthly Events",
+      "Unlimited Everything",
+      "Custom Data Retention",
       "White-label Reports",
-      "SSO & Security"
+      "Dedicated Success Manager",
+      "SSO & Custom Security"
     ]
   }
 ];
@@ -78,8 +90,8 @@ export default function Pricing() {
 
   const itemVariants = {
     hidden: { opacity: 0, y: 15 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
     }
@@ -88,10 +100,10 @@ export default function Pricing() {
   return (
     <section id="pricing" className="py-24 sm:py-32 relative overflow-hidden bg-background">
       <div className="container mx-auto px-6 relative z-10">
-        
+
         {/* Header */}
         <div className="text-center mb-16 sm:mb-28 px-4">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -99,8 +111,8 @@ export default function Pricing() {
           >
             Investment
           </motion.div>
-          
-          <motion.h2 
+
+          <motion.h2
             initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
@@ -109,28 +121,27 @@ export default function Pricing() {
             Scalable plans for <br />
             <span className="gradient-text">every stage.</span>
           </motion.h2>
-          
+
           <p className="text-lg sm:text-xl text-muted-foreground/60 max-w-2xl mx-auto font-medium tracking-tight">
             Start free forever. No credit card required. Our infrastructure scales as your traffic grows.
           </p>
         </div>
-        
+
         {/* Pricing Cards */}
-        <motion.div 
+        <motion.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto mb-32"
+          className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-[90rem] mx-auto mb-32"
         >
           {plans.map((plan, index) => (
-            <motion.div 
-              key={index} 
+            <motion.div
+              key={index}
               variants={itemVariants}
               whileHover={{ y: -8, transition: { duration: 0.3 } }}
-              className={`relative glass-card p-1 rounded-[3rem] transition-all duration-500 ${
-                plan.popular ? 'ring-1 ring-primary/40 shadow-glow/20' : 'border-white/10'
-              }`}
+              className={`relative glass-card p-1 rounded-[3rem] transition-all duration-500 ${plan.popular ? 'ring-1 ring-primary/40 shadow-glow/20' : 'border-white/10'
+                }`}
             >
               <div className="bg-card/30 backdrop-blur-2xl h-full rounded-[2.8rem] p-10 flex flex-col relative overflow-hidden">
                 {plan.popular && (
@@ -165,11 +176,10 @@ export default function Pricing() {
                 </div>
 
                 <Link href={isAuthenticated ? "/websites" : "/signup"} className="mt-auto">
-                  <Button 
+                  <Button
                     variant={plan.popular ? "brand" : "default"}
-                    className={`w-full h-14 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${
-                      !plan.popular && 'glass border-white/10 hover:bg-white/5 active:scale-95 text-foreground'
-                    }`}
+                    className={`w-full h-14 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${!plan.popular && 'glass border-white/10 hover:bg-white/5 active:scale-95 text-foreground'
+                      }`}
                   >
                     {plan.name === 'Starter' ? 'Start Free' : `Purchase ${plan.name}`}
                     <ArrowRight className="ml-2 h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
@@ -179,18 +189,18 @@ export default function Pricing() {
             </motion.div>
           ))}
         </motion.div>
-        
+
         {/* Guarantee Section */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           className="max-w-4xl mx-auto text-center"
         >
           <div className="glass p-12 sm:p-20 rounded-[3.5rem] border-white/10 shadow-2xl relative overflow-hidden">
-             {/* Background Mesh */}
-             <div className="absolute top-0 left-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full -ml-32 -mt-32 opacity-30" />
-             
+            {/* Background Mesh */}
+            <div className="absolute top-0 left-0 w-64 h-64 bg-primary/10 blur-[100px] rounded-full -ml-32 -mt-32 opacity-30" />
+
             <h3 className="text-3xl sm:text-4xl font-black mb-8 tracking-tight relative z-10">
               Enterprise requirements? <br />
               <span className="text-primary italic font-serif underline decoration-primary/30 decoration-4 underline-offset-8">Let's talk scale.</span>
@@ -198,7 +208,7 @@ export default function Pricing() {
             <p className="text-muted-foreground/60 mb-12 font-medium max-w-2xl mx-auto text-lg leading-relaxed tracking-tight relative z-10">
               We provide custom infrastructure, massive volume discounts, and white-labeling for heavy hitters.
             </p>
-            
+
             <div className="flex flex-col sm:flex-row items-center justify-center gap-5 relative z-10">
               <Link href="/contact" className="w-full sm:w-auto">
                 <Button variant="outline" className="w-full sm:w-auto h-16 px-12 rounded-full glass border-white/10 font-black text-[10px] uppercase tracking-[0.2em] hover:bg-white/5 transition-all active:scale-95">
@@ -211,7 +221,7 @@ export default function Pricing() {
                 </Button>
               </Link>
             </div>
-            
+
             <div className="mt-16 pt-10 border-t border-white/5 flex flex-wrap items-center justify-center gap-x-12 gap-y-6 text-[9px] font-black uppercase tracking-[0.25em] text-muted-foreground/40 relative z-10">
               <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary opacity-60" /> No Setup Fees</span>
               <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-primary opacity-60" /> Cancel Anytime</span>

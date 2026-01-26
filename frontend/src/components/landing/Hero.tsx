@@ -14,8 +14,8 @@ export default function Hero() {
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { 
-      opacity: 1, 
+    visible: {
+      opacity: 1,
       y: 0,
       transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }
     }
@@ -30,7 +30,7 @@ export default function Hero() {
       </div>
 
       <div className="container mx-auto px-6 relative z-10">
-        <motion.div 
+        <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
@@ -48,20 +48,20 @@ export default function Hero() {
           </motion.div> */}
 
           {/* Headline */}
-          <motion.h1 
+          <motion.h1
             variants={itemVariants}
             className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.1] mb-8 text-foreground"
           >
-            Privacy First Analytics. <br />
-            <span className="gradient-text font-black text-indigo-600 dark:text-indigo-400">Automation Built In.</span>
+            Privacy-friendly analytics. <br />
+            <span className="gradient-text font-black text-indigo-600 dark:text-indigo-400">Funnels & Automations built-in.</span>
           </motion.h1>
 
           {/* Subheadline */}
-          <motion.p 
+          <motion.p
             variants={itemVariants}
             className="text-lg sm:text-xl text-muted-foreground/70 max-w-3xl mx-auto mb-12 leading-relaxed font-medium"
           >
-            <span className="text-foreground font-bold">Turn insights into action.</span> Seentics Pro combines deep, privacy-first analytics with full access to the Seentics Automation suite.
+            <span className="text-foreground font-bold">Understand every journey.</span> Seentics combines ultra-lightweight analytics with visual conversion funnels and behavior-triggered automations.
           </motion.p>
 
           {/* Action Hub */}
@@ -81,15 +81,15 @@ export default function Hero() {
           </motion.div>
 
           {/* High-Fidelity Dashboard Card */}
-          <motion.div 
+          <motion.div
             variants={itemVariants}
             className="relative w-full max-w-4xl group"
           >
             <div className="absolute -inset-10 bg-primary/10 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
-            
+
             <div className="relative glass p-2 rounded-[2.5rem] border-white/10 shadow-2xl overflow-hidden aspect-[16/10] bg-black/5 dark:bg-white/5 backdrop-blur-[40px]">
               <div className="w-full h-full rounded-[2rem] bg-background/50 p-6 sm:p-10 flex flex-col items-start justify-start text-left relative overflow-hidden">
-                
+
                 {/* Mock UI Header */}
                 <div className="w-full flex items-center justify-between mb-8 pb-4 border-b border-border/40">
                   <div className="flex items-center gap-4">
@@ -118,9 +118,9 @@ export default function Hero() {
                 <div className="w-full flex-1 rounded-2xl bg-white/5 border border-white/5 p-6 relative">
                   <div className="absolute inset-x-6 bottom-6 h-[60%] flex items-end gap-2">
                     {[40, 70, 45, 90, 65, 80, 55, 75, 50, 85].map((h, i) => (
-                      <div 
-                        key={i} 
-                        className="flex-1 bg-primary/20 rounded-t-sm hover:bg-primary/40 transition-colors" 
+                      <div
+                        key={i}
+                        className="flex-1 bg-primary/20 rounded-t-sm hover:bg-primary/40 transition-colors"
                         style={{ height: `${h}%` }}
                       >
                         {i === 3 && <div className="absolute -top-10 left-1/2 -translate-x-1/2 glass px-3 py-1 rounded text-[10px] font-bold text-primary animate-bounce">Live +24%</div>}
@@ -146,7 +146,7 @@ export default function Hero() {
       </div>
 
       {/* Scroll Indicator */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.5, duration: 1 }}
@@ -154,7 +154,7 @@ export default function Hero() {
       >
         <span className="text-[10px] font-bold uppercase tracking-[0.3em]">Explore</span>
         <div className="relative h-12 w-[1px] bg-foreground/10 overflow-hidden">
-          <motion.div 
+          <motion.div
             animate={{ y: [0, 48] }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
             className="absolute top-0 w-full h-1/2 bg-gradient-to-b from-transparent via-primary to-transparent"

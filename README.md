@@ -22,13 +22,17 @@ Seentics is designed as a **fully-featured open source platform** with unlimited
 ### 📊 **High-Performance Analytics**
 - **Real-Time Processing**: 10,000+ events/second with PostgreSQL optimization.
 - **Comprehensive Tracking**: Page views, custom events, user sessions.
+- **Funnel Analytics**: Visualize user journeys and track conversion milestones.
+- **Automations Engine**: Trigger actions (modals, banners, webhooks) based on user behavior.
 - **Advanced Dashboards**: Interactive charts, real-time metrics, custom date ranges.
 - **Privacy Compliant**: GDPR-ready with data retention controls and user consent management.
 
-### 🛡️ **Security & Scalability**
+### 🛡️ **Infrastructure & Scalability**
+- **Kafka Ingestion Pipeline**: High-performance event buffer. Decouples event ingestion from database writes to handle massive traffic spikes and ensure 100% data durability.
+- **Redis Accelerator**: Used for distributed rate limiting, real-time session tracking, and frequent query caching.
 - **Unified Authentication**: Uses JWT for standalone OSS deployments.
-- **Rate Limiting**: Integrated Redis-based rate limiting.
-- **Infrastructure**: Powered by PostgreSQL, Redis, and Kafka for high-volume ingestion.
+- **Billing & Limits**: Integrated usage tracking with multi-tier plan enforcement (Starter, Growth, Scale, Pro+).
+- **PostgreSQL Partitioning**: Native time-based partitioning for efficient storage of billions of events.
 
 ### **Service Breakdown**
 

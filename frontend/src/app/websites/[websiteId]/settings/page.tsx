@@ -13,7 +13,7 @@ export default function GeneralSettings() {
   const websiteId = params?.websiteId as string;
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1280px] mx-auto">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">General Settings</h1>
         <p className="text-muted-foreground text-sm">Update your website information and preferences.</p>
@@ -49,7 +49,7 @@ export default function GeneralSettings() {
             <ShieldAlert className="h-5 w-5" />
             <h2 className="font-bold text-sm uppercase tracking-widest">Danger Zone</h2>
           </div>
-          
+
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="space-y-0.5">
               <p className="text-sm font-bold">Delete Website</p>

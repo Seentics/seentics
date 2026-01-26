@@ -1,23 +1,110 @@
 package models
 
 import (
+	"database/sql/driver"
+	"encoding/json"
 	"time"
 )
 
-type Automation struct {
-	ID          string                 `json:"id" db:"id"`
-	Name        string                 `json:"name" db:"name"`
-	WebsiteID   string                 `json:"websiteId" db:"website_id"`
-	Description string                 `json:"description" db:"description"`
-	Trigger     string                 `json:"trigger" db:"trigger"`
-	Config      map[string]interface{} `json:"config" db:"config"`
-	IsActive    bool                   `json:"isActive" db:"is_active"`
-	Stats       AutomationStats        `json:"stats" db:"-"`
-	CreatedAt   time.Time              `json:"createdAt" db:"created_at"`
-	UpdatedAt   time.Time              `json:"updatedAt" db:"updated_at"`
+// JSONB is a custom type for PostgreSQL JSONB fields
+type JSONB map[string]interface{}
+
+func (j JSONB) Value() (driver.Value, error) {
+	return json.Marshal(j)
 }
 
+func (j *JSONB) Scan(value interface{}) error {
+	if value == nil {
+		*j = make(JSONB)
+		return nil
+	}
+	bytes, ok := value.([]byte)
+	if !ok {
+		return nil
+	}
+	return json.Unmarshal(bytes, j)
+}
+
+// Automation represents an automation workflow
+type Automation struct {
+	ID            string    `json:"id" db:"id"`
+	WebsiteID     string    `json:"websiteId" db:"website_id"`
+	UserID        string    `json:"userId" db:"user_id"`
+	Name          string    `json:"name" db:"name"`
+	Description   string    `json:"description" db:"description"`
+	TriggerType   string    `json:"triggerType" db:"trigger_type"`
+	TriggerConfig JSONB     `json:"triggerConfig" db:"trigger_config"`
+	IsActive      bool      `json:"isActive" db:"is_active"`
+	CreatedAt     time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt     time.Time `json:"updatedAt" db:"updated_at"`
+	
+	// Relations (not stored in DB, loaded separately)
+	Actions    []AutomationAction    `json:"actions,omitempty" db:"-"`
+	Conditions []AutomationCondition `json:"conditions,omitempty" db:"-"`
+	Stats      *AutomationStats      `json:"stats,omitempty" db:"-"`
+}
+
+// AutomationAction represents an action to be performed
+type AutomationAction struct {
+	ID           string    `json:"id" db:"id"`
+	AutomationID string    `json:"automationId" db:"automation_id"`
+	ActionType   string    `json:"actionType" db:"action_type"`
+	ActionConfig JSONB     `json:"actionConfig" db:"action_config"`
+	OrderIndex   int       `json:"orderIndex" db:"order_index"`
+	CreatedAt    time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt    time.Time `json:"updatedAt" db:"updated_at"`
+}
+
+// AutomationCondition represents a condition for automation execution
+type AutomationCondition struct {
+	ID              string    `json:"id" db:"id"`
+	AutomationID    string    `json:"automationId" db:"automation_id"`
+	ConditionType   string    `json:"conditionType" db:"condition_type"`
+	ConditionConfig JSONB     `json:"conditionConfig" db:"condition_config"`
+	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
+}
+
+// AutomationExecution represents a single execution of an automation
+type AutomationExecution struct {
+	ID             string     `json:"id" db:"id"`
+	AutomationID   string     `json:"automationId" db:"automation_id"`
+	WebsiteID      string     `json:"websiteId" db:"website_id"`
+	VisitorID      *string    `json:"visitorId,omitempty" db:"visitor_id"`
+	SessionID      *string    `json:"sessionId,omitempty" db:"session_id"`
+	TriggerEventID *string    `json:"triggerEventId,omitempty" db:"trigger_event_id"`
+	Status         string     `json:"status" db:"status"`
+	ExecutionData  JSONB      `json:"executionData,omitempty" db:"execution_data"`
+	ErrorMessage   *string    `json:"errorMessage,omitempty" db:"error_message"`
+	ExecutedAt     time.Time  `json:"executedAt" db:"executed_at"`
+	CompletedAt    *time.Time `json:"completedAt,omitempty" db:"completed_at"`
+}
+
+// AutomationStats represents statistics for an automation
 type AutomationStats struct {
-	Triggers int `json:"triggers"`
-	Actions  int `json:"actions"`
+	TotalExecutions int     `json:"totalExecutions"`
+	SuccessCount    int     `json:"successCount"`
+	FailureCount    int     `json:"failureCount"`
+	SuccessRate     float64 `json:"successRate"`
+	Last30Days      int     `json:"last30Days"`
+}
+
+// CreateAutomationRequest represents the request to create an automation
+type CreateAutomationRequest struct {
+	Name          string                `json:"name" binding:"required"`
+	Description   string                `json:"description"`
+	TriggerType   string                `json:"triggerType" binding:"required"`
+	TriggerConfig JSONB                 `json:"triggerConfig"`
+	Actions       []AutomationAction    `json:"actions" binding:"required,min=1"`
+	Conditions    []AutomationCondition `json:"conditions"`
+}
+
+// UpdateAutomationRequest represents the request to update an automation
+type UpdateAutomationRequest struct {
+	Name          *string                `json:"name"`
+	Description   *string                `json:"description"`
+	TriggerType   *string                `json:"triggerType"`
+	TriggerConfig JSONB                  `json:"triggerConfig"`
+	IsActive      *bool                  `json:"isActive"`
+	Actions       *[]AutomationAction    `json:"actions"`
+	Conditions    *[]AutomationCondition `json:"conditions"`
 }
