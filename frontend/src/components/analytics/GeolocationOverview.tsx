@@ -120,7 +120,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
     }
 
     return (
-        <Card className={cn("bg-card border-border shadow-sm shadow-black/5 rounded-xl overflow-hidden mb-6", className)}>
+        <Card className={cn("bg-slate-800 rounded", className)}>
             <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-border/40">
                 <div className="space-y-1">
                     <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
@@ -140,7 +140,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
             <CardContent className="p-6 pt-6">
                 <div className="min-h-[400px]">
                     {geoTab === 'map' && (
-                        <div className="h-[450px] relative rounded-xl overflow-hidden border border-border/40">
+                        <div className="h-[450px] relative rounded-xl overflow-hidden ">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}

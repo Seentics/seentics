@@ -37,11 +37,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn('antialiased font-sans')}>
+      <body className={cn('antialiased font-sans bg-slate-900 text-white')}>
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
-          enableSystem
+          themes={[ 'dark']}
           disableTransitionOnChange
         >
 

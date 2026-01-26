@@ -188,7 +188,7 @@ export function SummaryCards({ data }: SummaryCardsProps) {
   ];
 
   return (
-    <div className="bg-card border-border shadow-sm shadow-black/5 rounded-xl overflow-hidden mb-8 border">
+    <div className="bg-gray-200 dark:bg-slate-800 shadow-sm shadow-black/5 rounded overflow-hidden mb-8">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 divide-x divide-border/40">
         {cards.map((card, index) => (
           <SummaryCard key={index} {...card} />

@@ -456,16 +456,20 @@ export default function WebsiteDashboardPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+
+            <div className="h-10 w-10 flex items-center justify-center  backdrop-blur-md  hover:bg-card transition-colors rounded-xl shadow-sm">
+                <ThemeToggle />
+              </div>
             {/* Website Switcher */}
             <Select value={websiteId} onValueChange={handleWebsiteChange}>
-              <SelectTrigger className="w-full sm:w-[220px] h-10 bg-card/50 backdrop-blur-md border border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm">
+              <SelectTrigger className="w-full sm:w-[220px] h-10 dark:bg-slate-800 backdrop-blur-md  hover:bg-card transition-colors rounded-xl shadow-sm">
                 <div className="flex items-center truncate">
                   <Globe className="mr-2 h-4 w-4 text-primary shrink-0" />
                   <span className="truncate font-bold text-sm tracking-tight">{currentWebsite?.name || 'Select website'}</span>
                 </div>
               </SelectTrigger>
-              <SelectContent className="rounded-xl border-border/40 shadow-2xl">
-                {websites.map((site) => (
+              <SelectContent className="rounded-xl  shadow-2xl bg-slate-800 ">
+                {websites.map((site) => ( 
                   <SelectItem key={site.id} value={site.id} className="rounded-lg py-2">
                     <span className="font-medium">{site.name}</span>
                   </SelectItem>
@@ -494,9 +498,7 @@ export default function WebsiteDashboardPage() {
                 onCustomDateChange={handleCustomDateChange}
                 onExport={handleExport}
               />
-              <div className="h-10 w-10 flex items-center justify-center bg-card/50 backdrop-blur-md border border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm">
-                <ThemeToggle />
-              </div>
+              
             </div>
           </div>
         </div>
@@ -519,7 +521,7 @@ export default function WebsiteDashboardPage() {
 
 
         {/* Traffic Overview */}
-        <section className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md overflow-hidden">
+        <section className="">
           <TrafficOverview
             dailyStats={trafficSummaryChart || finalDailyStats}
             hourlyStats={finalHourlyStats}
@@ -529,7 +531,7 @@ export default function WebsiteDashboardPage() {
 
         {/* DETAILS GRID START */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
-          <Card className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md">
+          <Card className=" dark:bg-slate-800">
             <CardContent className="p-8">
               <TopPagesChart
                 data={transformedTopPages}
@@ -540,7 +542,7 @@ export default function WebsiteDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md">
+          <Card className=" dark:bg-slate-800  rounded">
             <CardContent className="p-8">
               <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
             </CardContent>
@@ -548,7 +550,7 @@ export default function WebsiteDashboardPage() {
         </div>
 
         {/* Map & Geolocation */}
-        <section className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md overflow-hidden">
+        <section className="bg-slate-800 rounded">
           <GeolocationOverview
             data={finalGeolocationData}
             isLoading={!isDemoMode && geolocationLoading}
@@ -557,7 +559,7 @@ export default function WebsiteDashboardPage() {
 
         {/* System & Events */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md">
+          <Card className=" dark:bg-slate-800">
             <CardContent className="p-8">
               <TopDevicesChart
                 data={transformedTopDevices}
@@ -567,7 +569,7 @@ export default function WebsiteDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md overflow-hidden flex flex-col">
+          <Card className="rounded dark:bg-slate-800">
             <CardHeader className="p-8 pb-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -591,7 +593,7 @@ export default function WebsiteDashboardPage() {
         </div>
 
         {/* UTM Performance */}
-        <Card className="bg-card dark:bg-gray-800 border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none rounded-md overflow-hidden">
+        <Card className="rounded bg-slate-800 overflow-hidden">
           <CardHeader className="p-8 pb-6 border-b border-border/40">
             <div className="flex flex-col space-y-6 md:flex-row md:items-center md:justify-between md:space-y-0">
               <div className="space-y-1 text-center md:text-left">
@@ -620,7 +622,7 @@ export default function WebsiteDashboardPage() {
         </Card>
 
         {/* Workflow & Funnel Intelligence */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <AutomationInsightTable
               data={finalDailyStats}
               isLoading={dailyLoading}
@@ -628,7 +630,7 @@ export default function WebsiteDashboardPage() {
             <FunnelInsightsCard
               isLoading={dailyLoading}
             />
-        </div>
+        </div> */}
 
         {/* Detailed Data Modal */}
         {selectedModal && (

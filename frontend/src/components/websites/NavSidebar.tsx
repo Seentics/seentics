@@ -73,15 +73,15 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
     ];
 
     return (
-        <aside className="w-[280px] h-screen fixed top-0 left-0 border-r border-border bg-background/50 backdrop-blur-xl flex flex-col hidden lg:flex z-50">
+        <aside className="w-[280px] h-screen fixed top-0 left-0 bg-gray-200  dark:bg-slate-800 backdrop-blur-xl flex flex-col hidden lg:flex z-50">
             <div className="p-8 pb-4">
                 <Link href="/" className="flex items-center gap-3 mb-10 group">
                     <Logo size="xl" showText={true} textClassName="text-xl font-bold text-foreground" />
                 </Link>
-
+{/* 
                 <div className="px-2 mb-4">
                     <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase opacity-60">Management</p>
-                </div>
+                </div> */}
             </div>
 
             <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
@@ -100,12 +100,12 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                             )}>
                                 <link.icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
                                 <div className="flex flex-col min-w-0">
-                                    <span className={cn("font-bold text-[13px] leading-tight truncate", isActive ? "text-primary" : "text-foreground")}>{link.title}</span>
-                                    <span className={cn("text-[9px] font-medium opacity-60 truncate", isActive ? "text-primary/80" : "text-muted-foreground")}>{link.description}</span>
+                                    <span className={cn("font-bold text-[13px] leading-tight truncate", isActive ? "dark:text-white text-black" : "text-foreground")}>{link.title}</span>
+                                    {/* <span className={cn("text-[9px] font-medium opacity-60 truncate", isActive ? "text-muted-foreground" : "text-muted-foreground")}>{link.description}</span> */}
                                 </div>
-                                {isActive && (
+                                {/* {isActive && (
                                     <div className="absolute left-0 w-1 h-6 bg-primary rounded-full" />
-                                )}
+                                )} */}
                             </div>
                         </Link>
                     );

@@ -89,7 +89,16 @@ func UnifiedAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			userID := fmt.Sprintf("%.0f", claims["user_id"].(float64))
+			var userID string
+			switch val := claims["user_id"].(type) {
+			case string:
+				userID = val
+			case float64:
+				userID = fmt.Sprintf("%.0f", val)
+			default:
+				userID = fmt.Sprintf("%v", val)
+			}
+
 			c.Set("user_id", userID)
 			c.Set("user_email", claims["email"])
 		}

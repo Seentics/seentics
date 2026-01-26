@@ -28,7 +28,7 @@ export function TrafficOverview({
   const listData = dailyStats?.daily_stats || [];
 
   return (
-    <Card className={cn("col-span-full border-border bg-card shadow-sm shadow-black/5 rounded-xl overflow-hidden", className)}>
+    <Card className={cn("col-span-full bg-slate-800 shadow-sm shadow-black/5 overflow-hidden border-none outline-none", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
         <div className="space-y-1">
           <CardTitle className="text-lg font-bold tracking-tight">Traffic Overview</CardTitle>
@@ -36,7 +36,7 @@ export function TrafficOverview({
         </div>
         {/* View Tabs */}
         <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-auto">
-          <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/10 p-1 rounded-lg">
+          <TabsList className="grid w-full grid-cols-3 h-9  p-1 rounded-lg">
             <TabsTrigger value="chart" className="text-[10px] font-semibold uppercase tracking-wider px-3 gap-1.5 rounded-md active:bg-background">
               <BarChart3 className="h-3.5 w-3.5" />
               Chart
@@ -53,7 +53,7 @@ export function TrafficOverview({
         </Tabs>
       </CardHeader>
       
-      <CardContent className='p-6 pt-0'>
+      <CardContent className='p-6 pt-0 border-none outline-none'>
         {view === 'chart' && (
           <div className="h-[400px]">
             <TrafficChart data={dailyStats} isLoading={isLoading} />

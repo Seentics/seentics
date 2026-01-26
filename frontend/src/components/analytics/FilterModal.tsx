@@ -40,13 +40,13 @@ export function FilterModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="h-10 px-4 bg-card/50 backdrop-blur-md border-border/40 hover:bg-card transition-colors rounded-xl shadow-sm font-bold text-xs uppercase tracking-widest gap-2">
+        <Button  className="h-10 px-4 bg-slate-800 backdrop-blur-md  hover:bg-card transition-colors rounded-xl shadow-sm font-bold text-xs uppercase tracking-widest gap-2">
           <Filter className="h-3.5 w-3.5" />
           Filters
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[420px] rounded-2xl border-border/40 bg-background/95 backdrop-blur-xl shadow-2xl p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-4 border-b border-border/10">
+        <DialogHeader className="p-6 pb-4 border-b border-border/10"> 
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold tracking-tight">Analytics Filters</DialogTitle>
           </div>

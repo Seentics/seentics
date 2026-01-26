@@ -41,8 +41,9 @@ func (m *Migrator) RunMigrations(ctx context.Context) error {
 	}
 
 	// Create migrate instance
+	// Path is relative to the binary's working directory (repo root in Docker)
 	migrator, err := migrate.NewWithDatabaseInstance(
-		"file://migrations",
+		"file://internal/shared/migrations",
 		"postgres",
 		driver,
 	)

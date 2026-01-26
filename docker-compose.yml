@@ -43,6 +43,8 @@ services:
   analytics-frontend:
     build:
       context: ./frontend
+      args:
+        - NEXT_PUBLIC_API_URL=http://localhost:3002
     container_name: analytics-frontend
     ports:
       - "3000:3000"

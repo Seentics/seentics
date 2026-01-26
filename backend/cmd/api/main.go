@@ -5,6 +5,7 @@ import (
 	"analytics-app/internal/modules/analytics/repository"
 	"analytics-app/internal/modules/analytics/repository/privacy"
 	"analytics-app/internal/modules/analytics/services"
+	"strings"
 
 	// New Modules
 	autoHandlerPkg "analytics-app/internal/modules/automations/handlers"
@@ -14,6 +15,14 @@ import (
 	funnelHandlerPkg "analytics-app/internal/modules/funnels/handlers"
 	funnelRepoPkg "analytics-app/internal/modules/funnels/repository"
 	funnelServicePkg "analytics-app/internal/modules/funnels/services"
+
+	websiteHandlerPkg "analytics-app/internal/modules/websites/handlers"
+	websiteRepoPkg "analytics-app/internal/modules/websites/repository"
+	websiteServicePkg "analytics-app/internal/modules/websites/services"
+
+	authHandlerPkg "analytics-app/internal/modules/auth/handlers"
+	authRepoPkg "analytics-app/internal/modules/auth/repository"
+	authServicePkg "analytics-app/internal/modules/auth/services"
 
 	billingHandlerPkg "analytics-app/internal/modules/billing/handlers"
 	"analytics-app/internal/modules/billing/models"
@@ -129,8 +138,18 @@ func main() {
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 
+	// Auth
+	authRepo := authRepoPkg.NewAuthRepository(db)
+	authService := authServicePkg.NewAuthService(authRepo, cfg, logger)
+	authHandler := authHandlerPkg.NewAuthHandler(authService, logger)
+
+	// Websites
+	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
+	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, logger)
+	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
+
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, billingService, logger)
+	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, logger)
 
 	// Start server
 	server := &http.Server{
@@ -235,6 +254,8 @@ func setupRouter(
 	autoHandler *autoHandlerPkg.AutomationHandler,
 	funnelHandler *funnelHandlerPkg.FunnelHandler,
 	billingHandler *billingHandlerPkg.BillingHandler,
+	authHandler *authHandlerPkg.AuthHandler,
+	websiteHandler *websiteHandlerPkg.WebsiteHandler,
 	billingService *billingServicePkg.BillingService,
 	logger zerolog.Logger,
 ) *gin.Engine {
@@ -243,6 +264,7 @@ func setupRouter(
 	}
 
 	router := gin.New()
+	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 
 	// Middleware
 	router.Use(middleware.Logger(logger))
@@ -250,13 +272,26 @@ func setupRouter(
 	router.Use(middleware.ClientIPMiddleware())             // Add client IP middleware for geolocation
 	router.Use(middleware.RateLimitMiddleware(redisClient)) // Apply standalone rate limiting (skipped in Cloud mode)
 
-	// Unified Auth validation for all routes (except health check)
+	// Unified Auth validation for all routes (except health check and public endpoints)
 	router.Use(func(c *gin.Context) {
-		// Skip validation for health check
+		// Skip for health check
 		if c.Request.URL.Path == "/health" {
 			c.Next()
 			return
 		}
+
+		// Skip for OPTIONS (CORS Preflight)
+		if c.Request.Method == "OPTIONS" {
+			c.Next()
+			return
+		}
+
+		// Skip for Auth routes (OSS mode typically)
+		if strings.HasPrefix(c.Request.URL.Path, "/api/v1/user/auth/") {
+			c.Next()
+			return
+		}
+
 		// Apply Unified Auth Middleware
 		middleware.UnifiedAuthMiddleware(cfg)(c)
 	})
@@ -350,6 +385,21 @@ func setupRouter(
 
 		// Public Billing routes (Webhooks)
 		v1.POST("/billing/paddle-webhook", billingHandler.PaddleWebhook)
+
+		// Auth routes
+		auth := v1.Group("/user/auth")
+		{
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/login", authHandler.Login)
+		}
+
+		// Website management
+		websites := v1.Group("/user/websites")
+		{
+			websites.GET("", websiteHandler.List)
+			websites.POST("", websiteHandler.Create)
+			websites.DELETE("/:id", websiteHandler.Delete)
+		}
 	}
 
 	return router
