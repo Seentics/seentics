@@ -147,30 +147,7 @@ export default function SignInPage() {
             </div>
          </div>
 
-         <div className="relative z-10">
-            {/* Value Prop Card */}
-            <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 backdrop-blur-md max-w-md">
-                <ShieldCheck className="text-primary h-8 w-8 mb-6 opacity-80" />
-                <p className="text-lg font-bold text-slate-200 leading-relaxed mb-6">
-                    "The most sophisticated analytics platform I've ever used. The automation engine is a game changer."
-                </p>
-                <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black text-white">
-                        SR
-                    </div>
-                    <div>
-                        <p className="text-sm font-black text-white">Sarah Renaldi</p>
-                        <p className="text-xs font-bold text-slate-500">Founder @ DataFlow</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-12 flex items-center gap-8 opacity-40 grayscale contrast-125">
-                <span className="text-2xl font-black italic tracking-tighter text-white">TECHLEAP</span>
-                <span className="text-2xl font-black italic tracking-tighter text-white">FLUX</span>
-                <span className="text-2xl font-black italic tracking-tighter text-white">ORBIT</span>
-            </div>
-         </div>
+        
       </div>
 
       {/* --- RIGHT COLUMN: SIGNIN FLOW --- */}
@@ -203,7 +180,7 @@ export default function SignInPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full max-w-md"
+                className="w-full max-w-lg bg-slate-800 rounded-md p-6"
             >
                 <div className="mb-10 text-center lg:text-left">
                     <h2 className="text-4xl font-black tracking-tight mb-3">Welcome back.</h2>
@@ -237,7 +214,7 @@ export default function SignInPage() {
                         <div className="space-y-1.5 px-1">
                             <div className="flex justify-between items-center pr-1">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Security Phrase</label>
-                                <Link href="/forgot-password" size="sm" className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">
+                                <Link href="/forgot-password"  className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">
                                     Forgot?
                                 </Link>
                             </div>
@@ -262,11 +239,11 @@ export default function SignInPage() {
                     <Button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full h-15 bg-slate-900 dark:bg-primary hover:bg-slate-800 dark:hover:bg-primary/90 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none transition-all active:scale-[0.98]"
+                        className="w-full bg-slate-900 dark:bg-primary hover:bg-slate-800 dark:hover:bg-primary/90 text-white font-black  uppercase tracking-widest rounded-xl shadow-xl shadow-slate-200/50 dark:shadow-none transition-all active:scale-[0.98]"
                     >
                         {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
                             <span className="flex items-center gap-2">
-                                Authorize Access <ArrowRight size={18} />
+                                Sign In <ArrowRight size={18} />
                             </span>
                         )}
                     </Button>
@@ -280,16 +257,7 @@ export default function SignInPage() {
             </motion.div>
         </div>
 
-        {/* Footer Overlay */}
-        <div className="mt-12 pt-12 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center md:text-left">
-                © 2026 SEENTICS ANALYTICS. ALL RIGHTS RESERVED.
-            </p>
-            <div className="flex items-center gap-6">
-                <Link href="/privacy" className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest">Privacy</Link>
-                <Link href="/terms" className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest">Terms</Link>
-            </div>
-        </div>
+        
       </div>
     </div>
   );

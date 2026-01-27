@@ -170,7 +170,7 @@ export default function SignUpPage() {
       name: 'Starter',
       price: '$0',
       description: 'Side projects & hobbyists',
-      features: ['1 Website', '5,000 Events', 'Basic Reports'],
+      features: ['1 Website', '5,000 Events', '1 Automation', '1 Funnel', 'Basic Reports'],
       buttonText: 'Get Started',
       accent: 'blue'
     },
@@ -179,7 +179,7 @@ export default function SignUpPage() {
       name: 'Growth',
       price: '$19',
       description: 'Scaling startups & SaaS',
-      features: ['5 Websites', '50,000 Events', 'Custom Goals', 'Email Support'],
+      features: ['5 Websites', '100,000 Events', '10 Automations', '10 Funnels', 'Custom Goals', 'Email Support'],
       buttonText: 'Power Up',
       accent: 'indigo',
       popular: true
@@ -189,17 +189,24 @@ export default function SignUpPage() {
       name: 'Scale',
       price: '$49',
       description: 'Agencies & Enterprises',
-      features: ['Unlimited Sites', '250,000 Events', 'Advanced API', 'Priority Support'],
+      features: ['Unlimited Sites', '300,000 Events', '30 Automations', '30 Funnels', 'Advanced API', 'Priority Support'],
       buttonText: 'Go Global',
       accent: 'purple'
     }
   ];
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-white dark:bg-[#020617] selection:bg-primary/20">
+    <div className={`min-h-screen grid ${step === 2 ? 'grid-cols-1' : 'lg:grid-cols-2'} bg-white dark:bg-[#020617] selection:bg-primary/20 transition-all duration-500`}>
       
       {/* --- LEFT COLUMN: IMMERSIVE BRANDING --- */}
-      <div className="relative hidden lg:flex flex-col justify-between p-16 bg-[#0B0F1A] overflow-hidden">
+      {step === 1 && (
+        <motion.div 
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.5 }}
+            className="relative hidden lg:flex flex-col justify-between p-16 bg-[#0B0F1A] overflow-hidden"
+        >
          {/* Background Visuals */}
          <div className="absolute inset-0 z-0">
             <div className="absolute top-[-10%] left-[-10%] w-[80%] h-[80%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
@@ -237,37 +244,15 @@ export default function SignUpPage() {
             </div>
          </div>
 
-         <div className="relative z-10">
-            {/* Testimonial / Social Proof Card */}
-            <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 backdrop-blur-md max-w-md">
-                <Quote className="text-primary h-8 w-8 mb-6 opacity-50" />
-                <p className="text-lg font-bold text-slate-200 leading-relaxed mb-6">
-                    "Since switching to Seentics, our conversion rates increased by 40% through automated behavioral insights."
-                </p>
-                <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-primary to-indigo-600 flex items-center justify-center font-black text-white">
-                        JD
-                    </div>
-                    <div>
-                        <p className="text-sm font-black text-white">Jonas Darrick</p>
-                        <p className="text-xs font-bold text-slate-500">CTO @ HyperLog</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-12 flex items-center gap-8 opacity-40 grayscale contrast-125">
-                <span className="text-2xl font-black italic tracking-tighter text-white">TECHLEAP</span>
-                <span className="text-2xl font-black italic tracking-tighter text-white">FLUX</span>
-                <span className="text-2xl font-black italic tracking-tighter text-white">ORBIT</span>
-            </div>
-         </div>
-      </div>
+        
+        </motion.div>
+      )}
 
       {/* --- RIGHT COLUMN: AUTH FLOW --- */}
-      <div className="relative flex flex-col p-8 md:p-16 overflow-y-auto custom-scrollbar">
+      <div className="relative flex flex-col p-8  overflow-y-auto custom-scrollbar">
         
         {/* Mobile Header */}
-        <div className="lg:hidden flex items-center justify-between mb-12">
+        <div className="lg:hidden flex items-center justify-between mb-6">
             <Link href="/" className="flex items-center gap-2">
                 <Logo size="lg" />
                 <span className="text-xl font-black tracking-tight">SEENTICS</span>
@@ -278,11 +263,11 @@ export default function SignUpPage() {
         </div>
 
         {/* Desktop Top Nav Overlay */}
-        <div className="hidden lg:flex justify-end mb-12">
+        <div className="hidden lg:flex justify-end mb-6">
             <div className="flex items-center gap-4">
                 <span className="text-sm font-medium text-slate-400">Already have an account?</span>
                 <Link href="/signin">
-                    <Button variant="outline" className="h-11 px-6 font-black text-xs uppercase tracking-widest rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">Sign In</Button>
+                    <Button variant="outline" className="h-11 font-black text-xs uppercase tracking-widest rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">Sign In</Button>
                 </Link>
             </div>
         </div>
@@ -290,7 +275,7 @@ export default function SignUpPage() {
         <div className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto w-full">
             
             {/* Step Indicator - Refined Minimalist */}
-            <div className="w-full max-w-md mb-16 px-4">
+            <div className="w-full max-w-lg mb-12 px-4">
                 <div className="relative flex justify-between items-center h-10">
                     <div className="absolute top-1/2 left-0 w-full h-px bg-slate-100 dark:bg-slate-800 -translate-y-1/2" />
                     <motion.div 
@@ -337,7 +322,7 @@ export default function SignUpPage() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.5 }}
-                        className="w-full max-w-md"
+                        className="w-full max-w-lg bg-slate-800 p-6 rounded-md"
                     >
                         <div className="mb-10 text-center lg:text-left">
                             <h2 className="text-4xl font-black tracking-tight mb-3">Begin your journey.</h2>
@@ -353,7 +338,7 @@ export default function SignUpPage() {
 
                             <div className="space-y-4">
                                 <div className="space-y-1.5 px-1">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Full Access Name</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Full Name</label>
                                     <div className="relative group">
                                         <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
                                         <Input
@@ -368,7 +353,7 @@ export default function SignUpPage() {
                                 </div>
 
                                 <div className="space-y-1.5 px-1">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Transmission Email</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Your Email</label>
                                     <div className="relative group">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
                                         <Input
@@ -384,7 +369,7 @@ export default function SignUpPage() {
                                 </div>
 
                                 <div className="space-y-1.5 px-1">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Security Phrase</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Security Password</label>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="relative group">
                                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
@@ -406,7 +391,7 @@ export default function SignUpPage() {
                                             <Input
                                                 name="confirmPassword"
                                                 type={showConfirmPassword ? "text" : "password"}
-                                                placeholder="Confirm"
+                                                placeholder="Confirm Password"
                                                 value={formData.confirmPassword}
                                                 onChange={handleInputChange}
                                                 className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded-2xl font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
@@ -420,11 +405,11 @@ export default function SignUpPage() {
                             <Button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full h-15 bg-slate-900 dark:bg-primary hover:bg-slate-800 dark:hover:bg-primary/90 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none transition-all active:scale-[0.98]"
+                                className="w-full  p-6 bg-slate-900 dark:bg-primary hover:bg-slate-800 dark:hover:bg-primary/90 text-white font-black  uppercase tracking-widest rounded-xl shadow-xl shadow-slate-200/50 dark:shadow-none transition-all active:scale-[0.98]"
                             >
                                 {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
                                     <span className="flex items-center gap-2">
-                                        Establish Access <ArrowRight size={18} />
+                                        Create Account <ArrowRight size={18} />
                                     </span>
                                 )}
                             </Button>
@@ -443,14 +428,14 @@ export default function SignUpPage() {
                             <p className="text-slate-500 font-medium">Activate the engine that fits your mission.</p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {plans.map((plan, i) => (
                                 <motion.div
                                     key={plan.id}
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.1 }}
-                                    className={`relative p-8 rounded-[3rem] border transition-all duration-500 overflow-hidden group ${
+                                    className={`relative p-8 rounded-md border transition-all duration-500 overflow-hidden group ${
                                         plan.popular 
                                         ? 'bg-slate-900 border-slate-800 text-white shadow-2xl' 
                                         : 'bg-white dark:bg-slate-900/40 border-slate-100 dark:border-slate-800 hover:border-primary/50'
@@ -505,16 +490,7 @@ export default function SignUpPage() {
             </AnimatePresence>
         </div>
 
-        {/* Footer Overlay */}
-        <div className="mt-12 pt-12 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center md:text-left">
-                © 2026 SEENTICS ANALYTICS. ALL RIGHTS RESERVED.
-            </p>
-            <div className="flex items-center gap-6">
-                <Link href="/privacy" className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest">Privacy</Link>
-                <Link href="/terms" className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest">Terms</Link>
-            </div>
-        </div>
+      
       </div>
     </div>
   );
