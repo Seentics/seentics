@@ -10,6 +10,7 @@ import {
     CreditCard,
     Settings,
     LogOut,
+    Shield,
     Globe,
     User,
     ChevronUp
@@ -56,6 +57,12 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
             href: `/websites/${websiteId}/billing`,
             icon: CreditCard,
             description: 'Plan & Payment'
+        },
+        {
+            title: 'Privacy',
+            href: `/websites/${websiteId}/privacy`,
+            icon: Shield,
+            description: 'GDPR & Privacy'
         },
         {
             title: 'Settings',

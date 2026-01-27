@@ -1,26 +1,21 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import api from './api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
-// =============================================================================
-// TYPES & INTERFACES
-// =============================================================================
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api/v1';
 
+// Types
 export interface AutomationAction {
     id?: string;
     automationId?: string;
-    actionType: string; // 'email', 'webhook', 'slack', 'discord', 'custom'
+    actionType: 'webhook' | 'email' | 'script' | 'banner';
     actionConfig: Record<string, any>;
     orderIndex?: number;
-    createdAt?: string;
-    updatedAt?: string;
 }
 
 export interface AutomationCondition {
     id?: string;
     automationId?: string;
-    conditionType: string; // 'visitor_count', 'time_range', 'device_type', 'country', 'custom'
+    conditionType: string;
     conditionConfig: Record<string, any>;
-    createdAt?: string;
 }
 
 export interface AutomationStats {
@@ -37,12 +32,12 @@ export interface Automation {
     userId: string;
     name: string;
     description: string;
-    triggerType: string; // 'event', 'page_visit', 'time_based', 'utm_campaign'
+    triggerType: string;
     triggerConfig: Record<string, any>;
     isActive: boolean;
     createdAt: string;
     updatedAt: string;
-    actions?: AutomationAction[];
+    actions: AutomationAction[];
     conditions?: AutomationCondition[];
     stats?: AutomationStats;
 }
@@ -52,194 +47,171 @@ export interface CreateAutomationRequest {
     description?: string;
     triggerType: string;
     triggerConfig?: Record<string, any>;
-    actions: Omit<AutomationAction, 'id' | 'automationId' | 'createdAt' | 'updatedAt' | 'orderIndex'>[];
-    conditions?: Omit<AutomationCondition, 'id' | 'automationId' | 'createdAt'>[];
+    actions: AutomationAction[];
+    conditions?: AutomationCondition[];
 }
 
-export interface UpdateAutomationRequest {
-    name?: string;
-    description?: string;
-    triggerType?: string;
-    triggerConfig?: Record<string, any>;
-    isActive?: boolean;
-    actions?: Omit<AutomationAction, 'id' | 'automationId' | 'createdAt' | 'updatedAt' | 'orderIndex'>[];
-    conditions?: Omit<AutomationCondition, 'id' | 'automationId' | 'createdAt'>[];
+// API Functions
+async function fetchAutomations(websiteId: string, token: string): Promise<{ automations: Automation[]; total: number }> {
+    const response = await fetch(`${API_URL}/websites/${websiteId}/automations`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch automations');
+    }
+
+    return response.json();
 }
 
-export interface ListAutomationsResponse {
-    automations: Automation[];
-    total: number;
+async function createAutomation(websiteId: string, data: CreateAutomationRequest, token: string): Promise<Automation> {
+    const response = await fetch(`${API_URL}/websites/${websiteId}/automations`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create automation');
+    }
+
+    return response.json();
 }
 
-// =============================================================================
-// API FUNCTIONS
-// =============================================================================
-
-// List all automations for a website
-export const listAutomations = async (websiteId: string): Promise<ListAutomationsResponse> => {
-    const response = await api.get(`/websites/${websiteId}/automations`);
-    return response.data;
-};
-
-// Get a single automation by ID
-export const getAutomation = async (websiteId: string, automationId: string): Promise<Automation> => {
-    const response = await api.get(`/websites/${websiteId}/automations/${automationId}`);
-    return response.data;
-};
-
-// Create a new automation
-export const createAutomation = async (
-    websiteId: string,
-    data: CreateAutomationRequest
-): Promise<Automation> => {
-    const response = await api.post(`/websites/${websiteId}/automations`, data);
-    return response.data;
-};
-
-// Update an existing automation
-export const updateAutomation = async (
-    websiteId: string,
-    automationId: string,
-    data: UpdateAutomationRequest
-): Promise<Automation> => {
-    const response = await api.put(`/websites/${websiteId}/automations/${automationId}`, data);
-    return response.data;
-};
-
-// Delete an automation
-export const deleteAutomation = async (websiteId: string, automationId: string): Promise<void> => {
-    await api.delete(`/websites/${websiteId}/automations/${automationId}`);
-};
-
-// Toggle automation active status
-export const toggleAutomation = async (websiteId: string, automationId: string): Promise<Automation> => {
-    const response = await api.post(`/websites/${websiteId}/automations/${automationId}/toggle`);
-    return response.data;
-};
-
-// Get automation statistics
-export const getAutomationStats = async (websiteId: string, automationId: string): Promise<AutomationStats> => {
-    const response = await api.get(`/websites/${websiteId}/automations/${automationId}/stats`);
-    return response.data;
-};
-
-// =============================================================================
-// QUERY KEYS
-// =============================================================================
-
-export const automationKeys = {
-    all: ['automations'] as const,
-    lists: () => [...automationKeys.all, 'list'] as const,
-    list: (websiteId: string) => [...automationKeys.lists(), websiteId] as const,
-    details: () => [...automationKeys.all, 'detail'] as const,
-    detail: (websiteId: string, automationId: string) => [...automationKeys.details(), websiteId, automationId] as const,
-    stats: (websiteId: string, automationId: string) => [...automationKeys.all, 'stats', websiteId, automationId] as const,
-};
-
-// =============================================================================
-// REACT QUERY HOOKS
-// =============================================================================
-
-// List automations hook
-export const useAutomations = (websiteId: string) => {
-    return useQuery<ListAutomationsResponse>({
-        queryKey: automationKeys.list(websiteId),
-        queryFn: () => listAutomations(websiteId),
-        enabled: !!websiteId,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+async function updateAutomation(websiteId: string, automationId: string, data: Partial<CreateAutomationRequest>, token: string): Promise<Automation> {
+    const response = await fetch(`${API_URL}/websites/${websiteId}/automations/${automationId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
     });
-};
 
-// Get single automation hook
-export const useAutomation = (websiteId: string, automationId: string) => {
-    return useQuery<Automation>({
-        queryKey: automationKeys.detail(websiteId, automationId),
-        queryFn: () => getAutomation(websiteId, automationId),
-        enabled: !!websiteId && !!automationId,
-        staleTime: 5 * 60 * 1000,
+    if (!response.ok) {
+        throw new Error('Failed to update automation');
+    }
+
+    return response.json();
+}
+
+async function deleteAutomation(websiteId: string, automationId: string, token: string): Promise<void> {
+    const response = await fetch(`${API_URL}/websites/${websiteId}/automations/${automationId}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
     });
-};
 
-// Get automation stats hook
-export const useAutomationStats = (websiteId: string, automationId: string) => {
-    return useQuery<AutomationStats>({
-        queryKey: automationKeys.stats(websiteId, automationId),
-        queryFn: () => getAutomationStats(websiteId, automationId),
-        enabled: !!websiteId && !!automationId,
-        staleTime: 2 * 60 * 1000, // 2 minutes
+    if (!response.ok) {
+        throw new Error('Failed to delete automation');
+    }
+}
+
+async function toggleAutomation(websiteId: string, automationId: string, token: string): Promise<Automation> {
+    const response = await fetch(`${API_URL}/websites/${websiteId}/automations/${automationId}/toggle`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
     });
-};
 
-// =============================================================================
-// MUTATION HOOKS
-// =============================================================================
+    if (!response.ok) {
+        throw new Error('Failed to toggle automation');
+    }
 
-// Create automation mutation
-export const useCreateAutomation = () => {
+    return response.json();
+}
+
+async function getAutomationStats(websiteId: string, automationId: string, token: string): Promise<AutomationStats> {
+    const response = await fetch(`${API_URL}/websites/${websiteId}/automations/${automationId}/stats`, {
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch automation stats');
+    }
+
+    return response.json();
+}
+
+// React Query Hooks
+export function useAutomations(websiteId: string) {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') || '' : '';
+
+    return useQuery({
+        queryKey: ['automations', websiteId],
+        queryFn: () => fetchAutomations(websiteId, token),
+        enabled: !!websiteId && !!token,
+    });
+}
+
+export function useCreateAutomation() {
     const queryClient = useQueryClient();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') || '' : '';
 
-    return useMutation<Automation, Error, { websiteId: string; data: CreateAutomationRequest }>({
-        mutationFn: ({ websiteId, data }) => createAutomation(websiteId, data),
+    return useMutation({
+        mutationFn: ({ websiteId, data }: { websiteId: string; data: CreateAutomationRequest }) =>
+            createAutomation(websiteId, data, token),
         onSuccess: (_, variables) => {
-            // Invalidate the list to refetch
-            queryClient.invalidateQueries({
-                queryKey: automationKeys.list(variables.websiteId),
-            });
+            queryClient.invalidateQueries({ queryKey: ['automations', variables.websiteId] });
         },
     });
-};
+}
 
-// Update automation mutation
-export const useUpdateAutomation = () => {
+export function useUpdateAutomation() {
     const queryClient = useQueryClient();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') || '' : '';
 
-    return useMutation<
-        Automation,
-        Error,
-        { websiteId: string; automationId: string; data: UpdateAutomationRequest }
-    >({
-        mutationFn: ({ websiteId, automationId, data }) => updateAutomation(websiteId, automationId, data),
-        onSuccess: (data, variables) => {
-            // Invalidate both list and detail
-            queryClient.invalidateQueries({
-                queryKey: automationKeys.list(variables.websiteId),
-            });
-            queryClient.invalidateQueries({
-                queryKey: automationKeys.detail(variables.websiteId, variables.automationId),
-            });
-        },
-    });
-};
-
-// Delete automation mutation
-export const useDeleteAutomation = () => {
-    const queryClient = useQueryClient();
-
-    return useMutation<void, Error, { websiteId: string; automationId: string }>({
-        mutationFn: ({ websiteId, automationId }) => deleteAutomation(websiteId, automationId),
+    return useMutation({
+        mutationFn: ({ websiteId, automationId, data }: { websiteId: string; automationId: string; data: Partial<CreateAutomationRequest> }) =>
+            updateAutomation(websiteId, automationId, data, token),
         onSuccess: (_, variables) => {
-            // Invalidate the list
-            queryClient.invalidateQueries({
-                queryKey: automationKeys.list(variables.websiteId),
-            });
+            queryClient.invalidateQueries({ queryKey: ['automations', variables.websiteId] });
         },
     });
-};
+}
 
-// Toggle automation mutation
-export const useToggleAutomation = () => {
+export function useDeleteAutomation() {
     const queryClient = useQueryClient();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') || '' : '';
 
-    return useMutation<Automation, Error, { websiteId: string; automationId: string }>({
-        mutationFn: ({ websiteId, automationId }) => toggleAutomation(websiteId, automationId),
-        onSuccess: (data, variables) => {
-            // Update both list and detail
-            queryClient.invalidateQueries({
-                queryKey: automationKeys.list(variables.websiteId),
-            });
-            queryClient.invalidateQueries({
-                queryKey: automationKeys.detail(variables.websiteId, variables.automationId),
-            });
+    return useMutation({
+        mutationFn: ({ websiteId, automationId }: { websiteId: string; automationId: string }) =>
+            deleteAutomation(websiteId, automationId, token),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['automations', variables.websiteId] });
         },
     });
-};
+}
+
+export function useToggleAutomation() {
+    const queryClient = useQueryClient();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') || '' : '';
+
+    return useMutation({
+        mutationFn: ({ websiteId, automationId }: { websiteId: string; automationId: string }) =>
+            toggleAutomation(websiteId, automationId, token),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['automations', variables.websiteId] });
+        },
+    });
+}
+
+export function useAutomationStats(websiteId: string, automationId: string) {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') || '' : '';
+
+    return useQuery({
+        queryKey: ['automation-stats', websiteId, automationId],
+        queryFn: () => getAutomationStats(websiteId, automationId, token),
+        enabled: !!websiteId && !!automationId && !!token,
+    });
+}

@@ -62,6 +62,37 @@ func (h *BillingHandler) CreateCheckout(c *gin.Context) {
 	})
 }
 
+// CreatePortalSession returns a URL for the user to manage their billing
+func (h *BillingHandler) CreatePortalSession(c *gin.Context) {
+	// In a real scenario, this would return a Paddle customer portal URL
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"url": "https://buy.paddle.com/customer-portal/mock",
+		},
+	})
+}
+
+// SelectFreePlan initializes a free subscription for the authenticated user
+func (h *BillingHandler) SelectFreePlan(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if err := h.service.SelectFreePlan(c.Request.Context(), userID.(string)); err != nil {
+		h.logger.Error().Err(err).Str("user_id", userID.(string)).Msg("Failed to select free plan")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to activate free plan"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Free plan activated successfully",
+	})
+}
+
 // PaddleWebhook handles incoming webhooks from Paddle
 func (h *BillingHandler) PaddleWebhook(c *gin.Context) {
 	var payload map[string]interface{}

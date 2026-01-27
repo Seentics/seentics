@@ -1,111 +1,166 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { 
+  Users, 
+  UserPlus, 
+  MoreVertical, 
+  Trash2, 
+  Shield, 
+  Mail,
+  Loader2,
+  Clock
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Mail, 
-  Trash2, 
-  UserPlus, 
-  ShieldCheck,
-  MoreVertical,
-  Target
-} from 'lucide-react';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { cn } from '@/lib/utils';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getMembers, removeMember, WebsiteMember } from '@/lib/websites-api';
+import { InviteMemberModal } from '../websites/modals/InviteMemberModal';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
+import { useAuth } from '@/stores/useAuthStore';
 
-export function TeamSettingsComponent() {
-  const teamMembers = [
-    { name: 'Shohag Miah', email: 'shohag@seentics.com', role: 'Owner', status: 'Active' },
-    { name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'Active' },
-    { name: 'Sarah Wilson', email: 'sarah@design.co', role: 'Viewer', status: 'Pending' }
-  ];
+interface TeamSettingsComponentProps {
+  websiteId: string;
+}
+
+export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps) {
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: members = [], isLoading } = useQuery({
+    queryKey: ['members', websiteId],
+    queryFn: () => getMembers(websiteId),
+    enabled: !!websiteId,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (userId: string) => removeMember(websiteId, userId),
+    onSuccess: () => {
+      toast.success('Member removed successfully');
+      queryClient.invalidateQueries({ queryKey: ['members', websiteId] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to remove member');
+    },
+  });
+
+  const handleRemoveMember = (memberUserId: string) => {
+    if (confirm('Are you sure you want to remove this member?')) {
+      deleteMutation.mutate(memberUserId);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="space-y-1">
           <h2 className="text-xl font-bold tracking-tight">Team Management</h2>
           <p className="text-muted-foreground text-sm">Manage who has access to this website's analytics.</p>
         </div>
-        <Button className="h-10 px-5 font-bold rounded-xl gap-2 shadow-lg shadow-primary/10 transition-transform active:scale-95">
+        <Button 
+          onClick={() => setIsInviteModalOpen(true)}
+          className="h-10 px-5 font-bold rounded-xl gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
+        >
           <UserPlus className="h-4 w-4" />
           Invite Member
         </Button>
       </div>
 
-      <div className="space-y-4">
-        {teamMembers.map((member, i) => (
-          <div key={i} className="flex items-center justify-between p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10 group">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-10 w-10 border border-border/50">
-                <AvatarFallback className="bg-primary/10 text-primary font-black text-xs">
-                    {member.name.charAt(0)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-bold truncate">{member.name}</p>
-                  {member.role === 'Owner' && (
-                    <Badge className="h-4 text-[9px] uppercase font-black bg-primary/10 text-primary hover:bg-primary/20 border-none">
+      {/* Member List */}
+      <div className="grid grid-cols-1 gap-3">
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : members.length === 0 ? (
+          <div className="text-center py-12 bg-muted/20 rounded-3xl border border-dashed">
+            <p className="text-muted-foreground">No team members besides you. Invite someone to collaborate.</p>
+          </div>
+        ) : (
+          members.map((member: WebsiteMember) => (
+            <div 
+              key={member.id} 
+              className="group bg-card/50 backdrop-blur-sm p-4 rounded-2xl flex items-center justify-between border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-foreground">{member.userName || 'Unknown User'}</h4>
+                    <Badge variant="outline" className="text-[10px] font-black uppercase tracking-wider px-1.5 h-4 bg-muted/50">
                       {member.role}
                     </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 text-muted-foreground">
-                  <Mail className="h-3 w-3" />
-                  <span className="text-xs">{member.email}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1 font-medium">
+                      <Mail className="h-3 w-3 opacity-50" />
+                      {member.userEmail}
+                    </span>
+                    <span className="flex items-center gap-1 font-medium">
+                      <Clock className="h-3 w-3 opacity-50" />
+                      Joined {format(new Date(member.createdAt), 'MMM d, yyyy')}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-4">
-              <div className="hidden sm:flex flex-col items-end">
-                <Badge variant={member.status === 'Active' ? 'default' : 'secondary'} className={cn(
-                  "h-5 text-[9px] font-bold uppercase tracking-widest px-2",
-                  member.status === 'Active' ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-none" : ""
-                )}>
-                  {member.status}
-                </Badge>
+              <div className="flex items-center gap-2">
+                {member.userId !== user?.id && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
+                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 rounded-xl p-2">
+                      <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer flex items-center">
+                        <Shield className="h-4 w-4 text-muted-foreground" />
+                        Change Role
+                      </DropdownMenuItem>
+                      <DropdownMenuItem 
+                        onClick={() => handleRemoveMember(member.userId)}
+                        className="rounded-lg gap-2 cursor-pointer text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Remove Member
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-lg hover:bg-muted">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40 rounded-xl border-border/50 shadow-xl">
-                  <DropdownMenuItem className="text-xs font-bold gap-2">
-                    <ShieldCheck className="h-4 w-4" /> Change Role
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-xs font-bold gap-2 text-rose-600 focus:text-rose-600">
-                    <Trash2 className="h-4 w-4" /> Remove User
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
-      <div className="p-8 rounded-3xl bg-muted/30 border border-dashed border-muted-foreground/20 flex flex-col items-center text-center space-y-4">
-         <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm border border-border/50">
-            <Target className="h-6 w-6 text-muted-foreground" />
-         </div>
-         <div className="space-y-1">
-            <p className="text-sm font-bold">Collaborate with your team</p>
-            <p className="text-xs text-muted-foreground max-w-[350px] leading-relaxed">
-                Invited members can view reports, manage goals, or configure tracking settings depending on their assigned role.
-            </p>
-         </div>
+      <div className="bg-muted/30 p-4 rounded-2xl border border-border/50 flex gap-4">
+        <Shield className="h-5 w-5 text-muted-foreground shrink-0" />
+        <div className="space-y-1">
+          <p className="text-xs font-bold text-foreground">Advanced Permissions</p>
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            Owners can manage billing and delete websites. 
+            Admins have full access to settings and reports.
+            Viewers have read-only access to all analytics data.
+          </p>
+        </div>
       </div>
+
+      <InviteMemberModal 
+        open={isInviteModalOpen} 
+        onOpenChange={setIsInviteModalOpen} 
+        websiteId={websiteId} 
+      />
     </div>
   );
 }

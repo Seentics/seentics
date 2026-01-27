@@ -5,9 +5,28 @@ import (
 	"analytics-app/internal/modules/analytics/repository"
 	"analytics-app/internal/modules/analytics/repository/privacy"
 	"analytics-app/internal/modules/analytics/services"
+	billingHandlerPkg "analytics-app/internal/modules/billing/handlers"
+	"analytics-app/internal/modules/billing/models"
+	billingRepoPkg "analytics-app/internal/modules/billing/repository"
+	billingServicePkg "analytics-app/internal/modules/billing/services"
+	"analytics-app/internal/shared/config"
+	"analytics-app/internal/shared/database"
+	"analytics-app/internal/shared/kafka"
+	"analytics-app/internal/shared/middleware"
+	"analytics-app/internal/shared/migrations"
+	"context"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
-	// New Modules
+	authHandlerPkg "analytics-app/internal/modules/auth/handlers"
+	authRepoPkg "analytics-app/internal/modules/auth/repository"
+	authServicePkg "analytics-app/internal/modules/auth/services"
+
 	autoHandlerPkg "analytics-app/internal/modules/automations/handlers"
 	autoRepoPkg "analytics-app/internal/modules/automations/repository"
 	autoServicePkg "analytics-app/internal/modules/automations/services"
@@ -19,28 +38,6 @@ import (
 	websiteHandlerPkg "analytics-app/internal/modules/websites/handlers"
 	websiteRepoPkg "analytics-app/internal/modules/websites/repository"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
-
-	authHandlerPkg "analytics-app/internal/modules/auth/handlers"
-	authRepoPkg "analytics-app/internal/modules/auth/repository"
-	authServicePkg "analytics-app/internal/modules/auth/services"
-
-	billingHandlerPkg "analytics-app/internal/modules/billing/handlers"
-	"analytics-app/internal/modules/billing/models"
-	billingRepoPkg "analytics-app/internal/modules/billing/repository"
-	billingServicePkg "analytics-app/internal/modules/billing/services"
-
-	"analytics-app/internal/shared/config"
-	"analytics-app/internal/shared/database"
-	"analytics-app/internal/shared/kafka"
-	"analytics-app/internal/shared/middleware"
-	"analytics-app/internal/shared/migrations"
-	"context"
-	"log"
-	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -81,7 +78,6 @@ func main() {
 	logger.Info().Msg("Setting up automatic partitions...")
 	if err := database.SetupMonthlyPartitions(context.Background(), db); err != nil {
 		logger.Error().Err(err).Msg("Failed to setup automatic partitions")
-		// Don't fail startup, but log the error
 	} else {
 		logger.Info().Msg("Automatic partitions setup completed")
 	}
@@ -108,20 +104,28 @@ func main() {
 	analyticsRepo := repository.NewMainAnalyticsRepository(db)
 	privacyRepo := privacy.NewPrivacyRepository(db)
 
-	// Initialize new modules (Billing first, then others that depend on it)
+	// Auth
+	authRepo := authRepoPkg.NewAuthRepository(db)
+	authService := authServicePkg.NewAuthService(authRepo, cfg, logger)
+	authHandler := authHandlerPkg.NewAuthHandler(authService, logger)
+
+	// Billing
 	billingRepo := billingRepoPkg.NewBillingRepository(db)
-	billingService := billingServicePkg.NewBillingService(billingRepo)
+	billingService := billingServicePkg.NewBillingService(billingRepo, redisClient)
 	billingHandler := billingHandlerPkg.NewBillingHandler(billingService, logger)
 
-	// Initialize Kafka service
-	kafkaService := kafka.NewKafkaService(cfg.KafkaBootstrapServers, cfg.KafkaTopicEvents, logger)
+	// Websites
+	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
+	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, billingService, redisClient, logger)
+	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
 
-	// Initialize services
-	eventService := services.NewEventService(eventRepo, db, kafkaService, billingService, logger)
+	// Kafka & Events
+	kafkaService := kafka.NewKafkaService(cfg.KafkaBootstrapServers, cfg.KafkaTopicEvents, logger)
+	eventService := services.NewEventService(eventRepo, db, kafkaService, billingService, websiteService, logger)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, logger)
 	privacyService := services.NewPrivacyService(privacyRepo, logger)
 
-	// Initialize handlers
+	// Handlers
 	eventHandler := handlers.NewEventHandler(eventService, logger)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService, logger)
 	privacyHandler := handlers.NewPrivacyHandler(privacyService, logger)
@@ -138,16 +142,6 @@ func main() {
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 
-	// Auth
-	authRepo := authRepoPkg.NewAuthRepository(db)
-	authService := authServicePkg.NewAuthService(authRepo, cfg, logger)
-	authHandler := authHandlerPkg.NewAuthHandler(authService, logger)
-
-	// Websites
-	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
-	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, logger)
-	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
-
 	// Setup router
 	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, logger)
 
@@ -160,7 +154,6 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	// Start server in goroutine
 	go func() {
 		logger.Info().Str("port", cfg.Port).Msg("Server starting")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -168,31 +161,24 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	logger.Info().Msg("Server shutting down...")
-
-	// Graceful shutdown with event buffer flush
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer shutdownCancel()
 
-	// Shutdown event service first to flush buffered events
-	logger.Info().Msg("Flushing buffered events...")
 	if err := eventService.Shutdown(10 * time.Second); err != nil {
 		logger.Error().Err(err).Msg("Failed to shutdown event service gracefully")
 	}
 
-	// Close Kafka service
 	if kafkaService != nil {
 		if err := kafkaService.Close(); err != nil {
 			logger.Error().Err(err).Msg("Failed to close Kafka service")
 		}
 	}
 
-	// Then shutdown HTTP server
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error().Err(err).Msg("Server forced to shutdown")
 	} else {
@@ -201,115 +187,50 @@ func main() {
 }
 
 func setupLogger(cfg *config.Config) zerolog.Logger {
-	// Configure log level
 	level, err := zerolog.ParseLevel(cfg.LogLevel)
 	if err != nil {
 		level = zerolog.InfoLevel
 	}
 
-	// Configure logging for production
 	if cfg.Environment == "production" {
-		// Production: JSON format, UTC time, structured logging with sampling
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 		zerolog.SetGlobalLevel(level)
-
-		// Add log sampling to reduce noise in production
-		sampledLogger := zerolog.New(os.Stdout).
-			Level(level).
-			With().
-			Timestamp().
-			Str("service", "analytics").
-			Str("version", "1.0.0").
-			Logger().
-			Sample(&zerolog.BasicSampler{N: 100}) // Sample 1 in 100 logs for high-volume operations
-
-		return sampledLogger
+		return zerolog.New(os.Stdout).Level(level).With().Timestamp().Str("service", "analytics").Str("version", "1.0.0").Logger().Sample(&zerolog.BasicSampler{N: 100})
 	} else {
-		// Development: Pretty console output
 		zerolog.TimeFieldFormat = time.RFC3339
 		zerolog.SetGlobalLevel(level)
-
-		return zerolog.New(zerolog.ConsoleWriter{
-			Out:        os.Stdout,
-			TimeFormat: time.RFC3339,
-		}).
-			Level(level).
-			With().
-			Timestamp().
-			Str("service", "analytics").
-			Str("version", "1.0.0").
-			Logger()
+		return zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).Level(level).With().Timestamp().Str("service", "analytics").Str("version", "1.0.0").Logger()
 	}
 }
 
-func setupRouter(
-	cfg *config.Config,
-	redisClient *redis.Client,
-	eventService *services.EventService,
-	eventHandler *handlers.EventHandler,
-	analyticsHandler *handlers.AnalyticsHandler,
-	privacyHandler *handlers.PrivacyHandler,
-	healthHandler *handlers.HealthHandler,
-	adminHandler *handlers.AdminHandler,
-	autoHandler *autoHandlerPkg.AutomationHandler,
-	funnelHandler *funnelHandlerPkg.FunnelHandler,
-	billingHandler *billingHandlerPkg.BillingHandler,
-	authHandler *authHandlerPkg.AuthHandler,
-	websiteHandler *websiteHandlerPkg.WebsiteHandler,
-	billingService *billingServicePkg.BillingService,
-	logger zerolog.Logger,
-) *gin.Engine {
+func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
-
-	// Middleware
 	router.Use(middleware.Logger(logger))
 	router.Use(middleware.Recovery(logger))
-	router.Use(middleware.ClientIPMiddleware())             // Add client IP middleware for geolocation
-	router.Use(middleware.RateLimitMiddleware(redisClient)) // Apply standalone rate limiting (skipped in Cloud mode)
+	router.Use(middleware.ClientIPMiddleware())
+	router.Use(middleware.RateLimitMiddleware(redisClient))
 
-	// Unified Auth validation for all routes (except health check and public endpoints)
 	router.Use(func(c *gin.Context) {
-		// Skip for health check
-		if c.Request.URL.Path == "/health" {
+		if c.Request.URL.Path == "/health" || c.Request.Method == "OPTIONS" || strings.HasPrefix(c.Request.URL.Path, "/api/v1/user/auth/") {
 			c.Next()
 			return
 		}
-
-		// Skip for OPTIONS (CORS Preflight)
-		if c.Request.Method == "OPTIONS" {
-			c.Next()
-			return
-		}
-
-		// Skip for Auth routes (OSS mode typically)
-		if strings.HasPrefix(c.Request.URL.Path, "/api/v1/user/auth/") {
-			c.Next()
-			return
-		}
-
-		// Apply Unified Auth Middleware
 		middleware.UnifiedAuthMiddleware(cfg)(c)
 	})
 
-	// Health check with buffer stats
 	router.GET("/health", healthHandler.HealthCheck)
-
-	// API routes
 	v1 := router.Group("/api/v1")
 	{
-		// Analytics routes
 		analytics := v1.Group("/analytics")
 		{
-			// Event tracking routes
 			analytics.POST("/event", eventHandler.TrackEvent)
 			analytics.POST("/event/batch", eventHandler.TrackBatchEvents)
 			analytics.GET("/dashboard/:website_id", analyticsHandler.GetDashboard)
-
 			analytics.GET("/top-pages/:website_id", analyticsHandler.GetTopPages)
 			analytics.GET("/page-utm-breakdown/:website_id", analyticsHandler.GetPageUTMBreakdown)
 			analytics.GET("/top-referrers/:website_id", analyticsHandler.GetTopReferrers)
@@ -329,24 +250,21 @@ func setupRouter(
 			analytics.GET("/visitor-insights/:website_id", analyticsHandler.GetVisitorInsights)
 		}
 
-		// Privacy routes
-		privacy := v1.Group("/privacy")
+		v1.Group("/privacy")
 		{
-			privacy.GET("/export/:user_id", privacyHandler.ExportUserAnalytics)
-			privacy.DELETE("/delete/:user_id", privacyHandler.DeleteUserAnalytics)
-			privacy.DELETE("/delete/website/:website_id", privacyHandler.DeleteWebsiteAnalytics)
-			privacy.PUT("/anonymize/:user_id", privacyHandler.AnonymizeUserAnalytics)
-			privacy.GET("/retention-policies", privacyHandler.GetDataRetentionPolicies)
-			privacy.POST("/cleanup", privacyHandler.RunDataRetentionCleanup)
+			v1.GET("/privacy/export/:user_id", privacyHandler.ExportUserAnalytics)
+			v1.DELETE("/privacy/delete/:user_id", privacyHandler.DeleteUserAnalytics)
+			v1.DELETE("/privacy/delete/website/:website_id", privacyHandler.DeleteWebsiteAnalytics)
+			v1.PUT("/privacy/anonymize/:user_id", privacyHandler.AnonymizeUserAnalytics)
+			v1.GET("/privacy/retention-policies", privacyHandler.GetDataRetentionPolicies)
+			v1.POST("/privacy/cleanup", privacyHandler.RunDataRetentionCleanup)
 		}
 
-		// Admin routes
 		admin := v1.Group("/admin")
 		{
 			admin.GET("/analytics/stats", adminHandler.GetAnalyticsStats)
 		}
 
-		// Automations routes
 		automations := v1.Group("/websites/:website_id/automations")
 		{
 			automations.GET("", autoHandler.ListAutomations)
@@ -358,11 +276,9 @@ func setupRouter(
 			automations.GET("/:automation_id/stats", autoHandler.GetAutomationStats)
 		}
 
-		// Public Workflow/Automation routes (for trackers)
 		v1.GET("/workflows/site/:website_id/active", autoHandler.GetActiveWorkflows)
 		v1.POST("/workflows/execution/action", autoHandler.TrackExecution)
 
-		// Funnels routes
 		funnels := v1.Group("/websites/:website_id/funnels")
 		{
 			funnels.GET("", funnelHandler.ListFunnels)
@@ -373,32 +289,42 @@ func setupRouter(
 			funnels.GET("/:funnel_id/stats", funnelHandler.GetFunnelStats)
 		}
 
-		// Public Funnel routes (for trackers)
 		v1.GET("/funnels/active", funnelHandler.GetActiveFunnels)
 		v1.POST("/funnels/track", funnelHandler.TrackFunnelEvent)
-		// Billing routes
+
 		billing := v1.Group("/user/billing")
 		{
 			billing.GET("/usage", billingHandler.GetUsage)
 			billing.POST("/checkout", billingHandler.CreateCheckout)
+			billing.POST("/portal", billingHandler.CreatePortalSession)
+			billing.POST("/select-free", billingHandler.SelectFreePlan)
 		}
 
-		// Public Billing routes (Webhooks)
 		v1.POST("/billing/paddle-webhook", billingHandler.PaddleWebhook)
 
-		// Auth routes
 		auth := v1.Group("/user/auth")
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
 		}
 
-		// Website management
 		websites := v1.Group("/user/websites")
 		{
 			websites.GET("", websiteHandler.List)
-			websites.POST("", websiteHandler.Create)
+			websites.POST("", middleware.BillingLimitMiddleware(billingService, models.ResourceWebsites), websiteHandler.Create)
+			websites.GET("/:id", websiteHandler.Get)
+			websites.PUT("/:id", websiteHandler.Update)
 			websites.DELETE("/:id", websiteHandler.Delete)
+
+			// Goals
+			websites.GET("/:id/goals", websiteHandler.ListGoals)
+			websites.POST("/:id/goals", websiteHandler.CreateGoal)
+			websites.DELETE("/:id/goals/:goal_id", websiteHandler.DeleteGoal)
+
+			// Team Members
+			websites.GET("/:id/members", websiteHandler.ListMembers)
+			websites.POST("/:id/members", websiteHandler.AddMember)
+			websites.DELETE("/:id/members/:user_id", websiteHandler.RemoveMember)
 		}
 	}
 

@@ -9,8 +9,12 @@ import (
 	"sync"
 	"time"
 
+	billingModels "analytics-app/internal/modules/billing/models"
 	billingServicePkg "analytics-app/internal/modules/billing/services"
+	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"analytics-app/internal/shared/utils"
+	"net/url"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
@@ -23,11 +27,12 @@ const (
 )
 
 type EventService struct {
-	repo    *repository.EventRepository
-	db      *pgxpool.Pool
-	logger  zerolog.Logger
-	kafka   *kafka.KafkaService
-	billing *billingServicePkg.BillingService
+	repo     *repository.EventRepository
+	db       *pgxpool.Pool
+	logger   zerolog.Logger
+	kafka    *kafka.KafkaService
+	billing  *billingServicePkg.BillingService
+	websites *websiteServicePkg.WebsiteService
 
 	// Simple event channel for async processing (now fed from Kafka)
 	batchChan chan []models.Event
@@ -40,7 +45,7 @@ type EventService struct {
 	shutdownMu sync.RWMutex
 }
 
-func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, billingSvc *billingServicePkg.BillingService, logger zerolog.Logger) *EventService {
+func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, billingSvc *billingServicePkg.BillingService, websiteSvc *websiteServicePkg.WebsiteService, logger zerolog.Logger) *EventService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	service := &EventService{
@@ -48,6 +53,7 @@ func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSv
 		db:        db,
 		kafka:     kafkaSvc,
 		billing:   billingSvc,
+		websites:  websiteSvc,
 		logger:    logger,
 		batchChan: make(chan []models.Event, 500),
 		ctx:       ctx,
@@ -113,13 +119,43 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 	}
 	s.shutdownMu.RUnlock()
 
-	// Check billing limits
-	// userID := "anonymous" // Default or extract from context if available
-	// Note: In a real system, we'd need the UserID associated with the WebsiteID
-	// For now, we'll assume we can verify this.
-	// if can, err := s.billing.CanTrackEvent(ctx, userID); err != nil || !can {
-	//     return nil, fmt.Errorf("monthly event limit reached")
-	// }
+	// 1. Validate Website and Domain
+	website, err := s.websites.GetWebsiteBySiteID(ctx, event.WebsiteID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid website_id")
+	}
+
+	if !website.IsActive {
+		return nil, fmt.Errorf("website is inactive")
+	}
+
+	// Domain Validation
+	if event.Referrer != nil && *event.Referrer != "" {
+		refURL, err := url.Parse(*event.Referrer)
+		if err == nil {
+			refDomain := strings.TrimPrefix(refURL.Hostname(), "www.")
+			siteDomain := strings.TrimPrefix(website.URL, "http://")
+			siteDomain = strings.TrimPrefix(siteDomain, "https://")
+			siteDomain = strings.Split(siteDomain, "/")[0]
+			siteDomain = strings.TrimPrefix(siteDomain, "www.")
+
+			if refDomain != siteDomain && !strings.Contains(refDomain, "localhost") {
+				s.logger.Warn().
+					Str("ref_domain", refDomain).
+					Str("site_domain", siteDomain).
+					Msg("Domain mismatch")
+				// We might still allow it but track it? Or block it?
+				// For now, let's keep it strict if requested
+				return nil, fmt.Errorf("domain mismatch")
+			}
+		}
+	}
+
+	// 2. Check billing limits
+	can, err := s.billing.CanTrackEvent(ctx, website.UserID.String())
+	if err != nil || !can {
+		return nil, fmt.Errorf("monthly event limit reached")
+	}
 
 	// Validate and set defaults
 	if event.EventType == "" {
@@ -137,6 +173,9 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 		s.logger.Error().Err(err).Msg("Failed to produce event to Kafka")
 		return nil, fmt.Errorf("failed to process event")
 	}
+
+	// Increment event count (async-ish if via billing service cache)
+	go s.billing.IncrementUsage(context.Background(), website.UserID.String(), billingModels.ResourceMonthlyEvents, 1)
 
 	return &models.EventResponse{
 		Status:    "accepted",

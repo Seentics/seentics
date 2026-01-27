@@ -7,63 +7,64 @@ import { GitBranch, Check, X } from 'lucide-react';
 export const ConditionNode = memo(({ data, selected, isConnectable }: NodeProps) => {
   return (
     <div
-      className={`relative px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border-2 transition-all min-w-[200px] shadow-sm hover:shadow-md ${
+      className={`relative px-4 py-3 rounded-2xl bg-slate-900 border-2 transition-all min-w-[200px] shadow-xl hover:shadow-2xl ${
         selected
-          ? 'border-primary shadow-lg ring-4 ring-primary/10 scale-105'
-          : 'border-border hover:border-purple-500/30'
+          ? 'border-primary ring-4 ring-primary/20 scale-105 z-50'
+          : 'border-slate-800 hover:border-purple-500/40'
       }`}
     >
       <Handle
         type="target"
-        position={Position.Left}
+        position={Position.Top}
         isConnectable={isConnectable}
-        className="w-3 h-3 bg-primary border-2 border-white dark:border-slate-900 !left-[-6px]"
+        style={{ left: '50%', transform: 'translateX(-50%)', top: -6, width: 12, height: 12, zIndex: 10 }}
+        className="!bg-primary border-2 border-slate-900"
       />
 
-      <div className="flex items-center gap-3 mb-3">
-        <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-600">
+      <div className="flex items-center gap-4 mb-3">
+        <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
           <GitBranch size={20} />
         </div>
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-widest text-purple-600 mb-0.5">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-500/80 mb-0.5">
             Logic Split
           </p>
-          <h4 className="text-sm font-black text-slate-900 dark:text-white truncate">
+          <h4 className="text-sm font-black text-white truncate leading-tight">
             {data.label || 'Condition Check'}
           </h4>
         </div>
       </div>
 
       {data.label && data.label !== 'Condition Check' && (
-        <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-2 text-xs font-medium text-muted-foreground border border-border/50 text-center mb-2">
+        <div className="bg-slate-800/50 rounded-xl p-2 text-xs font-bold text-slate-400 border border-slate-700/50 text-center mb-2 italic">
           {data.label}
         </div>
       )}
 
-      <div className="absolute -right-3 top-[30%] flex items-center">
-        <div className="mr-2 text-[9px] font-black text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950 px-1.5 py-0.5 rounded border border-green-200 dark:border-green-800">
-          TRUE
-        </div>
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="true"
-          isConnectable={isConnectable}
-          className="w-3 h-3 bg-green-500 border-2 border-white dark:border-slate-900 !right-0 !top-0 !transform-none"
-        />
+      {/* TRUE Output */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="true"
+        isConnectable={isConnectable}
+        style={{ left: '35%', bottom: -6, width: 12, height: 12, zIndex: 10 }}
+        className="!bg-green-500 border-2 border-slate-900"
+      />
+      <div className="absolute left-[35%] bottom-2 -translate-x-1/2 text-[8px] font-black text-green-500/80 pointer-events-none uppercase tracking-tighter">
+        True
       </div>
 
-      <div className="absolute -right-3 bottom-[30%] flex items-center">
-        <div className="mr-2 text-[9px] font-black text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950 px-1.5 py-0.5 rounded border border-red-200 dark:border-red-800">
-          FALSE
-        </div>
-        <Handle
-          type="source"
-          position={Position.Right}
-          id="false"
-          isConnectable={isConnectable}
-          className="w-3 h-3 bg-red-500 border-2 border-white dark:border-slate-900 !right-0 !top-0 !transform-none"
-        />
+      {/* FALSE Output */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="false"
+        isConnectable={isConnectable}
+        style={{ left: '65%', bottom: -6, width: 12, height: 12, zIndex: 10 }}
+        className="!bg-red-500 border-2 border-slate-900"
+      />
+      <div className="absolute left-[65%] bottom-2 -translate-x-1/2 text-[8px] font-black text-red-500/80 pointer-events-none uppercase tracking-tighter">
+        False
       </div>
     </div>
   );

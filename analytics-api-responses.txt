@@ -1,0 +1,586 @@
+[0;34m=== Seentics Analytics API Responses ===[0m
+
+[0;32mUsing Website ID: ab0c31b85eda52a18e4a6abd[0m
+
+[1;33m═══════════════════════════════════════════════════════[0m
+[0;34m           CORE ANALYTICS ENDPOINTS[0m
+[1;33m═══════════════════════════════════════════════════════[0m
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m1. Dashboard (7 days)[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/dashboard/ab0c31b85eda52a18e4a6abd?days=7[0m
+
+{
+  "website_id": "ab0c31b85eda52a18e4a6abd",
+  "date_range": 7,
+  "total_visitors": 1,
+  "unique_visitors": 1,
+  "live_visitors": 0,
+  "page_views": 3,
+  "session_duration": 0.023323,
+  "bounce_rate": 0,
+  "new_visitors": 0,
+  "returning_visitors": 0,
+  "comparison": {
+    "current_period": {
+      "page_views": 0,
+      "total_visitors": 0,
+      "unique_visitors": 0,
+      "sessions": 0,
+      "bounce_rate": 0,
+      "avg_session_time": 0,
+      "pages_per_session": 0
+    },
+    "previous_period": {
+      "page_views": 0,
+      "total_visitors": 0,
+      "unique_visitors": 0,
+      "sessions": 0,
+      "bounce_rate": 0,
+      "avg_session_time": 0,
+      "pages_per_session": 0
+    },
+    "total_visitor_change": null,
+    "visitor_change": null,
+    "pageview_change": null,
+    "session_change": null,
+    "bounce_change": null,
+    "duration_change": null
+  },
+  "metrics": {
+    "page_views": 3,
+    "total_visitors": 1,
+    "unique_visitors": 1,
+    "sessions": 1,
+    "bounce_rate": 0,
+    "avg_session_time": 0.023323,
+    "pages_per_session": 3
+  },
+  "top_pages": null,
+  "top_sources": null,
+  "top_countries": null,
+  "geolocation": {
+    "countries": null,
+    "continents": null,
+    "regions": null,
+    "cities": null
+  }
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m2. Dashboard (30 days)[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/dashboard/ab0c31b85eda52a18e4a6abd?days=30[0m
+
+{
+  "website_id": "ab0c31b85eda52a18e4a6abd",
+  "date_range": 30,
+  "total_visitors": 1,
+  "unique_visitors": 1,
+  "live_visitors": 0,
+  "page_views": 3,
+  "session_duration": 0.023323,
+  "bounce_rate": 0,
+  "new_visitors": 0,
+  "returning_visitors": 0,
+  "comparison": {
+    "current_period": {
+      "page_views": 0,
+      "total_visitors": 0,
+      "unique_visitors": 0,
+      "sessions": 0,
+      "bounce_rate": 0,
+      "avg_session_time": 0,
+      "pages_per_session": 0
+    },
+    "previous_period": {
+      "page_views": 0,
+      "total_visitors": 0,
+      "unique_visitors": 0,
+      "sessions": 0,
+      "bounce_rate": 0,
+      "avg_session_time": 0,
+      "pages_per_session": 0
+    },
+    "total_visitor_change": null,
+    "visitor_change": null,
+    "pageview_change": null,
+    "session_change": null,
+    "bounce_change": null,
+    "duration_change": null
+  },
+  "metrics": {
+    "page_views": 3,
+    "total_visitors": 1,
+    "unique_visitors": 1,
+    "sessions": 1,
+    "bounce_rate": 0,
+    "avg_session_time": 0.023323,
+    "pages_per_session": 3
+  },
+  "top_pages": null,
+  "top_sources": null,
+  "top_countries": null,
+  "geolocation": {
+    "countries": null,
+    "continents": null,
+    "regions": null,
+    "cities": null
+  }
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m3. Top Pages[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/top-pages/ab0c31b85eda52a18e4a6abd?days=7&limit=10[0m
+
+{
+  "date_range": "7 days",
+  "top_pages": [
+    {
+      "page": "/home",
+      "views": 3,
+      "unique": 1,
+      "bounce_rate": 0,
+      "avg_time": 0,
+      "entry_rate": 300,
+      "exit_rate": null
+    }
+  ],
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m4. Top Referrers[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/top-referrers/ab0c31b85eda52a18e4a6abd?days=7&limit=10[0m
+
+{
+  "date_range": "7 days",
+  "top_referrers": [
+    {
+      "referrer": "Direct Traffic",
+      "views": 3,
+      "unique": 1,
+      "bounce_rate": 0
+    }
+  ],
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m5. Top Sources[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/top-sources/ab0c31b85eda52a18e4a6abd?days=7&limit=10[0m
+
+{
+  "date_range": "7 days",
+  "top_sources": [
+    {
+      "source": "Direct Traffic",
+      "views": 3,
+      "unique_visitors": 1,
+      "bounce_rate": 0
+    }
+  ],
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m═══════════════════════════════════════════════════════[0m
+[0;34m        GEOGRAPHIC ANALYTICS ENDPOINTS[0m
+[1;33m═══════════════════════════════════════════════════════[0m
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m6. Top Countries[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/top-countries/ab0c31b85eda52a18e4a6abd?days=7&limit=10[0m
+
+{
+  "date_range": "7 days",
+  "top_countries": [
+    {
+      "country": "US",
+      "views": 3,
+      "unique": 1,
+      "visitors": 1,
+      "bounce_rate": 0
+    }
+  ],
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m7. Geolocation Breakdown[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/geolocation-breakdown/ab0c31b85eda52a18e4a6abd?days=7[0m
+
+{
+  "countries": [
+    {
+      "name": "US",
+      "count": 1,
+      "percentage": 100
+    }
+  ],
+  "continents": [
+    {
+      "name": "Unknown",
+      "count": 1,
+      "percentage": 100
+    }
+  ],
+  "regions": [
+    {
+      "name": "Unknown",
+      "count": 1,
+      "percentage": 100
+    }
+  ],
+  "cities": [
+    {
+      "name": "Unknown",
+      "count": 1,
+      "percentage": 100
+    }
+  ]
+}
+
+
+[1;33m═══════════════════════════════════════════════════════[0m
+[0;34m      DEVICE & BROWSER ANALYTICS ENDPOINTS[0m
+[1;33m═══════════════════════════════════════════════════════[0m
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m8. Top Browsers[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/top-browsers/ab0c31b85eda52a18e4a6abd?days=7&limit=10[0m
+
+{
+  "date_range": "7 days",
+  "top_browsers": [
+    {
+      "browser": "Chrome",
+      "views": 3,
+      "unique": 1,
+      "visitors": 1,
+      "bounce_rate": 0
+    }
+  ],
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m9. Top Devices[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/top-devices/ab0c31b85eda52a18e4a6abd?days=7&limit=10[0m
+
+{
+  "date_range": "7 days",
+  "top_devices": [
+    {
+      "device": "desktop",
+      "views": 3,
+      "unique": 1,
+      "visitors": 1,
+      "bounce_rate": 0
+    }
+  ],
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m10. Top OS[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/top-os/ab0c31b85eda52a18e4a6abd?days=7&limit=10[0m
+
+{
+  "date_range": "7 days",
+  "top_os": [
+    {
+      "os": "MacOS",
+      "views": 3,
+      "unique": 1,
+      "visitors": 1,
+      "bounce_rate": 0
+    }
+  ],
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m═══════════════════════════════════════════════════════[0m
+[0;34m        TIME-BASED ANALYTICS ENDPOINTS[0m
+[1;33m═══════════════════════════════════════════════════════[0m
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m11. Daily Stats (30 days)[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/daily-stats/ab0c31b85eda52a18e4a6abd?days=30[0m
+
+{
+  "daily_stats": [
+    {
+      "date": "2026-01-27",
+      "views": 3,
+      "unique": 1
+    }
+  ],
+  "date_range": "30 days",
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m12. Daily Stats (7 days)[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/daily-stats/ab0c31b85eda52a18e4a6abd?days=7[0m
+
+{
+  "daily_stats": [
+    {
+      "date": "2026-01-27",
+      "views": 3,
+      "unique": 1
+    }
+  ],
+  "date_range": "7 days",
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m13. Hourly Stats (UTC)[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/hourly-stats/ab0c31b85eda52a18e4a6abd?timezone=UTC[0m
+
+{
+  "date_range": "24 hours",
+  "hourly_stats": [
+    {
+      "hour": "15",
+      "views": 3,
+      "unique": 1,
+      "timestamp": "2026-01-27T15:00:00Z",
+      "hour_label": "15:00"
+    }
+  ],
+  "timezone": "UTC",
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m14. Hourly Stats (EST)[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/hourly-stats/ab0c31b85eda52a18e4a6abd?timezone=America/New_York[0m
+
+{
+  "date_range": "24 hours",
+  "hourly_stats": [
+    {
+      "hour": "10",
+      "views": 3,
+      "unique": 1,
+      "timestamp": "2026-01-27T10:00:00-05:00",
+      "hour_label": "10:00"
+    }
+  ],
+  "timezone": "America/New_York",
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m═══════════════════════════════════════════════════════[0m
+[0;34m         TRAFFIC ANALYTICS ENDPOINTS[0m
+[1;33m═══════════════════════════════════════════════════════[0m
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m15. Traffic Summary[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/traffic-summary/ab0c31b85eda52a18e4a6abd?days=7[0m
+
+{
+  "total_page_views": 3,
+  "total_visitors": 1,
+  "unique_visitors": 1,
+  "total_sessions": 1,
+  "bounce_rate": 0,
+  "avg_session_time": 0,
+  "pages_per_session": 3,
+  "growth_rate": 0,
+  "visitors_growth_rate": 0,
+  "sessions_growth_rate": 0,
+  "new_visitors": 0,
+  "returning_visitors": 0,
+  "engagement_score": 50,
+  "retention_rate": 25
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m16. Activity Trends[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/activity-trends/ab0c31b85eda52a18e4a6abd[0m
+
+{
+  "website_id": "ab0c31b85eda52a18e4a6abd",
+  "trends": [
+    {
+      "timestamp": "2026-01-27T15:00:00Z",
+      "visitors": 1,
+      "page_views": 3,
+      "events": 3,
+      "sessions": 0,
+      "engagement": 0,
+      "label": "15:00"
+    }
+  ]
+}
+
+
+[1;33m═══════════════════════════════════════════════════════[0m
+[0;34m         VISITOR ANALYTICS ENDPOINTS[0m
+[1;33m═══════════════════════════════════════════════════════[0m
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m17. Live Visitors[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/live-visitors/ab0c31b85eda52a18e4a6abd[0m
+
+{
+  "live_visitors": 0,
+  "timestamp": "now",
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m18. Visitor Insights[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/visitor-insights/ab0c31b85eda52a18e4a6abd?days=7[0m
+
+{
+  "website_id": "ab0c31b85eda52a18e4a6abd",
+  "date_range": 7,
+  "new_visitors": 0,
+  "returning_visitors": 0,
+  "avg_session_duration": 0,
+  "new_visitor_percentage": 0,
+  "returning_visitor_percentage": 0
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m19. User Retention[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/user-retention/ab0c31b85eda52a18e4a6abd?days=30[0m
+
+{
+  "website_id": "ab0c31b85eda52a18e4a6abd",
+  "date_range": 30,
+  "day_1": 0,
+  "day_7": 0,
+  "day_30": 0
+}
+
+
+[1;33m═══════════════════════════════════════════════════════[0m
+[0;34m      CUSTOM EVENTS & UTM ENDPOINTS[0m
+[1;33m═══════════════════════════════════════════════════════[0m
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m20. Custom Events[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/custom-events/ab0c31b85eda52a18e4a6abd?days=7[0m
+
+{
+  "date_range": "7 days",
+  "timeseries": [],
+  "top_events": [
+    {
+      "event_type": "button_click",
+      "count": 1,
+      "sample_properties": {
+        "button_id": "signup-btn",
+        "color": "blue"
+      },
+      "sample_event": {
+        "button_id": "signup-btn",
+        "color": "blue"
+      },
+      "common_properties": {
+        "button_id": "signup-btn",
+        "color": "blue"
+      }
+    }
+  ],
+  "total_events": 1,
+  "unique_events": 1,
+  "utm_performance": {
+    "campaigns": [],
+    "content": [],
+    "mediums": [
+      {
+        "medium": "none",
+        "pageviews": 3,
+        "unique_visitors": 1,
+        "visits": 3
+      }
+    ],
+    "sources": [
+      {
+        "pageviews": 3,
+        "sessions": 1,
+        "source": "direct",
+        "unique_visitors": 1,
+        "visits": 3
+      }
+    ],
+    "terms": []
+  },
+  "website_id": "ab0c31b85eda52a18e4a6abd"
+}
+
+
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+[0;34m21. Page UTM Breakdown[0m
+[1;33m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m
+Endpoint: [0;32m/analytics/page-utm-breakdown/ab0c31b85eda52a18e4a6abd?page_path=/home&days=7[0m
+
+{
+  "campaigns": [
+    {
+      "campaign": "none",
+      "unique_visitors": 1,
+      "visits": 3
+    }
+  ],
+  "mediums": [
+    {
+      "medium": "none",
+      "unique_visitors": 1,
+      "visits": 3
+    }
+  ],
+  "sources": [
+    {
+      "source": "direct",
+      "unique_visitors": 1,
+      "visits": 3
+    }
+  ]
+}
+
+
+[0;32m═══════════════════════════════════════════════════════[0m
+[0;32m           ALL RESPONSES DISPLAYED[0m
+[0;32m═══════════════════════════════════════════════════════[0m

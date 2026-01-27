@@ -30,7 +30,9 @@ export function TrackingCodeModal({
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setTrackingCode(`<script async src="${window.location.origin}/trackers/tracker.js" data-site-id="${siteId}"></script>`);
+      // New consolidated tracking script with auto-loading
+      setTrackingCode(`<!-- Seentics Analytics -->
+<script async src="${window.location.origin}/trackers/seentics-core.js" data-website-id="${siteId}"></script>`);
     }
   }, [siteId]);
 
@@ -126,7 +128,7 @@ export function TrackingCodeModal({
               <div className="text-sm">
                 <p className="font-semibold text-amber-900 dark:text-amber-100">What happens next?</p>
                 <p className="mt-2 text-amber-800 dark:text-amber-200">
-                  Once installed, Seentics will automatically track visitor behavior and generate deep insights. You'll see real-time data in your dashboard within minutes.
+                  Once installed, Seentics will automatically track visitor behavior, run automations (modals, banners, notifications), and monitor conversion funnels. You'll see real-time data in your dashboard within minutes.
                 </p>
               </div>
             </div>

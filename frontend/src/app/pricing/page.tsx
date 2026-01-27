@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { CheckCircle, Zap, Crown, Rocket, Star, ArrowRight } from 'lucide-react';
+import { CheckCircle, Zap, Crown, Rocket, Star, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { createCheckout } from '@/lib/billing-api';
+import { toast } from 'sonner';
 
 const plans = [
     {
@@ -80,6 +82,23 @@ const plans = [
 
 export default function PricingPage() {
     const [isYearly, setIsYearly] = useState(false);
+    const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+    const handleCheckout = async (planId: string) => {
+        try {
+            setLoadingPlan(planId);
+            if (planId === 'starter') {
+                window.location.href = '/websites'; // or dashboard
+                return;
+            }
+            const checkoutUrl = await createCheckout(planId);
+            window.location.href = checkoutUrl;
+        } catch (error) {
+            toast.error('Failed to initialize checkout. Please try again.');
+        } finally {
+            setLoadingPlan(null);
+        }
+    };
 
     return (
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-20 px-6">
@@ -155,11 +174,19 @@ export default function PricingPage() {
 
                                     <Button
                                         variant={plan.recommended ? "brand" : "outline"}
+                                        disabled={loadingPlan !== null}
+                                        onClick={() => handleCheckout(plan.id)}
                                         className={`w-full h-14 rounded-2xl font-black text-sm gap-2 transition-all ${plan.recommended ? 'shadow-xl shadow-primary/25' : 'hover:bg-slate-100 dark:hover:bg-slate-900'
                                             }`}
                                     >
-                                        Get Started
-                                        <ArrowRight size={18} />
+                                        {loadingPlan === plan.id ? (
+                                            <Loader2 size={18} className="animate-spin" />
+                                        ) : (
+                                            <>
+                                                Get Started
+                                                <ArrowRight size={18} />
+                                            </>
+                                        )}
                                     </Button>
                                 </CardContent>
                             </Card>

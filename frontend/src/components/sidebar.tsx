@@ -42,42 +42,31 @@ export default function Sidebar() {
   const websiteId = params.websiteId
 
 
-  // Generate navigation items based on context and feature flags
   const getNavigationItems = () => {
-    const baseItems = [
-      { name: 'Dashboard', href: '', icon: Home },
-      {
-        name: 'Analytics',
-        href: 'analytics',
-        icon: BarChart3,
-      },
+    const items = [
+      { name: 'Overview', href: '', icon: Home },
+      { name: 'Analytics', href: 'analytics', icon: BarChart3 },
     ];
 
-    // Add cloud-only features if enabled
+    if (hasFeature('WORKFLOW_BASIC')) {
+      items.push({ name: 'Automations', href: 'automations', icon: Workflow });
+    }
+
+    if (hasFeature('FUNNEL_BASIC')) {
+      items.push({ name: 'Funnels', href: 'funnels', icon: Target });
+    }
+
     if (hasFeature('BILLING_PAGE')) {
-      baseItems.push({
-        name: 'Billing',
-        href: 'billing',
-        icon: CreditCard,
-      });
+      items.push({ name: 'Billing', href: 'billing', icon: CreditCard });
     }
 
-    if (hasFeature('SUPPORT_CHAT')) {
-      baseItems.push({
-        name: 'Support',
-        href: 'support',
-        icon: HelpCircle,
-      });
-    }
+    // Always show Privacy as requested
+    items.push({ name: 'Privacy', href: 'privacy', icon: Shield });
 
-    // Add privacy settings (always available)
-    baseItems.push({
-      name: 'Privacy',
-      href: 'privacy',
-      icon: Shield,
-    });
+    // Always show Settings
+    items.push({ name: 'Settings', href: 'settings', icon: ChevronDown }); // Or use a different icon like Settings
 
-    return baseItems;
+    return items;
   };
 
   const navigationItems = getNavigationItems();
@@ -174,7 +163,7 @@ export default function Sidebar() {
                     Seentics
                   </span>
                 </div>
-              )}
+              )}=
             </div>
           </div>
 

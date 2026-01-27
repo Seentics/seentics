@@ -111,7 +111,7 @@ class PrivacyAPI {
       const params = new URLSearchParams();
       if (filters?.status) params.append('status', filters.status);
       if (filters?.type) params.append('type', filters.type);
-      
+
       const response = await api.get(`/user/privacy/requests?${params.toString()}`);
       return response.data;
     } catch (error) {
@@ -173,7 +173,7 @@ class PrivacyAPI {
   // Analytics-specific privacy methods
   async exportAnalyticsData(userId: string): Promise<any> {
     try {
-      const response = await api.get(`/analytics/privacy/export/${userId}`);
+      const response = await api.get(`/privacy/export/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Failed to export analytics data:', error);
@@ -183,7 +183,7 @@ class PrivacyAPI {
 
   async deleteAnalyticsData(userId: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await api.delete(`/analytics/privacy/delete/${userId}`);
+      const response = await api.delete(`/privacy/delete/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Failed to delete analytics data:', error);
@@ -191,9 +191,19 @@ class PrivacyAPI {
     }
   }
 
+  async deleteWebsiteAnalytics(websiteId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await api.delete(`/privacy/delete/website/${websiteId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to delete website analytics:', error);
+      throw error;
+    }
+  }
+
   async anonymizeAnalyticsData(userId: string): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await api.put(`/analytics/privacy/anonymize/${userId}`);
+      const response = await api.put(`/privacy/anonymize/${userId}`);
       return response.data;
     } catch (error) {
       console.error('Failed to anonymize analytics data:', error);
@@ -203,7 +213,7 @@ class PrivacyAPI {
 
   async getDataRetentionPolicies(): Promise<{ success: boolean; data: any[] }> {
     try {
-      const response = await api.get('/analytics/privacy/retention-policies');
+      const response = await api.get('/privacy/retention-policies');
       return response.data;
     } catch (error) {
       console.error('Failed to get data retention policies:', error);
@@ -213,7 +223,7 @@ class PrivacyAPI {
 
   async runDataRetentionCleanup(): Promise<{ success: boolean; message: string }> {
     try {
-      const response = await api.post('/analytics/privacy/cleanup');
+      const response = await api.post('/privacy/cleanup');
       return response.data;
     } catch (error) {
       console.error('Failed to run data retention cleanup:', error);

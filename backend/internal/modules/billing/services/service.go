@@ -6,15 +6,19 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/go-redis/redis/v8"
 )
 
 type BillingService struct {
-	repo *repository.BillingRepository
+	repo  *repository.BillingRepository
+	redis *redis.Client
 }
 
-func NewBillingService(repo *repository.BillingRepository) *BillingService {
+func NewBillingService(repo *repository.BillingRepository, redis *redis.Client) *BillingService {
 	return &BillingService{
-		repo: repo,
+		repo:  repo,
+		redis: redis,
 	}
 }
 
@@ -76,8 +80,17 @@ func (s *BillingService) GetUserSubscriptionData(ctx context.Context, userID str
 	return response, nil
 }
 
-// CanTrackEvent checks if a user can track more events
+// CanTrackEvent checks if a user can track more events, using Redis cache
 func (s *BillingService) CanTrackEvent(ctx context.Context, userID string) (bool, error) {
+	cacheKey := fmt.Sprintf("billing:can_track:%s", userID)
+
+	// Try cache
+	if s.redis != nil {
+		if val, err := s.redis.Get(ctx, cacheKey).Result(); err == nil {
+			return val == "1", nil
+		}
+	}
+
 	sub, err := s.repo.GetUserSubscription(ctx, userID)
 	if err != nil {
 		return false, err
@@ -94,6 +107,7 @@ func (s *BillingService) CanTrackEvent(ctx context.Context, userID string) (bool
 	}
 
 	if plan.MaxMonthlyEvents == -1 {
+		s.setCache(ctx, cacheKey, true)
 		return true, nil
 	}
 
@@ -110,17 +124,59 @@ func (s *BillingService) CanTrackEvent(ctx context.Context, userID string) (bool
 		}
 	}
 
-	return currentEvents < plan.MaxMonthlyEvents, nil
+	canTrack := currentEvents < plan.MaxMonthlyEvents
+	s.setCache(ctx, cacheKey, canTrack)
+
+	return canTrack, nil
+}
+
+func (s *BillingService) setCache(ctx context.Context, key string, can bool) {
+	if s.redis == nil {
+		return
+	}
+	val := "0"
+	if can {
+		val = "1"
+	}
+	s.redis.Set(ctx, key, val, 10*time.Minute)
+}
+
+func (s *BillingService) invalidateCache(ctx context.Context, userID string) {
+	if s.redis == nil {
+		return
+	}
+	s.redis.Del(ctx, fmt.Sprintf("billing:can_track:%s", userID))
 }
 
 // IncrementUsage increments the usage of a specific resource
 func (s *BillingService) IncrementUsage(ctx context.Context, userID, resourceType string, count int) error {
-	return s.repo.IncrementUsage(ctx, userID, resourceType, count)
+	err := s.repo.IncrementUsage(ctx, userID, resourceType, count)
+	if err == nil {
+		s.invalidateCache(ctx, userID)
+	}
+	return err
 }
 
 // SetUsage syncs the usage of a collection-based resource (websites, funnels, etc.)
 func (s *BillingService) SetUsage(ctx context.Context, userID, resourceType string, count int) error {
 	return s.repo.SetUsage(ctx, userID, resourceType, count)
+}
+
+// SelectFreePlan initializes a free subscription for a new user
+func (s *BillingService) SelectFreePlan(ctx context.Context, userID string) error {
+	sub := &models.Subscription{
+		UserID:             userID,
+		PlanID:             models.PlanStarter,
+		Status:             "active",
+		CurrentPeriodStart: time.Now(),
+		CurrentPeriodEnd:   time.Now().AddDate(100, 0, 0), // Essentially permanent for free
+	}
+
+	err := s.repo.UpsertSubscription(ctx, sub)
+	if err == nil {
+		s.invalidateCache(ctx, userID)
+	}
+	return err
 }
 
 // HandlePaddleWebhook handles subscription lifecycle events from Paddle

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -9,13 +9,14 @@ import ReactFlow, {
   Edge,
   Node,
   ReactFlowProvider,
-  useNodesState,
-  useEdgesState,
   Panel,
   ConnectionMode,
   MarkerType,
+  NodeChange,
+  EdgeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import { useParams, useSearchParams } from 'next/navigation';
 
 import { TriggerNode } from './TriggerNode';
 import { ActionNode } from './ActionNode';
@@ -47,20 +48,44 @@ const nodeTypes = {
 let id = 0;
 const getId = () => `node_${id++}`;
 
-export const WorkflowBuilder = () => {
+export const WorkflowBuilder = ({ 
+  websiteId, 
+  automationId 
+}: { 
+  websiteId: string; 
+  automationId?: string | null;
+}) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [showConfigPanel, setShowConfigPanel] = useState(false);
   const [showExecutionPreview, setShowExecutionPreview] = useState(false);
 
-  const { setNodes: storeSetNodes, setEdges: storeSetEdges } = useAutomationStore();
+  const { 
+    nodes, 
+    edges, 
+    setNodes, 
+    onNodesChange, 
+    setEdges, 
+    onEdgesChange, 
+    loadAutomation, 
+    resetWorkflow,
+    updateNode,
+    selectedNodeId,
+    setSelectedNodeId
+  } = useAutomationStore();
+
+  // Load animation effect
+  useEffect(() => {
+    if (automationId) {
+      loadAutomation(websiteId, automationId);
+    } else {
+      resetWorkflow();
+    }
+  }, [automationId, websiteId, loadAutomation, resetWorkflow]);
 
   const onConnect = useCallback(
     (params: Connection | Edge) =>
-      setEdges((eds) =>
+      setEdges(
         addEdge(
           {
             ...params,
@@ -72,10 +97,10 @@ export const WorkflowBuilder = () => {
               color: 'hsl(var(--primary))',
             },
           },
-          eds
+          edges
         )
       ),
-    [setEdges]
+    [edges, setEdges]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -89,6 +114,7 @@ export const WorkflowBuilder = () => {
 
       const type = event.dataTransfer.getData('application/reactflow');
       const label = event.dataTransfer.getData('application/reactflow-label');
+      const subtype = event.dataTransfer.getData('application/reactflow-subtype');
 
       if (typeof type === 'undefined' || !type) {
         return;
@@ -100,31 +126,44 @@ export const WorkflowBuilder = () => {
         y: event.clientY - (reactFlowBounds?.top || 0),
       });
 
+      const initialConfig: any = {};
+      if (type === 'triggerNode' && subtype) initialConfig.triggerType = subtype;
+      if (type === 'actionNode' && subtype) initialConfig.actionType = subtype;
+      if (type.includes('conditionNode') && subtype) initialConfig.conditionType = subtype;
+
       const newNode: Node = {
         id: getId(),
         type,
         position,
-        data: { label: `${label}`, config: {} },
+        data: { label: `${label}`, config: initialConfig },
       };
 
-      setNodes((nds) => nds.concat(newNode));
+      setNodes([...nodes, newNode]);
     },
-    [reactFlowInstance, setNodes]
+    [reactFlowInstance, nodes, setNodes]
   );
 
   const onNodeClick = (event: React.MouseEvent, node: Node) => {
-    setSelectedNode(node);
+    setSelectedNodeId(node.id);
     setShowConfigPanel(true);
   };
 
   const handleCloseConfigPanel = () => {
     setShowConfigPanel(false);
-    setSelectedNode(null);
+    setSelectedNodeId(null);
   };
 
+  const selectedNode = useMemo(() => 
+    nodes.find(n => n.id === selectedNodeId) || null
+  , [nodes, selectedNodeId]);
+
   return (
-    <div className="fixed inset-0 z-[100] flex h-screen w-full bg-slate-50 dark:bg-slate-900 overflow-hidden flex-col">
-      <BuilderToolbar onTestClick={() => setShowExecutionPreview(true)} />
+    <div className="flex h-screen w-full bg-slate-950 overflow-hidden flex-col text-slate-200">
+      <BuilderToolbar 
+        websiteId={websiteId}
+        automationId={automationId}
+        onTestClick={() => setShowExecutionPreview(true)} 
+      />
       <div className="flex flex-1 overflow-hidden" ref={reactFlowWrapper}>
         <div className="flex-1 h-full relative">
           <ReactFlow
@@ -137,31 +176,29 @@ export const WorkflowBuilder = () => {
             onDrop={onDrop}
             onDragOver={onDragOver}
             onNodeClick={onNodeClick}
-            nodeTypes={nodeTypes}
-            connectionMode={ConnectionMode.Loose}
             fitView
-            className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950"
+            className="bg-slate-800"
           >
-            <Background color="#ccc" gap={20} size={1} />
+            <Background color="#334155" gap={24} size={1} />
             <Controls className="!bg-white dark:!bg-slate-800 !border-0 !shadow-xl !rounded-xl" />
 
             {/* Stats Panel */}
-            <Panel position="top-left" className="!border-0 !shadow-lg !rounded-xl bg-white dark:bg-slate-800 p-4 space-y-2">
-              <div className="text-xs font-black text-slate-900 dark:text-white">
+            <Panel position="top-left" className="!border-0 !shadow-lg !rounded-xl bg-white dark:bg-slate-800 p-4 space-y-2 hidden md:block">
+              <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest opacity-50">
                 📊 Workflow Stats
               </div>
               <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2">
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2 min-w-[70px]">
                   <div className="text-sm font-black text-primary">{nodes.length}</div>
-                  <div className="text-[10px] text-muted-foreground">Nodes</div>
+                  <div className="text-[10px] text-muted-foreground font-bold uppercase">Nodes</div>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2">
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2 min-w-[70px]">
                   <div className="text-sm font-black text-primary">{edges.length}</div>
-                  <div className="text-[10px] text-muted-foreground">Connections</div>
+                  <div className="text-[10px] text-muted-foreground font-bold uppercase">Edges</div>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2">
-                  <div className="text-sm font-black text-green-600">0</div>
-                  <div className="text-[10px] text-muted-foreground">Executions</div>
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2 min-w-[70px]">
+                  <div className="text-sm font-black text-green-600">0%</div>
+                  <div className="text-[10px] text-muted-foreground font-bold uppercase">Health</div>
                 </div>
               </div>
             </Panel>
@@ -170,19 +207,25 @@ export const WorkflowBuilder = () => {
         <EnhancedBuilderSidebar />
       </div>
 
-      {/* Config Panel Modal */}
-      {showConfigPanel && (
-        <NodeConfigPanel node={selectedNode} onClose={handleCloseConfigPanel} />
+      {showConfigPanel && selectedNode && (
+        <NodeConfigPanel 
+          node={selectedNode} 
+          onClose={handleCloseConfigPanel}
+        />
       )}
-
     </div>
   );
 };
 
-export default function AutomationBuilderPage() {
+export default function AutomationBuilderContainer() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const websiteId = params?.websiteId as string;
+  const automationId = searchParams.get('id');
+
   return (
     <ReactFlowProvider>
-      <WorkflowBuilder />
+      <WorkflowBuilder websiteId={websiteId} automationId={automationId} />
     </ReactFlowProvider>
   );
 }

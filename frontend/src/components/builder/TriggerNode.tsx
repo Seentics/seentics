@@ -48,21 +48,21 @@ export const TriggerNode = memo(({ data, selected, isConnectable }: NodeProps) =
 
   return (
     <div
-      className={`px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border-2 transition-all shadow-sm hover:shadow-md ${
+      className={`px-4 py-3 rounded-2xl bg-slate-900 border-2 transition-all shadow-xl hover:shadow-2xl ${
         selected
-          ? 'border-primary shadow-lg ring-4 ring-primary/10 scale-105'
-          : 'border-border hover:border-amber-500/30'
+          ? 'border-primary ring-4 ring-primary/20 scale-105 z-50'
+          : 'border-slate-800 hover:border-amber-500/40'
       }`}
     >
-      <div className="flex items-center gap-3">
-        <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${colorClass}`}>
-          <Icon size={20} />
+      <div className="flex items-center gap-4">
+        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${colorClass}`}>
+          <Icon size={24} />
         </div>
-        <div className="min-w-[140px]">
-          <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-0.5">
+        <div className="min-w-[160px]">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-1">
             Event Trigger
           </p>
-          <h4 className="text-sm font-black text-slate-900 dark:text-white truncate">
+          <h4 className="text-sm font-black text-white truncate leading-tight">
             {data.label}
           </h4>
           {data.config?.page && (
@@ -90,9 +90,10 @@ export const TriggerNode = memo(({ data, selected, isConnectable }: NodeProps) =
 
       <Handle
         type="source"
-        position={Position.Right}
+        position={Position.Bottom}
         isConnectable={isConnectable}
-        className="w-3 h-3 bg-primary border-2 border-white dark:border-slate-900 !right-[-6px]"
+        style={{ left: '50%', transform: 'translateX(-50%)', bottom: -6, width: 12, height: 12, zIndex: 10 }}
+        className="!bg-primary border-2 border-slate-900"
       />
     </div>
   );

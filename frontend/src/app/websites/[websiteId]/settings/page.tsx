@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
     Settings, 
-    Shield, 
     Users, 
     Code, 
     Target, 
@@ -14,13 +13,10 @@ import {
 } from 'lucide-react';
 
 import { GeneralSettingsComponent } from '@/components/settings/GeneralSettingsComponent';
-import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
 import { TeamSettingsComponent } from '@/components/settings/TeamSettingsComponent';
 import { TrackingSettingsComponent } from '@/components/settings/TrackingSettingsComponent';
 import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
 import { WebsitesSettingsComponent } from '@/components/settings/WebsitesSettingsComponent';
-import { BillingSettingsComponent } from '@/components/settings/BillingSettingsComponent';
-
 export default function SettingsPage() {
     const params = useParams();
     const websiteId = params?.websiteId as string;
@@ -28,11 +24,9 @@ export default function SettingsPage() {
     const tabs = [
         { id: 'general', label: 'General', icon: Settings, component: GeneralSettingsComponent },
         { id: 'websites', label: 'Websites', icon: Globe, component: WebsitesSettingsComponent },
-        { id: 'privacy', label: 'Privacy', icon: Shield, component: PrivacySettingsComponent },
         { id: 'team', label: 'Team', icon: Users, component: TeamSettingsComponent },
         { id: 'tracking', label: 'Tracking', icon: Code, component: TrackingSettingsComponent },
         { id: 'goals', label: 'Goals', icon: Target, component: GoalsSettingsComponent },
-        { id: 'billing', label: 'Billing', icon: CreditCard, component: BillingSettingsComponent },
     ];
 
     return (

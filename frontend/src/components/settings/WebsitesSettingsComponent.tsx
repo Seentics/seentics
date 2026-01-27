@@ -13,6 +13,9 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getWebsites, deleteWebsite, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
+import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
+import { EditWebsiteModal } from '@/components/websites/EditWebsiteModal';
+import { cn } from '@/lib/utils';
 import { Loader2, Trash2, Edit, ExternalLink, Globe, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +24,8 @@ import { format } from 'date-fns';
 export function WebsitesSettingsComponent() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingWebsite, setEditingWebsite] = useState<Website | null>(null);
 
   // Fetch websites
   const { data: websites = [], isLoading } = useQuery({
@@ -57,11 +62,26 @@ export function WebsitesSettingsComponent() {
           <h2 className="text-xl font-bold tracking-tight">Manage Websites</h2>
           <p className="text-muted-foreground text-sm">View and manage all your tracked properties.</p>
         </div>
-        <Button className="h-10 px-5 font-bold rounded-xl gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95">
+        <Button 
+          onClick={() => setIsAddModalOpen(true)}
+          className="h-10 px-5 font-bold rounded-xl gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
+        >
           <Plus className="h-4 w-4" />
           Add New Property
         </Button>
       </div>
+
+      <AddWebsiteModal 
+        open={isAddModalOpen} 
+        onOpenChange={setIsAddModalOpen} 
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ['websites'] })}
+      />
+
+      <EditWebsiteModal
+        open={!!editingWebsite}
+        onOpenChange={(open) => !open && setEditingWebsite(null)}
+        website={editingWebsite}
+      />
 
       <div className="border rounded-3xl overflow-hidden bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
         {isLoading ? (
@@ -113,7 +133,12 @@ export function WebsitesSettingsComponent() {
                   </TableCell>
                   <TableCell className="text-right px-6 py-4">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-muted" onClick={() => (window.location.href = `/websites/${website.id}/settings`)}>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-9 w-9 rounded-xl hover:bg-muted" 
+                        onClick={() => setEditingWebsite(website)}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button 
@@ -135,5 +160,3 @@ export function WebsitesSettingsComponent() {
     </div>
   );
 }
-
-const cn = (...classes: any[]) => classes.filter(Boolean).join(' ');

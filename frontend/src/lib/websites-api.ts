@@ -215,3 +215,56 @@ export async function updateWebsite(
     throw error;
   }
 }
+
+// --- Goals ---
+
+export interface Goal {
+  id: string;
+  websiteId: string;
+  name: string;
+  type: 'event' | 'pageview';
+  identifier: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const getGoals = async (websiteId: string): Promise<Goal[]> => {
+  const response = await api.get(`/user/websites/${websiteId}/goals`);
+  return response.data.data;
+};
+
+export const addGoal = async (websiteId: string, data: { name: string; type: string; identifier: string }): Promise<Goal> => {
+  const response = await api.post(`/user/websites/${websiteId}/goals`, data);
+  return response.data.data;
+};
+
+export const deleteGoal = async (websiteId: string, goalId: string): Promise<void> => {
+  await api.delete(`/user/websites/${websiteId}/goals/${goalId}`);
+};
+
+// --- Team Members ---
+
+export interface WebsiteMember {
+  id: string;
+  websiteId: string;
+  userId: string;
+  role: 'owner' | 'admin' | 'viewer';
+  createdAt: string;
+  updatedAt: string;
+  userName?: string;
+  userEmail?: string;
+}
+
+export const getMembers = async (websiteId: string): Promise<WebsiteMember[]> => {
+  const response = await api.get(`/user/websites/${websiteId}/members`);
+  return response.data.data;
+};
+
+export const addMember = async (websiteId: string, data: { email: string; role: string }): Promise<WebsiteMember> => {
+  const response = await api.post(`/user/websites/${websiteId}/members`, data);
+  return response.data.data;
+};
+
+export const removeMember = async (websiteId: string, userId: string): Promise<void> => {
+  await api.delete(`/user/websites/${websiteId}/members/${userId}`);
+};

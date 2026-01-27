@@ -9,11 +9,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useSubscription } from '@/hooks/useSubscription';
 import Link from 'next/link';
+import { toast } from 'sonner';
+import { createPortalSession } from '@/lib/billing-api';
 
 export default function AccountBillingSettings() {
     const params = useParams();
     const websiteId = params?.websiteId as string;
     const { subscription, loading, error, getUsagePercentage } = useSubscription();
+
+    const handleManagePayments = async () => {
+        try {
+            toast.loading('Redirecting to billing portal...');
+            const url = await createPortalSession();
+            window.location.href = url;
+        } catch (error) {
+            toast.error('Failed to open billing portal. Please contact support.');
+        }
+    };
 
     if (loading) {
         return (
@@ -45,7 +57,10 @@ export default function AccountBillingSettings() {
                                 Active: {subscription?.plan || 'Starter'} Plan
                             </Badge>
                             <div className="flex flex-col md:flex-row md:items-end gap-2 mb-8">
-                                <h2 className="text-5xl font-black tracking-tight">${normalizedPlan.includes('starter') ? '0' : normalizedPlan.includes('growth') ? '19' : '49'}</h2>
+                                <h2 className="text-5xl font-black tracking-tight">
+                                    {normalizedPlan.includes('starter') || normalizedPlan.includes('free') ? '0' : 
+                                     normalizedPlan.includes('growth') ? '19' : '49'}
+                                </h2>
                                 <span className="text-lg font-bold text-muted-foreground mb-1">/ month</span>
                             </div>
 
@@ -55,7 +70,11 @@ export default function AccountBillingSettings() {
                                         Change Plan
                                     </Button>
                                 </Link>
-                                <Button variant="outline" className="h-12 px-8 font-black rounded-2xl border-2 hover:bg-muted/50">
+                                <Button 
+                                    variant="outline" 
+                                    className="h-12 px-8 font-black rounded-2xl border-2 hover:bg-muted/50"
+                                    onClick={handleManagePayments}
+                                >
                                     Manage Payments
                                 </Button>
                             </div>

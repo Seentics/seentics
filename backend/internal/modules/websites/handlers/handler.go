@@ -79,6 +79,165 @@ func (h *WebsiteHandler) List(c *gin.Context) {
 	})
 }
 
+// Get handles the GET /api/v1/user/websites/:id request
+func (h *WebsiteHandler) Get(c *gin.Context) {
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID context"})
+		return
+	}
+
+	id := c.Param("id")
+	website, err := h.service.GetWebsiteBySiteID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Website not found"})
+		return
+	}
+
+	if website.UserID != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": website,
+	})
+}
+
+// Update handles the PUT /api/v1/user/websites/:id request
+func (h *WebsiteHandler) Update(c *gin.Context) {
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID context"})
+		return
+	}
+
+	id := c.Param("id")
+	var req models.UpdateWebsiteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	website, err := h.service.UpdateWebsite(c.Request.Context(), id, userID, req)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to update website")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update website"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Website updated successfully",
+		"data":    website,
+	})
+}
+
+// ListGoals handles GET /api/v1/user/websites/:id/goals
+func (h *WebsiteHandler) ListGoals(c *gin.Context) {
+	id := c.Param("id")
+	goals, err := h.service.ListGoals(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list goals"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": goals})
+}
+
+// CreateGoal handles POST /api/v1/user/websites/:id/goals
+func (h *WebsiteHandler) CreateGoal(c *gin.Context) {
+	id := c.Param("id")
+	var req models.CreateGoalRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	goal, err := h.service.CreateGoal(c.Request.Context(), id, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create goal"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Goal created successfully", "data": goal})
+}
+
+// DeleteGoal handles DELETE /api/v1/user/websites/:id/goals/:goal_id
+func (h *WebsiteHandler) DeleteGoal(c *gin.Context) {
+	id := c.Param("id")
+	goalIDStr := c.Param("goal_id")
+	goalID, err := uuid.Parse(goalIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid goal ID"})
+		return
+	}
+
+	if err := h.service.DeleteGoal(c.Request.Context(), id, goalID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete goal"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Goal deleted successfully"})
+}
+
+// ListMembers handles GET /api/v1/user/websites/:id/members
+func (h *WebsiteHandler) ListMembers(c *gin.Context) {
+	id := c.Param("id")
+	members, err := h.service.ListMembers(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list members"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": members})
+}
+
+// AddMember handles POST /api/v1/user/websites/:id/members
+func (h *WebsiteHandler) AddMember(c *gin.Context) {
+	id := c.Param("id")
+	var req models.InviteMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	member, err := h.service.AddMember(c.Request.Context(), id, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Member added successfully", "data": member})
+}
+
+// RemoveMember handles DELETE /api/v1/user/websites/:id/members/:user_id
+func (h *WebsiteHandler) RemoveMember(c *gin.Context) {
+	id := c.Param("id")
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	if err := h.service.RemoveMember(c.Request.Context(), id, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Member removed successfully"})
+}
+
 // Delete handles the DELETE /api/v1/user/websites/:id request
 func (h *WebsiteHandler) Delete(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")

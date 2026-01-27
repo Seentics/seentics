@@ -49,46 +49,47 @@ export const ActionNode = memo(({ data, selected, isConnectable }: NodeProps) =>
 
   return (
     <div
-      className={`px-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border-2 transition-all shadow-sm hover:shadow-md ${
+      className={`px-4 py-3 rounded-2xl bg-slate-900 border-2 transition-all shadow-xl hover:shadow-2xl ${
         selected
-          ? 'border-primary shadow-lg ring-4 ring-primary/10 scale-105'
-          : 'border-border hover:border-blue-500/30'
+          ? 'border-primary ring-4 ring-primary/20 scale-105 z-50'
+          : 'border-slate-800 hover:border-blue-500/40'
       }`}
     >
       <Handle
         type="target"
-        position={Position.Left}
+        position={Position.Top}
         isConnectable={isConnectable}
-        className="w-3 h-3 bg-primary border-2 border-white dark:border-slate-900 !left-[-6px]"
+        style={{ left: '50%', transform: 'translateX(-50%)', top: -6, width: 12, height: 12, zIndex: 10 }}
+        className="!bg-primary border-2 border-slate-900"
       />
 
-      <div className="flex items-center gap-3">
-        <div className={`h-10 w-10 rounded-xl flex items-center justify-center ${colorClass}`}>
-          <Icon size={20} />
+      <div className="flex items-center gap-4">
+        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${colorClass}`}>
+          <Icon size={24} />
         </div>
-        <div className="min-w-[140px]">
-          <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-0.5">
+        <div className="min-w-[160px]">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400/80 mb-0.5">
             Automation Action
           </p>
-          <h4 className="text-sm font-black text-slate-900 dark:text-white truncate">
+          <h4 className="text-sm font-black text-white truncate leading-tight">
             {data.label}
           </h4>
           {data.config?.to && (
-            <p className="text-[9px] text-muted-foreground mt-0.5 truncate">
+            <p className="text-[9px] text-slate-400 mt-0.5 truncate italic">
               📧 {data.config.to}
             </p>
           )}
           {data.config?.webhookUrl && (
-            <p className="text-[9px] text-muted-foreground mt-0.5 truncate">
-              🔗 webhook
+            <p className="text-[9px] text-slate-400 mt-0.5 truncate italic">
+              🔗 workflow webhook
             </p>
           )}
         </div>
       </div>
 
       {data.config?.subject && (
-        <div className="mt-2 pt-2 border-t border-border/30 space-y-1">
-          <p className="text-[9px] text-muted-foreground truncate">
+        <div className="mt-3 pt-3 border-t border-slate-800/50 space-y-1">
+          <p className="text-[9px] text-slate-500 truncate italic">
             {data.config.subject}
           </p>
         </div>
@@ -96,9 +97,10 @@ export const ActionNode = memo(({ data, selected, isConnectable }: NodeProps) =>
 
       <Handle
         type="source"
-        position={Position.Right}
+        position={Position.Bottom}
         isConnectable={isConnectable}
-        className="w-3 h-3 bg-primary border-2 border-white dark:border-slate-900 !right-[-6px]"
+        style={{ left: '50%', transform: 'translateX(-50%)', bottom: -6, width: 12, height: 12, zIndex: 10 }}
+        className="!bg-primary border-2 border-slate-900"
       />
     </div>
   );

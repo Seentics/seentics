@@ -197,3 +197,92 @@ func (r *WebsiteRepository) Update(ctx context.Context, website *models.Website)
 
 	return nil
 }
+
+// --- Goals ---
+
+func (r *WebsiteRepository) ListGoals(ctx context.Context, websiteID uuid.UUID) ([]models.Goal, error) {
+	query := `SELECT id, website_id, name, type, identifier, created_at, updated_at FROM goals WHERE website_id = $1 ORDER BY created_at DESC`
+	rows, err := r.db.Query(ctx, query, websiteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var goals []models.Goal
+	for rows.Next() {
+		var g models.Goal
+		if err := rows.Scan(&g.ID, &g.WebsiteID, &g.Name, &g.Type, &g.Identifier, &g.CreatedAt, &g.UpdatedAt); err != nil {
+			return nil, err
+		}
+		goals = append(goals, g)
+	}
+	return goals, nil
+}
+
+func (r *WebsiteRepository) CreateGoal(ctx context.Context, goal *models.Goal) error {
+	query := `INSERT INTO goals (website_id, name, type, identifier, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
+	return r.db.QueryRow(ctx, query, goal.WebsiteID, goal.Name, goal.Type, goal.Identifier, time.Now(), time.Now()).Scan(&goal.ID)
+}
+
+func (r *WebsiteRepository) DeleteGoal(ctx context.Context, id uuid.UUID, websiteID uuid.UUID) error {
+	query := `DELETE FROM goals WHERE id = $1 AND website_id = $2`
+	_, err := r.db.Exec(ctx, query, id, websiteID)
+	return err
+}
+
+// --- Members ---
+
+func (r *WebsiteRepository) ListMembers(ctx context.Context, websiteID uuid.UUID) ([]models.WebsiteMember, error) {
+	query := `
+		SELECT m.id, m.website_id, m.user_id, m.role, m.created_at, m.updated_at, u.name as user_name, u.email as user_email
+		FROM website_members m
+		JOIN users u ON m.user_id = u.id
+		WHERE m.website_id = $1
+		ORDER BY m.created_at ASC
+	`
+	rows, err := r.db.Query(ctx, query, websiteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []models.WebsiteMember
+	for rows.Next() {
+		var m models.WebsiteMember
+		if err := rows.Scan(&m.ID, &m.WebsiteID, &m.UserID, &m.Role, &m.CreatedAt, &m.UpdatedAt, &m.UserName, &m.UserEmail); err != nil {
+			return nil, err
+		}
+		members = append(members, m)
+	}
+	return members, nil
+}
+
+func (r *WebsiteRepository) AddMember(ctx context.Context, member *models.WebsiteMember) error {
+	query := `INSERT INTO website_members (website_id, user_id, role, created_at, updated_at) VALUES ($1, $2, $3, $4, $5) RETURNING id`
+	return r.db.QueryRow(ctx, query, member.WebsiteID, member.UserID, member.Role, time.Now(), time.Now()).Scan(&member.ID)
+}
+
+func (r *WebsiteRepository) UpdateMemberRole(ctx context.Context, websiteID, userID uuid.UUID, role string) error {
+	query := `UPDATE website_members SET role = $1, updated_at = $2 WHERE website_id = $3 AND user_id = $4`
+	_, err := r.db.Exec(ctx, query, role, time.Now(), websiteID, userID)
+	return err
+}
+
+func (r *WebsiteRepository) RemoveMember(ctx context.Context, websiteID, userID uuid.UUID) error {
+	query := `DELETE FROM website_members WHERE website_id = $1 AND user_id = $2`
+	_, err := r.db.Exec(ctx, query, websiteID, userID)
+	return err
+}
+
+func (r *WebsiteRepository) GetMember(ctx context.Context, websiteID, userID uuid.UUID) (*models.WebsiteMember, error) {
+	query := `SELECT id, website_id, user_id, role, created_at, updated_at FROM website_members WHERE website_id = $1 AND user_id = $2`
+	var m models.WebsiteMember
+	err := r.db.QueryRow(ctx, query, websiteID, userID).Scan(&m.ID, &m.WebsiteID, &m.UserID, &m.Role, &m.CreatedAt, &m.UpdatedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &m, nil
+}

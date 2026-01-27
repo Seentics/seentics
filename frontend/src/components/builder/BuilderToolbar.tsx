@@ -17,26 +17,50 @@ import {
   Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useAutomationStore } from '@/stores/automationStore';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface BuilderToolbarProps {
+  websiteId: string;
+  automationId?: string | null;
   onTestClick?: () => void;
 }
 
-export const BuilderToolbar = ({ onTestClick }: BuilderToolbarProps) => {
+export const BuilderToolbar = ({ 
+  websiteId, 
+  automationId,
+  onTestClick 
+}: BuilderToolbarProps) => {
   const [isSaving, setIsSaving] = useState(false);
+  const { automation, setAutomation, saveAutomation, publishAutomation, isDirty } = useAutomationStore();
+  const router = useRouter();
 
   const handleSave = async () => {
-    setIsSaving(true);
-    // Simulate save
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    try {
+      setIsSaving(true);
+      await saveAutomation(websiteId, automationId || undefined);
+      setIsSaving(false);
+    } catch (error) {
+      console.error(error);
+      setIsSaving(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!automationId) return;
+    try {
+      await publishAutomation(websiteId, automationId);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
-    <div className="h-16 border-b bg-gradient-to-r from-white to-slate-50 dark:from-slate-950 dark:to-slate-900 px-6 flex items-center justify-between z-10 shrink-0 shadow-sm">
+    <div className="h-16 border-b border-slate-800 bg-slate-900 px-6 flex items-center justify-between z-[110] shrink-0">
       <div className="flex items-center gap-6">
-        <Link href="/settings/automations">
+        <Link href={`/websites/${websiteId}/automations`}>
           <Button
             variant="ghost"
             size="icon"
@@ -47,12 +71,14 @@ export const BuilderToolbar = ({ onTestClick }: BuilderToolbarProps) => {
         </Link>
         <div className="h-6 w-[1px] bg-border" />
         <div className="flex flex-col">
-          <h1 className="text-sm font-black tracking-tight flex items-center gap-2">
-            <span>New Automation Workflow</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-          </h1>
+          <Input 
+            value={automation.name || ''} 
+            onChange={(e) => setAutomation({ name: e.target.value })}
+            placeholder="Workflow Name..."
+            className="h-7 p-0 border-none bg-transparent font-black text-sm tracking-tight focus-visible:ring-0 min-w-[200px]"
+          />
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-            Unsaved Changes
+            {isDirty ? 'Unsaved Changes' : 'All changes saved'}
           </p>
         </div>
       </div>

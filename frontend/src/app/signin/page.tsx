@@ -4,14 +4,25 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, ArrowLeft, Eye, EyeOff, Loader2, Lock, Mail, Shield, Workflow, ArrowRight } from 'lucide-react';
+import { 
+    AlertCircle, 
+    ArrowLeft, 
+    Eye, 
+    EyeOff, 
+    Loader2, 
+    Lock, 
+    Mail, 
+    ArrowRight, 
+    ShieldCheck, 
+    Quote 
+} from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import api from '@/lib/api';
 import { useAuth } from '@/stores/useAuthStore';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { motion } from 'framer-motion';
 
 export default function SignInPage() {
   const [formData, setFormData] = useState({
@@ -79,7 +90,6 @@ export default function SignInPage() {
       toast({
         title: "Welcome back!",
         description: "You have successfully signed in.",
-        variant: "default",
       });
 
     } catch (error: any) {
@@ -96,180 +106,189 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-background">
-      {/* Left Column: Branding Section */}
-      <div className="hidden lg:flex flex-col justify-between p-12 w-full max-w-lg bg-slate-50 dark:bg-slate-950 relative overflow-hidden border-r border-slate-200 dark:border-white/5">
-        {/* Animated Background blobs */}
-        <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-500/5 rounded-full blur-[100px] animate-pulse delay-700" />
-        </div>
+    <div className="min-h-screen grid lg:grid-cols-2 bg-white dark:bg-[#020617] selection:bg-primary/20">
+      
+      {/* --- LEFT COLUMN: IMMERSIVE BRANDING --- */}
+      <div className="relative hidden lg:flex flex-col justify-between p-16 bg-[#0B0F1A] overflow-hidden">
+         {/* Background Visuals */}
+         <div className="absolute inset-0 z-0">
+            <div className="absolute top-[-10%] left-[-10%] w-[80%] h-[80%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-500/10 rounded-full blur-[100px] animate-pulse delay-1000" />
+            
+            {/* Grid Pattern */}
+            <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] pointer-events-none" />
+            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
+         </div>
 
-        <div className="relative z-10">
-          <Link href="/">
-            <Logo size="xl" showText={true} textClassName="text-2xl font-bold text-slate-900 dark:text-white" />
-          </Link>
-          
-          <div className="mt-20">
-            <h1 className="text-4xl font-black tracking-tight mb-6 leading-tight text-slate-900 dark:text-white">
-              Privacy First Analytics. <br />
-              <span className="text-primary italic">Better Intelligence.</span>
-            </h1>
-            <p className="text-slate-600 dark:text-slate-400 text-lg font-medium leading-relaxed max-w-md">
-              Understand your users without compromise. Built-in automation to turn insights into growth instantly.
-            </p>
-          </div>
-        </div>
+         <div className="relative z-10">
+            <Link href="/" className="flex items-center gap-3 group">
+                <Logo size="xl" />
+                <span className="text-2xl font-black tracking-tighter text-white group-hover:text-primary transition-colors">SEENTICS</span>
+            </Link>
 
-        <div className="relative z-10">
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 flex items-center justify-center text-primary">
-                <Shield className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="font-bold text-sm text-slate-900 dark:text-white">GDPR & CCPA Compliant</p>
-                <p className="text-xs text-slate-500">Cookieless tracking by default.</p>
-              </div>
+            <div className="mt-24 max-w-lg">
+                <motion.h1 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8 }}
+                    className="text-6xl font-black tracking-tight text-white leading-[1.1] mb-8"
+                >
+                    Elite Intelligence. <br />
+                    <span className="text-primary italic">Absolute Control.</span>
+                </motion.h1>
+                <motion.p 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    className="text-slate-400 text-xl font-medium leading-relaxed"
+                >
+                    Reconnect with your data empire. Our privacy-first engine is ready to deploy your latest insights.
+                </motion.p>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-white/5 border border-blue-100 dark:border-white/10 flex items-center justify-center text-blue-600 dark:text-blue-400">
-                <Workflow className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="font-bold text-sm text-slate-900 dark:text-white">Automation Integrated</p>
-                <p className="text-xs text-slate-500">Trigger actions from behavior.</p>
-              </div>
+         </div>
+
+         <div className="relative z-10">
+            {/* Value Prop Card */}
+            <div className="p-8 rounded-[2.5rem] bg-white/5 border border-white/10 backdrop-blur-md max-w-md">
+                <ShieldCheck className="text-primary h-8 w-8 mb-6 opacity-80" />
+                <p className="text-lg font-bold text-slate-200 leading-relaxed mb-6">
+                    "The most sophisticated analytics platform I've ever used. The automation engine is a game changer."
+                </p>
+                <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-black text-white">
+                        SR
+                    </div>
+                    <div>
+                        <p className="text-sm font-black text-white">Sarah Renaldi</p>
+                        <p className="text-xs font-bold text-slate-500">Founder @ DataFlow</p>
+                    </div>
+                </div>
             </div>
-          </div>
-          
-          <div className="mt-12 pt-8 border-t border-slate-200 dark:border-white/5">
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-600 mb-4">Trusted by modern teams</p>
-            <div className="flex items-center gap-4 opacity-40 grayscale saturate-0 text-slate-900 dark:text-white">
-                <span className="text-xl font-black italic tracking-tighter">TECHLEAP</span>
-                <span className="text-xl font-black italic tracking-tighter">DATASTREAM</span>
-                <span className="text-xl font-black italic tracking-tighter">VNET</span>
+
+            <div className="mt-12 flex items-center gap-8 opacity-40 grayscale contrast-125">
+                <span className="text-2xl font-black italic tracking-tighter text-white">TECHLEAP</span>
+                <span className="text-2xl font-black italic tracking-tighter text-white">FLUX</span>
+                <span className="text-2xl font-black italic tracking-tighter text-white">ORBIT</span>
             </div>
-          </div>
-        </div>
+         </div>
       </div>
 
-      {/* Right Column: Form Section */}
-      <div className="flex-1 flex flex-col relative overflow-hidden px-4 py-8 md:p-12 bg-white dark:bg-slate-950">
-        <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20 flex items-center justify-center overflow-hidden -z-10">
-            <div className="w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full" />
-        </div>
-
-        <div className="lg:hidden mb-8 self-center">
-             <Link href="/">
-                <Logo size="xl" showText={true} textClassName="text-2xl font-bold text-slate-900 dark:text-white" />
+      {/* --- RIGHT COLUMN: SIGNIN FLOW --- */}
+      <div className="relative flex flex-col p-8 md:p-16 overflow-y-auto custom-scrollbar">
+        
+        {/* Mobile Header */}
+        <div className="lg:hidden flex items-center justify-between mb-12">
+            <Link href="/" className="flex items-center gap-2">
+                <Logo size="lg" />
+                <span className="text-xl font-black tracking-tight">SEENTICS</span>
+            </Link>
+            <Link href="/signup">
+                <Button variant="ghost" className="font-bold text-sm">Sign Up</Button>
             </Link>
         </div>
 
-        <div className="flex-1 flex items-center justify-center">
-            <div className="w-full max-w-md">
-                <div className="mb-8 text-center md:text-left">
-                    <h2 className="text-3xl font-black tracking-tight mb-2 text-slate-900 dark:text-white">Welcome back</h2>
-                    <p className="text-muted-foreground font-medium">
-                        Log in to your dashboard to manage your analytics.
-                    </p>
-                </div>
-
-                {error && (
-                  <Alert variant="destructive" className="mb-6 rounded-2xl border-0 bg-red-500/10 text-red-500">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertDescription className="font-bold">{error}</AlertDescription>
-                  </Alert>
-                )}
-
-                <form onSubmit={handleEmailSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="relative group">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                      <Input
-                        name="email"
-                        type="email"
-                        placeholder="name@example.com"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className="h-14 pl-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded-2xl transition-all"
-                        disabled={isLoading}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                      <Input
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="••••••••"
-                        value={formData.password}
-                        onChange={handleInputChange}
-                        className="h-14 pl-12 pr-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded-2xl transition-all"
-                        disabled={isLoading}
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 h-10 px-3 hover:bg-transparent text-slate-400"
-                        onClick={() => setShowPassword(!showPassword)}
-                      >
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </Button>
-                    </div>
-                    <div className="flex justify-end">
-                      <Link 
-                        href="/forgot-password" 
-                        className="text-xs text-primary hover:underline font-bold"
-                      >
-                        Forgot password?
-                      </Link>
-                    </div>
-                  </div>
-
-                  <Button
-                    type="submit"
-                    variant={'brand'}
-                    className="w-full h-14 text-base font-black shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded-2xl active:scale-[0.98]"
-                    disabled={isLoading}
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Logging you in...
-                      </>
-                    ) : (
-                        <span className="flex items-center gap-2">
-                            Sign in to Dashboard
-                            <ArrowRight size={18} />
-                        </span>
-                    )}
-                  </Button>
-                </form>
-
-                <div className="mt-8 text-center md:text-left">
-                  <p className="text-sm text-muted-foreground font-medium">
-                    New to Seentics?{' '}
-                    <Link href="/signup" className="text-primary hover:underline font-black">
-                      Create a free account
-                    </Link>
-                  </p>
-                </div>
+        {/* Desktop Top Nav Overlay */}
+        <div className="hidden lg:flex justify-end mb-12">
+            <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-slate-400">New to Seentics?</span>
+                <Link href="/signup">
+                    <Button variant="outline" className="h-11 px-6 font-black text-xs uppercase tracking-widest rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">Create Account</Button>
+                </Link>
             </div>
         </div>
 
-        <div className="mt-8 self-center lg:self-start">
-             <Link href="/">
-                <Button variant="ghost" size="sm" className="text-slate-500 font-bold hover:bg-transparent px-0">
-                    <ArrowLeft size={16} className="mr-2" />
-                    Back to the website
-                </Button>
-            </Link>
+        <div className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto w-full">
+            
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="w-full max-w-md"
+            >
+                <div className="mb-10 text-center lg:text-left">
+                    <h2 className="text-4xl font-black tracking-tight mb-3">Welcome back.</h2>
+                    <p className="text-slate-500 font-medium">Log in to resume your data transmission.</p>
+                </div>
+
+                <form onSubmit={handleEmailSignIn} className="space-y-6">
+                    {error && (
+                        <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold">
+                            {error}
+                        </div>
+                    )}
+
+                    <div className="space-y-4">
+                        <div className="space-y-1.5 px-1">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Email Address</label>
+                            <div className="relative group">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                <Input
+                                    name="email"
+                                    type="email"
+                                    placeholder="elon@x.com"
+                                    value={formData.email}
+                                    onChange={handleInputChange}
+                                    className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded-2xl font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                    required
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-1.5 px-1">
+                            <div className="flex justify-between items-center pr-1">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Security Phrase</label>
+                                <Link href="/forgot-password" size="sm" className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">
+                                    Forgot?
+                                </Link>
+                            </div>
+                            <div className="relative group">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                <Input
+                                    name="password"
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={handleInputChange}
+                                    className="h-14 pl-12 pr-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded-2xl font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                    required
+                                />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full h-15 bg-slate-900 dark:bg-primary hover:bg-slate-800 dark:hover:bg-primary/90 text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-slate-200/50 dark:shadow-none transition-all active:scale-[0.98]"
+                    >
+                        {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
+                            <span className="flex items-center gap-2">
+                                Authorize Access <ArrowRight size={18} />
+                            </span>
+                        )}
+                    </Button>
+                </form>
+
+                <div className="mt-12 text-center lg:text-left">
+                     <p className="text-xs text-slate-400 font-medium">
+                        By signing in, you agree to our terms of service and recognize our privacy commitment.
+                     </p>
+                </div>
+            </motion.div>
+        </div>
+
+        {/* Footer Overlay */}
+        <div className="mt-12 pt-12 border-t border-slate-100 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center md:text-left">
+                © 2026 SEENTICS ANALYTICS. ALL RIGHTS RESERVED.
+            </p>
+            <div className="flex items-center gap-6">
+                <Link href="/privacy" className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest">Privacy</Link>
+                <Link href="/terms" className="text-[10px] font-bold text-slate-400 hover:text-primary transition-colors uppercase tracking-widest">Terms</Link>
+            </div>
         </div>
       </div>
     </div>
