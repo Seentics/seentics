@@ -40,13 +40,6 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
             description: 'Traffic & Summary'
         },
         {
-            title: 'Websites',
-            href: '/websites',
-            icon: Globe,
-            matchExact: true,
-            description: 'All Properties'
-        },
-        {
             title: 'Automations',
             href: `/websites/${websiteId}/automations`,
             icon: Workflow,

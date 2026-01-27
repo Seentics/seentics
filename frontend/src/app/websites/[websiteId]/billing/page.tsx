@@ -29,14 +29,14 @@ export default function AccountBillingSettings() {
     return (
         <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
-                <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Account Billing</h1>
+                <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Billing & Subscription</h1>
                 <p className="text-muted-foreground font-medium">Manage your subscription, usage limits, and billing details.</p>
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
                     {/* Current Plan Card */}
-                    <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-primary/10 via-indigo-500/5 to-transparent border border-primary/20 relative overflow-hidden group shadow-2xl shadow-primary/5">
+                    <div className="p-8 rounded-3xl bg-gradient-to-br from-primary/10 via-indigo-500/5 to-transparent border border-primary/20 relative overflow-hidden group shadow-2xl shadow-primary/5">
                         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
                             <Zap className="h-32 w-32 text-primary" />
                         </div>
@@ -126,7 +126,7 @@ export default function AccountBillingSettings() {
 
                 <div className="space-y-8">
                     {/* Plan Features Card */}
-                    <div className="bg-slate-900 dark:bg-slate-950 p-8 rounded-[2.5rem] border border-white/5 relative overflow-hidden group">
+                    <div className="bg-slate-900 dark:bg-slate-950 p-8 rounded-3xl border border-white/5 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[50px] rounded-full -mr-16 -mt-16" />
                         <h4 className="text-white text-lg font-black mb-6 relative z-10 uppercase tracking-tight">Included in {subscription?.plan || 'Starter'}</h4>
                         <ul className="space-y-4 relative z-10">
@@ -146,7 +146,7 @@ export default function AccountBillingSettings() {
                     </div>
 
                     {/* Support & Billing Info */}
-                    <div className="p-8 rounded-[2.5rem] border border-muted-foreground/10 bg-muted/5 space-y-6">
+                    <div className="p-8 rounded-3xl border border-muted-foreground/10 bg-muted/5 space-y-6">
                         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Invoices & Receipts</h4>
                         <p className="text-xs font-medium text-muted-foreground leading-relaxed">
                             Need a custom invoice or have questions about your billing?

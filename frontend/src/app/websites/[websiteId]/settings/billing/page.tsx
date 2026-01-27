@@ -35,8 +35,8 @@ export default function BillingSettings() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Billing & Plans</h1>
-          <p className="text-muted-foreground text-sm">Manage your subscription and track usage.</p>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Billing & Plans</h1>
+          <p className="text-muted-foreground font-medium">Manage your subscription and track usage.</p>
         </div>
         <Button variant="outline" className="h-10 px-5 font-bold rounded-xl gap-2 hover:bg-muted">
           <CreditCard className="h-4 w-4" />
@@ -105,7 +105,7 @@ export default function BillingSettings() {
           </ul>
         </div>
 
-        <div className="bg-muted/30 p-6 rounded-2xl border border-dashed space-y-4 flex flex-col justify-center">
+        <div className="bg-muted/30 p-6 rounded-3xl border border-dashed border-muted-foreground/20 space-y-4 flex flex-col justify-center">
            <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center shadow-sm">
                 <TrendingUp className="h-5 w-5 text-indigo-500" />

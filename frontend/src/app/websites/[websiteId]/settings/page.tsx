@@ -1,67 +1,69 @@
 'use client';
 
 import React from 'react';
-import { CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Globe, Trash2, ShieldAlert } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+    Settings, 
+    Shield, 
+    Users, 
+    Code, 
+    Target, 
+    Globe, 
+    CreditCard 
+} from 'lucide-react';
 
-export default function GeneralSettings() {
-  const params = useParams();
-  const websiteId = params?.websiteId as string;
+import { GeneralSettingsComponent } from '@/components/settings/GeneralSettingsComponent';
+import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
+import { TeamSettingsComponent } from '@/components/settings/TeamSettingsComponent';
+import { TrackingSettingsComponent } from '@/components/settings/TrackingSettingsComponent';
+import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
+import { WebsitesSettingsComponent } from '@/components/settings/WebsitesSettingsComponent';
+import { BillingSettingsComponent } from '@/components/settings/BillingSettingsComponent';
 
-  return (
-    <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1280px] mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">General Settings</h1>
-        <p className="text-muted-foreground text-sm">Update your website information and preferences.</p>
-      </div>
+export default function SettingsPage() {
+    const params = useParams();
+    const websiteId = params?.websiteId as string;
 
-      <div className="grid gap-6">
-        <div className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="website-name" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Website Name</Label>
-            <Input id="website-name" placeholder="My Awesome Website" defaultValue="Seentics Dashboard" className="h-11 bg-muted/20 border-none shadow-none focus-visible:ring-1" />
-          </div>
+    const tabs = [
+        { id: 'general', label: 'General', icon: Settings, component: GeneralSettingsComponent },
+        { id: 'websites', label: 'Websites', icon: Globe, component: WebsitesSettingsComponent },
+        { id: 'privacy', label: 'Privacy', icon: Shield, component: PrivacySettingsComponent },
+        { id: 'team', label: 'Team', icon: Users, component: TeamSettingsComponent },
+        { id: 'tracking', label: 'Tracking', icon: Code, component: TrackingSettingsComponent },
+        { id: 'goals', label: 'Goals', icon: Target, component: GoalsSettingsComponent },
+        { id: 'billing', label: 'Billing', icon: CreditCard, component: BillingSettingsComponent },
+    ];
 
-          <div className="grid gap-2">
-            <Label htmlFor="website-domain" className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Domain</Label>
-            <div className="relative">
-              <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input id="website-domain" placeholder="example.com" defaultValue="seentics.com" className="pl-10 h-11 bg-muted/20 border-none shadow-none focus-visible:ring-1" />
+    return (
+        <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-[1440px] mx-auto">
+            <div>
+                <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Website Settings</h1>
+                <p className="text-muted-foreground font-medium">Configure and manage your property preferences and compliance.</p>
             </div>
-          </div>
-        </div>
 
-        <div className="pt-4 border-t">
-          <Button className="h-10 px-8 font-bold rounded-xl shadow-lg shadow-primary/20 transition-transform active:scale-95">
-            Save Changes
-          </Button>
-        </div>
-      </div>
+            <Tabs defaultValue="general" className="w-full space-y-8">
+                <div className="border-b border-border/40 pb-px">
+                    <TabsList className="h-auto bg-transparent p-0 gap-6 w-full justify-start overflow-x-auto custom-scrollbar no-scrollbar flex-nowrap">
+                        {tabs.map((tab) => (
+                            <TabsTrigger
+                                key={tab.id}
+                                value={tab.id}
+                                className="h-11 px-1 bg-transparent border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none rounded-none text-muted-foreground data-[state=active]:text-foreground font-bold transition-all gap-2"
+                            >
+                                <tab.icon className="h-4 w-4" />
+                                {tab.label}
+                            </TabsTrigger>
+                        ))}
+                    </TabsList>
+                </div>
 
-      {/* Danger Zone */}
-      <div className="pt-12">
-        <div className="p-6 rounded-2xl border border-rose-500/20 bg-rose-500/5 space-y-4">
-          <div className="flex items-center gap-3 text-rose-600">
-            <ShieldAlert className="h-5 w-5" />
-            <h2 className="font-bold text-sm uppercase tracking-widest">Danger Zone</h2>
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-0.5">
-              <p className="text-sm font-bold">Delete Website</p>
-              <p className="text-xs text-muted-foreground">This will permanently remove all analytics and historical data for this site.</p>
-            </div>
-            <Button variant="destructive" size="sm" className="h-9 px-4 font-bold rounded-lg border-none">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Permanently
-            </Button>
-          </div>
+                {tabs.map((tab) => (
+                    <TabsContent key={tab.id} value={tab.id} className="mt-0 outline-none">
+                        <tab.component websiteId={websiteId} />
+                    </TabsContent>
+                ))}
+            </Tabs>
         </div>
-      </div>
-    </div>
-  );
+    );
 }
