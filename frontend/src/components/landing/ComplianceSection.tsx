@@ -71,7 +71,7 @@ export default function ComplianceSection() {
         {/* Header */}
         <div className="text-center mb-16">
           <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded-xl">
+            <div className="p-3 bg-green-100 dark:bg-green-900/20 rounded">
               <Shield className="h-8 w-8 text-green-600" />
             </div>
             <Badge className="bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400 px-3 py-1">
@@ -94,7 +94,7 @@ export default function ComplianceSection() {
             return (
               <Card key={index} className="border-slate-200 dark:border-slate-700 hover:shadow-lg transition-all duration-300">
                 <CardHeader className="text-center">
-                  <div className="mx-auto p-3 bg-green-100 dark:bg-green-900/20 rounded-xl mb-4">
+                  <div className="mx-auto p-3 bg-green-100 dark:bg-green-900/20 rounded mb-4">
                     <Icon className="h-8 w-8 text-green-600" />
                   </div>
                   <CardTitle className="text-xl text-slate-900 dark:text-slate-100">
@@ -131,7 +131,7 @@ export default function ComplianceSection() {
                 <Card key={index} className="border-slate-200 dark:border-slate-700 hover:shadow-lg transition-all duration-300">
                   <CardHeader>
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                      <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded">
                         <Icon className="h-6 w-6 text-slate-600" />
                       </div>
                       <CardTitle className="text-lg text-slate-900 dark:text-slate-100">
@@ -143,7 +143,7 @@ export default function ComplianceSection() {
                     </p>
                   </CardHeader>
                   <CardContent>
-                    <div className="bg-slate-50 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                    <div className="bg-slate-50 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-700 rounded p-3">
                       <p className="text-sm text-slate-800 dark:text-slate-200">
                         <strong>Benefit:</strong> {control.benefit}
                       </p>
@@ -156,7 +156,7 @@ export default function ComplianceSection() {
         </div>
 
         {/* Trust Indicators */}
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 md:p-12 border border-slate-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-slate-800 rounded p-8 md:p-12 border border-slate-200 dark:border-slate-700">
           <div className="text-center mb-8">
             <h3 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100 mb-4">
               Why Privacy Matters for Your Business
@@ -168,7 +168,7 @@ export default function ComplianceSection() {
 
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
-              <div className="mx-auto p-3 bg-green-100 dark:bg-green-900/20 rounded-xl mb-4 w-16 h-16 flex items-center justify-center">
+              <div className="mx-auto p-3 bg-green-100 dark:bg-green-900/20 rounded mb-4 w-16 h-16 flex items-center justify-center">
                 <Users className="h-8 w-8 text-green-600" />
               </div>
               <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
@@ -180,7 +180,7 @@ export default function ComplianceSection() {
             </div>
 
             <div className="text-center">
-              <div className="mx-auto p-3 bg-slate-100 dark:bg-slate-800 rounded-xl mb-4 w-16 h-16 flex items-center justify-center">
+              <div className="mx-auto p-3 bg-slate-100 dark:bg-slate-800 rounded mb-4 w-16 h-16 flex items-center justify-center">
                 <Globe className="h-8 w-8 text-slate-600" />
               </div>
               <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
@@ -192,7 +192,7 @@ export default function ComplianceSection() {
             </div>
 
             <div className="text-center">
-              <div className="mx-auto p-3 bg-purple-100 dark:bg-purple-900/20 rounded-xl mb-4 w-16 h-16 flex items-center justify-center">
+              <div className="mx-auto p-3 bg-purple-100 dark:bg-purple-900/20 rounded mb-4 w-16 h-16 flex items-center justify-center">
                 <Shield className="h-8 w-8 text-purple-600" />
               </div>
               <h4 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
@@ -207,7 +207,7 @@ export default function ComplianceSection() {
 
         {/* CTA */}
         <div className="text-center mt-12">
-          <div className="bg-gradient-to-r from-green-50 to-slate-50 dark:from-green-950/20 dark:to-slate-950/20 border border-green-200 dark:border-green-800 rounded-2xl p-8">
+          <div className="bg-gradient-to-r from-green-50 to-slate-50 dark:from-green-950/20 dark:to-slate-950/20 border border-green-200 dark:border-green-800 rounded p-8">
             <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-4">
               Ready to Build Trust with Privacy-First Analytics?
             </h3>
@@ -217,13 +217,13 @@ export default function ComplianceSection() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a 
                 href="#pricing" 
-                className="inline-flex items-center justify-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors duration-200"
+                className="inline-flex items-center justify-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded transition-colors duration-200"
               >
                 Start Free Trial
               </a>
               <a 
                 href="/privacy" 
-                className="inline-flex items-center justify-center px-6 py-3 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold rounded-lg transition-colors duration-200"
+                className="inline-flex items-center justify-center px-6 py-3 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold rounded transition-colors duration-200"
               >
                 View Privacy Policy
               </a>

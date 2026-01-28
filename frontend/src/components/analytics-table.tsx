@@ -83,7 +83,7 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
       <Card className="bg-card shadow-sm overflow-hidden">
         <CardHeader className="pb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
+            <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded">
               <div className="w-2 h-2 bg-white rounded-full"></div>
             </div>
             <CardTitle className="font-headline text-xl text-foreground">Traffic Breakdown</CardTitle>
@@ -104,9 +104,9 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
 
               <ul className="space-y-3">
                 {demoPages.map((row, idx) => (
-                  <li key={idx} className="group flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all duration-200">
+                  <li key={idx} className="group flex items-center justify-between p-3 rounded bg-muted/30 hover:bg-muted/50 transition-all duration-200">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="p-2 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-lg">
+                      <div className="p-2 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded">
                         {getPageIcon(row.page)}
                       </div>
                       <span className="truncate font-medium text-foreground" title={getPageLabel(row.page)}>{getPageLabel(row.page)}</span>
@@ -129,9 +129,9 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
 
               <ul className="space-y-3">
                 {demoReferrers.map((row, idx) => (
-                  <li key={idx} className="group flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all duration-200">
+                  <li key={idx} className="group flex items-center justify-between p-3 rounded bg-muted/30 hover:bg-muted/50 transition-all duration-200">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="p-2 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded-lg">
+                      <div className="p-2 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded">
                         <ExternalLink className="h-4 w-4 text-green-600" />
                       </div>
                       <span className="truncate font-medium text-foreground" title={row.referrer === 'direct' ? 'Direct' : row.referrer}>{row.referrer === 'direct' ? 'Direct' : row.referrer}</span>
@@ -159,7 +159,7 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
     <Card className="bg-card shadow-sm overflow-hidden">
       <CardHeader className="pb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
+          <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded">
             <div className="w-2 h-2 bg-white rounded-full"></div>
           </div>
           <CardTitle className="font-headline text-xl text-foreground">Traffic Breakdown</CardTitle>
@@ -185,15 +185,15 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
                 ))}
               </div>
             ) : pages.length === 0 ? (
-              <div className="text-sm text-muted-foreground h-[200px] flex items-center justify-center rounded-xl border border-border/50 bg-muted/30">
+              <div className="text-sm text-muted-foreground h-[200px] flex items-center justify-center rounded border border-border/50 bg-muted/30">
                 No page data yet
               </div>
             ) : (
               <ul className="space-y-3">
                 {pages.map((row, idx) => (
-                  <li key={idx} className="group flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all duration-200">
+                  <li key={idx} className="group flex items-center justify-between p-3 rounded bg-muted/30 hover:bg-muted/50 transition-all duration-200">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="p-2 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-lg">
+                      <div className="p-2 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded">
                         {getPageIcon(row.page)}
                       </div>
                       <span className="truncate font-medium text-foreground" title={getPageLabel(row.page)}>{getPageLabel(row.page)}</span>
@@ -222,15 +222,15 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
                 ))}
               </div>
             ) : refs.length === 0 ? (
-              <div className="text-sm text-muted-foreground h-[200px] flex items-center justify-center rounded-xl border border-border/50 bg-muted/30">
+              <div className="text-sm text-muted-foreground h-[200px] flex items-center justify-center rounded border border-border/50 bg-muted/30">
                 No source data yet
               </div>
             ) : (
               <ul className="space-y-3">
                 {refs.map((row, idx) => (
-                  <li key={idx} className="group flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-all duration-200">
+                  <li key={idx} className="group flex items-center justify-between p-3 rounded bg-muted/30 hover:bg-muted/50 transition-all duration-200">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="p-2 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded-lg">
+                      <div className="p-2 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded">
                         <ExternalLink className="h-4 w-4 text-green-600" />
                       </div>
                       <span className="truncate font-medium text-foreground" title={row.referrer === 'direct' ? 'Direct' : row.referrer}>{row.referrer === 'direct' ? 'Direct' : row.referrer}</span>

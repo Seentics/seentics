@@ -52,7 +52,7 @@ export default function QuickStart() {
                         <div className="md:w-12 md:h-12 w-10 h-10 rounded-full bg-background border-2 border-primary flex items-center justify-center shrink-0 z-10 md:mt-2 shadow-lg shadow-primary/10">
                             <span className="text-lg font-bold text-primary">{i + 1}</span>
                         </div>
-                        <div className="flex-1 p-8 rounded-3xl border bg-card hover:bg-muted/10 transition-all duration-300">
+                        <div className="flex-1 p-8 rounded border bg-card hover:bg-muted/10 transition-all duration-300">
                             <h3 className="text-xl font-semibold mb-3 flex items-center gap-2">
                                 {step.title}
                                 <CheckCircle2 className="w-5 h-5 text-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -71,12 +71,12 @@ export default function QuickStart() {
                 ))}
             </div>
 
-            <div className="p-8 rounded-3xl bg-primary text-white text-center space-y-4 overflow-hidden relative">
+            <div className="p-8 rounded bg-primary text-white text-center space-y-4 overflow-hidden relative">
                 <div className="relative z-10">
                     <h2 className="text-2xl font-bold">You're all set!</h2>
                     <p className="text-primary-foreground/90 font-medium">Ready to explore deep insights?</p>
                     <div className="pt-4">
-                        <Link href="/websites" className="px-8 py-3 bg-white text-primary rounded-xl font-bold hover:bg-opacity-90 transition inline-block">
+                        <Link href="/websites" className="px-8 py-3 bg-white text-primary rounded font-bold hover:bg-opacity-90 transition inline-block">
                             Go to Dashboard
                         </Link>
                     </div>

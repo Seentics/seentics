@@ -38,7 +38,7 @@ export default function BillingSettings() {
           <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Billing & Plans</h1>
           <p className="text-muted-foreground font-medium">Manage your subscription and track usage.</p>
         </div>
-        <Button variant="outline" className="h-10 px-5 font-bold rounded-xl gap-2 hover:bg-muted">
+        <Button variant="outline" className="h-10 px-5 font-bold rounded gap-2 hover:bg-muted">
           <CreditCard className="h-4 w-4" />
           Update Payment
         </Button>
@@ -46,11 +46,11 @@ export default function BillingSettings() {
 
       {/* Current Plan Card */}
       <div className="relative group">
-        <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 to-indigo-500/10 rounded-3xl blur opacity-50 group-hover:opacity-100 transition duration-1000"></div>
-        <div className="relative bg-card border rounded-3xl p-6 shadow-sm overflow-hidden">
+        <div className="absolute -inset-1 bg-gradient-to-r from-primary/10 to-indigo-500/10 rounded blur opacity-50 group-hover:opacity-100 transition duration-1000"></div>
+        <div className="relative bg-card border rounded p-6 shadow-sm overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+              <div className="w-14 h-14 rounded bg-primary/10 flex items-center justify-center border border-primary/20">
                 <Zap className="h-7 w-7 text-primary" />
               </div>
               <div>
@@ -105,7 +105,7 @@ export default function BillingSettings() {
           </ul>
         </div>
 
-        <div className="bg-muted/30 p-6 rounded-3xl border border-dashed border-muted-foreground/20 space-y-4 flex flex-col justify-center">
+        <div className="bg-muted/30 p-6 rounded border border-dashed border-muted-foreground/20 space-y-4 flex flex-col justify-center">
            <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-background flex items-center justify-center shadow-sm">
                 <TrendingUp className="h-5 w-5 text-indigo-500" />
@@ -115,7 +115,7 @@ export default function BillingSettings() {
                 <p className="text-xs text-muted-foreground">Upgrade to Enterprise for custom limits.</p>
               </div>
            </div>
-           <Button variant="secondary" className="w-full h-10 font-bold rounded-xl active:scale-95 transition-transform">
+           <Button variant="secondary" className="w-full h-10 font-bold rounded active:scale-95 transition-transform">
               Contact Sales
            </Button>
         </div>

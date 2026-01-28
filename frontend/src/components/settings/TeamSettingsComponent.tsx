@@ -68,7 +68,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
         </div>
         <Button 
           onClick={() => setIsInviteModalOpen(true)}
-          className="h-10 px-5 font-bold rounded-xl gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
+          className="h-10 px-5 font-bold rounded gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
         >
           <UserPlus className="h-4 w-4" />
           Invite Member
@@ -82,14 +82,14 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : members.length === 0 ? (
-          <div className="text-center py-12 bg-muted/20 rounded-3xl border border-dashed">
+          <div className="text-center py-12 bg-muted/20 rounded border border-dashed">
             <p className="text-muted-foreground">No team members besides you. Invite someone to collaborate.</p>
           </div>
         ) : (
           members.map((member: WebsiteMember) => (
             <div 
               key={member.id} 
-              className="group bg-card/50 backdrop-blur-sm p-4 rounded-2xl flex items-center justify-between border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80"
+              className="group bg-card/50 backdrop-blur-sm p-4 rounded flex items-center justify-between border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80"
             >
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
@@ -119,18 +119,18 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                 {member.userId !== user?.id && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded">
                         <MoreVertical className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 rounded-xl p-2">
-                      <DropdownMenuItem className="rounded-lg gap-2 cursor-pointer flex items-center">
+                    <DropdownMenuContent align="end" className="w-48 rounded p-2">
+                      <DropdownMenuItem className="rounded gap-2 cursor-pointer flex items-center">
                         <Shield className="h-4 w-4 text-muted-foreground" />
                         Change Role
                       </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => handleRemoveMember(member.userId)}
-                        className="rounded-lg gap-2 cursor-pointer text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
+                        className="rounded gap-2 cursor-pointer text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
                       >
                         <Trash2 className="h-4 w-4" />
                         Remove Member
@@ -144,7 +144,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
         )}
       </div>
 
-      <div className="bg-muted/30 p-4 rounded-2xl border border-border/50 flex gap-4">
+      <div className="bg-muted/30 p-4 rounded border border-border/50 flex gap-4">
         <Shield className="h-5 w-5 text-muted-foreground shrink-0" />
         <div className="space-y-1">
           <p className="text-xs font-bold text-foreground">Advanced Permissions</p>

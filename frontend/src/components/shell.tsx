@@ -221,7 +221,7 @@ function ShellContent({ children }: { children: React.ReactNode }) {
                 <Link 
                   href="https://automation.seentics.com" 
                   target="_blank"
-                  className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-xs font-bold"
+                  className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-xs font-bold"
                 >
                   <Workflow size={14} />
                   <span>Automation</span>

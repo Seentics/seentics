@@ -134,7 +134,7 @@ export default function AutomationsPage() {
                         We couldn't load your automations. This might be a temporary connection issue.
                     </p>
                 </div>
-                <Button variant="outline" onClick={() => refetch()} className="h-11 px-8 rounded-2xl font-bold gap-2">
+                <Button variant="outline" onClick={() => refetch()} className="h-11 px-8 rounded font-bold gap-2">
                     <Activity className="h-4 w-4" />
                     Try Again
                 </Button>
@@ -143,12 +143,12 @@ export default function AutomationsPage() {
     }
 
     return (
-        <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1400px] mx-auto">
+        <div className="p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1400px] mx-auto">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
                             <Workflow className="h-4 w-4 text-primary" />
                         </div>
                         <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Automations</h1>
@@ -156,7 +156,7 @@ export default function AutomationsPage() {
                     <p className="text-muted-foreground font-medium">Scale your growth with intelligent behavioral triggers.</p>
                 </div>
                 <Link href={`/websites/${websiteId}/automations/builder`}>
-                    <Button variant="brand" className="h-12 px-6 font-black rounded-2xl gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">
+                    <Button variant="brand" className="h-12 px-6 font-black rounded gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">
                         <Plus className="h-5 w-5" />
                         Create Automation
                     </Button>
@@ -196,18 +196,18 @@ export default function AutomationsPage() {
             </div>
 
             {/* Content Section */}
-            <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card dark:bg-gray-800/50 rounded-3xl overflow-hidden border border-muted-foreground/5 backdrop-blur-sm">
+            <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card dark:bg-gray-800/50 rounded overflow-hidden border border-muted-foreground/5 backdrop-blur-sm">
                 <CardHeader className="border-b border-muted-foreground/5 bg-muted/20 px-6 py-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <CardTitle className="text-lg font-black">All Workflows</CardTitle>
+                            <CardTitle className="text-lg font-black">All Automation Workflows</CardTitle>
                             <CardDescription className="text-xs font-bold uppercase tracking-widest mt-1">Manage and track performance</CardDescription>
                         </div>
                         <div className="relative w-full md:w-80 group">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                             <Input
                                 placeholder="Search by name..."
-                                className="pl-12 h-11 bg-background border-muted-foreground/10 focus-visible:ring-1 text-sm font-medium rounded-2xl transition-all"
+                                className="pl-12 h-11 bg-background border-muted-foreground/10 focus-visible:ring-1 text-sm font-medium rounded transition-all"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -217,7 +217,7 @@ export default function AutomationsPage() {
                 <CardContent className="p-0">
                     {filteredAutomations.length === 0 ? (
                         <div className="py-24 text-center">
-                            <div className="w-20 h-20 rounded-3xl bg-muted/30 flex items-center justify-center mx-auto mb-6">
+                            <div className="w-20 h-20 rounded bg-muted/30 flex items-center justify-center mx-auto mb-6">
                                 <Search className="h-10 w-10 text-muted-foreground/30" />
                             </div>
                             <h3 className="text-xl font-bold mb-2">No results found</h3>
@@ -257,7 +257,7 @@ export default function AutomationsPage() {
                                             <tr key={auto.id} className="hover:bg-muted/10 transition-colors group">
                                                 <td className="px-6 py-6 min-w-[300px]">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-border/50 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                                                        <div className="w-12 h-12 rounded bg-white dark:bg-slate-900 border border-border/50 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                                                             <ActionIcon className="h-6 w-6 text-primary" />
                                                         </div>
                                                         <div className="min-w-0">
@@ -312,7 +312,7 @@ export default function AutomationsPage() {
                                                 <td className="px-6 py-6 text-center">
                                                     <Badge
                                                         variant={auto.isActive ? 'outline' : 'secondary'}
-                                                        className={`rounded-xl font-black text-[10px] px-3 py-1 uppercase tracking-widest border-0 ${auto.isActive ? 'bg-green-500/10 text-green-500' : 'bg-slate-500/10 text-slate-500'
+                                                        className={`rounded font-black text-[10px] px-3 py-1 uppercase tracking-widest border-0 ${auto.isActive ? 'bg-green-500/10 text-green-500' : 'bg-slate-500/10 text-slate-500'
                                                             }`}
                                                     >
                                                         <span className={`w-1.5 h-1.5 rounded-full mr-2 ${auto.isActive ? 'bg-green-500 animate-pulse' : 'bg-slate-500'}`} />
@@ -322,11 +322,11 @@ export default function AutomationsPage() {
                                                 <td className="px-6 py-6 text-right">
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-muted">
+                                                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded hover:bg-muted">
                                                                 <MoreVertical className="h-4 w-4" />
                                                             </Button>
                                                         </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-48 rounded-2xl p-2 border-muted-foreground/10 shadow-xl">
+                                                        <DropdownMenuContent align="end" className="w-48 rounded p-2 border-muted-foreground/10 shadow-xl">
                                                             <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">Actions</DropdownMenuLabel>
                                                             <DropdownMenuItem asChild>
                                                                 <Link href={`/websites/${websiteId}/automations/${auto.id}`} className="flex items-center gap-2 px-3 py-2 cursor-pointer font-bold text-sm text-slate-700 dark:text-slate-300">
@@ -375,7 +375,7 @@ export default function AutomationsPage() {
             {/* Support Message */}
             <div className="flex flex-col sm:flex-row items-center justify-between p-8 rounded-[2.5rem] bg-slate-900 text-white gap-6">
                 <div className="flex items-center gap-6 text-center sm:text-left">
-                    <div className="hidden sm:flex w-16 h-16 rounded-3xl bg-white/10 items-center justify-center flex-shrink-0">
+                    <div className="hidden sm:flex w-16 h-16 rounded bg-white/10 items-center justify-center flex-shrink-0">
                         <Zap className="h-8 w-8 text-white" />
                     </div>
                     <div>
@@ -383,7 +383,7 @@ export default function AutomationsPage() {
                         <p className="text-slate-400 font-medium mt-1">We're constantly adding new triggers and actions. Tell us what you need.</p>
                     </div>
                 </div>
-                <Button className="bg-white text-slate-900 hover:bg-slate-100 h-12 px-8 rounded-2xl font-black flex-shrink-0">
+                <Button className="bg-white text-slate-900 hover:bg-slate-100 h-12 px-8 rounded font-black flex-shrink-0">
                     Request Feature
                 </Button>
             </div>
@@ -400,15 +400,15 @@ function StatsCard({ title, value, icon: Icon, description, color = 'primary' }:
     };
 
     return (
-        <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card dark:bg-gray-800/50 rounded-3xl overflow-hidden border border-muted-foreground/5 flex flex-col justify-between">
+        <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card dark:bg-gray-800/50 rounded overflow-hidden border border-muted-foreground/5 flex flex-col justify-between">
             <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                     <CardDescription className="font-black text-[10px] uppercase tracking-widest text-muted-foreground">{title}</CardDescription>
-                    <div className={`p-2 rounded-xl ${colorClasses[color]}`}>
+                    <div className={`p-2 rounded ${colorClasses[color]}`}>
                         <Icon className="h-4 w-4" />
                     </div>
                 </div>
-                <CardTitle className="text-3xl font-black text-slate-900 dark:text-white mt-2">
+                <CardTitle className="text-2xl font-black text-slate-900 dark:text-white mt-2">
                     {typeof value === 'number' ? formatNumber(value) : value}
                 </CardTitle>
             </CardHeader>
@@ -426,18 +426,18 @@ function AutomationsSkeleton() {
         <div className="p-4 sm:p-6 space-y-8 max-w-[1400px] mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-2">
-                    <Skeleton className="h-10 w-48 rounded-xl" />
-                    <Skeleton className="h-4 w-72 rounded-lg" />
+                    <Skeleton className="h-10 w-48 rounded" />
+                    <Skeleton className="h-4 w-72 rounded" />
                 </div>
-                <Skeleton className="h-12 w-48 rounded-2xl" />
+                <Skeleton className="h-12 w-48 rounded" />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[1, 2, 3, 4].map(i => (
-                    <Card key={i} className="border-none shadow-sm rounded-3xl overflow-hidden p-6 space-y-4">
+                    <Card key={i} className="border-none shadow-sm rounded overflow-hidden p-6 space-y-4">
                         <div className="flex items-center justify-between">
                             <Skeleton className="h-3 w-24" />
-                            <Skeleton className="h-8 w-8 rounded-xl" />
+                            <Skeleton className="h-8 w-8 rounded" />
                         </div>
                         <Skeleton className="h-8 w-16" />
                         <Skeleton className="h-3 w-32" />
@@ -445,14 +445,14 @@ function AutomationsSkeleton() {
                 ))}
             </div>
 
-            <Card className="border-none shadow-sm rounded-3xl overflow-hidden">
+            <Card className="border-none shadow-sm rounded overflow-hidden">
                 <CardHeader className="border-b border-muted-foreground/5 bg-muted/20 px-6 py-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div className="space-y-2">
                             <Skeleton className="h-6 w-32" />
                             <Skeleton className="h-3 w-48" />
                         </div>
-                        <Skeleton className="h-11 w-full md:w-80 rounded-2xl" />
+                        <Skeleton className="h-11 w-full md:w-80 rounded" />
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
@@ -460,7 +460,7 @@ function AutomationsSkeleton() {
                         {[1, 2, 3, 4, 5].map(i => (
                             <div key={i} className="px-6 py-6 border-b border-muted-foreground/5 flex items-center justify-between">
                                 <div className="flex items-center gap-4">
-                                    <Skeleton className="h-12 w-12 rounded-2xl" />
+                                    <Skeleton className="h-12 w-12 rounded" />
                                     <div className="space-y-2">
                                         <Skeleton className="h-4 w-40" />
                                         <Skeleton className="h-3 w-24" />
@@ -469,7 +469,7 @@ function AutomationsSkeleton() {
                                 <Skeleton className="hidden md:block h-6 w-12" />
                                 <Skeleton className="hidden md:block h-8 w-24 rounded-full" />
                                 <Skeleton className="h-4 w-16" />
-                                <Skeleton className="h-9 w-9 rounded-xl" />
+                                <Skeleton className="h-9 w-9 rounded" />
                             </div>
                         ))}
                     </div>

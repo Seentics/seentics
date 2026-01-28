@@ -56,9 +56,9 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
     return (
       <div className="space-y-2 mt-4">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-border/20 animate-pulse">
+          <div key={i} className="flex items-center justify-between p-3 rounded border border-border/20 animate-pulse">
             <div className="flex items-center space-x-4">
-              <Skeleton className="w-10 h-10 rounded-xl" />
+              <Skeleton className="w-10 h-10 rounded" />
               <div className="space-y-2">
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-3 w-20" />
@@ -88,7 +88,7 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
 
   if (!data || listData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-muted-foreground/40 bg-accent/5 rounded-2xl border border-dashed border-border/60">
+      <div className="flex flex-col items-center justify-center py-24 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
         <Layers className="h-16 w-16 mb-4 opacity-10" />
         <div className="text-sm font-black uppercase tracking-[0.2em] mb-2">No Campaign Data</div>
         <div className="text-xs italic opacity-60 text-center px-8">Campaign performance will scale with your marketing efforts</div>
@@ -99,9 +99,9 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
   return (
     <div className="space-y-2 mt-4 animate-in fade-in duration-500">
       {listData.map((item, idx) => (
-        <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+        <div key={idx} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
           <div className="flex items-center space-x-4 flex-1 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shadow-sm shrink-0 overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
+            <div className="w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm shrink-0 overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
               <Image 
                 src={getImageForName(item.name, utmTab)} 
                 alt={item.name} 

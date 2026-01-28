@@ -41,7 +41,7 @@ export function Logo({
           width={logoSize}
           height={logoSize}
           alt="Seentics Logo"
-          className="rounded-lg"
+          className="rounded"
         />
         <span className={cn("font-bold text-foreground", textSize, textClassName)}>
           Seentics
@@ -56,7 +56,7 @@ export function Logo({
       width={logoSize}
       height={logoSize}
       alt="Seentics Logo"
-      className={cn("rounded-lg", className)}
+      className={cn("rounded", className)}
     />
   );
 }

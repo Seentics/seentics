@@ -7,7 +7,7 @@ import { GitBranch, Check, X } from 'lucide-react';
 export const ConditionNode = memo(({ data, selected, isConnectable }: NodeProps) => {
   return (
     <div
-      className={`relative px-4 py-3 rounded-2xl bg-slate-900 border-2 transition-all min-w-[200px] shadow-xl hover:shadow-2xl ${
+      className={`relative px-4 py-3 rounded bg-slate-900 border-2 transition-all min-w-[200px] shadow-xl hover:shadow-2xl ${
         selected
           ? 'border-primary ring-4 ring-primary/20 scale-105 z-50'
           : 'border-slate-800 hover:border-purple-500/40'
@@ -22,7 +22,7 @@ export const ConditionNode = memo(({ data, selected, isConnectable }: NodeProps)
       />
 
       <div className="flex items-center gap-4 mb-3">
-        <div className="h-10 w-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+        <div className="h-10 w-10 rounded bg-purple-500/10 flex items-center justify-center text-purple-400">
           <GitBranch size={20} />
         </div>
         <div className="min-w-0">
@@ -36,7 +36,7 @@ export const ConditionNode = memo(({ data, selected, isConnectable }: NodeProps)
       </div>
 
       {data.label && data.label !== 'Condition Check' && (
-        <div className="bg-slate-800/50 rounded-xl p-2 text-xs font-bold text-slate-400 border border-slate-700/50 text-center mb-2 italic">
+        <div className="bg-slate-800/50 rounded p-2 text-xs font-bold text-slate-400 border border-slate-700/50 text-center mb-2 italic">
           {data.label}
         </div>
       )}

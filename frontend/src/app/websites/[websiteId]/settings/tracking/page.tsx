@@ -32,8 +32,8 @@ export default function TrackingSettings() {
 
       <div className="space-y-6">
         <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded-2xl blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-          <div className="relative bg-muted/30 p-6 rounded-2xl border border-border/50">
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+          <div className="relative bg-muted/30 p-6 rounded border border-border/50">
             <div className="flex items-center justify-between mb-4">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Main Tracking Snippet</span>
               <Button 
@@ -53,7 +53,7 @@ export default function TrackingSettings() {
         </div>
 
         <div className="grid gap-6">
-           <div className="flex gap-4 p-4 rounded-2xl bg-primary/5 border border-primary/10">
+           <div className="flex gap-4 p-4 rounded bg-primary/5 border border-primary/10">
               <Lightbulb className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div className="space-y-1">
                  <p className="text-sm font-bold">Installation Tip</p>
@@ -63,7 +63,7 @@ export default function TrackingSettings() {
               </div>
            </div>
 
-           <div className="flex gap-4 p-4 rounded-2xl bg-muted/30 border border-border">
+           <div className="flex gap-4 p-4 rounded bg-muted/30 border border-border">
               <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
               <div className="space-y-1">
                  <p className="text-sm font-bold">Verifying Installation</p>

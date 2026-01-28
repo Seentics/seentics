@@ -174,7 +174,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`p-4 border rounded-lg bg-card ${
+                          className={`p-4 border rounded bg-card ${
                             snapshot.isDragging ? 'shadow-lg' : ''
                           }`}
                         >

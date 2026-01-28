@@ -23,7 +23,7 @@ export default function TrackerDocs() {
                     Paste this script into the <code>{`<head>`}</code> of your website. Replace
                     {' '}<code className="text-foreground">YOUR_SITE_ID</code> with your actual Site ID.
                 </p>
-                <div className="rounded-xl border bg-slate-950 overflow-hidden shadow-2xl">
+                <div className="rounded border bg-slate-950 overflow-hidden shadow-2xl">
                     <div className="px-4 py-2 border-b border-white/10 bg-white/5 flex items-center justify-between">
                         <span className="text-xs font-mono text-white/40 italic flex items-center gap-2">
                             <Code2 className="w-3 h-3" /> main-tracker.html
@@ -46,21 +46,21 @@ export default function TrackerDocs() {
                 <h2 className="text-2xl font-semibold">Technical Architecture</h2>
                 <div className="grid md:grid-cols-2 gap-8">
                     <div className="space-y-4">
-                        <div className="flex gap-4 p-4 rounded-xl border bg-card">
+                        <div className="flex gap-4 p-4 rounded border bg-card">
                             <div className="mt-1"><Cpu className="w-5 h-5 text-primary" /></div>
                             <div className="space-y-1">
                                 <h4 className="font-medium">Zero Main-thread Block</h4>
                                 <p className="text-xs text-muted-foreground">Ues <code>requestIdleCallback</code> to ensure tracking never interferes with user interactions.</p>
                             </div>
                         </div>
-                        <div className="flex gap-4 p-4 rounded-xl border bg-card">
+                        <div className="flex gap-4 p-4 rounded border bg-card">
                             <div className="mt-1"><Globe className="w-5 h-5 text-primary" /></div>
                             <div className="space-y-1">
                                 <h4 className="font-medium">Batch Processing</h4>
                                 <p className="text-xs text-muted-foreground">Auto-aggregates high-frequency events to reduce HTTP overhead and battery drain.</p>
                             </div>
                         </div>
-                        <div className="flex gap-4 p-4 rounded-xl border bg-card">
+                        <div className="flex gap-4 p-4 rounded border bg-card">
                             <div className="mt-1"><Terminal className="w-5 h-5 text-primary" /></div>
                             <div className="space-y-1">
                                 <h4 className="font-medium">SPA Support Built-in</h4>
@@ -69,7 +69,7 @@ export default function TrackerDocs() {
                         </div>
                     </div>
 
-                    <div className="bg-muted/20 border rounded-2xl p-8 flex flex-col justify-center text-center space-y-4">
+                    <div className="bg-muted/20 border rounded p-8 flex flex-col justify-center text-center space-y-4">
                         <Shield className="w-16 h-16 text-primary/40 mx-auto" />
                         <h3 className="font-semibold">Privacy First</h3>
                         <p className="text-sm text-muted-foreground">
@@ -82,7 +82,7 @@ export default function TrackerDocs() {
 
             <section className="space-y-6">
                 <h2 className="text-2xl font-semibold text-center">Script Options</h2>
-                <div className="rounded-xl border bg-card">
+                <div className="rounded border bg-card">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b bg-muted/30">

@@ -85,7 +85,7 @@ export function TeamModal({ isOpen, onClose }: TeamModalProps) {
             <h4 className="text-sm font-medium mb-3">Current Members</h4>
             <div className="space-y-3">
               {members.map((member, i) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                <div key={i} className="flex items-center justify-between p-2 rounded hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={member.avatar} />

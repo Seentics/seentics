@@ -42,8 +42,8 @@ export default function AnalyticsDocs() {
                             icon: Zap
                         }
                     ].map((metric) => (
-                        <div key={metric.title} className="flex gap-4 p-5 rounded-xl border bg-card/50">
-                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <div key={metric.title} className="flex gap-4 p-5 rounded border bg-card/50">
+                            <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center shrink-0">
                                 <metric.icon className="w-5 h-5 text-primary" />
                             </div>
                             <div className="space-y-1">
@@ -56,7 +56,7 @@ export default function AnalyticsDocs() {
             </section>
 
             <section className="space-y-6">
-                <div className="p-8 rounded-3xl bg-primary shadow-2xl overflow-hidden relative">
+                <div className="p-8 rounded bg-primary shadow-2xl overflow-hidden relative">
                     <div className="relative z-10 space-y-4">
                         <h2 className="text-2xl font-bold text-white">Geographic Insights</h2>
                         <p className="text-primary-foreground/90 max-w-xl">
@@ -74,7 +74,7 @@ export default function AnalyticsDocs() {
                     Track specific user actions like signups, trial starts, or feature usage using
                     our lightweight API.
                 </p>
-                <div className="rounded-xl border bg-muted/30 overflow-hidden">
+                <div className="rounded border bg-muted/30 overflow-hidden">
                     <div className="px-4 py-2 border-b bg-muted/50 flex items-center justify-between">
                         <span className="text-xs font-mono text-muted-foreground">javascript</span>
                         <span className="text-[10px] uppercase font-bold text-primary">Copy</span>

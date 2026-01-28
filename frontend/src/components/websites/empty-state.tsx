@@ -24,7 +24,7 @@ export function EmptyState({ onCreateWebsite }: EmptyStateProps) {
         </p>
         
         <div className="space-y-3 mb-8 text-left">
-          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded">
             <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
               <BarChart3 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
             </div>
@@ -33,7 +33,7 @@ export function EmptyState({ onCreateWebsite }: EmptyStateProps) {
             </span>
           </div>
           
-          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded">
             <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
               <Workflow className="h-4 w-4 text-green-600 dark:text-green-400" />
             </div>
@@ -42,7 +42,7 @@ export function EmptyState({ onCreateWebsite }: EmptyStateProps) {
             </span>
           </div>
           
-          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+          <div className="flex items-center gap-3 p-3 bg-muted/30 rounded">
             <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
               <Globe className="h-4 w-4 text-purple-600 dark:text-purple-400" />
             </div>

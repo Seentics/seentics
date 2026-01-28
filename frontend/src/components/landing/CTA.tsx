@@ -40,7 +40,7 @@ export default function CTA() {
             {/* Benefits Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-4xl mx-auto mb-8 md:mb-10">
               <div className="flex items-center gap-3 text-center md:text-left">
-                <div className="w-12 h-12 md:w-14 md:h-14 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-green-100 dark:bg-green-900/30 rounded flex items-center justify-center flex-shrink-0">
                   <TrendingUp className="h-6 w-6 md:h-7 md:w-7 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
@@ -49,7 +49,7 @@ export default function CTA() {
                 </div>
               </div>
               <div className="flex items-center gap-3 text-center md:text-left">
-                <div className="w-12 h-12 md:w-14 md:h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-slate-100 dark:bg-slate-800 rounded flex items-center justify-center flex-shrink-0">
                   <Zap className="h-6 w-6 md:h-7 md:w-7 text-slate-600 dark:text-slate-400" />
                 </div>
                 <div>
@@ -58,7 +58,7 @@ export default function CTA() {
                 </div>
               </div>
               <div className="flex items-center gap-3 text-center md:text-left">
-                <div className="w-12 h-12 md:w-14 md:h-14 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-purple-100 dark:bg-purple-900/30 rounded flex items-center justify-center flex-shrink-0">
                   <Users className="h-6 w-6 md:h-7 md:w-7 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
@@ -101,7 +101,7 @@ export default function CTA() {
             </div>
             
             {/* Final CTA */}
-            <div className="bg-slate-50 dark:bg-slate-700 rounded-2xl p-6 md:p-8 border border-slate-200 dark:border-slate-600">
+            <div className="bg-slate-50 dark:bg-slate-700 rounded p-6 md:p-8 border border-slate-200 dark:border-slate-600">
               <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-900 dark:text-white mb-2 sm:mb-3 md:mb-4 px-4 sm:px-0">
                 Still Have Questions?
               </h3>

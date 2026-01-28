@@ -15,7 +15,7 @@ import { getCountryFlag } from '@/utils/countries';
 const WorldMap = dynamic(() => import('./WorldMap'), {
     ssr: false,
     loading: () => (
-        <div className="h-[32rem] rounded-lg flex items-center justify-center">
+        <div className="h-[32rem] rounded flex items-center justify-center">
             <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                 <p className="text-sm text-gray-500">Loading map...</p>
@@ -105,7 +105,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
 
     if (isLoading) {
         return (
-            <Card className={cn("bg-card border-border shadow-sm shadow-black/5 rounded-xl overflow-hidden mb-6", className)}>
+            <Card className={cn("bg-card border-border shadow-sm shadow-black/5 rounded overflow-hidden mb-6", className)}>
                 <CardHeader>
                     <div className="animate-pulse space-y-2">
                         <div className="h-6 bg-accent/10 rounded w-48 mb-2"></div>
@@ -113,14 +113,14 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                    <div className="animate-pulse h-[400px] bg-accent/5 rounded-xl" />
+                    <div className="animate-pulse h-[400px] bg-accent/5 rounded" />
                 </CardContent>
             </Card>
         );
     }
 
     return (
-        <Card className={cn("bg-slate-800 rounded", className)}>
+        <Card className={cn("dark:bg-gray-800/50 rounded", className)}>
             <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-border/40">
                 <div className="space-y-1">
                     <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
@@ -129,18 +129,18 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Visitor distribution across global regions</p>
                 </div>
                 <Tabs value={geoTab} onValueChange={setGeoTab} className="w-full lg:w-auto">
-                    <TabsList className="grid w-full grid-cols-4 h-9 bg-accent/10 p-1 rounded-lg">
-                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background' value="map">Map</TabsTrigger>
-                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background' value="countries">Countries</TabsTrigger>
-                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background' value="cities">Cities</TabsTrigger>
-                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background' value="continents">Continents</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-4 h-9 bg-accent/10 p-1 rounded">
+                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background' value="map">Map</TabsTrigger>
+                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background' value="countries">Countries</TabsTrigger>
+                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background' value="cities">Cities</TabsTrigger>
+                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background' value="continents">Continents</TabsTrigger>
                     </TabsList>
                 </Tabs>
             </CardHeader>
             <CardContent className="p-6 pt-6">
                 <div className="min-h-[400px]">
                     {geoTab === 'map' && (
-                        <div className="h-[450px] relative rounded-xl overflow-hidden ">
+                        <div className="h-[450px]  relative rounded overflow-hidden ">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}
@@ -151,7 +151,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     {geoTab === 'countries' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {displayData?.countries?.slice(0, 14).map((country, index) => (
-                                <div key={country.name} className="flex items-center justify-between p-3 rounded-lg border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+                                <div key={country.name} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-black text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border/40">
@@ -188,10 +188,10 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     {geoTab === 'cities' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {displayData?.cities?.slice(0, 14).map((city, index) => (
-                                <div key={city.name} className="flex items-center justify-between p-3 rounded-lg border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+                                <div key={city.name} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-black text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
-                                        <div className="p-2 rounded-lg bg-accent/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300" >
+                                        <div className="p-2 rounded bg-accent/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300" >
                                             <MapPin className="h-4 w-4" />
                                         </div>
                                         <div className="min-w-0 flex-1">
@@ -211,10 +211,10 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     {geoTab === 'continents' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {displayData?.continents?.map((continent, index) => (
-                                <div key={continent.name} className="flex items-center justify-between p-3 rounded-lg border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+                                <div key={continent.name} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-black text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
-                                        <div className="p-2 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent hover:scale-110 transition-all duration-300" >
+                                        <div className="p-2 rounded bg-accent/10 flex items-center justify-center group-hover:bg-accent hover:scale-110 transition-all duration-300" >
                                             <div className="text-lg">{getContinentEmoji(continent.name)}</div>
                                         </div>
                                         <div className="min-w-0 flex-1">
@@ -233,7 +233,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
 
                     {/* Empty State */}
                     {!displayData?.countries?.length && !isLoading && (
-                        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground/40 bg-accent/5 rounded-xl border border-dashed border-border/60">
+                        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
                             <Globe className="h-16 w-16 mb-4 opacity-10" />
                             <div className="text-sm font-black uppercase tracking-[0.2em] mb-2">No data recorded</div>
                             <div className="text-xs italic opacity-60">Global insights will appear as visitors connect</div>

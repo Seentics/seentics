@@ -98,7 +98,7 @@ export function WebsitesManageModal({ isOpen, onClose }: WebsitesManageModalProp
               No websites found. Add your first website to get started.
             </div>
           ) : (
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded overflow-hidden">
                 <Table>
                 <TableHeader>
                     <TableRow>

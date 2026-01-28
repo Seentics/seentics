@@ -67,7 +67,7 @@ export const UTMTrackingChart: React.FC<UTMTrackingChartProps> = ({ data, isLoad
       {sources.length > 0 ? (
         <div className="space-y-3">
           {sources.slice(0, 5).map((source: any, index: number) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded">
               <div className="flex items-center gap-3">
                 {getSourceIcon(source.source)}
                 <div>
@@ -99,7 +99,7 @@ export const UTMTrackingChart: React.FC<UTMTrackingChartProps> = ({ data, isLoad
       )}
 
       {sources.length > 0 && (
-        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+        <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950/20 rounded">
           <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">UTM Tracking Tips</h4>
           <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
             <li>• Use consistent UTM parameters across campaigns</li>

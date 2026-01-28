@@ -59,7 +59,7 @@ export const AdvancedConditionNode = memo(({ data, selected, isConnectable }: No
 
   return (
     <div
-      className={`relative px-4 py-4 rounded-2xl bg-slate-900 border-2 transition-all min-w-[240px] shadow-xl hover:shadow-2xl ${
+      className={`relative px-4 py-4 rounded bg-slate-900 border-2 transition-all min-w-[240px] shadow-xl hover:shadow-2xl ${
         selected
           ? 'border-primary ring-4 ring-primary/20 scale-105 z-50'
           : 'border-slate-800 hover:border-purple-500/40'
@@ -74,7 +74,7 @@ export const AdvancedConditionNode = memo(({ data, selected, isConnectable }: No
       />
 
       <div className="flex items-center gap-4 mb-4">
-        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${colorClass}`}>
+        <div className={`h-12 w-12 rounded flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${colorClass}`}>
           <Icon size={24} />
         </div>
         <div className="min-w-0 flex-1">
@@ -90,7 +90,7 @@ export const AdvancedConditionNode = memo(({ data, selected, isConnectable }: No
       {data.config && (
         <div className="space-y-2">
           {data.config.field && (
-            <div className="bg-slate-800/50 rounded-xl p-2.5 text-xs font-medium text-slate-300 border border-slate-700/50 mb-2">
+            <div className="bg-slate-800/50 rounded p-2.5 text-xs font-medium text-slate-300 border border-slate-700/50 mb-2">
               <div className="flex items-center gap-2 justify-between">
                 <span className="truncate font-bold text-slate-400">{data.config.field}</span>
                 <span className="text-purple-400 font-black">{getOperatorLabel()}</span>
@@ -100,7 +100,7 @@ export const AdvancedConditionNode = memo(({ data, selected, isConnectable }: No
           )}
 
           {conditionType === 'wait' && (
-            <div className="bg-slate-800/50 rounded-xl p-2.5 text-xs font-medium text-slate-300 border border-slate-700/50 mb-2">
+            <div className="bg-slate-800/50 rounded p-2.5 text-xs font-medium text-slate-300 border border-slate-700/50 mb-2">
               <div className="flex items-center gap-2">
                 <Clock size={12} className="text-amber-500" />
                 <span className="font-bold">Wait {data.config.delay} {data.config.unit}</span>
@@ -109,7 +109,7 @@ export const AdvancedConditionNode = memo(({ data, selected, isConnectable }: No
           )}
 
           {conditionType === 'timeWindow' && data.config.startTime && (
-            <div className="bg-slate-800/50 rounded-xl p-2.5 text-xs font-medium text-slate-300 border border-slate-700/50 mb-2">
+            <div className="bg-slate-800/50 rounded p-2.5 text-xs font-medium text-slate-300 border border-slate-700/50 mb-2">
               <div className="flex items-center gap-2">
                 <Clock size={12} className="text-orange-500" />
                 <span className="font-bold">{data.config.startTime} - {data.config.endTime}</span>

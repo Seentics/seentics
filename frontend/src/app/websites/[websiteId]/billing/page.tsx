@@ -39,16 +39,16 @@ export default function AccountBillingSettings() {
     const isActive = subscription?.isActive;
 
     return (
-        <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="max-w-[1440px] mx-auto p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
-                <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Billing & Subscription</h1>
+                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Billing & Subscription</h1>
                 <p className="text-muted-foreground font-medium">Manage your subscription, usage limits, and billing details.</p>
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
                     {/* Current Plan Card */}
-                    <div className="p-8 rounded-3xl bg-gradient-to-br from-primary/10 via-indigo-500/5 to-transparent border border-primary/20 relative overflow-hidden group shadow-2xl shadow-primary/5">
+                    <div className="p-8 rounded dark:bg-gray-800/50 relative overflow-hidden group shadow-2xl shadow-primary/5">
                         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
                             <Zap className="h-32 w-32 text-primary" />
                         </div>
@@ -66,13 +66,13 @@ export default function AccountBillingSettings() {
 
                             <div className="flex flex-wrap gap-3">
                                 <Link href="/pricing">
-                                    <Button className="h-12 px-8 font-black rounded-2xl shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90">
+                                    <Button className="h-12 px-8 font-black rounded shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90">
                                         Change Plan
                                     </Button>
                                 </Link>
                                 <Button 
                                     variant="outline" 
-                                    className="h-12 px-8 font-black rounded-2xl border-2 hover:bg-muted/50"
+                                    className="h-12 px-8 font-black rounded border-2 hover:bg-muted/50"
                                     onClick={handleManagePayments}
                                 >
                                     Manage Payments
@@ -120,9 +120,9 @@ export default function AccountBillingSettings() {
                                 const isUnlimited = resource.limit === -1;
 
                                 return (
-                                    <Card key={resource.name} className="border-muted-foreground/10 bg-background/50 backdrop-blur-sm rounded-3xl p-6 hover:shadow-lg transition-shadow">
+                                    <Card key={resource.name} className="border-muted-foreground/10 dark:bg-gray-800/50 backdrop-blur-sm rounded p-6 hover:shadow-lg transition-shadow">
                                         <div className="flex items-center gap-3 mb-4">
-                                            <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                                            <div className="p-2.5 rounded bg-primary/10 text-primary">
                                                 <Icon size={18} />
                                             </div>
                                             <span className="font-black text-sm">{resource.name}</span>
@@ -145,7 +145,7 @@ export default function AccountBillingSettings() {
 
                 <div className="space-y-8">
                     {/* Plan Features Card */}
-                    <div className="bg-slate-900 dark:bg-slate-950 p-8 rounded-3xl border border-white/5 relative overflow-hidden group">
+                    <div className="dark:bg-gray-800/50 p-8 rounded border border-white/5 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[50px] rounded-full -mr-16 -mt-16" />
                         <h4 className="text-white text-lg font-black mb-6 relative z-10 uppercase tracking-tight">Included in {subscription?.plan || 'Starter'}</h4>
                         <ul className="space-y-4 relative z-10">
@@ -155,7 +155,7 @@ export default function AccountBillingSettings() {
                                 'Standard data retention'
                             ]).map((f, i) => (
                                 <li key={i} className="flex items-start gap-3 text-xs font-bold text-slate-400">
-                                    <div className="w-5 h-5 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
+                                    <div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
                                         <Check className="h-3 w-3 text-emerald-500" />
                                     </div>
                                     <span className="leading-relaxed">{f}</span>
@@ -165,7 +165,7 @@ export default function AccountBillingSettings() {
                     </div>
 
                     {/* Support & Billing Info */}
-                    <div className="p-8 rounded-3xl border border-muted-foreground/10 bg-muted/5 space-y-6">
+                    <div className="p-8 rounded border border-muted-foreground/10 bg-muted/5 space-y-6">
                         <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Invoices & Receipts</h4>
                         <p className="text-xs font-medium text-muted-foreground leading-relaxed">
                             Need a custom invoice or have questions about your billing?

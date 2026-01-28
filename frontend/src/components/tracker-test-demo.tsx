@@ -26,7 +26,7 @@ export default function TrackerTestDemo() {
   };
 
   return (
-    <div className="p-6 bg-gray-50 rounded-lg">
+    <div className="p-6 bg-gray-50 rounded">
       {/* Load the tracker in test mode */}
       <TrackerScript testMode={true} siteId="demo-site-123" />
       

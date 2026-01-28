@@ -57,7 +57,7 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
         {[...Array(5)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse">
             <div className="flex items-center space-x-4">
-              <div className="w-8 h-8 bg-muted rounded-md" />
+              <div className="w-8 h-8 bg-muted rounded" />
               <div className="h-4 w-24 bg-muted rounded" />
             </div>
             <div className="h-4 w-12 bg-muted rounded" />
@@ -80,7 +80,7 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
 
       if (!displayItems || displayItems.length === 0) {
         return (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-2xl border border-dashed border-border/60">
+          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
             <Layers className="h-10 w-10 mb-2 opacity-20" />
             <p className="text-[10px] font-bold uppercase tracking-widest">No data available</p>
           </div>
@@ -103,9 +103,9 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
           const img = getSystemImage(label, type);
 
           return (
-            <div key={index} className="flex items-center justify-between p-3 rounded-xl border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+            <div key={index} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
               <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
+                <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                   <Image
                     src={img}
                     alt={label}
@@ -153,10 +153,10 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
               <CardTitle className="text-xl font-black tracking-tight">System Insights</CardTitle>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Devices, OS, & Tech Specs</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/20 p-1 rounded-xl">
-             <TabsTrigger value="devices" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Devices</TabsTrigger>
-             <TabsTrigger value="os" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">OS</TabsTrigger>
-             <TabsTrigger value="screens" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Screens</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/20 p-1 rounded">
+             <TabsTrigger value="devices" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Devices</TabsTrigger>
+             <TabsTrigger value="os" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">OS</TabsTrigger>
+             <TabsTrigger value="screens" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Screens</TabsTrigger>
            </TabsList>
         </div>
         

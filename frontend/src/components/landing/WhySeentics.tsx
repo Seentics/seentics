@@ -222,7 +222,7 @@ export default function ImprovedComparison() {
                       <tr key={index} className={index % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-slate-50 dark:bg-slate-700'}>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center">
+                            <div className="w-8 h-8 bg-slate-100 dark:bg-slate-800 rounded flex items-center justify-center">
                               <feature.icon className="w-4 h-4 text-slate-600 dark:text-slate-400" />
                             </div>
                             <span className="font-medium text-slate-900 dark:text-white">

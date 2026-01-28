@@ -38,11 +38,11 @@ export const NodeConfigPanel = ({ node, onClose }: NodeConfigPanelProps) => {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-      <div className="bg-slate-800 border-2 border-slate-700 rounded-3xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col scale-in-center">
+      <div className="bg-slate-800 border-2 border-slate-700 rounded shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col scale-in-center">
         {/* Header */}
         <div className="border-b border-slate-700 bg-slate-800 px-8 py-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+            <div className="h-12 w-12 rounded bg-primary/10 flex items-center justify-center text-primary">
               <Settings2 size={24} />
             </div>
             <div>
@@ -70,13 +70,13 @@ export const NodeConfigPanel = ({ node, onClose }: NodeConfigPanelProps) => {
           <Button 
             variant="outline" 
             onClick={onClose} 
-            className="rounded-xl border-slate-600 text-slate-300 hover:bg-slate-700 h-11"
+            className="rounded border-slate-600 text-slate-300 hover:bg-slate-700 h-11"
           >
             Cancel
           </Button>
           <Button 
             onClick={handleSave} 
-            className="rounded-xl px-8 h-11 gap-2 bg-primary hover:bg-primary/90 text-white font-black shadow-lg shadow-primary/20"
+            className="rounded px-8 h-11 gap-2 bg-primary hover:bg-primary/90 text-white font-black shadow-lg shadow-primary/20"
           >
             <Save size={18} />
             Save Changes
@@ -100,7 +100,7 @@ const TriggerConfig = ({ config, setConfig }: any) => {
               placeholder="e.g. /pricing or https://..."
               value={config.page || ''}
               onChange={(e) => setConfig({ ...config, page: e.target.value })}
-              className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+              className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
             />
             <p className="text-[10px] text-slate-500 mt-2 italic">Triggers when anyone visits this specific page.</p>
           </div>
@@ -113,7 +113,7 @@ const TriggerConfig = ({ config, setConfig }: any) => {
               placeholder="e.g. #cta-button or .signup-link"
               value={config.selector || ''}
               onChange={(e) => setConfig({ ...config, selector: e.target.value })}
-              className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+              className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
             />
             <p className="text-[10px] text-slate-500 mt-2 italic">Identify the button or element using its CSS ID or Class.</p>
           </div>
@@ -128,7 +128,7 @@ const TriggerConfig = ({ config, setConfig }: any) => {
               max="100"
               value={config.scrollDepth || 50}
               onChange={(e) => setConfig({ ...config, scrollDepth: parseInt(e.target.value) })}
-              className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+              className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
             />
           </div>
         )}
@@ -142,7 +142,7 @@ const TriggerConfig = ({ config, setConfig }: any) => {
                 min="1"
                 value={config.duration || 30}
                 onChange={(e) => setConfig({ ...config, duration: parseInt(e.target.value) })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
               />
             </div>
             <div className="space-y-1">
@@ -150,7 +150,7 @@ const TriggerConfig = ({ config, setConfig }: any) => {
               <select
                 value={config.unit || 'seconds'}
                 onChange={(e) => setConfig({ ...config, unit: e.target.value })}
-                className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm outline-none focus:ring-2 ring-primary/20"
+                className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
               >
                 <option value="seconds">Seconds</option>
                 <option value="minutes">Minutes</option>
@@ -180,7 +180,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 placeholder="Recipient (e.g., user@example.com)"
                 value={config.to || ''}
                 onChange={(e) => setConfig({ ...config, to: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
               />
             </div>
             <div className="space-y-1">
@@ -189,7 +189,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 placeholder="Subject line..."
                 value={config.subject || ''}
                 onChange={(e) => setConfig({ ...config, subject: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
               />
             </div>
             <div className="space-y-1">
@@ -198,7 +198,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 placeholder="Email content (supports HTML and {{markdown}})"
                 value={config.body || ''}
                 onChange={(e) => setConfig({ ...config, body: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[150px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[150px] outline-none focus:ring-2 ring-primary/20 transition-all"
               />
             </div>
           </div>
@@ -212,7 +212,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 placeholder="https://hooks.slack.com/services/..."
                 value={config.webhookUrl || ''}
                 onChange={(e) => setConfig({ ...config, webhookUrl: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
               />
             </div>
             <div className="space-y-1">
@@ -221,7 +221,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 placeholder="Type your Slack message..."
                 value={config.message || ''}
                 onChange={(e) => setConfig({ ...config, message: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
               />
             </div>
           </div>
@@ -235,7 +235,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 placeholder="https://your-webhook.com/endpoint"
                 value={config.url || ''}
                 onChange={(e) => setConfig({ ...config, url: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -244,7 +244,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 <select
                   value={config.method || 'POST'}
                   onChange={(e) => setConfig({ ...config, method: e.target.value })}
-                  className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm outline-none focus:ring-2 ring-primary/20"
+                  className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
                 >
                   <option value="POST">POST</option>
                   <option value="GET">GET</option>
@@ -266,7 +266,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     // Invalid JSON, don't update
                   }
                 }}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[80px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[80px] outline-none focus:ring-2 ring-primary/20 transition-all"
               />
             </div>
             <div className="space-y-1">
@@ -282,7 +282,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     // Invalid JSON, don't update
                   }
                 }}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
               />
             </div>
           </div>
@@ -296,7 +296,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 placeholder="Your banner message here..."
                 value={config.content || ''}
                 onChange={(e) => setConfig({ ...config, content: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -305,7 +305,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 <select
                   value={config.position || 'bottom'}
                   onChange={(e) => setConfig({ ...config, position: e.target.value })}
-                  className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm outline-none focus:ring-2 ring-primary/20"
+                  className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
                 >
                   <option value="top">Top</option>
                   <option value="bottom">Bottom</option>
@@ -319,7 +319,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                   placeholder="0 = permanent"
                   value={config.duration || 0}
                   onChange={(e) => setConfig({ ...config, duration: parseInt(e.target.value) })}
-                  className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                  className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
                 />
               </div>
             </div>
@@ -330,7 +330,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                   type="color"
                   value={config.backgroundColor || '#000000'}
                   onChange={(e) => setConfig({ ...config, backgroundColor: e.target.value })}
-                  className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                  className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
                 />
               </div>
               <div className="space-y-1">
@@ -339,7 +339,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                   type="color"
                   value={config.textColor || '#ffffff'}
                   onChange={(e) => setConfig({ ...config, textColor: e.target.value })}
-                  className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                  className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
                 />
               </div>
             </div>
@@ -363,7 +363,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 placeholder="console.log('Hello from automation!');"
                 value={config.code || ''}
                 onChange={(e) => setConfig({ ...config, code: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[200px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[200px] outline-none focus:ring-2 ring-primary/20 transition-all"
               />
             </div>
             <div className="space-y-1">
@@ -371,13 +371,13 @@ const ActionConfig = ({ config, setConfig }: any) => {
               <select
                 value={config.position || 'head'}
                 onChange={(e) => setConfig({ ...config, position: e.target.value })}
-                className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm outline-none focus:ring-2 ring-primary/20"
+                className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
               >
                 <option value="head">Head</option>
                 <option value="body">Body</option>
               </select>
             </div>
-            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+            <div className="p-4 rounded bg-amber-500/10 border border-amber-500/20">
               <p className="text-[10px] text-amber-400 leading-relaxed">
                 ⚠️ Be careful with custom JavaScript. Only use trusted code.
               </p>
@@ -405,7 +405,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     placeholder="Welcome to our site!"
                     value={config.title || ''}
                     onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                    className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                    className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
                   />
                 </div>
                 <div className="space-y-1">
@@ -414,7 +414,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     placeholder="Your modal message here..."
                     value={config.content || ''}
                     onChange={(e) => setConfig({ ...config, content: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -424,7 +424,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                       placeholder="Confirm"
                       value={config.primaryButton || ''}
                       onChange={(e) => setConfig({ ...config, primaryButton: e.target.value })}
-                      className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                      className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
                     />
                   </div>
                   <div className="space-y-1">
@@ -433,7 +433,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                       placeholder="Cancel"
                       value={config.secondaryButton || ''}
                       onChange={(e) => setConfig({ ...config, secondaryButton: e.target.value })}
-                      className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                      className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
                     />
                   </div>
                 </div>
@@ -446,7 +446,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     placeholder="<div>Your custom HTML...</div>"
                     value={config.customHtml || ''}
                     onChange={(e) => setConfig({ ...config, customHtml: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
                   />
                 </div>
                 <div className="space-y-1">
@@ -455,7 +455,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     placeholder=".my-modal { ... }"
                     value={config.customCss || ''}
                     onChange={(e) => setConfig({ ...config, customCss: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
                   />
                 </div>
                 <div className="space-y-1">
@@ -464,7 +464,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     placeholder="// Your custom JS code"
                     value={config.customJs || ''}
                     onChange={(e) => setConfig({ ...config, customJs: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
                   />
                 </div>
               </>
@@ -491,7 +491,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                   <select
                     value={config.type || 'info'}
                     onChange={(e) => setConfig({ ...config, type: e.target.value })}
-                    className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm outline-none focus:ring-2 ring-primary/20"
+                    className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
                   >
                     <option value="success">Success</option>
                     <option value="error">Error</option>
@@ -505,7 +505,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     placeholder="Notification title"
                     value={config.title || ''}
                     onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                    className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                    className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
                   />
                 </div>
                 <div className="space-y-1">
@@ -514,7 +514,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     placeholder="Your notification message..."
                     value={config.message || ''}
                     onChange={(e) => setConfig({ ...config, message: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm min-h-[80px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm min-h-[80px] outline-none focus:ring-2 ring-primary/20 transition-all"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -523,7 +523,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     <select
                       value={config.position || 'top'}
                       onChange={(e) => setConfig({ ...config, position: e.target.value })}
-                      className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm outline-none focus:ring-2 ring-primary/20"
+                      className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
                     >
                       <option value="top">Top Right</option>
                       <option value="bottom">Bottom Right</option>
@@ -537,7 +537,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                       placeholder="5"
                       value={config.duration || 5}
                       onChange={(e) => setConfig({ ...config, duration: parseInt(e.target.value) })}
-                      className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                      className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
                     />
                   </div>
                 </div>
@@ -550,7 +550,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     placeholder="<div>Your custom HTML...</div>"
                     value={config.customHtml || ''}
                     onChange={(e) => setConfig({ ...config, customHtml: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
                   />
                 </div>
                 <div className="space-y-1">
@@ -559,7 +559,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     placeholder=".my-notification { ... }"
                     value={config.customCss || ''}
                     onChange={(e) => setConfig({ ...config, customCss: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
                   />
                 </div>
                 <div className="space-y-1">
@@ -568,7 +568,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                     placeholder="// Your custom JS code"
                     value={config.customJs || ''}
                     onChange={(e) => setConfig({ ...config, customJs: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm font-mono min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
+                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
                   />
                 </div>
               </>
@@ -594,7 +594,7 @@ const ConditionConfig = ({ config, setConfig }: any) => {
               <select
                 value={config.field || 'user.email'}
                 onChange={(e) => setConfig({ ...config, field: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-10 rounded-xl text-white text-xs font-bold outline-none"
+                className="bg-slate-900/50 border-slate-700 h-10 rounded text-white text-xs font-bold outline-none"
               >
                 <option value="user.email">User Email</option>
                 <option value="user.country">Country</option>
@@ -604,7 +604,7 @@ const ConditionConfig = ({ config, setConfig }: any) => {
               <select
                 value={config.operator || 'equals'}
                 onChange={(e) => setConfig({ ...config, operator: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-10 rounded-xl text-white text-xs font-bold outline-none"
+                className="bg-slate-900/50 border-slate-700 h-10 rounded text-white text-xs font-bold outline-none"
               >
                 <option value="equals">Equals</option>
                 <option value="contains">Contains</option>
@@ -616,7 +616,7 @@ const ConditionConfig = ({ config, setConfig }: any) => {
               placeholder="Comparison value..."
               value={config.value || ''}
               onChange={(e) => setConfig({ ...config, value: e.target.value })}
-              className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+              className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
             />
           </div>
         )}
@@ -630,7 +630,7 @@ const ConditionConfig = ({ config, setConfig }: any) => {
                 min="1"
                 value={config.delay || 10}
                 onChange={(e) => setConfig({ ...config, delay: parseInt(e.target.value) })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
               />
             </div>
             <div className="space-y-1">
@@ -638,7 +638,7 @@ const ConditionConfig = ({ config, setConfig }: any) => {
               <select
                 value={config.unit || 'minutes'}
                 onChange={(e) => setConfig({ ...config, unit: e.target.value })}
-                className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm outline-none focus:ring-2 ring-primary/20"
+                className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
               >
                 <option value="seconds">Seconds</option>
                 <option value="minutes">Minutes</option>
@@ -657,14 +657,14 @@ const ConditionConfig = ({ config, setConfig }: any) => {
                 placeholder="e.g. plan_type or signup_source"
                 value={config.propertyKey || ''}
                 onChange={(e) => setConfig({ ...config, propertyKey: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <select
                 value={config.operator || 'equals'}
                 onChange={(e) => setConfig({ ...config, operator: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-10 rounded-xl text-white text-xs font-bold outline-none"
+                className="bg-slate-900/50 border-slate-700 h-10 rounded text-white text-xs font-bold outline-none"
               >
                 <option value="equals">Is</option>
                 <option value="exists">Exists</option>
@@ -674,7 +674,7 @@ const ConditionConfig = ({ config, setConfig }: any) => {
                 placeholder="Value..."
                 value={config.value || ''}
                 onChange={(e) => setConfig({ ...config, value: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-10 rounded-xl text-white focus:ring-primary/20"
+                className="bg-slate-900/50 border-slate-700 h-10 rounded text-white focus:ring-primary/20"
               />
             </div>
           </div>
@@ -706,7 +706,7 @@ const ExecutionSettings = ({ config, setConfig }: any) => (
         <select
           value={config.frequency || 'once'}
           onChange={(e) => setConfig({ ...config, frequency: e.target.value })}
-          className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded-xl text-white text-sm outline-none focus:ring-2 ring-primary/20"
+          className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
         >
           <option value="once">Once</option>
           <option value="perSession">Per Session</option>
@@ -719,11 +719,11 @@ const ExecutionSettings = ({ config, setConfig }: any) => (
           placeholder="e.g. /pricing"
           value={config.pageFilter || ''}
           onChange={(e) => setConfig({ ...config, pageFilter: e.target.value })}
-          className="bg-slate-900/50 border-slate-700 h-12 rounded-xl text-white focus:ring-primary/20"
+          className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
         />
       </div>
     </div>
-    <div className="p-4 rounded-2xl bg-slate-900/40 border border-slate-700/50">
+    <div className="p-4 rounded bg-slate-900/40 border border-slate-700/50">
       <p className="text-[10px] text-slate-400 leading-relaxed italic">
         These controls limit how often this automation step can run for a single user and on which URLs it is active.
       </p>

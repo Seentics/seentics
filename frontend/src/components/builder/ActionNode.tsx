@@ -49,7 +49,7 @@ export const ActionNode = memo(({ data, selected, isConnectable }: NodeProps) =>
 
   return (
     <div
-      className={`px-4 py-3 rounded-2xl bg-slate-900 border-2 transition-all shadow-xl hover:shadow-2xl ${
+      className={`px-4 py-3 rounded bg-slate-900 border-2 transition-all shadow-xl hover:shadow-2xl ${
         selected
           ? 'border-primary ring-4 ring-primary/20 scale-105 z-50'
           : 'border-slate-800 hover:border-blue-500/40'
@@ -64,7 +64,7 @@ export const ActionNode = memo(({ data, selected, isConnectable }: NodeProps) =>
       />
 
       <div className="flex items-center gap-4">
-        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${colorClass}`}>
+        <div className={`h-12 w-12 rounded flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${colorClass}`}>
           <Icon size={24} />
         </div>
         <div className="min-w-[160px]">

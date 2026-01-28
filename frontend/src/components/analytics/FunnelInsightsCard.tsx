@@ -31,9 +31,9 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
     return (
       <div className="space-y-3">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-4 rounded-lg border border-border/20">
+          <div key={i} className="flex items-center justify-between p-4 rounded border border-border/20">
              <div className="flex items-center space-x-4 flex-1">
-                <Skeleton className="w-10 h-10 rounded-lg" />
+                <Skeleton className="w-10 h-10 rounded" />
                 <div className="space-y-2">
                    <Skeleton className="h-4 w-32" />
                    <Skeleton className="h-3 w-24" />
@@ -47,14 +47,14 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
   }
 
   return (
-    <Card className="bg-card border-border shadow-sm shadow-black/5 rounded-xl overflow-hidden">
+    <Card className="bg-card border-border shadow-sm shadow-black/5 rounded overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 pb-6">
         <div className="space-y-1">
           <CardTitle className="text-lg font-bold tracking-tight">Conversion Funnels</CardTitle>
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Conversion rates & drop-off analysis</p>
         </div>
         <Link href="/settings/funnels">
-            <Button variant="ghost" size="sm" className="text-[10px] font-bold uppercase tracking-wider text-primary hover:text-primary/80 hover:bg-primary/5 gap-1.5 rounded-md px-3">
+            <Button variant="ghost" size="sm" className="text-[10px] font-bold uppercase tracking-wider text-primary hover:text-primary/80 hover:bg-primary/5 gap-1.5 rounded px-3">
                 All Funnels
                 <ArrowUpRight size={14} />
             </Button>
@@ -76,7 +76,7 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
                 <tr key={funnel.id} className="group hover:bg-accent/5 transition-all duration-300">
                   <td className="p-4 px-6">
                     <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 min-w-10 rounded-lg bg-accent/10 flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
+                      <div className="h-10 w-10 min-w-10 rounded bg-accent/10 flex items-center justify-center text-primary group-hover:bg-primary/10 transition-colors">
                         <Filter size={16} />
                       </div>
                       <div className="min-w-0">
@@ -112,7 +112,7 @@ export const FunnelInsightsCard: React.FC<FunnelInsightsCardProps> = ({ isLoadin
                   </td>
                   <td className="p-4 text-right px-8">
                     <div className="flex flex-col items-end">
-                      <span className="text-[11px] font-semibold text-rose-500 flex items-center gap-1 bg-rose-500/10 px-2 py-0.5 rounded-md">
+                      <span className="text-[11px] font-semibold text-rose-500 flex items-center gap-1 bg-rose-500/10 px-2 py-0.5 rounded">
                         <ArrowRight size={10} strokeWidth={3} />
                         {funnel.dropoff}
                       </span>

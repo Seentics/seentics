@@ -284,7 +284,7 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded">
           <Shield className="h-6 w-6 text-blue-600" />
         </div>
         <div>
@@ -376,7 +376,7 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
                         Reason required ({deletionReason.length} characters)
                       </p>
                     </div>
-                    <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3">
+                    <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded p-3">
                       <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
                         <AlertTriangle className="h-4 w-4" />
                         <span className="text-sm font-medium">Important</span>
@@ -521,9 +521,9 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
           ) : (
             <div className="space-y-3">
               {dataRequests.map((request) => (
-                <div key={request.id} className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-700 rounded-lg">
+                <div key={request.id} className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-700 rounded">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+                    <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded">
                       {getTypeIcon(request.type)}
                     </div>
                     <div>

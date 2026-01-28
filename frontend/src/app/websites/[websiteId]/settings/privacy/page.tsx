@@ -27,7 +27,7 @@ export default function PrivacySettings() {
           <h1 className="text-2xl font-bold tracking-tight">Privacy & GDPR</h1>
           <p className="text-muted-foreground text-sm">Configure data protection and compliance settings.</p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
            <Shield className="h-4 w-4 text-emerald-600" />
            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">GDPR Compliant</span>
         </div>
@@ -35,9 +35,9 @@ export default function PrivacySettings() {
 
       <div className="space-y-6">
         {/* IP Anonymization */}
-        <div className="flex items-start justify-between p-4 rounded-2xl border bg-muted/5 group transition-all hover:bg-muted/10">
+        <div className="flex items-start justify-between p-4 rounded border bg-muted/5 group transition-all hover:bg-muted/10">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border shrink-0">
+            <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center border shrink-0">
               <EyeOff className="h-5 w-5 text-primary" />
             </div>
             <div className="space-y-1">
@@ -51,9 +51,9 @@ export default function PrivacySettings() {
         </div>
 
         {/* Cookie-less Tracking */}
-        <div className="flex items-start justify-between p-4 rounded-2xl border bg-muted/5 group transition-all hover:bg-muted/10">
+        <div className="flex items-start justify-between p-4 rounded border bg-muted/5 group transition-all hover:bg-muted/10">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center border shrink-0">
+            <div className="w-10 h-10 rounded bg-indigo-500/10 flex items-center justify-center border shrink-0">
               <Cookie className="h-5 w-5 text-indigo-600" />
             </div>
             <div className="space-y-1">
@@ -67,28 +67,28 @@ export default function PrivacySettings() {
         </div>
 
         {/* Data Retention */}
-        <div className="p-6 border rounded-2xl bg-muted/5 space-y-4">
+        <div className="p-6 border rounded bg-muted/5 space-y-4">
            <div className="flex items-center gap-3">
               <Database className="h-5 w-5 text-muted-foreground" />
               <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Data Retention</h2>
            </div>
            
            <div className="grid sm:grid-cols-2 gap-4">
-             <div className="p-4 rounded-xl bg-background border shadow-sm">
+             <div className="p-4 rounded bg-background border shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Retention Period</p>
                 <div className="flex items-center justify-between">
                    <p className="text-sm font-bold">12 Months</p>
                    <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold h-6">CHANGE</Button>
                 </div>
              </div>
-             <div className="p-4 rounded-xl bg-background border shadow-sm">
+             <div className="p-4 rounded bg-background border shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Cleanup Interval</p>
                 <p className="text-sm font-bold">Standard (Weekly)</p>
              </div>
            </div>
         </div>
 
-        <div className="flex gap-4 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+        <div className="flex gap-4 p-4 rounded bg-indigo-500/5 border border-indigo-500/10">
            <Info className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
            <div className="space-y-1">
               <p className="text-sm font-bold">Privacy First by Default</p>
@@ -100,10 +100,10 @@ export default function PrivacySettings() {
       </div>
 
       <div className="flex items-center gap-4 pt-4">
-         <Button className="h-10 px-8 font-bold rounded-xl shadow-lg shadow-primary/10">
+         <Button className="h-10 px-8 font-bold rounded shadow-lg shadow-primary/10">
            Apply Privacy Settings
          </Button>
-         <Button variant="ghost" className="h-10 px-4 font-bold rounded-xl gap-2 text-muted-foreground">
+         <Button variant="ghost" className="h-10 px-4 font-bold rounded gap-2 text-muted-foreground">
            <FileCheck className="h-4 w-4" />
            Privacy Policy Generator
          </Button>

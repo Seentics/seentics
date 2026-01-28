@@ -71,7 +71,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                                             key={item.href}
                                             href={item.href}
                                             className={cn(
-                                                "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm transition-all duration-200 group",
+                                                "flex items-center gap-3 px-4 py-2.5 rounded text-sm transition-all duration-200 group",
                                                 pathname === item.href
                                                     ? "bg-primary/10 text-primary font-bold shadow-sm"
                                                     : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
@@ -93,7 +93,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
                 {/* Main Content */}
                 <main className="flex-1 md:ml-64 relative min-h-screen">
                     <div className="max-w-4xl mx-auto px-6 py-12 md:px-12 md:py-16">
-                        <div className="glass-card p-1 items-center gap-2 mb-8 hidden md:inline-flex rounded-md bg-muted/50 border px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        <div className="glass-card p-1 items-center gap-2 mb-8 hidden md:inline-flex rounded bg-muted/50 border px-3 py-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
                             <Settings className="w-3 h-3" />
                             <span>Updated Jan 2026</span>
                         </div>

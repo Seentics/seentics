@@ -23,7 +23,7 @@ export default function PrivacyPolicyPage() {
           {/* Header */}
           <div className="text-center mb-16">
             <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="p-3 bg-primary/10 rounded-xl">
+              <div className="p-3 bg-primary/10 rounded">
                 <Lock className="h-8 w-8 text-primary" />
               </div>
               <h1 className="text-4xl font-bold text-foreground">Privacy Policy</h1>
@@ -34,7 +34,7 @@ export default function PrivacyPolicyPage() {
           </div>
 
           {/* Last Updated */}
-          <Card className="mb-8 border-primary/20 bg-primary/5 shadow-none">
+          <Card className="mb-8 border-primary/20 dark:bg-gray-800/50 shadow-none">
             <CardContent className="p-6">
               <div className="flex items-center gap-3">
                 <Eye className="h-5 w-5 text-primary" />
@@ -107,7 +107,7 @@ export default function PrivacyPolicyPage() {
               </CardHeader>
               <CardContent className="space-y-4 text-muted-foreground leading-relaxed">
                 <p>If you have any questions about this Privacy Policy, please contact us:</p>
-                <div className="bg-muted/30 p-6 rounded-lg space-y-4 border border-border/50">
+                <div className="bg-muted/30 p-6 rounded space-y-4 border border-border/50">
                   <div className="flex items-center gap-3">
                     <Mail className="h-5 w-5 text-primary" />
                     <span className="font-medium text-foreground">Email: privacy@seentics.com</span>

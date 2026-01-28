@@ -61,7 +61,7 @@ export default function ProblemStatement() {
                 <CardContent className="p-6 sm:p-8 flex flex-col h-full relative z-10">
 
                   {/* Enhanced Icon */}
-                  <div className="flex items-center justify-center w-20 h-20 bg-blue-600 rounded-2xl mb-6 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
+                  <div className="flex items-center justify-center w-20 h-20 bg-blue-600 rounded mb-6 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
                     <feature.icon className="h-10 w-10 text-white" />
                   </div>
 
@@ -115,7 +115,7 @@ export default function ProblemStatement() {
           </div>
 
           {/* CTA Section */}
-          {/* <div className="text-center bg-slate-900 dark:bg-slate-800 rounded-2xl p-12">
+          {/* <div className="text-center bg-slate-900 dark:bg-slate-800 rounded p-12">
             <h3 className="text-3xl md:text-4xl font-bold text-white mb-4">
               Ready to Boost Your Conversions?
             </h3>

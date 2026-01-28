@@ -22,7 +22,7 @@ interface LandingExitAnalysisProps {
 export function LandingExitAnalysis({ entryPages = [], exitPages = [], isLoading }: LandingExitAnalysisProps) {
   if (isLoading) {
     return (
-      <Card className="bg-card border-border shadow-sm shadow-black/5 rounded-2xl overflow-hidden flex flex-col h-full">
+      <Card className="bg-card border-border shadow-sm shadow-black/5 rounded overflow-hidden flex flex-col h-full">
         <CardHeader className="pb-4 border-b border-border/40">
           <Skeleton className="h-6 w-48 mb-2" />
           <Skeleton className="h-4 w-64" />
@@ -31,7 +31,7 @@ export function LandingExitAnalysis({ entryPages = [], exitPages = [], isLoading
           <div className="space-y-4">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="flex gap-4 items-center">
-                <Skeleton className="h-10 w-10 rounded-xl" />
+                <Skeleton className="h-10 w-10 rounded" />
                 <div className="flex-1 space-y-2">
                   <Skeleton className="h-4 w-full" />
                   <Skeleton className="h-3 w-1/2" />
@@ -52,7 +52,7 @@ export function LandingExitAnalysis({ entryPages = [], exitPages = [], isLoading
     const isEntry = type === 'entry';
     
     return (
-      <div className="group relative flex items-center gap-4 p-4 rounded-xl border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40">
+      <div className="group relative flex items-center gap-4 p-4 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40">
         <div className="flex-1 min-w-0 z-10">
           <div className="flex items-center justify-between mb-2">
             <p className="font-bold text-[13px] leading-tight text-foreground truncate " title={item.page}>
@@ -86,7 +86,7 @@ export function LandingExitAnalysis({ entryPages = [], exitPages = [], isLoading
 
   return (
     <Tabs defaultValue="entry" className="w-full h-full">
-      <Card className="bg-card border-border shadow-sm shadow-black/5 rounded-2xl overflow-hidden flex flex-col h-full">
+      <Card className="bg-card border-border shadow-sm shadow-black/5 rounded overflow-hidden flex flex-col h-full">
         <CardHeader className="pb-6 border-b border-border/40">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
             <div className="space-y-1">
@@ -94,9 +94,9 @@ export function LandingExitAnalysis({ entryPages = [], exitPages = [], isLoading
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Entry & Exit Behavior analysis</p>
             </div>
             
-            <TabsList className="grid grid-cols-2 h-9 w-full sm:w-[240px] bg-accent/20 p-1 rounded-xl">
-              <TabsTrigger value="entry" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Entry</TabsTrigger>
-              <TabsTrigger value="exit" className="text-[10px] font-bold uppercase tracking-widest rounded-lg active:bg-background">Exit</TabsTrigger>
+            <TabsList className="grid grid-cols-2 h-9 w-full sm:w-[240px] bg-accent/20 p-1 rounded">
+              <TabsTrigger value="entry" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Entry</TabsTrigger>
+              <TabsTrigger value="exit" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Exit</TabsTrigger>
             </TabsList>
           </div>
         </CardHeader>
@@ -106,7 +106,7 @@ export function LandingExitAnalysis({ entryPages = [], exitPages = [], isLoading
               {entryPages.length > 0 ? entryPages.slice(0, 5).map((item, idx) => (
                 <PageItem key={idx} item={item} index={idx} type="entry" maxSessions={maxEntrySessions} />
               )) : (
-                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/40 bg-accent/5 rounded-2xl border border-dashed border-border/60">
+                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
                   <LogIn className="h-12 w-12 mb-4 opacity-10" />
                   <p className="text-[10px] font-bold uppercase tracking-widest">No entry data detected</p>
                 </div>
@@ -117,7 +117,7 @@ export function LandingExitAnalysis({ entryPages = [], exitPages = [], isLoading
               {exitPages.length > 0 ? exitPages.slice(0, 5).map((item, idx) => (
                 <PageItem key={idx} item={item} index={idx} type="exit" maxSessions={maxExitSessions} />
               )) : (
-                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/40 bg-accent/5 rounded-2xl border border-dashed border-border/60">
+                <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
                   <LogOut className="h-12 w-12 mb-4 opacity-10" />
                   <p className="text-[10px] font-bold uppercase tracking-widest">No exit data detected</p>
                 </div>

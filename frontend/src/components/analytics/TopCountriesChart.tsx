@@ -180,7 +180,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
     return (
       <div className="space-y-3">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-border/20">
+          <div key={i} className="flex items-center justify-between p-4 rounded border border-border/20">
             <div className="flex items-center gap-4">
               <Skeleton className="w-8 h-6 rounded" />
               <div className="space-y-2">
@@ -203,7 +203,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
 
   if (!data?.top_countries || data.top_countries.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-xl border border-dashed border-border/60">
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
         <Globe className="h-10 w-10 mb-2 opacity-20" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">No country data</p>
       </div>
@@ -212,7 +212,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
   return (
     <div className="space-y-3">
         {countryData.slice(0, 5).map((item, index) => (
-        <div key={item.country} className="flex items-center justify-between p-3 rounded-xl border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+        <div key={item.country} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
             <div className="flex items-center gap-4">
                 <div className="relative w-8 h-6 rounded overflow-hidden shadow-sm border border-border/20">
                 <Image

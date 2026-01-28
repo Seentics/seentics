@@ -45,7 +45,7 @@ export function LifetimeDeal() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-12">
                                 {FEATURES.map((feature, i) => (
                                     <div key={i} className="flex items-center gap-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                                        <div className="h-6 w-6 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                                        <div className="h-6 w-6 rounded bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                                             <Check size={16} strokeWidth={3} />
                                         </div>
                                         {feature}
@@ -87,7 +87,7 @@ export function LifetimeDeal() {
                             <div className="relative rounded-[2.8rem] p-10 overflow-hidden border-2 border-transparent">
                                 <div className="flex justify-between items-center mb-8">
                                     <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Lifetime Plan</p>
-                                    <div className="px-3 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500">POPULAR</div>
+                                    <div className="px-3 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500">POPULAR</div>
                                 </div>
 
                                 <div className="mb-10 text-center lg:text-left">
@@ -102,8 +102,8 @@ export function LifetimeDeal() {
                                 </div>
 
                                 <div className="space-y-4 mb-10">
-                                    <div className="p-5 rounded-3xl bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-500/20 flex items-start gap-4">
-                                        <div className="h-10 w-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shrink-0">
+                                    <div className="p-5 rounded bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-500/20 flex items-start gap-4">
+                                        <div className="h-10 w-10 rounded bg-indigo-600 flex items-center justify-center text-white shrink-0">
                                             <Zap size={22} fill="white" />
                                         </div>
                                         <div>
@@ -113,7 +113,7 @@ export function LifetimeDeal() {
                                     </div>
                                 </div>
 
-                                <Link href="/signup" className="group relative w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 text-white py-5 rounded-3xl text-lg font-black transition-all hover:bg-black dark:hover:bg-indigo-500 shadow-xl active:scale-95">
+                                <Link href="/signup" className="group relative w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 text-white py-5 rounded text-lg font-black transition-all hover:bg-black dark:hover:bg-indigo-500 shadow-xl active:scale-95">
                                     Grab the Deal
                                     <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                                 </Link>

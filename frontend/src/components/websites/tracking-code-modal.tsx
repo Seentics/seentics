@@ -52,7 +52,7 @@ export function TrackingCodeModal({
       <DialogContent className="max-w-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           {isNewlyCreated && (
-            <div className="mb-4 p-4 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="mb-4 p-4 bg-green-50 dark:bg-green-950/20 rounded border border-green-200 dark:border-green-800">
               <div className="flex items-center gap-3">
                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0" />
                 <div>
@@ -99,8 +99,8 @@ export function TrackingCodeModal({
               </Button>
             </div>
             
-            <div className="bg-muted/50 p-4 rounded-lg border">
-              <pre className="p-3 rounded-md bg-background border text-sm overflow-x-auto">
+            <div className="bg-muted/50 p-4 rounded border">
+              <pre className="p-3 rounded bg-background border text-sm overflow-x-auto">
                 <code className="whitespace-pre-wrap text-xs font-mono">{trackingCode}</code>
               </pre>
             </div>
@@ -108,7 +108,7 @@ export function TrackingCodeModal({
           
           {/* Installation Steps */}
           <div className="space-y-4">
-            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-950/20 rounded-lg border border-slate-200 dark:border-slate-700">
+            <div className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-slate-950/20 rounded border border-slate-200 dark:border-slate-700">
               <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-full">
                 <span className="text-slate-600 dark:text-slate-400 font-bold text-sm">1</span>
               </div>
@@ -123,7 +123,7 @@ export function TrackingCodeModal({
               </div>
             </div>
             
-            <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/20 rounded border border-amber-200 dark:border-amber-800">
               <Bot className="h-6 w-6 text-amber-600 mt-0.5 flex-shrink-0" />
               <div className="text-sm">
                 <p className="font-semibold text-amber-900 dark:text-amber-100">What happens next?</p>

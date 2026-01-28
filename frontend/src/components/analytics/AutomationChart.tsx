@@ -42,7 +42,7 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
 
   if (isLoading) {
     return (
-      <Card className="col-span-1 shadow-lg border-primary/10 rounded-md overflow-hidden dark:bg-gray-800 h-full">
+      <Card className="col-span-1 shadow-lg border-primary/10 rounded overflow-hidden dark:bg-gray-800 h-full">
         <CardHeader className="border-b pb-4">
            <div className="h-6 w-48 bg-muted rounded animate-pulse" />
         </CardHeader>
@@ -54,7 +54,7 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
   }
 
   return (
-    <Card className="col-span-1 shadow-lg border-primary/10 rounded-md overflow-hidden dark:bg-gray-800 h-full flex flex-col">
+    <Card className="col-span-1 shadow-lg border-primary/10 rounded overflow-hidden dark:bg-gray-800 h-full flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between border-b pb-4 shrink-0">
         <div className="space-y-1">
           <div className="flex items-center gap-2">

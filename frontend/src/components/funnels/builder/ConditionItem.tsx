@@ -22,8 +22,8 @@ export const ConditionItem = ({ step, onDelete, onUpdate }: ConditionItemProps) 
 
       {/* Condition Card */}
       <div className="flex-1 my-2">
-        <div className="relative flex items-center gap-3 rounded-2xl border border-dashed border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-900/10 p-3 pr-4 transition-all hover:border-purple-400 hover:shadow-sm">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/40 text-purple-600">
+        <div className="relative flex items-center gap-3 rounded border border-dashed border-purple-200 dark:border-purple-900 bg-purple-50/50 dark:bg-purple-900/10 p-3 pr-4 transition-all hover:border-purple-400 hover:shadow-sm">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-purple-100 dark:bg-purple-900/40 text-purple-600">
                 <GitBranch size={16} />
             </div>
             
@@ -54,7 +54,7 @@ export const ConditionItem = ({ step, onDelete, onUpdate }: ConditionItemProps) 
                 </Select>
             </div>
 
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-purple-400 hover:text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900" onClick={() => onDelete(step.id)}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 rounded text-purple-400 hover:text-purple-600 hover:bg-purple-100 dark:hover:bg-purple-900" onClick={() => onDelete(step.id)}>
                 <Trash2 size={14} />
             </Button>
         </div>

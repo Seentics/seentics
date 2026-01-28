@@ -184,11 +184,11 @@ export const EnhancedBuilderSidebar = () => {
   };
 
   return (
-    <aside className="w-72 h-full border-l border-slate-700/50 bg-slate-900 flex flex-col shadow-2xl">
+    <aside className="w-96 h-full border-l border-slate-700/50 bg-slate-900 flex flex-col shadow-2xl">
       {/* Header */}
       <div className="p-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+          <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center text-primary shadow-inner">
             <Workflow size={20} />
           </div>
           <div>
@@ -200,7 +200,7 @@ export const EnhancedBuilderSidebar = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500 group-focus-within:text-primary transition-colors" />
           <Input
             placeholder="Search modules..."
-            className="pl-10 h-11 bg-slate-800/50 border-slate-700/50 text-white shadow-none rounded-xl text-xs font-bold focus:ring-primary/20"
+            className="pl-10 h-11 bg-slate-800/50 border-slate-700/50 text-white shadow-none rounded text-xs font-bold focus:ring-primary/20"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -219,10 +219,10 @@ export const EnhancedBuilderSidebar = () => {
                 key={trigger.type}
                 onDragStart={(event) => onDragStart(event, 'triggerNode', trigger.label, trigger.type)}
                 draggable
-                className="p-3 rounded-2xl border border-slate-800 bg-slate-800/40 hover:border-amber-500/40 hover:bg-slate-800 transition-all cursor-grab active:cursor-grabbing group shadow-sm"
+                className="p-3 rounded border border-slate-800 bg-slate-800/40 hover:border-amber-500/40 hover:bg-slate-800 transition-all cursor-grab active:cursor-grabbing group shadow-sm"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`h-9 w-9 rounded-xl ${colorMap[trigger.color]} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                  <div className={`h-9 w-9 rounded ${colorMap[trigger.color]} flex items-center justify-center flex-shrink-0 shadow-sm`}>
                     <trigger.icon size={18} />
                   </div>
                   <p className="text-xs font-black text-slate-300 group-hover:text-white transition-colors">
@@ -245,10 +245,10 @@ export const EnhancedBuilderSidebar = () => {
                 key={logic.type}
                 onDragStart={(event) => onDragStart(event, 'conditionNode', logic.label, logic.type)}
                 draggable
-                className="p-3 rounded-2xl border border-slate-800 bg-slate-800/40 hover:border-purple-500/40 hover:bg-slate-800 transition-all cursor-grab active:cursor-grabbing group shadow-sm"
+                className="p-3 rounded border border-slate-800 bg-slate-800/40 hover:border-purple-500/40 hover:bg-slate-800 transition-all cursor-grab active:cursor-grabbing group shadow-sm"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`h-9 w-9 rounded-xl ${colorMap[logic.color]} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                  <div className={`h-9 w-9 rounded ${colorMap[logic.color]} flex items-center justify-center flex-shrink-0 shadow-sm`}>
                     <logic.icon size={18} />
                   </div>
                   <p className="text-xs font-black text-slate-300 group-hover:text-white transition-colors">
@@ -271,10 +271,10 @@ export const EnhancedBuilderSidebar = () => {
                 key={action.type}
                 onDragStart={(event) => onDragStart(event, 'actionNode', action.label, action.type)}
                 draggable
-                className="p-3 rounded-2xl border border-slate-800 bg-slate-800/40 hover:border-primary/40 hover:bg-slate-800 transition-all cursor-grab active:cursor-grabbing group shadow-sm"
+                className="p-3 rounded border border-slate-800 bg-slate-800/40 hover:border-primary/40 hover:bg-slate-800 transition-all cursor-grab active:cursor-grabbing group shadow-sm"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`h-9 w-9 rounded-xl ${colorMap[action.color]} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                  <div className={`h-9 w-9 rounded ${colorMap[action.color]} flex items-center justify-center flex-shrink-0 shadow-sm`}>
                     <action.icon size={18} />
                   </div>
                   <p className="text-xs font-black text-slate-300 group-hover:text-white transition-colors">

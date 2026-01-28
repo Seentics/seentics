@@ -169,7 +169,7 @@ export default function SignInPage() {
             <div className="flex items-center gap-4">
                 <span className="text-sm font-medium text-slate-400">New to Seentics?</span>
                 <Link href="/signup">
-                    <Button variant="outline" className="h-11 px-6 font-black text-xs uppercase tracking-widest rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">Create Account</Button>
+                    <Button variant="outline" className="h-11 px-6 font-black text-xs uppercase tracking-widest rounded border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">Create Account</Button>
                 </Link>
             </div>
         </div>
@@ -180,7 +180,7 @@ export default function SignInPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full max-w-lg bg-slate-800 rounded-md p-6"
+                className="w-full max-w-lg bg-slate-800 rounded-xl p-6"
             >
                 <div className="mb-10 text-center lg:text-left">
                     <h2 className="text-4xl font-black tracking-tight mb-3">Welcome back.</h2>
@@ -189,7 +189,7 @@ export default function SignInPage() {
 
                 <form onSubmit={handleEmailSignIn} className="space-y-6">
                     {error && (
-                        <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold">
+                        <div className="p-4 rounded bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold">
                             {error}
                         </div>
                     )}
@@ -205,7 +205,7 @@ export default function SignInPage() {
                                     placeholder="elon@x.com"
                                     value={formData.email}
                                     onChange={handleInputChange}
-                                    className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded-2xl font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                    className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                     required
                                 />
                             </div>
@@ -226,7 +226,7 @@ export default function SignInPage() {
                                     placeholder="••••••••"
                                     value={formData.password}
                                     onChange={handleInputChange}
-                                    className="h-14 pl-12 pr-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded-2xl font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                    className="h-14 pl-12 pr-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                     required
                                 />
                                 <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -239,7 +239,7 @@ export default function SignInPage() {
                     <Button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full bg-slate-900 dark:bg-primary hover:bg-slate-800 dark:hover:bg-primary/90 text-white font-black  uppercase tracking-widest rounded-xl shadow-xl shadow-slate-200/50 dark:shadow-none transition-all active:scale-[0.98]"
+                        className="w-full bg-slate-900 dark:bg-primary hover:bg-slate-800 dark:hover:bg-primary/90 text-white font-black  uppercase tracking-widest rounded shadow-xl shadow-slate-200/50 dark:shadow-none transition-all active:scale-[0.98]"
                     >
                         {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
                             <span className="flex items-center gap-2">

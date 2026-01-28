@@ -59,7 +59,7 @@ export function WebsiteCard({ website, stats, onDelete, onShowTrackingCode }: We
   };
 
   return (
-    <Card className="group flex flex-col h-full hover:shadow-lg transition-all duration-200 border hover:border-primary/20 dark:bg-gray-800 rounded-md">
+    <Card className="group flex flex-col h-full hover:shadow-lg transition-all duration-200 border hover:border-primary/20 dark:bg-gray-800 rounded">
       <Link href={`/websites/${website.id}`} className="flex flex-col flex-grow">
         <CardHeader className="flex-row items-start justify-between pb-3">
           <div className="min-w-0 flex-1">
@@ -142,13 +142,13 @@ export function WebsiteCard({ website, stats, onDelete, onShowTrackingCode }: We
         <CardContent className="flex-grow space-y-4">
           {/* Quick Stats */}
           {/* <div className="grid grid-cols-2 gap-3">
-            <div className="bg-muted/50 p-3 rounded-lg border">
+            <div className="bg-muted/50 p-3 rounded border">
               <div className="text-lg font-semibold text-foreground">
                 {formatNumber(stats.pageviews)}
               </div>
               <div className="text-xs text-muted-foreground">Pageviews</div>
             </div>
-            <div className="bg-muted/50 p-3 rounded-lg border">
+            <div className="bg-muted/50 p-3 rounded border">
               <div className="text-lg font-semibold text-foreground">
                 {formatNumber(stats.unique)}
               </div>

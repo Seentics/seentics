@@ -163,7 +163,7 @@ export function EnhancedFunnelChart({
 
                   {/* Funnel Bar */}
                   <div className="relative">
-                    <div className="h-6 bg-muted rounded-lg overflow-hidden">
+                    <div className="h-6 bg-muted rounded overflow-hidden">
                       <div 
                         className="h-full transition-all duration-500 ease-out"
                         style={{ 
@@ -243,7 +243,7 @@ export function EnhancedFunnelChart({
                 Performance Insights
               </h3>
               <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded">
                   <div>
                     <p className="text-sm font-medium">Biggest Drop-off Point</p>
                     <p className="text-xs text-muted-foreground">{analytics.biggestDropOff.stepName}</p>
@@ -253,7 +253,7 @@ export function EnhancedFunnelChart({
                   </Badge>
                 </div>
                 
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded">
                   <div>
                     <p className="text-sm font-medium">Best Performing Step</p>
                     <p className="text-xs text-muted-foreground">
@@ -269,7 +269,7 @@ export function EnhancedFunnelChart({
                   </Badge>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded">
                   <div>
                     <p className="text-sm font-medium">Time Efficiency</p>
                     <p className="text-xs text-muted-foreground">
@@ -292,7 +292,7 @@ export function EnhancedFunnelChart({
                 <Card key={index} className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3">
-                      <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                      <div className="p-2 bg-orange-100 dark:bg-orange-900/20 rounded">
                         <AlertTriangle className="w-4 h-4 text-orange-600" />
                       </div>
                       <div>

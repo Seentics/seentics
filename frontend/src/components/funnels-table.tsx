@@ -366,7 +366,7 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
                   <TableRow key={funnel.id} className="hover:bg-muted/30 transition-colors cursor-pointer group">
                     <TableCell className="font-medium">
                       <Link href={`/websites/${websiteId}/funnels/${funnel.id}`} className="flex items-center gap-3 group-hover:text-primary transition-colors">
-                        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded">
                           <Target className="h-4 w-4 text-blue-600" />
                         </div>
                         <div>

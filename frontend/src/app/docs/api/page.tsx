@@ -25,12 +25,12 @@ export default function APIDocs() {
                             in your <span className="font-medium text-foreground">Account Settings</span>.
                             Treat these keys as passwords.
                         </p>
-                        <div className="p-4 rounded-xl bg-muted/50 border flex items-center gap-3">
+                        <div className="p-4 rounded bg-muted/50 border flex items-center gap-3">
                             <Lock className="w-5 h-5 text-primary" />
                             <code className="text-xs">Authorization: Bearer YOUR_API_KEY</code>
                         </div>
                     </div>
-                    <div className="p-8 rounded-3xl bg-secondary/10 border relative overflow-hidden flex flex-col justify-center">
+                    <div className="p-8 rounded bg-secondary/10 border relative overflow-hidden flex flex-col justify-center">
                         <Server className="absolute -top-4 -right-4 w-32 h-32 text-secondary/40" />
                         <h3 className="font-semibold mb-2">Base URL</h3>
                         <code className="text-lg text-primary font-bold">https://api.seentics.com/v1</code>
@@ -58,7 +58,7 @@ export default function APIDocs() {
                 />
             </section>
 
-            <div className="rounded-2xl border-2 border-dashed p-12 text-center space-y-4">
+            <div className="rounded border-2 border-dashed p-12 text-center space-y-4">
                 <Activity className="w-12 h-12 text-muted-foreground mx-auto" />
                 <h3 className="text-xl font-semibold">Real-time Webhooks</h3>
                 <p className="text-muted-foreground max-w-lg mx-auto">
@@ -73,7 +73,7 @@ export default function APIDocs() {
 function Endpoint({ method, path, desc }: { method: string, path: string, desc: string }) {
     const color = method === 'GET' ? 'text-blue-500' : 'text-green-500';
     return (
-        <div className="p-6 rounded-2xl border bg-card space-y-4">
+        <div className="p-6 rounded border bg-card space-y-4">
             <div className="flex items-center gap-3">
                 <span className={`font-black text-xs px-2 py-1 rounded bg-muted ${color}`}>{method}</span>
                 <code className="text-sm font-semibold">{path}</code>

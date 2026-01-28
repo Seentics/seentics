@@ -60,7 +60,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
         </div>
         <Button 
           onClick={() => setIsAddModalOpen(true)}
-          className="h-10 px-5 font-bold rounded-xl gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
+          className="h-10 px-5 font-bold rounded gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
         >
           <Plus className="h-4 w-4" />
           Create New Goal
@@ -74,18 +74,18 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : goals.length === 0 ? (
-          <div className="text-center py-12 bg-muted/20 rounded-3xl border border-dashed">
+          <div className="text-center py-12 bg-muted/20 rounded border border-dashed">
             <p className="text-muted-foreground">No goals defined yet. Create your first goal to track success.</p>
           </div>
         ) : (
           goals.map((goal: Goal) => (
             <div 
               key={goal.id} 
-              className="group bg-card/50 backdrop-blur-sm p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80"
+              className="group bg-card/50 backdrop-blur-sm p-4 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80"
             >
               <div className="flex items-center gap-4">
                 <div className={cn(
-                  "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500 shadow-sm",
+                  "w-12 h-12 rounded flex items-center justify-center border transition-all duration-500 shadow-sm",
                   goal.type === 'event' ? "bg-indigo-500/10 border-indigo-500/20" : "bg-emerald-500/10 border-emerald-500/20"
                 )}>
                   {goal.type === 'event' ? (
@@ -118,7 +118,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
                     variant="ghost" 
                     size="icon" 
                     onClick={() => handleDelete(goal.id)}
-                    className="h-9 w-9 rounded-xl hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
+                    className="h-9 w-9 rounded hover:bg-rose-500/10 hover:text-rose-500 transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -129,7 +129,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
         ))}
       </div>
 
-      <div className="flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-border/50">
+      <div className="flex items-center gap-4 p-4 rounded bg-muted/30 border border-border/50">
         <Info className="h-5 w-5 text-muted-foreground shrink-0" />
         <p className="text-xs text-muted-foreground font-medium">
           New goals may take up to 5 minutes to appear in your dashboard after the first event is received.

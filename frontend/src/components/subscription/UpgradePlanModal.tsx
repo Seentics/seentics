@@ -157,7 +157,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
                 
                 <Card className={`h-full ${isRecommended ? 'ring-2 ring-blue-600 scale-105' : ''} hover:shadow-lg transition-all duration-300`}>
                   <CardHeader className="text-center pb-4">
-                    <div className={`w-16 h-16 rounded-xl flex items-center justify-center mx-auto mb-4 ${
+                    <div className={`w-16 h-16 rounded flex items-center justify-center mx-auto mb-4 ${
                       plan.color === 'blue' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'
                     }`}>
                       <PlanIcon className="h-8 w-8" />

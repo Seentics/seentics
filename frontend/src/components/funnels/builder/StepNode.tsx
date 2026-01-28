@@ -8,7 +8,7 @@ export const StepNode = memo(({ data, selected }: NodeProps) => {
   const Icon = data.icon || Filter;
 
   return (
-    <div className={`relative px-4 py-4 rounded-3xl bg-white dark:bg-slate-900 border-2 transition-all min-w-[220px] ${selected ? 'border-primary shadow-xl ring-4 ring-primary/10' : 'border-border'}`}>
+    <div className={`relative px-4 py-4 rounded bg-white dark:bg-slate-900 border-2 transition-all min-w-[220px] ${selected ? 'border-primary shadow-xl ring-4 ring-primary/10' : 'border-border'}`}>
       <Handle
         type="target"
         position={Position.Top}
@@ -16,7 +16,7 @@ export const StepNode = memo(({ data, selected }: NodeProps) => {
       />
       
       <div className="flex flex-col items-center text-center gap-3">
-        <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 shadow-sm">
+        <div className="h-12 w-12 rounded bg-emerald-500/10 flex items-center justify-center text-emerald-600 shadow-sm">
           <Icon size={24} />
         </div>
         <div>

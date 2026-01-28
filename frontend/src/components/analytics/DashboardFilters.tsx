@@ -77,13 +77,13 @@ export function DashboardFilters({
         <div className="flex flex-wrap items-center gap-3">
           {/* Website Switcher */}
           <Select value={websiteId} onValueChange={onWebsiteChange}>
-            <SelectTrigger className="w-full sm:w-[200px] h-10 border-border/40 bg-accent/10 hover:bg-accent/20 font-bold shadow-sm rounded-xl px-4 transition-all">
+            <SelectTrigger className="w-full sm:w-[200px] h-10 border-border/40 bg-accent/10 hover:bg-accent/20 font-bold shadow-sm rounded px-4 transition-all">
               <div className="flex items-center truncate">
                 <Globe className="mr-2.5 h-4 w-4 text-primary shrink-0" />
                 <span className="truncate text-[11px] uppercase tracking-wider">{currentWebsite?.name || 'Select Domain'}</span>
               </div>
             </SelectTrigger>
-            <SelectContent className="rounded-xl border-border/40 shadow-2xl">
+            <SelectContent className="rounded border-border/40 shadow-2xl">
               {websites.map((site) => (
                 <SelectItem key={site.id} value={site.id} className="text-xs font-bold py-2.5 px-4 cursor-pointer focus:bg-primary/10 hover:bg-primary/5 transition-colors">
                   {site.name}
@@ -102,15 +102,15 @@ export function DashboardFilters({
           <div className="h-8 w-px bg-border/40 hidden sm:block" />
 
           {/* Date Range Selector */}
-          <div className="flex items-center bg-accent/10 rounded-xl p-1 border border-border/40">
+          <div className="flex items-center bg-accent/10 rounded p-1 border border-border/40">
             <Select value={isCustomRange ? 'custom' : dateRange.toString()} onValueChange={(v) => onDateRangeChange(v === 'custom' ? 'custom' : parseInt(v))}>
-              <SelectTrigger className="h-8 border-none bg-transparent hover:bg-accent/10 font-black shadow-none px-3 min-w-[140px] rounded-lg transition-colors">
+              <SelectTrigger className="h-8 border-none bg-transparent hover:bg-accent/10 font-black shadow-none px-3 min-w-[140px] rounded transition-colors">
                 <div className="flex items-center text-[10px] uppercase tracking-widest">
                   <CalendarLucide className="mr-2 h-4 w-4 text-primary" />
                   <SelectValue placeholder="Period" />
                 </div>
               </SelectTrigger>
-              <SelectContent className="rounded-xl border-border/40 shadow-2xl">
+              <SelectContent className="rounded border-border/40 shadow-2xl">
                 <SelectItem value="1" className="text-xs font-bold py-2.5">Today</SelectItem>
                 <SelectItem value="2" className="text-xs font-bold py-2.5">Yesterday</SelectItem>
                 <SelectItem value="7" className="text-xs font-bold py-2.5">Last 7 days</SelectItem>
@@ -125,7 +125,7 @@ export function DashboardFilters({
             {isCustomRange && (
                <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 px-3 text-[10px] font-black uppercase tracking-wider hover:bg-accent/20 ml-1 rounded-lg">
+                  <Button variant="ghost" size="sm" className="h-8 px-3 text-[10px] font-black uppercase tracking-wider hover:bg-accent/20 ml-1 rounded">
                     {customStartDate && customEndDate ? (
                       `${format(customStartDate, 'MMM d')} - ${format(customEndDate, 'MMM d')}`
                     ) : (
@@ -134,7 +134,7 @@ export function DashboardFilters({
                     <ChevronDown className="ml-1.5 h-3 w-3 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 rounded-2xl border-border/40 shadow-2xl overflow-hidden" align="end">
+                <PopoverContent className="w-auto p-0 rounded border-border/40 shadow-2xl overflow-hidden" align="end">
                   <Calendar
                     initialFocus
                     mode="range"
@@ -151,14 +151,14 @@ export function DashboardFilters({
           <div className="h-8 w-px bg-border/40 hidden sm:block" />
 
           {/* More Filters Toggle */}
-          <Button variant="ghost" size="sm" className="h-10 px-4 bg-accent/10 hover:bg-accent/20 font-black text-[10px] uppercase tracking-widest gap-2.5 rounded-xl border border-border/40 transition-all">
+          <Button variant="ghost" size="sm" className="h-10 px-4 bg-accent/10 hover:bg-accent/20 font-black text-[10px] uppercase tracking-widest gap-2.5 rounded border border-border/40 transition-all">
             <Filter className="h-4 w-4 text-primary" />
             <span>Filters</span>
-            <Badge variant="secondary" className="h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-primary text-primary-foreground font-black rounded-lg">0</Badge>
+            <Badge variant="secondary" className="h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-primary text-primary-foreground font-black rounded">0</Badge>
           </Button>
 
           {/* Export */}
-          <Button variant="ghost" size="icon" className="h-10 w-10 bg-accent/10 hover:bg-accent/20 rounded-xl border border-border/40 text-primary transition-all" onClick={onExport} title="Export Report">
+          <Button variant="ghost" size="icon" className="h-10 w-10 bg-accent/10 hover:bg-accent/20 rounded border border-border/40 text-primary transition-all" onClick={onExport} title="Export Report">
             <Download className="h-4 w-4" />
           </Button>
         </div>

@@ -36,7 +36,7 @@ export const FunnelSidebar = () => {
     <aside className="w-80 h-full border-l bg-white dark:bg-slate-950 flex flex-col z-10 shrink-0">
       <div className="p-6 border-b">
         <div className="flex items-center gap-2 mb-6">
-            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600">
+            <div className="h-8 w-8 rounded bg-emerald-500/10 flex items-center justify-center text-emerald-600">
                 <Filter size={18} />
             </div>
             <h2 className="font-black text-lg tracking-tight">Funnel Steps</h2>
@@ -45,7 +45,7 @@ export const FunnelSidebar = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input 
             placeholder="Search steps..." 
-            className="pl-10 h-10 bg-muted/20 border-none shadow-none rounded-xl text-xs font-bold"
+            className="pl-10 h-10 bg-muted/20 border-none shadow-none rounded text-xs font-bold"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -58,10 +58,10 @@ export const FunnelSidebar = () => {
                 key={step.type}
                 onDragStart={(event) => onDragStart(event, step.type, step.label)}
                 draggable
-                className="p-4 rounded-2xl border bg-slate-50 dark:bg-slate-900/50 hover:border-emerald-500/50 hover:bg-emerald-500/[0.02] transition-all cursor-grab active:cursor-grabbing group shadow-sm hover:shadow-md"
+                className="p-4 rounded border bg-slate-50 dark:bg-slate-900/50 hover:border-emerald-500/50 hover:bg-emerald-500/[0.02] transition-all cursor-grab active:cursor-grabbing group shadow-sm hover:shadow-md"
             >
                 <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                    <div className="h-10 w-10 rounded bg-emerald-500/10 flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
                        <step.icon size={20} />
                     </div>
                     <div className="min-w-0">

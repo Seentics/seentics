@@ -30,7 +30,7 @@ export default function SettingsPage() {
     ];
 
     return (
-        <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-[1440px] mx-auto">
+        <div className="p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-[1440px] mx-auto">
             <div>
                 <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Website Settings</h1>
                 <p className="text-muted-foreground font-medium">Configure and manage your property preferences and compliance.</p>
@@ -38,7 +38,7 @@ export default function SettingsPage() {
 
             <Tabs defaultValue="general" className="w-full space-y-8">
                 <div className="border-b border-border/40 pb-px">
-                    <TabsList className="h-auto bg-transparent p-0 gap-6 w-full justify-start overflow-x-auto custom-scrollbar no-scrollbar flex-nowrap">
+                    <TabsList className="h-auto dark:bg-gray-800/50 p-2 gap-6 w-full justify-start overflow-x-auto custom-scrollbar no-scrollbar flex-nowrap">
                         {tabs.map((tab) => (
                             <TabsTrigger
                                 key={tab.id}
@@ -54,7 +54,9 @@ export default function SettingsPage() {
 
                 {tabs.map((tab) => (
                     <TabsContent key={tab.id} value={tab.id} className="mt-0 outline-none">
-                        <tab.component websiteId={websiteId} />
+                        <div className="p-4 dark:bg-gray-800/50">
+                            <tab.component websiteId={websiteId} />
+                        </div>
                     </TabsContent>
                 ))}
             </Tabs>

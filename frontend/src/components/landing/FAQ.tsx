@@ -87,11 +87,11 @@ export default function FAQ() {
               >
                 <AccordionItem 
                   value={`item-${index}`} 
-                  className="glass-card border-white/10 dark:border-white/[0.05] rounded-[2rem] px-8 overflow-hidden data-[state=open]:bg-white/[0.02] transition-all"
+                  className="glass-card border-white/10 dark:border-white/[0.05] rounded px-8 overflow-hidden data-[state=open]:bg-white/[0.02] transition-all"
                 >
                   <AccordionTrigger className="text-sm sm:text-lg font-black tracking-tight py-6 hover:no-underline hover:text-primary transition-colors text-left group">
                     <span className="flex items-center gap-4">
-                      <div className="p-2 bg-primary/5 rounded-xl border border-primary/20 group-hover:bg-primary/20 transition-colors">
+                      <div className="p-2 bg-primary/5 rounded border border-primary/20 group-hover:bg-primary/20 transition-colors">
                         <HelpCircle className="h-4 w-4 text-primary" />
                       </div>
                       {faq.question}

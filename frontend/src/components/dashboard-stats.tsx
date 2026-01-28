@@ -82,7 +82,7 @@ export function DashboardStats({ siteId }: DashboardStatsProps) {
 
   if (isLoading) {
     return (
-      <div className=" rounded-lg shadow-sm">
+      <div className=" rounded shadow-sm">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-slate-200 dark:divide-slate-700">
           {Array.from({ length: 6 }).map((_, index) => (
             <div key={index} className="p-6">
@@ -97,7 +97,7 @@ export function DashboardStats({ siteId }: DashboardStatsProps) {
 
   if (!siteId) {
     return (
-      <div className="rounded-lg border-none dark:border dark:border-slate-700 shadow-sm">
+      <div className="rounded border-none dark:border dark:border-slate-700 shadow-sm">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-slate-200 dark:divide-slate-700">
           {stats.map((stat, index) => (
             <div key={index} className="p-6">

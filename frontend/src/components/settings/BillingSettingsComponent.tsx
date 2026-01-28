@@ -25,7 +25,7 @@ export function BillingSettingsComponent() {
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           {/* Current Plan Card */}
-          <div className="p-8 rounded-3xl bg-gradient-to-br from-primary/10 via-indigo-500/5 to-transparent border border-primary/20 relative overflow-hidden group shadow-2xl shadow-primary/5">
+          <div className="p-8 rounded bg-gradient-to-br from-primary/10 via-indigo-500/5 to-transparent border border-primary/20 relative overflow-hidden group shadow-2xl shadow-primary/5">
             <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
               <Zap className="h-32 w-32 text-primary" />
             </div>
@@ -45,11 +45,11 @@ export function BillingSettingsComponent() {
 
               <div className="flex flex-wrap gap-3">
                 <Link href="/pricing">
-                  <Button className="h-12 px-8 font-black rounded-2xl shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 transition-all active:scale-95">
+                  <Button className="h-12 px-8 font-black rounded shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90 transition-all active:scale-95">
                     Change Plan
                   </Button>
                 </Link>
-                <Button variant="outline" className="h-12 px-8 font-black rounded-2xl border-2 hover:bg-muted/50 transition-all">
+                <Button variant="outline" className="h-12 px-8 font-black rounded border-2 hover:bg-muted/50 transition-all">
                   Manage Payments
                 </Button>
               </div>
@@ -95,12 +95,12 @@ export function BillingSettingsComponent() {
                 const isUnlimited = resource.limit === -1;
 
                 return (
-                  <Card key={resource.name} className="border-border/50 bg-card/50 backdrop-blur-sm rounded-3xl p-6 hover:shadow-lg transition-all group overflow-hidden relative">
+                  <Card key={resource.name} className="border-border/50 bg-card/50 backdrop-blur-sm rounded p-6 hover:shadow-lg transition-all group overflow-hidden relative">
                     <div className="absolute top-0 right-0 p-4 opacity-[0.03] group-hover:opacity-10 transition-opacity">
                         <Icon size={48} />
                     </div>
                     <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/10">
+                      <div className="p-2.5 rounded bg-primary/10 text-primary border border-primary/10">
                         <Icon size={16} />
                       </div>
                       <span className="font-black text-[13px] uppercase tracking-wider">{resource.name}</span>
@@ -123,7 +123,7 @@ export function BillingSettingsComponent() {
 
         <div className="space-y-8">
           {/* Plan Features Card */}
-          <div className="bg-slate-900 dark:bg-slate-950 p-8 rounded-3xl border border-white/5 relative overflow-hidden group shadow-2xl">
+          <div className="bg-slate-900 dark:bg-slate-950 p-8 rounded border border-white/5 relative overflow-hidden group shadow-2xl">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[50px] rounded-full -mr-16 -mt-16" />
             <h4 className="text-white text-lg font-black mb-6 relative z-10 uppercase tracking-tight">Included Perks</h4>
             <ul className="space-y-4 relative z-10">
@@ -133,7 +133,7 @@ export function BillingSettingsComponent() {
                 'Standard data retention'
               ]).map((f, i) => (
                 <li key={i} className="flex items-start gap-3 text-xs font-bold text-slate-400">
-                  <div className="w-5 h-5 rounded-lg bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-500/20">
+                  <div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-500/20">
                     <Check className="h-3 w-3 text-emerald-500" />
                   </div>
                   <span className="leading-relaxed">{f}</span>
@@ -143,13 +143,13 @@ export function BillingSettingsComponent() {
           </div>
 
           {/* Support & Billing Info */}
-          <div className="p-8 rounded-3xl border border-border/50 bg-muted/5 space-y-6">
+          <div className="p-8 rounded border border-border/50 bg-muted/5 space-y-6">
             <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Support & Invoices</h4>
             <div className="space-y-6">
                 <p className="text-xs font-medium text-muted-foreground leading-relaxed">
                     Need a custom invoice or have questions about your subscription?
                 </p>
-                <div className="p-4 rounded-2xl bg-background border border-border/50">
+                <div className="p-4 rounded bg-background border border-border/50">
                     <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Billing Support</p>
                     <p className="text-sm font-bold">billing@seentics.com</p>
                 </div>

@@ -23,7 +23,7 @@ export default function RefundPolicyPage() {
           {/* Header */}
           <div className="text-center mb-16">
             <div className="flex items-center justify-center gap-3 mb-6">
-              <div className="p-3 bg-primary/10 rounded-xl">
+              <div className="p-3 bg-primary/10 rounded">
                 <RefreshCcw className="h-8 w-8 text-primary" />
               </div>
               <h1 className="text-4xl font-bold text-foreground">Refund Policy</h1>

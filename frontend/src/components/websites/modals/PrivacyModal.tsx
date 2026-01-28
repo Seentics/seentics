@@ -95,7 +95,7 @@ export function PrivacyModal({ isOpen, onClose, website }: PrivacyModalProps) {
         <div className="space-y-6 py-4">
             
           {/* IP Anonymization */}
-          <div className="flex items-start justify-between space-x-4 p-4 border rounded-lg bg-card/50">
+          <div className="flex items-start justify-between space-x-4 p-4 border rounded bg-card/50">
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -113,7 +113,7 @@ export function PrivacyModal({ isOpen, onClose, website }: PrivacyModalProps) {
           </div>
 
           {/* Do Not Track */}
-          <div className="flex items-start justify-between space-x-4 p-4 border rounded-lg bg-card/50">
+          <div className="flex items-start justify-between space-x-4 p-4 border rounded bg-card/50">
              <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Lock className="h-4 w-4 text-muted-foreground" />
@@ -131,7 +131,7 @@ export function PrivacyModal({ isOpen, onClose, website }: PrivacyModalProps) {
           </div>
 
            {/* Raw Data Export */}
-           <div className="flex items-start justify-between space-x-4 p-4 border rounded-lg bg-card/50">
+           <div className="flex items-start justify-between space-x-4 p-4 border rounded bg-card/50">
              <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <FileDown className="h-4 w-4 text-muted-foreground" />

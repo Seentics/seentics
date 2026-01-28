@@ -218,7 +218,7 @@ export function EventsAndCampaigns({
             <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
             <h3 className="text-lg font-medium mb-2">No Campaign Data Yet</h3>
             <p className="text-sm mb-4">Start tracking UTM campaigns and custom events to see data here.</p>
-            <div className="bg-muted/30 rounded-lg p-4 text-left max-w-md mx-auto">
+            <div className="bg-muted/30 rounded p-4 text-left max-w-md mx-auto">
               <h4 className="font-medium mb-2">What you'll see:</h4>
               <ul className="text-xs space-y-1">
                 <li>• UTM campaign performance</li>
@@ -241,7 +241,7 @@ export function EventsAndCampaigns({
 
                 {/* Custom Events List */}
                 {customEvents && customEvents.top_events && customEvents.top_events.length > 0 ? (
-                  <div className="bg-muted/30 rounded-lg p-4">
+                  <div className="bg-muted/30 rounded p-4">
                     <div className="flex items-center gap-2 mb-4">
                       <MousePointer className="h-5 w-5 text-purple-600" />
                       <h4 className="font-semibold text-foreground">Custom Events Breakdown</h4>
@@ -254,7 +254,7 @@ export function EventsAndCampaigns({
                         .filter(e => !['pageview', 'page_view', 'page_hidden', 'page_visible', 'exit_intent'].includes(e.event_type)) // Hide low-signal events
                         .sort((a, b) => b.count - a.count) // Sort by count descending
                         .map((event, index) => (
-                          <div key={index} className="bg-background rounded-lg border border-border p-4 hover:bg-muted/50 transition-colors">
+                          <div key={index} className="bg-background rounded border border-border p-4 hover:bg-muted/50 transition-colors">
                             {/* Event Header */}
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-3">
@@ -300,7 +300,7 @@ export function EventsAndCampaigns({
 
                             {/* Event Description */}
                             {event.description && (
-                              <div className="mb-3 p-3 bg-muted/50 rounded-md">
+                              <div className="mb-3 p-3 bg-muted/50 rounded">
                                 <div className="text-xs font-medium text-muted-foreground mb-1">Description</div>
                                 <div className="text-sm text-foreground">{event.description}</div>
                               </div>
@@ -324,7 +324,7 @@ export function EventsAndCampaigns({
                             {event.sample_properties && Object.keys(event.sample_properties).length > 0 ? (
                               <div className="mb-3">
                                 <div className="text-xs font-medium text-muted-foreground mb-2">Sample Properties</div>
-                                <div className="bg-muted/30 rounded-md p-3">
+                                <div className="bg-muted/30 rounded p-3">
                                   <pre className="text-xs text-foreground overflow-x-auto">
                                     {JSON.stringify(event.sample_properties, null, 2)}
                                   </pre>
@@ -333,7 +333,7 @@ export function EventsAndCampaigns({
                             ) : (
                               <div className="mb-3">
                                 <div className="text-xs font-medium text-muted-foreground mb-2">Sample Properties</div>
-                                <div className="bg-muted/30 rounded-md p-3 text-center">
+                                <div className="bg-muted/30 rounded p-3 text-center">
                                   <span className="text-xs text-muted-foreground">No custom properties available</span>
                                 </div>
                               </div>
@@ -364,14 +364,14 @@ export function EventsAndCampaigns({
                             ) : (
                               <div className="mb-3">
                                 <div className="text-xs font-medium text-muted-foreground mb-2">Sample Event Data</div>
-                                <div className="bg-muted/30 rounded-md p-3 text-center">
+                                <div className="bg-muted/30 rounded p-3 text-center">
                                   <span className="text-xs text-muted-foreground">No event data available</span>
                                 </div>
                               </div>
                             )}
 
                             {/* Event Information */}
-                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-md">
+                            <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
                               <div className="text-xs font-medium text-blue-700 dark:text-blue-300 mb-2">ℹ️ Event Information</div>
                               <div className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
                                 {event.event_type === 'click' && (
@@ -430,7 +430,7 @@ export function EventsAndCampaigns({
                             </div>
 
                             {/* Backend Status */}
-                            <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-md">
+                            <div className="mb-3 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded">
                               <div className="text-xs font-medium text-yellow-700 dark:text-yellow-300 mb-2">🔧 Backend Status</div>
                               <div className="text-xs text-yellow-600 dark:text-yellow-400 space-y-1">
                                 <p>• <strong>Event Processing:</strong> {event.sample_properties && Object.keys(event.sample_properties).length > 0 ? '✅ Working' : '⚠️ Issues detected'}</p>
@@ -443,7 +443,7 @@ export function EventsAndCampaigns({
                     </div>
                   </div>
                 ) : isDemo ? (
-                  <div className="bg-muted/30 rounded-lg p-4">
+                  <div className="bg-muted/30 rounded p-4">
                     <div className="flex items-center gap-2 mb-4">
                       <MousePointer className="h-5 w-5 text-purple-600" />
                       <h4 className="font-semibold text-foreground">Custom Events Breakdown</h4>
@@ -460,7 +460,7 @@ export function EventsAndCampaigns({
                         { event_type: 'error', count: 23, percentage: 0.8 },
                         { event_type: 'performance', count: 12, percentage: 0.4 }
                       ].map((event, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-background rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                        <div key={index} className="flex items-center justify-between p-3 bg-background rounded border border-border hover:bg-muted/50 transition-colors">
                           <div className="flex items-center gap-3">
                             <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
                               <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
@@ -514,7 +514,7 @@ export function EventsAndCampaigns({
                 {/* UTM Overview Cards */}
                 {customEvents && customEvents.utm_performance ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded-lg border border-blue-200/50 dark:border-blue-800/30">
+                    <div className="text-center p-4 bg-blue-50/50 dark:bg-blue-950/20 rounded border border-blue-200/50 dark:border-blue-800/30">
                       <div className="flex items-center justify-center mb-2">
                         <Target className="h-6 w-6 text-blue-600 dark:text-blue-400" />
                       </div>
@@ -525,7 +525,7 @@ export function EventsAndCampaigns({
                       <div className="text-xs text-blue-500 dark:text-blue-400 mt-1">This month</div>
                     </div>
                     
-                    <div className="text-center p-4 bg-green-50/50 dark:bg-green-950/20 rounded-lg border border-green-200/50 dark:border-green-800/30">
+                    <div className="text-center p-4 bg-green-50/50 dark:bg-green-950/20 rounded border border-green-200/50 dark:border-green-800/30">
                       <div className="flex items-center justify-center mb-2">
                         <TrendingUp className="h-6 w-6 text-green-600 dark:text-green-400" />
                       </div>
@@ -536,7 +536,7 @@ export function EventsAndCampaigns({
                       <div className="text-xs text-green-500 dark:text-green-400 mt-1">Click-through rate</div>
                     </div>
                     
-                    <div className="text-center p-4 bg-purple-50/50 dark:bg-purple-950/20 rounded-lg border border-purple-200/50 dark:border-purple-800/30">
+                    <div className="text-center p-4 bg-purple-50/50 dark:bg-purple-950/20 rounded border border-purple-200/50 dark:border-purple-800/30">
                       <div className="flex items-center justify-center mb-2">
                         <Target className="h-6 w-6 text-purple-600 dark:text-purple-400" />
                       </div>
@@ -549,7 +549,7 @@ export function EventsAndCampaigns({
                   </div>
                 ) : isDemo ? (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
+                    <div className="text-center p-4 bg-muted/30 rounded border border-border">
                       <div className="flex items-center justify-center mb-2">
                         <Target className="h-6 w-6 text-muted-foreground" />
                       </div>
@@ -558,7 +558,7 @@ export function EventsAndCampaigns({
                       <div className="text-xs text-muted-foreground mt-1">This month</div>
                     </div>
                     
-                    <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
+                    <div className="text-center p-4 bg-muted/30 rounded border border-border">
                       <div className="flex items-center justify-center mb-2">
                         <TrendingUp className="h-6 w-6 text-muted-foreground" />
                       </div>
@@ -567,7 +567,7 @@ export function EventsAndCampaigns({
                       <div className="text-xs text-muted-foreground mt-1">Click-through rate</div>
                     </div>
                     
-                    <div className="text-center p-4 bg-muted/30 rounded-lg border border-border">
+                    <div className="text-center p-4 bg-muted/30 rounded border border-border">
                       <div className="flex items-center justify-center mb-2">
                         <Target className="h-6 w-6 text-muted-foreground" />
                       </div>
@@ -579,7 +579,7 @@ export function EventsAndCampaigns({
                                  ) : isDemo ? (
                    <div className="space-y-4">
                      {/* Demo UTM Sources */}
-                     <div className="bg-muted/30 rounded-lg p-4">
+                     <div className="bg-muted/30 rounded p-4">
                        <div className="flex items-center gap-2 mb-4">
                          <Target className="h-5 w-5 text-blue-600" />
                          <h4 className="font-semibold text-foreground">Traffic Sources</h4>
@@ -603,7 +603,7 @@ export function EventsAndCampaigns({
                      </div>
                      
                      {/* Demo UTM Campaigns */}
-                     <div className="bg-muted/30 rounded-lg p-4">
+                     <div className="bg-muted/30 rounded p-4">
                        <div className="flex items-center gap-2 mb-4">
                          <TrendingUp className="h-5 w-5 text-green-600" />
                          <h4 className="font-semibold text-foreground">Marketing Campaigns</h4>
@@ -637,16 +637,16 @@ export function EventsAndCampaigns({
                   <div className="space-y-4">
                     {/* UTM Sources */}
                     {customEvents.utm_performance.sources && customEvents.utm_performance.sources.length > 0 && (
-                      <div className="bg-muted/30 rounded-lg p-4">
+                      <div className="bg-muted/30 rounded p-4">
                         <div className="flex items-center gap-2 mb-4">
                           <Target className="h-5 w-5 text-blue-600" />
                           <h4 className="font-semibold text-foreground">Traffic Sources</h4>
                         </div>
                         <div className="space-y-2">
                           {customEvents.utm_performance.sources.map((item: any) => (
-                            <div key={item.source} className="flex items-center justify-between p-3 bg-background rounded-lg border hover:bg-muted/50 transition-colors">
+                            <div key={item.source} className="flex items-center justify-between p-3 bg-background rounded border hover:bg-muted/50 transition-colors">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 overflow-hidden">
+                                <div className="w-8 h-8 rounded flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 overflow-hidden">
                                   <Image
                                     src={getSourceImage(item.source)}
                                     alt={item.source || 'Direct'}
@@ -688,16 +688,16 @@ export function EventsAndCampaigns({
                     
                     {/* UTM Campaigns */}
                     {customEvents.utm_performance.campaigns && customEvents.utm_performance.campaigns.length > 0 && (
-                      <div className="bg-muted/30 rounded-lg p-4">
+                      <div className="bg-muted/30 rounded p-4">
                         <div className="flex items-center gap-2 mb-4">
                           <TrendingUp className="h-5 w-5 text-green-600" />
                           <h4 className="font-semibold text-foreground">Marketing Campaigns</h4>
                         </div>
                         <div className="space-y-2">
                           {customEvents.utm_performance.campaigns.map((item: any) => (
-                            <div key={item.campaign} className="flex items-center justify-between p-3 bg-background rounded-lg border hover:bg-muted/50 transition-colors">
+                            <div key={item.campaign} className="flex items-center justify-between p-3 bg-background rounded border hover:bg-muted/50 transition-colors">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-green-100 dark:bg-green-900/30">
+                                <div className="w-8 h-8 rounded flex items-center justify-center bg-green-100 dark:bg-green-900/30">
                                   {getCampaignIcon(item.campaign)}
                                 </div>
                                 <span className="text-sm font-medium">{item.campaign || 'None'}</span>
@@ -714,16 +714,16 @@ export function EventsAndCampaigns({
                     
                     {/* UTM Mediums */}
                     {customEvents.utm_performance.mediums && customEvents.utm_performance.mediums.length > 0 && (
-                      <div className="bg-muted/30 rounded-lg p-4">
+                      <div className="bg-muted/30 rounded p-4">
                         <div className="flex items-center gap-2 mb-4">
                           <Target className="h-5 w-5 text-purple-600" />
                           <h4 className="font-semibold text-foreground">Marketing Mediums</h4>
                         </div>
                         <div className="space-y-2">
                           {customEvents.utm_performance.mediums.map((item: any) => (
-                            <div key={item.medium} className="flex items-center justify-between p-3 bg-background rounded-lg border hover:bg-muted/50 transition-colors">
+                            <div key={item.medium} className="flex items-center justify-between p-3 bg-background rounded border hover:bg-muted/50 transition-colors">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-100 dark:bg-purple-900/30">
+                                <div className="w-8 h-8 rounded flex items-center justify-center bg-purple-100 dark:bg-purple-900/30">
                                   {getMediumIcon(item.medium)}
                                 </div>
                                 <span className="text-sm font-medium">{item.medium || 'None'}</span>
@@ -741,7 +741,7 @@ export function EventsAndCampaigns({
                 ) : isDemo ? (
                   <div className="space-y-4">
                     {/* Demo UTM Sources */}
-                    <div className="bg-muted/30 rounded-lg p-4">
+                    <div className="bg-muted/30 rounded p-4">
                       <div className="flex items-center gap-2 mb-4">
                         <Target className="h-5 w-5 text-blue-600" />
                         <h4 className="font-semibold text-foreground">Traffic Sources</h4>
@@ -753,9 +753,9 @@ export function EventsAndCampaigns({
                           { source: 'Direct', visitors: 650, events: 1800 },
                           { source: 'twitter', visitors: 320, events: 950 }
                         ].map((item, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-background rounded-lg border hover:bg-muted/50 transition-colors">
+                          <div key={index} className="flex items-center justify-between p-3 bg-background rounded border hover:bg-muted/50 transition-colors">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 overflow-hidden">
+                              <div className="w-8 h-8 rounded flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 overflow-hidden">
                                 <Image
                                   src={getSourceImage(item.source)}
                                   alt={item.source}
@@ -795,7 +795,7 @@ export function EventsAndCampaigns({
                     </div>
                     
                     {/* Demo UTM Campaigns */}
-                    <div className="bg-muted/30 rounded-lg p-4">
+                    <div className="bg-muted/30 rounded p-4">
                       <div className="flex items-center gap-2 mb-4">
                         <TrendingUp className="h-5 w-5 text-green-600" />
                         <h4 className="font-semibold text-foreground">Marketing Campaigns</h4>
@@ -806,9 +806,9 @@ export function EventsAndCampaigns({
                           { campaign: 'product_launch', visitors: 650, events: 1800 },
                           { campaign: 'summer_sale', visitors: 420, events: 1200 }
                         ].map((item, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-background rounded-lg border hover:bg-muted/50 transition-colors">
+                          <div key={index} className="flex items-center justify-between p-3 bg-background rounded border hover:bg-muted/50 transition-colors">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-green-100 dark:bg-green-900/30">
+                              <div className="w-8 h-8 rounded flex items-center justify-center bg-green-100 dark:bg-green-900/30">
                                 {getCampaignIcon(item.campaign)}
                               </div>
                               <span className="text-sm font-medium">{item.campaign.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
@@ -823,7 +823,7 @@ export function EventsAndCampaigns({
                     </div>
 
                     {/* Demo UTM Mediums */}
-                    <div className="bg-muted/30 rounded-lg p-4">
+                    <div className="bg-muted/30 rounded p-4">
                       <div className="flex items-center gap-2 mb-4">
                         <Target className="h-5 w-5 text-purple-600" />
                         <h4 className="font-semibold text-foreground">Marketing Mediums</h4>
@@ -834,9 +834,9 @@ export function EventsAndCampaigns({
                           { medium: 'social', visitors: 650, events: 1800 },
                           { medium: 'email', visitors: 420, events: 1200 }
                         ].map((item, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 bg-background rounded-lg border hover:bg-muted/50 transition-colors">
+                          <div key={index} className="flex items-center justify-between p-3 bg-background rounded border hover:bg-muted/50 transition-colors">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-purple-100 dark:bg-purple-900/30">
+                              <div className="w-8 h-8 rounded flex items-center justify-center bg-purple-100 dark:bg-purple-900/30">
                                 {getMediumIcon(item.medium)}
                               </div>
                               <span className="text-sm font-medium">{item.medium.toUpperCase()}</span>

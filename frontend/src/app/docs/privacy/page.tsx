@@ -17,7 +17,7 @@ export default function PrivacyDocs() {
             </header>
 
             <section className="grid sm:grid-cols-2 gap-8">
-                <div className="space-y-4 p-8 rounded-3xl border bg-card/50">
+                <div className="space-y-4 p-8 rounded border bg-card/50">
                     <EyeOff className="w-6 h-6 text-primary" />
                     <h2 className="text-xl font-semibold">Zero PII Storage</h2>
                     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -26,7 +26,7 @@ export default function PrivacyDocs() {
                         strip emails from URL parameters.
                     </p>
                 </div>
-                <div className="space-y-4 p-8 rounded-3xl border bg-card/50">
+                <div className="space-y-4 p-8 rounded border bg-card/50">
                     <Lock className="w-6 h-6 text-primary" />
                     <h2 className="text-xl font-semibold">Data Encryption</h2>
                     <p className="text-sm text-muted-foreground leading-relaxed">
@@ -44,7 +44,7 @@ export default function PrivacyDocs() {
                         { title: 'CCPA (California)', desc: 'Clear opt-out mechanisms and transparent data usage disclosures.' },
                         { title: 'PECR (UK)', desc: 'Cookie-less tracking options to avoid complex consent banners.' },
                     ].map((law, i) => (
-                        <div key={i} className="flex gap-4 p-4 rounded-xl hover:bg-muted/30 transition-colors border-b last:border-0">
+                        <div key={i} className="flex gap-4 p-4 rounded hover:bg-muted/30 transition-colors border-b last:border-0">
                             <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
                             <div>
                                 <h4 className="font-medium">{law.title}</h4>
@@ -55,7 +55,7 @@ export default function PrivacyDocs() {
                 </div>
             </section>
 
-            <section className="p-8 rounded-2xl bg-muted/20 border-2 border-dashed text-center space-y-4">
+            <section className="p-8 rounded bg-muted/20 border-2 border-dashed text-center space-y-4">
                 <Scale className="w-10 h-10 text-muted-foreground mx-auto" />
                 <h3 className="text-xl font-semibold">Data Processing Agreement</h3>
                 <p className="text-sm text-muted-foreground max-w-xl mx-auto">

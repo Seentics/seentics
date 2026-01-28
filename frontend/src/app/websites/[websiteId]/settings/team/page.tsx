@@ -34,7 +34,7 @@ export default function TeamSettings() {
           <h1 className="text-2xl font-bold tracking-tight">Team Management</h1>
           <p className="text-muted-foreground text-sm">Manage who has access to this website's analytics.</p>
         </div>
-        <Button className="h-10 px-5 font-bold rounded-xl gap-2 shadow-lg shadow-primary/10">
+        <Button className="h-10 px-5 font-bold rounded gap-2 shadow-lg shadow-primary/10">
           <UserPlus className="h-4 w-4" />
           Invite Member
         </Button>
@@ -42,7 +42,7 @@ export default function TeamSettings() {
 
       <div className="space-y-4">
         {teamMembers.map((member, i) => (
-          <div key={i} className="flex items-center justify-between p-4 rounded-2xl border bg-muted/5 transition-all hover:bg-muted/10">
+          <div key={i} className="flex items-center justify-between p-4 rounded border bg-muted/5 transition-all hover:bg-muted/10">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center border">
                 <span className="text-sm font-black text-primary">{member.name.charAt(0)}</span>
@@ -75,11 +75,11 @@ export default function TeamSettings() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded-lg">
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground rounded">
                     <MoreVertical className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40 rounded-xl">
+                <DropdownMenuContent align="end" className="w-40 rounded">
                   <DropdownMenuItem className="text-xs font-bold gap-2">
                     <ShieldCheck className="h-4 w-4" /> Change Role
                   </DropdownMenuItem>
@@ -93,7 +93,7 @@ export default function TeamSettings() {
         ))}
       </div>
 
-      <div className="p-6 rounded-2xl bg-muted/30 border border-dashed border-muted-foreground/20 flex flex-col items-center text-center space-y-3">
+      <div className="p-6 rounded bg-muted/30 border border-dashed border-muted-foreground/20 flex flex-col items-center text-center space-y-3">
          <div className="w-12 h-12 rounded-full bg-background flex items-center justify-center shadow-sm">
             <Target className="h-6 w-6 text-muted-foreground" />
          </div>

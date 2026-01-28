@@ -37,9 +37,9 @@ export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ 
     return (
       <div className="space-y-3">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-4 rounded-xl border border-border/20">
+          <div key={i} className="flex items-center justify-between p-4 rounded border border-border/20">
              <div className="flex items-center space-x-4 flex-1">
-                <Skeleton className="w-10 h-10 rounded-xl" />
+                <Skeleton className="w-10 h-10 rounded" />
                 <div className="space-y-2">
                    <Skeleton className="h-4 w-32" />
                    <Skeleton className="h-3 w-24" />
@@ -58,13 +58,13 @@ export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ 
   const insightMultiplier = (data?.dashboardData?.total_visitors || 1000) / 5000;
 
   return (
-    <Card className="bg-card border-border shadow-sm shadow-black/5 rounded-2xl overflow-hidden">
+    <Card className="bg-card border-border shadow-sm shadow-black/5 rounded overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 pb-6">
         <div className="space-y-1">
           <CardTitle className="text-lg font-bold tracking-tight">Automation Engine</CardTitle>
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Real-time workflow execution</p>
         </div>
-        <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider text-primary hover:text-primary transition-all gap-1.5 rounded-lg px-3">
+        <Button variant="outline" size="sm" className="h-8 text-[10px] font-bold uppercase tracking-wider text-primary hover:text-primary transition-all gap-1.5 rounded px-3">
             Manage
             <ArrowUpRight size={14} />
         </Button>
@@ -89,7 +89,7 @@ export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ 
                   <tr key={wf.id} className="group hover:bg-accent/5 transition-all duration-300">
                     <td className="p-4 px-6">
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 min-w-10 rounded-xl bg-accent/10 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+                        <div className="h-10 w-10 min-w-10 rounded bg-accent/10 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                           {React.cloneElement(wf.icon as React.ReactElement, { className: 'h-4 w-4 text-primary' })}
                         </div>
                         <div className="min-w-0">

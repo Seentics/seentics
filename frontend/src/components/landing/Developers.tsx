@@ -9,7 +9,7 @@ export default function Developers() {
       <div className="container mx-auto px-4 sm:px-6">
         <div className="text-center mb-10 sm:mb-12 md:mb-16">
           <div className="inline-flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-slate-900 dark:bg-white rounded flex items-center justify-center shadow-lg">
               <Code className="h-5 w-5 sm:h-6 sm:w-6 md:h-8 md:w-8 text-white dark:text-slate-900" />
             </div>
             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-slate-900 dark:text-white">Identify users & track custom events</h2>
@@ -21,7 +21,7 @@ export default function Developers() {
           <Card className="group bg-white dark:bg-slate-800 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-slate-200 dark:border-slate-700 overflow-hidden">
             <CardHeader className="pb-3 sm:pb-4">
               <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-green-600 to-emerald-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-green-600 to-emerald-600 rounded flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                   <User className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-white" />
                 </div>
                 <div>
@@ -37,7 +37,7 @@ export default function Developers() {
                   <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-yellow-500"></div>
                   <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500"></div>
                 </div>
-                <pre className="rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-3 sm:p-4 md:p-6 text-xs sm:text-sm md:text-base overflow-auto border border-slate-700 shadow-inner">{`<!-- Include once, ideally in your site layout -->
+                <pre className="rounded bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-3 sm:p-4 md:p-6 text-xs sm:text-sm md:text-base overflow-auto border border-slate-700 shadow-inner">{`<!-- Include once, ideally in your site layout -->
 <script src="/trackers/tracker.js" data-site-id="YOUR_SITE_ID"></script>
 
 <!-- Identify after login/signup or when info becomes available -->
@@ -61,7 +61,7 @@ export default function Developers() {
           <Card className="group bg-white dark:bg-slate-800 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-slate-200 dark:border-slate-700 overflow-hidden">
             <CardHeader className="pb-3 sm:pb-4">
               <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-purple-600 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-purple-600 to-violet-600 rounded flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                   <Zap className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-white" />
                 </div>
                 <div>
@@ -77,7 +77,7 @@ export default function Developers() {
                   <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-yellow-500"></div>
                   <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500"></div>
                 </div>
-                <pre className="rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-3 sm:p-4 md:p-6 text-xs sm:text-sm md:text-base overflow-auto border border-slate-700 shadow-inner">{`// Track page views automatically
+                <pre className="rounded bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-3 sm:p-4 md:p-6 text-xs sm:text-sm md:text-base overflow-auto border border-slate-700 shadow-inner">{`// Track page views automatically
 // Track custom events manually
 window.seentics?.track('button_clicked', {
   button_name: 'signup_cta',
@@ -105,7 +105,7 @@ window.seentics?.track('purchase_completed', {
         <Card className="group bg-white dark:bg-slate-800 shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-slate-200 dark:border-slate-700 overflow-hidden">
           <CardHeader className="pb-3 sm:pb-4">
             <div className="flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-orange-600 to-red-600 rounded-2xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-gradient-to-br from-orange-600 to-red-600 rounded flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
                 <Terminal className="h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-white" />
               </div>
               <div>
@@ -121,7 +121,7 @@ window.seentics?.track('purchase_completed', {
                 <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-yellow-500"></div>
                 <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500"></div>
               </div>
-              <pre className="rounded-xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-3 sm:p-4 md:p-6 text-xs sm:text-sm md:text-base overflow-auto border border-slate-700 shadow-inner">{`// 1. Include the tracker script
+              <pre className="rounded bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-100 p-3 sm:p-4 md:p-6 text-xs sm:text-sm md:text-base overflow-auto border border-slate-700 shadow-inner">{`// 1. Include the tracker script
 <script src="/trackers/tracker.js" data-site-id="YOUR_SITE_ID"></script>
 
 // 2. Identify users after login
@@ -170,7 +170,7 @@ function onPurchaseCompleted(order) {
 
         {/* Call-to-Action Section */}
         <div className="mt-10 sm:mt-12 md:mt-16 text-center">
-          <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 bg-slate-900 dark:bg-white rounded-2xl text-white dark:text-slate-900 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="inline-flex items-center gap-2 sm:gap-3 px-4 sm:px-6 py-3 sm:py-4 bg-slate-900 dark:bg-white rounded text-white dark:text-slate-900 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
             <span className="text-base sm:text-lg md:text-xl font-semibold">Ready to integrate?</span>
             <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6 group-hover:translate-x-1 transition-transform duration-300" />
           </div>

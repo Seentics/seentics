@@ -267,7 +267,7 @@ export default function SignUpPage() {
             <div className="flex items-center gap-4">
                 <span className="text-sm font-medium text-slate-400">Already have an account?</span>
                 <Link href="/signin">
-                    <Button variant="outline" className="h-11 font-black text-xs uppercase tracking-widest rounded-xl border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">Sign In</Button>
+                    <Button variant="outline" className="h-11 font-black text-xs uppercase tracking-widest rounded border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">Sign In</Button>
                 </Link>
             </div>
         </div>
@@ -275,7 +275,7 @@ export default function SignUpPage() {
         <div className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto w-full">
             
             {/* Step Indicator - Refined Minimalist */}
-            <div className="w-full max-w-lg mb-12 px-4">
+            {/* <div className="w-full max-w-lg mb-12 px-4">
                 <div className="relative flex justify-between items-center h-10">
                     <div className="absolute top-1/2 left-0 w-full h-px bg-slate-100 dark:bg-slate-800 -translate-y-1/2" />
                     <motion.div 
@@ -312,7 +312,7 @@ export default function SignUpPage() {
                         </div>
                     ))}
                 </div>
-            </div>
+            </div> */}
 
             <AnimatePresence mode="wait">
                 {step === 1 ? (
@@ -322,7 +322,7 @@ export default function SignUpPage() {
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -20 }}
                         transition={{ duration: 0.5 }}
-                        className="w-full max-w-lg bg-slate-800 p-6 rounded-md"
+                        className="w-full max-w-lg bg-slate-800 p-6 rounded-xl"
                     >
                         <div className="mb-10 text-center lg:text-left">
                             <h2 className="text-4xl font-black tracking-tight mb-3">Begin your journey.</h2>
@@ -331,7 +331,7 @@ export default function SignUpPage() {
 
                         <form onSubmit={handleAccountSubmit} className="space-y-6">
                             {error && (
-                                <div className="p-4 rounded-2xl bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold font-sans">
+                                <div className="p-4 rounded bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold font-sans">
                                     {error}
                                 </div>
                             )}
@@ -346,7 +346,7 @@ export default function SignUpPage() {
                                             placeholder="Elon Musk"
                                             value={formData.name}
                                             onChange={handleInputChange}
-                                            className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded-2xl font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                            className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                             required
                                         />
                                     </div>
@@ -362,7 +362,7 @@ export default function SignUpPage() {
                                             placeholder="elon@x.com"
                                             value={formData.email}
                                             onChange={handleInputChange}
-                                            className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded-2xl font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                            className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                             required
                                         />
                                     </div>
@@ -379,7 +379,7 @@ export default function SignUpPage() {
                                                 placeholder="••••••••"
                                                 value={formData.password}
                                                 onChange={handleInputChange}
-                                                className="h-14 pl-12 pr-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded-2xl font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                className="h-14 pl-12 pr-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                                 required
                                             />
                                             <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
@@ -394,7 +394,7 @@ export default function SignUpPage() {
                                                 placeholder="Confirm Password"
                                                 value={formData.confirmPassword}
                                                 onChange={handleInputChange}
-                                                className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded-2xl font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                                 required
                                             />
                                         </div>
@@ -405,7 +405,7 @@ export default function SignUpPage() {
                             <Button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full  p-6 bg-slate-900 dark:bg-primary hover:bg-slate-800 dark:hover:bg-primary/90 text-white font-black  uppercase tracking-widest rounded-xl shadow-xl shadow-slate-200/50 dark:shadow-none transition-all active:scale-[0.98]"
+                                className="w-full  p-6 bg-slate-900 dark:bg-primary hover:bg-slate-800 dark:hover:bg-primary/90 text-white font-black  uppercase tracking-widest rounded shadow-xl shadow-slate-200/50 dark:shadow-none transition-all active:scale-[0.98]"
                             >
                                 {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
                                     <span className="flex items-center gap-2">
@@ -474,7 +474,7 @@ export default function SignUpPage() {
                                     <Button
                                         onClick={() => selectPlan(plan.id)}
                                         disabled={isLoading}
-                                        className={`w-full h-15 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 ${
+                                        className={`w-full h-15 rounded font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 ${
                                             plan.popular 
                                                 ? 'bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25' 
                                                 : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-black'

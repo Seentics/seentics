@@ -428,7 +428,7 @@ export default function WebsiteDashboardPage() {
     // Handle errors (simplified) - skip in demo mode
     if (!isDemoMode && dashboardError) {
       return (
-        <div className="p-8 text-center bg-red-50 text-red-800 rounded-lg">
+        <div className="p-8 text-center bg-red-50 text-red-800 rounded">
           Failed to load analytics data.
         </div>
       );
@@ -457,27 +457,27 @@ export default function WebsiteDashboardPage() {
 
           <div className="flex flex-wrap items-center gap-3">
 
-            <div className="h-10 w-10 flex items-center justify-center  backdrop-blur-md  hover:bg-card transition-colors rounded-xl shadow-sm">
+            <div className="h-10 w-10 flex items-center justify-center  backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm">
                 <ThemeToggle />
               </div>
             {/* Website Switcher */}
             <Select value={websiteId} onValueChange={handleWebsiteChange}>
-              <SelectTrigger className="w-full sm:w-[220px] h-10 dark:bg-slate-800 backdrop-blur-md  hover:bg-card transition-colors rounded-xl shadow-sm">
+              <SelectTrigger className="w-full sm:w-[220px] h-10 dark:bg-slate-800 backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm">
                 <div className="flex items-center truncate">
                   <Globe className="mr-2 h-4 w-4 text-primary shrink-0" />
                   <span className="truncate font-bold text-sm tracking-tight">{currentWebsite?.name || 'Select website'}</span>
                 </div>
               </SelectTrigger>
-              <SelectContent className="rounded-xl  shadow-2xl bg-slate-800 ">
+              <SelectContent className="rounded  shadow-2xl bg-slate-800 ">
                 {websites.map((site) => ( 
-                  <SelectItem key={site.id} value={site.id} className="rounded-lg py-2">
+                  <SelectItem key={site.id} value={site.id} className="rounded py-2">
                     <span className="font-medium">{site.name}</span>
                   </SelectItem>
                 ))}
                 {websites.length > 0 && (
                   <>
                     <div className="h-px bg-border my-1 mx-2" />
-                    <SelectItem value="add-new" className="text-primary rounded-lg py-2">
+                    <SelectItem value="add-new" className="text-primary rounded py-2">
                       <div className="flex items-center font-bold">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Website
@@ -531,7 +531,7 @@ export default function WebsiteDashboardPage() {
 
         {/* DETAILS GRID START */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
-          <Card className=" dark:bg-slate-800">
+          <Card className=" dark:bg-gray-800/50">
             <CardContent className="p-8">
               <TopPagesChart
                 data={transformedTopPages}
@@ -542,7 +542,7 @@ export default function WebsiteDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className=" dark:bg-slate-800  rounded">
+          <Card className=" dark:bg-gray-800/50  rounded">
             <CardContent className="p-8">
               <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
             </CardContent>
@@ -550,7 +550,7 @@ export default function WebsiteDashboardPage() {
         </div>
 
         {/* Map & Geolocation */}
-        <section className="bg-slate-800 rounded">
+        <section className="dark:bg-gray-800/50 rounded">
           <GeolocationOverview
             data={finalGeolocationData}
             isLoading={!isDemoMode && geolocationLoading}
@@ -559,7 +559,7 @@ export default function WebsiteDashboardPage() {
 
         {/* System & Events */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card className=" dark:bg-slate-800">
+          <Card className=" dark:bg-gray-800/50">
             <CardContent className="p-8">
               <TopDevicesChart
                 data={transformedTopDevices}
@@ -569,14 +569,14 @@ export default function WebsiteDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded dark:bg-slate-800">
+          <Card className="rounded dark:bg-gray-800/50">
             <CardHeader className="p-8 pb-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <CardTitle className="text-lg font-bold tracking-tight">Goal Conversions</CardTitle>
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Behavioral Targets</p>
                 </div>
-                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                <div className="w-10 h-10 rounded bg-purple-500/10 flex items-center justify-center">
                   <Target className="h-5 w-5 text-purple-500" />
                 </div>
               </div>
@@ -593,7 +593,7 @@ export default function WebsiteDashboardPage() {
         </div>
 
         {/* UTM Performance */}
-        <Card className="rounded bg-slate-800 overflow-hidden">
+        <Card className="rounded dark:bg-gray-800/50 overflow-hidden">
           <CardHeader className="p-8 pb-6 border-b border-border/40">
             <div className="flex flex-col space-y-6 md:flex-row md:items-center md:justify-between md:space-y-0">
               <div className="space-y-1 text-center md:text-left">
@@ -601,7 +601,7 @@ export default function WebsiteDashboardPage() {
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">UTM Source & Performance</p>
               </div>
               <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto">
-                <TabsList className="grid w-full grid-cols-5 h-11 bg-muted/20 p-1 rounded-xl">
+                <TabsList className="grid w-full grid-cols-5 h-11 bg-muted/20 p-1 rounded">
                   <TabsTrigger value="sources" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Sources</TabsTrigger>
                   <TabsTrigger value="mediums" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Mediums</TabsTrigger>
                   <TabsTrigger value="campaigns" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Campaigns</TabsTrigger>

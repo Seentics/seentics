@@ -119,7 +119,7 @@ export default function ImageGallery({ items = defaultItems }: ImageGalleryProps
               {items.map((item, index) => (
                 <CarouselItem key={index} className="pl-2 md:pl-4 basis-full md:basis-1/2 lg:basis-1/3">
                   <div className="group cursor-pointer" onClick={() => openLightboxAt(index)}>
-                    <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
+                    <div className="relative overflow-hidden rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-2">
                       <Image
                         src={item.src}
                         alt={item.title}
@@ -188,9 +188,9 @@ export default function ImageGallery({ items = defaultItems }: ImageGalleryProps
               alt={items[currentIndex]?.title || ""}
               width={1200}
               height={800}
-              className="w-full h-auto rounded-lg"
+              className="w-full h-auto rounded"
             />
-            <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-sm rounded-lg p-4 text-white">
+            <div className="absolute bottom-4 left-4 right-4 bg-black/60 backdrop-blur-sm rounded p-4 text-white">
               <h3 className="text-lg md:text-xl font-semibold mb-2">
                 {items[currentIndex]?.title}
               </h3>

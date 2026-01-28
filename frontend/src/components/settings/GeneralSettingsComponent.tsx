@@ -117,7 +117,7 @@ export function GeneralSettingsComponent({ websiteId }: { websiteId: string }) {
           <Button 
             onClick={handleSave}
             disabled={updateMutation.isPending}
-            className="h-10 px-8 font-bold rounded-xl shadow-lg shadow-primary/20 transition-transform active:scale-95"
+            className="h-10 px-8 font-bold rounded shadow-lg shadow-primary/20 transition-transform active:scale-95"
           >
             {updateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Save Changes
@@ -127,7 +127,7 @@ export function GeneralSettingsComponent({ websiteId }: { websiteId: string }) {
 
       {/* Danger Zone */}
       <div className="pt-12">
-        <div className="p-6 rounded-3xl border border-rose-500/20 bg-rose-500/5 space-y-4">
+        <div className="p-6 rounded border border-rose-500/20 bg-rose-500/5 space-y-4">
           <div className="flex items-center gap-3 text-rose-600">
             <ShieldAlert className="h-5 w-5" />
             <h2 className="font-bold text-sm uppercase tracking-widest">Danger Zone</h2>
@@ -141,7 +141,7 @@ export function GeneralSettingsComponent({ websiteId }: { websiteId: string }) {
             <Button 
               variant="destructive" 
               size="sm" 
-              className="h-9 px-4 font-bold rounded-lg border-none"
+              className="h-9 px-4 font-bold rounded border-none"
               onClick={handleDelete}
               disabled={deleteMutation.isPending}
             >

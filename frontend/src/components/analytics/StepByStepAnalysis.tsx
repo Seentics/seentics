@@ -126,7 +126,7 @@ export function StepByStepAnalysis({ stepAnalytics, totalVisitors }: StepByStepA
                   {/* Metrics Cards */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
                     {/* Visitors Card */}
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Users className="h-4 w-4 text-blue-600" />
                         <span className="text-sm font-medium text-blue-800 dark:text-blue-300">Visitors</span>
@@ -140,7 +140,7 @@ export function StepByStepAnalysis({ stepAnalytics, totalVisitors }: StepByStepA
                     </div>
                     
                     {/* Conversion Card */}
-                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <TrendingUp className="h-4 w-4 text-green-600" />
                         <span className="text-sm font-medium text-green-800 dark:text-green-300">Conversion</span>
@@ -154,7 +154,7 @@ export function StepByStepAnalysis({ stepAnalytics, totalVisitors }: StepByStepA
                     </div>
                     
                     {/* Drop-off Card */}
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <TrendingDown className="h-4 w-4 text-red-600" />
                         <span className="text-sm font-medium text-red-800 dark:text-red-300">Drop-off</span>
@@ -168,7 +168,7 @@ export function StepByStepAnalysis({ stepAnalytics, totalVisitors }: StepByStepA
                     </div>
                     
                     {/* Time Card */}
-                    <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                    <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <Clock className="h-4 w-4 text-purple-600" />
                         <span className="text-sm font-medium text-purple-800 dark:text-purple-300">Time</span>
@@ -183,7 +183,7 @@ export function StepByStepAnalysis({ stepAnalytics, totalVisitors }: StepByStepA
                   </div>
 
                   {/* Progress Section */}
-                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded p-4">
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Progress through funnel</span>
                       <span className="text-sm font-bold text-gray-900 dark:text-gray-100">
@@ -221,7 +221,7 @@ export function StepByStepAnalysis({ stepAnalytics, totalVisitors }: StepByStepA
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="h-4 w-4 text-green-600" />
                 <span className="font-medium text-green-800 dark:text-green-300">Best Performing Step</span>
@@ -231,7 +231,7 @@ export function StepByStepAnalysis({ stepAnalytics, totalVisitors }: StepByStepA
               </p>
             </div>
             
-            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingDown className="h-4 w-4 text-red-600" />
                 <span className="font-medium text-red-800 dark:text-red-300">Biggest Drop-off</span>

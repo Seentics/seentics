@@ -222,7 +222,7 @@ export default function CookieConsentManager({
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-lg ${category.color}`}>
+                        <div className={`p-2 rounded ${category.color}`}>
                           <Icon className="h-4 w-4" />
                         </div>
                         <div>

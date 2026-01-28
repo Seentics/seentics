@@ -29,7 +29,7 @@ export default function CodeBlock({ code, title, className }: CodeBlockProps) {
   return (
     <div
       className={cn(
-        "rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 shadow-sm overflow-hidden",
+        "rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 shadow-sm overflow-hidden",
         className
       )}
     >

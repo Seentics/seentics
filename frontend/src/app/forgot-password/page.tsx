@@ -81,7 +81,7 @@ export default function ForgotPasswordPage() {
         <div className="relative z-10">
           <div className="space-y-6">
             <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 flex items-center justify-center text-primary">
+              <div className="h-10 w-10 rounded bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 flex items-center justify-center text-primary">
                 <Shield className="h-6 w-6" />
               </div>
               <div>
@@ -132,7 +132,7 @@ export default function ForgotPasswordPage() {
 
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 {error && (
-                                    <Alert variant="destructive" className="rounded-2xl border-0 bg-red-500/10 text-red-500">
+                                    <Alert variant="destructive" className="rounded border-0 bg-red-500/10 text-red-500">
                                         <AlertCircle className="h-4 w-4" />
                                         <AlertDescription className="font-bold">{error}</AlertDescription>
                                     </Alert>
@@ -147,7 +147,7 @@ export default function ForgotPasswordPage() {
                                             placeholder="name@example.com"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            className="h-14 pl-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded-2xl transition-all"
+                                            className="h-14 pl-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded transition-all"
                                             disabled={isLoading}
                                             required
                                         />
@@ -157,7 +157,7 @@ export default function ForgotPasswordPage() {
                                 <Button
                                     type="submit"
                                     variant="brand"
-                                    className="w-full h-14 text-base font-black shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded-2xl active:scale-[0.98]"
+                                    className="w-full h-14 text-base font-black shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded active:scale-[0.98]"
                                     disabled={isLoading}
                                 >
                                     {isLoading ? (
@@ -190,7 +190,7 @@ export default function ForgotPasswordPage() {
                                 </p>
                                 <Button 
                                     variant="outline" 
-                                    className="w-full h-12 rounded-xl font-bold border-slate-200 dark:border-slate-700" 
+                                    className="w-full h-12 rounded font-bold border-slate-200 dark:border-slate-700" 
                                     onClick={() => setIsSubmitted(false)}
                                 >
                                     Try another email

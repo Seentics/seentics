@@ -97,7 +97,7 @@ function HeaderContent() {
           {/* Mobile Menu Button */}
           <button
             onClick={toggleMobileMenu}
-            className="lg:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-accent/10 focus:outline-none transition-all"
+            className="lg:hidden inline-flex items-center justify-center h-10 w-10 rounded text-muted-foreground hover:text-foreground hover:bg-accent/10 focus:outline-none transition-all"
           >
             <Menu className="h-5 w-5" />
           </button>
@@ -105,7 +105,7 @@ function HeaderContent() {
           {/* Desktop Sidebar Toggle */}
           <button
             onClick={toggleSidebar}
-            className="hidden lg:flex items-center px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-accent/10 rounded-lg transition-all gap-2"
+            className="hidden lg:flex items-center px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground hover:bg-accent/10 rounded transition-all gap-2"
             title={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
           >
             {isSidebarOpen ? (
@@ -141,7 +141,7 @@ function HeaderContent() {
             <PopoverTrigger asChild>
               <Button
                 variant="ghost"
-                className="flex items-center space-x-3 h-11 px-3 bg-accent/5 border border-border/40 hover:bg-accent/10 rounded-lg transition-all shadow-sm"
+                className="flex items-center space-x-3 h-11 px-3 bg-accent/5 border border-border/40 hover:bg-accent/10 rounded transition-all shadow-sm"
               >
                 <Avatar className="h-7 w-7 ring-2 ring-primary/20">
                   <AvatarImage src={user?.avatar || undefined} alt={user?.name || 'User'} />
@@ -157,7 +157,7 @@ function HeaderContent() {
                 <ChevronDown className="h-3 w-3 opacity-40 hidden md:block" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-72 p-0 rounded-2xl border-border/40 shadow-2xl overflow-hidden" align="end">
+            <PopoverContent className="w-72 p-0 rounded border-border/40 shadow-2xl overflow-hidden" align="end">
               <div className="p-4 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
                 <div className="flex items-center space-x-3">
                   <Avatar className="h-12 w-12 ring-2 ring-white dark:ring-slate-700">

@@ -135,7 +135,7 @@ export const FunnelBuilder = () => {
             <div className="h-20 border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl px-8 flex items-center justify-between z-20">
                 <div className="flex items-center gap-6">
                     <Link href={`/websites/${websiteId}/funnels`}>
-                        <Button variant="ghost" size="icon" className="group rounded-2xl hover:bg-primary/10 transition-colors">
+                        <Button variant="ghost" size="icon" className="group rounded hover:bg-primary/10 transition-colors">
                             <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
                         </Button>
                     </Link>
@@ -153,13 +153,13 @@ export const FunnelBuilder = () => {
 
                 <div className="flex items-center gap-4">
                     <Link href={`/websites/${websiteId}/funnels`}>
-                        <Button variant="ghost" className="rounded-2xl font-black uppercase tracking-widest text-xs h-12 px-8 border border-transparent hover:border-muted-foreground/10">
+                        <Button variant="ghost" className="rounded font-black uppercase tracking-widest text-xs h-12 px-8 border border-transparent hover:border-muted-foreground/10">
                             Cancel
                         </Button>
                     </Link>
                     <Button
                         variant="brand"
-                        className="rounded-2xl h-12 px-10 font-black uppercase tracking-widest shadow-xl shadow-primary/20 gap-3"
+                        className="rounded h-12 px-10 font-black uppercase tracking-widest shadow-xl shadow-primary/20 gap-3"
                         onClick={handleSave}
                         disabled={createFunnel.isPending || updateFunnel.isPending}
                     >
@@ -194,11 +194,11 @@ export const FunnelBuilder = () => {
                                                 <div className="h-12 w-[3px] bg-primary/30 rounded-full" />
                                             </div>
                                         )}
-                                        <Card className="group relative border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-3xl border border-muted-foreground/5 overflow-hidden hover:scale-[1.01] transition-all">
+                                        <Card className="group relative border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card/80 dark:bg-gray-800/80 backdrop-blur-xl rounded border border-muted-foreground/5 overflow-hidden hover:scale-[1.01] transition-all">
                                             <div className="absolute top-0 left-0 w-1.5 h-full bg-primary" />
                                             <CardContent className="p-8">
                                                 <div className="flex items-start gap-6">
-                                                    <div className="h-14 w-14 rounded-2xl bg-primary text-white flex items-center justify-center font-black text-xl shadow-xl shadow-primary/20">
+                                                    <div className="h-14 w-14 rounded bg-primary text-white flex items-center justify-center font-black text-xl shadow-xl shadow-primary/20">
                                                         {index + 1}
                                                     </div>
                                                     <div className="flex-1 space-y-6">
@@ -216,7 +216,7 @@ export const FunnelBuilder = () => {
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="rounded-xl h-10 w-10 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                                    className="rounded h-10 w-10 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-opacity"
                                                                     onClick={() => deleteStep(step.id)}
                                                                 >
                                                                     <Trash2 size={18} />
@@ -234,10 +234,10 @@ export const FunnelBuilder = () => {
                                                                         name: val === 'page_view' ? 'Entry Point' : 'Action Trigger'
                                                                     })}
                                                                 >
-                                                                    <SelectTrigger className="h-12 rounded-xl bg-muted/30 border-none font-bold tracking-tight">
+                                                                    <SelectTrigger className="h-12 rounded bg-muted/30 border-none font-bold tracking-tight">
                                                                         <SelectValue />
                                                                     </SelectTrigger>
-                                                                    <SelectContent className="rounded-2xl border-muted-foreground/10">
+                                                                    <SelectContent className="rounded border-muted-foreground/10">
                                                                         <SelectItem value="page_view" className="font-bold py-3">
                                                                             <div className="flex items-center gap-2">
                                                                                 <MousePointer className="w-4 h-4" />
@@ -262,7 +262,7 @@ export const FunnelBuilder = () => {
                                                                     placeholder={step.type === 'page_view' ? 'e.g., /checkout' : 'e.g., btn_click'}
                                                                     value={step.value}
                                                                     onChange={(e) => updateStep(step.id, { value: e.target.value })}
-                                                                    className="h-12 rounded-xl bg-muted/30 border-none font-bold focus-visible:ring-primary/20"
+                                                                    className="h-12 rounded bg-muted/30 border-none font-bold focus-visible:ring-primary/20"
                                                                 />
                                                             </div>
                                                         </div>
@@ -279,7 +279,7 @@ export const FunnelBuilder = () => {
                                 <div className="flex items-center gap-4">
                                     <Button 
                                         variant="outline" 
-                                        className="h-14 rounded-2xl px-10 font-black uppercase tracking-widest border-2 border-primary/20 hover:border-primary hover:bg-primary/5 text-primary gap-3 shadow-xl shadow-primary/5 transition-all" 
+                                        className="h-14 rounded px-10 font-black uppercase tracking-widest border-2 border-primary/20 hover:border-primary hover:bg-primary/5 text-primary gap-3 shadow-xl shadow-primary/5 transition-all" 
                                         onClick={() => addStep('page_view')}
                                     >
                                         <PlusCircle size={20} />
@@ -287,7 +287,7 @@ export const FunnelBuilder = () => {
                                     </Button>
                                     <Button 
                                         variant="ghost" 
-                                        className="h-14 rounded-2xl px-6 font-black uppercase tracking-widest text-muted-foreground hover:bg-muted-foreground/5 gap-3"
+                                        className="h-14 rounded px-6 font-black uppercase tracking-widest text-muted-foreground hover:bg-muted-foreground/5 gap-3"
                                     >
                                         <GitBranch size={20} />
                                         Logical Split
@@ -314,7 +314,7 @@ export const FunnelBuilder = () => {
                         <div className="space-y-4">
                             {steps.map((s, i) => (
                                 <div key={s.id} className="flex items-center gap-4">
-                                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center font-black italic text-xs text-primary">
+                                    <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center font-black italic text-xs text-primary">
                                         {i + 1}
                                     </div>
                                     <div className="flex-1">
@@ -326,7 +326,7 @@ export const FunnelBuilder = () => {
                                 </div>
                             ))}
                             {steps.length < 2 && (
-                                <div className="p-6 rounded-2xl bg-red-500/5 border border-red-500/10 text-red-500">
+                                <div className="p-6 rounded bg-red-500/5 border border-red-500/10 text-red-500">
                                     <p className="text-[10px] font-black uppercase tracking-widest">Invalid Topology</p>
                                     <p className="text-[9px] mt-1 font-medium leading-relaxed opacity-80">
                                         Conversion funnels require a minimum of two connected nodes to create a measurable flux path.
@@ -346,7 +346,7 @@ function BuilderSkeleton() {
         <div className="fixed inset-0 flex h-screen w-full bg-slate-50 dark:bg-slate-900 flex-col">
             <div className="h-20 border-b bg-white dark:bg-slate-900 px-8 flex items-center justify-between">
                 <Skeleton className="h-10 w-64" />
-                <Skeleton className="h-12 w-48 rounded-2xl" />
+                <Skeleton className="h-12 w-48 rounded" />
             </div>
             <div className="flex-1 flex justify-center py-20">
                 <div className="w-full max-w-2xl space-y-8">

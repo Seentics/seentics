@@ -150,7 +150,7 @@ export default function PricingPage() {
                                 )}
 
                                 <CardHeader className="pb-8">
-                                    <div className={`h-14 w-14 rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform`}>
+                                    <div className={`h-14 w-14 rounded bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform`}>
                                         <Icon size={28} />
                                     </div>
                                     <CardTitle className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{plan.name}</CardTitle>
@@ -176,7 +176,7 @@ export default function PricingPage() {
                                         variant={plan.recommended ? "brand" : "outline"}
                                         disabled={loadingPlan !== null}
                                         onClick={() => handleCheckout(plan.id)}
-                                        className={`w-full h-14 rounded-2xl font-black text-sm gap-2 transition-all ${plan.recommended ? 'shadow-xl shadow-primary/25' : 'hover:bg-slate-100 dark:hover:bg-slate-900'
+                                        className={`w-full h-14 rounded font-black text-sm gap-2 transition-all ${plan.recommended ? 'shadow-xl shadow-primary/25' : 'hover:bg-slate-100 dark:hover:bg-slate-900'
                                             }`}
                                     >
                                         {loadingPlan === plan.id ? (

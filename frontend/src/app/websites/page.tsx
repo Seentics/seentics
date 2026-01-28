@@ -160,7 +160,7 @@ export default function WebsitesPage() {
 
         <div className="relative z-10 space-y-8">
             <div className="flex items-center gap-5 group">
-              <div className="h-12 w-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+              <div className="h-12 w-12 rounded bg-primary/10 border border-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                 <Sparkles className="h-6 w-6" />
               </div>
               <div>
@@ -169,7 +169,7 @@ export default function WebsitesPage() {
               </div>
             </div>
             <div className="flex items-center gap-5 group">
-              <div className="h-12 w-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
+              <div className="h-12 w-12 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
                 <Code className="h-6 w-6" />
               </div>
               <div>
@@ -220,7 +220,7 @@ export default function WebsitesPage() {
                                         value={name}
                                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                                         disabled={isSubmitting}
-                                        className="h-14 bg-accent/5 border-border/40 focus:border-primary/50 focus:ring-primary/20 rounded-2xl text-base font-bold px-6"
+                                        className="h-14 bg-accent/5 border-border/40 focus:border-primary/50 focus:ring-primary/20 rounded text-base font-bold px-6"
                                         required
                                     />
                                 </div>
@@ -234,7 +234,7 @@ export default function WebsitesPage() {
                                         value={url}
                                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
                                         disabled={isSubmitting}
-                                        className="h-14 bg-accent/5 border-border/40 focus:border-primary/50 focus:ring-primary/20 rounded-2xl text-base font-bold px-6"
+                                        className="h-14 bg-accent/5 border-border/40 focus:border-primary/50 focus:ring-primary/20 rounded text-base font-bold px-6"
                                         required
                                     />
                                     <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1 opacity-30 mt-2">
@@ -245,7 +245,7 @@ export default function WebsitesPage() {
                                 <Button 
                                     type="submit" 
                                     variant="brand"
-                                    className="w-full h-16 text-lg font-black shadow-2xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded-2xl active:scale-[0.98] mt-4" 
+                                    className="w-full h-16 text-lg font-black shadow-2xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded active:scale-[0.98] mt-4" 
                                     disabled={isSubmitting}
                                 >
                                     {isSubmitting ? (
@@ -290,7 +290,7 @@ export default function WebsitesPage() {
                                         size="sm"
                                         variant="ghost"
                                         onClick={copyToClipboard}
-                                        className="h-8 px-4 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-black uppercase tracking-widest text-[9px] transition-all"
+                                        className="h-8 px-4 rounded bg-primary/10 hover:bg-primary/20 text-primary font-black uppercase tracking-widest text-[9px] transition-all"
                                     >
                                         {copied ? 'Copied Snippet!' : 'Copy Snippet'}
                                     </Button>
@@ -305,14 +305,14 @@ export default function WebsitesPage() {
                             <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Button 
                                     variant="brand" 
-                                    className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20"
+                                    className="h-14 rounded font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20"
                                     onClick={() => router.push(`/websites/${newlyCreatedSiteId}`)}
                                 >
                                     Dashboard
                                 </Button>
                                 <Button 
                                     variant="outline" 
-                                    className="h-14 rounded-2xl font-black uppercase tracking-widest text-xs border-border/40 bg-transparent hover:bg-accent/5"
+                                    className="h-14 rounded font-black uppercase tracking-widest text-xs border-border/40 bg-transparent hover:bg-accent/5"
                                     onClick={() => setNewlyCreatedSiteId(null)}
                                 >
                                     Add Another

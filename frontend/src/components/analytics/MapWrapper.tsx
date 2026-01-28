@@ -72,7 +72,7 @@ export default function MapWrapper({ data, className = '' }: MapWrapperProps) {
           };
 
           return (
-            <div className={`h-[32rem] rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 relative ${className}`}>
+            <div className={`h-[32rem] rounded overflow-hidden border border-gray-200 dark:border-gray-700 relative ${className}`}>
               <MapContainer
                 center={[20, 0]}
                 zoom={2}
@@ -129,7 +129,7 @@ export default function MapWrapper({ data, className = '' }: MapWrapperProps) {
 
   if (!mapComponent) {
     return (
-      <div className={`h-[32rem] bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-950/20 dark:to-green-950/20 rounded-lg flex items-center justify-center ${className}`}>
+      <div className={`h-[32rem] bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-950/20 dark:to-green-950/20 rounded flex items-center justify-center ${className}`}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-sm text-gray-500">Loading interactive map...</p>

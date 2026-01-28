@@ -108,7 +108,7 @@ export default function Sidebar() {
         <div className="flex items-center">
           <Link
             href={`${basePath}${item.href === '' ? '' : `/${item.href}`}`}
-            className={`flex items-center justify-center flex-1 px-4 py-3 text-sm font-medium transition-colors rounded-lg ${active
+            className={`flex items-center justify-center flex-1 px-4 py-3 text-sm font-medium transition-colors rounded ${active
                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
                 : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
               } ${isChild ? 'ml-4 pl-7' : ''}`}
@@ -130,7 +130,7 @@ export default function Sidebar() {
           {hasChildren && (isSidebarOpen || isMobileMenuOpen) && (
             <button
               onClick={() => toggleExpanded(item.name)}
-              className="p-1.5 ml-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1"
+              className="p-1.5 ml-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1"
             >
               <ChevronDown
                 className={`h-4 w-4 text-slate-500 dark:text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
@@ -176,7 +176,7 @@ export default function Sidebar() {
           <div className="px-4 py-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">
             <button
               onClick={handleLogout}
-              className="flex items-center w-full px-3 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors group"
+              className="flex items-center w-full px-3 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 rounded hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors group"
             >
               <LogOut className="mr-3 h-5 w-5 text-slate-500 dark:text-slate-400 group-hover:text-red-600 dark:group-hover:text-red-400" />
               {isSidebarOpen && <span>Sign out</span>}
@@ -219,7 +219,7 @@ export default function Sidebar() {
                 <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
                   <button
                     onClick={handleLogout}
-                    className="flex items-center w-full px-3 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors group"
+                    className="flex items-center w-full px-3 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 rounded hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors group"
                   >
                     <LogOut className="mr-3 h-5 w-5 text-slate-500 dark:text-slate-400 group-hover:text-red-600 dark:group-hover:text-red-400" />
                     <span>Sign out</span>

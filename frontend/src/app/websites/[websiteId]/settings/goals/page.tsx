@@ -53,19 +53,19 @@ export default function GoalConversionsPage() {
           </div>
           <p className="text-muted-foreground text-sm">Define what success looks like for your website.</p>
         </div>
-        <Button className="h-10 px-5 font-bold rounded-xl gap-2 shadow-lg shadow-primary/20 hover-lift">
+        <Button className="h-10 px-5 font-bold rounded gap-2 shadow-lg shadow-primary/20 hover-lift">
           <Plus className="h-4 w-4" />
           Create New Goal
         </Button>
       </div>
 
       {/* AI Assistant Banner */}
-      <div className="glass p-6 rounded-2xl border-primary/10 relative overflow-hidden group">
+      <div className="glass p-6 rounded border-primary/10 relative overflow-hidden group">
         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
           <Sparkles className="h-12 w-12 text-primary" />
         </div>
         <div className="flex items-start gap-4 relative z-10">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+          <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
             <Sparkles className="h-5 w-5 text-primary" />
           </div>
           <div className="space-y-1">
@@ -83,11 +83,11 @@ export default function GoalConversionsPage() {
         {goals.map((goal) => (
           <div 
             key={goal.id} 
-            className="group glass-card p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-primary/30"
+            className="group glass-card p-5 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:border-primary/30"
           >
             <div className="flex items-center gap-4">
               <div className={cn(
-                "w-12 h-12 rounded-2xl flex items-center justify-center border transition-all duration-500",
+                "w-12 h-12 rounded flex items-center justify-center border transition-all duration-500",
                 goal.type === 'event' ? "bg-indigo-500/10 border-indigo-500/20" : "bg-emerald-500/10 border-emerald-500/20"
               )}>
                 {goal.type === 'event' ? (
@@ -123,10 +123,10 @@ export default function GoalConversionsPage() {
               </div>
               <div className="h-10 w-px bg-border hidden sm:block mx-2" />
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-rose-500/10 hover:text-rose-500">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded hover:bg-rose-500/10 hover:text-rose-500">
                   <Trash2 className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
+                <Button variant="ghost" size="icon" className="h-9 w-9 rounded">
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </div>
@@ -136,7 +136,7 @@ export default function GoalConversionsPage() {
       </div>
 
       {/* Goal Creation Preview (Simplified for visual demo) */}
-      <Card className="rounded-3xl border-dashed border-2 bg-muted/5">
+      <Card className="rounded border-dashed border-2 bg-muted/5">
         <CardHeader>
           <CardTitle className="text-sm font-bold">Quick Create Tip</CardTitle>
           <CardDescription className="text-xs">
@@ -144,14 +144,14 @@ export default function GoalConversionsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="bg-slate-950 p-4 rounded-xl font-mono text-[11px] text-slate-300 border border-white/5">
+          <div className="bg-slate-950 p-4 rounded font-mono text-[11px] text-slate-300 border border-white/5">
             <span className="text-indigo-400">seentics</span>.<span className="text-emerald-400">track</span>(<span className="text-amber-400">'purchase_clicked'</span>, &#123; <span className="text-slate-500">price: 99.00</span> &#125;);
           </div>
         </CardContent>
       </Card>
       
       {/* Help Section */}
-      <div className="flex items-center gap-4 p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10">
+      <div className="flex items-center gap-4 p-4 rounded bg-blue-500/5 border border-blue-500/10">
         <Info className="h-5 w-5 text-blue-500 shrink-0" />
         <p className="text-xs text-blue-600/80 font-medium">
           New goals may take up to 5 minutes to appear in your dashboard after the first event is received.

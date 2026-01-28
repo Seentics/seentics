@@ -8,7 +8,7 @@ export const InteractionNode = memo(({ data, selected }: NodeProps) => {
   const Icon = data.icon || PanelTop;
 
   return (
-    <div className={`px-4 py-3 rounded-2xl bg-slate-900 border-2 transition-all shadow-xl hover:shadow-2xl ${selected ? 'border-primary ring-4 ring-primary/20 scale-105 z-50' : 'border-slate-800 hover:border-pink-500/40'}`}>
+    <div className={`px-4 py-3 rounded bg-slate-900 border-2 transition-all shadow-xl hover:shadow-2xl ${selected ? 'border-primary ring-4 ring-primary/20 scale-105 z-50' : 'border-slate-800 hover:border-pink-500/40'}`}>
       <Handle
         type="target"
         position={Position.Left}
@@ -16,7 +16,7 @@ export const InteractionNode = memo(({ data, selected }: NodeProps) => {
       />
       
       <div className="flex items-center gap-4">
-        <div className="h-12 w-12 rounded-2xl bg-pink-500/10 flex items-center justify-center text-pink-400 shadow-lg transition-transform group-hover:scale-110">
+        <div className="h-12 w-12 rounded bg-pink-500/10 flex items-center justify-center text-pink-400 shadow-lg transition-transform group-hover:scale-110">
           <Icon size={24} />
         </div>
         <div className="min-w-[140px]">

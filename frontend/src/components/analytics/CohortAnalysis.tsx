@@ -76,7 +76,7 @@ export function CohortAnalysis({ cohortData }: CohortAnalysisProps) {
       <CardContent className="space-y-6">
         {/* Summary Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded">
             <div className="flex items-center justify-center mb-2">
               <Users className="h-5 w-5 text-blue-600" />
             </div>
@@ -84,7 +84,7 @@ export function CohortAnalysis({ cohortData }: CohortAnalysisProps) {
             <p className="text-xs text-muted-foreground">Total Users</p>
           </div>
           
-          <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+          <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded">
             <div className="flex items-center justify-center mb-2">
               <Target className="h-5 w-5 text-green-600" />
             </div>
@@ -92,7 +92,7 @@ export function CohortAnalysis({ cohortData }: CohortAnalysisProps) {
             <p className="text-xs text-muted-foreground">Total Conversions</p>
           </div>
           
-          <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+          <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded">
             <div className="flex items-center justify-center mb-2">
               <TrendingUp className="h-5 w-5 text-purple-600" />
             </div>
@@ -100,7 +100,7 @@ export function CohortAnalysis({ cohortData }: CohortAnalysisProps) {
             <p className="text-xs text-muted-foreground">Avg Conversion Rate</p>
           </div>
           
-          <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+          <div className="text-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded">
             <div className="flex items-center justify-center mb-2">
               <Clock className="h-5 w-5 text-orange-600" />
             </div>
@@ -182,7 +182,7 @@ export function CohortAnalysis({ cohortData }: CohortAnalysisProps) {
         <div className="pt-4 border-t">
           <h4 className="font-semibold mb-4">Key Insights</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingUp className="h-4 w-4 text-green-600" />
                 <span className="text-sm font-medium text-green-700">Best Performing Cohort</span>
@@ -192,7 +192,7 @@ export function CohortAnalysis({ cohortData }: CohortAnalysisProps) {
               </p>
             </div>
             
-            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded">
               <div className="flex items-center gap-2 mb-2">
                 <Target className="h-4 w-4 text-red-600" />
                 <span className="text-sm font-medium text-red-700">Opportunity for Improvement</span>

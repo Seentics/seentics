@@ -39,14 +39,14 @@ export const StepItem = ({ step, index, onDelete, onUpdate }: StepItemProps) => 
       <div className="absolute left-[26px] top-14 bottom-[-16px] w-[2px] bg-border group-last:hidden" />
 
       {/* Number Badge */}
-      <div className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-white dark:border-slate-900 bg-emerald-500 text-white shadow-xl ring-4 ring-emerald-500/10">
+      <div className="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded border-2 border-white dark:border-slate-900 bg-emerald-500 text-white shadow-xl ring-4 ring-emerald-500/10">
         <span className="font-black text-lg">{index + 1}</span>
       </div>
 
       {/* Step Card */}
-      <div className="flex-1 rounded-3xl border border-border bg-white dark:bg-slate-900 p-1 shadow-sm transition-all hover:border-emerald-500/50 hover:shadow-md">
+      <div className="flex-1 rounded border border-border bg-white dark:bg-slate-900 p-1 shadow-sm transition-all hover:border-emerald-500/50 hover:shadow-md">
         <div className="flex items-center gap-4 rounded-[1.25rem] bg-slate-50 dark:bg-slate-950/50 p-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-slate-900 shadow-sm text-emerald-600">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-white dark:bg-slate-900 shadow-sm text-emerald-600">
             <Icon size={24} />
           </div>
           
@@ -66,13 +66,13 @@ export const StepItem = ({ step, index, onDelete, onUpdate }: StepItemProps) => 
           </div>
 
           <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded text-muted-foreground hover:text-foreground">
               <Settings2 size={16} />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-rose-500 hover:bg-rose-500/10 hover:text-rose-600" onClick={() => onDelete(step.id)}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 rounded text-rose-500 hover:bg-rose-500/10 hover:text-rose-600" onClick={() => onDelete(step.id)}>
               <Trash2 size={16} />
             </Button>
-            <Button variant="ghost" size="icon" className="cursor-grab h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground">
+            <Button variant="ghost" size="icon" className="cursor-grab h-8 w-8 rounded text-muted-foreground hover:text-foreground">
               <MoreVertical size={16} />
             </Button>
           </div>

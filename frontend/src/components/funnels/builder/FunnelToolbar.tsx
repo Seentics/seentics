@@ -45,27 +45,27 @@ export const FunnelToolbar = ({ name, onNameChange, onSave, isSaving, websiteId 
 
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-9 px-3 rounded-xl text-slate-500 gap-2 font-bold text-[11px] uppercase tracking-wider">
+          <Button variant="ghost" size="sm" className="h-9 px-3 rounded text-slate-500 gap-2 font-bold text-[11px] uppercase tracking-wider">
             <Grid size={14} />
             Snap
           </Button>
           <div className="h-4 w-[1px] bg-border mx-2" />
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-slate-400">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded text-slate-400">
             <Undo2 size={16} />
           </Button>
-          <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl text-slate-400">
+          <Button variant="ghost" size="icon" className="h-9 w-9 rounded text-slate-400">
             <Redo2 size={16} />
           </Button>
         </div>
         <div className="h-6 w-[1px] bg-border" />
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="h-9 px-4 rounded-xl font-bold text-[11px] uppercase tracking-wider gap-2">
+          <Button variant="outline" className="h-9 px-4 rounded font-bold text-[11px] uppercase tracking-wider gap-2">
             <Eye size={14} />
             Preview
           </Button>
           <Button
             variant="brand"
-            className="h-10 px-6 rounded-xl font-black text-[11px] uppercase tracking-wider gap-2 shadow-lg shadow-primary/20 bg-emerald-600 hover:bg-emerald-700 text-white"
+            className="h-10 px-6 rounded font-black text-[11px] uppercase tracking-wider gap-2 shadow-lg shadow-primary/20 bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={onSave}
             disabled={isSaving}
           >

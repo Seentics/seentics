@@ -63,7 +63,7 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
       <Card className="bg-card shadow-sm overflow-hidden">
         <CardHeader className="pb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded">
               <BarChart className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -78,9 +78,9 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
           <div className="space-y-6">
             {/* Stats Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="group p-4 rounded-xl border border-border/50 hover:border-border hover:shadow-sm transition-all duration-200">
+              <div className="group p-4 rounded border border-border/50 hover:border-border hover:shadow-sm transition-all duration-200">
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-xl flex-shrink-0">
+                  <div className="p-3 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded flex-shrink-0">
                     <Users className="h-6 w-6 text-blue-600" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -89,9 +89,9 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
                   </div>
                 </div>
               </div>
-              <div className="group p-4 rounded-xl border border-border/50 hover:border-border hover:shadow-sm transition-all duration-200">
+              <div className="group p-4 rounded border border-border/50 hover:border-border hover:shadow-sm transition-all duration-200">
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded-xl flex-shrink-0">
+                  <div className="p-3 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded flex-shrink-0">
                     <Eye className="h-6 w-6 text-green-600" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -103,7 +103,7 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
             </div>
             
             {/* Chart - Full Width */}
-            <div className="w-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 rounded-xl p-4">
+            <div className="w-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 rounded p-4">
               <ChartContainer config={trafficChartConfig} className="w-full h-64">
                 <AreaChart data={trafficData} margin={{ left: 8, right: 8, top: 10, bottom: 0 }}>
                   <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
@@ -193,7 +193,7 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
     <Card className="bg-card shadow-sm overflow-hidden">
       <CardHeader className="pb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg">
+          <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded">
             <BarChart className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -208,9 +208,9 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
         <div className="space-y-6">
           {/* Stats Row */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="group p-4 rounded-xl border border-border/50 hover:border-border hover:shadow-sm transition-all duration-200">
+            <div className="group p-4 rounded border border-border/50 hover:border-border hover:shadow-sm transition-all duration-200">
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-xl flex-shrink-0">
+                <div className="p-3 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded flex-shrink-0">
                   <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -219,9 +219,9 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
                 </div>
               </div>
             </div>
-            <div className="group p-4 rounded-xl border border-border/50 hover:border-border hover:shadow-sm transition-all duration-200">
+            <div className="group p-4 rounded border border-border/50 hover:border-border hover:shadow-sm transition-all duration-200">
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded-xl flex-shrink-0">
+                <div className="p-3 bg-gradient-to-br from-green-500/10 to-green-600/10 rounded flex-shrink-0">
                   <Eye className="h-6 w-6 text-green-600" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -233,7 +233,7 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
           </div>
           
           {/* Chart - Full Width */}
-          <div className="w-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 rounded-xl p-4">
+          <div className="w-full bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/50 dark:to-slate-800/50 rounded p-4">
             <ChartContainer config={trafficChartConfig} className="w-full h-64">
               <AreaChart data={trafficData} margin={{ left: 8, right: 8, top: 10, bottom: 0 }}>
                 <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />

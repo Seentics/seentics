@@ -130,7 +130,7 @@ export default function ResultsShowcase() {
               <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${result.color} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left`}></div>
               
               <CardContent className="p-6 sm:p-8 md:p-10 text-center relative z-10">
-                <div className={`w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-br ${result.bgColor} dark:${result.darkBgColor} rounded-3xl flex items-center justify-center mx-auto mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
+                <div className={`w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-gradient-to-br ${result.bgColor} dark:${result.darkBgColor} rounded flex items-center justify-center mx-auto mb-4 sm:mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg`}>
                   <result.icon className={`h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-transparent bg-clip-text bg-gradient-to-r ${result.color}`} />
                 </div>
                 <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-slate-900 dark:text-white mb-2 sm:mb-3 group-hover:scale-105 transition-transform duration-300">
@@ -178,7 +178,7 @@ export default function ResultsShowcase() {
                 </blockquote>
                 
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-slate-900 dark:bg-white rounded-2xl flex items-center justify-center text-white dark:text-slate-900 font-bold text-sm sm:text-lg md:text-xl shadow-lg">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 bg-slate-900 dark:bg-white rounded flex items-center justify-center text-white dark:text-slate-900 font-bold text-sm sm:text-lg md:text-xl shadow-lg">
                     {testimonial.avatar}
                   </div>
                   <div>
@@ -197,7 +197,7 @@ export default function ResultsShowcase() {
         
         {/* Enhanced CTA Section */}
         <div className="text-center">
-          <div className="relative overflow-hidden bg-slate-900 dark:bg-slate-800 rounded-3xl p-8 sm:p-10 md:p-12 max-w-5xl mx-auto text-white shadow-2xl">
+          <div className="relative overflow-hidden bg-slate-900 dark:bg-slate-800 rounded p-8 sm:p-10 md:p-12 max-w-5xl mx-auto text-white shadow-2xl">
             {/* Background pattern */}
             <div className="absolute inset-0 opacity-10">
               <div className="absolute top-0 left-0 w-24 sm:w-32 h-24 sm:h-32 border-2 border-white rounded-full"></div>
@@ -215,11 +215,11 @@ export default function ResultsShowcase() {
                 <span className="font-semibold">30 days</span>
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
-                <button className="group px-8 sm:px-10 py-4 sm:py-5 bg-white text-slate-900 font-bold rounded-2xl hover:bg-slate-50 transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 flex items-center gap-3 w-full sm:w-auto">
+                <button className="group px-8 sm:px-10 py-4 sm:py-5 bg-white text-slate-900 font-bold rounded hover:bg-slate-50 transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1 flex items-center gap-3 w-full sm:w-auto">
                   <span>Start Free Trial</span>
                   <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform duration-300" />
                 </button>
-                <button className="px-8 sm:px-10 py-4 sm:py-5 border-2 sm:border-3 border-white text-white font-bold rounded-2xl hover:bg-white hover:text-slate-900 transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 w-full sm:w-auto">
+                <button className="px-8 sm:px-10 py-4 sm:py-5 border-2 sm:border-3 border-white text-white font-bold rounded hover:bg-white hover:text-slate-900 transition-all duration-300 hover:shadow-xl transform hover:-translate-y-1 w-full sm:w-auto">
                   Schedule Demo
                 </button>
               </div>

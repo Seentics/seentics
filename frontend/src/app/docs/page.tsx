@@ -24,13 +24,13 @@ export default function DocsIntroduction() {
                 <div className="flex flex-wrap gap-4 pt-4">
                     <Link
                         href="/docs/quick-start"
-                        className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition flex items-center gap-2"
+                        className="px-6 py-3 bg-primary text-primary-foreground rounded font-medium hover:opacity-90 transition flex items-center gap-2"
                     >
                         Quick Start Guide <Rocket className="w-4 h-4" />
                     </Link>
                     <Link
                         href="/docs/tracker"
-                        className="px-6 py-3 bg-muted text-foreground border rounded-lg font-medium hover:bg-muted/80 transition"
+                        className="px-6 py-3 bg-muted text-foreground border rounded font-medium hover:bg-muted/80 transition"
                     >
                         Install Tracker
                     </Link>
@@ -39,7 +39,7 @@ export default function DocsIntroduction() {
 
             {/* Philosophy */}
             <section className="grid md:grid-cols-3 gap-8">
-                <div className="space-y-3 p-6 rounded-2xl bg-card border border-border/50">
+                <div className="space-y-3 p-6 rounded bg-card border border-border/50">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                         <Zap className="w-5 h-5 text-primary" />
                     </div>
@@ -49,7 +49,7 @@ export default function DocsIntroduction() {
                     </p>
                 </div>
 
-                <div className="space-y-3 p-6 rounded-2xl bg-card border border-border/50">
+                <div className="space-y-3 p-6 rounded bg-card border border-border/50">
                     <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
                         <ShieldCheck className="w-5 h-5 text-blue-500" />
                     </div>
@@ -59,7 +59,7 @@ export default function DocsIntroduction() {
                     </p>
                 </div>
 
-                <div className="space-y-3 p-6 rounded-2xl bg-card border border-border/50">
+                <div className="space-y-3 p-6 rounded bg-card border border-border/50">
                     <div className="w-10 h-10 rounded-full bg-violet-500/10 flex items-center justify-center">
                         <Rocket className="w-5 h-5 text-violet-500" />
                     </div>
@@ -94,7 +94,7 @@ export default function DocsIntroduction() {
                         <Link
                             key={feature.href}
                             href={feature.href}
-                            className="group p-6 rounded-2xl border bg-card hover:border-primary/50 transition-all duration-300 flex items-center justify-between"
+                            className="group p-6 rounded border bg-card hover:border-primary/50 transition-all duration-300 flex items-center justify-between"
                         >
                             <div className="space-y-1">
                                 <h3 className="font-medium group-hover:text-primary transition-colors">{feature.title}</h3>
@@ -107,7 +107,7 @@ export default function DocsIntroduction() {
             </section>
 
             {/* Help Footer */}
-            <div className="p-8 rounded-3xl bg-primary/5 border border-primary/10 text-center space-y-4">
+            <div className="p-8 rounded bg-primary/5 border border-primary/10 text-center space-y-4">
                 <h3 className="text-xl font-semibold">Need more help?</h3>
                 <p className="text-muted-foreground max-w-lg mx-auto">
                     Our support team is available 24/7 via the global chat messenger in the bottom right corner of the dashboard.

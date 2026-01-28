@@ -143,7 +143,7 @@ export const UsageCard: React.FC<UsageCardProps> = ({
             )}
             
             {isAtLimit && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-3">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                   <div className="text-xs">

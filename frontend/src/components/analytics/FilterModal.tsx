@@ -40,12 +40,12 @@ export function FilterModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button  className="h-10 px-4 bg-slate-800 backdrop-blur-md  hover:bg-card transition-colors rounded-xl shadow-sm font-bold text-xs uppercase tracking-widest gap-2">
+        <Button  className="h-10 px-4 bg-slate-800 backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm font-bold text-xs uppercase tracking-widest gap-2">
           <Filter className="h-3.5 w-3.5" />
           Filters
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[420px] rounded-2xl border-border/40 bg-background/95 backdrop-blur-xl shadow-2xl p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[420px] rounded border-border/40 bg-background/95 backdrop-blur-xl shadow-2xl p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-4 border-b border-border/10"> 
           <div className="flex items-center justify-between">
             <DialogTitle className="text-xl font-bold tracking-tight">Analytics Filters</DialogTitle>
@@ -67,10 +67,10 @@ export function FilterModal({
                 if (val !== 'custom') setOpen(false);
               }}
             >
-              <SelectTrigger className="w-full h-12 bg-accent/5 border-border/40 hover:bg-accent/10 transition-colors rounded-xl shadow-sm text-sm font-semibold">
+              <SelectTrigger className="w-full h-12 bg-accent/5 border-border/40 hover:bg-accent/10 transition-colors rounded shadow-sm text-sm font-semibold">
                 <SelectValue placeholder="Select range" />
               </SelectTrigger>
-              <SelectContent className="rounded-xl border-border/40 shadow-2xl">
+              <SelectContent className="rounded border-border/40 shadow-2xl">
                 <SelectItem value="1">Today</SelectItem>
                 <SelectItem value="7">Last 7 days</SelectItem>
                 <SelectItem value="30">Last 30 days</SelectItem>
@@ -88,7 +88,7 @@ export function FilterModal({
                 <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Custom Dates</label>
               </div>
               
-              <div className="p-4 rounded-xl border border-border/40 bg-accent/5">
+              <div className="p-4 rounded border border-border/40 bg-accent/5">
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between text-xs mb-2">
                         <span className="text-muted-foreground">Selection</span>
@@ -99,7 +99,7 @@ export function FilterModal({
                             }
                         </span>
                     </div>
-                    <div className="bg-background rounded-lg border border-border/40 p-1">
+                    <div className="bg-background rounded border border-border/40 p-1">
                         <Calendar
                             initialFocus
                             mode="range"
@@ -118,7 +118,7 @@ export function FilterModal({
           <div className="pt-4 border-t border-border/10 space-y-3">
              <Button 
                 variant="brand" 
-                className="w-full h-12 rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
+                className="w-full h-12 rounded font-bold text-xs uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-[0.98] transition-all"
                 onClick={() => setOpen(false)}
              >
                 Apply Filters
@@ -126,7 +126,7 @@ export function FilterModal({
              
              <Button 
                 variant="outline" 
-                className="w-full h-12 rounded-xl font-bold text-xs uppercase tracking-widest border-border/40 hover:bg-accent/5 gap-2 transition-all"
+                className="w-full h-12 rounded font-bold text-xs uppercase tracking-widest border-border/40 hover:bg-accent/5 gap-2 transition-all"
                 onClick={() => {
                    onExport();
                    setOpen(false);

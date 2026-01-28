@@ -86,7 +86,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           <h2 className="text-xl font-bold tracking-tight">Privacy & GDPR</h2>
           <p className="text-muted-foreground text-sm">Configure data protection and compliance settings.</p>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 w-fit">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/20 w-fit">
            <Shield className="h-4 w-4 text-emerald-600" />
            <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">GDPR Compliant</span>
         </div>
@@ -94,9 +94,9 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
 
       <div className="space-y-6">
         {/* IP Anonymization */}
-        <div className="flex items-start justify-between p-4 rounded-2xl border bg-muted/5 group transition-all hover:bg-muted/10">
+        <div className="flex items-start justify-between p-4 rounded dark:bg-gray-800/50 group transition-all hover:bg-muted/10">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-border/50 shrink-0">
+            <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center border border-border/50 shrink-0">
               <EyeOff className="h-5 w-5 text-primary" />
             </div>
             <div className="space-y-1">
@@ -110,9 +110,9 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
         </div>
 
         {/* Cookie-less Tracking */}
-        <div className="flex items-start justify-between p-4 rounded-2xl border bg-muted/5 group transition-all hover:bg-muted/10">
+        <div className="flex items-start justify-between p-4 rounded dark:bg-gray-800/50 group transition-all hover:bg-muted/10">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-border/50 shrink-0">
+            <div className="w-10 h-10 rounded bg-indigo-500/10 flex items-center justify-center border border-border/50 shrink-0">
               <Cookie className="h-5 w-5 text-indigo-600" />
             </div>
             <div className="space-y-1">
@@ -126,16 +126,16 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
         </div>
 
         {/* Data Management Section */}
-        <div className="p-6 border rounded-3xl bg-muted/5 space-y-6">
+        <div className="p-6 border rounded dark:bg-gray-800/50 space-y-6">
            <div className="flex items-center gap-3">
               <Database className="h-5 w-5 text-muted-foreground" />
               <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Data Management</h3>
            </div>
            
            <div className="grid sm:grid-cols-2 gap-6">
-             <div className="p-6 rounded-2xl bg-background border shadow-sm group hover:border-primary/30 transition-colors">
+             <div className="p-6 rounded dark:bg-gray-800/50 border shadow-sm group hover:border-primary/30 transition-colors">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <div className="p-2 rounded bg-primary/10 text-primary">
                     <Download className="h-4 w-4" />
                   </div>
                   <h4 className="font-bold text-sm">Download My Data</h4>
@@ -146,15 +146,15 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                 <Button 
                   onClick={handleExport} 
                   disabled={isExporting}
-                  className="w-full h-10 rounded-xl font-bold"
+                  className="w-full h-10 rounded font-bold"
                 >
                   {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Start Export'}
                 </Button>
              </div>
 
-             <div className="p-6 rounded-2xl bg-background border shadow-sm group hover:border-red-500/30 transition-colors">
+             <div className="p-6 rounded dark:bg-gray-800/50 border shadow-sm group hover:border-red-500/30 transition-colors">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
+                  <div className="p-2 rounded bg-red-500/10 text-red-500">
                     <Trash2 className="h-4 w-4" />
                   </div>
                   <h4 className="font-bold text-sm">Delete My Data</h4>
@@ -166,14 +166,14 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                   variant="destructive" 
                   onClick={handleDelete}
                   disabled={isDeleting}
-                  className="w-full h-10 rounded-xl font-bold"
+                  className="w-full h-10 rounded font-bold"
                 >
                   {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Purge Data'}
                 </Button>
              </div>
            </div>
 
-           <div className="flex gap-4 p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10">
+           <div className="flex gap-4 p-4 rounded dark:bg-gray-800/50 border border-amber-500/10">
               <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
               <div className="space-y-1">
                  <p className="text-sm font-bold text-amber-700 dark:text-amber-400 font-bold">Caution</p>
@@ -185,28 +185,28 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
         </div>
 
         {/* Data Retention */}
-        <div className="p-6 border rounded-3xl bg-muted/5 space-y-4">
+        <div className="p-6 border rounded dark:bg-gray-800/50 space-y-4">
            <div className="flex items-center gap-3">
               <Shield className="h-5 w-5 text-muted-foreground" />
               <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Data Retention</h3>
            </div>
            
            <div className="grid sm:grid-cols-2 gap-4">
-             <div className="p-4 rounded-xl bg-background border shadow-sm">
+             <div className="p-4 rounded dark:bg-gray-800/50 border shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Retention Period</p>
                 <div className="flex items-center justify-between">
                    <p className="text-sm font-bold">12 Months</p>
                    <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold">CHANGE</Button>
                 </div>
              </div>
-             <div className="p-4 rounded-xl bg-background border shadow-sm">
+             <div className="p-4 rounded dark:bg-gray-800/50 border shadow-sm">
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Cleanup Interval</p>
                 <p className="text-sm font-bold">Standard (Weekly)</p>
              </div>
            </div>
         </div>
 
-        <div className="flex gap-4 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+        <div className="flex gap-4 p-4 rounded dark:bg-gray-800/50 border border-indigo-500/10">
            <Info className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
            <div className="space-y-1">
               <p className="text-sm font-bold">Privacy First by Default</p>
@@ -218,10 +218,10 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       </div>
 
       <div className="flex items-center gap-4 pt-4 border-t border-border/50">
-         <Button className="h-10 px-8 font-bold rounded-xl shadow-lg shadow-primary/10 transition-transform active:scale-95">
+         <Button className="h-10 px-8 font-bold rounded shadow-lg shadow-primary/10 transition-transform active:scale-95">
            Apply Settings
          </Button>
-         <Button variant="ghost" className="h-10 px-4 font-bold rounded-xl gap-2 text-muted-foreground">
+         <Button variant="ghost" className="h-10 px-4 font-bold rounded gap-2 text-muted-foreground">
            <FileCheck className="h-4 w-4" />
            Privacy Policy Generator
          </Button>

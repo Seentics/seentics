@@ -17,7 +17,7 @@ export default function AutomationDocs() {
                 </p>
             </header>
 
-            <div className="rounded-2xl border-l-4 border-l-primary bg-primary/5 p-6 space-y-3">
+            <div className="rounded border-l-4 border-l-primary bg-primary/5 p-6 space-y-3">
                 <div className="flex items-center gap-2 font-semibold">
                     <Info className="w-5 h-5 text-primary" />
                     <span>Core Concept</span>
@@ -38,8 +38,8 @@ export default function AutomationDocs() {
                         { name: 'Time Spent', desc: 'Trigger after a user has been idle or active on a page for X seconds.', icon: Clock },
                         { name: 'Exit Intent', desc: 'Detects when a user is about to leave the site based on mouse velocity.', icon: Plus },
                     ].map((trigger, i) => (
-                        <div key={i} className="flex gap-6 p-6 rounded-2xl border bg-card hover:bg-muted/10 transition-colors">
-                            <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
+                        <div key={i} className="flex gap-6 p-6 rounded border bg-card hover:bg-muted/10 transition-colors">
+                            <div className="w-12 h-12 rounded bg-orange-500/10 flex items-center justify-center shrink-0">
                                 <trigger.icon className="w-6 h-6 text-orange-500" />
                             </div>
                             <div className="space-y-1">
@@ -80,15 +80,15 @@ export default function AutomationDocs() {
                 <h2 className="text-2xl font-semibold">3. Actions</h2>
                 <p className="text-muted-foreground">What happens when your conditions are met?</p>
                 <div className="grid md:grid-cols-3 gap-4">
-                    <div className="p-5 rounded-xl border bg-card space-y-2">
+                    <div className="p-5 rounded border bg-card space-y-2">
                         <h4 className="font-medium">Show Modal</h4>
                         <p className="text-xs text-muted-foreground">Interactive overlays for signups or feedback.</p>
                     </div>
-                    <div className="p-5 rounded-xl border bg-card space-y-2">
+                    <div className="p-5 rounded border bg-card space-y-2">
                         <h4 className="font-medium">Notification</h4>
                         <p className="text-xs text-muted-foreground">Subtle push-style notifications at corner.</p>
                     </div>
-                    <div className="p-5 rounded-xl border bg-card space-y-2">
+                    <div className="p-5 rounded border bg-card space-y-2">
                         <h4 className="font-medium">Webhook</h4>
                         <p className="text-xs text-muted-foreground">Send data to Slack, Discord, or your own server.</p>
                     </div>
@@ -100,7 +100,7 @@ export default function AutomationDocs() {
 
 function CardSimple({ title, content }: { title: string, content: string }) {
     return (
-        <div className="p-6 rounded-2xl border bg-card/60 backdrop-blur-sm space-y-2">
+        <div className="p-6 rounded border bg-card/60 backdrop-blur-sm space-y-2">
             <h3 className="font-semibold text-primary">{title}</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">{content}</p>
         </div>

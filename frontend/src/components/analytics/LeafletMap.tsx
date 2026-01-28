@@ -100,7 +100,7 @@ export default function LeafletMap({ data, className = '' }: LeafletMapProps) {
   };
 
   return (
-    <div className={`h-[32rem] rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 relative ${className}`}>
+    <div className={`h-[32rem] rounded overflow-hidden border border-gray-200 dark:border-gray-700 relative ${className}`}>
       <MapContainer
         center={[20, 0]}
         zoom={2}
@@ -164,7 +164,7 @@ export default function LeafletMap({ data, className = '' }: LeafletMapProps) {
       </MapContainer>
       
       {/* Map Legend */}
-      <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 z-[1000]">
+      <div className="absolute bottom-4 left-4 bg-white dark:bg-gray-800 rounded shadow-lg p-3 z-[1000]">
         <h4 className="text-sm font-semibold mb-2 text-gray-800 dark:text-gray-200">Visitor Distribution</h4>
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-xs">

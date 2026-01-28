@@ -37,7 +37,7 @@ export function EventsDetails({ items }: EventsDetailsProps) {
 
 	if (!items || items.length === 0) {
 		return (
-			<div className="h-64 flex flex-col items-center justify-center text-center space-y-4 opacity-50 bg-accent/5 rounded-xl border border-dashed border-border/60">
+			<div className="h-64 flex flex-col items-center justify-center text-center space-y-4 opacity-50 bg-accent/5 rounded border border-dashed border-border/60">
         <div className="h-16 w-16 bg-accent/20 rounded-full flex items-center justify-center">
             <Target className="h-8 w-8 text-muted-foreground opacity-20" />
         </div>
@@ -123,10 +123,10 @@ export function EventsDetails({ items }: EventsDetailsProps) {
 				const isOpen = !!expanded[key];
 
 				return (
-					<div key={key} className="group flex flex-col border-b border-border/40 transition-all duration-300 hover:bg-accent/5 rounded-lg">
+					<div key={key} className="group flex flex-col border-b border-border/40 transition-all duration-300 hover:bg-accent/5 rounded">
 						<div className="flex items-center justify-between p-3 px-4">
 							<div className="flex items-center space-x-4 flex-1 min-w-0">
-								<div className="h-9 w-9 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
+								<div className="h-9 w-9 rounded bg-accent/10 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
 									<meta.icon className="h-4 w-4" style={{ color: meta.color }} />
 								</div>
 								
@@ -161,7 +161,7 @@ export function EventsDetails({ items }: EventsDetailsProps) {
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0 rounded-lg hover:bg-primary/5 transition-all"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary shrink-0 rounded hover:bg-primary/5 transition-all"
                     onClick={() => setExpanded(prev => ({ ...prev, [key]: !isOpen }))}
                   >
                     {isOpen ? <ChevronUp className="h-4 w-4" strokeWidth={3} /> : <ChevronDown className="h-4 w-4" strokeWidth={3} />}
@@ -173,7 +173,7 @@ export function EventsDetails({ items }: EventsDetailsProps) {
 						{isOpen && (
               <div className="px-6 pb-6 pt-2 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                 {Object.keys(filtered).length > 0 && (
-                  <div className="bg-accent/5 rounded-lg p-6 border border-border/40 shadow-inner relative group/payload overflow-hidden">
+                  <div className="bg-accent/5 rounded p-6 border border-border/40 shadow-inner relative group/payload overflow-hidden">
                     <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/20">
                       <div className="flex items-center gap-2">
                          <div className="w-1.25 h-1.25 rounded-full bg-primary/60" />
@@ -182,7 +182,7 @@ export function EventsDetails({ items }: EventsDetailsProps) {
                       <Button 
                         size="sm" 
                         variant="ghost" 
-                        className="h-8 px-4 text-[10px] font-bold uppercase tracking-widest gap-2 hover:bg-primary/10 text-primary rounded-md transition-all" 
+                        className="h-8 px-4 text-[10px] font-bold uppercase tracking-widest gap-2 hover:bg-primary/10 text-primary rounded transition-all" 
                         onClick={() => copyToClipboard(pretty(filtered))}
                       >
                         <Copy className="h-3.5 w-3.5" />
@@ -196,7 +196,7 @@ export function EventsDetails({ items }: EventsDetailsProps) {
                   </div>
                 )}
                 {event.description && (
-                  <div className="flex items-start gap-3 bg-primary/5 p-3 rounded-lg border border-dashed border-primary/20">
+                  <div className="flex items-start gap-3 bg-primary/5 p-3 rounded border border-dashed border-primary/20">
                     <Activity className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                     <p className="text-[11px] text-muted-foreground font-medium leading-relaxed italic">{event.description}</p>
                   </div>

@@ -64,7 +64,7 @@ export function WebsitesSettingsComponent() {
         </div>
         <Button 
           onClick={() => setIsAddModalOpen(true)}
-          className="h-10 px-5 font-bold rounded-xl gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
+          className="h-10 px-5 font-bold rounded gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
         >
           <Plus className="h-4 w-4" />
           Add New Property
@@ -83,7 +83,7 @@ export function WebsitesSettingsComponent() {
         website={editingWebsite}
       />
 
-      <div className="border rounded-3xl overflow-hidden bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
+      <div className="border rounded overflow-hidden bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -108,7 +108,7 @@ export function WebsitesSettingsComponent() {
                 <TableRow key={website.id} className="border-border/40 hover:bg-muted/30 transition-colors">
                   <TableCell className="px-6 py-4 font-bold text-sm">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
+                        <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center border border-primary/20">
                             <Globe className="h-4 w-4 text-primary" />
                         </div>
                         {website.name}
@@ -136,7 +136,7 @@ export function WebsitesSettingsComponent() {
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-9 w-9 rounded-xl hover:bg-muted" 
+                        className="h-9 w-9 rounded hover:bg-muted" 
                         onClick={() => setEditingWebsite(website)}
                       >
                         <Edit className="h-4 w-4" />
@@ -144,7 +144,7 @@ export function WebsitesSettingsComponent() {
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-9 w-9 rounded-xl text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
+                        className="h-9 w-9 rounded text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
                         onClick={() => handleDelete(website.id)}
                       >
                         <Trash2 className="h-4 w-4" />

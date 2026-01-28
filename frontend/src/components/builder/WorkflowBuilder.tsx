@@ -177,31 +177,31 @@ export const WorkflowBuilder = ({
             onDragOver={onDragOver}
             onNodeClick={onNodeClick}
             fitView
-            className="bg-slate-800"
+            className=""
           >
             <Background color="#334155" gap={24} size={1} />
-            <Controls className="!bg-white dark:!bg-slate-800 !border-0 !shadow-xl !rounded-xl" />
+            <Controls className="!bg-white dark:!bg-slate-800 !border-0 !shadow-xl !rounded" />
 
             {/* Stats Panel */}
-            <Panel position="top-left" className="!border-0 !shadow-lg !rounded-xl bg-white dark:bg-slate-800 p-4 space-y-2 hidden md:block">
+            {/* <Panel position="top-left" className="!border-0 !shadow-lg !rounded bg-white dark:bg-slate-800 p-4 space-y-2 hidden md:block">
               <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest opacity-50">
                 📊 Workflow Stats
               </div>
               <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2 min-w-[70px]">
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded p-2 min-w-[70px]">
                   <div className="text-sm font-black text-primary">{nodes.length}</div>
                   <div className="text-[10px] text-muted-foreground font-bold uppercase">Nodes</div>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2 min-w-[70px]">
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded p-2 min-w-[70px]">
                   <div className="text-sm font-black text-primary">{edges.length}</div>
                   <div className="text-[10px] text-muted-foreground font-bold uppercase">Edges</div>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-2 min-w-[70px]">
+                <div className="bg-slate-50 dark:bg-slate-900/50 rounded p-2 min-w-[70px]">
                   <div className="text-sm font-black text-green-600">0%</div>
                   <div className="text-[10px] text-muted-foreground font-bold uppercase">Health</div>
                 </div>
               </div>
-            </Panel>
+            </Panel> */}
           </ReactFlow>
         </div>
         <EnhancedBuilderSidebar />

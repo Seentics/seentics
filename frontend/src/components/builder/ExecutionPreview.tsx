@@ -73,7 +73,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-      <div className="bg-white dark:bg-slate-950 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-slate-950 rounded shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="border-b bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-950 px-8 py-6 flex items-center justify-between">
           <div>
@@ -105,7 +105,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                   onChange={(e) =>
                     setTestData({ ...testData, userId: e.target.value })
                   }
-                  className="rounded-lg text-xs"
+                  className="rounded text-xs"
                 />
               </div>
               <div>
@@ -115,7 +115,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                   onChange={(e) =>
                     setTestData({ ...testData, email: e.target.value })
                   }
-                  className="rounded-lg text-xs"
+                  className="rounded text-xs"
                 />
               </div>
               <div className="col-span-2">
@@ -125,7 +125,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                   onChange={(e) =>
                     setTestData({ ...testData, url: e.target.value })
                   }
-                  className="rounded-lg text-xs"
+                  className="rounded text-xs"
                 />
               </div>
               <div>
@@ -138,7 +138,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                   onChange={(e) =>
                     setTestData({ ...testData, scrollDepth: parseInt(e.target.value) })
                   }
-                  className="rounded-lg text-xs"
+                  className="rounded text-xs"
                 />
               </div>
               <div>
@@ -151,7 +151,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                   onChange={(e) =>
                     setTestData({ ...testData, timeOnPage: parseInt(e.target.value) })
                   }
-                  className="rounded-lg text-xs"
+                  className="rounded text-xs"
                 />
               </div>
             </div>
@@ -163,7 +163,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
               <>
                 {/* Summary Stats */}
                 <div className="grid grid-cols-4 gap-3 mb-6">
-                  <div className="bg-green-50 dark:bg-green-950/20 rounded-lg p-3 border border-green-200 dark:border-green-900">
+                  <div className="bg-green-50 dark:bg-green-950/20 rounded p-3 border border-green-200 dark:border-green-900">
                     <div className="text-sm font-black text-green-900 dark:text-green-100">
                       {successCount}/{executionLogs.length}
                     </div>
@@ -171,7 +171,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                       Passed
                     </div>
                   </div>
-                  <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3 border border-blue-200 dark:border-blue-900">
+                  <div className="bg-blue-50 dark:bg-blue-950/20 rounded p-3 border border-blue-200 dark:border-blue-900">
                     <div className="text-sm font-black text-blue-900 dark:text-blue-100">
                       {totalDuration}ms
                     </div>
@@ -179,7 +179,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                       Total Time
                     </div>
                   </div>
-                  <div className="bg-purple-50 dark:bg-purple-950/20 rounded-lg p-3 border border-purple-200 dark:border-purple-900">
+                  <div className="bg-purple-50 dark:bg-purple-950/20 rounded p-3 border border-purple-200 dark:border-purple-900">
                     <div className="text-sm font-black text-purple-900 dark:text-purple-100">
                       {workflow.nodes.length}
                     </div>
@@ -187,7 +187,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                       Nodes
                     </div>
                   </div>
-                  <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3 border border-amber-200 dark:border-amber-900">
+                  <div className="bg-amber-50 dark:bg-amber-950/20 rounded p-3 border border-amber-200 dark:border-amber-900">
                     <div className="text-sm font-black text-amber-900 dark:text-amber-100">
                       {workflow.edges.length}
                     </div>
@@ -203,7 +203,7 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                   {executionLogs.map((log, index) => (
                     <div
                       key={log.id}
-                      className="border rounded-lg p-4 bg-gradient-to-r from-slate-50 to-white dark:from-slate-900/50 dark:to-slate-900"
+                      className="border rounded p-4 bg-gradient-to-r from-slate-50 to-white dark:from-slate-900/50 dark:to-slate-900"
                     >
                       <div className="flex items-start gap-3">
                         <div className="mt-1">
@@ -253,13 +253,13 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
 
         {/* Footer */}
         <div className="border-t bg-slate-50 dark:bg-slate-900/50 px-8 py-4 flex items-center justify-between">
-          <Button variant="outline" onClick={onClose} className="rounded-lg">
+          <Button variant="outline" onClick={onClose} className="rounded">
             Close
           </Button>
           <Button
             onClick={handleTestRun}
             disabled={isRunning}
-            className="rounded-lg gap-2 bg-primary text-white"
+            className="rounded gap-2 bg-primary text-white"
           >
             <Play size={14} />
             {isRunning ? 'Running...' : 'Run Test'}

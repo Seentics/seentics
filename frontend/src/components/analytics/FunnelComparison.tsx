@@ -118,7 +118,7 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
             <h4 className="font-medium mb-3">Select Funnels to Compare</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto">
               {funnels.map((funnel) => (
-                <div key={funnel.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50">
+                <div key={funnel.id} className="flex items-center space-x-3 p-3 border rounded hover:bg-muted/50">
                   <Checkbox
                     id={funnel.id}
                     checked={selectedFunnels.includes(funnel.id)}
@@ -170,7 +170,7 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
             {/* Performance Ranking */}
             <div className="space-y-3">
               {comparisonResults.map((result, index) => (
-                <div key={result.funnel_id} className="p-4 border rounded-lg hover:shadow-sm transition-shadow">
+                <div key={result.funnel_id} className="p-4 border rounded hover:shadow-sm transition-shadow">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold ${
@@ -192,7 +192,7 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
 
                   {/* Metrics Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
                       <div className="flex items-center justify-center mb-1">
                         <Users className="h-4 w-4 text-blue-600 mr-1" />
                         <span className="text-xs text-blue-600 font-medium">Visitors</span>
@@ -200,7 +200,7 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
                       <p className="text-lg font-bold">{result.total_starts.toLocaleString()}</p>
                     </div>
                     
-                    <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded">
                       <div className="flex items-center justify-center mb-1">
                         <Target className="h-4 w-4 text-green-600 mr-1" />
                         <span className="text-xs text-green-600 font-medium">Conversions</span>
@@ -208,7 +208,7 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
                       <p className="text-lg font-bold">{result.total_conversions.toLocaleString()}</p>
                     </div>
                     
-                    <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                    <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded">
                       <div className="flex items-center justify-center mb-1">
                         <TrendingUp className="h-4 w-4 text-purple-600 mr-1" />
                         <span className="text-xs text-purple-600 font-medium">Rate</span>
@@ -218,7 +218,7 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
                       </p>
                     </div>
                     
-                    <div className="text-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                    <div className="text-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded">
                       <div className="flex items-center justify-center mb-1">
                         <Clock className="h-4 w-4 text-orange-600 mr-1" />
                         <span className="text-xs text-orange-600 font-medium">Time</span>
@@ -239,7 +239,7 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
             <div className="pt-4 border-t">
               <h4 className="font-semibold mb-4">Key Insights</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded">
                   <div className="flex items-center gap-2 mb-2">
                     <Trophy className="h-4 w-4 text-green-600" />
                     <span className="text-sm font-medium text-green-700">Best Performing Funnel</span>
@@ -249,7 +249,7 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
                   </p>
                 </div>
                 
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded">
                   <div className="flex items-center gap-2 mb-2">
                     <BarChart3 className="h-4 w-4 text-blue-600" />
                     <span className="text-sm font-medium text-blue-700">Performance Gap</span>

@@ -19,7 +19,7 @@ function LogViewer({ logs, clearLogs, onRestart }: { logs: string[], clearLogs: 
   }, [logs]);
 
   return (
-    <div className="bg-gray-900 text-white font-mono p-4 rounded-lg shadow-inner h-64 flex flex-col">
+    <div className="bg-gray-900 text-white font-mono p-4 rounded shadow-inner h-64 flex flex-col">
       <div className="flex items-center justify-between mb-4 border-b border-gray-700 pb-2 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Terminal className="h-5 w-5 text-green-400" />
@@ -135,13 +135,13 @@ export default function PreviewPage() {
 
       <div className="min-h-screen bg-gray-50 p-8 font-sans">
         <div className="max-w-4xl mx-auto">
-          <header className="border-b pb-6 mb-8 text-center bg-white p-6 rounded-xl shadow-sm">
+          <header className="border-b pb-6 mb-8 text-center bg-white p-6 rounded shadow-sm">
             <h1 className="text-4xl font-bold text-gray-800">Simulated Client Website</h1>
             <p className="text-gray-500 mt-2">
               This page is a testing ground for your workflow. All configured triggers are now active.
             </p>
           </header>
-          <main className="bg-white p-8 rounded-xl shadow-sm space-y-6">
+          <main className="bg-white p-8 rounded shadow-sm space-y-6">
             <div className="prose max-w-none text-gray-700">
               <p>
                 Your workflow is now running. Perform actions on this page to test your triggers:
@@ -157,7 +157,7 @@ export default function PreviewPage() {
             <div className="text-center py-8">
               <button
                 id="cta-button"
-                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-base font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 h-12 px-8 py-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
+                className="inline-flex items-center justify-center whitespace-nowrap rounded text-base font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700 h-12 px-8 py-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all"
               >
                 Click Me (for Element Click trigger)
               </button>

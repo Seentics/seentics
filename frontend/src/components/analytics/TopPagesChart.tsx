@@ -119,7 +119,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   const PageList = ({ items, type }: { items: any[], type: 'top' | 'entry' | 'exit' }) => {
     if (items.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-xl border border-dashed border-border/60">
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
           <FileText className="h-10 w-10 mb-2 opacity-20" />
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">No page data</p>
         </div>
@@ -139,9 +139,9 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
           const secondaryMetric = type === 'top' ? null : item.bounce_rate !== undefined ? `${item.bounce_rate}% bounce` : item.exit_rate !== undefined ? `${item.exit_rate}% exit` : null;
 
           return (
-            <div key={index} className="flex items-center justify-between p-3 rounded-lg border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+            <div key={index} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
               <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <div className="flex-shrink-0 p-2 bg-accent/10 rounded-md group-hover:bg-primary/10 transition-colors">
+                <div className="flex-shrink-0 p-2 bg-accent/10 rounded group-hover:bg-primary/10 transition-colors">
                   {getPageIcon(item.page)}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -180,10 +180,10 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
                 <CardTitle className="text-lg font-bold tracking-tight">Top Pages</CardTitle>
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Most visited & landing destinations</p>
              </div>
-             <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded-lg">
-               <TabsTrigger value="top" className="text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background">Top</TabsTrigger>
-               <TabsTrigger value="entry" className="text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background">Entry</TabsTrigger>
-               <TabsTrigger value="exit" className="text-[10px] font-semibold uppercase tracking-wider rounded-md active:bg-background">Exit</TabsTrigger>
+             <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded">
+               <TabsTrigger value="top" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Top</TabsTrigger>
+               <TabsTrigger value="entry" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Entry</TabsTrigger>
+               <TabsTrigger value="exit" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Exit</TabsTrigger>
              </TabsList>
           </div>
           

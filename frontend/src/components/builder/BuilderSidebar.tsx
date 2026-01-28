@@ -68,7 +68,7 @@ export const BuilderSidebar = () => {
     <aside className="w-80 h-full border-l bg-white dark:bg-slate-950 flex flex-col">
       <div className="p-6 border-b">
         <div className="flex items-center gap-2 mb-6">
-            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+            <div className="h-8 w-8 rounded bg-primary/10 flex items-center justify-center text-primary">
                 <Workflow size={18} />
             </div>
             <h2 className="font-black text-lg tracking-tight">Modules</h2>
@@ -77,7 +77,7 @@ export const BuilderSidebar = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input 
             placeholder="Search modules..." 
-            className="pl-10 h-10 bg-muted/20 border-none shadow-none rounded-xl text-xs font-bold"
+            className="pl-10 h-10 bg-muted/20 border-none shadow-none rounded text-xs font-bold"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -93,10 +93,10 @@ export const BuilderSidebar = () => {
                     key={trigger.type}
                     onDragStart={(event) => onDragStart(event, 'triggerNode', trigger.label)}
                     draggable
-                    className="p-3 rounded-xl border bg-slate-50 dark:bg-slate-900/50 hover:border-amber-500/50 hover:bg-amber-500/[0.02] transition-all cursor-grab active:cursor-grabbing group"
+                    className="p-3 rounded border bg-slate-50 dark:bg-slate-900/50 hover:border-amber-500/50 hover:bg-amber-500/[0.02] transition-all cursor-grab active:cursor-grabbing group"
                 >
                     <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600">
+                        <div className="h-8 w-8 rounded bg-amber-500/10 flex items-center justify-center text-amber-600">
                            <trigger.icon size={16} />
                         </div>
                         <div className="min-w-0">
@@ -117,10 +117,10 @@ export const BuilderSidebar = () => {
                     key={item.type}
                     onDragStart={(event) => onDragStart(event, 'conditionNode', item.label)}
                     draggable
-                    className="p-3 rounded-xl border bg-slate-50 dark:bg-slate-900/50 hover:border-purple-500/50 hover:bg-purple-500/[0.02] transition-all cursor-grab active:cursor-grabbing group"
+                    className="p-3 rounded border bg-slate-50 dark:bg-slate-900/50 hover:border-purple-500/50 hover:bg-purple-500/[0.02] transition-all cursor-grab active:cursor-grabbing group"
                 >
                     <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600">
+                        <div className="h-8 w-8 rounded bg-purple-500/10 flex items-center justify-center text-purple-600">
                            <IconRenderer icon={item.icon} />
                         </div>
                         <div className="min-w-0">
@@ -141,10 +141,10 @@ export const BuilderSidebar = () => {
                     key={item.type}
                     onDragStart={(event) => onDragStart(event, 'interactionNode', item.label)}
                     draggable
-                    className="p-3 rounded-xl border bg-slate-50 dark:bg-slate-900/50 hover:border-pink-500/50 hover:bg-pink-500/[0.02] transition-all cursor-grab active:cursor-grabbing group"
+                    className="p-3 rounded border bg-slate-50 dark:bg-slate-900/50 hover:border-pink-500/50 hover:bg-pink-500/[0.02] transition-all cursor-grab active:cursor-grabbing group"
                 >
                     <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-600">
+                        <div className="h-8 w-8 rounded bg-pink-500/10 flex items-center justify-center text-pink-600">
                            <IconRenderer icon={item.icon} />
                         </div>
                         <div className="min-w-0">
@@ -165,10 +165,10 @@ export const BuilderSidebar = () => {
                     key={action.type}
                     onDragStart={(event) => onDragStart(event, 'actionNode', action.label)}
                     draggable
-                    className="p-3 rounded-xl border bg-slate-50 dark:bg-slate-900/50 hover:border-blue-500/50 hover:bg-blue-500/[0.02] transition-all cursor-grab active:cursor-grabbing group"
+                    className="p-3 rounded border bg-slate-50 dark:bg-slate-900/50 hover:border-blue-500/50 hover:bg-blue-500/[0.02] transition-all cursor-grab active:cursor-grabbing group"
                 >
                     <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-600">
+                        <div className="h-8 w-8 rounded bg-blue-500/10 flex items-center justify-center text-blue-600">
                            <action.icon size={16} />
                         </div>
                         <div className="min-w-0">

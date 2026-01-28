@@ -132,7 +132,7 @@ export function SettingsModal({ isOpen, onClose, website }: SettingsModalProps) 
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="flex items-center justify-between rounded border p-3 shadow-sm">
                         <div className="space-y-0.5">
                             <Label>Tracking Enabled</Label>
                             <p className="text-sm text-muted-foreground">Collect analytics data for this site</p>
@@ -181,7 +181,7 @@ export function SettingsModal({ isOpen, onClose, website }: SettingsModalProps) 
                     </AlertDescription>
                 </Alert>
 
-                <div className="bg-destructive/10 p-4 rounded-lg border border-destructive/20 flex items-center justify-between">
+                <div className="bg-destructive/10 p-4 rounded border border-destructive/20 flex items-center justify-between">
                     <div>
                         <h4 className="font-medium text-destructive">Delete Website</h4>
                         <p className="text-sm text-destructive/80">Permanently remove this site and all analytics data.</p>

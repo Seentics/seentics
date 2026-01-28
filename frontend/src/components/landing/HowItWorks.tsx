@@ -101,7 +101,7 @@ export default function HowItWorks() {
 
                     {/* Combined Step Number and Icon */}
                     <div className="relative mx-auto mb-6">
-                      <div className="w-20 h-20 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
+                      <div className="w-20 h-20 bg-blue-600 rounded flex items-center justify-center mx-auto shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110">
                         <step.icon className="h-10 w-10 text-white" />
                       </div>
                       <div className="absolute -top-2 -right-2 w-8 h-8 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center shadow-md border-2 border-blue-500">
@@ -149,7 +149,7 @@ export default function HowItWorks() {
 
         {/* Enhanced Bottom CTA */}
         <div className="text-center">
-          <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded-3xl p-8 sm:p-12 border border-slate-200/50 dark:border-slate-700/50 shadow-xl max-w-4xl mx-auto">
+          <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm rounded p-8 sm:p-12 border border-slate-200/50 dark:border-slate-700/50 shadow-xl max-w-4xl mx-auto">
             <h3 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mb-4">
               Ready to Transform Your Website?
             </h3>

@@ -48,12 +48,12 @@ export function DocsModal({ isOpen, onClose }: DocsModalProps) {
             <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">Quick Links</h4>
                 <div className="grid grid-cols-2 gap-3">
-                    <Link href="#" className="flex flex-col p-4 rounded-lg bg-card border hover:border-primary/50 transition-colors group">
+                    <Link href="#" className="flex flex-col p-4 rounded bg-card border hover:border-primary/50 transition-colors group">
                         <Zap className="h-5 w-5 text-primary mb-2 group-hover:scale-110 transition-transform" />
                         <span className="font-semibold text-sm">Getting Started</span>
                         <span className="text-xs text-muted-foreground mt-1">Setup your first website</span>
                     </Link>
-                    <Link href="#" className="flex flex-col p-4 rounded-lg bg-card border hover:border-primary/50 transition-colors group">
+                    <Link href="#" className="flex flex-col p-4 rounded bg-card border hover:border-primary/50 transition-colors group">
                         <Code className="h-5 w-5 text-primary mb-2 group-hover:scale-110 transition-transform" />
                         <span className="font-semibold text-sm">API Reference</span>
                         <span className="text-xs text-muted-foreground mt-1">Endpoints and schemas</span>
@@ -65,7 +65,7 @@ export function DocsModal({ isOpen, onClose }: DocsModalProps) {
                 <h4 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">Popular Articles</h4>
                 <div className="space-y-1">
                     {articles.map((article, i) => (
-                        <Link key={i} href="#" className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/50 transition-colors group">
+                        <Link key={i} href="#" className="flex items-center justify-between p-3 rounded hover:bg-muted/50 transition-colors group">
                             <div className="flex items-center gap-3">
                                 <article.icon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                 <span>{article.title}</span>

@@ -23,7 +23,7 @@ interface RetentionCohortChartProps {
 export function RetentionCohortChart({ data, isLoading }: RetentionCohortChartProps) {
   if (isLoading) {
     return (
-      <Card className="bg-card border shadow-sm dark:bg-gray-800 rounded-md h-full">
+      <Card className="bg-card border shadow-sm dark:bg-gray-800 rounded h-full">
         <CardHeader>
           <div className="h-5 w-40 bg-muted rounded animate-pulse" />
         </CardHeader>
@@ -52,7 +52,7 @@ export function RetentionCohortChart({ data, isLoading }: RetentionCohortChartPr
   };
 
   return (
-    <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded-md overflow-hidden">
+    <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded overflow-hidden">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div>

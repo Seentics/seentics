@@ -60,31 +60,31 @@ export default function VisualFunnels() {
 
           {/* Simple Workflow Visualization */}
           <div className="mb-16">
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 shadow-lg">
+            <div className="bg-white dark:bg-slate-800 rounded p-8 shadow-lg">
               <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-6 text-center">
                 Simple Workflow Structure
               </h3>
               
               <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8">
-                <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700">
                   <span className="font-medium text-slate-700 dark:text-slate-300">Trigger</span>
                 </div>
                 
                 <ArrowRight className="h-5 w-5 text-slate-400" />
                 
-                <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600">
+                <div className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-700 rounded border border-slate-200 dark:border-slate-600">
                   <span className="font-medium text-slate-700 dark:text-slate-300">Condition</span>
                 </div>
                 
                 <ArrowRight className="h-5 w-5 text-slate-400" />
                 
-                <div className="flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center gap-2 px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded border border-green-200 dark:border-green-800">
                   <span className="font-medium text-green-700 dark:text-green-300">Action</span>
                 </div>
                 
                 <ArrowRight className="h-5 w-5 text-slate-400" />
                 
-                <div className="flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                <div className="flex items-center gap-2 px-4 py-2 bg-purple-100 dark:bg-purple-900/30 rounded border border-purple-200 dark:border-purple-800">
                   <span className="font-medium text-purple-700 dark:text-purple-300">Result</span>
                 </div>
               </div>
@@ -95,7 +95,7 @@ export default function VisualFunnels() {
           <Card className="bg-white dark:bg-slate-800 shadow-lg">
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-xl flex items-center justify-center">
+                <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded flex items-center justify-center">
                   <ShoppingCart className="h-5 w-5 text-red-600 dark:text-red-400" />
                 </div>
                 <div>
@@ -126,7 +126,7 @@ export default function VisualFunnels() {
                         </div>
                       )}
                       
-                      <div className={`p-4 rounded-lg border ${step.color} ${step.darkColor} h-full`}>
+                      <div className={`p-4 rounded border ${step.color} ${step.darkColor} h-full`}>
                         <div className="flex items-center gap-2 mb-2">
                           <span className="w-6 h-6 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center text-sm font-bold">
                             {index + 1}
@@ -148,7 +148,7 @@ export default function VisualFunnels() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {results.map((result, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded-lg">
+                    <div key={index} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-700 rounded">
                       <div className="flex items-center gap-3">
                         <result.icon className={`h-5 w-5 ${result.color} dark:${result.color.replace('600', '400')}`} />
                         <span className="font-medium text-slate-700 dark:text-slate-300">
@@ -164,7 +164,7 @@ export default function VisualFunnels() {
               </div>
 
               {/* Pro Tip */}
-              <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/30 rounded-lg border border-slate-200 dark:border-slate-700">
+              <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-950/30 rounded border border-slate-200 dark:border-slate-700">
                 <div className="flex items-start gap-3">
                   <CheckCircle className="h-5 w-5 text-slate-600 dark:text-slate-400 flex-shrink-0 mt-0.5" />
                   <div>

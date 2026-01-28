@@ -233,7 +233,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
 
               {/* Funnel Quick Stats */}
               {selectedFunnelData && (
-                <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-muted/50 rounded">
                   <div className="flex items-center gap-6">
                     <div>
                       <p className="text-sm font-medium">{selectedFunnelData.name}</p>

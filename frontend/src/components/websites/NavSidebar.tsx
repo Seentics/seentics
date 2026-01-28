@@ -93,7 +93,7 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                     return (
                         <Link key={link.href} href={link.href} className="block relative">
                             <div className={cn(
-                                "group flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 relative border border-transparent",
+                                "group flex items-center gap-3 px-4 py-3 rounded transition-all duration-300 relative border border-transparent",
                                 isActive
                                     ? "bg-primary/10 text-primary shadow-sm"
                                     : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
@@ -116,7 +116,7 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                 {user && (
                     <Popover>
                         <PopoverTrigger asChild>
-                            <button className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-accent/50 transition-all text-left group">
+                            <button className="w-full flex items-center gap-3 p-2 rounded hover:bg-accent/50 transition-all text-left group">
                                 <Avatar className="h-8 w-8 border border-border/40">
                                     <AvatarImage src={user.avatar || undefined} />
                                     <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs uppercase text-center flex items-center justify-center pt-0.5">
@@ -130,7 +130,7 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                                 <ChevronUp className="h-4 w-4 text-muted-foreground group-hover:text-foreground opacity-40 transition-opacity" />
                             </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-64 p-2 mb-2 rounded-lg border-border/40 shadow-xl" side="right" align="end" sideOffset={12}>
+                        <PopoverContent className="w-64 p-2 mb-2 rounded border-border/40 shadow-xl" side="right" align="end" sideOffset={12}>
                              <div className="p-3">
                                 <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">{user.name || 'Account'}</p>
                                 <p className="text-[10px] text-muted-foreground opacity-60 truncate">{user.email}</p>
@@ -138,7 +138,7 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                             <Separator className="my-2 opacity-10" />
                             <div className="space-y-1">
                                 <Link href={`/websites/${websiteId}/settings`}>
-                                    <Button variant="ghost" size="sm" className="w-full justify-start h-9 text-xs font-bold gap-2 rounded-md">
+                                    <Button variant="ghost" size="sm" className="w-full justify-start h-9 text-xs font-bold gap-2 rounded">
                                         <Settings size={14} />
                                         Profile Settings
                                     </Button>
@@ -147,7 +147,7 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => logout()}
-                                    className="w-full justify-start h-9 text-xs font-bold gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-md"
+                                    className="w-full justify-start h-9 text-xs font-bold gap-2 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded"
                                 >
                                     <LogOut size={14} />
                                     Sign Out

@@ -68,13 +68,13 @@ export default function Hero() {
           <motion.div variants={itemVariants} className="flex flex-col items-center gap-8 w-full mb-24">
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
               <Link href="/signup" className="w-full sm:w-auto">
-                <Button variant="brand" size="lg" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded-lg w-full sm:w-auto active:scale-95 group shadow-xl shadow-primary/20">
+                <Button variant="brand" size="lg" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded w-full sm:w-auto active:scale-95 group shadow-xl shadow-primary/20">
                   Start Free Forever
                   <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
               <Link href="/websites/demo" className="w-full sm:w-auto">
-                <Button size="lg" variant="secondary" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded-lg w-full sm:w-auto bg-white/10 border-white/20 hover:bg-white/20 text-foreground transition-all flex items-center justify-center gap-3 backdrop-blur-md">
+                <Button size="lg" variant="secondary" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded w-full sm:w-auto bg-white/10 border-white/20 hover:bg-white/20 text-foreground transition-all flex items-center justify-center gap-3 backdrop-blur-md">
                   <Play className="h-3 w-3 fill-current" />
                   Live Demo Preview
                 </Button>
@@ -88,7 +88,7 @@ export default function Hero() {
                 "Conversion Funnels",
                 "GDPR Compliant"
               ].map((tag) => (
-                <div key={tag} className="px-3 py-1.5 rounded-md bg-accent/5 border border-border/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
+                <div key={tag} className="px-3 py-1.5 rounded bg-accent/5 border border-border/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
                   <div className="w-1 h-1 rounded-full bg-primary" />
                   {tag}
                 </div>
@@ -103,13 +103,13 @@ export default function Hero() {
           >
             <div className="absolute -inset-10 bg-primary/10 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
 
-            <div className="relative glass p-2 rounded-xl border-white/10 shadow-2xl overflow-hidden aspect-[16/10] bg-black/5 dark:bg-white/5 backdrop-blur-[40px]">
-              <div className="w-full h-full rounded-lg bg-background/50 p-6 sm:p-10 flex flex-col items-start justify-start text-left relative overflow-hidden">
+            <div className="relative glass p-2 rounded border-white/10 shadow-2xl overflow-hidden aspect-[16/10] bg-black/5 dark:bg-white/5 backdrop-blur-[40px]">
+              <div className="w-full h-full rounded bg-background/50 p-6 sm:p-10 flex flex-col items-start justify-start text-left relative overflow-hidden">
 
                 {/* Mock UI Header */}
                 <div className="w-full flex items-center justify-between mb-8 pb-4 border-b border-border/40">
                   <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
                       <LayoutDashboard className="h-4 w-4 text-primary" />
                     </div>
                     <div className="h-4 w-32 bg-foreground/10 rounded" />
@@ -122,7 +122,7 @@ export default function Hero() {
 
                 <div className="grid grid-cols-3 gap-6 w-full mb-8">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="p-5 rounded-xl bg-white/5 border border-white/5 flex flex-col gap-3">
+                    <div key={i} className="p-5 rounded bg-white/5 border border-white/5 flex flex-col gap-3">
                       <div className="h-2 w-16 bg-muted-foreground/20 rounded" />
                       <div className="h-6 w-24 bg-foreground/10 rounded" />
                     </div>
@@ -130,7 +130,7 @@ export default function Hero() {
                 </div>
 
                 {/* Large Chart Area */}
-                <div className="w-full flex-1 rounded-2xl bg-white/5 border border-white/5 p-6 relative">
+                <div className="w-full flex-1 rounded bg-white/5 border border-white/5 p-6 relative">
                   <div className="absolute inset-x-6 bottom-6 h-[60%] flex items-end gap-2">
                     {[40, 70, 45, 90, 65, 80, 55, 75, 50, 85].map((h, i) => (
                       <div
@@ -146,7 +146,7 @@ export default function Hero() {
 
                 {/* Floating Snippets */}
                 <div className="absolute top-1/4 -right-12 hidden xl:block">
-                  <div className="glass p-4 rounded-xl shadow-xl border-white/10 w-48 animate-float" style={{ animationDelay: '1s' }}>
+                  <div className="glass p-4 rounded shadow-xl border-white/10 w-48 animate-float" style={{ animationDelay: '1s' }}>
                     <div className="flex items-center gap-3 mb-2">
                       <MousePointer2 className="h-3 w-3 text-primary" />
                       <div className="h-1.5 w-12 bg-foreground/20 rounded" />

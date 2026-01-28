@@ -96,17 +96,17 @@ const SummaryCard = ({
   return (
     <div className="group relative p-6 transition-all duration-300 hover:bg-accent/5 overflow-hidden">
       <div className="flex items-center justify-between pb-3">
-        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50 group-hover:opacity-100 transition-opacity whitespace-nowrap overflow-hidden text-ellipsis">
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-widest opacity-50 group-hover:opacity-100 transition-opacity whitespace-nowrap overflow-hidden text-ellipsis">
           {title}
         </div>
-        <div className="h-7 w-7 rounded-lg bg-accent/5 flex items-center justify-center group-hover:bg-primary/5 transition-colors">
+        <div className="h-7 w-7 rounded bg-accent/5 flex items-center justify-center group-hover:bg-primary/5 transition-colors">
           <Icon className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-primary transition-colors" />
         </div>
       </div>
       
       <div className="flex items-end justify-between">
         <div className="space-y-0 relative z-10">
-          <div className="text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-all duration-300">
+          <div className="text-xl font-bold tracking-tight text-foreground/80 group-hover:text-primary transition-all duration-300">
             {formatValue(value)}
           </div>
           {subtitle && (
@@ -130,7 +130,7 @@ const SummaryCard = ({
 export function SummaryCards({ data }: SummaryCardsProps) {
   if (!data) {
     return (
-      <div className="bg-card border-border shadow-sm rounded-2xl overflow-hidden mb-8 border">
+      <div className="bg-card dark:bg-gray-800/50 border-border shadow-sm rounded overflow-hidden mb-8 border">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 divide-x divide-border/20">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="p-6">
@@ -188,7 +188,7 @@ export function SummaryCards({ data }: SummaryCardsProps) {
   ];
 
   return (
-    <div className="bg-gray-200 dark:bg-slate-800 shadow-sm shadow-black/5 rounded overflow-hidden mb-8">
+    <div className="bg-gray-200 dark:bg-gray-800/50 shadow-sm shadow-black/5 rounded overflow-hidden mb-8">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 divide-x divide-border/40">
         {cards.map((card, index) => (
           <SummaryCard key={index} {...card} />
