@@ -11,12 +11,12 @@ services:
     environment:
       - ENVIRONMENT=development
       - PORT=3002
-      - DATABASE_URL=postgres://seentics:seentics_postgres_pass@postgres:5432/seentics_analytics?sslmode=disable
+      - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       - LOG_LEVEL=debug
-      - JWT_SECRET=${JWT_SECRET:-dev_secret_for_oss}
-      - REDIS_URL=redis://:seentics_redis_pass@redis:6379
-      - REDIS_PASSWORD=seentics_redis_pass
-      - GLOBAL_API_KEY=${GLOBAL_API_KEY:-dev_api_key}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - GLOBAL_API_KEY=${GLOBAL_API_KEY}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - KAFKA_TOPIC_EVENTS=analytics_events
       - CLOUD_ENABLED=false # Always false in the OSS version
@@ -38,25 +38,6 @@ services:
       start_period: 5s
 
   # ---------------------------------------------------------------------------
-  # Analytics Frontend (OSS)
-  # ---------------------------------------------------------------------------
-  analytics-frontend:
-    build:
-      context: ./frontend
-      args:
-        - NEXT_PUBLIC_API_URL=http://localhost:3002
-    container_name: analytics-frontend
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:3002
-    depends_on:
-      - analytics-backend
-    networks:
-      - seentics-network
-    restart: unless-stopped
-
-  # ---------------------------------------------------------------------------
   # Infrastructure
   # ---------------------------------------------------------------------------
   postgres:
@@ -65,9 +46,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: seentics
-      POSTGRES_PASSWORD: seentics_postgres_pass
-      POSTGRES_DB: seentics_analytics
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
@@ -85,14 +66,14 @@ services:
     container_name: redis
     ports:
       - "6379:6379"
-    command: redis-server --requirepass seentics_redis_pass --maxmemory 256mb --maxmemory-policy allkeys-lru --save "" --appendonly no
+    command: redis-server --requirepass ${REDIS_PASSWORD} --maxmemory 256mb --maxmemory-policy allkeys-lru --save "" --appendonly no
     volumes:
       - redis-data:/data
     networks:
       - seentics-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "seentics_redis_pass", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -121,21 +102,6 @@ services:
       - seentics-network
     volumes:
       - kafka-data:/var/lib/kafka/data
-
-  kafka-ui:
-    image: provectuslabs/kafka-ui:latest
-    container_name: kafka-ui
-    ports:
-      - "8081:8080"
-    environment:
-      - KAFKA_CLUSTERS_0_NAME=local
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
-      - DYNAMIC_CONFIG_ENABLED=true
-    depends_on:
-      kafka:
-        condition: service_started
-    networks:
-      - seentics-network
 
 volumes:
   postgres-data:

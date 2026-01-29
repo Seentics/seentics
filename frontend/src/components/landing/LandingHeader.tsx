@@ -76,7 +76,7 @@ export default function LandingHeader() {
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <Link href="/websites">
-                <Button variant="brand" className="h-11 px-8 rounded-full font-bold text-xs uppercase tracking-widest active:scale-95">
+                <Button variant="brand" className="h-11 px-8 rounded font-bold text-xs uppercase tracking-widest active:scale-95">
                   Dashboard
                 </Button>
               </Link>
@@ -88,7 +88,7 @@ export default function LandingHeader() {
                   </span>
                 </Link>
                 <Link href="/signup">
-                  <Button variant="brand" className="h-11 px-8 rounded-full font-bold text-xs uppercase tracking-widest active:scale-95">
+                  <Button variant="brand" className="h-11 px-8 rounded font-bold text-xs uppercase tracking-widest active:scale-95">
                     Start Free
                   </Button>
                 </Link>

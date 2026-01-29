@@ -52,8 +52,8 @@ export default function Hero() {
             variants={itemVariants}
             className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.1] mb-8 text-foreground"
           >
-            Smart Analytics. <br />
-            <span className="gradient-text font-black text-indigo-600 dark:text-indigo-400">Instant Action.</span>
+            Track. Analyze. <br />
+            <span className="gradient-text font-black text-indigo-600 dark:text-indigo-400">Automate.</span>
           </motion.h1>
 
           {/* Subheadline */}
@@ -61,7 +61,7 @@ export default function Hero() {
             variants={itemVariants}
             className="text-lg sm:text-xl text-muted-foreground/70 max-w-3xl mx-auto mb-12 leading-relaxed font-medium"
           >
-            Seentics combines <span className="text-foreground font-bold">privacy-first tracking</span> with built-in conversion funnels and automated marketing workflows to help you grow faster.
+            The world&apos;s first platform seamlessly integrating <span className="text-foreground font-bold">Website Analytics</span>, <span className="text-foreground font-bold">Visual Funnels</span>, and <span className="text-foreground font-bold">Marketing Automations</span> for data-driven growth.
           </motion.p>
 
           {/* Action Hub */}
@@ -84,9 +84,9 @@ export default function Hero() {
             {/* Feature Tags */}
             <div className="flex flex-wrap justify-center gap-3 max-w-2xl px-6">
               {[
-                "Website Analytics",
-                "Conversion Funnels",
-                "GDPR Compliant"
+                "Web Analytics",
+                "Visual Funnels",
+                "Marketing Automations"
               ].map((tag) => (
                 <div key={tag} className="px-3 py-1.5 rounded bg-accent/5 border border-border/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
                   <div className="w-1 h-1 rounded-full bg-primary" />

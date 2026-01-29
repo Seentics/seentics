@@ -92,7 +92,7 @@ export default function WebsitesPage() {
       const website = await addWebsite({ name: name.trim(), url: normalizedUrl }, user.id);
       
       setNewlyCreatedSiteId(website.id);
-      const code = `<script async src="${window.location.origin}/trackers/tracker.js" data-site-id="${website.id}"></script>`;
+      const code = `<script async src="${window.location.origin}/trackers/seentics-core.js" data-site-id="${website.id}"></script>`;
       setTrackingCode(code);
 
       toast({

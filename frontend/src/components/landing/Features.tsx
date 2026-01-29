@@ -6,8 +6,8 @@ export default function Features() {
   const features = [
     {
       icon: BarChart3,
-      title: "Real-time Metrics",
-      description: "Track visitors, page views, and traffic sources with sub-millisecond latency. Zero complexity, maximum insight.",
+      title: "Real-Time Analytics",
+      description: "Monitor live traffic, active users, and page views as they happen. Instant visibility without the lag.",
       color: "text-primary bg-primary/10"
     },
     {
@@ -78,11 +78,11 @@ export default function Features() {
             viewport={{ once: true }}
             className="text-4xl sm:text-6xl  font-[1000] tracking-[-0.03em] mb-10 leading-[0.95]"
           >
-            Everything you need. <br />
-            <span className="gradient-text">Zero Compromise.</span>
+            Deep Insights. <br />
+            <span className="gradient-text">Zero Complexity.</span>
           </motion.h2>
           <p className="text-lg sm:text-xl text-muted-foreground/60 max-w-2xl mx-auto font-medium tracking-tight">
-            We stripped away the complexity of legacy metrics to give you a tool that's actually designed for growth.
+            Unified analytics, funnels, and automation in one intuitive dashboard. Stop wrestling with complicated tools.
           </p>
         </div>
 
@@ -123,8 +123,8 @@ export default function Features() {
           <div className="text-center mb-16 px-4">
             <div className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-600 mb-6">Intelligence Engine</div>
             <h3 className="text-3xl sm:text-5xl font-black mb-6 tracking-tight leading-tight">
-              Build flows. <br />
-              <span className="gradient-text">Visualize growth.</span>
+              Visualize Funnels. <br />
+              <span className="gradient-text">Automate Growth.</span>
             </h3>
             <p className="text-lg text-muted-foreground/70 max-w-2xl mx-auto font-medium">
               Stop guessing where users drop off. Design sophisticated conversion funnels and automated workflows in minutes.
