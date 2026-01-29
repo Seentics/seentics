@@ -9,6 +9,9 @@ docker compose down -v
 echo "🧹 Pruning unused images..."
 docker system prune -f
 
+echo "💣 Removing old SSL certificates checking..."
+sudo rm -rf ./certbot
+
 echo "⬇️  Pulling latest code..."
 git pull
 
