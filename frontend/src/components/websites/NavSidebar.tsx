@@ -13,7 +13,9 @@ import {
     Shield,
     Globe,
     User,
-    ChevronUp
+    ChevronUp,
+    Headset,
+    Lock
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -69,6 +71,13 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
             href: `/websites/${websiteId}/settings`,
             icon: Settings,
             description: 'General Preferences'
+        },
+        {
+            title: 'Book a Demo',
+            href: 'https://calendly.com/shohagmiah2100/30min',
+            icon: Headset,
+            description: 'Talk to an expert',
+            external: true
         }
     ];
 
@@ -90,17 +99,36 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                         ? pathname === link.href
                         : pathname.startsWith(link.href);
 
+                    const isDemo = websiteId === 'demo';
+                    const isDisabled = isDemo && link.title !== 'Overview';
+
                     return (
-                        <Link key={link.href} href={link.href} className="block relative">
+                        <Link 
+                            key={link.href} 
+                            href={isDisabled ? '#' : link.href} 
+                            target={link.external ? '_blank' : '_self'}
+                            className={cn("block relative", isDisabled && "pointer-events-none")}
+                            aria-disabled={isDisabled}
+                        >
                             <div className={cn(
                                 "group flex items-center gap-3 px-4 py-3 rounded transition-all duration-300 relative border border-transparent",
                                 isActive
                                     ? "bg-primary/10 text-primary shadow-sm"
-                                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+                                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                                isDisabled && "opacity-50"
                             )}>
-                                <link.icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
+                                <div className="relative">
+                                    <link.icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
+                                    {isDisabled && (
+                                        <div className="absolute -top-1 -right-1 bg-background rounded-full p-0.5 border border-border/50 shadow-sm">
+                                            <Lock className="h-2 w-2 text-muted-foreground" />
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="flex flex-col min-w-0">
-                                    <span className={cn("font-bold text-[13px] leading-tight truncate", isActive ? "dark:text-white text-black" : "text-foreground")}>{link.title}</span>
+                                    <span className={cn("font-bold text-[13px] leading-tight truncate", isActive ? "dark:text-white text-black" : "text-foreground")}>
+                                        {link.title}
+                                    </span>
                                     {/* <span className={cn("text-[9px] font-medium opacity-60 truncate", isActive ? "text-muted-foreground" : "text-muted-foreground")}>{link.description}</span> */}
                                 </div>
                                 {/* {isActive && (

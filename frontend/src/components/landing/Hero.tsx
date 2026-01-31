@@ -37,15 +37,17 @@ export default function Hero() {
           className="max-w-5xl mx-auto flex flex-col items-center text-center"
         >
           {/* Status Badge */}
-          {/* <motion.div variants={itemVariants} className="mb-8">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-md text-[11px] font-bold uppercase tracking-wider text-primary shadow-sm">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-              </span>
-              Next-Gen Analytics Engine
-            </div>
-          </motion.div> */}
+          <motion.div variants={itemVariants} className="mb-8">
+            <Link href="https://github.com/skshohagmiah/seentics-analytics" target="_blank">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-md text-[11px] font-bold uppercase tracking-wider text-primary shadow-sm hover:bg-primary/10 transition-colors">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                </span>
+                Open Source • Contributions Welcome
+              </div>
+            </Link>
+          </motion.div>
 
           {/* Headline */}
           <motion.h1

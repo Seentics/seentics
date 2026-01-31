@@ -17,29 +17,42 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
           script: |
             # Navigate to project directory
-            # Make sure this directory exists on your EC2 instance relative to the user's home
             cd ~/seentics-analytics
             
             # Pull latest changes
             git pull origin main
             
             # Create .env file with secrets
-            echo "ENVIRONMENT=production" > .env
-            echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> .env
-            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> .env
-            echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> .env
-            echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
-            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> .env
-            echo "GLOBAL_API_KEY=${{ secrets.GLOBAL_API_KEY }}" >> .env
-            echo "NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}" >> .env
+            cat > .env << 'EOF'
+            ENVIRONMENT=production
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+            GLOBAL_API_KEY=${{ secrets.GLOBAL_API_KEY }}
+            NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }}
+            EOF
             
             # Rebuild and restart containers
-            # -d runs in detached mode
-            # --build forces rebuilding images
-            # --remove-orphans cleans up old containers
             docker compose up --build -d --remove-orphans
             
-            # Clean up unused images to save disk space (optional but recommended for t3.medium)
+            # Clean up unused images to save disk space
             docker system prune -f
+```
+
+**Key changes:**
+
+1. **Added `port: 22`** - Explicitly specify the SSH port
+2. **Changed `.env` creation method** - Using a heredoc (`cat > .env << 'EOF'`) instead of multiple echo commands, which is more reliable for handling special characters in secrets
+
+**If this still doesn't work, check these things:**
+
+1. **Verify your EC2_SSH_KEY format** - The key should be the entire private key including:
+```
+   -----BEGIN RSA PRIVATE KEY-----
+   [your key content]
+   -----END RSA PRIVATE KEY-----

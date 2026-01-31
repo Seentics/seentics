@@ -23,7 +23,7 @@ export default function LandingHeader() {
     { name: 'Features', href: '#features' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'Docs', href: '/docs' },
-    { name: 'Contact', href: '/contact' },
+    { name: 'Book Demo', href: 'https://calendly.com/shohagmiah2100/30min', target: '_blank' },
   ];
 
   return (
@@ -45,12 +45,14 @@ export default function LandingHeader() {
         </Link>
 
         {/* Centered Navigation */}
-        <nav className="hidden lg:flex items-center absolute left-1/2 -translate-x-1/2">
+        <nav className="hidden lg:flex items-center absolute left-1/2 -translate-x-1/2 z-20">
           <div className="flex items-center gap-2">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
+                target={link.target || '_self'}
+                rel={link.target === '_blank' ? 'noopener noreferrer' : undefined}
                 className="px-5 py-2 rounded-full text-[13px] font-bold text-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-all tracking-wider"
               >
                 {link.name}
@@ -121,6 +123,7 @@ export default function LandingHeader() {
                   <Link
                     key={link.name}
                     href={link.href}
+                    target={link.target || '_self'}
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center justify-between py-4 border-b border-border/50 group"
                   >

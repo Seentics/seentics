@@ -132,7 +132,35 @@ Go to your GitHub Repo -> **Settings** -> **Secrets and variables** -> **Actions
 2.  Go to the **Actions** tab in GitHub to see the deployment running.
 3.  Once finished, your backend will be live at `https://api.seentics.com`.
 
-## Monitoring & Troubleshooting
+## Troubleshooting
+
+### 1. "Database does not exist" Error
+If you see logs like `FATAL: database "seentics_analytics" does not exist`, it means the Postgres volume was created before the correct configuration was applied. To fix this (WARNING: This deletes all data):
+
+```bash
+# Stop containers and remove volumes
+docker compose down -v
+
+# Restart containers
+docker compose up -d --build
+```
+
+### 2. "Network Error" or Timeout on Frontend
+If `api.seentics.com` times out:
+1.  **Check Security Groups**: Ensure your AWS Security Group allows Inbound traffic on ports **80** and **443** from `0.0.0.0/0`.
+2.  **Check Nginx Status**:
+    ```bash
+    docker compose logs nginx
+    ```
+    If Nginx isn't running, your SSL certificates might be missing. Run `./init-letsencrypt.sh` again.
+
+### 3. "No such service: nginx/certbot"
+If you see this error, your `docker-compose.yml` is outdated. Pull the latest code:
+```bash
+git pull origin main
+```
+
+## Logs & Monitoring
 
 - **Logs**:
     ```bash
