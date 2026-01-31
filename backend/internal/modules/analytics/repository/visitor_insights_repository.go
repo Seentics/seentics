@@ -53,9 +53,20 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 		),
 		session_stats AS (
 			SELECT 
-				AVG(EXTRACT(EPOCH FROM (exit_time - entry_time))) as avg_duration
-			FROM sessions
-			WHERE website_id = $1 AND start_time >= $2
+				AVG(session_duration) as avg_duration
+			FROM (
+				SELECT 
+					session_id,
+					CASE 
+						WHEN COUNT(*) > 1 THEN 
+							LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 1800)
+						ELSE 
+							COALESCE(MAX(time_on_page), 30)
+					END as session_duration
+				FROM events
+				WHERE website_id = $1 AND timestamp >= $2
+				GROUP BY session_id
+			) s
 		)
 		SELECT 
 			COALESCE(new_visitors, 0),
