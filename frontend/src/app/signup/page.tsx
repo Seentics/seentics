@@ -22,19 +22,40 @@ import {
     Star,
     Sparkles,
     ShieldCheck,
-    Quote
+    Quote,
+    Globe
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import Link from 'next/link';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuth } from '@/stores/useAuthStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function SignUpPage() {
-  const [step, setStep] = useState(1); // 1: Account, 2: Plan Selection
+function SignUpFlow() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const stepParam = searchParams.get('step');
+  const [step, setStep] = useState(stepParam ? parseInt(stepParam) : 1); 
+
+  useEffect(() => {
+    if (stepParam) {
+        const s = parseInt(stepParam);
+        if (!isNaN(s) && s !== step) {
+            setStep(s);
+        }
+    }
+  }, [stepParam]);
+
+  const updateStep = (newStep: number) => {
+    setStep(newStep);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('step', newStep.toString());
+    router.push(`/signup?${params.toString()}`);
+  };
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -42,13 +63,23 @@ export default function SignUpPage() {
     confirmPassword: '',
   });
   
+  const [websiteData, setWebsiteData] = useState({
+    siteName: '',
+    siteUrl: '',
+  });
+  
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { toast } = useToast();
-  const router = useRouter();
-  const { setAuth } = useAuth();
+  const { setAuth, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (isAuthenticated && step === 1) {
+        updateStep(2);
+    }
+  }, [isAuthenticated, step]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -122,7 +153,7 @@ export default function SignUpPage() {
         description: "Now, please select a plan to get started.",
       });
 
-      setStep(2);
+      updateStep(2);
 
     } catch (error: any) {
       console.error('Signup error:', error);
@@ -144,9 +175,9 @@ export default function SignUpPage() {
         await api.post('/user/billing/select-free');
         toast({
           title: "Plan Activated",
-          description: "Your free starter plan is now active!",
+          description: "Your free starter plan is active! Now let's add your first website.",
         });
-        router.push('/websites');
+        updateStep(3);
       } else {
         const response = await api.post('/user/billing/checkout', { plan: planId });
         if (response.data.data.checkoutUrl) {
@@ -161,6 +192,34 @@ export default function SignUpPage() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleWebsiteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!websiteData.siteName.trim() || !websiteData.siteUrl.trim()) {
+        setError('Please fill in all website details');
+        return;
+    }
+
+    try {
+        setIsLoading(true);
+        const normalizedUrl = websiteData.siteUrl.startsWith('http') ? websiteData.siteUrl : `https://${websiteData.siteUrl}`;
+        await api.post('/user/websites', { 
+            name: websiteData.siteName.trim(), 
+            url: normalizedUrl 
+        });
+
+        toast({
+            title: "Success!",
+            description: "Your website has been added. Welcome to Seentics!",
+        });
+
+        router.push('/websites');
+    } catch (error: any) {
+        setError(error.message || 'Failed to add website');
+    } finally {
+        setIsLoading(false);
     }
   };
 
@@ -196,148 +255,86 @@ export default function SignUpPage() {
   ];
 
   return (
-    <div className={`min-h-screen grid ${step === 2 ? 'grid-cols-1' : 'lg:grid-cols-2'} bg-white dark:bg-[#020617] selection:bg-primary/20 transition-all duration-500`}>
+    <div className="min-h-screen bg-white dark:bg-[#020617] selection:bg-primary/20 transition-all duration-500 flex flex-col items-center justify-center p-8 overflow-y-auto custom-scrollbar">
       
-      {/* --- LEFT COLUMN: IMMERSIVE BRANDING --- */}
-      {step === 1 && (
-        <motion.div 
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.5 }}
-            className="relative hidden lg:flex flex-col justify-between p-16 bg-[#0B0F1A] overflow-hidden"
-        >
-         {/* Background Visuals */}
-         <div className="absolute inset-0 z-0">
-            <div className="absolute top-[-10%] left-[-10%] w-[80%] h-[80%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-500/10 rounded-full blur-[100px] animate-pulse delay-1000" />
-            
-            {/* Grid Pattern */}
-            <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] pointer-events-none" />
-            <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0)', backgroundSize: '40px 40px' }} />
-         </div>
+        {/* Background Visuals */}
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+            <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
+            <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/5 blur-[100px] rounded-full animate-pulse delay-1000" />
+        </div>
 
-         <div className="relative z-10">
-            <Link href="/" className="flex items-center gap-3 group">
+        <div className="relative z-10 w-full max-w-lg mb-12 text-center">
+            <Link href="/" className="inline-flex items-center gap-3 group mb-8">
                 <Logo size="xl" />
-                <span className="text-2xl font-black tracking-tighter text-white group-hover:text-primary transition-colors">SEENTICS</span>
+                <span className="text-2xl font-black tracking-tighter group-hover:text-primary transition-colors uppercase">SEENTICS</span>
             </Link>
-
-            <div className="mt-24 max-w-lg">
-                <motion.h1 
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.8 }}
-                    className="text-6xl font-black tracking-tight text-white leading-[1.1] mb-8"
-                >
-                    Predict the <br />
-                    <span className="text-primary italic">Unpredictable.</span>
-                </motion.h1>
-                <motion.p 
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                    className="text-slate-400 text-xl font-medium leading-relaxed"
-                >
-                    Don't just track data. Understand behavior. Seentics brings elite-level intelligence to every interaction.
-                </motion.p>
-            </div>
-         </div>
-
-        
-        </motion.div>
-      )}
-
-      {/* --- RIGHT COLUMN: AUTH FLOW --- */}
-      <div className="relative flex flex-col p-8  overflow-y-auto custom-scrollbar">
-        
-        {/* Mobile Header */}
-        <div className="lg:hidden flex items-center justify-between mb-6">
-            <Link href="/" className="flex items-center gap-2">
-                <Logo size="lg" />
-                <span className="text-xl font-black tracking-tight">SEENTICS</span>
-            </Link>
-            <Link href="/signin">
-                <Button variant="ghost" className="font-bold text-sm">Sign In</Button>
-            </Link>
-        </div>
-
-        {/* Desktop Top Nav Overlay */}
-        <div className="hidden lg:flex justify-end mb-6">
-            <div className="flex items-center gap-4">
-                <span className="text-sm font-medium text-slate-400">Already have an account?</span>
-                <Link href="/signin">
-                    <Button variant="outline" className="h-11 font-black text-xs uppercase tracking-widest rounded border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">Sign In</Button>
-                </Link>
-            </div>
-        </div>
-
-        <div className="flex-1 flex flex-col items-center justify-center max-w-4xl mx-auto w-full">
             
             {/* Step Indicator - Refined Minimalist */}
-            {/* <div className="w-full max-w-lg mb-12 px-4">
-                <div className="relative flex justify-between items-center h-10">
-                    <div className="absolute top-1/2 left-0 w-full h-px bg-slate-100 dark:bg-slate-800 -translate-y-1/2" />
-                    <motion.div 
-                        initial={false}
-                        animate={{ width: step === 1 ? '50%' : '100%' }}
-                        className="absolute top-1/2 left-0 h-[2px] bg-primary -translate-y-1/2 transition-all duration-1000 ease-in-out shadow-[0_0_8px_rgba(59,130,246,0.3)]"
-                    />
+            <div className="relative flex justify-between items-center h-10 px-4">
+                <div className="absolute top-1/2 left-4 right-4 h-px bg-slate-100 dark:bg-slate-800 -translate-y-1/2" />
+                <motion.div 
+                    initial={false}
+                    animate={{ width: step === 1 ? '0%' : step === 2 ? '50%' : '100%' }}
+                    className="absolute top-1/2 left-4 h-[2px] bg-primary -translate-y-1/2 transition-all duration-1000 ease-in-out shadow-[0_0_8px_rgba(59,130,246,0.3)]"
+                    style={{ maxWidth: 'calc(100% - 32px)' }}
+                />
 
-                    {[
-                        { id: 1, label: 'Identity' },
-                        { id: 2, label: 'Ascend' }
-                    ].map((s) => (
-                        <div key={s.id} className="relative z-10 flex flex-col items-center">
-                            <motion.div 
-                                animate={{ 
-                                    scale: step === s.id ? 1.1 : 1,
-                                    backgroundColor: step >= s.id ? 'var(--primary)' : 'var(--background)',
-                                    borderColor: step >= s.id ? 'var(--primary)' : 'rgb(226, 232, 240)'
-                                }}
-                                className={`h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-700 ${
-                                    step >= s.id ? 'text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-300 shadow-sm'
-                                }`}
-                            >
-                                {step > s.id ? <CheckCircle className="h-3.5 w-3.5" /> : <span className="text-[10px] font-black">{s.id}</span>}
-                            </motion.div>
-                            <span className={`absolute top-8 text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 whitespace-nowrap ${
-                                step === s.id ? 'text-primary' : 'text-slate-400 opacity-60'
-                            }`}>
-                                {s.label}
-                            </span>
-                            {step === s.id && (
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-primary/10 rounded-full blur-md -z-10 animate-pulse" />
-                            )}
-                        </div>
-                    ))}
-                </div>
-            </div> */}
+                {[
+                    { id: 1, label: 'Signup' },
+                    { id: 2, label: 'Plans' },
+                    { id: 3, label: 'Add Website' }
+                ].map((s) => (
+                    <div key={s.id} className="relative z-10 flex flex-col items-center">
+                        <motion.div 
+                            animate={{ 
+                                scale: step === s.id ? 1.1 : 1,
+                                backgroundColor: step >= s.id ? 'var(--primary)' : 'var(--background)',
+                                borderColor: step >= s.id ? 'var(--primary)' : 'rgb(226, 232, 240)'
+                            }}
+                            className={`h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-700 ${
+                                step >= s.id ? 'text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-300 shadow-sm'
+                            }`}
+                        >
+                            {step > s.id ? <CheckCircle className="h-3.5 w-3.5" /> : <span className="text-[10px] font-black">{s.id}</span>}
+                        </motion.div>
+                        <span className={`absolute top-8 text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 whitespace-nowrap ${
+                            step === s.id ? 'text-primary' : 'text-slate-500 opacity-60'
+                        }`}>
+                            {s.label}
+                        </span>
+                        {step === s.id && (
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 bg-primary/10 rounded-full blur-md -z-10 animate-pulse" />
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
 
+        <div className="relative z-10 w-full flex flex-col items-center justify-center">
             <AnimatePresence mode="wait">
                 {step === 1 ? (
                     <motion.div 
                         key="account"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
                         transition={{ duration: 0.5 }}
-                        className="w-full max-w-lg bg-slate-800 p-6 rounded-xl"
+                        className="w-full max-w-lg bg-slate-800 p-8 rounded-xl border border-slate-700/50 shadow-2xl"
                     >
-                        <div className="mb-10 text-center lg:text-left">
-                            <h2 className="text-4xl font-black tracking-tight mb-3">Begin your journey.</h2>
-                            <p className="text-slate-500 font-medium">Create your elite Seentics account in seconds.</p>
+                        <div className="mb-10 text-center">
+                            <h2 className="text-4xl font-black tracking-tight mb-3">Create account.</h2>
+                            <p className="text-slate-500 font-medium">Join the elite Seentics ecosystem.</p>
                         </div>
 
                         <form onSubmit={handleAccountSubmit} className="space-y-6">
                             {error && (
-                                <div className="p-4 rounded bg-red-50 dark:bg-red-500/10 border border-red-100 dark:border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold font-sans">
+                                <div className="p-4 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold font-sans">
                                     {error}
                                 </div>
                             )}
 
                             <div className="space-y-4">
-                                <div className="space-y-1.5 px-1">
+                                <div className="space-y-1.5 ">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Full Name</label>
                                     <div className="relative group">
                                         <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
@@ -346,13 +343,13 @@ export default function SignUpPage() {
                                             placeholder="Elon Musk"
                                             value={formData.name}
                                             onChange={handleInputChange}
-                                            className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                            className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                             required
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-1.5 px-1">
+                                <div className="space-y-1.5">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Your Email</label>
                                     <div className="relative group">
                                         <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
@@ -362,15 +359,15 @@ export default function SignUpPage() {
                                             placeholder="elon@x.com"
                                             value={formData.email}
                                             onChange={handleInputChange}
-                                            className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                            className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                             required
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-1.5 px-1">
+                                <div className="space-y-1.5">
                                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Security Password</label>
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="relative group">
                                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
                                             <Input
@@ -379,10 +376,10 @@ export default function SignUpPage() {
                                                 placeholder="••••••••"
                                                 value={formData.password}
                                                 onChange={handleInputChange}
-                                                className="h-14 pl-12 pr-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                className="h-14 pl-12 pr-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                                 required
                                             />
-                                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
+                                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors">
                                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                             </button>
                                         </div>
@@ -391,10 +388,10 @@ export default function SignUpPage() {
                                             <Input
                                                 name="confirmPassword"
                                                 type={showConfirmPassword ? "text" : "password"}
-                                                placeholder="Confirm Password"
+                                                placeholder="Confirm"
                                                 value={formData.confirmPassword}
                                                 onChange={handleInputChange}
-                                                className="h-14 pl-12 bg-slate-50 border-none dark:bg-slate-900/50 rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                                 required
                                             />
                                         </div>
@@ -405,27 +402,37 @@ export default function SignUpPage() {
                             <Button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full  p-6 bg-slate-900 dark:bg-primary hover:bg-slate-800 dark:hover:bg-primary/90 text-white font-black  uppercase tracking-widest rounded shadow-xl shadow-slate-200/50 dark:shadow-none transition-all active:scale-[0.98]"
+                                className="w-full h-16 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
                             >
                                 {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
                                     <span className="flex items-center gap-2">
-                                        Create Account <ArrowRight size={18} />
+                                        Create account <ArrowRight size={18} />
                                     </span>
                                 )}
                             </Button>
                         </form>
+
+                        <div className="mt-8 pt-8 border-t border-slate-700/50 text-center">
+                            <p className="text-sm font-medium text-slate-400">
+                                Already have an account?{' '}
+                                <Link href="/signin" className="text-primary font-black hover:underline uppercase tracking-widest text-xs">
+                                    Sign In
+                                </Link>
+                            </p>
+                        </div>
                     </motion.div>
-                ) : (
+                ) : step === 2 ? (
                     <motion.div 
                         key="plans"
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.5 }}
                         className="w-full max-w-5xl"
                     >
                         <div className="mb-12 text-center">
-                            <h2 className="text-4xl font-black tracking-tight mb-4">Choose your thrust.</h2>
-                            <p className="text-slate-500 font-medium">Activate the engine that fits your mission.</p>
+                            <h2 className="text-4xl font-black tracking-tight mb-4 text-slate-900 dark:text-white">Choose plan.</h2>
+                            <p className="text-slate-500 font-medium">Select the engine that fits your mission.</p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -435,15 +442,15 @@ export default function SignUpPage() {
                                     initial={{ opacity: 0, y: 20 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: i * 0.1 }}
-                                    className={`relative p-8 rounded-md border transition-all duration-500 overflow-hidden group ${
+                                    className={`relative p-8 rounded-xl border transition-all duration-500 overflow-hidden group ${
                                         plan.popular 
-                                        ? 'bg-slate-900 border-slate-800 text-white shadow-2xl' 
-                                        : 'bg-white dark:bg-slate-900/40 border-slate-100 dark:border-slate-800 hover:border-primary/50'
+                                        ? 'bg-slate-900 border-slate-800 text-white shadow-2xl scale-105 z-10' 
+                                        : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700/50 hover:border-primary/50'
                                     }`}
                                 >
                                     {plan.popular && (
                                         <div className="absolute top-6 right-6 px-3 py-1 bg-primary rounded-full text-[10px] font-black uppercase tracking-widest">
-                                            Peak Performance
+                                            Popular
                                         </div>
                                     )}
 
@@ -463,10 +470,10 @@ export default function SignUpPage() {
                                     <div className="space-y-4 mb-10">
                                         {plan.features.map((f, idx) => (
                                             <div key={idx} className="flex items-center gap-3">
-                                                <div className={`h-5 w-5 rounded-full flex items-center justify-center ${plan.popular ? 'bg-primary/20' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                                                <div className={`h-5 w-5 rounded-full flex items-center justify-center ${plan.popular ? 'bg-primary/20' : 'bg-slate-100 dark:bg-slate-700'}`}>
                                                     <CheckCircle className={`h-3 w-3 ${plan.popular ? 'text-primary' : 'text-slate-500'}`} />
                                                 </div>
-                                                <span className={`text-[13px] font-bold ${plan.popular ? 'text-slate-200' : 'text-slate-600 dark:text-slate-400'}`}>{f}</span>
+                                                <span className={`text-[13px] font-bold ${plan.popular ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300'}`}>{f}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -474,10 +481,10 @@ export default function SignUpPage() {
                                     <Button
                                         onClick={() => selectPlan(plan.id)}
                                         disabled={isLoading}
-                                        className={`w-full h-15 rounded font-black text-xs uppercase tracking-[0.2em] transition-all active:scale-95 ${
+                                        className={`w-full h-16 rounded-xl font-bold text-lg transition-all active:scale-95 ${
                                             plan.popular 
                                                 ? 'bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/25' 
-                                                : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-black'
+                                                : 'bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-900 dark:text-white'
                                         }`}
                                     >
                                         {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : plan.buttonText}
@@ -486,12 +493,84 @@ export default function SignUpPage() {
                             ))}
                         </div>
                     </motion.div>
+                ) : (
+                    <motion.div 
+                        key="website"
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="w-full max-w-lg bg-slate-800 rounded-xl p-8 border border-slate-700/50 shadow-2xl"
+                    >
+                        <div className="mb-10 text-center">
+                            <h2 className="text-4xl font-black tracking-tight mb-3">Add Website.</h2>
+                            <p className="text-slate-500 font-medium">Define your first target domain for tracking.</p>
+                        </div>
+
+                        <form onSubmit={handleWebsiteSubmit} className="space-y-6">
+                            {error && (
+                                <div className="p-4 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold">
+                                    {error}
+                                </div>
+                            )}
+
+                            <div className="space-y-4">
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Website Name</label>
+                                    <div className="relative group">
+                                        <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                        <Input
+                                            placeholder="My Awesome App"
+                                            value={websiteData.siteName}
+                                            onChange={(e) => setWebsiteData({...websiteData, siteName: e.target.value})}
+                                            className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-1.5">
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Website URL</label>
+                                    <div className="relative group">
+                                        <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                        <Input
+                                            placeholder="example.com"
+                                            value={websiteData.siteUrl}
+                                            onChange={(e) => setWebsiteData({...websiteData, siteUrl: e.target.value})}
+                                            className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full h-16 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
+                            >
+                                {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
+                                    <span className="flex items-center gap-2">
+                                        Finalize setup <ArrowRight size={18} />
+                                    </span>
+                                )}
+                            </Button>
+                        </form>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>
-
-      
-      </div>
     </div>
+  );
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+        <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-[#020617]">
+            <Loader2 className="animate-spin h-10 w-10 text-primary mb-4" />
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Loading Flow...</p>
+        </div>
+    }>
+      <SignUpFlow />
+    </Suspense>
   );
 }

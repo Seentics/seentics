@@ -176,15 +176,15 @@ export default function PricingPage() {
                                         variant={plan.recommended ? "brand" : "outline"}
                                         disabled={loadingPlan !== null}
                                         onClick={() => handleCheckout(plan.id)}
-                                        className={`w-full h-14 rounded font-black text-sm gap-2 transition-all ${plan.recommended ? 'shadow-xl shadow-primary/25' : 'hover:bg-slate-100 dark:hover:bg-slate-900'
+                                        className={`w-full h-16 rounded-xl font-bold text-lg gap-2 transition-all ${plan.recommended ? 'shadow-xl shadow-primary/25' : 'hover:bg-slate-100 dark:hover:bg-slate-900'
                                             }`}
                                     >
                                         {loadingPlan === plan.id ? (
-                                            <Loader2 size={18} className="animate-spin" />
+                                            <Loader2 size={24} className="animate-spin" />
                                         ) : (
                                             <>
                                                 Get Started
-                                                <ArrowRight size={18} />
+                                                <ArrowRight size={20} />
                                             </>
                                         )}
                                     </Button>

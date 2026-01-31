@@ -4,31 +4,34 @@ import { Button } from '@/components/ui/button';
 import { HelpCircle, MessageCircle, ArrowRight, Sparkles, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useAuth } from '@/stores/useAuthStore';
 
 const faqs = [
   {
-    question: "Is Seentics really free forever?",
-    answer: "Yes. Our Starter plan is 100% free and includes everything you need for a single website. We don't even ask for a credit card. We believe high-quality analytics should be accessible to everyone."
+    question: "Is it really free?",
+    answer: "Yes. Our Starter plan is 100% free for a single website. No credit card required. We believe high-quality analytics should be accessible to everyone."
   },
   {
-    question: "How does the tracking script affect performance?",
-    answer: "Our script is ultra-lightweight (under 2KB). It's designed for performance and won't affect your Core Web Vitals or page load speed. It's significantly faster than Google Analytics and other legacy trackers."
+    question: "Will it slow down my site?",
+    answer: "No. Our script is ultra-lightweight (under 2KB). It's designed for performance and won't affect your page load speed or SEO."
   },
   {
-    question: "Is Seentics GDPR and CCPA compliant?",
-    answer: "Absolutely. We are cookieless by default and don't collect any personally identifiable information (PII). All data is processed and stored in compliance with the strictest privacy regulations."
+    question: "Is my data safe and private?",
+    answer: "Absolutely. We don't use cookies or collect personal data. Everything is built to be private and compliant with global regulations."
   },
   {
-    question: "Can I import my data from Google Analytics?",
-    answer: "Yes! We offer a seamless import tool for both Universal Analytics and GA4 property data. You can bring your entire history into Seentics and continue your growth without losing context."
+    question: "Can I import from Google Analytics?",
+    answer: "Yes. We have a simple tool to bring your data over from Google Analytics (UA or GA4) so you don't lose your history."
   },
   {
-    question: "Do you offer custom enterprise solutions?",
-    answer: "We do. For high-volume websites or specific infrastructure needs, we offer dedicated environments, volume discounts, and white-labeling. Contact our sales team for a custom quote."
+    question: "Do you offer custom plans?",
+    answer: "We do. For high-volume sites or specific needs, we offer custom infrastructure and volume discounts. Contact us to learn more."
   }
 ];
 
 export default function FAQ() {
+  const { isAuthenticated } = useAuth();
+  
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -47,7 +50,7 @@ export default function FAQ() {
   };
 
   return (
-    <section id="faq" className="py-24 sm:py-32 relative overflow-hidden bg-background">
+    <section id="faq" className="py-24 sm:py-48 relative overflow-hidden bg-white dark:bg-[#020617]">
       <div className="container mx-auto px-6 relative z-10">
         
         {/* Header Section */}
@@ -56,7 +59,7 @@ export default function FAQ() {
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-6"
+            className="text-[10px] font-black tracking-[0.3em] text-primary mb-6"
           >
             Resolution
           </motion.div>
@@ -64,13 +67,13 @@ export default function FAQ() {
             initial={{ opacity: 0, scale: 0.98 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="text-4xl sm:text-6xl  font-[1000] tracking-[-0.03em] mb-10 leading-[0.95]"
+            className="text-4xl sm:text-6xl font-black tracking-tighter mb-10 leading-[0.95]"
           >
             Common questions. <br />
-            <span className="gradient-text">Instant answers.</span>
+            <span className="text-primary italic">Instant answers.</span>
           </motion.h2>
-          <p className="text-lg sm:text-xl text-muted-foreground/60 max-w-2xl mx-auto font-medium tracking-tight">
-            Everything you need to know about getting started with the most powerful analytics engine.
+          <p className="text-lg sm:text-xl text-muted-foreground/60 max-w-2xl mx-auto font-bold tracking-tight">
+            Everything you need to know about scaling your digital intelligence with Seentics.
           </p>
         </div>
 
@@ -126,32 +129,32 @@ export default function FAQ() {
                 Join 500+ businesses who have already upgraded to a faster, cleaner, and more sovereign analytics engine.
               </p>
               
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-5">
-                <Link href="/signup" className="w-full sm:w-auto">
-                  <Button variant="brand" size="lg" className="w-full sm:w-auto h-16 px-12 rounded-full font-black text-[10px] uppercase tracking-[0.25em] active:scale-95 group">
-                    Get Started Free
-                    <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                  </Button>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
+                <Link href={isAuthenticated ? "/websites" : "/signup"} className="w-full sm:w-auto">
+                    <Button variant="brand" size="lg" className="w-full sm:w-auto h-16 px-12 rounded-xl font-bold text-lg active:scale-95 group shadow-2xl shadow-primary/20">
+                        {isAuthenticated ? "Go to dashboard" : "Get started free"}
+                        <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
+                    </Button>
                 </Link>
                 <Link href="/websites/demo" className="w-full sm:w-auto">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto h-16 px-12 rounded-full glass border-white/10 font-black text-[10px] uppercase tracking-[0.25em] hover:bg-white/5 transition-all active:scale-95">
-                    View Live Demo
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto h-16 px-12 rounded-xl glass border-white/10 font-bold text-lg hover:bg-white/5 transition-all active:scale-95">
+                    View live demo
                   </Button>
                 </Link>
               </div>
               
               <div className="mt-12 flex flex-wrap items-center justify-center gap-8 opacity-40 grayscale group-hover:grayscale-0 transition-all">
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                <div className="flex items-center gap-2 text-[10px] font-black tracking-[0.2em]">
                   <CheckCircle className="h-4 w-4 text-primary" />
                   No card required
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                <div className="flex items-center gap-2 text-[10px] font-black tracking-[0.2em]">
                   <CheckCircle className="h-4 w-4 text-primary" />
                   GDPR Sovereign
                 </div>
-                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em]">
+                <div className="flex items-center gap-2 text-[10px] font-black tracking-[0.2em]">
                   <CheckCircle className="h-4 w-4 text-primary" />
-                  Instant Activation
+                  Instant activation
                 </div>
               </div>
             </div>

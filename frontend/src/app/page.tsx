@@ -3,8 +3,6 @@ import React from 'react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
 import Features from '@/components/landing/Features';
-import ResultsShowcase from '@/components/landing/ResultsShowcase';
-import VisualFunnels from '@/components/landing/VisualFunnels';
 import Pricing from '@/components/landing/Pricing';
 import { LifetimeDeal } from '@/components/landing/LifetimeDeal';
 import FAQ from '@/components/landing/FAQ';

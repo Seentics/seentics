@@ -134,129 +134,80 @@ export default function WebsitesPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-background">
-      {/* Left Column: Branding Section */}
-      <div className="hidden lg:flex flex-col justify-between p-16 w-full max-w-xl bg-accent/5 relative overflow-hidden border-r border-border/40">
-        <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
-            <div className="absolute top-[-10%] left-[-10%] w-[80%] h-[80%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-500/5 rounded-full blur-[100px] animate-pulse delay-700" />
+    <div className="min-h-screen bg-white dark:bg-[#020617] selection:bg-primary/20 transition-all duration-500 flex flex-col items-center justify-center p-8 overflow-y-auto custom-scrollbar relative">
+      
+        {/* Background Visuals */}
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+            <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
+            <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/5 blur-[100px] rounded-full animate-pulse delay-1000" />
         </div>
 
-        <div className="relative z-10">
-          <Link href="/">
-            <Logo size="xl" showText={true} textClassName="text-3xl font-black text-foreground tracking-tighter" />
-          </Link>
-          
-          <div className="mt-32">
-            <h1 className="text-5xl font-black tracking-tight mb-8 leading-[1.1] text-foreground">
-              Launch your <br />
-              <span className="text-primary italic">Intelligence Engine.</span>
-            </h1>
-            <p className="text-muted-foreground text-xl font-medium leading-relaxed max-w-md opacity-80">
-              Add your first website to start tracking visitors in real-time. Experience the power of privacy-first analytics.
-            </p>
-          </div>
-        </div>
-
-        <div className="relative z-10 space-y-8">
-            <div className="flex items-center gap-5 group">
-              <div className="h-12 w-12 rounded bg-primary/10 border border-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                <Sparkles className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="font-black text-sm text-foreground uppercase tracking-widest">Instant Insights</p>
-                <p className="text-xs text-muted-foreground font-medium opacity-60 italic">Live data streaming as it happens.</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-5 group">
-              <div className="h-12 w-12 rounded bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform">
-                <Code className="h-6 w-6" />
-              </div>
-              <div>
-                <p className="font-black text-sm text-foreground uppercase tracking-widest">Easy Installation</p>
-                <p className="text-xs text-muted-foreground font-medium opacity-60 italic">Just one line of code to deploy.</p>
-              </div>
-            </div>
-        </div>
-      </div>
-
-      {/* Right Column: Form Section */}
-      <div className="flex-1 flex flex-col relative overflow-hidden px-6 py-12 md:p-24 bg-background">
-        <div className="absolute inset-0 pointer-events-none opacity-20 flex items-center justify-center overflow-hidden -z-10">
-            <div className="w-[800px] h-[800px] bg-primary/5 blur-[150px] rounded-full" />
-        </div>
-
-        <div className="lg:hidden mb-12 self-center">
-             <Link href="/">
-                <Logo size="xl" showText={true} textClassName="text-3xl font-black text-foreground tracking-tighter" />
+        <div className="relative z-10 w-full max-w-lg mb-12 text-center">
+            <Link href="/" className="inline-flex items-center gap-3 group mb-8">
+                <Logo size="xl" />
+                <span className="text-2xl font-black tracking-tighter group-hover:text-primary transition-colors uppercase">SEENTICS</span>
             </Link>
         </div>
 
-        <div className="flex-1 flex items-center justify-center">
+        <div className="relative z-10 w-full flex flex-col items-center justify-center">
             <div className="w-full max-w-lg">
                 <AnimatePresence mode="wait">
                     {!newlyCreatedSiteId ? (
                         <motion.div
                             key="add-form"
-                            initial={{ opacity: 0, y: 30 }}
+                            initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -30 }}
-                            transition={{ duration: 0.5, ease: "easeOut" }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.5 }}
+                            className="bg-slate-800 p-8 rounded-xl border border-slate-700/50 shadow-2xl"
                         >
-                            <div className="mb-12 text-center md:text-left">
-                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary mb-3">Onboarding Flow</p>
-                                <h2 className="text-4xl font-black tracking-tighter mb-4 text-foreground">Add Domain</h2>
-                                <p className="text-muted-foreground font-medium text-lg leading-relaxed opacity-60">
-                                    Start tracking your first domain with Seentics.
-                                </p>
+                            <div className="mb-10 text-center">
+                                <h2 className="text-4xl font-black tracking-tight mb-3">Add Website.</h2>
+                                <p className="text-slate-500 font-medium">Define your target domain for tracking.</p>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="space-y-8">
-                                <div className="space-y-3">
-                                    <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-60">Website Name</Label>
-                                    <Input
-                                        id="name"
-                                        placeholder="Seentics Analytics"
-                                        value={name}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                                        disabled={isSubmitting}
-                                        className="h-14 bg-accent/5 border-border/40 focus:border-primary/50 focus:ring-primary/20 rounded text-base font-bold px-6"
-                                        required
-                                    />
-                                </div>
-                                
-                                <div className="space-y-3">
-                                    <Label htmlFor="url" className="text-[10px] font-black uppercase tracking-[0.15em] ml-1 opacity-60">Website URL</Label>
-                                    <Input
-                                        id="url"
-                                        type="text"
-                                        placeholder="seentics.com"
-                                        value={url}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
-                                        disabled={isSubmitting}
-                                        className="h-14 bg-accent/5 border-border/40 focus:border-primary/50 focus:ring-primary/20 rounded text-base font-bold px-6"
-                                        required
-                                    />
-                                    <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest ml-1 opacity-30 mt-2">
-                                        Exclude protocols (e.g., app.seentics.com)
-                                    </p>
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div className="space-y-4">
+                                    <div className="space-y-1.5 ">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Website Name</label>
+                                        <div className="relative group">
+                                            <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                            <Input
+                                                placeholder="My Awesome App"
+                                                value={name}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                                                className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-1.5">
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Website URL</label>
+                                        <div className="relative group">
+                                            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                            <Input
+                                                placeholder="example.com"
+                                                value={url}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
+                                                className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                required
+                                            />
+                                        </div>
+                                        <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest ml-1 opacity-40">
+                                            Exclude protocols (e.g., mysite.com)
+                                        </p>
+                                    </div>
                                 </div>
 
-                                <Button 
-                                    type="submit" 
-                                    variant="brand"
-                                    className="w-full h-16 text-lg font-black shadow-2xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded active:scale-[0.98] mt-4" 
+                                <Button
+                                    type="submit"
                                     disabled={isSubmitting}
+                                    className="w-full h-15 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest rounded shadow-xl transition-all active:scale-[0.98]"
                                 >
-                                    {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                                            Initializing Engine...
-                                        </>
-                                    ) : (
-                                        <span className="flex items-center gap-3">
-                                            Create and Track
-                                            <ArrowRight size={20} strokeWidth={3} />
+                                    {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : (
+                                        <span className="flex items-center gap-2">
+                                            Create and Track <ArrowRight size={18} />
                                         </span>
                                     )}
                                 </Button>
@@ -267,25 +218,23 @@ export default function WebsitesPage() {
                             key="tracking-code"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="bg-card border border-border shadow-2xl rounded-[2.5rem] p-10 relative overflow-hidden"
+                            className="bg-slate-800 p-8 rounded-xl border border-slate-700/50 shadow-2xl relative overflow-hidden"
                         >
-                            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-primary via-blue-500 to-primary/50" />
+                            <div className="absolute top-0 left-0 right-0 h-1 bg-primary" />
                             
-                            <div className="mb-10">
-                                <div className="flex items-center gap-4 text-emerald-500 mb-6">
-                                    <div className="h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">
-                                        <CheckCircle size={32} />
-                                    </div>
-                                    <h2 className="text-3xl font-black text-foreground tracking-tighter">Setup Complete!</h2>
+                            <div className="mb-10 text-center">
+                                <div className="flex items-center justify-center gap-3 text-emerald-500 mb-4">
+                                    <CheckCircle size={32} />
+                                    <h2 className="text-3xl font-black text-white tracking-tight">Setup Complete!</h2>
                                 </div>
-                                <p className="text-muted-foreground font-bold text-lg leading-relaxed">
-                                    Your website <span className="text-primary font-black">{name}</span> is ready. Add the tracking script to your site's <span className="text-foreground font-black italic">{'<head>'}</span> section.
+                                <p className="text-slate-400 font-bold leading-relaxed">
+                                    Your website <span className="text-primary font-black">{name}</span> is ready. Add the tracking script to your site's <span className="text-white font-black italic">{'<head>'}</span> section.
                                 </p>
                             </div>
 
                             <div className="space-y-4">
-                                <div className="flex items-center justify-between mb-3 px-1">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">Tracking Code</span>
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Tracking Snippet</span>
                                     <Button
                                         size="sm"
                                         variant="ghost"
@@ -296,7 +245,7 @@ export default function WebsitesPage() {
                                     </Button>
                                 </div>
                                 <div className="relative group">
-                                    <pre className="p-8 rounded-[1.5rem] bg-accent/5 border border-border/40 text-[11px] font-mono leading-relaxed overflow-x-auto text-foreground shadow-inner custom-scrollbar">
+                                    <pre className="p-6 rounded bg-slate-900 border border-slate-700/50 text-[11px] font-mono leading-relaxed overflow-x-auto text-slate-300 shadow-inner custom-scrollbar">
                                         <code>{trackingCode}</code>
                                     </pre>
                                 </div>
@@ -304,15 +253,14 @@ export default function WebsitesPage() {
 
                             <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Button 
-                                    variant="brand" 
-                                    className="h-14 rounded font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20"
+                                    className="h-14 bg-primary hover:bg-primary/90 text-white rounded font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20"
                                     onClick={() => router.push(`/websites/${newlyCreatedSiteId}`)}
                                 >
                                     Dashboard
                                 </Button>
                                 <Button 
                                     variant="outline" 
-                                    className="h-14 rounded font-black uppercase tracking-widest text-xs border-border/40 bg-transparent hover:bg-accent/5"
+                                    className="h-14 bg-slate-900 border-none hover:bg-slate-900/80 text-white rounded font-black uppercase tracking-widest text-xs"
                                     onClick={() => setNewlyCreatedSiteId(null)}
                                 >
                                     Add Another
@@ -324,15 +272,14 @@ export default function WebsitesPage() {
             </div>
         </div>
 
-        <div className="mt-12 self-center lg:self-start">
+        <div className="mt-12 text-center">
              <Link href="/">
-                <Button variant="ghost" size="sm" className="text-muted-foreground font-black uppercase tracking-widest text-[10px] hover:bg-transparent hover:text-primary transition-colors px-0 group">
+                <Button variant="ghost" size="sm" className="text-slate-500 font-black uppercase tracking-widest text-[10px] hover:bg-transparent hover:text-primary transition-colors px-0 group">
                     <ArrowLeft size={16} className="mr-3 group-hover:-translate-x-1 transition-transform" />
-                    Explorer Mode
+                    Back to Explorer
                 </Button>
             </Link>
         </div>
-      </div>
     </div>
   );
 }

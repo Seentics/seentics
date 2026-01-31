@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Play, LayoutDashboard, MousePointer2 } from 'lucide-react';
+import { ArrowRight, Play, LayoutDashboard, MousePointer2, ShieldCheck, CheckCircle, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/stores/useAuthStore';
 
@@ -24,11 +24,11 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-60 pb-40 overflow-hidden bg-background">
-      {/* Soft Mesh Background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/10 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-violet-500/5 blur-[100px] rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
+    <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-60 pb-40 overflow-hidden bg-white dark:bg-[#020617]">
+      {/* Ambient Background Visuals */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
+        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-blue-500/5 blur-[100px] rounded-full animate-pulse delay-1000" />
       </div>
 
       <div className="container mx-auto px-6 relative z-10">
@@ -38,34 +38,21 @@ export default function Hero() {
           animate="visible"
           className="max-w-5xl mx-auto flex flex-col items-center text-center"
         >
-          {/* Status Badge */}
-          {/* <motion.div variants={itemVariants} className="mb-8">
-            <Link href="https://github.com/skshohagmiah/seentics-analytics" target="_blank">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-md text-[11px] font-bold uppercase tracking-wider text-primary shadow-sm hover:bg-primary/10 transition-colors">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-                </span>
-                Open Source • Contributions Welcome
-              </div>
-            </Link>
-          </motion.div> */}
-
           {/* Headline */}
           <motion.h1
             variants={itemVariants}
-            className="text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.1] mb-8 text-foreground"
+            className="text-4xl sm:text-6xl md:text-7xl font-black tracking-[-0.02em] leading-[1.2] mb-10 text-foreground"
           >
-            Track. Analyze. <br />
-            <span className="gradient-text font-black text-indigo-600 dark:text-indigo-400">Automate.</span>
+            Track visitors, take <br />
+            <span className="text-primary italic">actions</span> automatically.
           </motion.h1>
 
           {/* Subheadline */}
           <motion.p
             variants={itemVariants}
-            className="text-lg sm:text-xl text-muted-foreground/70 max-w-3xl mx-auto mb-12 leading-relaxed font-medium"
+            className="text-lg sm:text-xl text-muted-foreground/60 max-w-3xl mx-auto mb-14 leading-[1.7] font-bold tracking-tight"
           >
-            The world&apos;s first platform seamlessly integrating <span className="text-foreground font-bold">Website Analytics</span>, <span className="text-foreground font-bold">Visual Funnels</span>, and <span className="text-foreground font-bold">Marketing Automations</span> for data-driven growth.
+            Powerful analytics to understand your audience, visual funnels to find drop-offs, and automation workflows to engage users at the perfect moment.
           </motion.p>
 
           {/* Action Hub */}
@@ -73,98 +60,98 @@ export default function Hero() {
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
               {isAuthenticated ? (
                 <Link href="/websites" className="w-full sm:w-auto">
-                  <Button variant="brand" size="lg" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded w-full sm:w-auto active:scale-95 group shadow-xl shadow-primary/20">
-                    Go to Dashboard
-                    <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  <Button variant="brand" className="h-16 px-12 text-lg font-bold rounded-xl active:scale-95 group shadow-2xl shadow-primary/20 transition-all">
+                    Go to dashboard
+                    <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
               ) : (
                 <Link href="/signup" className="w-full sm:w-auto">
-                  <Button variant="brand" size="lg" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded w-full sm:w-auto active:scale-95 group shadow-xl shadow-primary/20">
-                    Start Free Forever
-                    <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  <Button variant="brand" className="h-16 px-12 text-lg font-bold rounded-xl active:scale-95 group shadow-2xl shadow-primary/20 transition-all">
+                    Get started for free
+                    <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
               )}
               <Link href="/websites/demo" className="w-full sm:w-auto">
-                <Button size="lg" variant="secondary" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded w-full sm:w-auto bg-white/10 border-white/20 hover:bg-white/20 text-foreground transition-all flex items-center justify-center gap-3 backdrop-blur-md">
-                  <Play className="h-3 w-3 fill-current" />
-                  Live Demo Preview
+                <Button variant="outline" className="h-16 px-12 text-lg font-bold rounded-xl w-full sm:w-auto bg-transparent border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-foreground transition-all flex items-center justify-center gap-3">
+                  <Play className="h-5 w-5 fill-current text-primary" />
+                  View live demo
                 </Button>
               </Link>
             </div>
 
-            {/* Feature Tags */}
-            {/* <div className="flex flex-wrap justify-center gap-3 max-w-2xl px-6">
-              {[
-                "Web Analytics",
-                "Visual Funnels",
-                "Marketing Automations"
-              ].map((tag) => (
-                <div key={tag} className="px-3 py-1.5 rounded bg-accent/5 border border-border/40 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
-                  <div className="w-1 h-1 rounded-full bg-primary" />
-                  {tag}
-                </div>
-              ))}
-            </div> */}
+            {/* Trust Badges */}
+            <div className="flex flex-wrap justify-center gap-8 mt-4 opacity-80 grayscale-[0.5] hover:grayscale-0 transition-all duration-500">
+               <div className="flex items-center gap-3">
+                 <ShieldCheck className="h-5 w-5 text-primary" />
+                 <span className="text-sm font-bold tracking-wide text-foreground/80">Privacy First</span>
+               </div>
+               <div className="flex items-center gap-3">
+                 <CheckCircle className="h-5 w-5 text-primary" />
+                 <span className="text-sm font-bold tracking-wide text-foreground/80">GDPR Compliant</span>
+               </div>
+               <div className="flex items-center gap-3">
+                 <Zap className="h-5 w-5 text-primary" />
+                 <span className="text-sm font-bold tracking-wide text-foreground/80">Lightweight Script</span>
+               </div>
+            </div>
           </motion.div>
 
           {/* High-Fidelity Dashboard Card */}
           <motion.div
             variants={itemVariants}
-            className="relative w-full max-w-4xl group"
+            className="relative w-full max-w-5xl"
           >
-            <div className="absolute -inset-10 bg-primary/10 blur-[80px] opacity-0 group-hover:opacity-100 transition-opacity duration-1000 -z-10" />
+            <div className="absolute -inset-10 bg-primary/10 blur-[100px] opacity-50 -z-10" />
 
-            <div className="relative glass p-2 rounded border-white/10 shadow-2xl overflow-hidden aspect-[16/10] bg-black/5 dark:bg-white/5 backdrop-blur-[40px]">
-              <div className="w-full h-full rounded bg-background/50 p-6 sm:p-10 flex flex-col items-start justify-start text-left relative overflow-hidden">
+            <div className="relative p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-2xl overflow-hidden aspect-[16/9]">
+              <div className="w-full h-full rounded-lg bg-white dark:bg-slate-900 p-8 flex flex-col items-start justify-start text-left relative overflow-hidden">
 
                 {/* Mock UI Header */}
-                <div className="w-full flex items-center justify-between mb-8 pb-4 border-b border-border/40">
+                <div className="w-full flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
-                      <LayoutDashboard className="h-4 w-4 text-primary" />
+                    <div className="w-10 h-10 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
+                      <LayoutDashboard className="h-5 w-5 text-primary" />
                     </div>
-                    <div className="h-4 w-32 bg-foreground/10 rounded" />
+                    <div className="h-5 w-40 bg-slate-100 dark:bg-slate-800 rounded-full" />
                   </div>
-                  <div className="flex gap-2">
-                    <div className="h-2 w-8 bg-foreground/5 rounded" />
-                    <div className="h-2 w-12 bg-foreground/10 rounded" />
+                  <div className="flex gap-3">
+                    <div className="h-3 w-12 bg-slate-50 dark:bg-slate-800/50 rounded-full" />
+                    <div className="h-3 w-20 bg-primary/20 rounded-full" />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-6 w-full mb-8">
+                <div className="grid grid-cols-3 gap-6 w-full mb-10">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="p-5 rounded bg-white/5 border border-white/5 flex flex-col gap-3">
-                      <div className="h-2 w-16 bg-muted-foreground/20 rounded" />
-                      <div className="h-6 w-24 bg-foreground/10 rounded" />
+                    <div key={i} className="p-6 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/30 flex flex-col gap-3">
+                      <div className="h-2.5 w-20 bg-slate-200 dark:bg-slate-700 rounded-full" />
+                      <div className="h-8 w-32 bg-slate-900 dark:bg-white/10 rounded" />
                     </div>
                   ))}
                 </div>
 
                 {/* Large Chart Area */}
-                <div className="w-full flex-1 rounded bg-white/5 border border-white/5 p-6 relative">
-                  <div className="absolute inset-x-6 bottom-6 h-[60%] flex items-end gap-2">
-                    {[40, 70, 45, 90, 65, 80, 55, 75, 50, 85].map((h, i) => (
+                <div className="w-full flex-1 rounded-lg bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800/50 p-8 relative overflow-hidden">
+                    {/* Simplified Grid Lines */}
+                    <div className="absolute inset-0 flex flex-col justify-between p-8 opacity-10">
+                        {[1, 2, 3, 4].map(i => <div key={i} className="h-px bg-slate-400 w-full" />)}
+                    </div>
+                  <div className="absolute inset-x-8 bottom-8 h-[70%] flex items-end gap-3">
+                    {[35, 65, 40, 85, 55, 75, 50, 95, 60, 80, 45, 90].map((h, i) => (
                       <div
                         key={i}
-                        className="flex-1 bg-primary/20 rounded-t-sm hover:bg-primary/40 transition-colors"
+                        className="flex-1 bg-primary/10 hover:bg-primary/30 transition-all duration-500 rounded-t-sm relative group"
                         style={{ height: `${h}%` }}
                       >
-                        {i === 3 && <div className="absolute -top-10 left-1/2 -translate-x-1/2 glass px-3 py-1 rounded text-[10px] font-bold text-primary animate-bounce">Live +24%</div>}
+                        {i === 7 && (
+                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-2 bg-primary text-white text-[10px] font-black tracking-widest rounded shadow-xl animate-bounce">
+                                Live
+                            </div>
+                        )}
+                        <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-20 transition-opacity" />
                       </div>
                     ))}
-                  </div>
-                </div>
-
-                {/* Floating Snippets */}
-                <div className="absolute top-1/4 -right-12 hidden xl:block">
-                  <div className="glass p-4 rounded shadow-xl border-white/10 w-48 animate-float" style={{ animationDelay: '1s' }}>
-                    <div className="flex items-center gap-3 mb-2">
-                      <MousePointer2 className="h-3 w-3 text-primary" />
-                      <div className="h-1.5 w-12 bg-foreground/20 rounded" />
-                    </div>
-                    <div className="h-3 w-24 bg-foreground/10 rounded" />
                   </div>
                 </div>
               </div>
@@ -178,14 +165,13 @@ export default function Hero() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.5, duration: 1 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 text-muted-foreground"
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 text-slate-400"
       >
-        <span className="text-[10px] font-bold uppercase tracking-[0.3em]">Explore</span>
-        <div className="relative h-12 w-[1px] bg-foreground/10 overflow-hidden">
+        <div className="relative h-12 w-[2px] bg-slate-100 dark:bg-slate-800 overflow-hidden rounded-full">
           <motion.div
             animate={{ y: [0, 48] }}
             transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="absolute top-0 w-full h-1/2 bg-gradient-to-b from-transparent via-primary to-transparent"
+            className="absolute top-0 w-full h-1/2 bg-primary"
           />
         </div>
       </motion.div>

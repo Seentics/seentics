@@ -7,20 +7,20 @@ import Link from "next/link";
 import { useAuth } from "@/stores/useAuthStore";
 
 const FEATURES = [
-    "Unlimited Websites Tracking",
-    "Lifetime Data Storage",
-    "Real-time Analytics Dashboard",
-    "Conversion Goal Tracking",
-    "Automated PDF Reports",
-    "Priority Dev Support",
-    "All Future Features Included",
-    "Privacy-First (GDPR Ready)"
+    "Track unlimited websites",
+    "Lifetime data storage",
+    "Live analytics dashboard",
+    "Track your sales goals",
+    "Automated PDF reports",
+    "Priority technical support",
+    "All future updates included",
+    "Privacy focused design"
 ];
 
 export function LifetimeDeal() {
     const { isAuthenticated } = useAuth();
     return (
-        <section className="py-24 relative overflow-hidden bg-slate-50/50 dark:bg-slate-950/50" id="lifetime-deal">
+        <section className="py-24 sm:py-48 relative overflow-hidden bg-white dark:bg-[#020617]" id="lifetime-deal">
             <div className="container mx-auto px-6">
                 <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-16">
                     
@@ -32,13 +32,13 @@ export function LifetimeDeal() {
                             viewport={{ once: true }}
                             transition={{ duration: 0.7 }}
                         >
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold uppercase tracking-wider mb-8">
+                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold tracking-wider mb-8">
                                 <Sparkles size={14} className="animate-pulse" />
                                 Exclusive Early Adopter Deal
                             </div>
                             <h2 className="text-4xl md:text-6xl font-black tracking-tighter mb-6 leading-none text-slate-900 dark:text-white">
-                                One Payment. <br />
-                                <span className="text-indigo-600 dark:text-indigo-400">Lifetime Insight.</span>
+                                One payment. <br />
+                                <span className="text-primary italic">Lifetime access.</span>
                             </h2>
                             <p className="text-lg text-slate-600 dark:text-slate-400 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
                                 Ditch the monthly subscriptions. Lock in lifetime access to the Seentics Analytics Pro stack and never worry about recurring costs again.
@@ -83,13 +83,13 @@ export function LifetimeDeal() {
                         <div className="relative group p-1 ring-1 ring-slate-200 dark:ring-slate-800 rounded-[3rem] bg-white dark:bg-slate-900 shadow-2xl">
                              {/* Floating Elements */}
                             <div className="absolute -top-6 -right-6 h-12 w-12 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg transform rotate-12 z-20 font-black text-xs">
-                                HOT
+                                Hot
                             </div>
 
                             <div className="relative rounded-[2.8rem] p-10 overflow-hidden border-2 border-transparent">
                                 <div className="flex justify-between items-center mb-8">
-                                    <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Lifetime Plan</p>
-                                    <div className="px-3 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500">POPULAR</div>
+                                    <p className="text-xs font-black tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Lifetime plan</p>
+                                    <div className="px-3 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500">Popular</div>
                                 </div>
 
                                 <div className="mb-10 text-center lg:text-left">
@@ -97,7 +97,7 @@ export function LifetimeDeal() {
                                         <span className="text-7xl font-black tracking-tighter text-slate-900 dark:text-white">$99</span>
                                         <div className="flex flex-col">
                                             <span className="text-lg text-slate-400 line-through font-bold decoration-red-500/50 decoration-2">$299</span>
-                                            <span className="text-xs font-bold text-green-500">65% OFF</span>
+                                            <span className="text-xs font-bold text-green-500">65% off</span>
                                         </div>
                                     </div>
                                     <p className="text-slate-500 text-sm font-medium mt-2">One-time payment, unlimited value</p>
@@ -109,15 +109,17 @@ export function LifetimeDeal() {
                                             <Zap size={22} fill="white" />
                                         </div>
                                         <div>
-                                            <p className="font-black text-sm text-slate-900 dark:text-white">Pro Perks Enabled</p>
+                                            <p className="font-black text-sm text-slate-900 dark:text-white">Pro perks enabled</p>
                                             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-1">Unlock all current and future pro features without monthly bills.</p>
                                         </div>
                                     </div>
                                 </div>
 
-                                <Link href={isAuthenticated ? "/websites" : "/signup"} className="group relative w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 text-white py-5 rounded text-lg font-black transition-all hover:bg-black dark:hover:bg-indigo-500 shadow-xl active:scale-95">
-                                    {isAuthenticated ? "Go to Dashboard" : "Grab the Deal"}
-                                    <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
+                                <Link href={isAuthenticated ? "/websites" : "/signup"} className="w-full">
+                                    <Button variant="brand" className="w-full h-16 px-12 text-lg font-bold rounded-xl active:scale-95 group shadow-2xl shadow-primary/20 transition-all flex items-center justify-center gap-4">
+                                        {isAuthenticated ? "Go to dashboard" : "Grab the deal"}
+                                        <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
+                                    </Button>
                                 </Link>
 
                                 <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
@@ -128,10 +130,10 @@ export function LifetimeDeal() {
                                             </div>
                                         ))}
                                         <div className="h-9 w-9 rounded-full border-2 border-white dark:border-slate-900 bg-indigo-600 flex items-center justify-center text-[10px] font-black text-white">
-                                            +4K
+                                            +4k
                                         </div>
                                     </div>
-                                    <p className="text-[10px] font-bold text-slate-400 tracking-wide">TRUSTED WORLDWIDE</p>
+                                    <p className="text-[10px] font-bold text-slate-400 tracking-wide">Trusted worldwide</p>
                                 </div>
                             </div>
                         </div>

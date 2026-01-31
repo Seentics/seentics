@@ -157,13 +157,13 @@ export default function ForgotPasswordPage() {
                                 <Button
                                     type="submit"
                                     variant="brand"
-                                    className="w-full h-14 text-base font-black shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded active:scale-[0.98]"
+                                    className="w-full h-16 text-lg font-bold shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded-xl active:scale-[0.98]"
                                     disabled={isLoading}
                                 >
                                     {isLoading ? (
                                         <>
                                             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                                            Sending Link...
+                                            Sending link...
                                         </>
                                     ) : (
                                         'Send reset link'
@@ -190,7 +190,7 @@ export default function ForgotPasswordPage() {
                                 </p>
                                 <Button 
                                     variant="outline" 
-                                    className="w-full h-12 rounded font-bold border-slate-200 dark:border-slate-700" 
+                                    className="w-full h-16 rounded-xl font-bold border-slate-200 dark:border-slate-700 text-lg" 
                                     onClick={() => setIsSubmitted(false)}
                                 >
                                     Try another email

@@ -22,7 +22,6 @@ export default function LandingHeader() {
   const navLinks = [
     { name: 'Features', href: '#features' },
     { name: 'Pricing', href: '#pricing' },
-    { name: 'Docs', href: '/docs' },
   ];
 
   return (
@@ -36,11 +35,9 @@ export default function LandingHeader() {
       <PromotionBanner />
       <div className="container mx-auto px-6 h-16 sm:h-20 flex items-center justify-between">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95">
-          <Logo size='xl' className="group-hover:rotate-12 transition-transform duration-300" />
-          <p className="flex flex-col gap-0 text-xl font-black tracking-tighter text-foreground">
-            Seentics
-          </p>
+        <Link href="/" className="flex items-center gap-3 group">
+          <Logo size='lg' />
+          <span className="text-xl font-black tracking-tighter text-foreground">Seentics</span>
         </Link>
 
         {/* Centered Navigation */}
@@ -65,20 +62,20 @@ export default function LandingHeader() {
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <Link href="/websites">
-                <Button variant="brand" className="h-11 px-8 rounded font-bold text-xs uppercase tracking-widest active:scale-95">
+                <Button variant="brand" className="h-12 px-8 rounded-xl font-bold text-sm active:scale-95 shadow-lg shadow-primary/10 transition-all">
                   Dashboard
                 </Button>
               </Link>
             ) : (
               <>
                 <Link href="/signin">
-                  <span className="text-sm font-bold text-foreground/60 hover:text-foreground transition-colors cursor-pointer mr-2">
-                    Sign In
+                  <span className="text-sm font-bold text-foreground/50 hover:text-foreground transition-colors cursor-pointer px-6">
+                    Sign in
                   </span>
                 </Link>
                 <Link href="/signup">
-                  <Button variant="brand" className="h-11 px-8 rounded font-bold text-xs uppercase tracking-widest active:scale-95">
-                    Start Free
+                  <Button variant="brand" className="h-12 px-10 rounded-xl font-bold text-sm active:scale-95 shadow-lg shadow-primary/10 transition-all">
+                    Start for free
                   </Button>
                 </Link>
               </>
