@@ -20,6 +20,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - KAFKA_TOPIC_EVENTS=analytics_events
       - CLOUD_ENABLED=false # Always false in the OSS version
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
     depends_on:
       postgres:
         condition: service_healthy
@@ -85,7 +86,7 @@ services:
       - seentics-network
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U seentics -d seentics_analytics -h localhost -p 5432" ]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h localhost -p 5432" ]
       interval: 5s
       timeout: 5s
       retries: 20

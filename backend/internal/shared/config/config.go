@@ -37,7 +37,7 @@ func Load() (*Config, error) {
 		GlobalAPIKey:          getEnvOrDefault("GLOBAL_API_KEY", ""),
 		DbMaxConns:            GetEnvAsInt("DB_MAX_CONNS", 100),
 		DbMinConns:            GetEnvAsInt("DB_MIN_CONNS", 25),
-		CORSAllowedOrigins:    getEnvOrDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"),
+		CORSAllowedOrigins:    getEnvOrDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://www.seentics.com,https://seentics.com"),
 	}
 
 	// Validate required fields for production

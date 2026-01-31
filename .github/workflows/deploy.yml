@@ -18,7 +18,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
-          envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,JWT_SECRET,REDIS_PASSWORD,GLOBAL_API_KEY,NEXT_PUBLIC_API_URL
+          envs: POSTGRES_USER,POSTGRES_PASSWORD,POSTGRES_DB,JWT_SECRET,REDIS_PASSWORD,GLOBAL_API_KEY,NEXT_PUBLIC_API_URL,CORS_ALLOWED_ORIGINS
           script: |
             # Navigate to project directory
             cd ~/seentics-analytics
@@ -36,6 +36,7 @@ jobs:
             REDIS_PASSWORD=${REDIS_PASSWORD}
             GLOBAL_API_KEY=${GLOBAL_API_KEY}
             NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+            CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
             EOF
             
             # Rebuild and restart containers
@@ -51,3 +52,4 @@ jobs:
           REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
           GLOBAL_API_KEY: ${{ secrets.GLOBAL_API_KEY }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
