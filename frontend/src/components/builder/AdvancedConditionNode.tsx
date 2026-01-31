@@ -44,80 +44,35 @@ export const AdvancedConditionNode = memo(({ data, selected, isConnectable }: No
   const Icon = getConditionIcon(conditionType);
   const colorClass = getConditionColor(conditionType);
 
-  const getOperatorLabel = () => {
-    const operators: Record<string, string> = {
-      equals: '==',
-      contains: '∋',
-      startsWith: '^=',
-      endsWith: '=$',
-      greaterThan: '>',
-      lessThan: '<',
-      between: '∈',
-    };
-    return operators[data.config?.operator] || '?';
-  };
-
   return (
     <div
-      className={`relative px-4 py-4 rounded bg-slate-900 border-2 transition-all min-w-[240px] shadow-xl hover:shadow-2xl ${
+      className={`p-3 rounded border w-[220px] transition-all ${
         selected
-          ? 'border-primary ring-4 ring-primary/20 scale-105 z-50'
-          : 'border-slate-800 hover:border-purple-500/40'
+          ? 'bg-slate-800 border-purple-500 ring-2 ring-purple-500/20 scale-105 z-50 shadow-xl shadow-purple-500/10'
+          : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-700/50'
       }`}
     >
       <Handle
         type="target"
         position={Position.Top}
         isConnectable={isConnectable}
-        style={{ left: '50%', transform: 'translateX(-50%)', top: -6, width: 12, height: 12, zIndex: 10 }}
-        className="!bg-primary border-2 border-slate-900"
+        className="!w-2 !h-2 !bg-primary !border-slate-900 !border-2"
+        style={{ top: -4 }}
       />
 
-      <div className="flex items-center gap-4 mb-4">
-        <div className={`h-12 w-12 rounded flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${colorClass}`}>
-          <Icon size={24} />
+      <div className="flex items-center gap-3">
+        <div className={`h-9 w-9 rounded flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700/50 ${colorClass}`}>
+          <Icon size={18} />
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-purple-400 mb-1">
-            Logic Step
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">
+            Logic
           </p>
-          <h4 className="text-sm font-black text-white truncate leading-tight text-stroke-sm">
+          <h4 className="text-xs font-black text-slate-200 truncate leading-tight">
             {data.label}
           </h4>
         </div>
       </div>
-
-      {data.config && (
-        <div className="space-y-2">
-          {data.config.field && (
-            <div className="bg-slate-800/50 rounded p-2.5 text-xs font-medium text-slate-300 border border-slate-700/50 mb-2">
-              <div className="flex items-center gap-2 justify-between">
-                <span className="truncate font-bold text-slate-400">{data.config.field}</span>
-                <span className="text-purple-400 font-black">{getOperatorLabel()}</span>
-                <span className="truncate text-white font-bold">{data.config.value}</span>
-              </div>
-            </div>
-          )}
-
-          {conditionType === 'wait' && (
-            <div className="bg-slate-800/50 rounded p-2.5 text-xs font-medium text-slate-300 border border-slate-700/50 mb-2">
-              <div className="flex items-center gap-2">
-                <Clock size={12} className="text-amber-500" />
-                <span className="font-bold">Wait {data.config.delay} {data.config.unit}</span>
-              </div>
-            </div>
-          )}
-
-          {conditionType === 'timeWindow' && data.config.startTime && (
-            <div className="bg-slate-800/50 rounded p-2.5 text-xs font-medium text-slate-300 border border-slate-700/50 mb-2">
-              <div className="flex items-center gap-2">
-                <Clock size={12} className="text-orange-500" />
-                <span className="font-bold">{data.config.startTime} - {data.config.endTime}</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* TRUE Output */}
       <Handle
@@ -125,25 +80,19 @@ export const AdvancedConditionNode = memo(({ data, selected, isConnectable }: No
         position={Position.Bottom}
         id="true"
         isConnectable={isConnectable}
-        style={{ left: '35%', bottom: -6, width: 12, height: 12, zIndex: 10 }}
-        className="!bg-green-500 border-2 border-slate-900"
+        className="!w-2 !h-2 !bg-green-500 !border-slate-900 !border-2"
+        style={{ left: '35%', bottom: -4 }}
       />
-      <div className="absolute left-[35%] bottom-2 -translate-x-1/2 text-[8px] font-black text-green-500/80 pointer-events-none uppercase tracking-tighter">
-        True
-      </div>
-
+      
       {/* FALSE Output */}
       <Handle
         type="source"
         position={Position.Bottom}
         id="false"
         isConnectable={isConnectable}
-        style={{ left: '65%', bottom: -6, width: 12, height: 12, zIndex: 10 }}
-        className="!bg-red-500 border-2 border-slate-900"
+        className="!w-2 !h-2 !bg-red-500 !border-slate-900 !border-2"
+        style={{ left: '65%', bottom: -4 }}
       />
-      <div className="absolute left-[65%] bottom-2 -translate-x-1/2 text-[8px] font-black text-red-500/80 pointer-events-none uppercase tracking-tighter">
-        False
-      </div>
     </div>
   );
 });

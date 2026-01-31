@@ -85,7 +85,7 @@ export const BuilderToolbar = ({
 
       <div className="flex items-center gap-3">
         {/* Undo/Redo */}
-        <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded">
+        {/* <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded">
           <Button
             variant="ghost"
             size="icon"
@@ -100,13 +100,13 @@ export const BuilderToolbar = ({
           >
             <Redo2 size={16} />
           </Button>
-        </div>
+        </div> */}
 
         <div className="h-6 w-[1px] bg-border" />
 
         {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          <Button
+          {/* <Button
             variant="outline"
             className="h-9 px-3 rounded font-bold text-[11px] uppercase tracking-wider gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             onClick={onTestClick}
@@ -120,9 +120,9 @@ export const BuilderToolbar = ({
           >
             <Download size={14} />
             EXPORT
-          </Button>
+          </Button> */}
           <Button
-            variant="outline"
+            variant="brand"
             className="h-9 px-4 rounded font-bold text-[11px] uppercase tracking-wider gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             onClick={handleSave}
             disabled={isSaving}
@@ -130,10 +130,10 @@ export const BuilderToolbar = ({
             <Save size={14} />
             {isSaving ? 'SAVING...' : 'SAVE'}
           </Button>
-          <Button className="h-10 px-6 rounded font-black text-[11px] uppercase tracking-wider gap-2 shadow-lg shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white">
+          {/* <Button className="h-10 px-6 rounded font-black text-[11px] uppercase tracking-wider gap-2 shadow-lg shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white">
             <Zap size={14} className="fill-current" />
             GO LIVE
-          </Button>
+          </Button> */}
         </div>
       </div>
     </div>

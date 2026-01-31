@@ -203,19 +203,19 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 	}
 
 	// Calculate percentage changes with clamping and N/A handling
-	minPrevCount := 10
 	clamp := func(v float64) float64 {
-		if v > 500 {
-			return 500
+		if v > 1000 { // Increased from 500 for better growth visibility
+			return 1000
 		}
-		if v < -500 {
-			return -500
+		if v < -100 { // Cannot decrease more than 100%
+			return -100
 		}
 		return v
 	}
 
 	calcInt := func(curr, prev int) *float64 {
-		if prev < minPrevCount || prev == 0 {
+		if prev <= 0 {
+			// If it's the first data point, we return nil (UI can show "New" or N/A)
 			return nil
 		}
 		val := ((float64(curr) - float64(prev)) / float64(prev)) * 100.0
@@ -223,7 +223,7 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 		return &c
 	}
 	calcFloat := func(curr, prev float64, prevCount int) *float64 {
-		if prevCount < minPrevCount || prev == 0.0 {
+		if prevCount <= 0 || prev <= 0 {
 			return nil
 		}
 		val := ((curr - prev) / prev) * 100.0

@@ -23,7 +23,6 @@ export default function LandingHeader() {
     { name: 'Features', href: '#features' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'Docs', href: '/docs' },
-    { name: 'Book Demo', href: 'https://calendly.com/shohagmiah2100/30min', target: '_blank' },
   ];
 
   return (
@@ -51,8 +50,6 @@ export default function LandingHeader() {
               <Link
                 key={link.name}
                 href={link.href}
-                target={link.target || '_self'}
-                rel={link.target === '_blank' ? 'noopener noreferrer' : undefined}
                 className="px-5 py-2 rounded-full text-[13px] font-bold text-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-all tracking-wider"
               >
                 {link.name}
@@ -63,17 +60,7 @@ export default function LandingHeader() {
 
         {/* Actions */}
         <div className="hidden lg:flex items-center gap-6">
-          <div className="flex items-center gap-4 pr-6 border-r border-border/50">
-            <ThemeToggle />
-            <Link
-              href="https://github.com/skshohagmiah/Seentics"
-              target="_blank"
-              className="p-2.5 rounded-full hover:bg-foreground/5 transition-colors text-foreground/40 hover:text-primary"
-              title="GitHub Repo"
-            >
-              <Github size={20} />
-            </Link>
-          </div>
+         
 
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
@@ -123,7 +110,6 @@ export default function LandingHeader() {
                   <Link
                     key={link.name}
                     href={link.href}
-                    target={link.target || '_self'}
                     onClick={() => setMobileOpen(false)}
                     className="flex items-center justify-between py-4 border-b border-border/50 group"
                   >
@@ -134,11 +120,19 @@ export default function LandingHeader() {
               </nav>
               
               <div className="flex flex-col gap-4">
-                <Link href="/signup" onClick={() => setMobileOpen(false)}>
-                  <Button variant="brand" className="w-full h-14 rounded-full font-bold text-sm uppercase tracking-widest">
-                    Start Free Forever
-                  </Button>
-                </Link>
+                {isAuthenticated ? (
+                  <Link href="/websites" onClick={() => setMobileOpen(false)}>
+                    <Button variant="brand" className="w-full h-14 rounded-full font-bold text-sm uppercase tracking-widest">
+                      Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <Link href="/signup" onClick={() => setMobileOpen(false)}>
+                    <Button variant="brand" className="w-full h-14 rounded-full font-bold text-sm uppercase tracking-widest">
+                      Start Free Forever
+                    </Button>
+                  </Link>
+                )}
                 <div className="flex items-center justify-between px-2">
                   <span className="text-sm font-bold text-muted-foreground">Dark mode</span>
                   <ThemeToggle />

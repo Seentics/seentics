@@ -1,6 +1,8 @@
 package services
 
 import (
+	billingModels "analytics-app/internal/modules/billing/models"
+	billingServicePkg "analytics-app/internal/modules/billing/services"
 	"analytics-app/internal/modules/funnels/models"
 	"analytics-app/internal/modules/funnels/repository"
 	"context"
@@ -8,12 +10,14 @@ import (
 )
 
 type FunnelService struct {
-	repo *repository.FunnelRepository
+	repo    *repository.FunnelRepository
+	billing *billingServicePkg.BillingService
 }
 
-func NewFunnelService(repo *repository.FunnelRepository) *FunnelService {
+func NewFunnelService(repo *repository.FunnelRepository, billing *billingServicePkg.BillingService) *FunnelService {
 	return &FunnelService{
-		repo: repo,
+		repo:    repo,
+		billing: billing,
 	}
 }
 
@@ -79,6 +83,13 @@ func (s *FunnelService) CreateFunnel(ctx context.Context, req *models.CreateFunn
 		return nil, fmt.Errorf("failed to create funnel: %w", err)
 	}
 
+	// Track usage in Redis
+	if s.billing != nil {
+		if err := s.billing.IncrementUsageRedis(ctx, userID, billingModels.ResourceFunnels, 1); err != nil {
+			fmt.Printf("Warning: failed to track funnel usage: %v\n", err)
+		}
+	}
+
 	return s.repo.GetFunnelByID(ctx, funnel.ID)
 }
 
@@ -94,23 +105,34 @@ func (s *FunnelService) UpdateFunnel(ctx context.Context, id string, req *models
 
 // DeleteFunnel deletes a funnel
 func (s *FunnelService) DeleteFunnel(ctx context.Context, id string) error {
-	return s.repo.DeleteFunnel(ctx, id)
+	// Get funnel to extract userID before deletion
+	funnel, err := s.repo.GetFunnelByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if err := s.repo.DeleteFunnel(ctx, id); err != nil {
+		return err
+	}
+
+	// Decrement usage in Redis
+	if s.billing != nil {
+		if err := s.billing.IncrementUsageRedis(ctx, funnel.UserID, billingModels.ResourceFunnels, -1); err != nil {
+			fmt.Printf("Warning: failed to decrement funnel usage: %v\n", err)
+		}
+	}
+
+	return nil
 }
 
 // GetFunnelStats aggregated funnel performance stats
-// In a real scenario, this would involve complex multi-step aggregation queries
 func (s *FunnelService) GetFunnelStats(ctx context.Context, id string) (*models.FunnelStats, error) {
-	// For now, return mock stats as the aggregation engine is built in a separate module
-	// In the future, this would call the analytics engine
-	return &models.FunnelStats{
-		TotalEntries:   1000,
-		Completions:    250,
-		ConversionRate: 25.0,
-		StepBreakdown: []models.StepStats{
-			{StepOrder: 0, StepName: "Step 1", Count: 1000, DropoffCount: 200, DropoffRate: 20.0, ConversionRate: 100.0},
-			{StepOrder: 1, StepName: "Step 2", Count: 800, DropoffCount: 300, DropoffRate: 37.5, ConversionRate: 80.0},
-			{StepOrder: 2, StepName: "Step 3", Count: 500, DropoffCount: 250, DropoffRate: 50.0, ConversionRate: 62.5},
-			{StepOrder: 3, StepName: "Step 4", Count: 250, DropoffCount: 0, DropoffRate: 0.0, ConversionRate: 50.0},
-		},
-	}, nil
+	// Retrieve funnel to get websiteID
+	funnel, err := s.repo.GetFunnelByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Call repository for real-time stats
+	return s.repo.GetFunnelStats(ctx, funnel.ID, funnel.WebsiteID)
 }

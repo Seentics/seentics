@@ -22,7 +22,7 @@
   // Load active funnels
   const loadFunnels = async () => {
     try {
-      const response = await S.api.send('funnels/active', {
+      const response = await S.api.get('funnels/active', {
         website_id: S.config.websiteId
       });
       funnel.activeFunnels = response.funnels || [];
@@ -54,16 +54,22 @@
 
   // Check if step matches current page/event
   const matchesStep = (step, eventData) => {
-    if (step.step_type === 'page_view') {
+    // Handle both camelCase and snake_case
+    const stepType = (step.stepType || step.step_type || '').toLowerCase();
+    const matchType = step.matchType || step.match_type || 'exact';
+    
+    // Normalize step type checking (handle page_view vs pageView)
+    if (stepType === 'page_view' || stepType === 'pageview') {
       const currentPath = w.location.pathname;
-      const targetPath = step.page_path;
+      const targetPath = step.pagePath || step.page_path;
 
-      switch (step.match_type) {
+      switch (matchType) {
         case 'exact':
           return currentPath === targetPath;
         case 'contains':
           return currentPath.includes(targetPath);
         case 'starts_with':
+        case 'startswith':
           return currentPath.startsWith(targetPath);
         case 'regex':
           try {
@@ -76,8 +82,9 @@
       }
     }
 
-    if (step.step_type === 'event') {
-      return eventData.eventName === step.event_type;
+    if (stepType === 'event') {
+      const targetEventType = step.eventType || step.event_type;
+      return eventData.eventName === targetEventType;
     }
 
     return false;
@@ -95,8 +102,8 @@
       let progress = funnel.currentFunnels.get(funnelId);
       
       if (!progress) {
-        // Check if this is the first step
-        const firstStep = steps.find(s => s.order === 0);
+        // Check if this is the first step (handle both camelCase and snake_case)
+        const firstStep = steps.find(s => (s.order !== undefined ? s.order : s.step_order) === 0);
         if (firstStep && matchesStep(firstStep, eventData)) {
           progress = {
             currentStep: 0,
@@ -121,7 +128,8 @@
 
       // Check for next step
       const nextStepOrder = progress.currentStep + 1;
-      const nextStep = steps.find(s => s.order === nextStepOrder);
+      // Handle both camelCase and snake_case for order property
+      const nextStep = steps.find(s => (s.order !== undefined ? s.order : s.step_order) === nextStepOrder);
 
       if (nextStep && matchesStep(nextStep, eventData)) {
         progress.currentStep = nextStepOrder;

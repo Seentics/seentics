@@ -155,9 +155,35 @@
       }
     },
 
+    get: async (endpoint, params = {}) => {
+      try {
+        const url = new URL(`${config.apiHost}/api/v1/${endpoint}`);
+        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+        
+        const response = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        return await response.json();
+      } catch (error) {
+        if (config.debug) {
+          console.error('[Seentics] API error:', error);
+        }
+        throw error;
+      }
+    },
+
     batch: async (events) => {
       return api.send('analytics/batch', {
-        website_id: config.websiteId,
+        siteId: config.websiteId,
+        domain: w.location.hostname,
         events
       });
     }
@@ -268,8 +294,9 @@
   // Auto-init if data-website-id is present
   const script = d.currentScript;
   if (script) {
-    const websiteId = script.getAttribute('data-website-id');
+    const websiteId = script.getAttribute('data-website-id') || script.getAttribute('data-site-id');
     const debug = script.getAttribute('data-debug') === 'true';
+    const apiHost = script.getAttribute('data-api-host');
     const autoLoad = script.getAttribute('data-auto-load');
     
     // Parse auto-load modules
@@ -283,7 +310,7 @@
     }
     
     if (websiteId) {
-      init({ websiteId, debug });
+      init({ websiteId, debug, apiHost: apiHost || config.apiHost });
       
       // Auto-load modules
       const basePath = script.src.substring(0, script.src.lastIndexOf('/') + 1);

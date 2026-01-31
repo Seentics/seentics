@@ -26,8 +26,8 @@ func NewAuthRepository(db *pgxpool.Pool) *AuthRepository {
 // CreateUser saves a new user to the database
 func (r *AuthRepository) CreateUser(ctx context.Context, user *models.User) error {
 	query := `
-		INSERT INTO users (name, email, password_hash, role, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO users (name, email, password_hash, role, avatar_url, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 
@@ -36,6 +36,7 @@ func (r *AuthRepository) CreateUser(ctx context.Context, user *models.User) erro
 		user.Email,
 		user.PasswordHash,
 		user.Role,
+		user.AvatarURL,
 		user.CreatedAt,
 		user.UpdatedAt,
 	).Scan(&user.ID)
@@ -50,7 +51,7 @@ func (r *AuthRepository) CreateUser(ctx context.Context, user *models.User) erro
 // GetByEmail finds a user by their email address
 func (r *AuthRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	query := `
-		SELECT id, name, email, password_hash, role, created_at, updated_at
+		SELECT id, name, email, password_hash, role, avatar_url, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`
@@ -62,6 +63,7 @@ func (r *AuthRepository) GetByEmail(ctx context.Context, email string) (*models.
 		&user.Email,
 		&user.PasswordHash,
 		&user.Role,
+		&user.AvatarURL,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -79,7 +81,7 @@ func (r *AuthRepository) GetByEmail(ctx context.Context, email string) (*models.
 // GetByID finds a user by their UUID
 func (r *AuthRepository) GetByID(ctx context.Context, id string) (*models.User, error) {
 	query := `
-		SELECT id, name, email, password_hash, role, created_at, updated_at
+		SELECT id, name, email, password_hash, role, avatar_url, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -91,6 +93,7 @@ func (r *AuthRepository) GetByID(ctx context.Context, id string) (*models.User, 
 		&user.Email,
 		&user.PasswordHash,
 		&user.Role,
+		&user.AvatarURL,
 		&user.CreatedAt,
 		&user.UpdatedAt,
 	)
@@ -103,4 +106,37 @@ func (r *AuthRepository) GetByID(ctx context.Context, id string) (*models.User, 
 	}
 
 	return user, nil
+}
+
+// UpdateUser updates user's basic information
+func (r *AuthRepository) UpdateUser(ctx context.Context, userID string, name, email string) error {
+	query := `
+		UPDATE users 
+		SET name = $1, email = $2, updated_at = NOW() 
+		WHERE id = $3
+	`
+	_, err := r.db.Exec(ctx, query, name, email, userID)
+	return err
+}
+
+// UpdateAvatar updates user's avatar URL
+func (r *AuthRepository) UpdateAvatar(ctx context.Context, userID string, avatarURL string) error {
+	query := `
+		UPDATE users 
+		SET avatar_url = $1, updated_at = NOW() 
+		WHERE id = $2
+	`
+	_, err := r.db.Exec(ctx, query, avatarURL, userID)
+	return err
+}
+
+// UpdatePassword updates user's password hash
+func (r *AuthRepository) UpdatePassword(ctx context.Context, userID string, passwordHash string) error {
+	query := `
+		UPDATE users 
+		SET password_hash = $1, updated_at = NOW() 
+		WHERE id = $2
+	`
+	_, err := r.db.Exec(ctx, query, passwordHash, userID)
+	return err
 }

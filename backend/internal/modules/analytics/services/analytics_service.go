@@ -3,6 +3,7 @@ package services
 import (
 	"analytics-app/internal/modules/analytics/models"
 	"analytics-app/internal/modules/analytics/repository"
+	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"context"
 	"fmt"
 	"time"
@@ -11,18 +12,35 @@ import (
 )
 
 type AnalyticsService struct {
-	repo   *repository.MainAnalyticsRepository
-	logger zerolog.Logger
+	repo     *repository.MainAnalyticsRepository
+	websites *websiteServicePkg.WebsiteService
+	logger   zerolog.Logger
 }
 
-func NewAnalyticsService(repo *repository.MainAnalyticsRepository, logger zerolog.Logger) *AnalyticsService {
+func NewAnalyticsService(repo *repository.MainAnalyticsRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger) *AnalyticsService {
 	return &AnalyticsService{
-		repo:   repo,
-		logger: logger,
+		repo:     repo,
+		websites: websites,
+		logger:   logger,
 	}
 }
 
+// resolveWebsiteID canonicalizes the website ID to its hex SiteID form
+func (s *AnalyticsService) resolveWebsiteID(ctx context.Context, websiteID string) string {
+	if s.websites == nil {
+		return websiteID
+	}
+	website, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	if err != nil {
+		return websiteID
+	}
+	return website.SiteID
+}
+
 func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, days int) (*models.DashboardData, error) {
+	// Canonicalize website ID
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -71,6 +89,7 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 }
 
 func (s *AnalyticsService) GetTopPages(ctx context.Context, websiteID string, days, limit int) ([]models.PageStat, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -81,6 +100,7 @@ func (s *AnalyticsService) GetTopPages(ctx context.Context, websiteID string, da
 }
 
 func (s *AnalyticsService) GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int) (map[string]interface{}, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Str("page_path", pagePath).
@@ -91,6 +111,7 @@ func (s *AnalyticsService) GetPageUTMBreakdown(ctx context.Context, websiteID, p
 }
 
 func (s *AnalyticsService) GetTopReferrers(ctx context.Context, websiteID string, days, limit int) ([]models.ReferrerStat, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -101,6 +122,7 @@ func (s *AnalyticsService) GetTopReferrers(ctx context.Context, websiteID string
 }
 
 func (s *AnalyticsService) GetTopSources(ctx context.Context, websiteID string, days, limit int) ([]models.SourceStat, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -111,6 +133,7 @@ func (s *AnalyticsService) GetTopSources(ctx context.Context, websiteID string, 
 }
 
 func (s *AnalyticsService) GetTopCountries(ctx context.Context, websiteID string, days, limit int) ([]models.CountryStat, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -121,6 +144,7 @@ func (s *AnalyticsService) GetTopCountries(ctx context.Context, websiteID string
 }
 
 func (s *AnalyticsService) GetTopBrowsers(ctx context.Context, websiteID string, days, limit int) ([]models.BrowserStat, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -131,6 +155,7 @@ func (s *AnalyticsService) GetTopBrowsers(ctx context.Context, websiteID string,
 }
 
 func (s *AnalyticsService) GetTopDevices(ctx context.Context, websiteID string, days, limit int) ([]models.DeviceStat, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -141,6 +166,7 @@ func (s *AnalyticsService) GetTopDevices(ctx context.Context, websiteID string, 
 }
 
 func (s *AnalyticsService) GetTopOS(ctx context.Context, websiteID string, days, limit int) ([]models.OSStat, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -151,6 +177,7 @@ func (s *AnalyticsService) GetTopOS(ctx context.Context, websiteID string, days,
 }
 
 func (s *AnalyticsService) GetTrafficSummary(ctx context.Context, websiteID string, days int) (*models.TrafficSummary, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -160,6 +187,7 @@ func (s *AnalyticsService) GetTrafficSummary(ctx context.Context, websiteID stri
 }
 
 func (s *AnalyticsService) GetDailyStats(ctx context.Context, websiteID string, days int) ([]models.DailyStat, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -180,6 +208,7 @@ func (s *AnalyticsService) GetDailyStats(ctx context.Context, websiteID string, 
 }
 
 func (s *AnalyticsService) GetHourlyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.HourlyStat, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Str("timezone", timezone).
@@ -189,6 +218,7 @@ func (s *AnalyticsService) GetHourlyStats(ctx context.Context, websiteID string,
 }
 
 func (s *AnalyticsService) GetCustomEvents(ctx context.Context, websiteID string, days int) ([]models.CustomEventStat, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -199,6 +229,7 @@ func (s *AnalyticsService) GetCustomEvents(ctx context.Context, websiteID string
 
 // GetLiveVisitors returns the number of currently active visitors
 func (s *AnalyticsService) GetLiveVisitors(ctx context.Context, websiteID string) (int, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Msg("Getting live visitors")
@@ -207,6 +238,7 @@ func (s *AnalyticsService) GetLiveVisitors(ctx context.Context, websiteID string
 }
 
 func (s *AnalyticsService) GetUTMAnalytics(ctx context.Context, websiteID string, days int) (map[string]interface{}, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -217,6 +249,7 @@ func (s *AnalyticsService) GetUTMAnalytics(ctx context.Context, websiteID string
 
 // GetGeolocationBreakdown returns comprehensive geolocation analytics
 func (s *AnalyticsService) GetGeolocationBreakdown(ctx context.Context, websiteID string, days int) (*models.GeolocationBreakdown, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -232,53 +265,22 @@ func (s *AnalyticsService) GetGeolocationBreakdown(ctx context.Context, websiteI
 		return nil, fmt.Errorf("failed to get geolocation breakdown: %w", err)
 	}
 
-	// If no data found, return dummy data for testing (temporary)
-	if breakdown == nil || (len(breakdown.Countries) == 0 && len(breakdown.Cities) == 0 && len(breakdown.Continents) == 0) {
-		s.logger.Info().Msg("No geolocation data found, returning dummy data for testing")
-
+	// If breakdown is nil, return an empty but initialized struct
+	if breakdown == nil {
 		return &models.GeolocationBreakdown{
-			Countries: []models.TopItem{
-				{Name: "United States", Count: 2450, Percentage: 35.2},
-				{Name: "United Kingdom", Count: 1230, Percentage: 17.6},
-				{Name: "Germany", Count: 890, Percentage: 12.8},
-				{Name: "Canada", Count: 650, Percentage: 9.3},
-				{Name: "France", Count: 520, Percentage: 7.5},
-				{Name: "Australia", Count: 380, Percentage: 5.4},
-				{Name: "Japan", Count: 290, Percentage: 4.2},
-				{Name: "Netherlands", Count: 180, Percentage: 2.6},
-				{Name: "India", Count: 140, Percentage: 2.0},
-				{Name: "Brazil", Count: 95, Percentage: 1.4},
-			},
-			Cities: []models.TopItem{
-				{Name: "New York", Count: 1200, Percentage: 17.2},
-				{Name: "London", Count: 890, Percentage: 12.8},
-				{Name: "Berlin", Count: 650, Percentage: 9.3},
-				{Name: "Toronto", Count: 520, Percentage: 7.5},
-				{Name: "Paris", Count: 380, Percentage: 5.4},
-				{Name: "Sydney", Count: 290, Percentage: 4.2},
-				{Name: "Tokyo", Count: 180, Percentage: 2.6},
-				{Name: "Amsterdam", Count: 140, Percentage: 2.0},
-			},
-			Continents: []models.TopItem{
-				{Name: "North America", Count: 3100, Percentage: 44.5},
-				{Name: "Europe", Count: 2820, Percentage: 40.5},
-				{Name: "Asia", Count: 610, Percentage: 8.8},
-				{Name: "Oceania", Count: 380, Percentage: 5.4},
-				{Name: "South America", Count: 95, Percentage: 1.4},
-			},
-			Regions: []models.TopItem{
-				{Name: "Western Europe", Count: 1890, Percentage: 27.1},
-				{Name: "North America", Count: 3100, Percentage: 44.5},
-				{Name: "Eastern Asia", Count: 470, Percentage: 6.8},
-				{Name: "Northern Europe", Count: 930, Percentage: 13.4},
-				{Name: "Australia and New Zealand", Count: 380, Percentage: 5.4},
-			},
+			Countries:  []models.TopItem{},
+			Cities:     []models.TopItem{},
+			Continents: []models.TopItem{},
+			Regions:    []models.TopItem{},
 		}, nil
 	}
 
 	return breakdown, nil
-} // User Retention Service Method
+}
+
+// User Retention Service Method
 func (s *AnalyticsService) GetUserRetention(ctx context.Context, websiteID string, days int) (*models.RetentionData, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -289,6 +291,7 @@ func (s *AnalyticsService) GetUserRetention(ctx context.Context, websiteID strin
 
 // Visitor Insights Service Method
 func (s *AnalyticsService) GetVisitorInsights(ctx context.Context, websiteID string, days int) (*models.VisitorInsights, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -299,6 +302,7 @@ func (s *AnalyticsService) GetVisitorInsights(ctx context.Context, websiteID str
 
 // Activity Trends Service Method
 func (s *AnalyticsService) GetActivityTrends(ctx context.Context, websiteID string) (*models.ActivityTrendsResponse, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Msg("Getting activity trends")

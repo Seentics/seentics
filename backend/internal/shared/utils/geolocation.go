@@ -11,8 +11,16 @@ import (
 	"sync"
 	"time"
 
+	"strings" // Added
+
 	"github.com/go-redis/redis/v8"
 	"github.com/oschwald/geoip2-golang"
+	"github.com/rs/zerolog"
+)
+
+var (
+	devLocation     *LocationInfo
+	devLocationOnce sync.Once
 )
 
 // LocationInfo contains comprehensive geolocation information
@@ -42,6 +50,8 @@ type GeolocationService struct {
 	memCache   map[string]cacheEntry
 	cacheMutex sync.RWMutex
 	cacheTTL   time.Duration
+
+	logger zerolog.Logger
 }
 
 // Global service instance
@@ -66,9 +76,13 @@ func GetClientIP(ctx context.Context) string {
 
 // NewGeolocationService creates a new geolocation service with Redis and MaxMind support
 func NewGeolocationService() *GeolocationService {
+	// Simple console logger as default if no global one is set
+	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("service", "geolocation").Logger()
+
 	service := &GeolocationService{
 		memCache: make(map[string]cacheEntry),
 		cacheTTL: 24 * time.Hour,
+		logger:   logger,
 	}
 
 	// Initialize Redis client if available
@@ -90,16 +104,13 @@ func NewGeolocationService() *GeolocationService {
 
 	// Initialize MaxMind database if available
 	maxmindPath := os.Getenv("MAXMIND_DB_PATH")
-	if maxmindPath == "" {
-		maxmindPath = "/data/GeoLite2-City.mmdb" // Default path
-	}
-
-	// Only try to open MaxMind if the file exists and license key is set
-	if maxmindLicense := os.Getenv("MAXMIND_LICENSE_KEY"); maxmindLicense != "" {
+	if maxmindPath != "" {
 		if db, err := geoip2.Open(maxmindPath); err == nil {
 			service.maxmindDB = db
+			service.logger.Info().Str("path", maxmindPath).Msg("MaxMind database initialized successfully")
+		} else {
+			service.logger.Warn().Err(err).Str("path", maxmindPath).Msg("Failed to initialize MaxMind database")
 		}
-		// If MaxMind fails to load, we'll fall back to other methods
 	}
 
 	return service
@@ -130,7 +141,14 @@ func (g *GeolocationService) GetLocation(ip string) LocationInfo {
 	}
 
 	// Handle localhost and private IPs
+	// Handle local/private IPs in development mode
 	if isPrivateIP(ip) {
+		if os.Getenv("ENVIRONMENT") == "development" {
+			if devLoc := g.getDevLocation(); devLoc != nil {
+				return *devLoc
+			}
+		}
+
 		return LocationInfo{
 			Country:     "Local",
 			CountryCode: "LC",
@@ -162,6 +180,47 @@ func (g *GeolocationService) GetLocation(ip string) LocationInfo {
 }
 
 // getFromRedisCache retrieves location from Redis cache
+func (g *GeolocationService) getDevLocation() *LocationInfo {
+	devLocationOnce.Do(func() {
+		// Use a short timeout for the external lookup
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+
+		req, err := http.NewRequestWithContext(ctx, "GET", "https://api.ipify.org", nil)
+		if err != nil {
+			g.logger.Warn().Err(err).Msg("Failed to create request for public IP lookup")
+			return
+		}
+
+		req.Header.Set("User-Agent", "Seentics-Analytics-Dev/1.0")
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			g.logger.Warn().Err(err).Msg("Failed to execute public IP lookup request")
+			return
+		}
+		defer resp.Body.Close()
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return
+		}
+
+		ip := strings.TrimSpace(string(body))
+		if ip != "" {
+			loc := g.getFromFreeAPI(ip)
+			if loc.Country != "Unknown" {
+				devLocation = &loc
+				g.logger.Info().Str("public_ip", ip).Str("country", loc.Country).Msg("Resolved development public IP")
+			} else {
+				g.logger.Warn().Str("public_ip", ip).Msg("Resolved public IP but failed to get location details")
+			}
+		} else {
+			g.logger.Warn().Msg("Failed to resolve public IP (empty response)")
+		}
+	})
+	return devLocation
+}
+
 func (g *GeolocationService) getFromRedisCache(ip string) *LocationInfo {
 	if g.redisClient == nil {
 		return nil
@@ -342,6 +401,14 @@ func isPrivateIP(ip string) bool {
 // SetClientIPInContext sets the client IP in the context for middleware
 func SetClientIPInContext(ctx context.Context, ip string) context.Context {
 	return context.WithValue(ctx, "client_ip", ip)
+}
+
+// GetClientIPFromContext gets the client IP from the context
+func GetClientIPFromContext(ctx context.Context) string {
+	if ip, ok := ctx.Value("client_ip").(string); ok {
+		return ip
+	}
+	return ""
 }
 
 // --- Free API Service Implementation ---

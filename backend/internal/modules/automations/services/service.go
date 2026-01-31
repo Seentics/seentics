@@ -3,17 +3,21 @@ package services
 import (
 	"analytics-app/internal/modules/automations/models"
 	"analytics-app/internal/modules/automations/repository"
+	billingModels "analytics-app/internal/modules/billing/models"
+	billingServicePkg "analytics-app/internal/modules/billing/services"
 	"context"
 	"fmt"
 )
 
 type AutomationService struct {
-	repo *repository.AutomationRepository
+	repo    *repository.AutomationRepository
+	billing *billingServicePkg.BillingService
 }
 
-func NewAutomationService(repo *repository.AutomationRepository) *AutomationService {
+func NewAutomationService(repo *repository.AutomationRepository, billing *billingServicePkg.BillingService) *AutomationService {
 	return &AutomationService{
-		repo: repo,
+		repo:    repo,
+		billing: billing,
 	}
 }
 
@@ -83,6 +87,13 @@ func (s *AutomationService) CreateAutomation(ctx context.Context, req *models.Cr
 		return nil, fmt.Errorf("failed to create automation: %w", err)
 	}
 
+	// Track usage in Redis
+	if s.billing != nil {
+		if err := s.billing.IncrementUsageRedis(ctx, userID, billingModels.ResourceAutomations, 1); err != nil {
+			fmt.Printf("Warning: failed to track automation usage: %v\n", err)
+		}
+	}
+
 	// Reload to get complete data
 	return s.repo.GetAutomationByID(ctx, automation.ID)
 }
@@ -107,10 +118,24 @@ func (s *AutomationService) UpdateAutomation(ctx context.Context, id string, req
 
 // DeleteAutomation deletes an automation
 func (s *AutomationService) DeleteAutomation(ctx context.Context, id string) error {
-	err := s.repo.DeleteAutomation(ctx, id)
+	// Get automation to extract userID before deletion
+	automation, err := s.repo.GetAutomationByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("automation not found: %w", err)
+	}
+
+	err = s.repo.DeleteAutomation(ctx, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete automation: %w", err)
 	}
+
+	// Decrement usage in Redis
+	if s.billing != nil {
+		if err := s.billing.IncrementUsageRedis(ctx, automation.UserID, billingModels.ResourceAutomations, -1); err != nil {
+			fmt.Printf("Warning: failed to decrement automation usage: %v\n", err)
+		}
+	}
+
 	return nil
 }
 

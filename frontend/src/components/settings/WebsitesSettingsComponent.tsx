@@ -10,13 +10,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getWebsites, deleteWebsite, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { EditWebsiteModal } from '@/components/websites/EditWebsiteModal';
+import { TrackingSettingsComponent } from './TrackingSettingsComponent';
 import { cn } from '@/lib/utils';
-import { Loader2, Trash2, Edit, ExternalLink, Globe, Plus } from 'lucide-react';
+import { Loader2, Trash2, Edit, ExternalLink, Globe, Plus, Code } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -26,6 +28,7 @@ export function WebsitesSettingsComponent() {
   const queryClient = useQueryClient();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingWebsite, setEditingWebsite] = useState<Website | null>(null);
+  const [trackingWebsite, setTrackingWebsite] = useState<Website | null>(null);
 
   // Fetch websites
   const { data: websites = [], isLoading } = useQuery({
@@ -82,6 +85,12 @@ export function WebsitesSettingsComponent() {
         onOpenChange={(open) => !open && setEditingWebsite(null)}
         website={editingWebsite}
       />
+
+      <Dialog open={!!trackingWebsite} onOpenChange={(open) => !open && setTrackingWebsite(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          {trackingWebsite && <TrackingSettingsComponent websiteId={trackingWebsite.id} />}
+        </DialogContent>
+      </Dialog>
 
       <div className="border rounded overflow-hidden bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
         {isLoading ? (
@@ -140,6 +149,15 @@ export function WebsitesSettingsComponent() {
                         onClick={() => setEditingWebsite(website)}
                       >
                         <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-9 w-9 rounded hover:bg-muted text-blue-500 hover:text-blue-600 hover:bg-blue-500/10" 
+                        onClick={() => setTrackingWebsite(website)}
+                        title="Get Tracking Code"
+                      >
+                        <Code className="h-4 w-4" />
                       </Button>
                       <Button 
                         variant="ghost" 

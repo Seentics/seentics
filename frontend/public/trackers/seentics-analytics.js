@@ -32,7 +32,7 @@
       event_name: 'page_view',
       page_view_id: analytics.pageViewId,
       page_url: pageData.url,
-      page_path: pageData.path,
+      page: pageData.path,
       page_title: pageData.title,
       referrer: pageData.referrer,
       screen_width: pageData.screen.width,
@@ -53,7 +53,7 @@
       event_name: eventName,
       page_view_id: analytics.pageViewId,
       page_url: w.location.href,
-      page_path: w.location.pathname,
+      page: w.location.pathname,
       properties
     });
 

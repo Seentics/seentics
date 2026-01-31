@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import api from '@/lib/api';
 import {
   Node,
   Edge,
@@ -183,28 +184,48 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
   getLinearizedWorkflow: () => {
     const { nodes, edges, automation } = get();
 
-    // 1. Find the trigger node
-    const triggerNode = nodes.find(n => n.type === 'triggerNode');
+    // 1. Find the active trigger node (one that has outgoing connections or is the only one)
+    let triggerNode = nodes.find(n => n.type === 'triggerNode' && edges.some(e => e.source === n.id));
+    if (!triggerNode) {
+      // Fallback to the first trigger node if none are connected
+      triggerNode = nodes.find(n => n.type === 'triggerNode');
+    }
+
     if (!triggerNode) throw new Error('No trigger node found');
 
-    // 2. Build the action sequence by traversing edges from the trigger
+    // 2. Build the action and condition sequences by traversing the graph
     const actions: any[] = [];
-    let currentNodeId = triggerNode.id;
+    const conditions: any[] = [];
+    const visited = new Set<string>();
+    const queue = [triggerNode.id];
+    visited.add(triggerNode.id);
 
-    // Simple linear traversal for now (n8n-lite)
-    while (true) {
-      const edge = edges.find(e => e.source === currentNodeId);
-      if (!edge) break;
+    // BFS traversal to collect all reachable actions and conditions
+    while (queue.length > 0) {
+      const currentNodeId = queue.shift()!;
+      const outgoingEdges = edges.filter(e => e.source === currentNodeId);
 
-      const nextNode = nodes.find(n => n.id === edge.target);
-      if (!nextNode || nextNode.type !== 'actionNode') break;
+      for (const edge of outgoingEdges) {
+        if (!visited.has(edge.target)) {
+          visited.add(edge.target);
+          const nextNode = nodes.find(n => n.id === edge.target);
 
-      actions.push({
-        actionType: nextNode.data.config?.actionType || 'email',
-        actionConfig: nextNode.data.config || {},
-      });
-
-      currentNodeId = nextNode.id;
+          if (nextNode) {
+            if (nextNode.type === 'actionNode') {
+              actions.push({
+                actionType: nextNode.data.config?.actionType || 'modal',
+                actionConfig: nextNode.data.config || {},
+              });
+            } else if (nextNode.type === 'conditionNode' || nextNode.type === 'advancedConditionNode') {
+              conditions.push({
+                conditionType: nextNode.data.config?.conditionType || 'if',
+                conditionConfig: nextNode.data.config || {},
+              });
+            }
+            queue.push(nextNode.id);
+          }
+        }
+      }
     }
 
     // 3. Store graph metadata in triggerConfig for persistence
@@ -222,24 +243,25 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
       description: automation.description || '',
       triggerType: triggerConfig.triggerType,
       triggerConfig,
-      actions
+      actions,
+      conditions
     };
   },
 
   saveAutomation: async (websiteId, automationId) => {
     try {
       const workflow = get().getLinearizedWorkflow();
-      const endpoint = automationId
-        ? `/api/v1/websites/${websiteId}/automations/${automationId}`
-        : `/api/v1/websites/${websiteId}/automations`;
+      const url = automationId
+        ? `/websites/${websiteId}/automations/${automationId}`
+        : `/websites/${websiteId}/automations`;
 
-      const response = await fetch(endpoint, {
-        method: automationId ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(workflow),
+      const response = await api({
+        method: automationId ? 'put' : 'post',
+        url: url,
+        data: workflow,
       });
 
-      if (response.ok) {
+      if (response.status === 200 || response.status === 201) {
         set({ isDirty: false });
       } else {
         throw new Error('Failed to save automation');
@@ -252,8 +274,8 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
 
   loadAutomation: async (websiteId, id) => {
     try {
-      const response = await fetch(`/api/v1/websites/${websiteId}/automations/${id}`);
-      const data = await response.json();
+      const response = await api.get(`/websites/${websiteId}/automations/${id}`);
+      const data = response.data;
 
       // Try to restore graph from __graph metadata
       const graph = data.triggerConfig?.__graph;
@@ -277,10 +299,8 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
 
   publishAutomation: async (websiteId, id) => {
     try {
-      const response = await fetch(`/api/v1/websites/${websiteId}/automations/${id}/toggle`, {
-        method: 'POST',
-      });
-      if (response.ok) {
+      const response = await api.post(`/websites/${websiteId}/automations/${id}/toggle`);
+      if (response.status === 200) {
         set((state) => ({
           automation: { ...state.automation, enabled: true },
           isDirty: false,

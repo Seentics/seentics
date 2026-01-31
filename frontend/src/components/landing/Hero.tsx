@@ -2,8 +2,10 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Play, LayoutDashboard, MousePointer2 } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/stores/useAuthStore';
 
 export default function Hero() {
+  const { isAuthenticated } = useAuth();
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -37,7 +39,7 @@ export default function Hero() {
           className="max-w-5xl mx-auto flex flex-col items-center text-center"
         >
           {/* Status Badge */}
-          <motion.div variants={itemVariants} className="mb-8">
+          {/* <motion.div variants={itemVariants} className="mb-8">
             <Link href="https://github.com/skshohagmiah/seentics-analytics" target="_blank">
               <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 backdrop-blur-md text-[11px] font-bold uppercase tracking-wider text-primary shadow-sm hover:bg-primary/10 transition-colors">
                 <span className="relative flex h-2 w-2">
@@ -47,7 +49,7 @@ export default function Hero() {
                 Open Source • Contributions Welcome
               </div>
             </Link>
-          </motion.div>
+          </motion.div> */}
 
           {/* Headline */}
           <motion.h1
@@ -69,12 +71,21 @@ export default function Hero() {
           {/* Action Hub */}
           <motion.div variants={itemVariants} className="flex flex-col items-center gap-8 w-full mb-24">
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-              <Link href="/signup" className="w-full sm:w-auto">
-                <Button variant="brand" size="lg" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded w-full sm:w-auto active:scale-95 group shadow-xl shadow-primary/20">
-                  Start Free Forever
-                  <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
+              {isAuthenticated ? (
+                <Link href="/websites" className="w-full sm:w-auto">
+                  <Button variant="brand" size="lg" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded w-full sm:w-auto active:scale-95 group shadow-xl shadow-primary/20">
+                    Go to Dashboard
+                    <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/signup" className="w-full sm:w-auto">
+                  <Button variant="brand" size="lg" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded w-full sm:w-auto active:scale-95 group shadow-xl shadow-primary/20">
+                    Start Free Forever
+                    <ArrowRight className="ml-3 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+              )}
               <Link href="/websites/demo" className="w-full sm:w-auto">
                 <Button size="lg" variant="secondary" className="h-14 px-10 text-[13px] font-bold uppercase tracking-widest rounded w-full sm:w-auto bg-white/10 border-white/20 hover:bg-white/20 text-foreground transition-all flex items-center justify-center gap-3 backdrop-blur-md">
                   <Play className="h-3 w-3 fill-current" />
@@ -84,7 +95,7 @@ export default function Hero() {
             </div>
 
             {/* Feature Tags */}
-            <div className="flex flex-wrap justify-center gap-3 max-w-2xl px-6">
+            {/* <div className="flex flex-wrap justify-center gap-3 max-w-2xl px-6">
               {[
                 "Web Analytics",
                 "Visual Funnels",
@@ -95,7 +106,7 @@ export default function Hero() {
                   {tag}
                 </div>
               ))}
-            </div>
+            </div> */}
           </motion.div>
 
           {/* High-Fidelity Dashboard Card */}

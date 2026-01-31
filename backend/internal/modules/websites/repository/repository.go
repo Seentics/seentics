@@ -130,7 +130,7 @@ func (r *WebsiteRepository) GetBySiteID(ctx context.Context, siteID string) (*mo
 	query := `
 		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, verification_token, created_at, updated_at
 		FROM websites
-		WHERE site_id = $1
+		WHERE site_id = $1 OR id::text = $1
 	`
 
 	var w models.Website

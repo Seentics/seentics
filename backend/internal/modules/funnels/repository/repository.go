@@ -248,3 +248,99 @@ func (r *FunnelRepository) GetStepsByFunnelID(ctx context.Context, funnelID stri
 
 	return steps, nil
 }
+
+// GetFunnelStats calculates real-time statistics for a funnel based on historical events
+func (r *FunnelRepository) GetFunnelStats(ctx context.Context, funnelID string, websiteID string) (*models.FunnelStats, error) {
+	steps, err := r.GetStepsByFunnelID(ctx, funnelID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(steps) == 0 {
+		return &models.FunnelStats{}, nil
+	}
+
+	stats := &models.FunnelStats{
+		StepBreakdown: make([]models.StepStats, len(steps)),
+	}
+
+	// For each step, count unique visitors who hit the page/event
+	for i, step := range steps {
+		var count int
+		var query string
+		var args []interface{}
+
+		if step.StepType == "page_view" {
+			query = `
+				SELECT COUNT(DISTINCT visitor_id) 
+				FROM events 
+				WHERE website_id = $1 
+				AND event_type = 'pageview'
+			`
+			if step.MatchType == "exact" {
+				query += " AND page = $2"
+			} else {
+				query += " AND page LIKE $2"
+			}
+
+			path := step.PagePath
+			if step.MatchType != "exact" {
+				path = "%" + path + "%"
+			}
+			args = []interface{}{websiteID, path}
+		} else {
+			// Custom event
+			query = `
+				SELECT COUNT(DISTINCT visitor_id) 
+				FROM events 
+				WHERE website_id = $1 
+				AND event_type = 'custom' 
+				AND page = $2
+			`
+			args = []interface{}{websiteID, step.EventType}
+		}
+
+		err := r.db.QueryRow(ctx, query, args...).Scan(&count)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get count for step %d: %w", i, err)
+		}
+
+		stats.StepBreakdown[i] = models.StepStats{
+			StepOrder: step.Order,
+			StepName:  step.Name,
+			Count:     count,
+		}
+
+		if i == 0 {
+			stats.TotalEntries = count
+		}
+		if i == len(steps)-1 {
+			stats.Completions = count
+		}
+	}
+
+	// Calculate dropoffs and rates
+	for i := range stats.StepBreakdown {
+		if i == 0 {
+			stats.StepBreakdown[i].ConversionRate = 100.0
+			stats.StepBreakdown[i].DropoffRate = 0.0
+			stats.StepBreakdown[i].DropoffCount = 0
+			continue
+		}
+
+		prevCount := stats.StepBreakdown[i-1].Count
+		currCount := stats.StepBreakdown[i].Count
+
+		if prevCount > 0 {
+			stats.StepBreakdown[i].ConversionRate = float64(currCount) / float64(prevCount) * 100.0
+			stats.StepBreakdown[i].DropoffCount = prevCount - currCount
+			stats.StepBreakdown[i].DropoffRate = float64(stats.StepBreakdown[i].DropoffCount) / float64(prevCount) * 100.0
+		}
+	}
+
+	if stats.TotalEntries > 0 {
+		stats.ConversionRate = float64(stats.Completions) / float64(stats.TotalEntries) * 100.0
+	}
+
+	return stats, nil
+}

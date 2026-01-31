@@ -10,20 +10,37 @@ import { Progress } from '@/components/ui/progress';
 import { useSubscription } from '@/hooks/useSubscription';
 import Link from 'next/link';
 import { toast } from 'sonner';
+import { UpgradePlanModal } from '@/components/subscription/UpgradePlanModal';
 import { createPortalSession } from '@/lib/billing-api';
+import api from '@/lib/api';
 
 export default function AccountBillingSettings() {
     const params = useParams();
     const websiteId = params?.websiteId as string;
     const { subscription, loading, error, getUsagePercentage } = useSubscription();
+    const [isUpgradeModalOpen, setIsUpgradeModalOpen] = React.useState(false);
+    const [cancelling, setCancelling] = React.useState(false);
 
     const handleManagePayments = async () => {
+        window.open('https://seentics.lemonsqueezy.com/billing', '_blank');
+    };
+
+    const handleCancel = async () => {
+        if (!window.confirm('Are you sure you want to cancel your subscription? This will revert your account to the Starter plan at the end of the current billing cycle.')) {
+            return;
+        }
+
         try {
-            toast.loading('Redirecting to billing portal...');
-            const url = await createPortalSession();
-            window.location.href = url;
+            setCancelling(true);
+            const response = await api.post('/user/billing/cancel');
+            if (response.data.success && response.data.data.url) {
+                window.open(response.data.data.url, '_blank');
+                toast.info('Please complete the cancellation in the billing portal.');
+            }
         } catch (error) {
-            toast.error('Failed to open billing portal. Please contact support.');
+            toast.error('Failed to initiate cancellation. Please try again.');
+        } finally {
+            setCancelling(false);
         }
     };
 
@@ -58,18 +75,20 @@ export default function AccountBillingSettings() {
                             </Badge>
                             <div className="flex flex-col md:flex-row md:items-end gap-2 mb-8">
                                 <h2 className="text-5xl font-black tracking-tight">
-                                    {normalizedPlan.includes('starter') || normalizedPlan.includes('free') ? '0' : 
-                                     normalizedPlan.includes('growth') ? '19' : '49'}
+                                    {(normalizedPlan.includes('starter') || normalizedPlan.includes('free')) ? '0' : 
+                                     normalizedPlan.includes('growth') ? '15' : 
+                                     normalizedPlan.includes('scale') ? '39' : '149'}
                                 </h2>
                                 <span className="text-lg font-bold text-muted-foreground mb-1">/ month</span>
                             </div>
 
                             <div className="flex flex-wrap gap-3">
-                                <Link href="/pricing">
-                                    <Button className="h-12 px-8 font-black rounded shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90">
-                                        Change Plan
-                                    </Button>
-                                </Link>
+                                <Button 
+                                    onClick={() => setIsUpgradeModalOpen(true)}
+                                    className="h-12 px-8 font-black rounded shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90"
+                                >
+                                    Change Plan
+                                </Button>
                                 <Button 
                                     variant="outline" 
                                     className="h-12 px-8 font-black rounded border-2 hover:bg-muted/50"
@@ -177,6 +196,15 @@ export default function AccountBillingSettings() {
                     </div>
                 </div>
             </div>
+
+            <UpgradePlanModal 
+                isOpen={isUpgradeModalOpen}
+                onClose={() => setIsUpgradeModalOpen(false)}
+                currentPlan={normalizedPlan as any}
+                limitType="monthlyEvents"
+                currentUsage={subscription?.usage?.monthlyEvents?.current || 0}
+                limit={subscription?.usage?.monthlyEvents?.limit || 5000}
+            />
         </div>
     );
 }

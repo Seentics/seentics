@@ -23,10 +23,8 @@
   // Fetch active automations
   const loadAutomations = async () => {
     try {
-      const response = await S.api.send('automations/active', {
-        website_id: S.config.websiteId
-      });
-      automation.activeAutomations = response.automations || [];
+      const response = await S.api.get(`workflows/site/${S.config.websiteId}/active`);
+      automation.activeAutomations = response.workflows || [];
       S.emit('automation:loaded', { count: automation.activeAutomations.length });
     } catch (error) {
       if (S.config.debug) {
@@ -38,9 +36,12 @@
   // Check if automation should execute based on frequency
   const shouldExecute = (auto) => {
     const key = auto.id;
-    const frequency = auto.trigger_config?.frequency || 'always';
+    // Handle both camelCase and snake_case
+    const triggerConfig = auto.triggerConfig || auto.trigger_config || {};
+    const frequency = triggerConfig.frequency || 'every';
 
     switch (frequency) {
+      case 'once':
       case 'once_per_visitor':
         return !automation.executedAutomations.has(key);
       case 'once_per_session':
@@ -50,6 +51,7 @@
         if (!lastExec) return true;
         const dayAgo = Date.now() - 86400000;
         return parseInt(lastExec) < dayAgo;
+      case 'every':
       case 'always':
       default:
         return true;
@@ -59,11 +61,12 @@
   // Mark automation as executed
   const markExecuted = (auto) => {
     const key = auto.id;
-    const frequency = auto.trigger_config?.frequency || 'always';
+    const triggerConfig = auto.triggerConfig || auto.trigger_config || {};
+    const frequency = triggerConfig.frequency || 'every';
 
     automation.sessionExecutions.add(key);
 
-    if (frequency === 'once_per_visitor') {
+    if (frequency === 'once' || frequency === 'once_per_visitor') {
       automation.executedAutomations.add(key);
       const stored = JSON.parse(localStorage.getItem('seentics_executed_autos') || '[]');
       stored.push(key);
@@ -100,9 +103,11 @@
 
   // Execute single action
   const executeAction = async (action, data) => {
-    const config = action.action_config || {};
+    // Handle both camelCase and snake_case
+    const config = action.actionConfig || action.action_config || {};
+    const actionType = action.actionType || action.action_type;
 
-    switch (action.action_type) {
+    switch (actionType) {
       case 'modal':
         showModal(config);
         break;
@@ -123,7 +128,7 @@
         break;
     }
 
-    S.emit('automation:action', { type: action.action_type, config });
+    S.emit('automation:action', { type: actionType, config });
   };
 
   // UI Actions
@@ -286,9 +291,31 @@
   // Trigger evaluation
   const evaluateTriggers = (eventType, eventData = {}) => {
     automation.activeAutomations.forEach(auto => {
-      if (auto.trigger_type === eventType && shouldExecute(auto)) {
-        executeActions(auto, eventData);
-        markExecuted(auto);
+      // Handle both camelCase and snake_case
+      const triggerType = (auto.triggerType || auto.trigger_type || '').toLowerCase();
+      const triggerConfig = auto.triggerConfig || auto.trigger_config || {};
+      const normalizedEventType = eventType.toLowerCase().replace('_', '');
+      
+      // Match trigger type (normalize both to handle pageView vs pageview)
+      if (triggerType === normalizedEventType || triggerType === eventType) {
+        // For page view triggers, check if page matches
+        if (triggerType === 'pageview' && triggerConfig.page) {
+          const currentPage = window.location.pathname;
+          const targetPage = triggerConfig.page;
+          
+          // Skip if page doesn't match
+          if (targetPage !== currentPage && targetPage !== '*') {
+            return;
+          }
+        }
+        
+        if (shouldExecute(auto)) {
+          if (S.config.debug) {
+            console.log('[Seentics Automation] Executing automation:', auto.name || auto.id);
+          }
+          executeActions(auto, eventData);
+          markExecuted(auto);
+        }
       }
     });
   };

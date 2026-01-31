@@ -3,6 +3,7 @@ package models
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -15,13 +16,25 @@ func (j JSONB) Value() (driver.Value, error) {
 
 func (j *JSONB) Scan(value interface{}) error {
 	if value == nil {
-		*j = make(JSONB)
+		*j = nil
 		return nil
 	}
-	bytes, ok := value.([]byte)
-	if !ok {
+
+	var bytes []byte
+	switch v := value.(type) {
+	case []byte:
+		bytes = v
+	case string:
+		bytes = []byte(v)
+	default:
+		return fmt.Errorf("unsupported type for JSONB: %T", value)
+	}
+
+	if len(bytes) == 0 {
+		*j = nil
 		return nil
 	}
+
 	return json.Unmarshal(bytes, j)
 }
 
@@ -37,7 +50,7 @@ type Automation struct {
 	IsActive      bool      `json:"isActive" db:"is_active"`
 	CreatedAt     time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt     time.Time `json:"updatedAt" db:"updated_at"`
-	
+
 	// Relations (not stored in DB, loaded separately)
 	Actions    []AutomationAction    `json:"actions,omitempty" db:"-"`
 	Conditions []AutomationCondition `json:"conditions,omitempty" db:"-"`

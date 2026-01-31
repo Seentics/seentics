@@ -16,6 +16,7 @@ type Event struct {
 	SessionID   string     `json:"session_id" db:"session_id"`
 	EventType   string     `json:"event_type" db:"event_type"`
 	Page        string     `json:"page" db:"page"`
+	PagePath    string     `json:"page_path" db:"-"` // Alias for page from older/different trackers
 	Referrer    *string    `json:"referrer,omitempty" db:"referrer"`
 	UserAgent   *string    `json:"user_agent,omitempty" db:"user_agent"`
 	IPAddress   *string    `json:"ip_address,omitempty" db:"ip_address"`

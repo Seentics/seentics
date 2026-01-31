@@ -7,11 +7,18 @@ import { Copy, Check, Info, Lightbulb } from 'lucide-react';
 export function TrackingSettingsComponent({ websiteId }: { websiteId: string }) {
   const [copied, setCopied] = React.useState(false);
 
-  const trackingSnippet = `<!-- Seentics Analytics -->
+  const [origin, setOrigin] = React.useState('');
+
+  React.useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+const trackingSnippet = `<!-- Seentics Analytics -->
 <script 
   defer 
   data-website-id="${websiteId}" 
-  src="https://app.seentics.com/script.js"
+  data-auto-load="analytics,automation,funnels"
+  src="${origin}/trackers/seentics-core.js"
 ></script>`;
 
   const handleCopy = () => {

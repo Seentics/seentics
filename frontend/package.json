@@ -79,6 +79,7 @@
     "react-simple-maps": "^3.0.0",
     "reactflow": "^11.11.3",
     "recharts": "^2.15.1",
+    "resend": "^6.9.1",
     "sonner": "^2.0.6",
     "sooner": "^1.1.4",
     "tailwind-merge": "^3.0.1",

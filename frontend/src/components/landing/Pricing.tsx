@@ -15,7 +15,8 @@ const plans = [
     color: "text-primary bg-primary/10 border-primary/20",
     features: [
       "1 Website",
-      "10,000 Monthly Events",
+      "5,000 Monthly Events",
+      '1 Automation Workflow',
       "1 Conversion Funnel",
       "30 Days Data Retention",
       "Real-time Dashboard",
@@ -24,7 +25,7 @@ const plans = [
   },
   {
     name: "Growth",
-    price: "29",
+    price: "15",
     period: "per month",
     description: "Scaling fast? Get the deep insights you need.",
     icon: Zap,
@@ -33,15 +34,15 @@ const plans = [
     features: [
       "3 Websites",
       "100,000 Monthly Events",
-      "5 Conversion Funnels",
-      "3 Active Automations",
+      "10 Conversion Funnels",
+      "10 Active Automations",
       "1 Year Data Retention",
       "Priority Email Support"
     ]
   },
   {
     name: "Scale",
-    price: "79",
+    price: "39",
     period: "per month",
     description: "Dominate your market with automation.",
     icon: Crown,
@@ -50,23 +51,23 @@ const plans = [
     features: [
       "10 Websites",
       "500,000 Monthly Events",
-      "Unlimited Funnels",
-      "10 Active Automations",
-      "2 Years Data Retention",
+      "Unlimited Automations",
+      'Unlimited Funnels',
+      "3 Years Data Retention",
       "24/7 Priority Support",
       "API Access"
     ]
   },
   {
     name: "Pro+",
-    price: "199",
+    price: "149",
     period: "per month",
     description: "The ultimate power for large-scale operations.",
     icon: Sparkles,
     popular: false,
     color: "text-amber-500 bg-amber-500/10 border-amber-500/20",
     features: [
-      "Unlimited Websites",
+      "50 Websites",
       "5,000,000 Monthly Events",
       "Unlimited Everything",
       "Custom Data Retention",
@@ -215,9 +216,9 @@ export default function Pricing() {
                   Contact Sales
                 </Button>
               </Link>
-              <Link href="/signup" className="w-full sm:w-auto">
+              <Link href={isAuthenticated ? "/websites" : "/signup"} className="w-full sm:w-auto">
                 <Button variant="brand" className="w-full sm:w-auto h-16 px-12 rounded font-black text-[10px] uppercase tracking-[0.2em] active:scale-95">
-                  Start Free Now
+                  {isAuthenticated ? "Go to Dashboard" : "Start Free Now"}
                 </Button>
               </Link>
             </div>

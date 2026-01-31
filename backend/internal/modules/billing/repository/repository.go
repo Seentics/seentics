@@ -161,3 +161,68 @@ func (r *BillingRepository) ResetMonthlyUsage(ctx context.Context, userID, resou
 	_, err := r.db.Exec(ctx, query, userID, resourceType, nextReset)
 	return err
 }
+
+// CountUserResources counts actual websites, funnels, and automations from the DB
+func (r *BillingRepository) CountUserResources(ctx context.Context, userID string) (map[string]int, error) {
+	counts := make(map[string]int)
+
+	// Count websites
+	var websitesCount int
+	err := r.db.QueryRow(ctx, "SELECT COUNT(*) FROM websites WHERE user_id = $1", userID).Scan(&websitesCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count websites: %w", err)
+	}
+	counts[models.ResourceWebsites] = websitesCount
+
+	// Count funnels
+	var funnelsCount int
+	err = r.db.QueryRow(ctx, "SELECT COUNT(*) FROM funnels WHERE user_id = $1", userID).Scan(&funnelsCount)
+	if err != nil {
+		// Table might not exist yet if migration hasn't run or is fresh
+		counts[models.ResourceFunnels] = 0
+	} else {
+		counts[models.ResourceFunnels] = funnelsCount
+	}
+
+	// Count automations
+	var automationsCount int
+	err = r.db.QueryRow(ctx, "SELECT COUNT(*) FROM automations WHERE user_id = $1", userID).Scan(&automationsCount)
+	if err != nil {
+		counts[models.ResourceAutomations] = 0
+	} else {
+		counts[models.ResourceAutomations] = automationsCount
+	}
+
+	// Count monthly events (all time for now, or join with websites to filter by user)
+	// System events (pageviews, etc.)
+	var systemEventsCount int
+	systemQuery := `
+		SELECT COUNT(*) 
+		FROM events e 
+		JOIN websites w ON e.website_id = w.site_id 
+		WHERE w.user_id = $1 
+		AND e.created_at >= DATE_TRUNC('month', CURRENT_DATE)
+	`
+	err = r.db.QueryRow(ctx, systemQuery, userID).Scan(&systemEventsCount)
+	if err != nil {
+		systemEventsCount = 0
+	}
+
+	// Custom events (aggregated)
+	var customEventsCount int
+	customQuery := `
+		SELECT COALESCE(SUM(count), 0) 
+		FROM custom_events_aggregated ce 
+		JOIN websites w ON ce.website_id = w.site_id 
+		WHERE w.user_id = $1 
+		AND ce.updated_at >= DATE_TRUNC('month', CURRENT_DATE)
+	`
+	err = r.db.QueryRow(ctx, customQuery, userID).Scan(&customEventsCount)
+	if err != nil {
+		customEventsCount = 0
+	}
+
+	counts[models.ResourceMonthlyEvents] = systemEventsCount + customEventsCount
+
+	return counts, nil
+}

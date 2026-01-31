@@ -18,6 +18,24 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import { useParams, useSearchParams } from 'next/navigation';
 
+const reactFlowStyle = `
+  .react-flow__node {
+    padding: 0 !important;
+    border: none !important;
+    // background: transparent !important;
+    box-shadow: none !important;
+  }
+  .react-flow__handle {
+    width: 8px !important;
+    height: 8px !important;
+    background: hsl(var(--primary)) !important;
+    border: 2px solid #0f172a !important;
+  }
+  .react-flow__attribution {
+    display: none !important;
+  }
+`;
+
 import { TriggerNode } from './TriggerNode';
 import { ActionNode } from './ActionNode';
 import { ConditionNode } from './ConditionNode';
@@ -138,9 +156,16 @@ export const WorkflowBuilder = ({
         data: { label: `${label}`, config: initialConfig },
       };
 
-      setNodes([...nodes, newNode]);
+      // If we're dropping a trigger node, we might want to clean up existing orphaned ones 
+      // or ensure only one trigger exists.
+      if (type === 'triggerNode') {
+        const otherNodes = nodes.filter(n => n.type !== 'triggerNode' || edges.some(e => e.source === n.id));
+        setNodes([...otherNodes, newNode]);
+      } else {
+        setNodes([...nodes, newNode]);
+      }
     },
-    [reactFlowInstance, nodes, setNodes]
+    [reactFlowInstance, nodes, edges, setNodes]
   );
 
   const onNodeClick = (event: React.MouseEvent, node: Node) => {
@@ -164,6 +189,7 @@ export const WorkflowBuilder = ({
         automationId={automationId}
         onTestClick={() => setShowExecutionPreview(true)} 
       />
+      <style dangerouslySetInnerHTML={{ __html: reactFlowStyle }} />
       <div className="flex flex-1 overflow-hidden" ref={reactFlowWrapper}>
         <div className="flex-1 h-full relative">
           <ReactFlow

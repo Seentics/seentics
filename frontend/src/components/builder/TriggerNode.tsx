@@ -48,52 +48,32 @@ export const TriggerNode = memo(({ data, selected, isConnectable }: NodeProps) =
 
   return (
     <div
-      className={`px-4 py-3 rounded bg-slate-900 border-2 transition-all shadow-xl hover:shadow-2xl ${
+      className={`p-3 rounded border w-[220px] transition-all ${
         selected
-          ? 'border-primary ring-4 ring-primary/20 scale-105 z-50'
-          : 'border-slate-800 hover:border-amber-500/40'
+          ? 'bg-slate-800 border-amber-500 ring-2 ring-amber-500/20 scale-105 z-50 shadow-xl shadow-amber-500/10'
+          : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-700/50'
       }`}
     >
-      <div className="flex items-center gap-4">
-        <div className={`h-12 w-12 rounded flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${colorClass}`}>
-          <Icon size={24} />
+      <div className="flex items-center gap-3">
+        <div className={`h-9 w-9 rounded flex items-center justify-center flex-shrink-0 shadow-sm ${colorClass}`}>
+          <Icon size={18} />
         </div>
-        <div className="min-w-[160px]">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-500/80 mb-1">
-            Event Trigger
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">
+            Trigger
           </p>
-          <h4 className="text-sm font-black text-white truncate leading-tight">
+          <h4 className="text-xs font-black text-slate-200 truncate leading-tight">
             {data.label}
           </h4>
-          {data.config?.page && (
-            <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-              {data.config.page}
-            </p>
-          )}
         </div>
       </div>
-
-      {data.config && (
-        <div className="mt-2 pt-2 border-t border-border/30 space-y-1">
-          {data.config.scrollDepth && (
-            <p className="text-[9px] text-muted-foreground">
-              📊 {data.config.scrollDepth}% scroll depth
-            </p>
-          )}
-          {data.config.duration && (
-            <p className="text-[9px] text-muted-foreground">
-              ⏱️ {data.config.duration} {data.config.unit}
-            </p>
-          )}
-        </div>
-      )}
 
       <Handle
         type="source"
         position={Position.Bottom}
         isConnectable={isConnectable}
-        style={{ left: '50%', transform: 'translateX(-50%)', bottom: -6, width: 12, height: 12, zIndex: 10 }}
-        className="!bg-primary border-2 border-slate-900"
+        className="!w-2 !h-2 !bg-primary !border-slate-900 !border-2"
+        style={{ bottom: -4 }}
       />
     </div>
   );

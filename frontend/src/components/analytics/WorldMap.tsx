@@ -6,6 +6,7 @@ import { getCountryCoordinates, getCountryCode, getStandardCountryName } from '@
 
 interface CountryData {
     name: string;
+    code?: string;
     count: number;
     percentage: number;
 }
@@ -76,8 +77,11 @@ export default function WorldMap({ data = [], isLoading = false, className = '' 
     }
 
     // Get color based on visitor count
-    const getCountryColor = (countryName: string): string => {
-        const country = data.find(d => d.name === countryName);
+    const getCountryColor = (countryName: string, countryCode?: string): string => {
+        const country = data.find(d => 
+            (countryCode && d.code === countryCode) || 
+            d.name === countryName
+        );
 
         if (!country) return '#3a3e44ff'; // Gray for no data
 
@@ -128,16 +132,19 @@ export default function WorldMap({ data = [], isLoading = false, className = '' 
                                 // Map geography names using the comprehensive utils mapping
                                 const geoName = geo.properties.name;
                                 const countryName = getStandardCountryName(geoName);
+                                const geoCode = geo.properties.ISO_A2 || geo.properties.iso_a2;
 
-
-                                const countryData = data.find(d => d.name === countryName);
+                                const countryData = data.find(d => 
+                                    (geoCode && d.code === geoCode) || 
+                                    d.name === countryName
+                                );
                                 const hasData = !!countryData;
 
                                 return (
                                     <Geography
                                         key={geo.rsmKey}
                                         geography={geo}
-                                        fill={getCountryColor(countryName || '')}
+                                        fill={getCountryColor(countryName || '', geoCode)}
                                         stroke="#FFFFFF"
                                         strokeWidth={0.5}
                                         style={{

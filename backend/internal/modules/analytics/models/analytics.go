@@ -136,6 +136,7 @@ type CustomEventStat struct {
 // TopItem - USED in top_continents_analytics.go
 type TopItem struct {
 	Name       string  `json:"name" db:"name"`
+	Code       string  `json:"code,omitempty" db:"code"`
 	Count      int     `json:"count" db:"count"`
 	Percentage float64 `json:"percentage" db:"percentage"`
 }

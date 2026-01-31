@@ -90,9 +90,9 @@ func (r *EventRepository) Create(ctx context.Context, event *models.Event) error
 
 	query := `INSERT INTO events (
 		id, website_id, visitor_id, session_id, event_type, page, referrer, user_agent, ip_address,
-		country, city, browser, device, os, utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+		country, country_code, city, region, continent, browser, device, os, utm_source, utm_medium, utm_campaign, utm_term, utm_content,
 		time_on_page, properties, timestamp, created_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`
 
 	_, err := r.db.Exec(ctx, query, r.eventArgs(event)...)
 	if err != nil {
@@ -210,7 +210,7 @@ func (r *EventRepository) copyBatch(ctx context.Context, events []models.Event) 
 
 	columns := []string{
 		"id", "website_id", "visitor_id", "session_id", "event_type", "page", "referrer", "user_agent", "ip_address",
-		"country", "city", "browser", "device", "os", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
+		"country", "country_code", "city", "region", "continent", "browser", "device", "os", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content",
 		"time_on_page", "properties", "timestamp", "created_at",
 	}
 
@@ -236,9 +236,9 @@ func (r *EventRepository) regularBatch(ctx context.Context, events []models.Even
 	batch := &pgx.Batch{}
 	query := `INSERT INTO events (
 		id, website_id, visitor_id, session_id, event_type, page, referrer, user_agent, ip_address,
-		country, city, browser, device, os, utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+		country, country_code, city, region, continent, browser, device, os, utm_source, utm_medium, utm_campaign, utm_term, utm_content,
 		time_on_page, properties, timestamp, created_at
-	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`
 
 	// Prepare events and queue them
 	for i := range events {
@@ -280,7 +280,7 @@ func (r *EventRepository) GetByWebsiteID(ctx context.Context, websiteID string, 
 	defer cancel()
 
 	query := `SELECT id, website_id, visitor_id, session_id, event_type, page, referrer, user_agent, ip_address,
-		country, city, browser, device, os, utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+		country, country_code, city, region, continent, browser, device, os, utm_source, utm_medium, utm_campaign, utm_term, utm_content,
 		time_on_page, properties, timestamp, created_at
 		FROM events WHERE website_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`
 
@@ -298,7 +298,7 @@ func (r *EventRepository) GetByWebsiteID(ctx context.Context, websiteID string, 
 		err := rows.Scan(
 			&event.ID, &event.WebsiteID, &event.VisitorID, &event.SessionID, &event.EventType,
 			&event.Page, &event.Referrer, &event.UserAgent, &event.IPAddress,
-			&event.Country, &event.City, &event.Browser, &event.Device, &event.OS,
+			&event.Country, &event.CountryCode, &event.City, &event.Region, &event.Continent, &event.Browser, &event.Device, &event.OS,
 			&event.UTMSource, &event.UTMMedium, &event.UTMCampaign, &event.UTMTerm, &event.UTMContent,
 			&event.TimeOnPage, &propertiesJSON, &event.Timestamp, &event.CreatedAt,
 		)
@@ -363,7 +363,9 @@ func (r *EventRepository) eventArgs(event *models.Event) []interface{} {
 	return []interface{}{
 		event.ID, event.WebsiteID, event.VisitorID, event.SessionID, event.EventType,
 		event.Page, r.stringPtr(event.Referrer), r.stringPtr(event.UserAgent), r.stringPtr(event.IPAddress),
-		r.stringPtr(event.Country), r.stringPtr(event.City), r.stringPtr(event.Browser), r.stringPtr(event.Device), r.stringPtr(event.OS),
+		r.stringPtr(event.Country), r.stringPtr(event.CountryCode), r.stringPtr(event.City),
+		r.stringPtr(event.Region), r.stringPtr(event.Continent),
+		r.stringPtr(event.Browser), r.stringPtr(event.Device), r.stringPtr(event.OS),
 		r.stringPtr(event.UTMSource), r.stringPtr(event.UTMMedium), r.stringPtr(event.UTMCampaign), r.stringPtr(event.UTMTerm), r.stringPtr(event.UTMContent),
 		event.TimeOnPage, propertiesJSON, event.Timestamp, event.CreatedAt,
 	}

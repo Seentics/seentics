@@ -46,20 +46,8 @@ export function WebsitesHeader() {
 
         <div className='flex items-center gap-2 sm:gap-4'>
 
-             <ThemeToggle />
+             {/* <ThemeToggle /> */}
 
-             <div className='flex items-center gap-2'>
-               
-
-                {user && (
-                <Link href={params?.websiteId && !isDemoMode ? `/websites/${params.websiteId}/settings` : '/settings'}>
-                    <Button variant="brand" className="gap-2 font-bold uppercase tracking-wider text-[11px] h-9 px-4 ">
-                    <Settings className="h-3.5 w-3.5" />
-                    Workspace
-                    </Button>
-                </Link>
-                )}
-             </div>
 
             {isDemoMode && !user ? (
               <Link href="/signin">

@@ -110,6 +110,7 @@ func (r *TopGeolocationAnalytics) GetTopCountries(ctx context.Context, websiteID
 	query := `
 		SELECT 
 			COALESCE(country, 'Unknown') as name,
+			COALESCE(country_code, '') as code,
 			COUNT(DISTINCT visitor_id) as count,
 			ROUND(COUNT(DISTINCT visitor_id) * 100.0 / SUM(COUNT(DISTINCT visitor_id)) OVER(), 2) as percentage
 		FROM events 
@@ -117,7 +118,7 @@ func (r *TopGeolocationAnalytics) GetTopCountries(ctx context.Context, websiteID
 			AND timestamp >= $2 
 			AND timestamp <= $3
 			AND event_type = 'pageview'
-		GROUP BY country
+		GROUP BY country, country_code
 		ORDER BY count DESC
 		LIMIT $4
 	`
@@ -133,7 +134,7 @@ func (r *TopGeolocationAnalytics) GetTopCountries(ctx context.Context, websiteID
 		var item models.TopItem
 		var percentage sql.NullFloat64
 
-		err := rows.Scan(&item.Name, &item.Count, &percentage)
+		err := rows.Scan(&item.Name, &item.Code, &item.Count, &percentage)
 		if err != nil {
 			return nil, err
 		}

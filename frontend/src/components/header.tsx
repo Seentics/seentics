@@ -134,7 +134,7 @@ function HeaderContent() {
           <Separator orientation="vertical" className="h-6 hidden md:block opacity-20" />
 
           {/* Theme Toggle */}
-          <ThemeToggle />
+          {/* <ThemeToggle /> */}
 
           {/* User Profile Popover */}
           <Popover>

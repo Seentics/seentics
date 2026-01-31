@@ -22,11 +22,8 @@ export function PromotionBanner() {
               <Sparkles size={16} className="text-white animate-pulse" />
             </div> */}
             <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
-              <p className="text-sm font-medium text-white/90 tracking-tight">
-                Special Offer: <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent font-black uppercase text-xs tracking-widest px-1">Exclusive</span>
-              </p>
+              
               <div className="flex items-center gap-2">
-                <span className="h-1 w-1 rounded-full bg-white/20 hidden md:block" />
                 <p className="text-sm text-blue-100/80">
                   Get <span className="text-white font-bold underline decoration-blue-500/50 underline-offset-4 decoration-2 text-md">Lifetime Access</span> for only <span className="text-white font-black text-lg ml-1 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">$99</span>
                 </p>
@@ -36,7 +33,7 @@ export function PromotionBanner() {
 
           {/* Right Side: Scarcity & CTA */}
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
               <Timer size={14} className="text-blue-400" />
               <p className="text-[11px] font-bold text-blue-300 uppercase tracking-tighter">
                 Limited Time Offer

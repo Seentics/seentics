@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/stores/useAuthStore';
-import { hasFeature, isOpenSource } from '@/lib/features';
 import api from '@/lib/api';
 
 export interface UsageStatus {
@@ -59,26 +58,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
       setLoading(true);
       setError(null);
 
-      // In open source mode, return unlimited usage
-      if (isOpenSource()) {
-        setSubscription({
-          id: user.id,
-          plan: 'free',
-          status: 'active',
-          usage: {
-            websites: { current: 0, limit: -1, canCreate: true },
-            workflows: { current: 0, limit: -1, canCreate: true },
-            funnels: { current: 0, limit: -1, canCreate: true },
-            monthlyEvents: { current: 0, limit: -1, canCreate: true }
-          },
-          features: ['unlimited_everything'],
-          isActive: true
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Cloud mode - fetch from API
+      // Fetch from API
       const response = await api.get('/user/billing/usage');
 
       if (response.data.success) {
@@ -95,25 +75,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
       }
     } catch (err: any) {
       console.error('Error fetching subscription:', err);
-
-      // In open source mode, fallback to unlimited on API error
-      if (isOpenSource()) {
-        setSubscription({
-          id: user.id,
-          plan: 'free',
-          status: 'active',
-          usage: {
-            websites: { current: 0, limit: -1, canCreate: true },
-            workflows: { current: 0, limit: -1, canCreate: true },
-            funnels: { current: 0, limit: -1, canCreate: true },
-            monthlyEvents: { current: 0, limit: -1, canCreate: true }
-          },
-          features: ['unlimited_everything'],
-          isActive: true
-        });
-      } else {
-        setError(err.response?.data?.message || err.message || 'Unknown error occurred');
-      }
+      setError(err.response?.data?.message || err.message || 'Unknown error occurred');
     } finally {
       setLoading(false);
     }

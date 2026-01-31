@@ -23,63 +23,44 @@ export const NodeConfigPanel = ({ node, onClose }: NodeConfigPanelProps) => {
     onClose();
   };
 
-  const renderConfigForm = () => {
-    switch (node.type) {
-      case 'triggerNode':
-        return <TriggerConfig config={config} setConfig={setConfig} />;
-      case 'actionNode':
-        return <ActionConfig config={config} setConfig={setConfig} />;
-      case 'conditionNode':
-        return <ConditionConfig config={config} setConfig={setConfig} />;
-      default:
-        return <div>No configuration available</div>;
-    }
-  };
-
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center backdrop-blur-sm">
-      <div className="bg-slate-800 border-2 border-slate-700 rounded shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col scale-in-center">
+    <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-lg w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] scale-in-center">
         {/* Header */}
-        <div className="border-b border-slate-700 bg-slate-800 px-8 py-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded bg-primary/10 flex items-center justify-center text-primary">
-              <Settings2 size={24} />
+        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+             <div className="h-9 w-9 rounded bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
+              <Settings size={18} />
             </div>
             <div>
-              <h2 className="font-black text-xl text-white">{node.data.label} Settings</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Configure your automation step</p>
+              <h2 className="font-bold text-base text-white leading-tight">Node Settings</h2>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{node.data.label}</p>
             </div>
           </div>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={onClose} 
-            className="rounded-full text-slate-400 hover:text-white hover:bg-slate-700"
-          >
-            <X size={20} />
+          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-slate-800 text-slate-400 h-8 w-8">
+            <X size={16} />
           </Button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-8 py-8">
-          {renderConfigForm()}
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+          {node.type === 'triggerNode' && <TriggerConfig config={config} setConfig={setConfig} />}
+          {node.type === 'actionNode' && <ActionConfig config={config} setConfig={setConfig} />}
+          {node.type === 'conditionNode' && <ConditionConfig config={config} setConfig={setConfig} />}
+          
+          <div className="pt-6 border-t border-slate-800">
+            <ExecutionSettings config={config} setConfig={setConfig} />
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="border-t border-slate-700 bg-slate-800/80 px-8 py-6 flex items-center justify-end gap-3">
-          <Button 
-            variant="outline" 
-            onClick={onClose} 
-            className="rounded border-slate-600 text-slate-300 hover:bg-slate-700 h-11"
-          >
-            Cancel
+        <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex items-center gap-2">
+          <Button onClick={handleSave} className="flex-1 rounded h-10 gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-xs uppercase tracking-wider">
+            <Save size={14} />
+            Save changes
           </Button>
-          <Button 
-            onClick={handleSave} 
-            className="rounded px-8 h-11 gap-2 bg-primary hover:bg-primary/90 text-white font-black shadow-lg shadow-primary/20"
-          >
-            <Save size={18} />
-            Save Changes
+          <Button variant="outline" onClick={onClose} className="rounded border-slate-700 text-slate-400 hover:bg-slate-800 h-10 px-4 text-xs font-bold uppercase tracking-wider">
+            Cancel
           </Button>
         </div>
       </div>
@@ -91,76 +72,68 @@ const TriggerConfig = ({ config, setConfig }: any) => {
   const triggerType = config.triggerType || 'pageView';
 
   return (
-    <div className="space-y-8">
-      <Section title="Trigger Configuration" icon={<Zap className="w-4 h-4 text-amber-500" />}>
-        {triggerType === 'pageView' && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Page URL Filter</label>
-            <Input
-              placeholder="e.g. /pricing or https://..."
-              value={config.page || ''}
-              onChange={(e) => setConfig({ ...config, page: e.target.value })}
-              className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-            />
-            <p className="text-[10px] text-slate-500 mt-2 italic">Triggers when anyone visits this specific page.</p>
-          </div>
-        )}
+    <div className="space-y-6">
+      <SectionHead title="Trigger Basis" subtitle="When should this automation start?" />
+      
+      {triggerType === 'pageView' && (
+        <Field label="Page Path / URL">
+          <Input
+            placeholder="e.g. /pricing"
+            value={config.page || ''}
+            onChange={(e) => setConfig({ ...config, page: e.target.value })}
+            className="bg-slate-950 border-slate-800 h-11"
+          />
+        </Field>
+      )}
 
-        {triggerType === 'click' && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">CSS Selector</label>
-            <Input
-              placeholder="e.g. #cta-button or .signup-link"
-              value={config.selector || ''}
-              onChange={(e) => setConfig({ ...config, selector: e.target.value })}
-              className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-            />
-            <p className="text-[10px] text-slate-500 mt-2 italic">Identify the button or element using its CSS ID or Class.</p>
-          </div>
-        )}
+      {triggerType === 'click' && (
+        <Field label="Element Selector (ID or Class)">
+          <Input
+            placeholder="e.g. #signup-btn"
+            value={config.selector || ''}
+            onChange={(e) => setConfig({ ...config, selector: e.target.value })}
+            className="bg-slate-900 border-slate-800 h-11"
+          />
+        </Field>
+      )}
 
-        {triggerType === 'scroll' && (
-          <div className="space-y-1">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Scroll Depth (%)</label>
-            <Input
-              type="number"
-              min="0"
-              max="100"
-              value={config.scrollDepth || 50}
-              onChange={(e) => setConfig({ ...config, scrollDepth: parseInt(e.target.value) })}
-              className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-            />
-          </div>
-        )}
+      {triggerType === 'scroll' && (
+        <Field label="Scroll Depth (%)">
+          <Input
+            type="number"
+            value={config.scrollDepth || 50}
+            onChange={(e) => setConfig({ ...config, scrollDepth: parseInt(e.target.value) })}
+            className="bg-slate-900 border-slate-800 h-11"
+          />
+        </Field>
+      )}
 
-        {triggerType === 'timeOnPage' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Duration</label>
+      {triggerType === 'timeOnPage' && (
+        <div className="flex gap-3">
+          <div className="flex-1">
+            <Field label="Duration">
               <Input
                 type="number"
-                min="1"
                 value={config.duration || 30}
                 onChange={(e) => setConfig({ ...config, duration: parseInt(e.target.value) })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
+                className="bg-slate-900 border-slate-800 h-11"
               />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Unit</label>
+            </Field>
+          </div>
+          <div className="w-1/3">
+            <Field label="Unit">
               <select
                 value={config.unit || 'seconds'}
                 onChange={(e) => setConfig({ ...config, unit: e.target.value })}
-                className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
+                className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white outline-none"
               >
                 <option value="seconds">Seconds</option>
                 <option value="minutes">Minutes</option>
               </select>
-            </div>
+            </Field>
           </div>
-        )}
-      </Section>
-
-      <ExecutionSettings config={config} setConfig={setConfig} />
+        </div>
+      )}
     </div>
   );
 };
@@ -169,415 +142,160 @@ const ActionConfig = ({ config, setConfig }: any) => {
   const actionType = config.actionType || 'email';
 
   return (
-    <div className="space-y-8">
-      <Section title="Action Configuration" icon={<Activity className="w-4 h-4 text-blue-500" />}>
-        {actionType === 'email' && (
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Recipient Email</label>
-              <Input
-                type="email"
-                placeholder="Recipient (e.g., user@example.com)"
-                value={config.to || ''}
-                onChange={(e) => setConfig({ ...config, to: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Subject</label>
-              <Input
-                placeholder="Subject line..."
-                value={config.subject || ''}
-                onChange={(e) => setConfig({ ...config, subject: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Body Content</label>
-              <textarea
-                placeholder="Email content (supports HTML and {{markdown}})"
-                value={config.body || ''}
-                onChange={(e) => setConfig({ ...config, body: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[150px] outline-none focus:ring-2 ring-primary/20 transition-all"
-              />
-            </div>
-          </div>
-        )}
+    <div className="space-y-6">
+      <SectionHead title="Action Setup" subtitle="What should happen at this step?" />
 
-        {actionType === 'slack' && (
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Webhook URL</label>
-              <Input
-                placeholder="https://hooks.slack.com/services/..."
-                value={config.webhookUrl || ''}
-                onChange={(e) => setConfig({ ...config, webhookUrl: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Message</label>
-              <textarea
-                placeholder="Type your Slack message..."
-                value={config.message || ''}
-                onChange={(e) => setConfig({ ...config, message: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
-              />
-            </div>
-          </div>
-        )}
+      {actionType === 'email' && (
+        <div className="space-y-4">
+          <Field label="Recipient">
+            <Input
+              type="email"
+              placeholder="user@example.com"
+              value={config.to || ''}
+              onChange={(e) => setConfig({ ...config, to: e.target.value })}
+              className="bg-slate-950 border-slate-800 h-11"
+            />
+          </Field>
+          <Field label="Subject">
+            <Input
+              placeholder="Email subject line"
+              value={config.subject || ''}
+              onChange={(e) => setConfig({ ...config, subject: e.target.value })}
+              className="bg-slate-950 border-slate-800 h-11"
+            />
+          </Field>
+          <Field label="Message Body">
+            <textarea
+              value={config.body || ''}
+              onChange={(e) => setConfig({ ...config, body: e.target.value })}
+              className="w-full h-40 p-4 bg-slate-950 border border-slate-800 rounded text-sm text-white focus:ring-1 ring-primary/20 transition-all font-mono"
+            />
+          </Field>
+        </div>
+      )}
 
-        {actionType === 'webhook' && (
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Webhook URL</label>
-              <Input
-                placeholder="https://your-webhook.com/endpoint"
-                value={config.url || ''}
-                onChange={(e) => setConfig({ ...config, url: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Method</label>
+      {actionType === 'slack' && (
+        <div className="space-y-4">
+          <Field label="Incoming Webhook URL">
+            <Input
+              placeholder="Slach webhook URL"
+              value={config.webhookUrl || ''}
+              onChange={(e) => setConfig({ ...config, webhookUrl: e.target.value })}
+              className="bg-slate-900 border-slate-800 h-11"
+            />
+          </Field>
+          <Field label="Message Text">
+            <textarea
+              value={config.message || ''}
+              onChange={(e) => setConfig({ ...config, message: e.target.value })}
+              className="w-full h-32 p-4 bg-slate-950 border border-slate-800 rounded text-sm text-white outline-none focus:ring-1 ring-primary/20 transition-all font-mono"
+            />
+          </Field>
+        </div>
+      )}
+
+      {actionType === 'webhook' && (
+        <div className="space-y-4">
+          <div className="flex gap-3">
+             <div className="w-1/4">
+               <Field label="Method">
                 <select
                   value={config.method || 'POST'}
                   onChange={(e) => setConfig({ ...config, method: e.target.value })}
-                  className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
+                  className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
                 >
                   <option value="POST">POST</option>
                   <option value="GET">GET</option>
-                  <option value="PUT">PUT</option>
-                  <option value="PATCH">PATCH</option>
                 </select>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Headers (JSON)</label>
-              <textarea
-                placeholder='{"Authorization": "Bearer token"}'
-                value={config.headers ? JSON.stringify(config.headers, null, 2) : ''}
-                onChange={(e) => {
-                  try {
-                    const headers = JSON.parse(e.target.value);
-                    setConfig({ ...config, headers });
-                  } catch (err) {
-                    // Invalid JSON, don't update
-                  }
-                }}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[80px] outline-none focus:ring-2 ring-primary/20 transition-all"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Body (JSON)</label>
-              <textarea
-                placeholder='{"event": "custom_event", "data": "value"}'
-                value={config.body ? JSON.stringify(config.body, null, 2) : ''}
-                onChange={(e) => {
-                  try {
-                    const body = JSON.parse(e.target.value);
-                    setConfig({ ...config, body });
-                  } catch (err) {
-                    // Invalid JSON, don't update
-                  }
-                }}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
-              />
-            </div>
-          </div>
-        )}
-
-        {actionType === 'banner' && (
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Banner Content</label>
-              <textarea
-                placeholder="Your banner message here..."
-                value={config.content || ''}
-                onChange={(e) => setConfig({ ...config, content: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Position</label>
-                <select
-                  value={config.position || 'bottom'}
-                  onChange={(e) => setConfig({ ...config, position: e.target.value })}
-                  className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
-                >
-                  <option value="top">Top</option>
-                  <option value="bottom">Bottom</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Duration (seconds)</label>
+              </Field>
+             </div>
+             <div className="flex-1">
+              <Field label="Endpoint URL">
                 <Input
-                  type="number"
-                  min="0"
-                  placeholder="0 = permanent"
-                  value={config.duration || 0}
-                  onChange={(e) => setConfig({ ...config, duration: parseInt(e.target.value) })}
-                  className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
+                  placeholder="https://api..."
+                  value={config.url || ''}
+                  onChange={(e) => setConfig({ ...config, url: e.target.value })}
+                  className="bg-slate-900 border-slate-800 h-11"
                 />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Background Color</label>
-                <Input
-                  type="color"
-                  value={config.backgroundColor || '#000000'}
-                  onChange={(e) => setConfig({ ...config, backgroundColor: e.target.value })}
-                  className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Text Color</label>
-                <Input
-                  type="color"
-                  value={config.textColor || '#ffffff'}
-                  onChange={(e) => setConfig({ ...config, textColor: e.target.value })}
-                  className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-                />
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={config.closeButton !== false}
-                onChange={(e) => setConfig({ ...config, closeButton: e.target.checked })}
-                className="w-4 h-4 rounded border-slate-700 bg-slate-900/50"
-              />
-              <label className="text-sm text-slate-300">Show close button</label>
-            </div>
+              </Field>
+             </div>
           </div>
-        )}
+          <Field label="JSON Payload">
+            <textarea
+              placeholder='{"key": "value"}'
+              value={config.body ? JSON.stringify(config.body, null, 2) : ''}
+              onChange={(e) => {
+                try {
+                  const body = JSON.parse(e.target.value);
+                  setConfig({ ...config, body });
+                } catch (err) {}
+              }}
+              className="w-full h-40 p-4 bg-slate-950 border border-slate-800 rounded text-xs font-mono text-white outline-none focus:ring-1 ring-primary/20 transition-all"
+            />
+          </Field>
+        </div>
+      )}
 
-        {(actionType === 'javascript' || actionType === 'script') && (
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">JavaScript Code</label>
-              <textarea
-                placeholder="console.log('Hello from automation!');"
-                value={config.code || ''}
-                onChange={(e) => setConfig({ ...config, code: e.target.value })}
-                className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[200px] outline-none focus:ring-2 ring-primary/20 transition-all"
+      {(actionType === 'modal' || actionType === 'banner') && (
+        <div className="space-y-4">
+          <Field label="Title / Heading">
+            <Input
+              placeholder="Important Update"
+              value={config.title || ''}
+              onChange={(e) => setConfig({ ...config, title: e.target.value })}
+              className="bg-slate-950 border-slate-800 h-11"
+            />
+          </Field>
+          <Field label="Display Content">
+            <textarea
+              placeholder="What should the user see?"
+               value={config.content || ''}
+              onChange={(e) => setConfig({ ...config, content: e.target.value })}
+              className="w-full h-32 p-4 bg-slate-950 border border-slate-800 rounded text-sm text-white outline-none focus:ring-1 ring-primary/20 transition-all"
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Button Text">
+              <Input
+                placeholder="Continue"
+                value={config.buttonText || ''}
+                onChange={(e) => setConfig({ ...config, buttonText: e.target.value })}
+                className="bg-slate-950 border-slate-800 h-11"
               />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Injection Position</label>
-              <select
-                value={config.position || 'head'}
-                onChange={(e) => setConfig({ ...config, position: e.target.value })}
-                className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
-              >
-                <option value="head">Head</option>
-                <option value="body">Body</option>
-              </select>
-            </div>
-            <div className="p-4 rounded bg-amber-500/10 border border-amber-500/20">
-              <p className="text-[10px] text-amber-400 leading-relaxed">
-                ⚠️ Be careful with custom JavaScript. Only use trusted code.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {actionType === 'modal' && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <input
-                type="checkbox"
-                checked={config.useCustom || false}
-                onChange={(e) => setConfig({ ...config, useCustom: e.target.checked })}
-                className="w-4 h-4 rounded border-slate-700 bg-slate-900/50"
+            </Field>
+             <Field label="Duration (0=infinite)">
+              <Input
+                type="number"
+                value={config.duration || 0}
+                onChange={(e) => setConfig({ ...config, duration: parseInt(e.target.value) })}
+                className="bg-slate-900 border-slate-800 h-11"
               />
-              <label className="text-sm text-slate-300">Use custom HTML/CSS/JS</label>
-            </div>
-
-            {!config.useCustom ? (
-              <>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Modal Title</label>
-                  <Input
-                    placeholder="Welcome to our site!"
-                    value={config.title || ''}
-                    onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                    className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Content</label>
-                  <textarea
-                    placeholder="Your modal message here..."
-                    value={config.content || ''}
-                    onChange={(e) => setConfig({ ...config, content: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Primary Button</label>
-                    <Input
-                      placeholder="Confirm"
-                      value={config.primaryButton || ''}
-                      onChange={(e) => setConfig({ ...config, primaryButton: e.target.value })}
-                      className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Secondary Button</label>
-                    <Input
-                      placeholder="Cancel"
-                      value={config.secondaryButton || ''}
-                      onChange={(e) => setConfig({ ...config, secondaryButton: e.target.value })}
-                      className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Custom HTML</label>
-                  <textarea
-                    placeholder="<div>Your custom HTML...</div>"
-                    value={config.customHtml || ''}
-                    onChange={(e) => setConfig({ ...config, customHtml: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Custom CSS</label>
-                  <textarea
-                    placeholder=".my-modal { ... }"
-                    value={config.customCss || ''}
-                    onChange={(e) => setConfig({ ...config, customCss: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Custom JavaScript</label>
-                  <textarea
-                    placeholder="// Your custom JS code"
-                    value={config.customJs || ''}
-                    onChange={(e) => setConfig({ ...config, customJs: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
-                  />
-                </div>
-              </>
-            )}
+            </Field>
           </div>
-        )}
+          <Field label="Position">
+            <select
+              value={config.position || 'bottom'}
+              onChange={(e) => setConfig({ ...config, position: e.target.value })}
+              className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
+            >
+              <option value="bottom">Bottom</option>
+              <option value="top">Top</option>
+              <option value="center">Center</option>
+            </select>
+          </Field>
+        </div>
+      )}
 
-        {actionType === 'notification' && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <input
-                type="checkbox"
-                checked={config.useCustom || false}
-                onChange={(e) => setConfig({ ...config, useCustom: e.target.checked })}
-                className="w-4 h-4 rounded border-slate-700 bg-slate-900/50"
-              />
-              <label className="text-sm text-slate-300">Use custom HTML/CSS/JS</label>
-            </div>
-
-            {!config.useCustom ? (
-              <>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Notification Type</label>
-                  <select
-                    value={config.type || 'info'}
-                    onChange={(e) => setConfig({ ...config, type: e.target.value })}
-                    className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
-                  >
-                    <option value="success">Success</option>
-                    <option value="error">Error</option>
-                    <option value="warning">Warning</option>
-                    <option value="info">Info</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Title</label>
-                  <Input
-                    placeholder="Notification title"
-                    value={config.title || ''}
-                    onChange={(e) => setConfig({ ...config, title: e.target.value })}
-                    className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Message</label>
-                  <textarea
-                    placeholder="Your notification message..."
-                    value={config.message || ''}
-                    onChange={(e) => setConfig({ ...config, message: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm min-h-[80px] outline-none focus:ring-2 ring-primary/20 transition-all"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Position</label>
-                    <select
-                      value={config.position || 'top'}
-                      onChange={(e) => setConfig({ ...config, position: e.target.value })}
-                      className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
-                    >
-                      <option value="top">Top Right</option>
-                      <option value="bottom">Bottom Right</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Duration (seconds)</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      placeholder="5"
-                      value={config.duration || 5}
-                      onChange={(e) => setConfig({ ...config, duration: parseInt(e.target.value) })}
-                      className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-                    />
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Custom HTML</label>
-                  <textarea
-                    placeholder="<div>Your custom HTML...</div>"
-                    value={config.customHtml || ''}
-                    onChange={(e) => setConfig({ ...config, customHtml: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Custom CSS</label>
-                  <textarea
-                    placeholder=".my-notification { ... }"
-                    value={config.customCss || ''}
-                    onChange={(e) => setConfig({ ...config, customCss: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[120px] outline-none focus:ring-2 ring-primary/20 transition-all"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Custom JavaScript</label>
-                  <textarea
-                    placeholder="// Your custom JS code"
-                    value={config.customJs || ''}
-                    onChange={(e) => setConfig({ ...config, customJs: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-700 rounded text-white text-sm font-mono min-h-[100px] outline-none focus:ring-2 ring-primary/20 transition-all"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </Section>
-
-      <ExecutionSettings config={config} setConfig={setConfig} />
+      {actionType === 'javascript' && (
+        <Field label="Custom Script">
+          <textarea
+            value={config.code || ''}
+            onChange={(e) => setConfig({ ...config, code: e.target.value })}
+            className="w-full h-80 p-4 bg-slate-950 border border-slate-800 rounded text-xs font-mono text-white outline-none focus:ring-1 ring-primary/20 transition-all"
+            placeholder="console.log('Running script...')"
+          />
+        </Field>
+      )}
     </div>
   );
 };
@@ -586,149 +304,119 @@ const ConditionConfig = ({ config, setConfig }: any) => {
   const conditionType = config.conditionType || 'if';
 
   return (
-    <div className="space-y-8">
-      <Section title="Logic Configuration" icon={<Settings2 className="w-4 h-4 text-purple-500" />}>
-        {conditionType === 'if' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-6">
+      <SectionHead title="Logic Criteria" subtitle="Control the flow based on data" />
+
+      {conditionType === 'if' && (
+        <div className="space-x-2 flex items-end">
+          <div className="flex-1">
+             <Field label="Data Field">
               <select
                 value={config.field || 'user.email'}
                 onChange={(e) => setConfig({ ...config, field: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-10 rounded text-white text-xs font-bold outline-none"
+                className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white outline-none"
               >
                 <option value="user.email">User Email</option>
+                <option value="page.path">Current URL</option>
                 <option value="user.country">Country</option>
-                <option value="user.device">Device</option>
-                <option value="page.path">Current Path</option>
               </select>
+            </Field>
+          </div>
+          <div className="w-1/4">
+             <Field label="Operator">
               <select
                 value={config.operator || 'equals'}
                 onChange={(e) => setConfig({ ...config, operator: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-10 rounded text-white text-xs font-bold outline-none"
+                className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
               >
-                <option value="equals">Equals</option>
-                <option value="contains">Contains</option>
-                <option value="greaterThan"> &gt; </option>
-                <option value="lessThan"> &lt; </option>
+                <option value="equals">is</option>
+                <option value="contains">contains</option>
               </select>
-            </div>
-            <Input
-              placeholder="Comparison value..."
-              value={config.value || ''}
-              onChange={(e) => setConfig({ ...config, value: e.target.value })}
-              className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-            />
+            </Field>
           </div>
-        )}
+        </div>
+      )}
 
-        {conditionType === 'wait' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Delay Amount</label>
+      {conditionType === 'if' && (
+        <Field label="Comparison Value">
+          <Input
+            value={config.value || ''}
+            onChange={(e) => setConfig({ ...config, value: e.target.value })}
+            className="bg-slate-950 border-slate-800 h-11"
+          />
+        </Field>
+      )}
+
+      {conditionType === 'wait' && (
+        <div className="flex gap-4">
+          <div className="flex-1">
+            <Field label="Wait Amount">
               <Input
-                type="number"
-                min="1"
+                 type="number"
                 value={config.delay || 10}
                 onChange={(e) => setConfig({ ...config, delay: parseInt(e.target.value) })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
+                className="bg-slate-900 border-slate-800 h-11"
               />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Unit</label>
+            </Field>
+          </div>
+          <div className="w-1/3">
+             <Field label="Unit">
               <select
                 value={config.unit || 'minutes'}
                 onChange={(e) => setConfig({ ...config, unit: e.target.value })}
-                className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
+                className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
               >
                 <option value="seconds">Seconds</option>
                 <option value="minutes">Minutes</option>
                 <option value="hours">Hours</option>
-                <option value="days">Days</option>
               </select>
-            </div>
+            </Field>
           </div>
-        )}
-
-        {conditionType === 'property' && (
-          <div className="space-y-4">
-             <div className="space-y-1">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">User Attribute</label>
-              <Input
-                placeholder="e.g. plan_type or signup_source"
-                value={config.propertyKey || ''}
-                onChange={(e) => setConfig({ ...config, propertyKey: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <select
-                value={config.operator || 'equals'}
-                onChange={(e) => setConfig({ ...config, operator: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-10 rounded text-white text-xs font-bold outline-none"
-              >
-                <option value="equals">Is</option>
-                <option value="exists">Exists</option>
-                <option value="notExists">Doesn't Exist</option>
-              </select>
-              <Input
-                placeholder="Value..."
-                value={config.value || ''}
-                onChange={(e) => setConfig({ ...config, value: e.target.value })}
-                className="bg-slate-900/50 border-slate-700 h-10 rounded text-white focus:ring-primary/20"
-              />
-            </div>
-          </div>
-        )}
-      </Section>
-
-      <ExecutionSettings config={config} setConfig={setConfig} />
+        </div>
+      )}
     </div>
   );
 };
 
-const Section = ({ title, icon, children }: any) => (
+const ExecutionSettings = ({ config, setConfig }: any) => (
   <div className="space-y-6">
-    <div className="flex items-center gap-2 pb-3 border-b border-slate-700/50">
-      {icon}
-      <h3 className="text-[11px] font-black text-slate-200 uppercase tracking-[0.2em]">{title}</h3>
-    </div>
-    <div className="space-y-5">
-      {children}
+    <SectionHead title="Runtime Controls" subtitle="Frequency and behavioral limits" />
+    <div className="grid grid-cols-2 gap-4">
+      <Field label="Run Frequency">
+        <select
+          value={config.frequency || 'once'}
+          onChange={(e) => setConfig({ ...config, frequency: e.target.value })}
+          className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white outline-none"
+        >
+          <option value="once">Once per user</option>
+          <option value="perSession">Once per session</option>
+          <option value="every">Every occurrence</option>
+        </select>
+      </Field>
+      <Field label="Restricting Path">
+        <Input
+          placeholder="/optional-filter"
+          value={config.pageFilter || ''}
+          onChange={(e) => setConfig({ ...config, pageFilter: e.target.value })}
+          className="bg-slate-900 border-slate-800 h-11"
+        />
+      </Field>
     </div>
   </div>
 );
 
-const ExecutionSettings = ({ config, setConfig }: any) => (
-  <Section title="Execution & Filters" icon={<BarChart3 className="w-4 h-4 text-emerald-500" />}>
-    <div className="grid grid-cols-2 gap-4">
-      <div className="space-y-1">
-        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Frequency</label>
-        <select
-          value={config.frequency || 'once'}
-          onChange={(e) => setConfig({ ...config, frequency: e.target.value })}
-          className="w-full px-4 h-12 bg-slate-900/50 border border-slate-700 rounded text-white text-sm outline-none focus:ring-2 ring-primary/20"
-        >
-          <option value="once">Once</option>
-          <option value="perSession">Per Session</option>
-          <option value="every">Every Time</option>
-        </select>
-      </div>
-      <div className="space-y-1">
-        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">Page Match</label>
-        <Input
-          placeholder="e.g. /pricing"
-          value={config.pageFilter || ''}
-          onChange={(e) => setConfig({ ...config, pageFilter: e.target.value })}
-          className="bg-slate-900/50 border-slate-700 h-12 rounded text-white focus:ring-primary/20"
-        />
-      </div>
-    </div>
-    <div className="p-4 rounded bg-slate-900/40 border border-slate-700/50">
-      <p className="text-[10px] text-slate-400 leading-relaxed italic">
-        These controls limit how often this automation step can run for a single user and on which URLs it is active.
-      </p>
-    </div>
-  </Section>
+const SectionHead = ({ title, subtitle }: { title: string; subtitle: string }) => (
+  <div>
+    <h3 className="text-sm font-black text-white tracking-tight">{title}</h3>
+    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">{subtitle}</p>
+  </div>
+);
+
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div className="space-y-2">
+    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-0.5">{label}</label>
+    {children}
+  </div>
 );
 
 import { Zap, Activity, Settings2, BarChart3, Settings } from 'lucide-react';

@@ -230,7 +230,7 @@ export interface Goal {
 
 export const getGoals = async (websiteId: string): Promise<Goal[]> => {
   const response = await api.get(`/user/websites/${websiteId}/goals`);
-  return response.data.data;
+  return response.data.data || [];
 };
 
 export const addGoal = async (websiteId: string, data: { name: string; type: string; identifier: string }): Promise<Goal> => {
@@ -257,7 +257,7 @@ export interface WebsiteMember {
 
 export const getMembers = async (websiteId: string): Promise<WebsiteMember[]> => {
   const response = await api.get(`/user/websites/${websiteId}/members`);
-  return response.data.data;
+  return response.data.data || [];
 };
 
 export const addMember = async (websiteId: string, data: { email: string; role: string }): Promise<WebsiteMember> => {

@@ -73,16 +73,15 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
             description: 'General Preferences'
         },
         {
-            title: 'Book a Demo',
-            href: 'https://calendly.com/shohagmiah2100/30min',
+            title: 'Support',
+            href: `/websites/${websiteId}/support`,
             icon: Headset,
-            description: 'Talk to an expert',
-            external: true
+            description: 'Help & Contact'
         }
     ];
 
     return (
-        <aside className="w-[280px] h-screen fixed top-0 left-0 bg-gray-200  dark:bg-slate-800 backdrop-blur-xl flex flex-col hidden lg:flex z-50">
+        <aside className="w-[280px] h-screen fixed top-0 left-0 bg-gray-200  dark:bg-slate-800/50 backdrop-blur-xl flex flex-col hidden lg:flex z-50">
             <div className="p-8 pb-4">
                 <Link href="/" className="flex items-center gap-3 mb-10 group">
                     <Logo size="xl" showText={true} textClassName="text-xl font-bold text-foreground" />
@@ -106,7 +105,6 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                         <Link 
                             key={link.href} 
                             href={isDisabled ? '#' : link.href} 
-                            target={link.external ? '_blank' : '_self'}
                             className={cn("block relative", isDisabled && "pointer-events-none")}
                             aria-disabled={isDisabled}
                         >

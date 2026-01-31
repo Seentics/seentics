@@ -11,7 +11,8 @@ import TrackerScript from '@/components/tracker-script';
 import TawkMessenger from '@/components/tawk-messenger';
 import { Toaster } from '@/components/ui/toaster';
 import { LimitReachedTopBar } from '@/components/subscription';
-// import { Toaster } from "@/components/ui/sonner"
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
+import Script from 'next/script';
 
 // Temporarily disable custom fonts for build
 // const fontBody = Inter({
@@ -46,7 +47,7 @@ export default function RootLayout({
         >
 
           <QueryProvider>
-            <LimitReachedTopBar />
+            {/* <LimitReachedTopBar /> */}
             <div className="relative min-h-screen isolate overflow-x-hidden">
               {/* Ambient Background Blobs */}
               <div className="ambient-blob w-[500px] h-[500px] bg-primary/20 -top-24 -left-24 animate-[pulse_8s_infinite]" />
@@ -59,6 +60,7 @@ export default function RootLayout({
             </div>
           </QueryProvider>
           <Toaster />
+          <SonnerToaster />
         </ThemeProvider>
 
         {/* Initialize authentication state */}
@@ -72,6 +74,9 @@ export default function RootLayout({
 
         {/* Global Chat Support */}
         <TawkMessenger />
+
+        {/* Lemon Squeezy Checkout Script */}
+        <Script src="https://assets.lemonsqueezy.com/lemon.js" strategy="lazyOnload" />
       </body>
     </html>
   );

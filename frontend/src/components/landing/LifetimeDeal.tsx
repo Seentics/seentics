@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Check, Zap, Sparkles, ShieldCheck, Clock, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { useAuth } from "@/stores/useAuthStore";
 
 const FEATURES = [
     "Unlimited Websites Tracking",
@@ -17,6 +18,7 @@ const FEATURES = [
 ];
 
 export function LifetimeDeal() {
+    const { isAuthenticated } = useAuth();
     return (
         <section className="py-24 relative overflow-hidden bg-slate-50/50 dark:bg-slate-950/50" id="lifetime-deal">
             <div className="container mx-auto px-6">
@@ -113,8 +115,8 @@ export function LifetimeDeal() {
                                     </div>
                                 </div>
 
-                                <Link href="/signup" className="group relative w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 text-white py-5 rounded text-lg font-black transition-all hover:bg-black dark:hover:bg-indigo-500 shadow-xl active:scale-95">
-                                    Grab the Deal
+                                <Link href={isAuthenticated ? "/websites" : "/signup"} className="group relative w-full inline-flex items-center justify-center gap-2 bg-slate-900 dark:bg-indigo-600 text-white py-5 rounded text-lg font-black transition-all hover:bg-black dark:hover:bg-indigo-500 shadow-xl active:scale-95">
+                                    {isAuthenticated ? "Go to Dashboard" : "Grab the Deal"}
                                     <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
                                 </Link>
 

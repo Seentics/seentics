@@ -4,6 +4,7 @@ import (
 	"analytics-app/internal/modules/auth/models"
 	"analytics-app/internal/modules/auth/services"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -60,5 +61,127 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Logged in successfully",
 		"data":    resp,
+	})
+}
+
+// UpdateProfile handles updating user's basic information
+func (h *AuthHandler) UpdateProfile(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req models.UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.UpdateProfile(c.Request.Context(), userID, req); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to update profile")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get updated user to return
+	user, _ := h.service.GetUserByID(c.Request.Context(), userID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Profile updated successfully",
+		"data": gin.H{
+			"user": models.UserResponse{
+				ID:        user.ID,
+				Name:      user.Name,
+				Email:     user.Email,
+				Avatar:    user.AvatarURL,
+				Role:      user.Role,
+				CreatedAt: user.CreatedAt,
+			},
+		},
+	})
+}
+
+// ChangePassword handles updating user's password
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req models.ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.ChangePassword(c.Request.Context(), userID, req); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to change password")
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Password changed successfully",
+	})
+}
+
+// UploadAvatar handles user's avatar upload
+func (h *AuthHandler) UploadAvatar(c *gin.Context) {
+	userID := c.GetString("user_id")
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no avatar file provided"})
+		return
+	}
+
+	// Create uploads directory if it doesn't exist
+	if _, err := os.Stat("uploads"); os.IsNotExist(err) {
+		os.Mkdir("uploads", 0755)
+	}
+
+	// Generate filename: userID_timestamp_filename
+	filename := userID + "_" + file.Filename
+	filepath := "uploads/" + filename
+
+	if err := c.SaveUploadedFile(file, filepath); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to save avatar file")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		return
+	}
+
+	// Generate public URL (assuming backend is serving /uploads)
+	avatarURL := "/uploads/" + filename
+
+	if err := h.service.UpdateAvatar(c.Request.Context(), userID, avatarURL); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to update avatar URL in DB")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Get updated user to return
+	user, _ := h.service.GetUserByID(c.Request.Context(), userID)
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Avatar uploaded successfully",
+		"data": gin.H{
+			"user": models.UserResponse{
+				ID:        user.ID,
+				Name:      user.Name,
+				Email:     user.Email,
+				Avatar:    user.AvatarURL,
+				Role:      user.Role,
+				CreatedAt: user.CreatedAt,
+			},
+		},
 	})
 }

@@ -26,6 +26,7 @@ const WorldMap = dynamic(() => import('./WorldMap'), {
 
 interface TopItem {
     name: string;
+    code: string;
     count: number;
     percentage: number;
 }
@@ -46,48 +47,7 @@ interface GeolocationOverviewProps {
 export function GeolocationOverview({ data, isLoading = false, className = '' }: GeolocationOverviewProps) {
     const [geoTab, setGeoTab] = useState<string>('map');
 
-    // Dummy data for localhost testing
-    const dummyGeolocationData: GeolocationData = {
-        countries: [
-            { name: 'United States', count: 2847, percentage: 42.5 },
-            { name: 'United Kingdom', count: 1523, percentage: 22.7 },
-            { name: 'Germany', count: 892, percentage: 13.3 },
-            { name: 'Canada', count: 645, percentage: 9.6 },
-            { name: 'France', count: 423, percentage: 6.3 },
-            { name: 'Australia', count: 298, percentage: 4.4 },
-            { name: 'Netherlands', count: 187, percentage: 2.8 },
-            { name: 'Japan', count: 156, percentage: 2.3 },
-            { name: 'India', count: 134, percentage: 2.0 },
-            { name: 'Brazil', count: 98, percentage: 1.5 },
-        ],
-        cities: [
-            { name: 'New York, NY', count: 1245, percentage: 18.6 },
-            { name: 'London, UK', count: 987, percentage: 14.7 },
-            { name: 'San Francisco, CA', count: 756, percentage: 11.3 },
-            { name: 'Toronto, ON', count: 634, percentage: 9.5 },
-            { name: 'Berlin, DE', count: 523, percentage: 7.8 },
-        ],
-        continents: [
-            { name: 'North America', count: 3892, percentage: 58.1 },
-            { name: 'Europe', count: 2156, percentage: 32.2 },
-            { name: 'Asia', count: 456, percentage: 6.8 },
-            { name: 'Oceania', count: 298, percentage: 4.4 },
-            { name: 'South America', count: 134, percentage: 2.0 },
-            { name: 'Africa', count: 76, percentage: 1.1 }
-        ],
-        regions: [
-            { name: 'California', count: 1456, percentage: 21.7 },
-            { name: 'New York', count: 1234, percentage: 18.4 },
-            { name: 'England', count: 987, percentage: 14.7 },
-        ]
-    };
-
-    const isLocalhost = typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' ||
-            window.location.hostname === '127.0.0.1' ||
-            window.location.hostname === '0.0.0.0');
-
-    const displayData = isLocalhost ? dummyGeolocationData : data;
+    const displayData = data;
 
     const getContinentEmoji = (continent: string): string => {
         const continentMap: Record<string, string> = {

@@ -122,7 +122,7 @@ func main() {
 	// Kafka & Events
 	kafkaService := kafka.NewKafkaService(cfg.KafkaBootstrapServers, cfg.KafkaTopicEvents, logger)
 	eventService := services.NewEventService(eventRepo, db, kafkaService, billingService, websiteService, logger)
-	analyticsService := services.NewAnalyticsService(analyticsRepo, logger)
+	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger)
 	privacyService := services.NewPrivacyService(privacyRepo, logger)
 
 	// Handlers
@@ -134,13 +134,17 @@ func main() {
 
 	// Automations
 	autoRepo := autoRepoPkg.NewAutomationRepository(db)
-	autoService := autoServicePkg.NewAutomationService(autoRepo)
+	autoService := autoServicePkg.NewAutomationService(autoRepo, billingService)
 	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
 
 	// Funnels
 	funnelRepo := funnelRepoPkg.NewFunnelRepository(db)
-	funnelService := funnelServicePkg.NewFunnelService(funnelRepo)
+	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, billingService)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
+
+	// Start periodic billing sync (every 5 minutes)
+	billingService.StartPeriodicSync(5 * time.Minute)
+	logger.Info().Msg("Started periodic billing sync worker")
 
 	// Setup router
 	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, logger)
@@ -210,13 +214,27 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 
 	router := gin.New()
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
+	router.Use(middleware.ClientIPMiddleware())
 	router.Use(middleware.Logger(logger))
 	router.Use(middleware.Recovery(logger))
-	router.Use(middleware.ClientIPMiddleware())
 	router.Use(middleware.RateLimitMiddleware(redisClient))
 
+	// Serve static files for avatars
+	router.Static("/uploads", "./uploads")
+
 	router.Use(func(c *gin.Context) {
-		if c.Request.URL.Path == "/health" || c.Request.Method == "OPTIONS" || strings.HasPrefix(c.Request.URL.Path, "/api/v1/user/auth/") {
+		path := c.Request.URL.Path
+		if path == "/health" || c.Request.Method == "OPTIONS" ||
+			strings.HasPrefix(path, "/api/v1/user/auth/") ||
+			strings.HasPrefix(path, "/uploads/") ||
+			path == "/api/v1/analytics/event" ||
+			path == "/api/v1/analytics/batch" ||
+			path == "/api/v1/webhooks/lemonsqueezy" ||
+			path == "/api/v1/test/webhooks/lemonsqueezy" ||
+			path == "/api/v1/funnels/track" ||
+			path == "/api/v1/funnels/active" ||
+			path == "/api/v1/workflows/execution/action" ||
+			strings.HasPrefix(path, "/api/v1/workflows/site/") {
 			c.Next()
 			return
 		}
@@ -229,7 +247,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		analytics := v1.Group("/analytics")
 		{
 			analytics.POST("/event", eventHandler.TrackEvent)
-			analytics.POST("/event/batch", eventHandler.TrackBatchEvents)
+			analytics.POST("/batch", eventHandler.TrackBatchEvents)
 			analytics.GET("/dashboard/:website_id", analyticsHandler.GetDashboard)
 			analytics.GET("/top-pages/:website_id", analyticsHandler.GetTopPages)
 			analytics.GET("/page-utm-breakdown/:website_id", analyticsHandler.GetPageUTMBreakdown)
@@ -297,15 +315,25 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			billing.GET("/usage", billingHandler.GetUsage)
 			billing.POST("/checkout", billingHandler.CreateCheckout)
 			billing.POST("/portal", billingHandler.CreatePortalSession)
+			billing.POST("/cancel", billingHandler.CancelSubscription)
 			billing.POST("/select-free", billingHandler.SelectFreePlan)
+			billing.POST("/simulate-webhook", billingHandler.SimulateWebhook)
 		}
 
-		v1.POST("/billing/paddle-webhook", billingHandler.PaddleWebhook)
+		v1.POST("/webhooks/lemonsqueezy", billingHandler.Webhook)
+		v1.POST("/test/webhooks/lemonsqueezy", billingHandler.Webhook)
 
 		auth := v1.Group("/user/auth")
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
+		}
+
+		users := v1.Group("/user/users")
+		{
+			users.PUT("/profile", authHandler.UpdateProfile)
+			users.PUT("/change-password", authHandler.ChangePassword)
+			users.PUT("/avatar", authHandler.UploadAvatar)
 		}
 
 		websites := v1.Group("/user/websites")

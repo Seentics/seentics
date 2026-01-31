@@ -125,6 +125,9 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 		return nil, fmt.Errorf("invalid website_id")
 	}
 
+	// Canonicalize WebsiteID to ensure consistency in storage and querying
+	event.WebsiteID = website.SiteID
+
 	if !website.IsActive {
 		return nil, fmt.Errorf("website is inactive")
 	}
@@ -175,7 +178,15 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 	}
 
 	// Increment event count (async-ish if via billing service cache)
-	go s.billing.IncrementUsage(context.Background(), website.UserID.String(), billingModels.ResourceMonthlyEvents, 1)
+	s.logger.Info().Str("user_id", website.UserID.String()).Msg("Incrementing usage for user")
+	go func() {
+		err := s.billing.IncrementUsageRedis(context.Background(), website.UserID.String(), billingModels.ResourceMonthlyEvents, 1)
+		if err != nil {
+			fmt.Printf("Error incrementing usage: %v\n", err)
+		} else {
+			fmt.Printf("Successfully incremented usage for %s\n", website.UserID.String())
+		}
+	}()
 
 	return &models.EventResponse{
 		Status:    "accepted",
@@ -206,12 +217,31 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 		Int("events_count", len(req.Events)).
 		Msg("Processing batch events to Kafka")
 
+	// Resolve SiteID to canonical SiteID if possible (handles UUIDs from dashboard)
+	originalSiteID := req.SiteID
+	var userID string
+
+	if website, err := s.websites.GetWebsiteBySiteID(ctx, req.SiteID); err == nil {
+		req.SiteID = website.SiteID
+		userID = website.UserID.String()
+
+		s.logger.Debug().
+			Str("original_id", originalSiteID).
+			Str("canonical_id", req.SiteID).
+			Msg("Resolved website ID for batch")
+	} else {
+		s.logger.Warn().
+			Err(err).
+			Str("site_id", req.SiteID).
+			Msg("Failed to resolve website ID for batch, using provided ID")
+	}
+
 	// Process and enrich all events
 	accepted := 0
 	for i := range req.Events {
-		if req.Events[i].WebsiteID == "" {
-			req.Events[i].WebsiteID = req.SiteID
-		}
+		// ALWAYS force WebsiteID to the canonicalized req.SiteID
+		req.Events[i].WebsiteID = req.SiteID
+
 		if req.Events[i].EventType == "" {
 			req.Events[i].EventType = "pageview"
 		}
@@ -227,6 +257,16 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 			continue
 		}
 		accepted++
+	}
+
+	// Increment usage if we identified the user
+	if userID != "" && accepted > 0 {
+		go func() {
+			err := s.billing.IncrementUsageRedis(context.Background(), userID, billingModels.ResourceMonthlyEvents, accepted)
+			if err != nil {
+				s.logger.Error().Err(err).Msg("Failed to increment usage for batch")
+			}
+		}()
 	}
 
 	return &models.BatchEventResponse{
@@ -334,7 +374,18 @@ func (s *EventService) processBatch(batch []models.Event) {
 
 	// Ensure partitions exist for all events in the batch
 	uniqueDates := make(map[string]time.Time)
-	for _, event := range batch {
+	for i := range batch {
+		event := &batch[i]
+
+		// Failsafe normalization: ensure website_id is canonical
+		// We do this here too because Kafka messages might have been produced using the old UUID
+		// if the producer service hadn't been updated yet or if there's a leak.
+		if len(event.WebsiteID) > 24 { // Likely a UUID
+			if website, err := s.websites.GetWebsiteBySiteID(ctx, event.WebsiteID); err == nil {
+				event.WebsiteID = website.SiteID
+			}
+		}
+
 		if !event.Timestamp.IsZero() {
 			dateKey := event.Timestamp.Format("2006-01")
 			uniqueDates[dateKey] = event.Timestamp
@@ -446,6 +497,11 @@ func (s *EventService) GetStats() map[string]interface{} {
 }
 
 func (s *EventService) enrichEventData(ctx context.Context, event *models.Event) {
+	// Handle page_path alias from trackers
+	if event.Page == "" && event.PagePath != "" {
+		event.Page = event.PagePath
+	}
+
 	// Parse user agent if provided
 	if event.UserAgent != nil && *event.UserAgent != "" {
 		if (event.Browser == nil || *event.Browser == "") ||

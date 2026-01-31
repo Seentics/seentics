@@ -3,6 +3,7 @@ package handlers
 import (
 	"analytics-app/internal/modules/analytics/models"
 	"analytics-app/internal/modules/analytics/services"
+	"analytics-app/internal/shared/utils"
 	"fmt"
 	"net/http"
 
@@ -32,6 +33,15 @@ func (h *EventHandler) TrackEvent(c *gin.Context) {
 		})
 		return
 	}
+
+	// Capture client IP for geolocation
+	clientIP := c.GetHeader("X-Test-IP")
+	if clientIP == "" {
+		clientIP = utils.GetClientIPFromContext(c.Request.Context())
+	}
+	event.IPAddress = &clientIP
+
+	h.logger.Debug().Str("resolved_ip", clientIP).Msg("Resolved client IP for event")
 
 	// Validate required fields
 	if event.WebsiteID == "" || event.VisitorID == "" {
@@ -81,7 +91,10 @@ func (h *EventHandler) TrackBatchEvents(c *gin.Context) {
 	}
 
 	// Capture client IP for geolocation
-	clientIP := c.ClientIP()
+	clientIP := c.GetHeader("X-Test-IP")
+	if clientIP == "" {
+		clientIP = utils.GetClientIPFromContext(c.Request.Context())
+	}
 
 	// Set IP address for all events in the batch
 	for i := range req.Events {

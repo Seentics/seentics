@@ -12,6 +12,7 @@ type User struct {
 	Name         string    `json:"name" db:"name"`
 	Email        string    `json:"email" db:"email"`
 	PasswordHash string    `json:"-" db:"password_hash"`
+	AvatarURL    string    `json:"avatar" db:"avatar_url"`
 	Role         string    `json:"role" db:"role"`
 	CreatedAt    time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt    time.Time `json:"updatedAt" db:"updated_at"`
@@ -30,11 +31,24 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+// UpdateProfileRequest defines the payload for profile updates
+type UpdateProfileRequest struct {
+	Name  string `json:"name" binding:"required"`
+	Email string `json:"email" binding:"required,email"`
+}
+
+// ChangePasswordRequest defines the payload for password changes
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword" binding:"required"`
+	NewPassword     string `json:"newPassword" binding:"required,min=8"`
+}
+
 // UserResponse defines the user data returned to the client
 type UserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
+	Avatar    string    `json:"avatar"`
 	Role      string    `json:"role"`
 	CreatedAt time.Time `json:"createdAt"`
 }

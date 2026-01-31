@@ -73,7 +73,7 @@ func (s *WebsiteService) CreateWebsite(ctx context.Context, userID uuid.UUID, re
 	}
 
 	// Update billing usage
-	if err := s.billing.IncrementUsage(ctx, userID.String(), billingModels.ResourceWebsites, 1); err != nil {
+	if err := s.billing.IncrementUsageRedis(ctx, userID.String(), billingModels.ResourceWebsites, 1); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to update billing usage on website creation")
 	}
 
@@ -166,7 +166,7 @@ func (s *WebsiteService) DeleteWebsite(ctx context.Context, id string, userID uu
 	}
 
 	// Update billing usage (decrement)
-	if err := s.billing.IncrementUsage(ctx, userID.String(), billingModels.ResourceWebsites, -1); err != nil {
+	if err := s.billing.IncrementUsageRedis(ctx, userID.String(), billingModels.ResourceWebsites, -1); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to update billing usage on website deletion")
 	}
 

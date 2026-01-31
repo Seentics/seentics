@@ -68,6 +68,7 @@ func (s *AuthService) Register(ctx context.Context, req models.RegisterRequest) 
 			ID:        user.ID,
 			Name:      user.Name,
 			Email:     user.Email,
+			Avatar:    user.AvatarURL,
 			Role:      user.Role,
 			CreatedAt: user.CreatedAt,
 		},
@@ -102,11 +103,49 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*mode
 			ID:        user.ID,
 			Name:      user.Name,
 			Email:     user.Email,
+			Avatar:    user.AvatarURL,
 			Role:      user.Role,
 			CreatedAt: user.CreatedAt,
 		},
 		Tokens: *tokens,
 	}, nil
+}
+
+// UpdateProfile updates user's basic info
+func (s *AuthService) UpdateProfile(ctx context.Context, userID string, req models.UpdateProfileRequest) error {
+	return s.repo.UpdateUser(ctx, userID, req.Name, req.Email)
+}
+
+// ChangePassword updates user's password
+func (s *AuthService) ChangePassword(ctx context.Context, userID string, req models.ChangePasswordRequest) error {
+	// Get current user to verify password
+	user, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// Verify current password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.CurrentPassword)); err != nil {
+		return errors.New("current password is incorrect")
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash new password: %w", err)
+	}
+
+	return s.repo.UpdatePassword(ctx, userID, string(hashedPassword))
+}
+
+// UpdateAvatar updates user's avatar URL
+func (s *AuthService) UpdateAvatar(ctx context.Context, userID string, avatarURL string) error {
+	return s.repo.UpdateAvatar(ctx, userID, avatarURL)
+}
+
+// GetUserByID gets user details
+func (s *AuthService) GetUserByID(ctx context.Context, userID string) (*models.User, error) {
+	return s.repo.GetByID(ctx, userID)
 }
 
 // GenerateTokens creates access and refresh tokens for a user

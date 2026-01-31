@@ -106,7 +106,7 @@ const SummaryCard = ({
       
       <div className="flex items-end justify-between">
         <div className="space-y-0 relative z-10">
-          <div className="text-xl font-bold tracking-tight text-foreground/80 group-hover:text-primary transition-all duration-300">
+          <div className="text-2xl font-bold tracking-tight text-foreground/80 group-hover:text-primary transition-all duration-300">
             {formatValue(value)}
           </div>
           {subtitle && (
@@ -150,14 +150,14 @@ export function SummaryCards({ data }: SummaryCardsProps) {
     {
       title: 'Total Visitors',
       value: data.total_visitors || 0,
-      previousValue: data.comparison?.visitor_change,
+      previousValue: data.comparison?.previous_period?.total_visitors,
       icon: Users,
       format: 'number' as const,
     },
     {
       title: 'Unique Visitors',
       value: data.unique_visitors || 0,
-      previousValue: undefined,
+      previousValue: data.comparison?.previous_period?.unique_visitors,
       icon: Activity,
       format: 'number' as const,
       subtitle: 'Distinct visitors',
@@ -165,14 +165,14 @@ export function SummaryCards({ data }: SummaryCardsProps) {
     {
       title: 'Page Views',
       value: data.page_views || 0,
-      previousValue: data.comparison?.pageview_change,
+      previousValue: data.comparison?.previous_period?.page_views,
       icon: Eye,
       format: 'number' as const,
     },
     {
       title: 'Session Duration',
       value: data.session_duration || 0,
-      previousValue: data.comparison?.duration_change,
+      previousValue: data.comparison?.previous_period?.avg_session_time,
       icon: Clock,
       format: 'duration' as const,
       inverse: true,
@@ -180,7 +180,7 @@ export function SummaryCards({ data }: SummaryCardsProps) {
     {
       title: 'Bounce Rate',
       value: data.bounce_rate || 0,
-      previousValue: data.comparison?.bounce_change,
+      previousValue: data.comparison?.previous_period?.bounce_rate,
       icon: TrendingDown,
       format: 'percentage' as const,
       inverse: true,

@@ -49,58 +49,40 @@ export const ActionNode = memo(({ data, selected, isConnectable }: NodeProps) =>
 
   return (
     <div
-      className={`px-4 py-3 rounded bg-slate-900 border-2 transition-all shadow-xl hover:shadow-2xl ${
+      className={`p-3 rounded border w-[220px] transition-all ${
         selected
-          ? 'border-primary ring-4 ring-primary/20 scale-105 z-50'
-          : 'border-slate-800 hover:border-blue-500/40'
+          ? 'bg-slate-800 border-primary ring-2 ring-primary/20 scale-105 z-50 shadow-xl shadow-primary/10'
+          : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-700/50'
       }`}
     >
       <Handle
         type="target"
         position={Position.Top}
         isConnectable={isConnectable}
-        style={{ left: '50%', transform: 'translateX(-50%)', top: -6, width: 12, height: 12, zIndex: 10 }}
-        className="!bg-primary border-2 border-slate-900"
+        className="!w-2 !h-2 !bg-primary !border-slate-900 !border-2"
+        style={{ top: -4 }}
       />
 
-      <div className="flex items-center gap-4">
-        <div className={`h-12 w-12 rounded flex items-center justify-center shadow-lg transition-transform group-hover:scale-110 ${colorClass}`}>
-          <Icon size={24} />
+      <div className="flex items-center gap-3">
+        <div className={`h-9 w-9 rounded flex items-center justify-center flex-shrink-0 shadow-sm ${colorClass}`}>
+          <Icon size={18} />
         </div>
-        <div className="min-w-[160px]">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400/80 mb-0.5">
-            Automation Action
+        <div className="flex-1 min-w-0">
+          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">
+            Action
           </p>
-          <h4 className="text-sm font-black text-white truncate leading-tight">
+          <h4 className="text-xs font-black text-slate-200 truncate leading-tight">
             {data.label}
           </h4>
-          {data.config?.to && (
-            <p className="text-[9px] text-slate-400 mt-0.5 truncate italic">
-              📧 {data.config.to}
-            </p>
-          )}
-          {data.config?.webhookUrl && (
-            <p className="text-[9px] text-slate-400 mt-0.5 truncate italic">
-              🔗 workflow webhook
-            </p>
-          )}
         </div>
       </div>
-
-      {data.config?.subject && (
-        <div className="mt-3 pt-3 border-t border-slate-800/50 space-y-1">
-          <p className="text-[9px] text-slate-500 truncate italic">
-            {data.config.subject}
-          </p>
-        </div>
-      )}
 
       <Handle
         type="source"
         position={Position.Bottom}
         isConnectable={isConnectable}
-        style={{ left: '50%', transform: 'translateX(-50%)', bottom: -6, width: 12, height: 12, zIndex: 10 }}
-        className="!bg-primary border-2 border-slate-900"
+        className="!w-2 !h-2 !bg-primary !border-slate-900 !border-2"
+        style={{ bottom: -4 }}
       />
     </div>
   );

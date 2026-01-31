@@ -49,6 +49,8 @@ export interface EventData {
 }
 
 export interface BatchEventRequest {
+  siteId: string;
+  domain: string;
   events: EventData[];
 }
 
@@ -360,7 +362,7 @@ export const trackEvent = async (eventData: EventData): Promise<TrackEventRespon
 };
 
 export const trackBatchEvents = async (batchData: BatchEventRequest): Promise<BatchEventResponse> => {
-  const response = await api.post('/analytics/event/batch', batchData);
+  const response = await api.post('/analytics/batch', batchData);
   return response.data;
 };
 

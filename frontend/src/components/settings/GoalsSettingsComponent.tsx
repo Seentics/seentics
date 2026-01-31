@@ -73,7 +73,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : goals.length === 0 ? (
+        ) : (!goals || goals.length === 0) ? (
           <div className="text-center py-12 bg-muted/20 rounded border border-dashed">
             <p className="text-muted-foreground">No goals defined yet. Create your first goal to track success.</p>
           </div>
