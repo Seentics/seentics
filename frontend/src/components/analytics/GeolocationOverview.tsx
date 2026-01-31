@@ -26,7 +26,7 @@ const WorldMap = dynamic(() => import('./WorldMap'), {
 
 interface TopItem {
     name: string;
-    code: string;
+    code?: string;
     count: number;
     percentage: number;
 }

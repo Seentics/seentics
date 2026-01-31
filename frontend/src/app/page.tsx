@@ -2,6 +2,8 @@
 import React from 'react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
+import ImportExportSection from '@/components/landing/ImportExportSection';
+import VisionSection from '@/components/landing/VisionSection';
 import Features from '@/components/landing/Features';
 import Pricing from '@/components/landing/Pricing';
 import { LifetimeDeal } from '@/components/landing/LifetimeDeal';
@@ -14,6 +16,8 @@ export default function LandingPage() {
       <LandingHeader />
       <main>
         <Hero />
+        <ImportExportSection />
+        <VisionSection />
         <Features />
         <Pricing />
         <LifetimeDeal />

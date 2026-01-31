@@ -15,7 +15,10 @@ import {
     User,
     ChevronUp,
     Headset,
-    Lock
+    Lock,
+    Mail,
+    MessageSquare,
+    FileText
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -77,13 +80,35 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
             href: `/websites/${websiteId}/support`,
             icon: Headset,
             description: 'Help & Contact'
+        },
+        {
+            title: 'Emails',
+            href: '#',
+            icon: Mail,
+            description: 'Email Marketing',
+            badge: 'Upcoming',
+            separator: true
+        },
+        {
+            title: 'Support Desk',
+            href: '#',
+            icon: MessageSquare,
+            description: 'Help Desk',
+            badge: 'Upcoming'
+        },
+        {
+            title: 'Forms',
+            href: '#',
+            icon: FileText,
+            description: 'Lead Gen Forms',
+            badge: 'Upcoming'
         }
     ];
 
     return (
         <aside className="w-[280px] h-screen fixed top-0 left-0 bg-gray-200  dark:bg-slate-800/50 backdrop-blur-xl flex flex-col hidden lg:flex z-50">
             <div className="p-8 pb-4">
-                <Link href="/" className="flex items-center gap-3 mb-10 group">
+                <Link href="/" className="flex items-center gap-3 mb-6 group">
                     <Logo size="xl" showText={true} textClassName="text-xl font-bold text-foreground" />
                 </Link>
 {/* 
@@ -102,12 +127,19 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                     const isDisabled = isDemo && link.title !== 'Overview';
 
                     return (
-                        <Link 
-                            key={link.href} 
-                            href={isDisabled ? '#' : link.href} 
-                            className={cn("block relative", isDisabled && "pointer-events-none")}
-                            aria-disabled={isDisabled}
-                        >
+                        <div key={link.href}>
+                             {/* @ts-ignore */}
+                            {link.separator && (
+                                <div className="px-4 py-2">
+                                    <div className="h-px bg-border/50" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 mt-2 block pl-2">Upcoming</span>
+                                </div>
+                            )}
+                            <Link 
+                                href={isDisabled ? '#' : link.href} 
+                                className={cn("block relative", isDisabled && "pointer-events-none")}
+                                aria-disabled={isDisabled}
+                            >
                             <div className={cn(
                                 "group flex items-center gap-3 px-4 py-3 rounded transition-all duration-300 relative border border-transparent",
                                 isActive
@@ -123,17 +155,27 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                                         </div>
                                     )}
                                 </div>
-                                <div className="flex flex-col min-w-0">
-                                    <span className={cn("font-bold text-[13px] leading-tight truncate", isActive ? "dark:text-white text-black" : "text-foreground")}>
-                                        {link.title}
-                                    </span>
+                                <div className="flex flex-col min-w-0 flex-1">
+                                    <div className="flex items-center justify-between">
+                                        <span className={cn("font-bold text-[13px] leading-tight truncate", isActive ? "dark:text-white text-black" : "text-foreground")}>
+                                            {link.title}
+                                        </span>
+                                        {/* @ts-ignore */}
+                                        {link.badge && (
+                                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 leading-none">
+                                                {/* @ts-ignore */}
+                                                {link.badge}
+                                            </span>
+                                        )}
+                                    </div>
                                     {/* <span className={cn("text-[9px] font-medium opacity-60 truncate", isActive ? "text-muted-foreground" : "text-muted-foreground")}>{link.description}</span> */}
                                 </div>
                                 {/* {isActive && (
                                     <div className="absolute left-0 w-1 h-6 bg-primary rounded-full" />
                                 )} */}
                             </div>
-                        </Link>
+                            </Link>
+                        </div>
                     );
                 })}
             </nav>

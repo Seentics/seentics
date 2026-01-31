@@ -1,3 +1,4 @@
+
 //@ts-ignore
 'use client';
 
@@ -47,6 +48,7 @@ import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { LandingExitAnalysis } from '@/components/analytics/LandingExitAnalysis';
 import { FunnelInsightsCard } from '@/components/analytics/FunnelInsightsCard';
+import { DataImportExportModal } from '@/components/analytics/DataImportExportModal';
 import { AutomationInsightTable } from '@/components/analytics/AutomationSynergyChart';
 import { FilterModal } from '@/components/analytics/FilterModal';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -458,7 +460,7 @@ export default function WebsiteDashboardPage() {
           <div className="flex flex-wrap items-center gap-3">
 
             <div className="h-10 w-10 flex items-center justify-center  backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm">
-                <ThemeToggle />
+                {/* <ThemeToggle /> */}
               </div>
             {/* Website Switcher */}
             <Select value={websiteId} onValueChange={handleWebsiteChange}>
@@ -496,9 +498,11 @@ export default function WebsiteDashboardPage() {
                 customEndDate={customEndDate}
                 onDateRangeChange={handleDateRangeChange}
                 onCustomDateChange={handleCustomDateChange}
-                onExport={handleExport}
               />
-              
+              <DataImportExportModal
+                websiteId={websiteId}
+                dateRange={dateRange}
+              />
             </div>
           </div>
         </div>
