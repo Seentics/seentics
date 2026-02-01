@@ -134,7 +134,7 @@ export default function WebsitesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#020617] selection:bg-primary/20 transition-all duration-500 flex flex-col items-center justify-center p-8 overflow-y-auto custom-scrollbar relative">
+    <div className="min-h-screen bg-background selection:bg-primary/20 transition-all duration-500 flex flex-col items-center justify-center p-8 overflow-y-auto custom-scrollbar relative">
       
         {/* Background Visuals */}
         <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
@@ -159,42 +159,42 @@ export default function WebsitesPage() {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -20 }}
                             transition={{ duration: 0.5 }}
-                            className="bg-slate-800 p-8 rounded-xl border border-slate-700/50 shadow-2xl"
+                            className="bg-card p-8 rounded-xl border border-border/50 shadow-2xl"
                         >
                             <div className="mb-10 text-center">
                                 <h2 className="text-4xl font-black tracking-tight mb-3">Add Website.</h2>
-                                <p className="text-slate-500 font-medium">Define your target domain for tracking.</p>
+                                <p className="text-muted-foreground font-medium">Define your target domain for tracking.</p>
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div className="space-y-4">
                                     <div className="space-y-1.5 ">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Website Name</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Website Name</label>
                                         <div className="relative group">
-                                            <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                            <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                             <Input
                                                 placeholder="My Awesome App"
                                                 value={name}
                                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                                                className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                className="h-14 pl-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                                 required
                                             />
                                         </div>
                                     </div>
 
                                     <div className="space-y-1.5">
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Website URL</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Website URL</label>
                                         <div className="relative group">
-                                            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                             <Input
                                                 placeholder="example.com"
                                                 value={url}
                                                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
-                                                className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                className="h-14 pl-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                                 required
                                             />
                                         </div>
-                                        <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest ml-1 opacity-40">
+                                        <p className="text-[9px] text-muted-foreground font-black uppercase tracking-widest ml-1 opacity-40">
                                             Exclude protocols (e.g., mysite.com)
                                         </p>
                                     </div>
@@ -203,7 +203,7 @@ export default function WebsitesPage() {
                                 <Button
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="w-full h-15 bg-primary hover:bg-primary/90 text-white font-black uppercase tracking-widest rounded shadow-xl transition-all active:scale-[0.98]"
+                                    className="w-full h-15 bg-primary hover:bg-primary/90 text-primary-foreground font-black uppercase tracking-widest rounded shadow-xl transition-all active:scale-[0.98]"
                                 >
                                     {isSubmitting ? <Loader2 className="animate-spin h-5 w-5" /> : (
                                         <span className="flex items-center gap-2">
@@ -218,23 +218,23 @@ export default function WebsitesPage() {
                             key="tracking-code"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="bg-slate-800 p-8 rounded-xl border border-slate-700/50 shadow-2xl relative overflow-hidden"
+                            className="bg-card p-8 rounded-xl border border-border/50 shadow-2xl relative overflow-hidden"
                         >
                             <div className="absolute top-0 left-0 right-0 h-1 bg-primary" />
                             
                             <div className="mb-10 text-center">
                                 <div className="flex items-center justify-center gap-3 text-emerald-500 mb-4">
                                     <CheckCircle size={32} />
-                                    <h2 className="text-3xl font-black text-white tracking-tight">Setup Complete!</h2>
+                                    <h2 className="text-3xl font-black text-foreground tracking-tight">Setup Complete!</h2>
                                 </div>
-                                <p className="text-slate-400 font-bold leading-relaxed">
-                                    Your website <span className="text-primary font-black">{name}</span> is ready. Add the tracking script to your site's <span className="text-white font-black italic">{'<head>'}</span> section.
+                                <p className="text-muted-foreground font-bold leading-relaxed">
+                                    Your website <span className="text-primary font-black">{name}</span> is ready. Add the tracking script to your site's <span className="text-foreground font-black italic">{'<head>'}</span> section.
                                 </p>
                             </div>
 
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between mb-2">
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Tracking Snippet</span>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Tracking Snippet</span>
                                     <Button
                                         size="sm"
                                         variant="ghost"
@@ -245,7 +245,7 @@ export default function WebsitesPage() {
                                     </Button>
                                 </div>
                                 <div className="relative group">
-                                    <pre className="p-6 rounded bg-slate-900 border border-slate-700/50 text-[11px] font-mono leading-relaxed overflow-x-auto text-slate-300 shadow-inner custom-scrollbar">
+                                    <pre className="p-6 rounded bg-background border border-border/50 text-[11px] font-mono leading-relaxed overflow-x-auto text-muted-foreground shadow-inner custom-scrollbar">
                                         <code>{trackingCode}</code>
                                     </pre>
                                 </div>
@@ -253,14 +253,14 @@ export default function WebsitesPage() {
 
                             <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <Button 
-                                    className="h-14 bg-primary hover:bg-primary/90 text-white rounded font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20"
+                                    className="h-14 bg-primary hover:bg-primary/90 text-primary-foreground rounded font-black uppercase tracking-widest text-xs shadow-xl shadow-primary/20"
                                     onClick={() => router.push(`/websites/${newlyCreatedSiteId}`)}
                                 >
                                     Dashboard
                                 </Button>
                                 <Button 
                                     variant="outline" 
-                                    className="h-14 bg-slate-900 border-none hover:bg-slate-900/80 text-white rounded font-black uppercase tracking-widest text-xs"
+                                    className="h-14 bg-background border-none hover:bg-accent text-foreground rounded font-black uppercase tracking-widest text-xs"
                                     onClick={() => setNewlyCreatedSiteId(null)}
                                 >
                                     Add Another

@@ -28,7 +28,7 @@ export function TrafficOverview({
   const listData = dailyStats?.daily_stats || [];
 
   return (
-    <Card className={cn("col-span-full dark:bg-gray-800/50 shadow-sm shadow-black/5 overflow-hidden border-none outline-none", className)}>
+    <Card className={cn("col-span-full bg-card/50 shadow-sm shadow-black/5 overflow-hidden", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
         <div className="space-y-1">
           <CardTitle className="text-lg font-bold tracking-tight">Traffic Overview</CardTitle>

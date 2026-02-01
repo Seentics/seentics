@@ -196,7 +196,7 @@ export default function AutomationsPage() {
             </div>
 
             {/* Content Section */}
-            <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card dark:bg-gray-800/50 rounded overflow-hidden border border-muted-foreground/5 backdrop-blur-sm">
+            <Card className="border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card/50 dark:bg-card/50 rounded overflow-hidden dark:border-none backdrop-blur-sm">
                 <CardHeader className="border-b border-muted-foreground/5 bg-muted/20 px-6 py-6">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
@@ -257,7 +257,7 @@ export default function AutomationsPage() {
                                             <tr key={auto.id} className="hover:bg-muted/10 transition-colors group">
                                                 <td className="px-6 py-6 min-w-[300px]">
                                                     <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 rounded bg-white dark:bg-slate-900 border border-border/50 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                                                        <div className="w-12 h-12 rounded bg-card dark:bg-card/50 border border-border flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                                                             <ActionIcon className="h-6 w-6 text-primary" />
                                                         </div>
                                                         <div className="min-w-0">
@@ -373,17 +373,17 @@ export default function AutomationsPage() {
             </Card>
 
             {/* Support Message */}
-            <div className="flex flex-col sm:flex-row items-center justify-between p-8 rounded-[2.5rem] bg-slate-900 text-white gap-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between p-8 rounded-[2.5rem] bg-primary text-primary-foreground gap-6">
                 <div className="flex items-center gap-6 text-center sm:text-left">
-                    <div className="hidden sm:flex w-16 h-16 rounded bg-white/10 items-center justify-center flex-shrink-0">
-                        <Zap className="h-8 w-8 text-white" />
+                    <div className="hidden sm:flex w-16 h-16 rounded bg-primary-foreground/10 items-center justify-center flex-shrink-0">
+                        <Zap className="h-8 w-8 text-primary-foreground" />
                     </div>
                     <div>
                         <h3 className="text-xl font-black">Need more integrations?</h3>
-                        <p className="text-slate-400 font-medium mt-1">We're constantly adding new triggers and actions. Tell us what you need.</p>
+                        <p className="text-primary-foreground/80 font-medium mt-1">We're constantly adding new triggers and actions. Tell us what you need.</p>
                     </div>
                 </div>
-                <Button className="bg-white text-slate-900 hover:bg-slate-100 h-12 px-8 rounded font-black flex-shrink-0">
+                <Button variant="secondary" className="h-12 px-8 rounded font-black flex-shrink-0">
                     Request Feature
                 </Button>
             </div>

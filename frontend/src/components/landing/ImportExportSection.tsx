@@ -11,7 +11,7 @@ const integrations = [
 
 export default function ImportExportSection() {
   return (
-    <section id="import-export" className="py-24 sm:py-32 relative overflow-hidden bg-slate-50 dark:bg-[#020617]/50 border-y border-slate-100 dark:border-slate-800/50">
+    <section id="import-export" className="py-24 sm:py-32 relative overflow-hidden bg-accent/20 border-y border-border">
       <div className="container mx-auto px-6">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           
@@ -27,7 +27,7 @@ export default function ImportExportSection() {
                 <ArrowRightLeft className="w-4 h-4" />
                 <span>Data Portability</span>
               </div>
-              <h2 className="text-4xl sm:text-5xl font-black tracking-tighter text-slate-900 dark:text-white mb-6 leading-[0.95]">
+              <h2 className="text-4xl sm:text-5xl font-black tracking-tighter text-foreground mb-6 leading-[0.95]">
                 Switch in minutes, <br />
                 <span className="text-muted-foreground/50">not days.</span>
               </h2>

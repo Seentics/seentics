@@ -102,29 +102,29 @@ export const DataImportExportModal = ({ websiteId, dateRange }: DataImportExport
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="h-10 px-4 bg-slate-800 backdrop-blur-md hover:bg-card transition-colors rounded shadow-sm font-bold text-xs uppercase tracking-widest gap-2">
+        <Button className="h-10 px-4 bg-muted/50 backdrop-blur-md hover:bg-muted transition-colors rounded shadow-sm font-bold text-xs uppercase tracking-widest gap-2 text-foreground border border-border/40">
           <Download className="h-3.5 w-3.5" />
           Import/Export
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] rounded-xl border border-white/5 bg-gray-900/80 backdrop-blur-xl shadow-2xl p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-4 border-b border-white/5 bg-white/[0.02]">
+      <DialogContent className="sm:max-w-[600px] rounded-xl border border-border/40 bg-card/95 backdrop-blur-xl shadow-2xl p-0 overflow-hidden">
+        <DialogHeader className="p-6 pb-4 border-b border-border/40 bg-muted/20">
           <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-bold tracking-tight text-white">Import / Export Analytics</DialogTitle>
+            <DialogTitle className="text-xl font-bold tracking-tight text-foreground">Import / Export Analytics</DialogTitle>
           </div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60 mt-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60 mt-2">
             Manage your analytics data
           </p>
         </DialogHeader>
 
-        <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(80vh-120px)] bg-gray-800/50">
+        <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(80vh-120px)] bg-background/50">
           <Tabs defaultValue="export" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-white/5 rounded-lg h-10 p-1">
-              <TabsTrigger value="export" className="text-xs font-bold uppercase tracking-widest gap-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-white">
+            <TabsList className="grid w-full grid-cols-2 bg-muted/30 rounded-lg h-10 p-1">
+              <TabsTrigger value="export" className="text-xs font-bold uppercase tracking-widest gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <Download size={14} />
                 Export
               </TabsTrigger>
-              <TabsTrigger value="import" className="text-xs font-bold uppercase tracking-widest gap-1.5 data-[state=active]:bg-white/10 data-[state=active]:text-white">
+              <TabsTrigger value="import" className="text-xs font-bold uppercase tracking-widest gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 <Upload size={14} />
                 Import
               </TabsTrigger>
@@ -147,16 +147,16 @@ export const DataImportExportModal = ({ websiteId, dateRange }: DataImportExport
                     className={`p-4 rounded-xl border transition-all text-left ${
                       exportFormat === 'json'
                         ? 'border-primary bg-primary/10'
-                        : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]'
+                        : 'border-border/40 bg-card hover:border-border/80 hover:bg-muted'
                     }`}
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
+                      <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
                         <FileJson size={16} />
                       </div>
-                      <h4 className="font-bold text-sm text-white">JSON</h4>
+                      <h4 className="font-bold text-sm text-foreground">JSON</h4>
                     </div>
-                    <p className="text-xs text-slate-400">Structured format for processing</p>
+                    <p className="text-xs text-muted-foreground">Structured format for processing</p>
                   </button>
 
                   {/* CSV Export */}
@@ -165,16 +165,16 @@ export const DataImportExportModal = ({ websiteId, dateRange }: DataImportExport
                     className={`p-4 rounded-xl border transition-all text-left ${
                       exportFormat === 'csv'
                         ? 'border-primary bg-primary/10'
-                        : 'border-white/5 bg-white/[0.02] hover:border-white/10 hover:bg-white/[0.04]'
+                        : 'border-border/40 bg-card hover:border-border/80 hover:bg-muted'
                     }`}
                   >
                     <div className="flex items-center gap-3 mb-2">
-                      <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400">
+                      <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
                         <FileSpreadsheet size={16} />
                       </div>
-                      <h4 className="font-bold text-sm text-white">CSV</h4>
+                      <h4 className="font-bold text-sm text-foreground">CSV</h4>
                     </div>
-                    <p className="text-xs text-slate-400">Spreadsheet compatible</p>
+                    <p className="text-xs text-muted-foreground">Spreadsheet compatible</p>
                   </button>
                 </div>
               </div>

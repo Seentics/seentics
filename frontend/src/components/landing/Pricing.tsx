@@ -99,7 +99,7 @@ export default function Pricing() {
   };
 
   return (
-    <section id="pricing" className="py-24 sm:py-48 relative overflow-hidden bg-white dark:bg-[#020617]">
+    <section id="pricing" className="py-24 sm:py-48 relative overflow-hidden bg-transparent">
       <div className="container mx-auto px-6 relative z-10">
 
         {/* Header */}
@@ -108,7 +108,7 @@ export default function Pricing() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl sm:text-6xl font-black tracking-tighter mb-8 leading-[0.95]"
+            className="text-4xl sm:text-6xl font-black tracking-tighter mb-8 leading-[0.95] text-foreground"
           >
             Simple <br />
             <span className="text-primary italic">pricing.</span>
@@ -130,18 +130,18 @@ export default function Pricing() {
             <motion.div
               key={index}
               variants={itemVariants}
-              className={`p-10 rounded-xl bg-slate-50 dark:bg-slate-900/50 border ${plan.popular ? 'border-primary/30 shadow-2xl shadow-primary/5' : 'border-slate-100 dark:border-slate-800/50'} flex flex-col relative overflow-hidden`}
+              className={`p-10 rounded-xl bg-card border ${plan.popular ? 'border-primary/30 shadow-2xl shadow-primary/5' : 'border-border'} flex flex-col relative overflow-hidden`}
             >
                 {plan.popular && (
-                  <div className="absolute top-0 right-0 py-2.5 px-8 bg-primary text-white text-[11px] font-bold tracking-wider rounded-bl-2xl">
+                  <div className="absolute top-0 right-0 py-2.5 px-8 bg-primary text-primary-foreground text-[11px] font-bold tracking-wider rounded-bl-2xl">
                     Popular
                   </div>
                 )}
 
                 <div className="mb-10">
-                  <h3 className="text-3xl font-black mb-2 tracking-tighter">{plan.name}</h3>
+                  <h3 className="text-3xl font-black mb-2 tracking-tighter text-foreground">{plan.name}</h3>
                   <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-5xl font-black tracking-tighter">${plan.price}</span>
+                    <span className="text-5xl font-black tracking-tighter text-foreground">${plan.price}</span>
                     <span className="text-muted-foreground/40 font-bold text-sm pl-1">/{plan.period === 'forever' ? 'forever' : 'month'}</span>
                   </div>
                   <p className="text-muted-foreground/60 font-bold text-sm leading-relaxed tracking-tight">

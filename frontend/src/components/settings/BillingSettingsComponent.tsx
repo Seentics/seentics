@@ -161,16 +161,16 @@ export function BillingSettingsComponent() {
 
         <div className="space-y-8">
           {/* Plan Features Card */}
-          <div className="bg-slate-900 dark:bg-slate-950 p-8 rounded border border-white/5 relative overflow-hidden group shadow-2xl">
+          <div className="bg-card p-8 rounded border border-border/5 relative overflow-hidden group shadow-2xl">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[50px] rounded-full -mr-16 -mt-16" />
-            <h4 className="text-white text-lg font-black mb-6 relative z-10 uppercase tracking-tight">Included Perks</h4>
+            <h4 className="text-foreground text-lg font-black mb-6 relative z-10 uppercase tracking-tight">Included Perks</h4>
             <ul className="space-y-4 relative z-10">
               {(subscription?.features || [
                 'Basic analytics dashboard',
                 'Community support',
                 'Standard data retention'
               ]).map((f, i) => (
-                <li key={i} className="flex items-start gap-3 text-xs font-bold text-slate-400">
+                <li key={i} className="flex items-start gap-3 text-xs font-bold text-muted-foreground">
                   <div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-500/20">
                     <Check className="h-3 w-3 text-emerald-500" />
                   </div>

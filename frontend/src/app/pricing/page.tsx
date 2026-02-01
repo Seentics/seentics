@@ -101,7 +101,7 @@ export default function PricingPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 py-20 px-6">
+        <div className="min-h-screen bg-background py-20 px-6">
             <div className="max-w-7xl mx-auto">
                 <div className="text-center space-y-4 mb-20 animate-in fade-in slide-in-from-top-4 duration-700">
                     <Badge variant="outline" className="px-4 py-1.5 rounded-full border-primary/20 text-primary font-black uppercase tracking-widest text-[10px]">
@@ -150,7 +150,7 @@ export default function PricingPage() {
                                 )}
 
                                 <CardHeader className="pb-8">
-                                    <div className={`h-14 w-14 rounded bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform`}>
+                                    <div className={`h-14 w-14 rounded bg-card border border-border flex items-center justify-center mb-6 text-primary group-hover:scale-110 transition-transform`}>
                                         <Icon size={28} />
                                     </div>
                                     <CardTitle className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{plan.name}</CardTitle>

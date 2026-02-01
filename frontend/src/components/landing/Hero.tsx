@@ -24,7 +24,7 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-60 pb-40 overflow-hidden bg-white dark:bg-[#020617]">
+    <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-60 pb-40 overflow-hidden bg-transparent">
       {/* Ambient Background Visuals */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
@@ -60,21 +60,21 @@ export default function Hero() {
             <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
               {isAuthenticated ? (
                 <Link href="/websites" className="w-full sm:w-auto">
-                  <Button variant="brand" className="h-16 px-12 text-lg font-bold rounded-xl active:scale-95 group shadow-2xl shadow-primary/20 transition-all">
+                  <Button variant="brand" className="h-16 px-12 text-lg font-bold rounded-xl active:scale-95 group shadow-2xl shadow-primary/20 transition-all text-primary-foreground">
                     Go to dashboard
                     <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
               ) : (
                 <Link href="/signup" className="w-full sm:w-auto">
-                  <Button variant="brand" className="h-16 px-12 text-lg font-bold rounded-xl active:scale-95 group shadow-2xl shadow-primary/20 transition-all">
+                  <Button variant="brand" className="h-16 px-12 text-lg font-bold rounded-xl active:scale-95 group shadow-2xl shadow-primary/20 transition-all text-primary-foreground">
                     Get started for free
                     <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
               )}
               <Link href="/websites/demo" className="w-full sm:w-auto">
-                <Button variant="outline" className="h-16 px-12 text-lg font-bold rounded-xl w-full sm:w-auto bg-transparent border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-900 text-foreground transition-all flex items-center justify-center gap-3">
+                <Button variant="outline" className="h-16 px-12 text-lg font-bold rounded-xl w-full sm:w-auto bg-transparent border-border hover:bg-accent text-foreground transition-all flex items-center justify-center gap-3">
                   <Play className="h-5 w-5 fill-current text-primary" />
                   View live demo
                 </Button>

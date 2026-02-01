@@ -50,7 +50,7 @@ const trackingSnippet = `<!-- Seentics Analytics -->
                 {copied ? 'COPIED!' : 'COPY CODE'}
               </Button>
             </div>
-            <pre className="text-[13px] font-mono text-foreground overflow-x-auto leading-relaxed selection:bg-primary/20 p-4 rounded bg-slate-900/5 dark:bg-slate-900/50 border border-border/20">
+            <pre className="text-[13px] font-mono text-foreground overflow-x-auto leading-relaxed selection:bg-primary/20 p-4 rounded bg-muted/20 border border-border/20">
               <code>{trackingSnippet}</code>
             </pre>
           </div>

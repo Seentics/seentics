@@ -9,7 +9,7 @@ export function PromotionBanner() {
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="relative z-[60] overflow-hidden bg-[#0f172a] border-b border-blue-500/10"
+      className="relative z-[60] overflow-hidden bg-card border-b border-border"
     >
       <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-sky-500/10 to-cyan-500/10 opacity-50" />
       
@@ -24,8 +24,8 @@ export function PromotionBanner() {
             <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
               
               <div className="flex items-center gap-2">
-                <p className="text-sm text-blue-100/80">
-                  Get <span className="text-white font-bold underline decoration-blue-500/50 underline-offset-4 decoration-2 text-md">Lifetime Access</span> for only <span className="text-white font-black text-lg ml-1 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">$99</span>
+                <p className="text-sm text-foreground/80">
+                  Get <span className="text-foreground font-bold underline decoration-primary/50 underline-offset-4 decoration-2 text-md">Lifetime Access</span> for only <span className="text-foreground font-black text-lg ml-1">$99</span>
                 </p>
               </div>
             </div>
@@ -33,9 +33,9 @@ export function PromotionBanner() {
 
           {/* Right Side: Scarcity & CTA */}
           <div className="flex items-center gap-4">
-            <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/10">
-              <Timer size={14} className="text-blue-400" />
-              <p className="text-[11px] font-bold text-blue-300 uppercase tracking-tighter">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-accent rounded-full border border-border">
+              <Timer size={14} className="text-primary" />
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-tighter">
                 Limited Time Offer
               </p>
             </div>
@@ -43,7 +43,7 @@ export function PromotionBanner() {
             <Link 
               href="/pricing"
               target="_blank"
-              className="relative group overflow-hidden flex items-center gap-2 bg-primary dark:bg-primary/50 text-white px-5 py-1.5 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.2)]"
+              className="relative group overflow-hidden flex items-center gap-2 bg-primary text-primary-foreground px-5 py-1.5 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(99,102,241,0.2)]"
             >
               <span className="relative z-10 flex items-center gap-2">
                 Claim Offer

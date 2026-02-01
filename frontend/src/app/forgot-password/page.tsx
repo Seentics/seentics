@@ -147,7 +147,7 @@ export default function ForgotPasswordPage() {
                                             placeholder="name@example.com"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            className="h-14 pl-12 bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 focus:border-primary text-slate-900 dark:text-white rounded transition-all"
+                                            className="h-14 pl-12 bg-background border-border focus:border-primary text-foreground rounded transition-all"
                                             disabled={isLoading}
                                             required
                                         />
@@ -157,7 +157,7 @@ export default function ForgotPasswordPage() {
                                 <Button
                                     type="submit"
                                     variant="brand"
-                                    className="w-full h-16 text-lg font-bold shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded-xl active:scale-[0.98]"
+                                    className="w-full h-16 text-lg font-bold shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded-xl active:scale-[0.98] text-primary-foreground"
                                     disabled={isLoading}
                                 >
                                     {isLoading ? (
@@ -176,21 +176,21 @@ export default function ForgotPasswordPage() {
                             key="success"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="bg-slate-50 dark:bg-slate-900/50 p-8 md:p-10 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-2xl relative"
+                            className="bg-card p-8 md:p-10 rounded-[2.5rem] border border-border shadow-2xl relative"
                         >
                             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-blue-500 to-primary" />
                             
                             <div className="flex flex-col items-center text-center">
-                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 mb-6 font-black scale-110">
+                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 text-green-500 mb-6 font-black scale-110">
                                     <CheckCircle2 size={32} />
                                 </div>
-                                <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-4">Check your email</h2>
+                                <h2 className="text-2xl font-black text-foreground tracking-tight mb-4">Check your email</h2>
                                 <p className="text-muted-foreground font-medium leading-relaxed mb-8">
                                     We've sent a password reset link to <br /><span className="text-foreground font-bold">{email}</span>.
                                 </p>
                                 <Button 
                                     variant="outline" 
-                                    className="w-full h-16 rounded-xl font-bold border-slate-200 dark:border-slate-700 text-lg" 
+                                    className="w-full h-16 rounded-xl font-bold border-border text-lg" 
                                     onClick={() => setIsSubmitted(false)}
                                 >
                                     Try another email

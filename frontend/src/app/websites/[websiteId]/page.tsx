@@ -459,21 +459,21 @@ export default function WebsiteDashboardPage() {
 
           <div className="flex flex-wrap items-center gap-3">
 
-            <div className="h-10 w-10 flex items-center justify-center  backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm">
-                {/* <ThemeToggle /> */}
+            <div className="h-10 w-10 flex items-center justify-center bg-card/50 backdrop-blur-md hover:bg-card transition-colors rounded shadow-sm border border-border/40">
+                <ThemeToggle />
               </div>
             {/* Website Switcher */}
             <Select value={websiteId} onValueChange={handleWebsiteChange}>
-              <SelectTrigger className="w-full sm:w-[220px] h-10 dark:bg-slate-800 backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm">
+              <SelectTrigger className="w-full sm:w-[220px] h-10 bg-card/50 backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm border border-border/40">
                 <div className="flex items-center truncate">
                   <Globe className="mr-2 h-4 w-4 text-primary shrink-0" />
-                  <span className="truncate font-bold text-sm tracking-tight">{currentWebsite?.name || 'Select website'}</span>
+                  <span className="truncate font-bold text-sm tracking-tight text-foreground">{currentWebsite?.name || 'Select website'}</span>
                 </div>
               </SelectTrigger>
-              <SelectContent className="rounded  shadow-2xl bg-slate-800 ">
+              <SelectContent className="rounded shadow-2xl bg-card">
                 {websites.map((site) => ( 
                   <SelectItem key={site.id} value={site.id} className="rounded py-2">
-                    <span className="font-medium">{site.name}</span>
+                    <span className="font-medium text-foreground">{site.name}</span>
                   </SelectItem>
                 ))}
                 {websites.length > 0 && (
@@ -535,7 +535,7 @@ export default function WebsiteDashboardPage() {
 
         {/* DETAILS GRID START */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
-          <Card className=" dark:bg-gray-800/50">
+          <Card className="bg-card/50">
             <CardContent className="p-8">
               <TopPagesChart
                 data={transformedTopPages}
@@ -546,7 +546,7 @@ export default function WebsiteDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className=" dark:bg-gray-800/50  rounded">
+          <Card className="bg-card/50  rounded">
             <CardContent className="p-8">
               <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
             </CardContent>
@@ -554,7 +554,7 @@ export default function WebsiteDashboardPage() {
         </div>
 
         {/* Map & Geolocation */}
-        <section className="dark:bg-gray-800/50 rounded">
+        <section className="bg-card/50 rounded">
           <GeolocationOverview
             data={finalGeolocationData}
             isLoading={!isDemoMode && geolocationLoading}
@@ -563,7 +563,7 @@ export default function WebsiteDashboardPage() {
 
         {/* System & Events */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card className=" dark:bg-gray-800/50">
+          <Card className="bg-card/50">
             <CardContent className="p-8">
               <TopDevicesChart
                 data={transformedTopDevices}
@@ -573,7 +573,7 @@ export default function WebsiteDashboardPage() {
             </CardContent>
           </Card>
 
-          <Card className="rounded dark:bg-gray-800/50">
+          <Card className="rounded bg-card/50">
             <CardHeader className="p-8 pb-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -597,7 +597,7 @@ export default function WebsiteDashboardPage() {
         </div>
 
         {/* UTM Performance */}
-        <Card className="rounded dark:bg-gray-800/50 overflow-hidden">
+        <Card className="rounded bg-card/50 overflow-hidden">
           <CardHeader className="p-8 pb-6 border-b border-border/40">
             <div className="flex flex-col space-y-6 md:flex-row md:items-center md:justify-between md:space-y-0">
               <div className="space-y-1 text-center md:text-left">

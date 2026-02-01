@@ -8,7 +8,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 210 20% 98%;
     --foreground: 224 71.4% 4.1%;
     --card: 0 0% 100%;
     --card-foreground: 224 71.4% 4.1%;
@@ -18,14 +18,14 @@
     --primary-foreground: 210 20% 98%;
     --secondary: 215 25% 95%;
     --secondary-foreground: 215 80% 25%;
-    --muted: 220 14.3% 95.9%;
+    --muted: 215 25% 94%;
     --muted-foreground: 220 8.9% 46.1%;
-    --accent: 220 14.3% 95.9%;
+    --accent: 215 25% 94%;
     --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    --border: 220 13% 85%;
+    --input: 220 13% 85%;
     --ring: 221.2 83.2% 53.3%;
     --radius: 0.5rem;
 
@@ -35,44 +35,44 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
 
-    --sidebar-background: 222 47% 11%;
-    --sidebar-foreground: 210 20% 98%;
-    --sidebar-primary: 210 20% 98%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 222 47% 15%;
-    --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 222 47% 15%;
+    --sidebar-background: 210 40% 98%;
+    --sidebar-foreground: 224 71.4% 4.1%;
+    --sidebar-primary: 221.2 83.2% 53.3%;
+    --sidebar-primary-foreground: 210 20% 98%;
+    --sidebar-accent: 220 14.3% 95.9%;
+    --sidebar-accent-foreground: 220.9 39.3% 11%;
+    --sidebar-border: 220 13% 91%;
     --sidebar-ring: 221.2 83.2% 53.3%;
   }
 
   .dark {
-    --background: 222 47% 11.2%;
+    --background: 222 47% 6%; /* Much darker than cards */
     --foreground: 210 20% 98%;
-    --card: 222 47% 11.2%;
+    --card: 215 27.9% 16.9%; /* gray-800 */
     --card-foreground: 210 20% 98%;
-    --popover: 222 47% 11.2%;
+    --popover: 215 27.9% 16.9%;
     --popover-foreground: 210 20% 98%;
     --primary: 217.2 91.2% 59.8%;
     --primary-foreground: 210 20% 98%;
     --secondary: 215 25% 18%;
     --secondary-foreground: 215 20% 95%;
-    --muted: 215 27.9% 16.9%;
+    --muted: 215 27.9% 13%;
     --muted-foreground: 217.9 10.6% 64.9%;
-    --accent: 215 27.9% 16.9%;
+    --accent: 215 27.9% 25%;
     --accent-foreground: 210 20% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 20% 98%;
-    --border: 240 5% 26%;
+    --border: 215 27.9% 25%;
     --input: 215 27.9% 16.9%;
     --ring: 217.2 91.2% 59.8%;
 
-    --sidebar-background: 222 47% 11.2%;
+    --sidebar-background: 215 27.9% 16.9%;
     --sidebar-foreground: 210 20% 98%;
     --sidebar-primary: 210 20% 98%;
-    --sidebar-primary-foreground: 222 47% 11.2%;
-    --sidebar-accent: 215 27.9% 16.9%;
+    --sidebar-primary-foreground: 215 27.9% 16.9%;
+    --sidebar-accent: 217.2 91.2% 59.8%;
     --sidebar-accent-foreground: 210 20% 98%;
-    --sidebar-border: 215 27.9% 16.9%;
+    --sidebar-border: 215 27.9% 25%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }
@@ -83,7 +83,7 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased selection:bg-primary/20 selection:text-primary;
+    @apply bg-background/50 text-foreground antialiased selection:bg-primary/20 selection:text-primary;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
@@ -101,16 +101,16 @@
 
   /* Ultra-Premium Glassmorphism */
   .glass {
-    @apply bg-white/40 dark:bg-slate-900/40 backdrop-blur-[24px] border border-white/10 dark:border-white/[0.08];
+    @apply bg-background/40 dark:bg-card/40 backdrop-blur-[24px] border border-border/10 dark:border-border/5;
     box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.05);
   }
 
   .glass-dark {
-    @apply bg-slate-950/60 backdrop-blur-[32px] border border-white/[0.05] shadow-2xl;
+    @apply bg-background/60 dark:bg-card/60 backdrop-blur-[32px] border border-border/5 shadow-2xl;
   }
 
   .glass-card {
-    @apply bg-card/30 backdrop-blur-xl border border-white/10 dark:border-white/[0.05] transition-all duration-500;
+    @apply bg-card/30 backdrop-blur-xl border border-border/10 dark:border-border/5 transition-all duration-500;
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   }
 
