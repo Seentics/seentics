@@ -106,7 +106,7 @@ export default function SignInPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-[#020617] selection:bg-primary/20 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-transparent selection:bg-primary/20 flex items-center justify-center p-6">
         
         {/* Background Visuals */}
         <div className="absolute inset-0 z-0 pointer-events-none">
@@ -118,37 +118,37 @@ export default function SignInPage() {
             <div className="mb-12 text-center">
                 <Link href="/" className="inline-flex items-center gap-3 group mb-8">
                     <Logo size="xl" />
-                    <span className="text-2xl font-black tracking-tighter group-hover:text-primary transition-colors">SEENTICS</span>
+                    <span className="text-2xl font-black tracking-tighter group-hover:text-primary transition-colors text-foreground">SEENTICS</span>
                 </Link>
-                <h2 className="text-4xl font-black tracking-tight mb-3">Welcome back.</h2>
-                <p className="text-slate-500 font-medium">Log in to resume your data transmission.</p>
+                <h2 className="text-4xl font-black tracking-tight mb-3 text-foreground">Welcome back.</h2>
+                <p className="text-muted-foreground font-medium">Log in to resume your data transmission.</p>
             </div>
 
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-slate-800 rounded-xl p-8 shadow-2xl shadow-indigo-500/10 border border-slate-700/50"
+                className="bg-card rounded-xl p-8 shadow-2xl shadow-indigo-500/10 border border-border/50"
             >
                 <form onSubmit={handleEmailSignIn} className="space-y-6">
                     {error && (
-                        <div className="p-4 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold">
+                        <div className="p-4 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold">
                             {error}
                         </div>
                     )}
 
                     <div className="space-y-4">
                         <div className="space-y-1.5 ">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Email Address</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Email Address</label>
                             <div className="relative group">
-                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                 <Input
                                     name="email"
                                     type="email"
                                     placeholder="elon@x.com"
                                     value={formData.email}
                                     onChange={handleInputChange}
-                                    className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                    className="h-14 pl-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                     required
                                 />
                             </div>
@@ -156,23 +156,23 @@ export default function SignInPage() {
 
                         <div className="space-y-1.5">
                             <div className="flex justify-between items-center pr-1">
-                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Security Phrase</label>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Security Phrase</label>
                                 <Link href="/forgot-password"  className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest">
                                     Forgot?
                                 </Link>
                             </div>
                             <div className="relative group">
-                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                 <Input
                                     name="password"
                                     type={showPassword ? "text" : "password"}
                                     placeholder="••••••••"
                                     value={formData.password}
                                     onChange={handleInputChange}
-                                    className="h-14 pl-12 pr-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                    className="h-14 pl-12 pr-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                     required
                                 />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors">
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors">
                                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
                             </div>
@@ -182,7 +182,7 @@ export default function SignInPage() {
                     <Button
                         type="submit"
                         disabled={isLoading}
-                        className="w-full h-16 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
+                        className="w-full h-16 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg rounded-xl shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
                     >
                         {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
                             <span className="flex items-center gap-2">
@@ -192,8 +192,8 @@ export default function SignInPage() {
                     </Button>
                 </form>
 
-                <div className="mt-8 pt-8 border-t border-slate-700/50 text-center">
-                    <p className="text-sm font-medium text-slate-400">
+                <div className="mt-8 pt-8 border-t border-border/50 text-center">
+                    <p className="text-sm font-medium text-muted-foreground">
                         New to Seentics?{' '}
                         <Link href="/signup" className="text-primary font-black hover:underline uppercase tracking-widest text-xs">
                             Create Account

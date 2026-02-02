@@ -58,14 +58,14 @@ export default function AccountBillingSettings() {
     return (
         <div className="max-w-[1440px] mx-auto p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
-                <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Billing & Subscription</h1>
+                <h1 className="text-2xl font-black tracking-tight text-foreground uppercase">Billing & Subscription</h1>
                 <p className="text-muted-foreground font-medium">Manage your subscription, usage limits, and billing details.</p>
             </div>
 
             <div className="grid lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
                     {/* Current Plan Card */}
-                    <div className="p-8 rounded dark:bg-gray-800/50 relative overflow-hidden group shadow-2xl shadow-primary/5">
+                    <div className="p-8 rounded bg-card/50 border border-border dark:border-none relative overflow-hidden group shadow-2xl shadow-primary/5">
                         <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
                             <Zap className="h-32 w-32 text-primary" />
                         </div>

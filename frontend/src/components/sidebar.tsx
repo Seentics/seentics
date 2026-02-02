@@ -109,18 +109,18 @@ export default function Sidebar() {
           <Link
             href={`${basePath}${item.href === '' ? '' : `/${item.href}`}`}
             className={`flex items-center justify-center flex-1 px-4 py-3 text-sm font-medium transition-colors rounded ${active
-                ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-lg shadow-sidebar-accent/10'
+                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
               } ${isChild ? 'ml-4 pl-7' : ''}`}
           >
             <item.icon
-              className={`mr-3 h-5 w-5 ${active ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'}`}
+              className={`mr-3 h-5 w-5 ${active ? 'text-sidebar-accent-foreground' : 'text-primary'}`}
             />
             {(isSidebarOpen || isMobileMenuOpen) && (
               <>
                 <span className="flex-1">{item.name}</span>
                 {item.badge && (
-                  <span className="ml-2 px-2 py-1 text-xs font-semibold bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 rounded-full">
+                  <span className="ml-2 px-2 py-1 text-xs font-semibold bg-destructive/10 text-destructive rounded-full">
                     {item.badge}
                   </span>
                 )}
@@ -130,10 +130,10 @@ export default function Sidebar() {
           {hasChildren && (isSidebarOpen || isMobileMenuOpen) && (
             <button
               onClick={() => toggleExpanded(item.name)}
-              className="p-1.5 ml-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-1"
+              className="p-1.5 ml-2 rounded hover:bg-sidebar-accent transition-colors focus:outline-none focus:ring-2 focus:ring-sidebar-ring focus:ring-offset-1"
             >
               <ChevronDown
-                className={`h-4 w-4 text-slate-500 dark:text-slate-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
+                className={`h-4 w-4 text-sidebar-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
               />
             </button>
           )}
@@ -151,19 +151,19 @@ export default function Sidebar() {
     <>
       {/* Desktop Sidebar */}
       <div className={`${isSidebarOpen ? 'w-64' : 'w-16'
-        } hidden lg:block transition-all duration-300 ease-in-out bg-white dark:bg-slate-950 shadow-sm `}>
+        } hidden lg:block transition-all duration-300 ease-in-out bg-sidebar border-r border-sidebar-border shadow-sm `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center h-16 px-4 border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">
+          <div className="flex items-center h-16 px-4 border-b border-sidebar-border bg-sidebar">
             <div className="flex items-center">
               <Logo size="xl" />
               {isSidebarOpen && (
                 <div className="flex items-center gap-2">
-                  <span className="ml-3 text-xl font-bold text-slate-900 dark:text-white">
+                  <span className="ml-3 text-xl font-bold text-sidebar-foreground">
                     Seentics
                   </span>
                 </div>
-              )}=
+              )}
             </div>
           </div>
 
@@ -173,12 +173,12 @@ export default function Sidebar() {
           </nav>
 
           {/* Logout Button */}
-          <div className="px-4 py-4 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950">
+          <div className="px-4 py-4 border-t border-sidebar-border bg-sidebar">
             <button
               onClick={handleLogout}
-              className="flex items-center w-full px-3 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 rounded hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors group"
+              className="flex items-center w-full px-3 py-3 text-sm font-medium text-sidebar-foreground rounded hover:bg-destructive/10 hover:text-destructive transition-colors group"
             >
-              <LogOut className="mr-3 h-5 w-5 text-slate-500 dark:text-slate-400 group-hover:text-red-600 dark:group-hover:text-red-400" />
+              <LogOut className="mr-3 h-5 w-5 text-sidebar-foreground group-hover:text-destructive" />
               {isSidebarOpen && <span>Sign out</span>}
             </button>
           </div>
@@ -189,16 +189,16 @@ export default function Sidebar() {
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-50 flex">
           <div
-            className="fixed inset-0 bg-slate-600/80 dark:bg-slate-900/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
             onClick={toggleMobileMenu}
           />
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white dark:bg-slate-950 shadow-xl">
+          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-sidebar shadow-xl">
             <div className="absolute top-0 right-0 -mr-12 pt-2">
               <button
                 onClick={toggleMobileMenu}
-                className="ml-1 flex items-center justify-center h-10 w-10 rounded-full bg-white dark:bg-slate-800 shadow-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+                className="ml-1 flex items-center justify-center h-10 w-10 rounded-full bg-sidebar shadow-lg focus:outline-none focus:ring-2 focus:ring-sidebar-ring focus:ring-offset-2"
               >
-                <X className="h-6 w-6 text-slate-700 dark:text-slate-200" />
+                <X className="h-6 w-6 text-sidebar-foreground" />
               </button>
             </div>
 
@@ -207,7 +207,7 @@ export default function Sidebar() {
               <div className="flex items-center flex-shrink-0 px-4">
                 <Logo size="xl" />
                 <div className="flex items-center gap-2">
-                  <span className="ml-3 text-xl font-bold text-slate-900 dark:text-white">
+                  <span className="ml-3 text-xl font-bold text-sidebar-foreground">
                     Seentics
                   </span>
                 </div>
@@ -216,12 +216,12 @@ export default function Sidebar() {
                 {navigationItems.map(item => renderNavItem(item))}
 
                 {/* Mobile Logout */}
-                <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+                <div className="pt-4 border-t border-sidebar-border">
                   <button
                     onClick={handleLogout}
-                    className="flex items-center w-full px-3 py-3 text-sm font-medium text-slate-700 dark:text-slate-200 rounded hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 dark:hover:text-red-400 transition-colors group"
+                    className="flex items-center w-full px-3 py-3 text-sm font-medium text-sidebar-foreground rounded hover:bg-destructive/10 hover:text-destructive transition-colors group"
                   >
-                    <LogOut className="mr-3 h-5 w-5 text-slate-500 dark:text-slate-400 group-hover:text-red-600 dark:group-hover:text-red-400" />
+                    <LogOut className="mr-3 h-5 w-5 text-sidebar-foreground group-hover:text-destructive" />
                     <span>Sign out</span>
                   </button>
                 </div>

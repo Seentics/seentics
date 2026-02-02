@@ -130,7 +130,7 @@ const SummaryCard = ({
 export function SummaryCards({ data }: SummaryCardsProps) {
   if (!data) {
     return (
-      <div className="bg-card dark:bg-gray-800/50 border-border shadow-sm rounded overflow-hidden mb-8 border">
+      <div className="bg-card/50 shadow-sm rounded overflow-hidden mb-8 border dark:border-none">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 divide-x divide-border/20">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="p-6">
@@ -188,7 +188,7 @@ export function SummaryCards({ data }: SummaryCardsProps) {
   ];
 
   return (
-    <div className="bg-gray-200 dark:bg-gray-800/50 shadow-sm shadow-black/5 rounded overflow-hidden mb-8">
+    <div className="bg-card/50 shadow-sm shadow-black/5 rounded overflow-hidden mb-8 border dark:border-none">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 divide-x divide-border/40">
         {cards.map((card, index) => (
           <SummaryCard key={index} {...card} />

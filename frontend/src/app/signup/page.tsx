@@ -289,10 +289,10 @@ function SignUpFlow() {
                             animate={{ 
                                 scale: step === s.id ? 1.1 : 1,
                                 backgroundColor: step >= s.id ? 'var(--primary)' : 'var(--background)',
-                                borderColor: step >= s.id ? 'var(--primary)' : 'rgb(226, 232, 240)'
+                                borderColor: step >= s.id ? 'var(--primary)' : 'hsl(var(--border))'
                             }}
                             className={`h-6 w-6 rounded-full border-2 flex items-center justify-center transition-all duration-700 ${
-                                step >= s.id ? 'text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-300 shadow-sm'
+                                step >= s.id ? 'text-primary-foreground' : 'bg-background border-border text-muted-foreground shadow-sm'
                             }`}
                         >
                             {step > s.id ? <CheckCircle className="h-3.5 w-3.5" /> : <span className="text-[10px] font-black">{s.id}</span>}
@@ -319,79 +319,79 @@ function SignUpFlow() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ duration: 0.5 }}
-                        className="w-full max-w-lg bg-slate-800 p-8 rounded-xl border border-slate-700/50 shadow-2xl"
+                        className="w-full max-w-lg bg-card p-8 rounded-xl border border-border/50 shadow-2xl"
                     >
                         <div className="mb-10 text-center">
-                            <h2 className="text-4xl font-black tracking-tight mb-3">Create account.</h2>
-                            <p className="text-slate-500 font-medium">Join the elite Seentics ecosystem.</p>
+                            <h2 className="text-4xl font-black tracking-tight mb-3 text-foreground">Create account.</h2>
+                            <p className="text-muted-foreground font-medium">Join the elite Seentics ecosystem.</p>
                         </div>
 
                         <form onSubmit={handleAccountSubmit} className="space-y-6">
                             {error && (
-                                <div className="p-4 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-bold font-sans">
+                                <div className="p-4 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold font-sans">
                                     {error}
                                 </div>
                             )}
 
                             <div className="space-y-4">
                                 <div className="space-y-1.5 ">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Full Name</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Full Name</label>
                                     <div className="relative group">
-                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                         <Input
                                             name="name"
                                             placeholder="Elon Musk"
                                             value={formData.name}
                                             onChange={handleInputChange}
-                                            className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                            className="h-14 pl-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                             required
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Your Email</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Your Email</label>
                                     <div className="relative group">
-                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                         <Input
                                             name="email"
                                             type="email"
                                             placeholder="elon@x.com"
                                             value={formData.email}
                                             onChange={handleInputChange}
-                                            className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                            className="h-14 pl-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                             required
                                         />
                                     </div>
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Security Password</label>
+                                    <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Security Password</label>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="relative group">
-                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                             <Input
                                                 name="password"
                                                 type={showPassword ? "text" : "password"}
                                                 placeholder="••••••••"
                                                 value={formData.password}
                                                 onChange={handleInputChange}
-                                                className="h-14 pl-12 pr-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                className="h-14 pl-12 pr-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                                 required
                                             />
-                                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors">
+                                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors">
                                                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                             </button>
                                         </div>
                                         <div className="relative group">
-                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-primary transition-colors" />
+                                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                                             <Input
                                                 name="confirmPassword"
                                                 type={showConfirmPassword ? "text" : "password"}
                                                 placeholder="Confirm"
                                                 value={formData.confirmPassword}
                                                 onChange={handleInputChange}
-                                                className="h-14 pl-12 bg-slate-900 border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                                className="h-14 pl-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                                 required
                                             />
                                         </div>
@@ -402,7 +402,7 @@ function SignUpFlow() {
                             <Button
                                 type="submit"
                                 disabled={isLoading}
-                                className="w-full h-16 bg-primary hover:bg-primary/90 text-white font-bold text-lg rounded-xl shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
+                                className="w-full h-16 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg rounded-xl shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
                             >
                                 {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
                                     <span className="flex items-center gap-2">
@@ -412,8 +412,8 @@ function SignUpFlow() {
                             </Button>
                         </form>
 
-                        <div className="mt-8 pt-8 border-t border-slate-700/50 text-center">
-                            <p className="text-sm font-medium text-slate-400">
+                        <div className="mt-8 pt-8 border-t border-border/50 text-center">
+                            <p className="text-sm font-medium text-muted-foreground">
                                 Already have an account?{' '}
                                 <Link href="/signin" className="text-primary font-black hover:underline uppercase tracking-widest text-xs">
                                     Sign In
@@ -444,8 +444,8 @@ function SignUpFlow() {
                                     transition={{ delay: i * 0.1 }}
                                     className={`relative p-8 rounded-xl border transition-all duration-500 overflow-hidden group ${
                                         plan.popular 
-                                        ? 'bg-slate-900 border-slate-800 text-white shadow-2xl scale-105 z-10' 
-                                        : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700/50 hover:border-primary/50'
+                                        ? 'bg-slate-900 border-border text-white shadow-2xl scale-105 z-10' 
+                                        : 'bg-card border-border hover:border-primary/50'
                                     }`}
                                 >
                                     {plan.popular && (

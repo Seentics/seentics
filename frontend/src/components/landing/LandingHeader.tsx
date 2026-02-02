@@ -30,7 +30,7 @@ export default function LandingHeader() {
     <header 
       className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${
         scrolled 
-          ? 'glass bg-background/60 border-b border-white/10 backdrop-blur-xl h-auto' 
+          ? 'glass bg-background/60 border-b border-border backdrop-blur-xl h-auto' 
           : 'bg-transparent h-auto'
       }`}
     >
@@ -59,7 +59,7 @@ export default function LandingHeader() {
 
         {/* Actions */}
         <div className="hidden lg:flex items-center gap-6">
-         
+          <ThemeToggle />
 
           <div className="flex items-center gap-4">
             {isAuthenticated ? (

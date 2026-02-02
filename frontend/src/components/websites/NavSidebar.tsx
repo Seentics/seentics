@@ -106,15 +106,11 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
     ];
 
     return (
-        <aside className="w-[280px] h-screen fixed top-0 left-0 bg-gray-200  dark:bg-slate-800/50 backdrop-blur-xl flex flex-col hidden lg:flex z-50">
+        <aside className="w-[280px] h-screen fixed top-0 left-0 bg-sidebar border-r border-sidebar-border backdrop-blur-xl flex flex-col hidden lg:flex z-50">
             <div className="p-8 pb-4">
                 <Link href="/" className="flex items-center gap-3 mb-6 group">
-                    <Logo size="xl" showText={true} textClassName="text-xl font-bold text-foreground" />
+                    <Logo size="xl" showText={true} textClassName="text-xl font-bold text-sidebar-foreground" />
                 </Link>
-{/* 
-                <div className="px-2 mb-4">
-                    <p className="text-[10px] font-bold tracking-[0.2em] text-muted-foreground uppercase opacity-60">Management</p>
-                </div> */}
             </div>
 
             <nav className="flex-1 px-4 space-y-1 overflow-y-auto custom-scrollbar">
@@ -131,8 +127,8 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                              {/* @ts-ignore */}
                             {link.separator && (
                                 <div className="px-4 py-2">
-                                    <div className="h-px bg-border/50" />
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/50 mt-2 block pl-2">Upcoming</span>
+                                    <div className="h-px bg-sidebar-border" />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/50 mt-2 block pl-2">Upcoming</span>
                                 </div>
                             )}
                             <Link 
@@ -143,36 +139,32 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                             <div className={cn(
                                 "group flex items-center gap-3 px-4 py-3 rounded transition-all duration-300 relative border border-transparent",
                                 isActive
-                                    ? "bg-primary/10 text-primary shadow-sm"
-                                    : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                                    : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground",
                                 isDisabled && "opacity-50"
                             )}>
                                 <div className="relative">
-                                    <link.icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
+                                    <link.icon className={cn("h-5 w-5 shrink-0 transition-colors", isActive ? "text-primary" : "text-sidebar-foreground group-hover:text-primary")} />
                                     {isDisabled && (
-                                        <div className="absolute -top-1 -right-1 bg-background rounded-full p-0.5 border border-border/50 shadow-sm">
-                                            <Lock className="h-2 w-2 text-muted-foreground" />
+                                        <div className="absolute -top-1 -right-1 bg-sidebar rounded-full p-0.5 border border-sidebar-border shadow-sm">
+                                            <Lock className="h-2 w-2 text-sidebar-foreground" />
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex flex-col min-w-0 flex-1">
                                     <div className="flex items-center justify-between">
-                                        <span className={cn("font-bold text-[13px] leading-tight truncate", isActive ? "dark:text-white text-black" : "text-foreground")}>
+                                        <span className={cn("font-bold text-[13px] leading-tight truncate", isActive ? "text-sidebar-foreground" : "text-sidebar-foreground")}>
                                             {link.title}
                                         </span>
                                         {/* @ts-ignore */}
                                         {link.badge && (
-                                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 leading-none">
+                                            <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-primary/10 text-primary border border-primary/20 leading-none">
                                                 {/* @ts-ignore */}
                                                 {link.badge}
                                             </span>
                                         )}
                                     </div>
-                                    {/* <span className={cn("text-[9px] font-medium opacity-60 truncate", isActive ? "text-muted-foreground" : "text-muted-foreground")}>{link.description}</span> */}
                                 </div>
-                                {/* {isActive && (
-                                    <div className="absolute left-0 w-1 h-6 bg-primary rounded-full" />
-                                )} */}
                             </div>
                             </Link>
                         </div>
@@ -180,28 +172,28 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                 })}
             </nav>
 
-            <div className="p-4 mt-auto border-t border-border/40">
+            <div className="p-4 mt-auto border-t border-sidebar-border">
                 {user && (
                     <Popover>
                         <PopoverTrigger asChild>
-                            <button className="w-full flex items-center gap-3 p-2 rounded hover:bg-accent/50 transition-all text-left group">
-                                <Avatar className="h-8 w-8 border border-border/40">
+                            <button className="w-full flex items-center gap-3 p-2 rounded hover:bg-sidebar-accent transition-all text-left group">
+                                <Avatar className="h-8 w-8 border border-sidebar-border">
                                     <AvatarImage src={user.avatar || undefined} />
                                     <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs uppercase text-center flex items-center justify-center pt-0.5">
                                         {user.name?.[0] || user.email?.[0] || 'U'}
                                     </AvatarFallback>
                                 </Avatar>
                                 <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-foreground truncate">{user.name || 'User'}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate font-medium">Account Settings</p>
+                                    <p className="text-xs font-bold text-sidebar-foreground truncate">{user.name || 'User'}</p>
+                                    <p className="text-[10px] text-sidebar-foreground/60 truncate font-medium">Account Settings</p>
                                 </div>
-                                <ChevronUp className="h-4 w-4 text-muted-foreground group-hover:text-foreground opacity-40 transition-opacity" />
+                                <ChevronUp className="h-4 w-4 text-sidebar-foreground/40 group-hover:text-sidebar-foreground transition-opacity" />
                             </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-64 p-2 mb-2 rounded border-border/40 shadow-xl" side="right" align="end" sideOffset={12}>
+                        <PopoverContent className="w-64 p-2 mb-2 rounded border-sidebar-border bg-sidebar shadow-xl" side="right" align="end" sideOffset={12}>
                              <div className="p-3">
-                                <p className="text-xs font-black uppercase tracking-widest text-muted-foreground mb-1">{user.name || 'Account'}</p>
-                                <p className="text-[10px] text-muted-foreground opacity-60 truncate">{user.email}</p>
+                                <p className="text-xs font-black uppercase tracking-widest text-sidebar-foreground mb-1">{user.name || 'Account'}</p>
+                                <p className="text-[10px] text-sidebar-foreground/60 truncate">{user.email}</p>
                             </div>
                             <Separator className="my-2 opacity-10" />
                             <div className="space-y-1">

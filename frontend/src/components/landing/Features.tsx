@@ -48,7 +48,7 @@ export default function Features() {
   };
 
   return (
-    <section id="features" className="py-24 sm:py-48 relative overflow-hidden bg-white dark:bg-[#020617]">
+    <section id="features" className="py-24 sm:py-48 relative overflow-hidden bg-transparent">
       <div className="container mx-auto px-6">
         {/* Header Section */}
         <div className="text-center mb-24 sm:mb-32">
@@ -56,7 +56,7 @@ export default function Features() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl sm:text-6xl font-black tracking-tighter mb-8 leading-[0.95]"
+            className="text-4xl sm:text-6xl font-black tracking-tighter mb-8 leading-[0.95] text-foreground"
           >
             Built for <br />
             <span className="text-primary italic">better results.</span>
@@ -78,12 +78,12 @@ export default function Features() {
             <motion.div
               key={index}
               variants={itemVariants}
-              className="p-10 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800/50 group hover:border-primary/20 transition-all duration-500"
+              className="p-10 rounded-xl bg-card border border-border group hover:border-primary/20 transition-all duration-500"
             >
-              <div className={`p-4 rounded bg-white dark:bg-slate-800 w-fit mb-8 border border-slate-100 dark:border-slate-700 shadow-sm group-hover:scale-110 transition-transform`}>
+              <div className={`p-4 rounded bg-background w-fit mb-8 border border-border shadow-sm group-hover:scale-110 transition-transform`}>
                 <feature.icon className="h-6 w-6 text-primary" />
               </div>
-              <h3 className="text-3xl font-black mb-4 tracking-tighter">
+              <h3 className="text-3xl font-black mb-4 tracking-tighter text-foreground">
                 {feature.title}
               </h3>
               <p className="text-muted-foreground/60 leading-relaxed font-bold tracking-tight">

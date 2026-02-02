@@ -29,12 +29,12 @@ export default function CodeBlock({ code, title, className }: CodeBlockProps) {
   return (
     <div
       className={cn(
-        "rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/60 shadow-sm overflow-hidden",
+        "rounded border border-border bg-card shadow-sm overflow-hidden",
         className
       )}
     >
-      <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900">
-        <div className="text-xs font-medium text-slate-600 dark:text-slate-300">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-muted/30">
+        <div className="text-xs font-medium text-muted-foreground">
           {title}
         </div>
         <Button variant="outline" size="sm" onClick={onCopy} className="h-8 px-2">
@@ -51,7 +51,7 @@ export default function CodeBlock({ code, title, className }: CodeBlockProps) {
           )}
         </Button>
       </div>
-      <pre className="bg-slate-950 text-slate-100 text-sm p-4 overflow-auto">
+      <pre className="bg-slate-950 dark:bg-black/50 text-slate-100 text-sm p-4 overflow-auto">
         <code>{code}</code>
       </pre>
     </div>

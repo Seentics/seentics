@@ -116,12 +116,12 @@ export default function FAQ() {
           viewport={{ once: true }}
           className="max-w-6xl mx-auto"
         >
-          <div className="relative glass p-10 sm:p-24 rounded-[4rem] border-white/10 shadow-glow/10 overflow-hidden bg-gradient-to-tr from-white/5 to-transparent">
+          <div className="relative glass p-10 sm:p-24 rounded-[4rem] border-border shadow-glow/10 overflow-hidden bg-background/5">
              {/* Background Mesh */}
              <div className="absolute top-0 right-0 w-[50rem] h-[50rem] bg-primary/10 blur-[140px] rounded-full -mr-40 -mt-40 opacity-40" />
              
             <div className="relative z-10 text-center max-w-3xl mx-auto">
-              <h3 className="text-4xl sm:text-6xl font-[1000] mb-8 leading-[0.9] tracking-[-0.04em]">
+              <h3 className="text-4xl sm:text-6xl font-[1000] mb-8 leading-[0.9] tracking-[-0.04em] text-foreground">
                 Ready to reclaim <br />
                 <span className="text-primary text-shadow-glow">your intelligence?</span>
               </h3>
@@ -131,13 +131,13 @@ export default function FAQ() {
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
                 <Link href={isAuthenticated ? "/websites" : "/signup"} className="w-full sm:w-auto">
-                    <Button variant="brand" size="lg" className="w-full sm:w-auto h-16 px-12 rounded-xl font-bold text-lg active:scale-95 group shadow-2xl shadow-primary/20">
+                    <Button variant="brand" size="lg" className="w-full sm:w-auto h-16 px-12 rounded-xl font-bold text-lg active:scale-95 group shadow-2xl shadow-primary/20 text-primary-foreground">
                         {isAuthenticated ? "Go to dashboard" : "Get started free"}
                         <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                     </Button>
                 </Link>
                 <Link href="/websites/demo" className="w-full sm:w-auto">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto h-16 px-12 rounded-xl glass border-white/10 font-bold text-lg hover:bg-white/5 transition-all active:scale-95">
+                  <Button size="lg" variant="outline" className="w-full sm:w-auto h-16 px-12 rounded-xl glass border-border font-bold text-lg hover:bg-accent transition-all active:scale-95 text-foreground">
                     View live demo
                   </Button>
                 </Link>

@@ -17,8 +17,8 @@ const WorldMap = dynamic(() => import('./WorldMap'), {
     loading: () => (
         <div className="h-[32rem] rounded flex items-center justify-center">
             <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-sm text-gray-500">Loading map...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-sm text-muted-foreground">Loading map...</p>
             </div>
         </div>
     )
@@ -80,7 +80,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
     }
 
     return (
-        <Card className={cn("dark:bg-gray-800/50 rounded", className)}>
+        <Card className={cn("bg-card/50", className)}>
             <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-border/40">
                 <div className="space-y-1">
                     <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">

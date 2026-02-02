@@ -46,7 +46,7 @@ const visionItems = [
 
 export default function VisionSection() {
   return (
-    <section id="vision" className="py-24 sm:py-32 relative overflow-hidden bg-white dark:bg-[#020617]">
+    <section id="vision" className="py-24 sm:py-32 relative overflow-hidden bg-transparent">
       <div className="container mx-auto px-6">
         
         {/* Header */}

@@ -210,24 +210,24 @@ export default function DataRetentionManager({ websiteId }: DataRetentionManager
 
   const getDataTypeColor = (dataType: string) => {
     const colors: Record<string, string> = {
-      'Analytics Events': 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
-      'Session Data': 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-      'Workflow Executions': 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400',
-      'User Profiles': 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400',
-      'IP Addresses': 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+      'Analytics Events': 'bg-blue-100/50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400',
+      'Session Data': 'bg-green-100/50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
+      'Workflow Executions': 'bg-purple-100/50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
+      'User Profiles': 'bg-orange-100/50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400',
+      'IP Addresses': 'bg-red-100/50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
     };
-    return colors[dataType] || 'bg-slate-100 text-slate-800 dark:bg-slate-900/20 dark:text-slate-400';
+    return colors[dataType] || 'bg-muted text-muted-foreground';
   };
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded">
-          <Database className="h-6 w-6 text-blue-600" />
+        <div className="p-2 bg-primary/10 rounded">
+          <Database className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+          <h2 className="text-2xl font-bold text-foreground">
             Data Retention Policies
           </h2>
           <p className="text-slate-600 dark:text-slate-400">
@@ -263,17 +263,17 @@ export default function DataRetentionManager({ websiteId }: DataRetentionManager
         <CardContent>
           <div className="space-y-4">
             {policies.map((policy) => (
-              <div key={policy.id} className="border border-slate-200 dark:border-slate-700 rounded p-4">
+              <div key={policy.id} className="border border-border/40 rounded p-4">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className={`p-2 rounded ${getDataTypeColor(policy.dataType)}`}>
                       {getDataTypeIcon(policy.dataType)}
                     </div>
                     <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-slate-100">
+                      <h4 className="font-semibold text-foreground">
                         {policy.dataType}
                       </h4>
-                      <p className="text-sm text-slate-600 dark:text-slate-400">
+                      <p className="text-sm text-muted-foreground">
                         {policy.description}
                       </p>
                     </div>
@@ -343,23 +343,23 @@ export default function DataRetentionManager({ websiteId }: DataRetentionManager
                   </div>
 
                   <div>
-                    <Label className="text-xs text-slate-500 dark:text-slate-400">Last Cleanup</Label>
-                    <p className="text-sm text-slate-900 dark:text-slate-100 mt-1">
+                    <Label className="text-xs text-muted-foreground">Last Cleanup</Label>
+                    <p className="text-sm text-foreground mt-1">
                       {formatDate(policy.lastCleanup)}
                     </p>
                   </div>
 
                   <div>
-                    <Label className="text-xs text-slate-500 dark:text-slate-400">Next Cleanup</Label>
-                    <p className="text-sm text-slate-900 dark:text-slate-100 mt-1">
+                    <Label className="text-xs text-muted-foreground">Next Cleanup</Label>
+                    <p className="text-sm text-foreground mt-1">
                       {formatDate(policy.nextCleanup)}
                     </p>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <div className="text-sm text-slate-600 dark:text-slate-400">
-                    <span className="font-medium">{policy.recordsAffected.toLocaleString()}</span> records currently stored
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{policy.recordsAffected.toLocaleString()}</span> records currently stored
                   </div>
                   
                   <div className="flex gap-2">
