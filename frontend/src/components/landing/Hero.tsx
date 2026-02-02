@@ -43,8 +43,8 @@ export default function Hero() {
             variants={itemVariants}
             className="text-4xl sm:text-6xl md:text-7xl font-black tracking-[-0.02em] leading-[1.2] mb-10 text-foreground"
           >
-            Track visitors, take <br />
-            <span className="text-primary italic">actions</span> automatically.
+            Actionable Websites <br />
+            <span className="text-primary italic">Analytics</span>
           </motion.h1>
 
           {/* Subheadline */}
@@ -52,7 +52,7 @@ export default function Hero() {
             variants={itemVariants}
             className="text-lg sm:text-xl text-muted-foreground/60 max-w-3xl mx-auto mb-14 leading-[1.7] font-bold tracking-tight"
           >
-            Powerful analytics to understand your audience, visual funnels to find drop-offs, and automation workflows to engage users at the perfect moment.
+            "Actionable Analytics"—where the data doesn't just show what happened but triggers automated responses at the perfect moment.
           </motion.p>
 
           {/* Action Hub */}

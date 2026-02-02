@@ -121,7 +121,13 @@ func main() {
 
 	// Kafka & Events
 	kafkaService := kafka.NewKafkaService(cfg.KafkaBootstrapServers, cfg.KafkaTopicEvents, logger)
-	eventService := services.NewEventService(eventRepo, db, kafkaService, billingService, websiteService, logger)
+
+	// Automations
+	autoRepo := autoRepoPkg.NewAutomationRepository(db)
+	autoService := autoServicePkg.NewAutomationService(autoRepo, billingService)
+	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
+
+	eventService := services.NewEventService(eventRepo, db, kafkaService, billingService, websiteService, autoService, logger)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger)
 	privacyService := services.NewPrivacyService(privacyRepo, logger)
 
@@ -131,11 +137,6 @@ func main() {
 	privacyHandler := handlers.NewPrivacyHandler(privacyService, logger)
 	healthHandler := handlers.NewHealthHandler(db, logger)
 	adminHandler := handlers.NewAdminHandler(eventRepo, logger)
-
-	// Automations
-	autoRepo := autoRepoPkg.NewAutomationRepository(db)
-	autoService := autoServicePkg.NewAutomationService(autoRepo, billingService)
-	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
 
 	// Funnels
 	funnelRepo := funnelRepoPkg.NewFunnelRepository(db)

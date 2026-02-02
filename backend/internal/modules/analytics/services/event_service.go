@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	autoServicePkg "analytics-app/internal/modules/automations/services"
 	billingModels "analytics-app/internal/modules/billing/models"
 	billingServicePkg "analytics-app/internal/modules/billing/services"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
@@ -33,6 +34,8 @@ type EventService struct {
 	kafka    *kafka.KafkaService
 	billing  *billingServicePkg.BillingService
 	websites *websiteServicePkg.WebsiteService
+	auto     *autoServicePkg.AutomationService // Added for orchestration
+	engine   *autoServicePkg.ExecutionEngine   // Added for execution
 
 	// Simple event channel for async processing (now fed from Kafka)
 	batchChan chan []models.Event
@@ -45,7 +48,7 @@ type EventService struct {
 	shutdownMu sync.RWMutex
 }
 
-func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, billingSvc *billingServicePkg.BillingService, websiteSvc *websiteServicePkg.WebsiteService, logger zerolog.Logger) *EventService {
+func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, billingSvc *billingServicePkg.BillingService, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger) *EventService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	service := &EventService{
@@ -54,6 +57,8 @@ func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSv
 		kafka:     kafkaSvc,
 		billing:   billingSvc,
 		websites:  websiteSvc,
+		auto:      autoSvc,
+		engine:    autoServicePkg.NewExecutionEngine(autoSvc, logger),
 		logger:    logger,
 		batchChan: make(chan []models.Event, 500),
 		ctx:       ctx,
@@ -287,8 +292,20 @@ func (s *EventService) startKafkaConsumer() {
 
 		batch := make([]models.Event, 0, BatchSize)
 
-		// Create a handler that appends to our local batch
+		// Create a handler that appends to our local batch and triggers automations
 		handler := func(event models.Event) error {
+			// 1. Process for automations (async)
+			eventData := map[string]interface{}{
+				"event_type": event.EventType,
+				"page":       event.Page,
+				"visitor_id": event.VisitorID,
+				"session_id": event.SessionID,
+				"properties": event.Properties,
+				"timestamp":  event.Timestamp,
+			}
+			go s.engine.ProcessEvent(s.ctx, event.WebsiteID, eventData)
+
+			// 2. Add to batch for DB writing
 			batch = append(batch, event)
 			if len(batch) >= BatchSize {
 				s.sendBatch(batch)

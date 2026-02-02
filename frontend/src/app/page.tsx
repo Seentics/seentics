@@ -2,6 +2,8 @@
 import React from 'react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
+import BYODBSection from '@/components/landing/BYODBSection';
+import AutomationWorkflows from '@/components/landing/AutomationWorkflows';
 import ImportExportSection from '@/components/landing/ImportExportSection';
 import VisionSection from '@/components/landing/VisionSection';
 import Features from '@/components/landing/Features';
@@ -16,6 +18,8 @@ export default function LandingPage() {
       <LandingHeader />
       <main>
         <Hero />
+        <BYODBSection />
+        <AutomationWorkflows />
         <ImportExportSection />
         <VisionSection />
         <Features />
