@@ -52,6 +52,28 @@ export interface CreateAutomationRequest {
 
 // API Functions
 async function fetchAutomations(websiteId: string): Promise<{ automations: Automation[]; total: number }> {
+    if (websiteId === 'demo') {
+        return {
+            automations: [
+                {
+                    id: 'demo-1',
+                    websiteId: 'demo',
+                    userId: 'demo',
+                    name: 'Welcome Email',
+                    description: 'Send welcome email to new newsletter subscribers',
+                    triggerType: 'custom_event',
+                    triggerConfig: { eventName: 'newsletter_signup' },
+                    isActive: true,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                    actions: [
+                        { actionType: 'email', actionConfig: { subject: 'Welcome!', template: 'welcome' } }
+                    ]
+                }
+            ],
+            total: 1
+        };
+    }
     const response = await api.get(`/websites/${websiteId}/automations`);
     return response.data;
 }

@@ -284,6 +284,80 @@ export const getDemoData = () => {
                 { week: 'Jan 22', size: 900, retention: [100] },
             ]
         },
+
+        // Funnels data
+        funnels: [
+            {
+                id: 'demo-funnel-1',
+                name: 'Landing to Signup',
+                isActive: true,
+                steps: [
+                    { name: 'Landing Page', event_type: 'pageview', properties: { page: '/' } },
+                    { name: 'Pricing Page', event_type: 'pageview', properties: { page: '/pricing' } },
+                    { name: 'Signup Page', event_type: 'pageview', properties: { page: '/signup' } },
+                    { name: 'Complete', event_type: 'signup_complete' }
+                ],
+                stats: {
+                    totalEntries: 15432,
+                    totalCompletions: 1876,
+                    conversionRate: 12.2,
+                    stepStats: [
+                        { step: 1, count: 15432, dropoff: 0, conversion: 100 },
+                        { step: 2, count: 8765, dropoff: 6667, conversion: 56.8 },
+                        { step: 3, count: 2345, dropoff: 6420, conversion: 15.2 },
+                        { step: 4, count: 1876, dropoff: 469, conversion: 12.2 }
+                    ]
+                }
+            },
+            {
+                id: 'demo-funnel-2',
+                name: 'Blog to Product',
+                isActive: true,
+                steps: [
+                    { name: 'Blog Page', event_type: 'pageview', properties: { page: '/blog' } },
+                    { name: 'Product Page', event_type: 'pageview', properties: { page: '/products' } },
+                    { name: 'Checkout Page', event_type: 'pageview', properties: { page: '/checkout' } }
+                ],
+                stats: {
+                    totalEntries: 5621,
+                    totalCompletions: 432,
+                    conversionRate: 7.7,
+                    stepStats: [
+                        { step: 1, count: 5621, dropoff: 0, conversion: 100 },
+                        { step: 2, count: 1234, dropoff: 4387, conversion: 22.0 },
+                        { step: 3, count: 432, dropoff: 802, conversion: 7.7 }
+                    ]
+                }
+            }
+        ],
+
+        // Automations data
+        automations: [
+            {
+                id: 'demo-auto-1',
+                name: 'Welcome Email',
+                isActive: true,
+                trigger: { type: 'event', event: 'signup_complete' },
+                actions: [{ type: 'email', template: 'welcome' }],
+                stats: {
+                    triggeredCount: 1876,
+                    successCount: 1874,
+                    lastTriggered: new Date().toISOString()
+                }
+            },
+            {
+                id: 'demo-auto-2',
+                name: 'Slack Notification',
+                isActive: true,
+                trigger: { type: 'event', event: 'payment_received' },
+                actions: [{ type: 'slack', channel: '#sales' }],
+                stats: {
+                    triggeredCount: 432,
+                    successCount: 432,
+                    lastTriggered: new Date().toISOString()
+                }
+            }
+        ],
     };
 };
 

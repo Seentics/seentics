@@ -1,6 +1,7 @@
 import type { ChartConfig } from '@/components/ui/chart';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from './api'; // Your existing axios instance
+import { getDemoData } from './demo-data';
 
 // =============================================================================
 // TYPES & INTERFACES
@@ -368,6 +369,9 @@ export const trackBatchEvents = async (batchData: BatchEventRequest): Promise<Ba
 
 // Dashboard Data - returns comprehensive data with enhanced metrics
 export const getDashboardData = async (websiteId: string, days: number = 7): Promise<DashboardData> => {
+  if (websiteId === 'demo') {
+    return getDemoData().dashboardData as any;
+  }
   const response = await api.get(`/analytics/dashboard/${websiteId}?days=${days}`);
   return response.data;
 };
@@ -376,42 +380,94 @@ export const getDashboardData = async (websiteId: string, days: number = 7): Pro
 
 // Top Pages
 export const getTopPages = async (websiteId: string, days: number = 7): Promise<GetTopPagesResponse> => {
+  if (websiteId === 'demo') {
+    return getDemoData().topPages as any;
+  }
   const response = await api.get(`/analytics/top-pages/${websiteId}?days=${days}`);
   return response.data;
 };
 
 // Top Referrers
 export const getTopReferrers = async (websiteId: string, days: number = 7): Promise<GetTopReferrersResponse> => {
+  if (websiteId === 'demo') {
+    return getDemoData().topReferrers as any;
+  }
   const response = await api.get(`/analytics/top-referrers/${websiteId}?days=${days}`);
   return response.data;
 };
 
 // Top Countries
 export const getTopCountries = async (websiteId: string, days: number = 7): Promise<GetTopCountriesResponse> => {
+  if (websiteId === 'demo') {
+    return getDemoData().topCountries as any;
+  }
   const response = await api.get(`/analytics/top-countries/${websiteId}?days=${days}`);
   return response.data;
 };
 
 // Top Browsers
 export const getTopBrowsers = async (websiteId: string, days: number = 7): Promise<GetTopBrowsersResponse> => {
+  if (websiteId === 'demo') {
+    return getDemoData().topBrowsers as any;
+  }
   const response = await api.get(`/analytics/top-browsers/${websiteId}?days=${days}`);
   return response.data;
 };
 
 // Top Devices
 export const getTopDevices = async (websiteId: string, days: number = 7): Promise<GetTopDevicesResponse> => {
+  if (websiteId === 'demo') {
+    return getDemoData().topDevices as any;
+  }
   const response = await api.get(`/analytics/top-devices/${websiteId}?days=${days}`);
   return response.data;
 };
 
 // Top OS
 export const getTopOS = async (websiteId: string, days: number = 7): Promise<GetTopOSResponse> => {
+  if (websiteId === 'demo') {
+    return getDemoData().topOS as any;
+  }
   const response = await api.get(`/analytics/top-os/${websiteId}?days=${days}`);
   return response.data;
 };
 
 // Traffic Summary
 export const getTrafficSummary = async (websiteId: string, days: number = 7): Promise<TrafficSummary> => {
+  if (websiteId === 'demo') {
+    // Return a simplified version for demo
+    const demo = getDemoData();
+    return {
+      website_id: 'demo',
+      date_range: days.toString(),
+      total_page_views: demo.dashboardData.page_views,
+      unique_visitors: demo.dashboardData.unique_visitors,
+      total_sessions: Math.floor(demo.dashboardData.page_views / 1.5),
+      bounce_rate: demo.dashboardData.bounce_rate,
+      avg_session_time: demo.dashboardData.session_duration,
+      pages_per_session: 1.5,
+      growth_rate: 12.5,
+      visitors_growth_rate: 10.2,
+      sessions_growth_rate: 8.5,
+      new_visitors: Math.floor(demo.dashboardData.unique_visitors * 0.7),
+      returning_visitors: Math.floor(demo.dashboardData.unique_visitors * 0.3),
+      engagement_score: 75,
+      retention_rate: 45,
+      top_traffic_sources: demo.customEvents.utm_performance.sources.map(s => ({
+        source: s.source,
+        visitors: s.unique_visitors,
+        page_views: s.visits,
+        bounce_rate: 35 + Math.random() * 10
+      })),
+      utm_performance: {
+        sources: {},
+        mediums: {},
+        campaigns: {},
+        terms: {},
+        content: {}
+      }
+    };
+  }
   const response = await api.get(`/analytics/traffic-summary/${websiteId}?days=${days}`);
   const data = response.data;
 
@@ -433,6 +489,9 @@ export const getTrafficSummary = async (websiteId: string, days: number = 7): Pr
 
 // Hourly Stats
 export const getHourlyStats = async (websiteId: string, days: number = 7): Promise<GetHourlyStatsResponse> => {
+  if (websiteId === 'demo') {
+    return getDemoData().hourlyStats as any;
+  }
   const response = await api.get(`/analytics/hourly-stats/${websiteId}?days=${days}`);
 
   // Convert UTC timestamps to local time
@@ -462,12 +521,18 @@ export const getActivityTrends = async (websiteId: string): Promise<GetActivityT
 
 // Daily Stats
 export const getDailyStats = async (websiteId: string, days: number = 30): Promise<GetDailyStatsResponse> => {
+  if (websiteId === 'demo') {
+    return getDemoData().dailyStats as any;
+  }
   const response = await api.get(`/analytics/daily-stats/${websiteId}?days=${days}`);
   return response.data;
 };
 
 // Custom Events Stats
 export const getCustomEventsStats = async (websiteId: string, days: number = 7): Promise<any> => {
+  if (websiteId === 'demo') {
+    return getDemoData().customEvents as any;
+  }
   // Call backend via gateway to get custom events + UTM performance
   const response = await api.get(`/analytics/custom-events/${websiteId}?days=${days}`);
   return response.data;
@@ -481,6 +546,9 @@ export const getCustomEventsStats = async (websiteId: string, days: number = 7):
 
 // User Retention
 export const getUserRetention = async (websiteId: string, days: number = 7): Promise<RetentionData> => {
+  if (websiteId === 'demo') {
+    return getDemoData().retentionData as any;
+  }
   const response = await api.get(`/analytics/user-retention/${websiteId}?days=${days}`);
   const data = response.data;
 
@@ -499,6 +567,9 @@ export const getUserRetention = async (websiteId: string, days: number = 7): Pro
 
 // Visitor Insights
 export const getVisitorInsights = async (websiteId: string, days: number = 7): Promise<GetVisitorInsightsResponse> => {
+  if (websiteId === 'demo') {
+    return getDemoData().visitorInsights as any;
+  }
   const response = await api.get(`/analytics/visitor-insights/${websiteId}?days=${days}`);
   return response.data;
 };

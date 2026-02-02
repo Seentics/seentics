@@ -15,9 +15,9 @@ func CloudEnabled() bool {
 	return enabled == "true" || enabled == "1"
 }
 
-// IsOpenSource returns true if this is an open source deployment
+// IsOpenSource returns false as this is the enterprise version
 func IsOpenSource() bool {
-	return !CloudEnabled()
+	return false
 }
 
 // ShouldEnforceUsageLimits returns true if usage limits should be enforced

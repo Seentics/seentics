@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from './api';
+import { getDemoData } from './demo-data';
 
 // =============================================================================
 // TYPES & INTERFACES
@@ -68,11 +69,18 @@ export interface ListFunnelsResponse {
 // =============================================================================
 
 export const listFunnels = async (websiteId: string): Promise<ListFunnelsResponse> => {
+    if (websiteId === 'demo') {
+        const demoFunnels = getDemoData().funnels as any;
+        return { funnels: demoFunnels, total: demoFunnels.length };
+    }
     const response = await api.get(`/websites/${websiteId}/funnels`);
     return response.data;
 };
 
 export const getFunnel = async (websiteId: string, funnelId: string): Promise<Funnel> => {
+    if (websiteId === 'demo') {
+        return getDemoData().funnels.find(f => f.id === funnelId) as any;
+    }
     const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}`);
     return response.data;
 };
