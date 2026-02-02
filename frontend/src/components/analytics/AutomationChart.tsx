@@ -54,14 +54,14 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
   }
 
   return (
-    <Card className="col-span-1 shadow-lg border-primary/10 rounded overflow-hidden dark:bg-gray-800 h-full flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between border-b pb-4 shrink-0">
+    <Card className="col-span-1 shadow-sm shadow-black/5 border-border/40 rounded overflow-hidden flex flex-col bg-card/50">
+      <CardHeader className="flex flex-row items-center justify-between border-b border-border/40 pb-6 shrink-0">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-base font-semibold">Automation Activity</CardTitle>
-            <Badge variant="outline" className="text-[10px] px-1.5 h-4 font-black border-blue-500 text-blue-500 bg-blue-500/5">LIVE</Badge>
+            <CardTitle className="text-lg font-bold tracking-tight">Automation Activity</CardTitle>
+            <Badge variant="outline" className="text-[10px] px-1.5 h-4 font-black border-blue-500 text-blue-500 bg-blue-500/5">AUTO</Badge>
           </div>
-          <CardDescription className="text-xs">Triggers fired vs Actions executed</CardDescription>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Triggers vs Actions over time</p>
         </div>
         <Link href="https://automation.seentics.com" target="_blank">
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">

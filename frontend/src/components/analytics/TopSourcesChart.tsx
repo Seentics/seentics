@@ -142,9 +142,9 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
     }
 
     return (
-      <div className="space-y-2 mt-4">
+      <div className="space-y-0 mt-4">
         {items.map((item, index) => (
-          <div key={index} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+          <div key={index} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
             <div className="flex items-center space-x-4 flex-1 min-w-0">
               <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                 <Image
@@ -190,10 +190,10 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
            <div className="space-y-1">
-              <CardTitle className="text-xl font-black tracking-tight">Traffic Sources</CardTitle>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Main acquisition channels</p>
+              <CardTitle className="text-lg font-bold tracking-tight">Traffic Sources</CardTitle>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Main acquisition channels</p>
            </div>
-           <TabsList className="grid grid-cols-4 h-9 w-full sm:w-[320px] bg-accent/20 p-1 rounded">
+           <TabsList className="grid grid-cols-4 h-9 w-full sm:w-[320px] bg-accent/10 p-1 rounded">
              <TabsTrigger value="overview" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Total</TabsTrigger>
              <TabsTrigger value="referrers" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Refer</TabsTrigger>
              <TabsTrigger value="search" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Search</TabsTrigger>

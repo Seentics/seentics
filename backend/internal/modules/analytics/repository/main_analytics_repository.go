@@ -50,12 +50,12 @@ func NewMainAnalyticsRepository(db *pgxpool.Pool) *MainAnalyticsRepository {
 }
 
 // Dashboard Analytics Methods
-func (r *MainAnalyticsRepository) GetDashboardMetrics(ctx context.Context, websiteID string, days int) (*models.DashboardMetrics, error) {
-	return r.dashboard.GetDashboardMetrics(ctx, websiteID, days)
+func (r *MainAnalyticsRepository) GetDashboardMetrics(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters) (*models.DashboardMetrics, error) {
+	return r.dashboard.GetDashboardMetrics(ctx, websiteID, days, filters)
 }
 
-func (r *MainAnalyticsRepository) GetComparisonMetrics(ctx context.Context, websiteID string, days int) (*models.ComparisonMetrics, error) {
-	return r.dashboard.GetComparisonMetrics(ctx, websiteID, days)
+func (r *MainAnalyticsRepository) GetComparisonMetrics(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters) (*models.ComparisonMetrics, error) {
+	return r.dashboard.GetComparisonMetrics(ctx, websiteID, days, filters)
 }
 
 func (r *MainAnalyticsRepository) GetUTMAnalytics(ctx context.Context, websiteID string, days int) (map[string]interface{}, error) {

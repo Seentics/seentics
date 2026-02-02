@@ -28,6 +28,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { Suspense, useEffect } from 'react'
 import { SiteSelector } from './site-selector'
 import { PromotionBanner } from './promotion-banner'
+import { NotificationBell } from './notification-bell'
 
 function HeaderContent() {
   const {
@@ -130,12 +131,9 @@ function HeaderContent() {
           </div>
         </div>
 
-        <div className="flex items-center space-x-4">
-          <Separator orientation="vertical" className="h-6 hidden md:block opacity-20" />
-
-          {/* Theme Toggle */}
-          {/* <ThemeToggle /> */}
-
+        <div className="flex items-center gap-2 sm:gap-4">
+          <NotificationBell />
+          <ThemeToggle />
           {/* User Profile Popover */}
           <Popover>
             <PopoverTrigger asChild>

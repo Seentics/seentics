@@ -33,8 +33,8 @@ const getBrowserIcon = (browser: string) => {
             target.nextElementSibling?.classList.remove('hidden');
           }}
         />
-        <div className="hidden w-8 h-8 bg-gradient-to-br from-blue-500 via-green-500 to-yellow-500 rounded flex items-center justify-center shadow-sm">
-          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
+        <div className="hidden w-8 h-8 bg-gradient-to-br from-blue-500 via-green-500 to-yellow-500 rounded shadow-sm">
+          <svg className="w-5 h-5 text-white m-auto" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 0C8.21 0 4.67 1.92 2.25 4.9l4.51 7.8L12 12l5.24 0.7 4.51-7.8C19.33 1.92 15.79 0 12 0zM12 12l-5.24-0.7L2.25 19.1C4.67 22.08 8.21 24 12 24c3.79 0 7.33-1.92 9.75-4.9L17.24 11.3 12 12z" />
           </svg>
         </div>
@@ -195,25 +195,25 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
 
 
       {/* Browsers List */}
-      <div className="space-y-2">
+      <div className="space-y-0">
         {sortedData.map((item: any, index: number) => {
           const browserName = getBrowserName(item.browser);
           const percentage = ((item.visitors / totalVisitors) * 100).toFixed(1);
 
           return (
-            <div key={index} className="flex items-center justify-between border-b p-3">
+            <div key={index} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="flex-shrink-0">
                   {getBrowserIcon(item.browser)}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-medium text-sm truncate text-gray-900 dark:text-gray-100" title={browserName}>{browserName}</div>
-                  <div className="text-xs text-muted-foreground truncate" title={item.browser}>{item.browser}</div>
+                  <div className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={browserName}>{browserName}</div>
+                  <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-50 truncate" title={item.browser}>{item.browser}</div>
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{formatNumber(item.visitors)}</div>
-                <div className="text-muted-foreground text-xs">{percentage}%</div>
+                <div className="font-bold text-base leading-tight tracking-tight">{formatNumber(item.visitors)}</div>
+                <div className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider opacity-50">{percentage}%</div>
               </div>
             </div>
           );

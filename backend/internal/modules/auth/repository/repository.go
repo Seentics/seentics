@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -130,13 +131,67 @@ func (r *AuthRepository) UpdateAvatar(ctx context.Context, userID string, avatar
 	return err
 }
 
-// UpdatePassword updates user's password hash
-func (r *AuthRepository) UpdatePassword(ctx context.Context, userID string, passwordHash string) error {
+// UpdateResetToken stores the reset token and expiry for a user
+func (r *AuthRepository) UpdateResetToken(ctx context.Context, userID, token string, expiry time.Time) error {
 	query := `
 		UPDATE users 
-		SET password_hash = $1, updated_at = NOW() 
+		SET reset_token = $1, reset_token_expiry = $2, updated_at = NOW()
+		WHERE id = $3
+	`
+	_, err := r.db.Exec(ctx, query, token, expiry, userID)
+	return err
+}
+
+// GetByResetToken finds a user by their reset token
+func (r *AuthRepository) GetByResetToken(ctx context.Context, token string) (*models.User, error) {
+	query := `
+		SELECT id, name, email, password_hash, role, avatar_url, reset_token, reset_token_expiry, created_at, updated_at
+		FROM users
+		WHERE reset_token = $1
+	`
+
+	user := &models.User{}
+	err := r.db.QueryRow(ctx, query, token).Scan(
+		&user.ID,
+		&user.Name,
+		&user.Email,
+		&user.PasswordHash,
+		&user.Role,
+		&user.AvatarURL,
+		&user.ResetToken,
+		&user.ResetExpiry,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrUserNotFound
+		}
+		return nil, fmt.Errorf("failed to get user by reset token: %w", err)
+	}
+
+	return user, nil
+}
+
+// ClearResetToken removes the reset token and expiry for a user
+func (r *AuthRepository) ClearResetToken(ctx context.Context, userID string) error {
+	query := `
+		UPDATE users 
+		SET reset_token = NULL, reset_token_expiry = NULL, updated_at = NOW()
+		WHERE id = $1
+	`
+	_, err := r.db.Exec(ctx, query, userID)
+	return err
+}
+
+// UpdatePassword updates the user's password
+func (r *AuthRepository) UpdatePassword(ctx context.Context, userID, hashedPassword string) error {
+	query := `
+		UPDATE users
+		SET password_hash = $1, updated_at = NOW()
 		WHERE id = $2
 	`
-	_, err := r.db.Exec(ctx, query, passwordHash, userID)
+	_, err := r.db.Exec(ctx, query, hashedPassword, userID)
 	return err
 }

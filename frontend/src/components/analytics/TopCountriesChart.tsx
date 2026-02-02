@@ -210,9 +210,9 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
     );
   }
   return (
-    <div className="space-y-3">
+    <div className="space-y-0">
         {countryData.slice(0, 5).map((item, index) => (
-        <div key={item.country} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+        <div key={item.country} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
             <div className="flex items-center gap-4">
                 <div className="relative w-8 h-6 rounded overflow-hidden shadow-sm border border-border/20">
                 <Image

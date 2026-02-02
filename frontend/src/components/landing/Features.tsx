@@ -48,45 +48,29 @@ export default function Features() {
   };
 
   return (
-    <section id="features" className="py-24 sm:py-48 relative overflow-hidden bg-transparent">
+    <section id="features" className="py-24 relative overflow-hidden bg-transparent">
       <div className="container mx-auto px-6">
-        {/* Header Section */}
-        <div className="text-center mb-24 sm:mb-32">
-          <motion.h2
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-4xl sm:text-6xl font-black tracking-tighter mb-8 leading-[0.95] text-foreground"
-          >
-            Built for <br />
-            <span className="text-primary italic">better results.</span>
-          </motion.h2>
-          <p className="text-lg sm:text-xl text-muted-foreground/60 max-w-2xl mx-auto font-bold tracking-tight">
-            Everything you need to dominate your market, refined into a single intuitive dashboard.
-          </p>
-        </div>
-
         {/* Features Grid */}
         <motion.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
-          className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto"
+          className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto"
         >
           {features.map((feature, index) => (
             <motion.div
               key={index}
               variants={itemVariants}
-              className="p-10 rounded-xl bg-card border border-border group hover:border-primary/20 transition-all duration-500"
+              className="p-8 rounded-3xl bg-card/40 backdrop-blur-xl border border-border/50 group hover:border-primary/30 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/5 flex flex-col items-start"
             >
-              <div className={`p-4 rounded bg-background w-fit mb-8 border border-border shadow-sm group-hover:scale-110 transition-transform`}>
-                <feature.icon className="h-6 w-6 text-primary" />
+              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 border border-primary/20 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-500">
+                <feature.icon className="h-6 w-6" />
               </div>
-              <h3 className="text-3xl font-black mb-4 tracking-tighter text-foreground">
+              <h3 className="text-xl font-bold mb-3 tracking-tight text-foreground">
                 {feature.title}
               </h3>
-              <p className="text-muted-foreground/60 leading-relaxed font-bold tracking-tight">
+              <p className="text-sm text-muted-foreground/70 leading-relaxed font-medium">
                 {feature.description}
               </p>
             </motion.div>

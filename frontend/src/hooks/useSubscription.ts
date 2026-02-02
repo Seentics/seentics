@@ -48,6 +48,26 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const { user, isAuthenticated } = useAuth();
 
   const fetchSubscription = useCallback(async () => {
+    // Demo Mode logic
+    if (typeof window !== 'undefined' && (window.location.pathname.includes('/websites/demo') || !isAuthenticated)) {
+      setSubscription({
+        id: 'demo-user',
+        plan: 'enterprise',
+        status: 'active',
+        usage: {
+          websites: { current: 1, limit: 10, canCreate: true },
+          workflows: { current: 3, limit: 100, canCreate: true },
+          funnels: { current: 2, limit: 50, canCreate: true },
+          monthlyEvents: { current: 45000, limit: 1000000, canCreate: true }
+        },
+        features: ['all'],
+        isActive: true,
+        currentPeriodEnd: new Date(Date.now() + 86400000 * 30).toISOString()
+      });
+      setLoading(false);
+      return;
+    }
+
     if (!isAuthenticated || !user) {
       setSubscription(null);
       setLoading(false);

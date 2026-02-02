@@ -10,18 +10,18 @@ export default function BYODBSection() {
   const features = [
     {
       icon: <Lock className="w-6 h-6 text-primary" />,
-      title: "Data Sovereignty",
-      description: "Your raw analytics data never leaves your VPC. Perfect for HIPAA, GDPR, and SOC2 compliance."
+      title: "Full Privacy Control",
+      description: "Keep your data on your own servers. Perfect for staying compliant with privacy laws like GDPR."
     },
     {
       icon: <Server className="w-6 h-6 text-primary" />,
-      title: "Direct Access",
-      description: "Query your raw data directly without APIs. Connect your BI tools like Tableau or Looker effortlessly."
+      title: "Use Your Own Tools",
+      description: "Connect your favorite business tools directly to your database without any middleman."
     },
     {
       icon: <Zap className="w-6 h-6 text-primary" />,
-      title: "Unlimited Retention",
-      description: "Don't pay for storage markups. Retain years of data for the cost of your own disk space."
+      title: "Keep Data Forever",
+      description: "Save as much history as you want without paying extra for storage. Your data, your rules."
     }
   ];
 
@@ -37,10 +37,10 @@ export default function BYODBSection() {
           {/* Left Content */}
           <div className="flex-1 space-y-8">
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 10 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-black uppercase tracking-widest"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 border border-primary/10 text-primary text-[10px] font-black uppercase tracking-widest mb-8"
             >
               <Database className="w-3.5 h-3.5" />
               Enterprise Feature
@@ -52,8 +52,8 @@ export default function BYODBSection() {
               viewport={{ once: true }}
               className="text-4xl md:text-5xl font-black tracking-tight text-foreground leading-[1.1]"
             >
-              Bring Your Own <br />
-              <span className="text-primary italic">Database.</span>
+              Your Data, <br />
+              <span className="text-primary italic">Your Control.</span>
             </motion.h2>
 
             <motion.p
@@ -62,7 +62,7 @@ export default function BYODBSection() {
               viewport={{ once: true }}
               className="text-lg text-muted-foreground leading-relaxed max-w-xl font-medium"
             >
-              For organizations that demand total control. Connect Seentics to your own PostgreSQL or Clickhouse instance and own your infrastructure from day one.
+              Take total ownership of your information. Connect Seentics to your own database and manage your infrastructure exactly how you want it.
             </motion.p>
 
             <div className="grid gap-6">

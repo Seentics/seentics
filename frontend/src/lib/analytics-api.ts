@@ -368,12 +368,25 @@ export const trackBatchEvents = async (batchData: BatchEventRequest): Promise<Ba
 };
 
 // Dashboard Data - returns comprehensive data with enhanced metrics
-export const getDashboardData = async (websiteId: string, days: number = 7): Promise<DashboardData> => {
-  if (websiteId === 'demo') {
-    return getDemoData().dashboardData as any;
-  }
-  const response = await api.get(`/analytics/dashboard/${websiteId}?days=${days}`);
-  return response.data;
+export const useDashboardData = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
+  return useQuery({
+    queryKey: ['dashboard', websiteId, days, filters],
+    queryFn: async () => {
+      if (websiteId === 'demo') {
+        const demo = getDemoData();
+        return demo.dashboardData;
+      }
+      
+      const params = new URLSearchParams({ days: days.toString() });
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      
+      const response = await api.get(`/analytics/dashboard/${websiteId}?${params.toString()}`);
+      return response.data;
+    },
+    enabled: !!websiteId,
+  });
 };
 
 
@@ -598,19 +611,6 @@ export const analyticsKeys = {
   userRetention: (websiteId: string, days: number) => [...analyticsKeys.all, 'user-retention', websiteId, days] as const,
   visitorInsights: (websiteId: string, days: number) => [...analyticsKeys.all, 'visitor-insights', websiteId, days] as const,
 };
-
-// Dashboard Hook
-export const useDashboardData = (websiteId: string, days: number = 7) => {
-  return useQuery<DashboardData>({
-    queryKey: analyticsKeys.dashboard(websiteId, days),
-    queryFn: () => getDashboardData(websiteId, days),
-    enabled: !!websiteId,
-    staleTime: 0, // Force refresh immediately to see backend changes
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
-  });
-};
-
-
 
 // Top Pages Hook
 export const useTopPages = (websiteId: string, days: number = 7) => {
@@ -888,7 +888,6 @@ export default {
   // API functions
   trackEvent,
   trackBatchEvents,
-  getDashboardData,
 
   getTopPages,
   getTopReferrers,
@@ -1304,3 +1303,15 @@ export const useGeolocationBreakdown = (websiteId: string, days: number = 7) => 
     retry: 2,
   });
 };
+
+// Analytics Filters Interface
+export interface AnalyticsFilters {
+  country?: string;
+  device?: string;
+  browser?: string;
+  os?: string;
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  page_path?: string;
+}

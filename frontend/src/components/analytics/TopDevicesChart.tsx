@@ -96,14 +96,14 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
     }).slice(0, 8);
 
     return (
-      <div className="space-y-2 mt-4">
+      <div className="space-y-0 mt-4">
         {sortedItems.map((item, index) => {
           const val = item.visitors || item.views || item.value || 0;
           const label = item.device || item.os || item.name || 'Unknown';
           const img = getSystemImage(label, type);
 
           return (
-            <div key={index} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+            <div key={index} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                   <Image
@@ -121,8 +121,8 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
                   <Globe className="h-4 w-4 text-primary hidden" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors">{label}</div>
-                  <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-60 truncate">
+                  <div className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{label}</div>
+                  <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-50 truncate">
                     {type === 'device' ? 'Hardware' : type === 'os' ? 'Software' : 'Resolution'} Insight
                   </div>
                 </div>
@@ -130,10 +130,10 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
 
               <div className="shrink-0 text-right">
                 <div className="text-right">
-                  <div className="font-black text-base leading-tight">
+                  <div className="font-bold text-base leading-tight tracking-tight">
                     {formatNumber(val)}
                   </div>
-                  <div className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] opacity-60">
+                  <div className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider opacity-50">
                     Visitors
                   </div>
                 </div>
@@ -150,10 +150,10 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
            <div className="space-y-1">
-              <CardTitle className="text-xl font-black tracking-tight">System Insights</CardTitle>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-60">Devices, OS, & Tech Specs</p>
+              <CardTitle className="text-lg font-bold tracking-tight">System Insights</CardTitle>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Devices, OS, & Tech Specs</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/20 p-1 rounded">
+           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded">
              <TabsTrigger value="devices" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Devices</TabsTrigger>
              <TabsTrigger value="os" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">OS</TabsTrigger>
              <TabsTrigger value="screens" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Screens</TabsTrigger>

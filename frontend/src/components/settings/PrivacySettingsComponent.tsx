@@ -176,7 +176,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
            <div className="flex gap-4 p-4 rounded dark:bg-gray-800/50 border border-amber-500/10">
               <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                 <p className="text-sm font-bold text-amber-700 dark:text-amber-400 font-bold">Caution</p>
+                 <p className="text-sm font-bold text-amber-700 dark:text-amber-400">Caution</p>
                  <p className="text-xs text-muted-foreground leading-relaxed">
                     Data management actions are processed immediately. Deletion will remove all records from our primary database and backups within 30 days.
                  </p>

@@ -61,8 +61,10 @@ func UnifiedAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 		}
 
 		// 2. OSS Mode: Standalone JWT validation
-		// Allow public tracking endpoints
-		if c.Request.URL.Path == "/api/v1/analytics/event" || c.Request.URL.Path == "/api/v1/analytics/batch" {
+		// Allow public tracking endpoints and websocket handshake
+		if c.Request.URL.Path == "/api/v1/analytics/event" ||
+			c.Request.URL.Path == "/api/v1/analytics/batch" ||
+			strings.HasSuffix(c.Request.URL.Path, "/pulse") {
 			c.Next()
 			return
 		}

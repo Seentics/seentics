@@ -69,40 +69,40 @@ export function TrafficOverview({
                 ))}
               </div>
             ) : listData.length > 0 ? (
-              <div className="space-y-3">
+              <div className="space-y-0 divide-y divide-border/40">
                 {listData.map((stat: any, idx: number) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-4 bg-accent/5 border border-border/40 rounded hover:bg-accent/10 transition-all duration-300 group"
+                    className="flex items-center justify-between py-4 hover:bg-accent/5 transition-colors group px-1"
                   >
                     <div className="flex-1">
-                      <div className="text-sm font-semibold text-foreground">
+                      <div className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                         {new Date(stat.date).toLocaleDateString('en-US', {
                           weekday: 'short',
                           month: 'short',
                           day: 'numeric',
                         })}
                       </div>
-                      <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider opacity-60">
+                      <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-50">
                          {new Date(stat.date).getFullYear()}
                       </div>
                     </div>
-                    <div className="flex items-center gap-8 text-sm">
+                    <div className="flex items-center gap-8">
                       <div className="text-right">
                         <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest opacity-50">Views</div>
-                        <div className="font-bold text-primary">
+                        <div className="text-base font-bold text-primary">
                           {stat.views?.toLocaleString() || 0}
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest opacity-50">Unique</div>
-                        <div className="font-bold text-foreground">
+                        <div className="text-base font-bold text-foreground">
                           {stat.unique?.toLocaleString() || 0}
                         </div>
                       </div>
                       <div className="text-right hidden sm:block">
                         <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest opacity-50">Bounce</div>
-                        <div className="font-bold">
+                        <div className="text-base font-bold">
                           {stat.bounce_rate?.toFixed(1) || 0}%
                         </div>
                       </div>

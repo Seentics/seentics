@@ -285,3 +285,29 @@ type EventTypeStat struct {
 	LastSeen       *time.Time `json:"last_seen" db:"last_seen"`
 	TrendDirection string     `json:"trend_direction" db:"trend_direction"` // 'up', 'down', 'stable'
 }
+
+// AnalyticsFilters - Advanced filtering options
+type AnalyticsFilters struct {
+	Country     string `json:"country"`
+	Device      string `json:"device"`
+	Browser     string `json:"browser"`
+	OS          string `json:"os"`
+	UTMSource   string `json:"utm_source"`
+	UTMMedium   string `json:"utm_medium"`
+	UTMCampaign string `json:"utm_campaign"`
+	PagePath    string `json:"page_path"`
+}
+
+// ExportRequest - Request for data export
+type ExportRequest struct {
+	WebsiteID string `json:"website_id"`
+	Days      int    `json:"days"`
+	Format    string `json:"format"` // "json" or "csv"
+}
+
+// ImportRequest - Request for data import
+type ImportRequest struct {
+	WebsiteID string `json:"website_id"`
+	Source    string `json:"source"` // "ga4", "plausible", "umami", "fathom", "seentics"
+	Data      []byte `json:"-"`
+}

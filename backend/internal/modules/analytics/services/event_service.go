@@ -6,6 +6,8 @@ import (
 	"analytics-app/internal/shared/kafka"
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,8 +16,6 @@ import (
 	billingServicePkg "analytics-app/internal/modules/billing/services"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"analytics-app/internal/shared/utils"
-	"net/url"
-	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
@@ -566,9 +566,14 @@ func (s *EventService) enrichEventData(ctx context.Context, event *models.Event)
 			event.Continent = &location.Continent
 		}
 
-		// Set region information
-		if event.Region == nil || *event.Region == "" {
-			event.Region = &location.Region
+		// Set coordinates for real-time visualization
+		if event.Latitude == nil || *event.Latitude == 0 {
+			lat := location.Latitude
+			event.Latitude = &lat
+		}
+		if event.Longitude == nil || *event.Longitude == 0 {
+			long := location.Longitude
+			event.Longitude = &long
 		}
 	}
 }

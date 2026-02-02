@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Download, Upload, FileJson, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle, Filter } from 'lucide-react';
+import { Download, Upload, FileJson, FileSpreadsheet, Loader2, CheckCircle2, AlertCircle, Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -19,6 +19,7 @@ interface DataImportExportModalProps {
 
 export const DataImportExportModal = ({ websiteId, dateRange }: DataImportExportModalProps) => {
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
   const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
   const [isExporting, setIsExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -31,9 +32,14 @@ export const DataImportExportModal = ({ websiteId, dateRange }: DataImportExport
     setExportStatus('idle');
 
     try {
-      // Fetch analytics data
-      const response = await fetch(`/api/analytics/${websiteId}/export?format=${exportFormat}&days=${dateRange}`, {
+      // Fetch analytics data from the correct v1 API
+      const response = await fetch(`/api/v1/analytics/export/${websiteId}?format=${exportFormat}&days=${dateRange}`, {
         method: 'GET',
+        headers: {
+            // Need authorization header here if using fetch directly
+            // Better to use our 'api' axios instance or pass the token
+            'Authorization': `Bearer ${localStorage.getItem('auth-storage') ? JSON.parse(localStorage.getItem('auth-storage')!).state.access_token : ''}`
+        }
       });
 
       if (!response.ok) throw new Error('Export failed');
@@ -62,6 +68,8 @@ export const DataImportExportModal = ({ websiteId, dateRange }: DataImportExport
     }
   };
 
+  const [importSource, setImportSource] = useState<'seentics' | 'ga4' | 'plausible' | 'umami' | 'fathom'>('seentics');
+
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -73,9 +81,13 @@ export const DataImportExportModal = ({ websiteId, dateRange }: DataImportExport
       const formData = new FormData();
       formData.append('file', file);
       formData.append('websiteId', websiteId);
+      formData.append('source', importSource);
 
-      const response = await fetch('/api/analytics/import', {
+      const response = await fetch('/api/v1/analytics/import', {
         method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth-storage') ? JSON.parse(localStorage.getItem('auth-storage')!).state.access_token : ''}`
+        },
         body: formData,
       });
 
@@ -102,242 +114,261 @@ export const DataImportExportModal = ({ websiteId, dateRange }: DataImportExport
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="h-10 px-4 bg-muted/50 backdrop-blur-md hover:bg-muted transition-colors rounded shadow-sm font-bold text-xs uppercase tracking-widest gap-2 text-foreground border border-border/40">
-          <Download className="h-3.5 w-3.5" />
+        <Button className="h-10 px-4 bg-card/50 backdrop-blur-md hover:bg-card transition-all rounded shadow-sm font-bold text-xs uppercase tracking-widest gap-2 text-foreground border border-border/50 active:scale-95">
+          <Download className="h-3.5 w-3.5 text-primary" />
           Import/Export
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[600px] rounded-xl border border-border/40 bg-card/95 backdrop-blur-xl shadow-2xl p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-4 border-b border-border/40 bg-muted/20">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-bold tracking-tight text-foreground">Import / Export Analytics</DialogTitle>
-          </div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60 mt-2">
-            Manage your analytics data
-          </p>
-        </DialogHeader>
+      
+      <DialogContent className="sm:max-w-[700px] rounded-2xl border border-border/40 bg-card/90 backdrop-blur-2xl shadow-2xl p-0 overflow-hidden outline-none">
+        <div className="flex flex-col h-[600px]">
+          {/* Header */}
+          <DialogHeader className="p-6 pb-4 border-b border-border/40 bg-muted/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                    <Download className="h-5 w-5 text-primary" />
+                  </div>
+                  Data Management
+                </DialogTitle>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60 mt-2">
+                  Import or export your analytics data
+                </p>
+              </div>
+              {/* <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setOpen(false)}
+                className="rounded-full hover:bg-muted text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+              </Button> */}
+            </div>
+          </DialogHeader>
 
-        <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(80vh-120px)] bg-background/50">
-          <Tabs defaultValue="export" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 bg-muted/30 rounded-lg h-10 p-1">
-              <TabsTrigger value="export" className="text-xs font-bold uppercase tracking-widest gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Download size={14} />
+          <div className="flex-1 flex overflow-hidden">
+            {/* Sidebar Tabs */}
+            <div className="w-48 border-r border-border/40 bg-muted/20 p-2 space-y-1">
+              <button
+                onClick={() => setActiveTab('export')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+                  activeTab === 'export' ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Download size={14} className={activeTab === 'export' ? "text-primary-foreground" : "text-primary"} />
                 Export
-              </TabsTrigger>
-              <TabsTrigger value="import" className="text-xs font-bold uppercase tracking-widest gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                <Upload size={14} />
+              </button>
+              <button
+                onClick={() => setActiveTab('import')}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
+                  activeTab === 'import' ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <Upload size={14} className={activeTab === 'import' ? "text-primary-foreground" : "text-primary"} />
                 Import
-              </TabsTrigger>
-            </TabsList>
+              </button>
+            </div>
 
-            {/* Export Tab */}
-            <TabsContent value="export" className="space-y-6 mt-6">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">
-                    Export Format
-                  </label>
-                </div>
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto p-6 bg-background/30">
+              {activeTab === 'export' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Export Format</label>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <button
+                        onClick={() => setExportFormat('json')}
+                        className={`p-4 rounded-xl border transition-all text-left ${
+                          exportFormat === 'json'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border/40 bg-card hover:border-border/80 hover:bg-muted'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+                            <FileJson size={16} />
+                          </div>
+                          <h4 className="font-bold text-sm text-foreground">JSON</h4>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Structured format</p>
+                      </button>
 
-                <div className="grid grid-cols-2 gap-4">
-                  {/* JSON Export */}
-                  <button
-                    onClick={() => setExportFormat('json')}
-                    className={`p-4 rounded-xl border transition-all text-left ${
-                      exportFormat === 'json'
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border/40 bg-card hover:border-border/80 hover:bg-muted'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
-                        <FileJson size={16} />
+                      <button
+                        onClick={() => setExportFormat('csv')}
+                        className={`p-4 rounded-xl border transition-all text-left ${
+                          exportFormat === 'csv'
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border/40 bg-card hover:border-border/80 hover:bg-muted'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
+                            <FileSpreadsheet size={16} />
+                          </div>
+                          <h4 className="font-bold text-sm text-foreground">CSV</h4>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Excel friendly</p>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Include Data</label>
+                    </div>
+                    <div className="space-y-2 p-4 rounded-xl border border-border/40 bg-muted/20">
+                      {['Page views', 'Visitor demographics', 'Traffic sources', 'Custom events'].map((item) => (
+                        <label key={item} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/40 cursor-pointer transition-colors group">
+                          <div className="w-4 h-4 rounded border border-border/60 flex items-center justify-center group-hover:border-primary transition-colors">
+                              <div className="w-2 h-2 rounded-sm bg-primary" />
+                          </div>
+                          <span className="font-semibold text-xs text-foreground/80">{item}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {exportStatus === 'success' && (
+                    <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 flex items-start gap-3 animate-in slide-in-from-top-2">
+                      <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-green-600 dark:text-green-400 text-xs">Export successful!</p>
+                        <p className="text-[10px] text-green-600/70 dark:text-green-400/70 mt-0.5">Your data has been downloaded.</p>
                       </div>
-                      <h4 className="font-bold text-sm text-foreground">JSON</h4>
                     </div>
-                    <p className="text-xs text-muted-foreground">Structured format for processing</p>
-                  </button>
+                  )}
+                </div>
+              )}
 
-                  {/* CSV Export */}
-                  <button
-                    onClick={() => setExportFormat('csv')}
-                    className={`p-4 rounded-xl border transition-all text-left ${
-                      exportFormat === 'csv'
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border/40 bg-card hover:border-border/80 hover:bg-muted'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
-                        <FileSpreadsheet size={16} />
+              {activeTab === 'import' && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Select Source</label>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {['seentics', 'ga4', 'plausible', 'umami', 'fathom'].map((src) => (
+                        <button
+                          key={src}
+                          onClick={() => setImportSource(src as any)}
+                          className={`px-3 py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all ${
+                            importSource === src
+                              ? 'bg-primary/20 border-primary text-primary shadow-lg shadow-primary/5'
+                              : 'bg-muted/30 border-border/40 text-muted-foreground hover:bg-muted'
+                          }`}
+                        >
+                          {src}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Upload Data</label>
+                    </div>
+                    
+                    <div className="border-2 border-dashed rounded-2xl p-8 text-center bg-muted/20 border-border/40 hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer relative group">
+                        <input
+                          type="file"
+                          accept=".json,.csv"
+                          onChange={handleImport}
+                          disabled={isImporting}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                        <div className="space-y-3">
+                          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto group-hover:scale-110 transition-transform">
+                            {isImporting ? <Loader2 size={24} className="animate-spin" /> : <Upload size={24} />}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-foreground">
+                              {isImporting ? 'Uploading...' : 'Click to upload file'}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground font-medium mt-1">
+                              Supports JSON and CSV
+                            </p>
+                          </div>
+                        </div>
+                    </div>
+                  </div>
+
+                  {importStatus === 'success' && (
+                    <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 flex items-start gap-3 animate-in slide-in-from-top-2">
+                      <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-green-600 dark:text-green-400 text-xs">Import Successful!</p>
+                        <p className="text-[10px] text-green-600/70 dark:text-green-400/70 mt-0.5">{importMessage}</p>
                       </div>
-                      <h4 className="font-bold text-sm text-foreground">CSV</h4>
                     </div>
-                    <p className="text-xs text-muted-foreground">Spreadsheet compatible</p>
-                  </button>
-                </div>
-              </div>
+                  )}
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">
-                    What to Export
-                  </label>
-                </div>
-
-                <div className="space-y-2 p-4 rounded-xl border border-white/5 bg-white/[0.02]">
-                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                    <input type="checkbox" defaultChecked className="rounded border-white/10 bg-white/5 w-4 h-4 accent-primary" />
-                    <span className="font-semibold text-sm text-slate-200">Page views data</span>
-                  </label>
-                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                    <input type="checkbox" defaultChecked className="rounded border-white/10 bg-white/5 w-4 h-4 accent-primary" />
-                    <span className="font-semibold text-sm text-slate-200">Visitor demographics</span>
-                  </label>
-                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                    <input type="checkbox" defaultChecked className="rounded border-white/10 bg-white/5 w-4 h-4 accent-primary" />
-                    <span className="font-semibold text-sm text-slate-200">Traffic sources</span>
-                  </label>
-                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                    <input type="checkbox" className="rounded border-white/10 bg-white/5 w-4 h-4 accent-primary" />
-                    <span className="font-semibold text-sm text-slate-200">Custom events</span>
-                  </label>
-                </div>
-              </div>
-
-              {exportStatus === 'success' && (
-                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 flex items-start gap-3">
-                  <CheckCircle2 size={18} className="text-green-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-green-100 text-sm">Export successful!</p>
-                    <p className="text-xs text-green-400/80 mt-0.5">Your analytics data has been downloaded.</p>
-                  </div>
-                </div>
-              )}
-
-              {exportStatus === 'error' && (
-                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
-                  <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-red-100 text-sm">Export failed</p>
-                    <p className="text-xs text-red-400/80 mt-0.5">Please try again or contact support.</p>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Import Tab */}
-            <TabsContent value="import" className="space-y-6 mt-6">
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">
-                    Upload File
-                  </label>
-                </div>
-
-                <div className="border-2 border-dashed rounded-xl p-8 text-center hover:border-primary/50 hover:bg-white/5 transition-all cursor-pointer bg-white/[0.02] border-white/5">
-                  <input
-                    type="file"
-                    accept=".json,.csv"
-                    onChange={handleImport}
-                    disabled={isImporting}
-                    className="hidden"
-                    id="file-import"
-                  />
-                  <label htmlFor="file-import" className="cursor-pointer block space-y-2">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary mx-auto">
-                      <Upload size={20} />
+                  {importStatus === 'error' && (
+                    <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 animate-in slide-in-from-top-2">
+                      <AlertCircle size={18} className="text-red-500 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-red-600 dark:text-red-400 text-xs">Import Failed</p>
+                        <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">{importMessage}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-sm text-white">Drop file or click to browse</p>
-                      <p className="text-xs text-slate-400 mt-1">JSON or CSV formats</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">
-                    Import Mode
-                  </label>
-                </div>
-
-                <div className="space-y-2 p-4 rounded-xl border border-white/5 bg-white/[0.02]">
-                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                    <input type="radio" name="import-mode" defaultChecked className="w-4 h-4 accent-primary" />
-                    <span className="font-semibold text-sm text-slate-200">Merge with existing data</span>
-                  </label>
-                  <label className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors">
-                    <input type="radio" name="import-mode" className="w-4 h-4 accent-primary" />
-                    <span className="font-semibold text-sm text-slate-200">Replace existing data</span>
-                  </label>
-                </div>
-              </div>
-
-              {importStatus === 'success' && (
-                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 flex items-start gap-3">
-                  <CheckCircle2 size={18} className="text-green-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-green-100 text-sm">Import successful!</p>
-                    <p className="text-xs text-green-400/80 mt-0.5">{importMessage}</p>
-                  </div>
+                  )}
                 </div>
               )}
+            </div>
+          </div>
 
-              {importStatus === 'error' && (
-                <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3">
-                  <AlertCircle size={18} className="text-red-400 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="font-bold text-red-100 text-sm">Import failed</p>
-                    <p className="text-xs text-red-400/80 mt-0.5">{importMessage || 'Check file format and try again.'}</p>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
-        </div>
-
-        <div className="border-t border-white/5 bg-white/[0.02] px-6 py-4 flex items-center justify-between">
-          <p className="text-xs text-slate-400 font-semibold italic">
-            Last {dateRange} days available
-          </p>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              onClick={() => setOpen(false)}
-              className="h-10 rounded-lg font-bold text-xs uppercase tracking-widest border-white/10 hover:bg-white/5 text-slate-300"
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="brand"
-              onClick={handleExport}
-              disabled={isExporting}
-              className="h-10 rounded-lg font-bold text-xs uppercase tracking-widest gap-2 shadow-lg shadow-primary/20"
-            >
-              {isExporting ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" />
-                  Exporting...
-                </>
-              ) : (
-                <>
-                  <Download size={14} />
-                  Download {exportFormat.toUpperCase()}
-                </>
-              )}
-            </Button>
+          {/* Footer */}
+          <div className="p-6 border-t border-border/40 bg-muted/20 flex items-center justify-between">
+            <p className="text-[10px] font-bold text-muted-foreground opacity-60 uppercase tracking-widest italic">
+              Website: {websiteId}
+            </p>
+            
+            <div className="flex items-center gap-3">
+               {activeTab === 'export' ? (
+                 <Button 
+                     onClick={handleExport}
+                     disabled={isExporting}
+                     className="h-10 px-8 rounded-xl bg-primary text-primary-foreground font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                 >
+                    {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                    Download Data
+                 </Button>
+               ) : (
+                 <label htmlFor="file-import-footer">
+                    <Button 
+                        asChild
+                        disabled={isImporting}
+                        className="h-10 px-8 rounded-xl bg-primary text-primary-foreground font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                      <span>
+                        {isImporting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                        Select File to Import
+                      </span>
+                    </Button>
+                    <input
+                      id="file-import-footer"
+                      type="file"
+                      accept=".json,.csv"
+                      onChange={handleImport}
+                      disabled={isImporting}
+                      className="hidden"
+                    />
+                 </label>
+               )}
+            </div>
           </div>
         </div>
 
         {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-primary/5 blur-3xl -ml-16 -mb-16 rounded-full pointer-events-none" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 blur-[120px] -mr-32 -mt-32 rounded-full pointer-events-none animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-primary/10 blur-[120px] -ml-32 -mb-32 rounded-full pointer-events-none animate-pulse" />
       </DialogContent>
     </Dialog>
   );

@@ -3,6 +3,7 @@ package repository
 import (
 	"analytics-app/internal/modules/analytics/models"
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -15,54 +16,98 @@ func NewDashboardAnalytics(db *pgxpool.Pool) *DashboardAnalytics {
 	return &DashboardAnalytics{db: db}
 }
 
+func (da *DashboardAnalytics) buildFilterClause(filters models.AnalyticsFilters) (string, []interface{}) {
+	clause := ""
+	params := []interface{}{}
+	paramIdx := 3 // Starting from $3 since $1 is website_id and $2 is days
+
+	if filters.Country != "" {
+		clause += fmt.Sprintf(" AND country = $%d", paramIdx)
+		params = append(params, filters.Country)
+		paramIdx++
+	}
+	if filters.Device != "" && filters.Device != "all" {
+		clause += fmt.Sprintf(" AND device = $%d", paramIdx)
+		params = append(params, filters.Device)
+		paramIdx++
+	}
+	if filters.Browser != "" {
+		clause += fmt.Sprintf(" AND browser = $%d", paramIdx)
+		params = append(params, filters.Browser)
+		paramIdx++
+	}
+	if filters.OS != "" {
+		clause += fmt.Sprintf(" AND os = $%d", paramIdx)
+		params = append(params, filters.OS)
+		paramIdx++
+	}
+	if filters.UTMSource != "" {
+		clause += fmt.Sprintf(" AND utm_source = $%d", paramIdx)
+		params = append(params, filters.UTMSource)
+		paramIdx++
+	}
+	if filters.UTMMedium != "" {
+		clause += fmt.Sprintf(" AND utm_medium = $%d", paramIdx)
+		params = append(params, filters.UTMMedium)
+		paramIdx++
+	}
+	if filters.UTMCampaign != "" {
+		clause += fmt.Sprintf(" AND utm_campaign = $%d", paramIdx)
+		params = append(params, filters.UTMCampaign)
+		paramIdx++
+	}
+	if filters.PagePath != "" {
+		clause += fmt.Sprintf(" AND page = $%d", paramIdx)
+		params = append(params, filters.PagePath)
+		paramIdx++
+	}
+
+	return clause, params
+}
+
 // GetDashboardMetrics returns the main dashboard metrics for a website
-func (da *DashboardAnalytics) GetDashboardMetrics(ctx context.Context, websiteID string, days int) (*models.DashboardMetrics, error) {
-	query := `
+func (da *DashboardAnalytics) GetDashboardMetrics(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters) (*models.DashboardMetrics, error) {
+	filterClause, filterParams := da.buildFilterClause(filters)
+
+	query := fmt.Sprintf(`
 		WITH session_stats AS (
 			SELECT 
 				session_id,
 				COUNT(*) as page_count,
-				-- Calculate session duration with realistic limits
 				CASE 
 					WHEN COUNT(*) > 1 THEN 
-						-- Cap session duration at 30 minutes (1800 seconds) for realistic analytics
 						LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 1800)
 					ELSE 
-						-- For single-page sessions, use time_on_page if available, otherwise 30 seconds
 						COALESCE(MAX(time_on_page), 30)
 				END as session_duration
 			FROM events
 			WHERE website_id = $1 
 			AND timestamp >= NOW() - INTERVAL '1 day' * $2
 			AND event_type = 'pageview'
+			%s
 			GROUP BY session_id
 		)
 		SELECT 
-			-- Page views (total pageview events)
 			COUNT(*) as page_views,
-			-- Total visitors (total number of visits/sessions)
 			COUNT(DISTINCT e.session_id) as total_visitors,
-			-- Unique visitors (distinct visitor_ids)
 			COUNT(DISTINCT e.visitor_id) as unique_visitors,
-			-- Sessions (distinct session_ids)
 			COUNT(DISTINCT e.session_id) as sessions,
-			-- Bounce rate (sessions with only 1 pageview)
 			COALESCE(
 				(COUNT(DISTINCT CASE WHEN s.page_count = 1 THEN e.session_id END) * 100.0) / 
 				NULLIF(COUNT(DISTINCT e.session_id), 0), 0
 			) as bounce_rate,
-			-- Average session duration in seconds
 			COALESCE(AVG(s.session_duration), 0) as avg_session_time,
-			-- Pages per session
 			COALESCE(COUNT(*) * 1.0 / NULLIF(COUNT(DISTINCT e.session_id), 0), 0) as pages_per_session
 		FROM events e
 		INNER JOIN session_stats s ON e.session_id = s.session_id
 		WHERE e.website_id = $1 
 		AND e.timestamp >= NOW() - INTERVAL '1 day' * $2
-		AND e.event_type = 'pageview'`
+		AND e.event_type = 'pageview'
+		%s`, filterClause, filterClause)
 
 	var metrics models.DashboardMetrics
-	err := da.db.QueryRow(ctx, query, websiteID, days).Scan(
+	allParams := append([]interface{}{websiteID, days}, filterParams...)
+	err := da.db.QueryRow(ctx, query, allParams...).Scan(
 		&metrics.PageViews, &metrics.TotalVisitors, &metrics.UniqueVisitors, &metrics.Sessions,
 		&metrics.BounceRate, &metrics.AvgSessionTime, &metrics.PagesPerSession,
 	)
@@ -83,7 +128,7 @@ func (da *DashboardAnalytics) GetDashboardMetrics(ctx context.Context, websiteID
 }
 
 // GetComparisonMetrics returns comparison metrics between current and previous periods
-func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteID string, days int) (*models.ComparisonMetrics, error) {
+func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters) (*models.ComparisonMetrics, error) {
 	// Get current period metrics
 	currentQuery := `
 		WITH current_session_stats AS (

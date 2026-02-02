@@ -16,15 +16,15 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-transparent relative">
       <LandingHeader />
-      <main>
-        <Hero />
-        <BYODBSection />
-        <AutomationWorkflows />
-        <ImportExportSection />
-        <VisionSection />
+            <main>
+        <Hero /> 
         <Features />
+        <AutomationWorkflows />
+        {/* <BYODBSection /> */}
+        {/* <ImportExportSection /> */}
+        {/* <VisionSection /> */}
         <Pricing />
-        <LifetimeDeal />
+        {/* <LifetimeDeal /> */}
         <FAQ />
       </main>
       <Footer />

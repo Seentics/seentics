@@ -39,21 +39,9 @@ import (
 	websiteRepoPkg "analytics-app/internal/modules/websites/repository"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
 
-	auditHandlerPkg "analytics-app/internal/modules/audit/handlers"
-	auditRepoPkg "analytics-app/internal/modules/audit/repository"
-	auditServicePkg "analytics-app/internal/modules/audit/services"
-
-	reportHandlerPkg "analytics-app/internal/modules/reports/handlers"
-	reportRepoPkg "analytics-app/internal/modules/reports/repository"
-	reportServicePkg "analytics-app/internal/modules/reports/services"
-
 	notiHandlerPkg "analytics-app/internal/modules/notifications/handlers"
 	notiRepoPkg "analytics-app/internal/modules/notifications/repository"
 	notiServicePkg "analytics-app/internal/modules/notifications/services"
-
-	abtestHandlerPkg "analytics-app/internal/modules/abtests/handlers"
-	abtestRepoPkg "analytics-app/internal/modules/abtests/repository"
-	abtestServicePkg "analytics-app/internal/modules/abtests/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -115,7 +103,7 @@ func main() {
 	}
 	logger.Info().Msg("Connected to Redis")
 
-	// Initialize repositories
+	// Repositories
 	eventRepo := repository.NewEventRepository(db, logger)
 	analyticsRepo := repository.NewMainAnalyticsRepository(db)
 	privacyRepo := privacy.NewPrivacyRepository(db)
@@ -159,32 +147,17 @@ func main() {
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, billingService)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 
-	// Audit Logs
-	auditRepo := auditRepoPkg.NewAuditRepository(db)
-	auditService := auditServicePkg.NewAuditService(auditRepo)
-	auditHandler := auditHandlerPkg.NewAuditHandler(auditService, logger)
-
-	// Reports
-	reportRepo := reportRepoPkg.NewReportRepository(db)
-	reportService := reportServicePkg.NewReportService(reportRepo)
-	reportHandler := reportHandlerPkg.NewReportHandler(reportService, logger)
-
 	// Notifications
 	notiRepo := notiRepoPkg.NewNotificationRepository(db)
 	notiService := notiServicePkg.NewNotificationService(notiRepo)
 	notiHandler := notiHandlerPkg.NewNotificationHandler(notiService, logger)
-
-	// A/B Tests
-	abtestRepo := abtestRepoPkg.NewABTestRepository(db)
-	abtestService := abtestServicePkg.NewABTestService(abtestRepo)
-	abtestHandler := abtestHandlerPkg.NewABTestHandler(abtestService, logger)
 
 	// Start periodic billing sync (every 5 minutes)
 	billingService.StartPeriodicSync(5 * time.Minute)
 	logger.Info().Msg("Started periodic billing sync worker")
 
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, auditHandler, reportHandler, notiHandler, abtestHandler, logger)
+	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, notiHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -227,7 +200,7 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, auditHandler *auditHandlerPkg.AuditHandler, reportHandler *reportHandlerPkg.ReportHandler, notiHandler *notiHandlerPkg.NotificationHandler, abtestHandler *abtestHandlerPkg.ABTestHandler, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, notiHandler *notiHandlerPkg.NotificationHandler, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -286,6 +259,8 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			analytics.GET("/geolocation-breakdown/:website_id", analyticsHandler.GetGeolocationBreakdown)
 			analytics.GET("/user-retention/:website_id", analyticsHandler.GetUserRetention)
 			analytics.GET("/visitor-insights/:website_id", analyticsHandler.GetVisitorInsights)
+			analytics.GET("/export/:website_id", analyticsHandler.ExportAnalytics)
+			analytics.POST("/import", analyticsHandler.ImportAnalytics)
 		}
 
 		v1.Group("/privacy")
@@ -375,31 +350,11 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			websites.DELETE("/:id/members/:user_id", websiteHandler.RemoveMember)
 		}
 
-		// New Enterprise Features
-		audit := v1.Group("/websites/:website_id/audit")
-		{
-			audit.GET("", auditHandler.List)
-		}
-
-		reports := v1.Group("/websites/:website_id/reports")
-		{
-			reports.GET("", reportHandler.List)
-			reports.POST("", reportHandler.Create)
-			reports.DELETE("/:id", reportHandler.Delete)
-		}
-
 		notifications := v1.Group("/user/notifications")
 		{
 			notifications.GET("", notiHandler.List)
 			notifications.PUT("/:id/read", notiHandler.MarkRead)
 			notifications.PUT("/read-all", notiHandler.MarkAllRead)
-		}
-
-		abtests := v1.Group("/websites/:website_id/ab-tests")
-		{
-			abtests.GET("", abtestHandler.List)
-			abtests.POST("", abtestHandler.Create)
-			abtests.GET("/:id", abtestHandler.Get)
 		}
 	}
 

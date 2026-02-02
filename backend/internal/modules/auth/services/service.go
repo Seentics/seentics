@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -109,6 +110,53 @@ func (s *AuthService) Login(ctx context.Context, req models.LoginRequest) (*mode
 		},
 		Tokens: *tokens,
 	}, nil
+}
+
+// ForgotPassword initiates the password reset process
+func (s *AuthService) ForgotPassword(ctx context.Context, email string) error {
+	user, err := s.repo.GetByEmail(ctx, email)
+	if err != nil {
+		// We don't want to reveal if a user exists or not for security reasons
+		return nil
+	}
+
+	// Generate reset token
+	token := uuid.New().String()
+	expiry := time.Now().Add(1 * time.Hour)
+
+	if err := s.repo.UpdateResetToken(ctx, user.ID.String(), token, expiry); err != nil {
+		return err
+	}
+
+	// In a real application, you would send an email here
+	s.logger.Info().Str("email", email).Str("token", token).Msg("Password reset requested")
+
+	return nil
+}
+
+// ResetPassword resets the user's password using a valid token
+func (s *AuthService) ResetPassword(ctx context.Context, token, newPassword string) error {
+	user, err := s.repo.GetByResetToken(ctx, token)
+	if err != nil {
+		return errors.New("invalid or expired reset token")
+	}
+
+	if user.ResetExpiry == nil || time.Now().After(*user.ResetExpiry) {
+		return errors.New("reset token has expired")
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Update password and clear reset token
+	if err := s.repo.UpdatePassword(ctx, user.ID.String(), string(hashedPassword)); err != nil {
+		return err
+	}
+
+	return s.repo.ClearResetToken(ctx, user.ID.String())
 }
 
 // UpdateProfile updates user's basic info

@@ -8,14 +8,16 @@ import (
 
 // User represents the user model in the database
 type User struct {
-	ID           uuid.UUID `json:"id" db:"id"`
-	Name         string    `json:"name" db:"name"`
-	Email        string    `json:"email" db:"email"`
-	PasswordHash string    `json:"-" db:"password_hash"`
-	AvatarURL    string    `json:"avatar" db:"avatar_url"`
-	Role         string    `json:"role" db:"role"`
-	CreatedAt    time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt    time.Time `json:"updatedAt" db:"updated_at"`
+	ID           uuid.UUID  `json:"id" db:"id"`
+	Name         string     `json:"name" db:"name"`
+	Email        string     `json:"email" db:"email"`
+	PasswordHash string     `json:"-" db:"password_hash"`
+	AvatarURL    string     `json:"avatar" db:"avatar_url"`
+	Role         string     `json:"role" db:"role"`
+	ResetToken   string     `json:"-" db:"reset_token"`
+	ResetExpiry  *time.Time `json:"-" db:"reset_token_expiry"`
+	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt    time.Time  `json:"updatedAt" db:"updated_at"`
 }
 
 // RegisterRequest defines the payload for user registration
@@ -41,6 +43,17 @@ type UpdateProfileRequest struct {
 type ChangePasswordRequest struct {
 	CurrentPassword string `json:"currentPassword" binding:"required"`
 	NewPassword     string `json:"newPassword" binding:"required,min=8"`
+}
+
+// ForgotPasswordRequest defines the payload for password reset request
+type ForgotPasswordRequest struct {
+	Email string `json:"email" binding:"required,email"`
+}
+
+// ResetPasswordRequest defines the payload for resetting password
+type ResetPasswordRequest struct {
+	Token       string `json:"token" binding:"required"`
+	NewPassword string `json:"newPassword" binding:"required,min=8"`
 }
 
 // UserResponse defines the user data returned to the client

@@ -25,6 +25,8 @@ type Event struct {
 	City        *string    `json:"city,omitempty" db:"city"`
 	Continent   *string    `json:"continent,omitempty" db:"continent"`
 	Region      *string    `json:"region,omitempty" db:"region"`
+	Latitude    *float64   `json:"latitude,omitempty" db:"latitude"`
+	Longitude   *float64   `json:"longitude,omitempty" db:"longitude"`
 	Browser     *string    `json:"browser,omitempty" db:"browser"`
 	Device      *string    `json:"device,omitempty" db:"device"`
 	OS          *string    `json:"os,omitempty" db:"os"`

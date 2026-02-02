@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"analytics-app/internal/modules/analytics/models"
 	"analytics-app/internal/modules/analytics/services"
 	"fmt"
 	"net/http"
@@ -36,7 +37,9 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 		}
 	}
 
-	data, err := h.service.GetDashboard(c.Request.Context(), websiteID, days)
+	filters := h.parseFilters(c)
+
+	data, err := h.service.GetDashboard(c.Request.Context(), websiteID, days, filters)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get dashboard data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get dashboard data"})
@@ -576,4 +579,93 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, insights)
+}
+
+func (h *AnalyticsHandler) parseFilters(c *gin.Context) models.AnalyticsFilters {
+	return models.AnalyticsFilters{
+		Country:     c.Query("country"),
+		Device:      c.Query("device"),
+		Browser:     c.Query("browser"),
+		OS:          c.Query("os"),
+		UTMSource:   c.Query("utm_source"),
+		UTMMedium:   c.Query("utm_medium"),
+		UTMCampaign: c.Query("utm_campaign"),
+		PagePath:    c.Query("page_path"),
+	}
+}
+
+func (h *AnalyticsHandler) ExportAnalytics(c *gin.Context) {
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	days := 7
+	if d := c.Query("days"); d != "" {
+		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
+			days = parsedDays
+		}
+	}
+
+	format := c.DefaultQuery("format", "json")
+
+	data, err := h.service.ExportWebsiteData(c.Request.Context(), websiteID, days, format)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to export analytics data")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to export analytics data"})
+		return
+	}
+
+	filename := fmt.Sprintf("analytics-%s-%d-days.%s", websiteID, days, format)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+
+	if format == "csv" {
+		c.Data(http.StatusOK, "text/csv", data)
+	} else {
+		c.Data(http.StatusOK, "application/json", data)
+	}
+}
+
+func (h *AnalyticsHandler) ImportAnalytics(c *gin.Context) {
+	websiteID := c.PostForm("websiteId")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "websiteId is required"})
+		return
+	}
+
+	source := c.DefaultPostForm("source", "seentics")
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
+		return
+	}
+
+	fileContent, err := file.Open()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open file"})
+		return
+	}
+	defer fileContent.Close()
+
+	// Read file content
+	data := make([]byte, file.Size)
+	_, err = fileContent.Read(data)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read file"})
+		return
+	}
+
+	count, err := h.service.ImportWebsiteData(c.Request.Context(), websiteID, source, data)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to import analytics data")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to import data: %v", err)})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Data imported successfully",
+		"count":   count,
+	})
 }

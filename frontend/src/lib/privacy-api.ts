@@ -172,6 +172,7 @@ class PrivacyAPI {
 
   // Analytics-specific privacy methods
   async exportAnalyticsData(userId: string): Promise<any> {
+    if (userId === 'demo') return { mock: 'data' };
     try {
       const response = await api.get(`/privacy/export/${userId}`);
       return response.data;
@@ -182,6 +183,7 @@ class PrivacyAPI {
   }
 
   async deleteAnalyticsData(userId: string): Promise<{ success: boolean; message: string }> {
+    if (userId === 'demo') return { success: true, message: 'Demo data deleted' };
     try {
       const response = await api.delete(`/privacy/delete/${userId}`);
       return response.data;
@@ -192,6 +194,7 @@ class PrivacyAPI {
   }
 
   async deleteWebsiteAnalytics(websiteId: string): Promise<{ success: boolean; message: string }> {
+    if (websiteId === 'demo') return { success: true, message: 'Demo data deleted' };
     try {
       const response = await api.delete(`/privacy/delete/website/${websiteId}`);
       return response.data;

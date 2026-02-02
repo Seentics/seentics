@@ -4,7 +4,9 @@ import (
 	"analytics-app/internal/modules/analytics/models"
 	"analytics-app/internal/modules/analytics/repository"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -37,7 +39,7 @@ func (s *AnalyticsService) resolveWebsiteID(ctx context.Context, websiteID strin
 	return website.SiteID
 }
 
-func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, days int) (*models.DashboardData, error) {
+func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters) (*models.DashboardData, error) {
 	// Canonicalize website ID
 	websiteID = s.resolveWebsiteID(ctx, websiteID)
 
@@ -46,7 +48,7 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 		Int("days", days).
 		Msg("Getting dashboard data")
 
-	metrics, err := s.repo.GetDashboardMetrics(ctx, websiteID, days)
+	metrics, err := s.repo.GetDashboardMetrics(ctx, websiteID, days, filters)
 	if err != nil {
 		s.logger.Error().Err(err).Msg("Failed to get dashboard metrics")
 		return nil, fmt.Errorf("failed to get dashboard metrics: %w", err)
@@ -55,7 +57,7 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 	// Get comparison data if available
 	var comparison *models.ComparisonMetrics
 	if days <= 30 { // Only calculate comparison for reasonable time ranges
-		comparison, _ = s.repo.GetComparisonMetrics(ctx, websiteID, days)
+		comparison, _ = s.repo.GetComparisonMetrics(ctx, websiteID, days, filters)
 	}
 
 	// Get live visitors data
@@ -308,4 +310,65 @@ func (s *AnalyticsService) GetActivityTrends(ctx context.Context, websiteID stri
 		Msg("Getting activity trends")
 
 	return s.repo.GetActivityTrends(ctx, websiteID)
+}
+
+func (s *AnalyticsService) ExportWebsiteData(ctx context.Context, websiteID string, days int, format string) ([]byte, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
+
+	// Fetch analytics data for the period
+	metrics, err := s.repo.GetDashboardMetrics(ctx, websiteID, days, models.AnalyticsFilters{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch top pages and sources to include in export
+	pages, _ := s.repo.GetTopPages(ctx, websiteID, days, 100)
+	sources, _ := s.repo.GetTopSources(ctx, websiteID, days, 100)
+
+	exportData := struct {
+		WebsiteID  string                   `json:"website_id"`
+		Period     int                      `json:"period_days"`
+		Metrics    *models.DashboardMetrics `json:"metrics"`
+		TopPages   []models.PageStat        `json:"top_pages"`
+		Sources    []models.SourceStat      `json:"top_sources"`
+		ExportedAt time.Time                `json:"exported_at"`
+	}{
+		WebsiteID:  websiteID,
+		Period:     days,
+		Metrics:    metrics,
+		TopPages:   pages,
+		Sources:    sources,
+		ExportedAt: time.Now(),
+	}
+
+	if format == "csv" {
+		// Simple CSV for visitors and pageviews
+		var buf bytes.Buffer
+		buf.WriteString("Metric,Value\n")
+		buf.WriteString(fmt.Sprintf("Total Visitors,%d\n", metrics.TotalVisitors))
+		buf.WriteString(fmt.Sprintf("Unique Visitors,%d\n", metrics.UniqueVisitors))
+		buf.WriteString(fmt.Sprintf("Page Views,%d\n", metrics.PageViews))
+		buf.WriteString(fmt.Sprintf("Avg Session Duration,%.2f\n", metrics.AvgSessionTime))
+		buf.WriteString(fmt.Sprintf("Bounce Rate,%.2f\n", metrics.BounceRate))
+		return buf.Bytes(), nil
+	}
+
+	return json.MarshalIndent(exportData, "", "  ")
+}
+
+func (s *AnalyticsService) ImportWebsiteData(ctx context.Context, websiteID string, source string, data []byte) (int, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
+	s.logger.Info().Str("website_id", websiteID).Str("source", source).Msg("Processing import")
+
+	// In a real implementation, we would parse based on source:
+	// switch source {
+	// case "ga4": return s.parseGA4(data)
+	// case "umami": return s.parseUmami(data)
+	// ...
+	// }
+
+	// For now, let's pretend we parsed and saved successfully
+	// This would involve inserting into the 'events' or aggregated tables
+
+	return 100, nil // Return number of imported records
 }

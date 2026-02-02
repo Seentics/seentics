@@ -140,16 +140,11 @@ export function WebVitalsChart({ data, isLoading }: WebVitalsChartProps) {
     }
 
     return (
-        <Card className="border-border/40 shadow-sm bg-card col-span-full">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle className="text-xl font-black tracking-tight flex items-center gap-2">
-                        <Zap className="h-5 w-5 text-primary" />
-                        Core Web Vitals (P75)
-                    </CardTitle>
-                    <CardDescription className="text-xs font-medium">
-                        User experience snapshots from real browser interactions.
-                    </CardDescription>
+        <Card className="border-border/40 shadow-sm bg-card/50 col-span-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-6 border-b border-border/40">
+                <div className="space-y-1">
+                    <CardTitle className="text-lg font-bold tracking-tight">Core Web Vitals</CardTitle>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">User experience snapshots from real interactions</p>
                 </div>
                 <TooltipProvider>
                     <Tooltip>
@@ -164,7 +159,7 @@ export function WebVitalsChart({ data, isLoading }: WebVitalsChartProps) {
                     </Tooltip>
                 </TooltipProvider>
             </CardHeader>
-            <CardContent>
+            <CardContent className='pt-6'>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
                     {data.map((vital) => {
                         const config = getVitalConfig(vital.name);

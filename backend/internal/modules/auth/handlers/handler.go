@@ -64,6 +64,51 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
+// ForgotPassword handles requesting a password reset
+func (h *AuthHandler) ForgotPassword(c *gin.Context) {
+	var req models.ForgotPasswordRequest
+	if err := h.bindJSON(c, &req); err != nil {
+		return
+	}
+
+	if err := h.service.ForgotPassword(c.Request.Context(), req.Email); err != nil {
+		h.logger.Error().Err(err).Msg("Forgot password request failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to process request"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "If an account exists with that email, we've sent a password reset link.",
+	})
+}
+
+// ResetPassword handles resetting the password
+func (h *AuthHandler) ResetPassword(c *gin.Context) {
+	var req models.ResetPasswordRequest
+	if err := h.bindJSON(c, &req); err != nil {
+		return
+	}
+
+	if err := h.service.ResetPassword(c.Request.Context(), req.Token, req.NewPassword); err != nil {
+		h.logger.Error().Err(err).Msg("Password reset failed")
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password has been reset successfully",
+	})
+}
+
+// Helper to bind JSON and handle errors
+func (h *AuthHandler) bindJSON(c *gin.Context, obj interface{}) error {
+	if err := c.ShouldBindJSON(obj); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return err
+	}
+	return nil
+}
+
 // UpdateProfile handles updating user's basic information
 func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	userID := c.GetString("user_id")

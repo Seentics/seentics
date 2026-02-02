@@ -1,4 +1,3 @@
-
 //@ts-ignore
 'use client';
 
@@ -39,7 +38,8 @@ import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { format } from 'date-fns';
 import { getDemoData, getDemoWebsite } from '@/lib/demo-data';
-import { CalendarIcon, Download, Globe, PlusCircle, Target } from 'lucide-react';
+import Link from 'next/link';
+import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRight, ArrowDownRight, Clock, Eye, Users, TrendingDown, ChevronRight, Target } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
@@ -66,12 +66,13 @@ export default function WebsiteDashboardPage() {
   const [showAddWebsiteModal, setShowAddWebsiteModal] = useState(false);
 
 
-  // Filter state
+    // Filter state
   const [dateRange, setDateRange] = useState<number>(7);
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
   const [isCustomRange, setIsCustomRange] = useState<boolean>(false);
   const [utmTab, setUtmTab] = useState<'sources' | 'mediums' | 'campaigns' | 'terms' | 'content'>('sources');
+  const [advancedFilters, setAdvancedFilters] = useState<any>({});
 
   // Check if we're in demo mode
   const isDemoMode = websiteId === 'demo';
@@ -148,7 +149,7 @@ export default function WebsiteDashboardPage() {
   // In demo mode, we skip API calls and use static demo data
   const demoData = isDemoMode ? getDemoData() : null;
 
-  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange);
+  const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange, advancedFilters);
   const { data: topPages, isLoading: pagesLoading, error: pagesError } = useTopPages(websiteId, dateRange);
   const { data: topReferrers, isLoading: referrersLoading, error: referrersError } = useTopReferrers(websiteId, dateRange);
   const { data: topCountries, isLoading: countriesLoading, error: countriesError } = useTopCountries(websiteId, dateRange);
@@ -447,14 +448,6 @@ export default function WebsiteDashboardPage() {
                 DEMO MODE
               </div>
             )}
-            {/* Live Visitors Badge - Standalone */}
-            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-500/20 shadow-sm shadow-emerald-500/5">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              {finalDashboardData?.live_visitors || 0} active now
-            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -498,6 +491,8 @@ export default function WebsiteDashboardPage() {
                 customEndDate={customEndDate}
                 onDateRangeChange={handleDateRangeChange}
                 onCustomDateChange={handleCustomDateChange}
+                onFiltersChange={setAdvancedFilters}
+                activeFiltersCount={Object.keys(advancedFilters).length}
               />
               <DataImportExportModal
                 websiteId={websiteId}
@@ -511,6 +506,8 @@ export default function WebsiteDashboardPage() {
         <div className="">
           {/* SummaryCards already inside dashboard. Transforming to use better container if needed. */}
           <SummaryCards
+            websiteId={websiteId}
+            isDemo={isDemoMode}
             data={finalDashboardData || {
               total_visitors: 0,
               unique_visitors: 0,

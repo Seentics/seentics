@@ -86,25 +86,27 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
             </div>
 
             {/* Stats Section */}
-            <div className="flex flex-col justify-center space-y-6">
-                <div className="flex items-center justify-between p-3 rounded bg-accent/5 border border-border/40">
+            <div className="flex flex-col justify-center space-y-0">
+                <div className="flex items-center justify-between py-4 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1">
                     <div className="flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-primary ring-4 ring-primary/10"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-primary/10"></div>
                         <div>
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50">New</p>
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50">New Visitors</p>
                             <p className="text-lg font-bold text-foreground">
                                 {data?.new_visitors?.toLocaleString() || 0}
                             </p>
                         </div>
                     </div>
                     <div className="text-right">
-                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-1 rounded">{total > 0 ? Math.round(((data?.new_visitors || 0) / total) * 100) : 0}%</span>
+                        <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                            {total > 0 ? ((data?.new_visitors || 0) / total * 100).toFixed(0) : 0}%
+                        </p>
                     </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 rounded bg-accent/5 border border-border/40">
+                <div className="flex items-center justify-between py-4 hover:bg-accent/5 transition-colors group px-1">
                     <div className="flex items-center gap-3">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-[#10B981] ring-2 ring-[#10B981]/10"></div>
                         <div>
                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50">Returning</p>
                             <p className="text-lg font-bold text-foreground">
@@ -113,16 +115,11 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
                         </div>
                     </div>
                     <div className="text-right">
-                        <span className="text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded">{total > 0 ? Math.round(((data?.returning_visitors || 0) / total) * 100) : 0}%</span>
+                        <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest bg-blue-500/10 px-1.5 py-0.5 rounded">
+                            {total > 0 ? ((data?.returning_visitors || 0) / total * 100).toFixed(0) : 0}%
+                        </p>
                     </div>
                 </div>
-
-                 <div className="pt-4 border-t border-border/40 mt-2">
-                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest opacity-50 mb-1">Avg Session Duration</p>
-                       <div className="text-xl font-bold text-foreground tracking-tight">
-                            {formatDuration(data?.avg_session_duration || 0)}
-                        </div>
-                 </div>
             </div>
         </div>
       </CardContent>

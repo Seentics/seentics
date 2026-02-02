@@ -9,6 +9,7 @@ import { Logo } from '@/components/ui/logo';
 import Link from 'next/link';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '@/lib/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -32,11 +33,8 @@ export default function ForgotPasswordPage() {
       setError(null);
       setIsLoading(true);
 
-      // In a real app, you'd call your API here
-      // await api.post('/user/auth/forgot-password', { email });
-      
-      // Simulating API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Call our backend API
+      await api.post('/auth/forgot-password', { email });
 
       setIsSubmitted(true);
       toast({

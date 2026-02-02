@@ -190,16 +190,16 @@ export function EventsAndCampaigns({
   };
 
   return (
-    <Card className={`bg-card border-0 shadow-sm ${className}`}>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-lg font-medium text-foreground">Campaigns & Events</CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">UTM performance and custom event tracking</p>
+    <Card className={cn("bg-card/50 shadow-sm shadow-black/5 border-border/40 overflow-hidden", className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+        <div className="space-y-1">
+          <CardTitle className="text-lg font-bold tracking-tight">Campaigns & Events</CardTitle>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">UTM performance and custom event tracking</p>
         </div>
         <Tabs value={eventsTab} onValueChange={setEventsTab} className="w-auto">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="utm">UTM Performance</TabsTrigger>
-            <TabsTrigger value="events">Custom Events</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 h-9 p-1 rounded">
+            <TabsTrigger value="utm" className="text-[10px] font-semibold uppercase tracking-wider px-3 gap-1.5 rounded active:bg-background">UTM Performance</TabsTrigger>
+            <TabsTrigger value="events" className="text-[10px] font-semibold uppercase tracking-wider px-3 gap-1.5 rounded active:bg-background">Custom Events</TabsTrigger>
           </TabsList>
         </Tabs>
       </CardHeader>
@@ -241,62 +241,65 @@ export function EventsAndCampaigns({
 
                 {/* Custom Events List */}
                 {customEvents && customEvents.top_events && customEvents.top_events.length > 0 ? (
-                  <div className="bg-muted/30 rounded p-4">
+                  <div className="space-y-0">
                     <div className="flex items-center gap-2 mb-4">
-                      <MousePointer className="h-5 w-5 text-purple-600" />
-                      <h4 className="font-semibold text-foreground">Custom Events Breakdown</h4>
-                      <Badge variant="secondary" className="ml-auto">
-                        {customEvents.top_events.filter(e => e.event_type !== 'pageview' && e.event_type !== 'page_view').length} Event Types
+                      <MousePointer className="h-4 w-4 text-purple-600" />
+                      <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/80">Custom Events Breakdown</h4>
+                      <Badge variant="secondary" className="ml-auto text-[10px] uppercase font-bold tracking-tighter h-5">
+                        {customEvents.top_events.filter(e => e.event_type !== 'pageview' && e.event_type !== 'page_view').length} Types
                       </Badge>
                     </div>
-                    <div className="space-y-4">
+                    <div className="divide-y divide-border/40 border-t border-border/40">
                       {customEvents.top_events
                         .filter(e => !['pageview', 'page_view', 'page_hidden', 'page_visible', 'exit_intent'].includes(e.event_type)) // Hide low-signal events
                         .sort((a, b) => b.count - a.count) // Sort by count descending
                         .map((event, index) => (
-                          <div key={index} className="bg-background rounded border border-border p-4 hover:bg-muted/50 transition-colors">
+                          <div key={index} className="flex items-center justify-between py-4 hover:bg-accent/5 transition-colors group px-1">
                             {/* Event Header */}
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                                  <span className="text-sm font-semibold text-purple-600 dark:text-purple-400">
-                                    {index + 1}
-                                  </span>
-                                </div>
-                                <div>
-                                  <div className="text-sm font-medium text-foreground capitalize">
-                                    {event.event_type === 'click' ? 'Click' :
-                                     event.event_type === 'submit' ? 'Form Submit' :
-                                     event.event_type === 'conversion_click' ? 'Conversion Click' :
-                                     event.event_type === 'form_field_focus' ? 'Form Field Focus' :
-                                     event.event_type === 'external_link_click' ? 'External Link Click' :
-                                     event.event_type === 'search_initiated' ? 'Search Initiated' :
-                                     event.event_type === 'search_submitted' ? 'Search Submitted' :
-                                     event.event_type === 'file_download' ? 'File Download' :
-                                     event.event_type === 'video_interaction' ? 'Video Interaction' :
-                                     event.event_type === 'scroll_milestone' ? 'Scroll Milestone' :
-                                     event.event_type === 'exit_intent' ? 'Exit Intent' :
-                                     event.event_type === 'page_hidden' ? 'Page Hidden' :
-                                     event.event_type === 'page_visible' ? 'Page Visible' :
-                                     event.event_type === 'engagement_update' ? 'Engagement Update' :
-                                     event.event_type === 'performance_details' ? 'Performance Details' :
-                                     event.event_type === 'session_summary' ? 'Session Summary' :
-                                     event.event_type}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground">
-                                    Event ID: {event.event_type}
-                                  </div>
-                                </div>
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                                <span className="text-xs font-bold text-purple-600 dark:text-purple-400">
+                                  {index + 1}
+                                </span>
                               </div>
-                              <div className="text-right">
-                                <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                                  {event.count.toLocaleString()}
+                              <div>
+                                <div className="text-sm font-semibold text-foreground capitalize group-hover:text-primary transition-colors">
+                                  {event.event_type === 'click' ? 'Click' :
+                                   event.event_type === 'submit' ? 'Form Submit' :
+                                   event.event_type === 'conversion_click' ? 'Conversion Click' :
+                                   event.event_type === 'form_field_focus' ? 'Form Field Focus' :
+                                   event.event_type === 'external_link_click' ? 'External Link Click' :
+                                   event.event_type === 'search_initiated' ? 'Search Initiated' :
+                                   event.event_type === 'search_submitted' ? 'Search Submitted' :
+                                   event.event_type === 'file_download' ? 'File Download' :
+                                   event.event_type === 'video_interaction' ? 'Video Interaction' :
+                                   event.event_type === 'scroll_milestone' ? 'Scroll Milestone' :
+                                   event.event_type === 'exit_intent' ? 'Exit Intent' :
+                                   event.event_type === 'page_hidden' ? 'Page Hidden' :
+                                   event.event_type === 'page_visible' ? 'Page Visible' :
+                                   event.event_type === 'engagement_update' ? 'Engagement Update' :
+                                   event.event_type === 'performance_details' ? 'Performance Details' :
+                                   event.event_type === 'session_summary' ? 'Session Summary' :
+                                   event.event_type}
                                 </div>
-                                <div className="text-xs text-muted-foreground">
-                                  {((event.count / (customEvents.top_events.filter(e => !['pageview', 'page_view', 'page_hidden', 'page_visible', 'exit_intent'].includes(e.event_type)).reduce((sum, e) => sum + e.count, 0) || 1)) * 100).toFixed(1)}% of total
+                                <div className="text-[10px] text-muted-foreground uppercase font-medium tracking-widest opacity-50">
+                                   {event.event_type}
                                 </div>
                               </div>
                             </div>
+                            <div className="text-right">
+                              <div className="text-base font-bold text-foreground">
+                                {event.count.toLocaleString()}
+                              </div>
+                              <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider opacity-40">
+                                {((event.count / (customEvents.top_events.filter(e => !['pageview', 'page_view', 'page_hidden', 'page_visible', 'exit_intent'].includes(e.event_type)).reduce((sum, e) => sum + e.count, 0) || 1)) * 100).toFixed(1)}%
+                              </div>
+                            </div>
+                          </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
 
                             {/* Event Description */}
                             {event.description && (
@@ -637,16 +640,16 @@ export function EventsAndCampaigns({
                   <div className="space-y-4">
                     {/* UTM Sources */}
                     {customEvents.utm_performance.sources && customEvents.utm_performance.sources.length > 0 && (
-                      <div className="bg-muted/30 rounded p-4">
-                        <div className="flex items-center gap-2 mb-4">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2 px-1">
                           <Target className="h-5 w-5 text-blue-600" />
                           <h4 className="font-semibold text-foreground">Traffic Sources</h4>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-0 divide-y divide-border/40">
                           {customEvents.utm_performance.sources.map((item: any) => (
-                            <div key={item.source} className="flex items-center justify-between p-3 bg-background rounded border hover:bg-muted/50 transition-colors">
+                            <div key={item.source} className="flex items-center justify-between py-3 hover:bg-accent/5 transition-colors group px-1">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 overflow-hidden">
+                                <div className="w-8 h-8 rounded flex items-center justify-center bg-accent/10 group-hover:bg-primary/10 overflow-hidden transition-colors">
                                   <Image
                                     src={getSourceImage(item.source)}
                                     alt={item.source || 'Direct'}
@@ -674,11 +677,11 @@ export function EventsAndCampaigns({
                                     )}
                                   </div>
                                 </div>
-                                <span className="text-sm font-medium">{item.source || 'Direct'}</span>
+                                <span className="text-sm font-semibold">{item.source || 'Direct'}</span>
                               </div>
-                              <div className="text-right text-xs text-muted-foreground">
-                                <div>{item.unique_visitors || 0} visitors</div>
-                                <div>{item.visits || 0} events</div>
+                              <div className="text-right">
+                                <div className="text-sm font-bold">{item.unique_visitors || 0} visitors</div>
+                                <div className="text-[10px] text-muted-foreground uppercase font-medium tracking-widest opacity-50">{item.visits || 0} events</div>
                               </div>
                             </div>
                           ))}
@@ -688,23 +691,23 @@ export function EventsAndCampaigns({
                     
                     {/* UTM Campaigns */}
                     {customEvents.utm_performance.campaigns && customEvents.utm_performance.campaigns.length > 0 && (
-                      <div className="bg-muted/30 rounded p-4">
-                        <div className="flex items-center gap-2 mb-4">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2 px-1">
                           <TrendingUp className="h-5 w-5 text-green-600" />
                           <h4 className="font-semibold text-foreground">Marketing Campaigns</h4>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-0 divide-y divide-border/40">
                           {customEvents.utm_performance.campaigns.map((item: any) => (
-                            <div key={item.campaign} className="flex items-center justify-between p-3 bg-background rounded border hover:bg-muted/50 transition-colors">
+                            <div key={item.campaign} className="flex items-center justify-between py-3 hover:bg-accent/5 transition-colors group px-1">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded flex items-center justify-center bg-green-100 dark:bg-green-900/30">
+                                <div className="w-8 h-8 rounded flex items-center justify-center bg-accent/10 group-hover:bg-primary/10 transition-colors">
                                   {getCampaignIcon(item.campaign)}
                                 </div>
-                                <span className="text-sm font-medium">{item.campaign || 'None'}</span>
+                                <span className="text-sm font-semibold">{item.campaign || 'None'}</span>
                               </div>
-                              <div className="text-right text-xs text-muted-foreground">
-                                <div>{item.unique_visitors || 0} visitors</div>
-                                <div>{item.visits || 0} events</div>
+                              <div className="text-right">
+                                <div className="text-sm font-bold">{item.unique_visitors || 0} visitors</div>
+                                <div className="text-[10px] text-muted-foreground uppercase font-medium tracking-widest opacity-50">{item.visits || 0} events</div>
                               </div>
                             </div>
                           ))}
@@ -714,23 +717,23 @@ export function EventsAndCampaigns({
                     
                     {/* UTM Mediums */}
                     {customEvents.utm_performance.mediums && customEvents.utm_performance.mediums.length > 0 && (
-                      <div className="bg-muted/30 rounded p-4">
-                        <div className="flex items-center gap-2 mb-4">
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-2 px-1">
                           <Target className="h-5 w-5 text-purple-600" />
                           <h4 className="font-semibold text-foreground">Marketing Mediums</h4>
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-0 divide-y divide-border/40">
                           {customEvents.utm_performance.mediums.map((item: any) => (
-                            <div key={item.medium} className="flex items-center justify-between p-3 bg-background rounded border hover:bg-muted/50 transition-colors">
+                            <div key={item.medium} className="flex items-center justify-between py-3 hover:bg-accent/5 transition-colors group px-1">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded flex items-center justify-center bg-purple-100 dark:bg-purple-900/30">
+                                <div className="w-8 h-8 rounded flex items-center justify-center bg-accent/10 group-hover:bg-primary/10 transition-colors">
                                   {getMediumIcon(item.medium)}
                                 </div>
-                                <span className="text-sm font-medium">{item.medium || 'None'}</span>
+                                <span className="text-sm font-semibold">{item.medium || 'None'}</span>
                               </div>
-                              <div className="text-right text-xs text-muted-foreground">
-                                <div>{item.unique_visitors || 0} visitors</div>
-                                <div>{item.visits || 0} events</div>
+                              <div className="text-right">
+                                <div className="text-sm font-bold">{item.unique_visitors || 0} visitors</div>
+                                <div className="text-[10px] text-muted-foreground uppercase font-medium tracking-widest opacity-50">{item.visits || 0} events</div>
                               </div>
                             </div>
                           ))}

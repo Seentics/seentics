@@ -25,14 +25,14 @@ export default function ImportExportSection() {
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-bold mb-6">
                 <ArrowRightLeft className="w-4 h-4" />
-                <span>Data Portability</span>
+                <span>Quick Setup</span>
               </div>
               <h2 className="text-4xl sm:text-5xl font-black tracking-tighter text-foreground mb-6 leading-[0.95]">
                 Switch in minutes, <br />
                 <span className="text-muted-foreground/50">not days.</span>
               </h2>
               <p className="text-lg text-muted-foreground/80 font-medium leading-relaxed max-w-lg">
-                Don't lose your history. Import data directly from your existing tools, or take your data with you whenever you want. No lock-in, ever.
+                Don't lose your data history. Bring your existing analytics with you or take your data anywhere else whenever you want. No complicated locks, ever.
               </p>
             </div>
 
@@ -42,8 +42,8 @@ export default function ImportExportSection() {
                   <Upload className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white">Easy Import</h4>
-                  <p className="text-sm text-muted-foreground font-medium">Auto-sync from GA4, Plausible, and more</p>
+                  <h4 className="font-bold text-slate-900 dark:text-white">Simple Import</h4>
+                  <p className="text-sm text-muted-foreground font-medium">Auto-sync from Google, Plausible, and more</p>
                 </div>
               </div>
               
@@ -52,8 +52,8 @@ export default function ImportExportSection() {
                   <Download className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-slate-900 dark:text-white">Full Export</h4>
-                  <p className="text-sm text-muted-foreground font-medium">Download as CSV or JSON anytime</p>
+                  <h4 className="font-bold text-slate-900 dark:text-white">Easy Download</h4>
+                  <p className="text-sm text-muted-foreground font-medium">Export your data to CSV or JSON anytime</p>
                 </div>
               </div>
             </div>

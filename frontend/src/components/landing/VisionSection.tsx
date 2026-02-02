@@ -7,39 +7,39 @@ const visionItems = [
     icon: BarChart3,
     title: 'Analytics',
     status: 'Live',
-    description: 'Privacy-first web analytics with heatmaps and recordings.'
+    description: "Simple web analytics that respect your visitors' privacy."
   },
   {
     icon: Workflow,
     title: 'Automation',
     status: 'Live',
-    description: 'Visual workflow builder to trigger actions on user behavior.'
+    description: "Easily set up actions that trigger based on user behavior."
   },
   {
     icon: Filter,
-    title: 'Funnels',
+    title: 'Campaigns',
     status: 'Live',
-    description: 'Conversion tracking to optimize user journeys.'
+    description: "Track your marketing results and see what's working."
   },
   {
     icon: Mail,
-    title: 'Email Marketing',
+    title: 'Emails',
     status: 'Upcoming',
-    description: 'Send newsletters and automated sequences directly.',
+    description: "Send newsletters and messages directly from one place.",
     highlight: true
   },
   {
     icon: FileText,
-    title: 'Forms',
+    title: 'Grow Leads',
     status: 'Upcoming',
-    description: 'Capture leads with high-converting forms and popups.',
+    description: "Capture more customers with beautiful forms and popups.",
     highlight: true
   },
   {
     icon: MessageSquare,
-    title: 'Support Desk',
+    title: 'Customer Help',
     status: 'Upcoming',
-    description: 'Live chat and ticketing system to support your users.',
+    description: "Chat with your users and help them in real-time.",
     highlight: true
   }
 ];
@@ -58,7 +58,7 @@ export default function VisionSection() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/5 text-primary text-sm font-bold mb-8 border border-primary/10"
           >
             <Sparkles className="w-4 h-4" />
-            <span>The Master Plan</span>
+            <span>Where We're Heading</span>
           </motion.div>
           
           <motion.h2 
@@ -67,8 +67,8 @@ export default function VisionSection() {
             viewport={{ once: true }}
             className="text-4xl sm:text-6xl font-black tracking-tighter mb-6 text-slate-900 dark:text-white leading-[0.95]"
           >
-            One platform to <br/>
-            <span className="text-primary transparent-text-stroke">replace them all.</span>
+            Everything you need <br/>
+            <span className="text-primary transparent-text-stroke">in one place.</span>
           </motion.h2>
           
           <motion.p
@@ -78,7 +78,7 @@ export default function VisionSection() {
             transition={{ delay: 0.1 }}
             className="text-lg sm:text-xl text-muted-foreground/80 font-medium leading-relaxed"
           >
-            Stop stitching together 10 different tools. We are building the ultimate operating system for your website—integrating analytics, marketing, and support into one seamless experience.
+            Stop using 10 different tools for your website. We're building one simple platform that handles everything from analytics to marketing and customer support.
           </motion.p>
         </div>
 

@@ -23,6 +23,7 @@ interface FilterModalProps {
   customEndDate?: Date;
   onDateRangeChange: (value: string) => void;
   onCustomDateChange: (start: Date | undefined, end: Date | undefined) => void;
+  onFiltersChange?: (filters: any) => void;
   activeFiltersCount?: number;
 }
 
@@ -33,6 +34,7 @@ export function FilterModal({
   customEndDate,
   onDateRangeChange,
   onCustomDateChange,
+  onFiltersChange,
   activeFiltersCount = 0
 }: FilterModalProps) {
   const [open, setOpen] = useState(false);
@@ -51,12 +53,24 @@ export function FilterModal({
   };
 
   const resetFilters = () => {
-    setFilters({
+    const defaultFilters = {
       country: 'all',
       device: 'all',
       browser: 'all',
       source: 'all',
-    });
+    };
+    setFilters(defaultFilters);
+    if (onFiltersChange) onFiltersChange({});
+  };
+
+  const applyFilters = () => {
+    if (onFiltersChange) {
+      const activeFilters = Object.fromEntries(
+        Object.entries(filters).filter(([_, v]) => v !== 'all')
+      );
+      onFiltersChange(activeFilters);
+    }
+    setOpen(false);
   };
 
   const totalActiveFilters = activeFiltersCount + Object.values(filters).filter(v => v !== 'all').length;
@@ -66,7 +80,7 @@ export function FilterModal({
       <DialogTrigger asChild>
         <Button className="h-10 px-4 bg-card/50 backdrop-blur-md hover:bg-card transition-all rounded shadow-sm font-bold text-xs uppercase tracking-widest gap-2 relative border border-border/50 active:scale-95 text-foreground">
           <Filter className="h-3.5 w-3.5 text-primary" />
-          Filters
+          Filter
           {totalActiveFilters > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-black shadow-lg shadow-primary/20">
               {totalActiveFilters}
@@ -82,9 +96,11 @@ export function FilterModal({
             <div className="flex items-center justify-between">
               <div>
                 <DialogTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
                   <Filter className="h-5 w-5 text-primary" />
-                  Advanced Filters
-                </DialogTitle>
+                </div>
+                Advanced Filters
+              </DialogTitle>
                 <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60 mt-2">
                   Fine-tune your analytics view
                 </p>
@@ -297,7 +313,7 @@ export function FilterModal({
             
             <div className="flex items-center gap-3">
                <Button 
-                  onClick={() => setOpen(false)}
+                  onClick={applyFilters}
                   className="h-10 px-8 rounded-xl bg-primary text-primary-foreground font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
                >
                   <CheckCircle2 className="h-3.5 w-3.5 mr-2" />

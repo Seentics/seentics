@@ -80,7 +80,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
     }
 
     return (
-        <Card className={cn("bg-card/50", className)}>
+        <Card className={cn("bg-card/50 shadow-sm shadow-black/5 border-border/40 overflow-hidden", className)}>
             <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-border/40">
                 <div className="space-y-1">
                     <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
@@ -109,9 +109,9 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     )}
 
                     {geoTab === 'countries' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
                             {displayData?.countries?.slice(0, 14).map((country, index) => (
-                                <div key={country.name} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+                                <div key={country.name} className="flex items-center justify-between py-3 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-black text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border/40">
@@ -146,9 +146,9 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     )}
 
                     {geoTab === 'cities' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
                             {displayData?.cities?.slice(0, 14).map((city, index) => (
-                                <div key={city.name} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+                                <div key={city.name} className="flex items-center justify-between py-3 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-black text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         <div className="p-2 rounded bg-accent/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300" >
@@ -169,9 +169,9 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     )}
 
                     {geoTab === 'continents' && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
                             {displayData?.continents?.map((continent, index) => (
-                                <div key={continent.name} className="flex items-center justify-between p-3 rounded border border-transparent transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+                                <div key={continent.name} className="flex items-center justify-between py-3 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-black text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         <div className="p-2 rounded bg-accent/10 flex items-center justify-center group-hover:bg-accent hover:scale-110 transition-all duration-300" >
