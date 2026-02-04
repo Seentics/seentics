@@ -1,21 +1,18 @@
-# Seentics - Open Source Analytics Platform
+# Seentics - Analytics Platform
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
-
-**🚀 Production-ready open-source platform** for real-time analytics and intelligent user behavior tracking. Seentics provides the speed of Google Analytics with the privacy and control of a self-hosted solution. Built with high-performance Go, Kafka, and PostgreSQL.
+**🚀 Production-ready platform** for real-time analytics and intelligent user behavior tracking. Seentics provides the speed of Google Analytics with the privacy and control of a self-hosted solution. Built with high-performance Go, Kafka, and PostgreSQL.
 
 ## 🌟 **Why Seentics?**
 
-Seentics is designed as a **fully-featured open source platform** that puts you in control:
+Seentics is designed as a **fully-featured platform** that puts you in control:
 
 - ✅ **Unlimited everything** - No caps on websites, events, or users.
 - ✅ **Privacy by Design** - GDPR/CCPA compliant. You own 100% of your data.
 - ✅ **No usage restrictions** - Forget monthly bills based on "hits" or "events".  
 - ✅ **Real-Time Insight** - See what's happening on your site the second it happens.
-- ✅ **Intelligent Automations** - The only open-source analytics with a built-in behavioral trigger engine.
+- ✅ **Intelligent Automations** - The only analytics with a built-in behavioral trigger engine.
 
-> **Note**: While Seentics is open-source first, we also offer a managed cloud service at [seentics.com](https://seentics.com) for teams who want to skip the infrastructure management.
+> **Note**: Seentics offers a managed cloud service at [seentics.com](https://seentics.com) for teams who want to skip the infrastructure management.
 
 ## ✨ **Core Features**
 
@@ -81,7 +78,7 @@ cp frontend/.env.example frontend/.env.local
 
 ### **3. Start with Docker Compose (Recommended)**
 ```bash
-# Launch the entire OSS stack (Backend, Frontend, DB, Redis, Kafka)
+# Launch the Seentics stack (Backend, Frontend, DB, Redis, Kafka)
 docker compose up -d
 ```
 
@@ -117,15 +114,6 @@ GET  /api/v1/analytics/hourly-stats/:website_id - Hourly statistics
 GET  /api/v1/analytics/geolocation-breakdown/:website_id - Geolocation data
 ```
 
-## 🤝 **Contributing**
-
-We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details.
-
-## 📄 **License**
-
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
-
 ---
 
-**Built with ❤️ by the open source community**
 # Seentics

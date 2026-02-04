@@ -18,71 +18,54 @@ func NewTrafficSummaryAnalytics(db *pgxpool.Pool) *TrafficSummaryAnalytics {
 // GetTrafficSummary returns comprehensive traffic summary for a website
 func (ts *TrafficSummaryAnalytics) GetTrafficSummary(ctx context.Context, websiteID string, days int) (*models.TrafficSummary, error) {
 	query := `
-		WITH session_stats AS (
-			SELECT 
-				session_id,
-				COUNT(*) as page_count,
-				CASE 
-					WHEN COUNT(*) > 1 THEN 
-						-- Cap session duration at 4 hours maximum for any reasonable time period
-						LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 14400)
-					ELSE 0
-				END as session_duration
+		WITH period_events AS (
+			SELECT visitor_id, session_id, timestamp
 			FROM events
 			WHERE website_id = $1 
-			AND timestamp >= NOW() - INTERVAL '1 day' * $2
+			AND timestamp >= NOW() - INTERVAL '1 day' * $2 
 			AND event_type = 'pageview'
+		),
+		sessions AS (
+			SELECT 
+				session_id,
+				COUNT(*) as pages,
+				EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))) as duration
+			FROM period_events
 			GROUP BY session_id
+		),
+		visitors AS (
+			SELECT 
+				visitor_id,
+				EXISTS (
+					SELECT 1 FROM events e2
+					WHERE e2.website_id = $1 
+					AND e2.visitor_id = pe.visitor_id 
+					AND e2.timestamp < NOW() - INTERVAL '1 day' * $2
+					LIMIT 1
+				) as is_returning
+			FROM (SELECT DISTINCT visitor_id FROM period_events) pe
 		)
 		SELECT 
-			COUNT(*) as total_page_views,
-			COUNT(DISTINCT e.visitor_id) as total_visitors,
-			COUNT(DISTINCT e.visitor_id) as unique_visitors,
-			COUNT(DISTINCT e.session_id) as total_sessions,
+			COALESCE((SELECT COUNT(*) FROM period_events), 0) as total_page_views,
+			COALESCE((SELECT COUNT(DISTINCT visitor_id) FROM period_events), 0) as total_visitors,
+			COALESCE((SELECT COUNT(DISTINCT visitor_id) FROM period_events), 0) as unique_visitors,
+			COALESCE((SELECT COUNT(*) FROM sessions), 0) as total_sessions,
 			COALESCE(
-				(COUNT(DISTINCT CASE WHEN s.page_count = 1 THEN e.session_id END) * 100.0) / 
-				NULLIF(COUNT(DISTINCT e.session_id), 0), 0
+				(SELECT COUNT(*) FROM sessions WHERE pages = 1) * 100.0 / 
+				NULLIF((SELECT COUNT(*) FROM sessions), 0), 0
 			) as bounce_rate,
+			COALESCE((SELECT CAST(AVG(duration) AS INTEGER) FROM sessions), 0) as avg_session_time,
 			COALESCE(
-				CAST(AVG(s.session_duration) AS INTEGER), 0
-			) as avg_session_time,
-			COALESCE(COUNT(*) * 1.0 / NULLIF(COUNT(DISTINCT e.session_id), 0), 0) as pages_per_session,
+				(SELECT COUNT(*) FROM period_events) * 1.0 / 
+				NULLIF((SELECT COUNT(*) FROM sessions), 0), 0
+			) as pages_per_session,
 			0.0 as growth_rate,
 			0.0 as visitors_growth_rate,
 			0.0 as sessions_growth_rate,
-			(
-				SELECT COUNT(DISTINCT ev.visitor_id)
-				FROM events ev
-				WHERE ev.website_id = $1 
-				AND ev.timestamp >= NOW() - INTERVAL '1 day' * $2
-				AND ev.event_type = 'pageview'
-				AND NOT EXISTS (
-					SELECT 1 FROM events ev2 
-					WHERE ev2.website_id = $1 
-					AND ev2.visitor_id = ev.visitor_id 
-					AND ev2.timestamp < NOW() - INTERVAL '1 day' * $2
-				)
-			) as new_visitors,
-			(
-				SELECT COUNT(DISTINCT ev.visitor_id)
-				FROM events ev
-				WHERE ev.website_id = $1 
-				AND ev.timestamp >= NOW() - INTERVAL '1 day' * $2
-				AND ev.event_type = 'pageview'
-				AND EXISTS (
-					SELECT 1 FROM events ev2 
-					WHERE ev2.website_id = $1 
-					AND ev2.visitor_id = ev.visitor_id 
-					AND ev2.timestamp < NOW() - INTERVAL '1 day' * $2
-				)
-			) as returning_visitors,
+			COALESCE((SELECT COUNT(*) FROM visitors WHERE NOT is_returning), 0) as new_visitors,
+			COALESCE((SELECT COUNT(*) FROM visitors WHERE is_returning), 0) as returning_visitors,
 			50.0 as engagement_score,
-			25.0 as retention_rate
-		FROM events e
-		LEFT JOIN session_stats s ON e.session_id = s.session_id
-		WHERE e.website_id = $1 
-		AND e.timestamp >= NOW() - INTERVAL '1 day' * $2
-		AND e.event_type = 'pageview'`
+			25.0 as retention_rate`
 
 	var summary models.TrafficSummary
 	err := ts.db.QueryRow(ctx, query, websiteID, days).Scan(

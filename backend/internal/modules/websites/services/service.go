@@ -135,7 +135,9 @@ func (s *WebsiteService) GetWebsiteBySiteID(ctx context.Context, siteID string) 
 
 	if s.redis != nil {
 		data, _ := json.Marshal(w)
-		s.redis.Set(ctx, cacheKey, data, 1*time.Hour)
+		// Cache under both shorthand SiteID and internal UUID for faster lookups
+		s.redis.Set(ctx, fmt.Sprintf("website:site_id:%s", w.SiteID), data, 1*time.Hour)
+		s.redis.Set(ctx, fmt.Sprintf("website:site_id:%s", w.ID.String()), data, 1*time.Hour)
 	}
 
 	return w, nil

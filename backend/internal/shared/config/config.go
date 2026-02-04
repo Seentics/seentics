@@ -20,6 +20,10 @@ type Config struct {
 	DbMaxConns            int
 	DbMinConns            int
 	CORSAllowedOrigins    string
+	PostalServerURL       string
+	PostalAPIKey          string
+	PostalFromEmail       string
+	PostalFromName        string
 }
 
 func Load() (*Config, error) {
@@ -38,6 +42,10 @@ func Load() (*Config, error) {
 		DbMaxConns:            GetEnvAsInt("DB_MAX_CONNS", 100),
 		DbMinConns:            GetEnvAsInt("DB_MIN_CONNS", 25),
 		CORSAllowedOrigins:    getEnvOrDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://www.seentics.com,https://seentics.com"),
+		PostalServerURL:       getEnvOrDefault("POSTAL_SERVER_URL", ""),
+		PostalAPIKey:          getEnvOrDefault("POSTAL_API_KEY", ""),
+		PostalFromEmail:       getEnvOrDefault("POSTAL_FROM_EMAIL", ""),
+		PostalFromName:        getEnvOrDefault("POSTAL_FROM_NAME", "Seentics Support"),
 	}
 
 	// Validate required fields

@@ -106,7 +106,7 @@ func (ts *TimeSeriesAnalytics) GetHourlyStats(ctx context.Context, websiteID str
 
 		stat.Timestamp = timestamp
 		stat.Unique = uniqueVisitors
-		stat.Hour = fmt.Sprintf("%d", stat.Hour) // This is already the local hour from SQL
+		// stat.Hour is already set by rows.Scan since it's a string in the model
 		stat.HourLabel = timestamp.Format("15:04")
 		stats = append(stats, stat)
 	}

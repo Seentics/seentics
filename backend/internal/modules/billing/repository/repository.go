@@ -193,16 +193,39 @@ func (r *BillingRepository) CountUserResources(ctx context.Context, userID strin
 		counts[models.ResourceAutomations] = automationsCount
 	}
 
-	// Count monthly events (aggregated from tracking table)
+	// Count monthly events (recalibrate from BOTH system and custom event tables)
 	var monthlyEventsCount int
+	// We count events for all websites owned by this user in the current calendar month
+	// We combine system events (pageviews, etc) and aggregated custom events
 	eventsQuery := `
-		SELECT COALESCE(SUM(current_count), 0)
-		FROM usage_tracking
-		WHERE user_id = $1 AND resource_type = $2
+		SELECT COALESCE(SUM(count_sum), 0) FROM (
+			-- 1. System events from partitioned events table
+			SELECT COUNT(*) as count_sum
+			FROM events e
+			JOIN websites w ON (e.website_id = w.site_id OR e.website_id = w.id::text)
+			WHERE w.user_id::text = $1 
+			AND e.timestamp >= date_trunc('month', now())
+
+			UNION ALL
+
+			-- 2. Custom events from aggregated table
+			-- Note: This treats the entire count of a bucket as belonging to the month of its last_seen
+			SELECT SUM(c.count) as count_sum
+			FROM custom_events_aggregated c
+			JOIN websites w ON (c.website_id = w.site_id OR c.website_id = w.id::text)
+			WHERE w.user_id::text = $1 
+			AND c.last_seen >= date_trunc('month', now())
+		) AS combined
 	`
-	err = r.db.QueryRow(ctx, eventsQuery, userID, models.ResourceMonthlyEvents).Scan(&monthlyEventsCount)
+	err = r.db.QueryRow(ctx, eventsQuery, userID).Scan(&monthlyEventsCount)
 	if err != nil {
-		monthlyEventsCount = 0
+		// Fallback to tracking table if complex count fails
+		fallbackQuery := `
+			SELECT COALESCE(SUM(current_count), 0)
+			FROM usage_tracking
+			WHERE user_id = $1 AND resource_type = $2
+		`
+		r.db.QueryRow(ctx, fallbackQuery, userID, models.ResourceMonthlyEvents).Scan(&monthlyEventsCount)
 	}
 	counts[models.ResourceMonthlyEvents] = monthlyEventsCount
 

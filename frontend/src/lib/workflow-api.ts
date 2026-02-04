@@ -14,3 +14,9 @@ export async function getWorkflow(id: string): Promise<Workflow | null> {
     console.warn('getWorkflow is not implemented');
     return null;
 }
+
+export async function getWorkflows(siteId: string): Promise<Workflow[]> {
+    // Placeholder implementation
+    console.warn('getWorkflows is not implemented');
+    return [];
+}

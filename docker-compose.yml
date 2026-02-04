@@ -9,21 +9,20 @@ services:
     ports:
       - "3002:3002"
     environment:
-      - ENVIRONMENT=development
+      - ENVIRONMENT=production
       - PORT=3002
-      - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
-      - LOG_LEVEL=debug
+      # For RDS, set DATABASE_URL in your .env or system environment
+      - DATABASE_URL=${DATABASE_URL}
+      - LOG_LEVEL=info
       - JWT_SECRET=${JWT_SECRET}
       - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - GLOBAL_API_KEY=${GLOBAL_API_KEY}
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - KAFKA_TOPIC_EVENTS=analytics_events
-      - CLOUD_ENABLED=false # Always false in the OSS version
+      - CLOUD_ENABLED=false
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
       kafka:
@@ -74,27 +73,6 @@ services:
   # ---------------------------------------------------------------------------
   # Infrastructure
   # ---------------------------------------------------------------------------
-  postgres:
-    image: postgres:15-alpine
-    container_name: postgres
-    ports:
-      - "5432:5432"
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - seentics-network
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB} -h localhost -p 5432" ]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 10s
-
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -138,7 +116,6 @@ services:
       - kafka-data:/var/lib/kafka/data
 
 volumes:
-  postgres-data:
   redis-data:
   kafka-data:
 

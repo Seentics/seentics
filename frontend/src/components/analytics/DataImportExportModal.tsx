@@ -122,126 +122,119 @@ export const DataImportExportModal = ({ websiteId, websiteName, dateRange }: Dat
         </Button>
       </DialogTrigger>
       
-      <DialogContent className="sm:max-w-[700px] rounded-2xl border border-border/40 bg-card/90 backdrop-blur-2xl shadow-2xl p-0 overflow-hidden outline-none">
-        <div className="flex flex-col h-[600px]">
+      <DialogContent className="sm:max-w-[650px] rounded-3xl border border-border/10 bg-background shadow-2xl p-0 overflow-hidden outline-none">
+        <div className="flex flex-col h-[520px]">
           {/* Header */}
-          <DialogHeader className="p-6 pb-4 border-b border-border/40 bg-muted/20">
+          <DialogHeader className="p-6 pb-4 border-b border-border/10 bg-muted/5">
             <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                  <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                    <Download className="h-5 w-5 text-primary" />
-                  </div>
+              <div className="space-y-0.5">
+                <DialogTitle className="text-xl font-black tracking-tight text-foreground">
                   Data Management
                 </DialogTitle>
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60 mt-2">
+                <p className="text-xs font-medium text-muted-foreground">
                   Import or export your analytics data
                 </p>
               </div>
-              {/* <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => setOpen(false)}
-                className="rounded-full hover:bg-muted text-muted-foreground"
-              >
-                <X className="h-4 w-4" />
-              </Button> */}
             </div>
           </DialogHeader>
 
           <div className="flex-1 flex overflow-hidden">
             {/* Sidebar Tabs */}
-            <div className="w-48 border-r border-border/40 bg-muted/20 p-2 space-y-1">
+            <div className="w-44 border-r border-border/10 bg-muted/20 p-3 space-y-1">
               <button
                 onClick={() => setActiveTab('export')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
-                  activeTab === 'export' ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-muted"
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                  activeTab === 'export' 
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]" 
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 }`}
               >
-                <Download size={14} className={activeTab === 'export' ? "text-primary-foreground" : "text-primary"} />
-                Export
+                <Download size={14} />
+                Export Data
               </button>
               <button
                 onClick={() => setActiveTab('import')}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${
-                  activeTab === 'import' ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" : "text-muted-foreground hover:bg-muted"
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+                  activeTab === 'import' 
+                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20 scale-[1.02]" 
+                    : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 }`}
               >
-                <Upload size={14} className={activeTab === 'import' ? "text-primary-foreground" : "text-primary"} />
-                Import
+                <Upload size={14} />
+                Import Data
               </button>
             </div>
 
             {/* Content Area */}
-            <div className="flex-1 overflow-y-auto p-6 bg-background/30">
+            <div className="flex-1 overflow-y-auto p-6">
               {activeTab === 'export' && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Export Format</label>
-                    </div>
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Export Format</label>
                     
                     <div className="grid grid-cols-2 gap-4">
                       <button
                         onClick={() => setExportFormat('json')}
-                        className={`p-4 rounded-xl border transition-all text-left ${
+                        className={`p-4 rounded-2xl border transition-all duration-300 text-left relative overflow-hidden group ${
                           exportFormat === 'json'
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border/40 bg-card hover:border-border/80 hover:bg-muted'
+                            ? 'border-primary bg-primary/10 ring-1 ring-primary/50'
+                            : 'border-border/10 bg-background hover:border-border/30 hover:bg-muted/30 shadow-sm'
                         }`}
                       >
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
-                            <FileJson size={16} />
+                        <div className="flex items-center gap-3 mb-2 relative z-10">
+                          <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${
+                              exportFormat === 'json' ? 'bg-primary text-white' : 'bg-blue-500/10 text-blue-500'
+                          }`}>
+                            <FileJson size={18} />
                           </div>
-                          <h4 className="font-bold text-sm text-foreground">JSON</h4>
+                          <h4 className="font-extrabold text-sm">JSON</h4>
                         </div>
-                        <p className="text-xs text-muted-foreground">Structured format</p>
+                        <p className="text-[11px] text-muted-foreground font-medium relative z-10">Optimized for developers and API integrations.</p>
                       </button>
 
                       <button
                         onClick={() => setExportFormat('csv')}
-                        className={`p-4 rounded-xl border transition-all text-left ${
+                        className={`p-4 rounded-2xl border transition-all duration-300 text-left relative overflow-hidden group ${
                           exportFormat === 'csv'
-                            ? 'border-primary bg-primary/10'
-                            : 'border-border/40 bg-card hover:border-border/80 hover:bg-muted'
+                            ? 'border-primary bg-primary/10 ring-1 ring-primary/50'
+                            : 'border-border/10 bg-background hover:border-border/30 hover:bg-muted/30 shadow-sm'
                         }`}
                       >
-                        <div className="flex items-center gap-3 mb-2">
-                          <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-500">
-                            <FileSpreadsheet size={16} />
+                        <div className="flex items-center gap-3 mb-2 relative z-10">
+                          <div className={`h-8 w-8 rounded-xl flex items-center justify-center transition-colors ${
+                              exportFormat === 'csv' ? 'bg-primary text-white' : 'bg-green-500/10 text-green-500'
+                          }`}>
+                            <FileSpreadsheet size={18} />
                           </div>
-                          <h4 className="font-bold text-sm text-foreground">CSV</h4>
+                          <h4 className="font-extrabold text-sm">CSV</h4>
                         </div>
-                        <p className="text-xs text-muted-foreground">Excel friendly</p>
+                        <p className="text-[11px] text-muted-foreground font-medium relative z-10">Easy analysis in Excel or Google Sheets.</p>
                       </button>
                     </div>
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Include Data</label>
-                    </div>
-                    <div className="space-y-2 p-4 rounded-xl border border-border/40 bg-muted/20">
-                      {['Page views', 'Visitor demographics', 'Traffic sources', 'Custom events'].map((item) => (
-                        <label key={item} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/40 cursor-pointer transition-colors group">
-                          <div className="w-4 h-4 rounded border border-border/60 flex items-center justify-center group-hover:border-primary transition-colors">
-                              <div className="w-2 h-2 rounded-sm bg-primary" />
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Data Scope</label>
+                    <div className="grid grid-cols-1 gap-2 p-1 rounded-2xl border border-border/10 bg-muted/5">
+                      {['Page views & Visitors', 'Traffic Sources & Referrals', 'Technology & Devices', 'Custom Event Data'].map((item) => (
+                        <div key={item} className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/20 transition-all group">
+                          <div className="w-5 h-5 rounded-lg border-2 border-primary/20 flex items-center justify-center group-hover:border-primary transition-colors bg-background">
+                              <div className="w-2.5 h-2.5 rounded-sm bg-primary scale-0 group-hover:scale-100 transition-transform" />
                           </div>
-                          <span className="font-semibold text-xs text-foreground/80">{item}</span>
-                        </label>
+                          <span className="font-bold text-sm text-foreground/80">{item}</span>
+                        </div>
                       ))}
                     </div>
                   </div>
 
                   {exportStatus === 'success' && (
-                    <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 flex items-start gap-3 animate-in slide-in-from-top-2">
-                      <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" />
+                    <div className="p-4 rounded-2xl bg-green-500/5 border border-green-500/20 flex items-center gap-4 animate-in slide-in-from-top-2">
+                      <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 shrink-0">
+                        <CheckCircle2 size={20} />
+                      </div>
                       <div>
-                        <p className="font-bold text-green-600 dark:text-green-400 text-xs">Export successful!</p>
-                        <p className="text-[10px] text-green-600/70 dark:text-green-400/70 mt-0.5">Your data has been downloaded.</p>
+                        <p className="font-black text-green-600 dark:text-green-400 text-sm">Download Ready</p>
+                        <p className="text-xs text-green-600/70 dark:text-green-400/70 font-medium">Your analytics report has been generated.</p>
                       </div>
                     </div>
                   )}
@@ -249,21 +242,18 @@ export const DataImportExportModal = ({ websiteId, websiteName, dateRange }: Dat
               )}
 
               {activeTab === 'import' && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Select Source</label>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Select Source</label>
+                    <div className="grid grid-cols-3 gap-2">
                       {['seentics', 'ga4', 'plausible', 'umami', 'fathom'].map((src) => (
                         <button
                           key={src}
                           onClick={() => setImportSource(src as any)}
-                          className={`px-3 py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-wider transition-all ${
+                          className={`px-4 py-3 rounded-xl border text-xs font-black uppercase tracking-widest transition-all duration-200 shadow-sm ${
                             importSource === src
-                              ? 'bg-primary/20 border-primary text-primary shadow-lg shadow-primary/5'
-                              : 'bg-muted/30 border-border/40 text-muted-foreground hover:bg-muted'
+                              ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20 scale-[1.02]'
+                              : 'bg-background border-border/10 text-muted-foreground hover:bg-muted/40 hover:border-border/30'
                           }`}
                         >
                           {src}
@@ -273,12 +263,9 @@ export const DataImportExportModal = ({ websiteId, websiteName, dateRange }: Dat
                   </div>
 
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 opacity-60">Upload Data</label>
-                    </div>
+                    <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground/60">Upload Archive</label>
                     
-                    <div className="border-2 border-dashed rounded-2xl p-8 text-center bg-muted/20 border-border/40 hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer relative group">
+                    <div className="border-2 border-dashed rounded-3xl p-8 text-center bg-muted/10 border-border/20 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer relative group">
                         <input
                           type="file"
                           accept=".json,.csv"
@@ -287,15 +274,15 @@ export const DataImportExportModal = ({ websiteId, websiteName, dateRange }: Dat
                           className="absolute inset-0 opacity-0 cursor-pointer"
                         />
                         <div className="space-y-3">
-                          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto group-hover:scale-110 transition-transform">
+                          <div className="h-12 w-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary mx-auto group-hover:scale-110 transition-transform duration-300">
                             {isImporting ? <Loader2 size={24} className="animate-spin" /> : <Upload size={24} />}
                           </div>
                           <div>
-                            <p className="font-bold text-sm text-foreground">
-                              {isImporting ? 'Uploading...' : 'Click to upload file'}
+                            <p className="font-black text-base text-foreground">
+                              {isImporting ? 'Processing Data...' : 'Drop file here'}
                             </p>
-                            <p className="text-[10px] text-muted-foreground font-medium mt-1">
-                              Supports JSON and CSV
+                            <p className="text-[11px] text-muted-foreground font-medium mt-1">
+                              Support for JSON and CSV exports
                             </p>
                           </div>
                         </div>
@@ -303,21 +290,25 @@ export const DataImportExportModal = ({ websiteId, websiteName, dateRange }: Dat
                   </div>
 
                   {importStatus === 'success' && (
-                    <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/20 flex items-start gap-3 animate-in slide-in-from-top-2">
-                      <CheckCircle2 size={18} className="text-green-500 flex-shrink-0" />
+                    <div className="p-4 rounded-2xl bg-green-500/5 border border-green-500/20 flex items-center gap-4 animate-in slide-in-from-top-2">
+                      <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-500 shrink-0">
+                        <CheckCircle2 size={20} />
+                      </div>
                       <div>
-                        <p className="font-bold text-green-600 dark:text-green-400 text-xs">Import Successful!</p>
-                        <p className="text-[10px] text-green-600/70 dark:text-green-400/70 mt-0.5">{importMessage}</p>
+                        <p className="font-black text-green-600 dark:text-green-400 text-sm">Import Complete</p>
+                        <p className="text-xs text-green-600/70 dark:text-green-400/70 font-medium">{importMessage}</p>
                       </div>
                     </div>
                   )}
 
                   {importStatus === 'error' && (
-                    <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 animate-in slide-in-from-top-2">
-                      <AlertCircle size={18} className="text-red-500 flex-shrink-0" />
+                    <div className="p-4 rounded-2xl bg-red-500/5 border border-red-500/20 flex items-center gap-4 animate-in slide-in-from-top-2">
+                      <div className="h-10 w-10 rounded-full bg-red-500/20 flex items-center justify-center text-red-500 shrink-0">
+                        <AlertCircle size={20} />
+                      </div>
                       <div>
-                        <p className="font-bold text-red-600 dark:text-red-400 text-xs">Import Failed</p>
-                        <p className="text-[10px] text-red-600/70 dark:text-red-400/70 mt-0.5">{importMessage}</p>
+                        <p className="font-black text-red-600 dark:text-red-400 text-sm">Transfer Failed</p>
+                        <p className="text-xs text-red-600/70 dark:text-red-400/70 font-medium">{importMessage}</p>
                       </div>
                     </div>
                   )}
@@ -327,31 +318,32 @@ export const DataImportExportModal = ({ websiteId, websiteName, dateRange }: Dat
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-border/40 bg-muted/20 flex items-center justify-between">
-            <p className="text-[10px] font-bold text-muted-foreground opacity-60 uppercase tracking-widest italic">
-              Website: {websiteId}
-            </p>
+          <div className="p-4 border-t border-border/10 bg-muted/5 flex items-center justify-between">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40">Active Instance</span>
+              <span className="text-xs font-bold text-foreground/60">{websiteName || websiteId}</span>
+            </div>
             
             <div className="flex items-center gap-3">
                {activeTab === 'export' ? (
                  <Button 
                      onClick={handleExport}
                      disabled={isExporting}
-                     className="h-10 px-8 rounded-xl bg-primary text-primary-foreground font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
+                     className="h-10 px-8 rounded-xl bg-primary text-primary-foreground font-black text-sm shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3"
                  >
-                    {isExporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-                    Download Data
+                    {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                    Generate Report
                  </Button>
                ) : (
                  <label htmlFor="file-import-footer">
                     <Button 
                         asChild
                         disabled={isImporting}
-                        className="h-10 px-8 rounded-xl bg-primary text-primary-foreground font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                        className="h-10 px-8 rounded-xl bg-primary text-primary-foreground font-black text-sm shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-3 cursor-pointer"
                     >
                       <span>
-                        {isImporting ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                        Select File to Import
+                        {isImporting ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                        Select Source File
                       </span>
                     </Button>
                     <input

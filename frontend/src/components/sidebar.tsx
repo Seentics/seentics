@@ -46,25 +46,25 @@ export default function Sidebar() {
 
     const getNavigationItems = () => {
     const items = [
-      { name: 'Overview', href: '', icon: Home },
-      { name: 'Analytics', href: 'analytics', icon: BarChart3 },
+      { name: 'OVERVIEW', href: '', icon: Home },
+      { name: 'ANALYTICS', href: 'analytics', icon: BarChart3 },
     ];
 
     if (hasFeature('WORKFLOW_BASIC')) {
-      items.push({ name: 'Automations', href: 'automations', icon: Workflow });
+      items.push({ name: 'AUTOMATIONS', href: 'automations', icon: Workflow });
     }    if (hasFeature('FUNNEL_BASIC')) {
-      items.push({ name: 'Funnels', href: 'funnels', icon: Target });
+      items.push({ name: 'FUNNELS', href: 'funnels', icon: Target });
     }
 
     if (hasFeature('BILLING_PAGE')) {
-      items.push({ name: 'Billing', href: 'billing', icon: CreditCard });
+      items.push({ name: 'BILLING', href: 'billing', icon: CreditCard });
     }
 
     // Always show Privacy as requested
-    items.push({ name: 'Privacy', href: 'privacy', icon: Shield });
+    items.push({ name: 'PRIVACY', href: 'privacy', icon: Shield });
 
     // Always show Settings
-    items.push({ name: 'Settings', href: 'settings', icon: ChevronDown }); // Or use a different icon like Settings
+    items.push({ name: 'SETTINGS', href: 'settings', icon: ChevronDown });
 
     return items;
   };
@@ -103,22 +103,22 @@ export default function Sidebar() {
     const hasChildren = item.children && item.children.length > 0
 
     return (
-      <div key={item.name} className="px-3">
+      <div key={item.name} className="px-3 py-0.5">
         {hasChildren ? (
           <div className="flex items-center">
             <Link
               href={item.href === '' ? getBasePath() : `${getBasePath()}/${item.href}`}
-              className={`flex items-center justify-center flex-1 px-4 py-3 text-sm font-medium transition-colors rounded ${active
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-lg shadow-sidebar-accent/10'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              className={`flex items-center justify-center flex-1 px-4 py-3 text-[11px] font-black tracking-[0.15em] transition-all duration-300 rounded-xl ${active
+                  ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm'
+                  : 'text-muted-foreground hover:bg-slate-100 dark:hover:bg-slate-800/30'
                 } ${isChild ? 'ml-4 pl-7' : ''}`}
             >
               <item.icon
-                className={`mr-3 h-5 w-5 ${active ? 'text-sidebar-accent-foreground' : 'text-primary'}`}
+                className={`mr-3.5 h-4.5 w-4.5 transition-colors ${active ? 'text-primary' : 'text-slate-400 group-hover:text-primary'}`}
               />
               {(isSidebarOpen || isMobileMenuOpen) && (
                 <>
-                  <span className="flex-1">{item.name}</span>
+                  <span className="flex-1 uppercase">{item.name}</span>
                   {item.badge && (
                     <span className="ml-2 px-2 py-1 text-xs font-semibold bg-destructive/10 text-destructive rounded-full">
                       {item.badge}

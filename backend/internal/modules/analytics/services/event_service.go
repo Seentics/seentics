@@ -47,11 +47,12 @@ type EventService struct {
 	usageChan chan usageUpdate // Channel for async user usage increments
 
 	// Shutdown control
-	ctx        context.Context
-	cancel     context.CancelFunc
-	wg         sync.WaitGroup
-	isShutdown bool
-	shutdownMu sync.RWMutex
+	ctx            context.Context
+	cancel         context.CancelFunc
+	wg             sync.WaitGroup
+	isShutdown     bool
+	shutdownMu     sync.RWMutex
+	partitionCache sync.Map // cache for verified partitions
 }
 
 func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, billingSvc *billingServicePkg.BillingService, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger) *EventService {
@@ -108,10 +109,16 @@ func (s *EventService) ensurePartitionExists(ctx context.Context, targetDate tim
 	endOfMonth := startOfMonth.AddDate(0, 1, 0)
 
 	partitionName := fmt.Sprintf("events_y%dm%02d", startOfMonth.Year(), startOfMonth.Month())
+
+	// Check in-memory cache first to avoid DB roundtrip
+	if _, cached := s.partitionCache.Load(partitionName); cached {
+		return nil
+	}
+
 	startDate := startOfMonth.Format("2006-01-02")
 	endDate := endOfMonth.Format("2006-01-02")
 
-	// Check if partition already exists
+	// Check if partition already exists in DB
 	var exists bool
 	checkQuery := `
 		SELECT EXISTS (
@@ -140,6 +147,9 @@ func (s *EventService) ensurePartitionExists(ctx context.Context, targetDate tim
 			Str("end_date", endDate).
 			Msg("Created new partition")
 	}
+
+	// Store in cache for future events this month
+	s.partitionCache.Store(partitionName, true)
 
 	return nil
 }

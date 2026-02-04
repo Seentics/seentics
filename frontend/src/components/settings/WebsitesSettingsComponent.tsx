@@ -153,7 +153,7 @@ export function WebsitesSettingsComponent() {
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-9 w-9 rounded hover:bg-muted text-blue-500 hover:text-blue-600 hover:bg-blue-500/10" 
+                        className="h-9 w-9 rounded text-blue-500 hover:text-blue-600 hover:bg-blue-500/10" 
                         onClick={() => setTrackingWebsite(website)}
                         title="Get Tracking Code"
                       >

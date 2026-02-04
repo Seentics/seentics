@@ -43,6 +43,17 @@ import (
 	notiRepoPkg "analytics-app/internal/modules/notifications/repository"
 	notiServicePkg "analytics-app/internal/modules/notifications/services"
 
+	emailHandlerPkg "analytics-app/internal/modules/email/handlers"
+	emailServicePkg "analytics-app/internal/modules/email/services"
+
+	supportHandlerPkg "analytics-app/internal/modules/supportdesk/handlers"
+	supportRepoPkg "analytics-app/internal/modules/supportdesk/repository"
+	supportServicePkg "analytics-app/internal/modules/supportdesk/services"
+
+	logsHandlerPkg "analytics-app/internal/modules/serverlogs/handlers"
+	logsRepoPkg "analytics-app/internal/modules/serverlogs/repository"
+	logsServicePkg "analytics-app/internal/modules/serverlogs/services"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/rs/zerolog"
@@ -152,12 +163,26 @@ func main() {
 	notiService := notiServicePkg.NewNotificationService(notiRepo)
 	notiHandler := notiHandlerPkg.NewNotificationHandler(notiService, logger)
 
+	// Email
+	emailService := emailServicePkg.NewEmailService(cfg)
+	emailHandler := emailHandlerPkg.NewEmailHandler(emailService)
+
+	// Support Desk
+	supportRepo := supportRepoPkg.NewSupportDeskRepository(db)
+	supportService := supportServicePkg.NewSupportDeskService(supportRepo)
+	supportHandler := supportHandlerPkg.NewSupportDeskHandler(supportService)
+
+	// Logs & Metrics
+	logsRepo := logsRepoPkg.NewLogsRepository(db)
+	logsService := logsServicePkg.NewLogsService(logsRepo)
+	logsHandler := logsHandlerPkg.NewLogsHandler(logsService)
+
 	// Start periodic billing sync (every 5 minutes)
 	billingService.StartPeriodicSync(5 * time.Minute)
 	logger.Info().Msg("Started periodic billing sync worker")
 
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, notiHandler, logger)
+	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, notiHandler, emailHandler, supportHandler, logsHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -200,7 +225,7 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, notiHandler *notiHandlerPkg.NotificationHandler, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, notiHandler *notiHandlerPkg.NotificationHandler, emailHandler *emailHandlerPkg.EmailHandler, supportHandler *supportHandlerPkg.SupportDeskHandler, logsHandler *logsHandlerPkg.LogsHandler, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -280,6 +305,12 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		admin := v1.Group("/admin")
 		{
 			admin.GET("/analytics/stats", adminHandler.GetAnalyticsStats)
+
+			// Server Monitoring
+			admin.POST("/logs/ingest", logsHandler.IngestLog)
+			admin.GET("/logs", logsHandler.GetLogs)
+			admin.POST("/metrics/ingest", logsHandler.IngestMetric)
+			admin.GET("/metrics", logsHandler.GetMetrics)
 		}
 
 		automations := v1.Group("/websites/:website_id/automations")
@@ -356,9 +387,26 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 
 		notifications := v1.Group("/user/notifications")
 		{
-			notifications.GET("", notiHandler.List)
 			notifications.PUT("/:id/read", notiHandler.MarkRead)
 			notifications.PUT("/read-all", notiHandler.MarkAllRead)
+		}
+
+		emails := v1.Group("/emails")
+		{
+			emails.POST("/send", emailHandler.SendEmail)
+		}
+
+		support := v1.Group("/websites/:website_id/support")
+		{
+			support.POST("/forms", supportHandler.CreateForm)
+			support.GET("/forms", supportHandler.ListForms)
+			support.POST("/forms/:form_id/submit", supportHandler.SubmitForm)
+
+			support.POST("/chat", supportHandler.ConfigureChat)
+			support.GET("/chat", supportHandler.GetChatConfig)
+
+			support.POST("/tickets", supportHandler.CreateTicket)
+			support.GET("/tickets", supportHandler.ListTickets)
 		}
 	}
 

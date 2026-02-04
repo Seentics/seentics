@@ -30,21 +30,28 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 	// Here we use a query that acts on the events table directly.
 
 	query := `
-		WITH visitor_agg AS (
-			SELECT 
-				visitor_id,
-				MIN(timestamp) as first_visit,
-				MAX(timestamp) as last_visit
+		WITH period_visitors AS (
+			SELECT DISTINCT visitor_id
 			FROM events
-			WHERE website_id = $1
-			GROUP BY visitor_id
-			HAVING MAX(timestamp) >= $2
+			WHERE website_id = $1 AND timestamp >= $2
+		),
+		visitor_history AS (
+			SELECT 
+				pv.visitor_id,
+				EXISTS (
+					SELECT 1 FROM events e2 
+					WHERE e2.website_id = $1 
+					AND e2.visitor_id = pv.visitor_id 
+					AND e2.timestamp < $2
+					LIMIT 1
+				) as is_returning
+			FROM period_visitors pv
 		),
 		period_stats AS (
 			SELECT
-				COUNT(*) FILTER (WHERE first_visit >= $2) as new_visitors,
-				COUNT(*) FILTER (WHERE first_visit < $2) as returning_visitors
-			FROM visitor_agg
+				COUNT(*) FILTER (WHERE NOT is_returning) as new_visitors,
+				COUNT(*) FILTER (WHERE is_returning) as returning_visitors
+			FROM visitor_history
 		),
 		session_stats AS (
 			SELECT 
@@ -54,9 +61,8 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 					session_id,
 					CASE 
 						WHEN COUNT(*) > 1 THEN 
-							LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 1800)
-						ELSE 
-							COALESCE(MAX(time_on_page), 30)
+							LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 14400)
+						ELSE 30
 					END as session_duration
 				FROM events
 				WHERE website_id = $1 AND timestamp >= $2

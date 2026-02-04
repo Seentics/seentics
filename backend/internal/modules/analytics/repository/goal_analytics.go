@@ -24,10 +24,17 @@ func (ga *GoalAnalytics) GetGoalStats(ctx context.Context, websiteID string, day
 	// use a subquery if the DB is shared.
 
 	query := `
-		WITH website_goals AS (
-			SELECT name, type, identifier
-			FROM goals
-			WHERE website_id = $1
+		WITH target_site AS (
+			-- Resolve both UUID and site_id once to avoid type confusion
+			SELECT id as website_uuid, site_id
+			FROM websites
+			WHERE id::text = $1 OR site_id = $1
+			LIMIT 1
+		),
+		website_goals AS (
+			SELECT g.name, g.type, g.identifier, ts.site_id
+			FROM goals g
+			JOIN target_site ts ON g.website_id = ts.website_uuid
 		),
 		custom_metrics AS (
 			-- Count matches for Event goals
@@ -36,7 +43,7 @@ func (ga *GoalAnalytics) GetGoalStats(ctx context.Context, websiteID string, day
 				SUM(a.count) as count,
 				a.sample_properties
 			FROM website_goals g
-			JOIN custom_events_aggregated a ON a.website_id = $1 AND a.event_type = g.identifier
+			JOIN custom_events_aggregated a ON (a.website_id = g.site_id OR a.website_id = $1) AND a.event_type = g.identifier
 			WHERE g.type = 'event'
 			AND a.last_seen >= NOW() - INTERVAL '1 day' * $2
 			GROUP BY g.name, a.sample_properties
@@ -49,7 +56,7 @@ func (ga *GoalAnalytics) GetGoalStats(ctx context.Context, websiteID string, day
 				COUNT(*) as count,
 				jsonb_build_object('page', e.page) as sample_properties
 			FROM website_goals g
-			JOIN events e ON e.website_id = $1 AND e.page = g.identifier
+			JOIN events e ON (e.website_id = g.site_id OR e.website_id = $1) AND e.page = g.identifier
 			WHERE g.type = 'pageview'
 			AND e.event_type = 'pageview'
 			AND e.timestamp >= NOW() - INTERVAL '1 day' * $2

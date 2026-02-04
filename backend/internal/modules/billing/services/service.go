@@ -66,16 +66,18 @@ func (s *BillingService) GetUserSubscriptionData(ctx context.Context, userID str
 		if err != nil {
 			fmt.Printf("Error getting usage for %s: %v\n", resourceType, err)
 			shouldRecalibrate = true
-			break
 		}
-		// If monthly events is 0, we're suspicious and want to double check DB
-		if resourceType == models.ResourceMonthlyEvents && count == 0 {
+
+		// Monthly events are critical and easily unsynced; always check the source of truth
+		// when loading the billing page to ensure 100% accuracy for the user
+		if resourceType == models.ResourceMonthlyEvents {
 			shouldRecalibrate = true
 		}
+
 		usageMap[resourceType] = count
 	}
 
-	// If we're suspicious or Redis returns 0 for events, try recalibrating from actual tables
+	// If we're suspicious or for critical resources, recalibrate from actual tables
 	if shouldRecalibrate {
 		recalibrated, err := s.RecalibrateUsage(ctx, userID)
 		if err == nil {
