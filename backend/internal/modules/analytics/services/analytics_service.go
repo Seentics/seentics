@@ -188,23 +188,23 @@ func (s *AnalyticsService) GetTrafficSummary(ctx context.Context, websiteID stri
 	return s.repo.GetTrafficSummary(ctx, websiteID, days)
 }
 
-func (s *AnalyticsService) GetDailyStats(ctx context.Context, websiteID string, days int) ([]models.DailyStat, error) {
+func (s *AnalyticsService) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.DailyStat, error) {
 	websiteID = s.resolveWebsiteID(ctx, websiteID)
-	s.logger.Info().
-		Str("website_id", websiteID).
-		Int("days", days).
-		Msg("Getting daily statistics from database")
-
-	// Use the repository to get real data from database
-	result, err := s.repo.GetDailyStats(ctx, websiteID, days)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get daily stats from repository")
-		return nil, err
+	if days <= 0 {
+		days = 30
 	}
 
 	s.logger.Info().
-		Int("result_count", len(result)).
-		Msg("Successfully retrieved daily stats")
+		Str("website_id", websiteID).
+		Int("days", days).
+		Str("timezone", timezone).
+		Msg("Getting daily statistics")
+
+	result, err := s.repo.GetDailyStats(ctx, websiteID, days, timezone)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("Failed to get daily stats")
+		return nil, err
+	}
 
 	return result, nil
 }

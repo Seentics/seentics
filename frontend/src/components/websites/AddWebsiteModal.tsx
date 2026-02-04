@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { addWebsite } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { Loader2 } from 'lucide-react';
+import { TrackingCodeModal } from './tracking-code-modal';
 
 interface AddWebsiteModalProps {
   open: boolean;
@@ -20,6 +21,8 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
   const [name, setName] = useState('');
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [newWebsiteId, setNewWebsiteId] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -70,12 +73,13 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
       // Reset form
       setName('');
       setUrl('');
-      onOpenChange(false);
+      
+      // Instead of just closing, show the tracking code
+      const siteId = (website as any).siteId || website.id;
+      setNewWebsiteId(siteId);
+      setShowTrackingModal(true);
+      onOpenChange(false); // Close the current "Add Website" form modal
 
-      // Call success callback with website ID
-      if (onSuccess && website.id) {
-        onSuccess(website.id);
-      }
     } catch (error: any) {
       console.error('Error adding website:', error);
       toast({
@@ -88,16 +92,9 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
     }
   };
 
-  const handleClose = () => {
-    if (!isLoading) {
-      setName('');
-      setUrl('');
-      onOpenChange(false);
-    }
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add New Website</DialogTitle>
@@ -140,7 +137,7 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
             <Button
               type="button"
               variant="outline"
-              onClick={handleClose}
+              onClick={() => onOpenChange(false)}
               disabled={isLoading}
             >
               Cancel
@@ -153,5 +150,20 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
         </form>
       </DialogContent>
     </Dialog>
+
+    {newWebsiteId && (
+      <TrackingCodeModal
+        isOpen={showTrackingModal}
+        onOpenChange={(open) => {
+          setShowTrackingModal(open);
+          if (!open && onSuccess && newWebsiteId) {
+            onSuccess(newWebsiteId);
+          }
+        }}
+        siteId={newWebsiteId}
+        isNewlyCreated={true}
+      />
+    )}
+    </>
   );
 }

@@ -363,8 +363,10 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 		}
 	}
 
-	// Get real data from database via service
-	stats, err := h.service.GetDailyStats(c.Request.Context(), websiteID, days)
+	// Get timezone from query parameter, default to UTC
+	timezone := c.DefaultQuery("timezone", "UTC")
+
+	stats, err := h.service.GetDailyStats(c.Request.Context(), websiteID, days, timezone)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get daily stats")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get daily stats"})
@@ -375,6 +377,7 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 		"website_id":  websiteID,
 		"date_range":  fmt.Sprintf("%d days", days),
 		"daily_stats": stats,
+		"timezone":    timezone,
 	})
 }
 
@@ -636,22 +639,22 @@ func (h *AnalyticsHandler) ImportAnalytics(c *gin.Context) {
 
 	source := c.DefaultPostForm("source", "seentics")
 
-	file, err := c.FormFile("file")
+	fileHeader, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
 		return
 	}
 
-	fileContent, err := file.Open()
+	file, err := fileHeader.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open file"})
 		return
 	}
-	defer fileContent.Close()
+	defer file.Close()
 
 	// Read file content
-	data := make([]byte, file.Size)
-	_, err = fileContent.Read(data)
+	data := make([]byte, fileHeader.Size)
+	_, err = file.Read(data)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read file"})
 		return

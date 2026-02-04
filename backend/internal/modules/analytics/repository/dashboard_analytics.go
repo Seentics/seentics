@@ -89,7 +89,7 @@ func (da *DashboardAnalytics) GetDashboardMetrics(ctx context.Context, websiteID
 		)
 		SELECT 
 			COUNT(*) as page_views,
-			COUNT(DISTINCT e.session_id) as total_visitors,
+			COUNT(DISTINCT e.visitor_id) as total_visitors,
 			COUNT(DISTINCT e.visitor_id) as unique_visitors,
 			COUNT(DISTINCT e.session_id) as sessions,
 			COALESCE(
@@ -151,7 +151,7 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 		)
 		SELECT 
 			COUNT(*) as page_views,
-			COUNT(DISTINCT e.session_id) as total_visitors,
+			COUNT(DISTINCT e.visitor_id) as total_visitors,
 			COUNT(DISTINCT e.visitor_id) as unique_visitors,
 			COUNT(DISTINCT e.session_id) as sessions,
 			COALESCE(
@@ -188,7 +188,7 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 		)
 		SELECT 
 			COUNT(*) as page_views,
-			COUNT(DISTINCT e.session_id) as total_visitors,
+			COUNT(DISTINCT e.visitor_id) as total_visitors,
 			COUNT(DISTINCT e.visitor_id) as unique_visitors,
 			COUNT(DISTINCT e.session_id) as sessions,
 			COALESCE(

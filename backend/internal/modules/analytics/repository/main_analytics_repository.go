@@ -26,6 +26,7 @@ type MainAnalyticsRepository struct {
 	retention       *RetentionAnalytics
 	visitorInsights *VisitorInsightsAnalytics
 	activityTrends  *ActivityTrendsAnalytics
+	goals           *GoalAnalytics
 }
 
 // NewMainAnalyticsRepository creates a new main analytics repository
@@ -46,6 +47,7 @@ func NewMainAnalyticsRepository(db *pgxpool.Pool) *MainAnalyticsRepository {
 		retention:       NewRetentionAnalytics(db),
 		visitorInsights: NewVisitorInsightsAnalytics(db),
 		activityTrends:  NewActivityTrendsAnalytics(db),
+		goals:           NewGoalAnalytics(db),
 	}
 }
 
@@ -111,9 +113,9 @@ func (r *MainAnalyticsRepository) GetTrafficSummary(ctx context.Context, website
 }
 
 // Time Series Analytics Methods
-func (r *MainAnalyticsRepository) GetDailyStats(ctx context.Context, websiteID string, days int) ([]models.DailyStat, error) {
+func (r *MainAnalyticsRepository) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.DailyStat, error) {
 	fmt.Printf("DEBUG: MainAnalyticsRepository.GetDailyStats called\n")
-	result, err := r.timeSeries.GetDailyStats(ctx, websiteID, days)
+	result, err := r.timeSeries.GetDailyStats(ctx, websiteID, days, timezone)
 	fmt.Printf("DEBUG: MainAnalyticsRepository.GetDailyStats returning %d results, err: %v\n", len(result), err)
 	return result, err
 }
@@ -171,4 +173,8 @@ func (r *MainAnalyticsRepository) GetVisitorInsights(ctx context.Context, websit
 // Activity Trends Analytics Methods
 func (r *MainAnalyticsRepository) GetActivityTrends(ctx context.Context, websiteID string) (*models.ActivityTrendsResponse, error) {
 	return r.activityTrends.GetActivityTrends(ctx, websiteID)
+}
+
+func (r *MainAnalyticsRepository) GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.EventItem, error) {
+	return r.goals.GetGoalStats(ctx, websiteID, days)
 }

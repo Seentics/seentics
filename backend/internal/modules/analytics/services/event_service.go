@@ -27,6 +27,11 @@ const (
 	FlushInterval = 5 * time.Second // Increased from 2s to balance latency vs efficiency
 )
 
+type usageUpdate struct {
+	userID string
+	count  int
+}
+
 type EventService struct {
 	repo     *repository.EventRepository
 	db       *pgxpool.Pool
@@ -39,6 +44,7 @@ type EventService struct {
 
 	// Simple event channel for async processing (now fed from Kafka)
 	batchChan chan []models.Event
+	usageChan chan usageUpdate // Channel for async user usage increments
 
 	// Shutdown control
 	ctx        context.Context
@@ -61,6 +67,7 @@ func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSv
 		engine:    autoServicePkg.NewExecutionEngine(autoSvc, logger),
 		logger:    logger,
 		batchChan: make(chan []models.Event, 500),
+		usageChan: make(chan usageUpdate, 10000), // Large buffer for usage increments
 		ctx:       ctx,
 		cancel:    cancel,
 	}
@@ -68,8 +75,30 @@ func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSv
 	// Start Kafka consumer and internal batch processor
 	service.startKafkaConsumer()
 	service.startBatchProcessor()
+	service.startUsageProcessor()
 
 	return service
+}
+
+func (s *EventService) startUsageProcessor() {
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+		s.logger.Info().Msg("Starting Usage Increment Processor")
+		for {
+			select {
+			case update := <-s.usageChan:
+				err := s.billing.IncrementUsageRedis(context.Background(), update.userID, billingModels.ResourceMonthlyEvents, update.count)
+				if err != nil {
+					s.logger.Error().Err(err).Str("user_id", update.userID).Msg("Failed to increment usage")
+				}
+			case <-s.ctx.Done():
+				// Drain remaining updates with a timeout
+				s.logger.Info().Msg("Usage processor stopping, draining channel...")
+				return
+			}
+		}
+	}()
 }
 
 // ensurePartitionExists checks if a partition exists for the given date and creates it if needed
@@ -182,16 +211,13 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 		return nil, fmt.Errorf("failed to process event")
 	}
 
-	// Increment event count (async-ish if via billing service cache)
-	s.logger.Info().Str("user_id", website.UserID.String()).Msg("Incrementing usage for user")
-	go func() {
-		err := s.billing.IncrementUsageRedis(context.Background(), website.UserID.String(), billingModels.ResourceMonthlyEvents, 1)
-		if err != nil {
-			fmt.Printf("Error incrementing usage: %v\n", err)
-		} else {
-			fmt.Printf("Successfully incremented usage for %s\n", website.UserID.String())
-		}
-	}()
+	// Increment event count via buffered channel to avoid goroutine leaks
+	s.logger.Debug().Str("user_id", website.UserID.String()).Msg("Queueing usage increment")
+	select {
+	case s.usageChan <- usageUpdate{userID: website.UserID.String(), count: 1}:
+	default:
+		s.logger.Warn().Str("user_id", website.UserID.String()).Msg("Usage channel full, dropping increment")
+	}
 
 	return &models.EventResponse{
 		Status:    "accepted",
@@ -266,12 +292,11 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 
 	// Increment usage if we identified the user
 	if userID != "" && accepted > 0 {
-		go func() {
-			err := s.billing.IncrementUsageRedis(context.Background(), userID, billingModels.ResourceMonthlyEvents, accepted)
-			if err != nil {
-				s.logger.Error().Err(err).Msg("Failed to increment usage for batch")
-			}
-		}()
+		select {
+		case s.usageChan <- usageUpdate{userID: userID, count: accepted}:
+		default:
+			s.logger.Warn().Str("user_id", userID).Msg("Usage channel full, dropping batch increment")
+		}
 	}
 
 	return &models.BatchEventResponse{
@@ -287,14 +312,13 @@ func (s *EventService) startKafkaConsumer() {
 	go func() {
 		defer s.wg.Done()
 
-		ticker := time.NewTicker(FlushInterval)
-		defer ticker.Stop()
+		eventChan := make(chan models.Event, BatchSize*2)
+		kafkaCtx, kafkaCancel := context.WithCancel(s.ctx)
+		defer kafkaCancel()
 
-		batch := make([]models.Event, 0, BatchSize)
-
-		// Create a handler that appends to our local batch and triggers automations
-		handler := func(event models.Event) error {
-			// 1. Process for automations (async)
+		// Run Kafka consumer in a separate goroutine
+		go s.kafka.ConsumeEvents(kafkaCtx, func(event models.Event) error {
+			// Trigger automations (async)
 			eventData := map[string]interface{}{
 				"event_type": event.EventType,
 				"page":       event.Page,
@@ -305,21 +329,18 @@ func (s *EventService) startKafkaConsumer() {
 			}
 			go s.engine.ProcessEvent(s.ctx, event.WebsiteID, eventData)
 
-			// 2. Add to batch for DB writing
-			batch = append(batch, event)
-			if len(batch) >= BatchSize {
-				s.sendBatch(batch)
-				batch = make([]models.Event, 0, BatchSize)
-				ticker.Reset(FlushInterval)
+			select {
+			case eventChan <- event:
+				return nil
+			case <-kafkaCtx.Done():
+				return kafkaCtx.Err()
 			}
-			return nil
-		}
+		})
 
-		// Run Kafka consumer in a separate goroutine so we can still handle ticker
-		kafkaCtx, kafkaCancel := context.WithCancel(s.ctx)
-		defer kafkaCancel()
+		ticker := time.NewTicker(FlushInterval)
+		defer ticker.Stop()
 
-		go s.kafka.ConsumeEvents(kafkaCtx, handler)
+		batch := make([]models.Event, 0, BatchSize)
 
 		for {
 			select {
@@ -328,6 +349,13 @@ func (s *EventService) startKafkaConsumer() {
 					s.sendBatch(batch)
 				}
 				return
+			case event := <-eventChan:
+				batch = append(batch, event)
+				if len(batch) >= BatchSize {
+					s.sendBatch(batch)
+					batch = make([]models.Event, 0, BatchSize)
+					ticker.Reset(FlushInterval)
+				}
 			case <-ticker.C:
 				if len(batch) > 0 {
 					s.sendBatch(batch)

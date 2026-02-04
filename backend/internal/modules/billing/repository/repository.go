@@ -193,36 +193,18 @@ func (r *BillingRepository) CountUserResources(ctx context.Context, userID strin
 		counts[models.ResourceAutomations] = automationsCount
 	}
 
-	// Count monthly events (all time for now, or join with websites to filter by user)
-	// System events (pageviews, etc.)
-	var systemEventsCount int
-	systemQuery := `
-		SELECT COUNT(*) 
-		FROM events e 
-		JOIN websites w ON e.website_id = w.site_id 
-		WHERE w.user_id = $1 
-		AND e.created_at >= DATE_TRUNC('month', CURRENT_DATE)
+	// Count monthly events (aggregated from tracking table)
+	var monthlyEventsCount int
+	eventsQuery := `
+		SELECT COALESCE(SUM(current_count), 0)
+		FROM usage_tracking
+		WHERE user_id = $1 AND resource_type = $2
 	`
-	err = r.db.QueryRow(ctx, systemQuery, userID).Scan(&systemEventsCount)
+	err = r.db.QueryRow(ctx, eventsQuery, userID, models.ResourceMonthlyEvents).Scan(&monthlyEventsCount)
 	if err != nil {
-		systemEventsCount = 0
+		monthlyEventsCount = 0
 	}
-
-	// Custom events (aggregated)
-	var customEventsCount int
-	customQuery := `
-		SELECT COALESCE(SUM(count), 0) 
-		FROM custom_events_aggregated ce 
-		JOIN websites w ON ce.website_id = w.site_id 
-		WHERE w.user_id = $1 
-		AND ce.updated_at >= DATE_TRUNC('month', CURRENT_DATE)
-	`
-	err = r.db.QueryRow(ctx, customQuery, userID).Scan(&customEventsCount)
-	if err != nil {
-		customEventsCount = 0
-	}
-
-	counts[models.ResourceMonthlyEvents] = systemEventsCount + customEventsCount
+	counts[models.ResourceMonthlyEvents] = monthlyEventsCount
 
 	return counts, nil
 }

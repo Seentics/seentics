@@ -33,14 +33,22 @@ func Load() (*Config, error) {
 		LogLevel:              getEnvOrDefault("LOG_LEVEL", "info"),
 		KafkaBootstrapServers: getEnvOrDefault("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
 		KafkaTopicEvents:      getEnvOrDefault("KAFKA_TOPIC_EVENTS", "analytics_events"),
-		JWTSecret:             getEnvOrDefault("JWT_SECRET", "seentics-default-secret-change-me"),
+		JWTSecret:             getEnvOrDefault("JWT_SECRET", ""),
 		GlobalAPIKey:          getEnvOrDefault("GLOBAL_API_KEY", ""),
 		DbMaxConns:            GetEnvAsInt("DB_MAX_CONNS", 100),
 		DbMinConns:            GetEnvAsInt("DB_MIN_CONNS", 25),
 		CORSAllowedOrigins:    getEnvOrDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://www.seentics.com,https://seentics.com"),
 	}
 
-	// Validate required fields for production
+	// Validate required fields
+	if cfg.JWTSecret == "" {
+		return nil, errors.New("JWT_SECRET environment variable is required")
+	}
+
+	if cfg.Environment == "production" && len(cfg.JWTSecret) < 32 {
+		return nil, errors.New("JWT_SECRET must be at least 32 characters long in production")
+	}
+
 	if cfg.Environment == "production" {
 		if cfg.DatabaseURL == "" {
 			return nil, errors.New("DATABASE_URL is required in production")

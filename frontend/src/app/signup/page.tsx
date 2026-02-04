@@ -33,6 +33,7 @@ import api from '@/lib/api';
 import { useAuth } from '@/stores/useAuthStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TrackingCodeModal } from '@/components/websites/tracking-code-modal';
 
 function SignUpFlow() {
   const router = useRouter();
@@ -70,6 +71,8 @@ function SignUpFlow() {
   
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [newWebsiteId, setNewWebsiteId] = useState<string>('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const { toast } = useToast();
@@ -205,17 +208,20 @@ function SignUpFlow() {
     try {
         setIsLoading(true);
         const normalizedUrl = websiteData.siteUrl.startsWith('http') ? websiteData.siteUrl : `https://${websiteData.siteUrl}`;
-        await api.post('/user/websites', { 
+        const response = await api.post('/user/websites', { 
             name: websiteData.siteName.trim(), 
             url: normalizedUrl 
         });
+
+        const website = response.data.data;
+        
+        setNewWebsiteId(website.site_id || website.id);
+        setShowTrackingModal(true);
 
         toast({
             title: "Success!",
             description: "Your website has been added. Welcome to Seentics!",
         });
-
-        router.push('/websites');
     } catch (error: any) {
         setError(error.message || 'Failed to add website');
     } finally {
@@ -558,6 +564,18 @@ function SignUpFlow() {
                 )}
             </AnimatePresence>
         </div>
+
+        <TrackingCodeModal 
+            isOpen={showTrackingModal}
+            onOpenChange={(open) => {
+                setShowTrackingModal(open);
+                if (!open) {
+                    router.push('/websites');
+                }
+            }}
+            siteId={newWebsiteId}
+            isNewlyCreated={true}
+        />
     </div>
   );
 }

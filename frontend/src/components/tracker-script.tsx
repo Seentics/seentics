@@ -23,7 +23,7 @@ export default function TrackerScript() {
     return (
       <Script
         defer
-        data-website-id="5c05b1c8-195d-4bab-b318-064454258a27"
+        data-website-id="a3b6608e-ef7f-4283-b374-c7624f94fe3d"
         data-auto-load="analytics,automation,funnels"
         src="http://localhost:3000/trackers/seentics-core.js"
         strategy="afterInteractive"

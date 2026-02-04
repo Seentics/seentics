@@ -64,42 +64,38 @@ func (tp *TopPagesAnalytics) normalizePage(page string) string {
 // GetTopPages returns the top pages for a website with analytics
 func (tp *TopPagesAnalytics) GetTopPages(ctx context.Context, websiteID string, days int, limit int) ([]models.PageStat, error) {
 	query := `
-		WITH session_stats AS (
+		WITH event_ranked AS (
 			SELECT 
-				session_id,
-				COUNT(*) as page_count
-			FROM events
-			WHERE website_id = $1 
-			AND timestamp >= NOW() - INTERVAL '1 day' * $2
-			AND event_type = 'pageview'
-			GROUP BY session_id
+				e.page,
+				e.visitor_id,
+				e.session_id,
+				e.time_on_page,
+				ROW_NUMBER() OVER (PARTITION BY e.session_id ORDER BY e.timestamp ASC) as visit_order,
+				s.page_count
+			FROM events e
+			LEFT JOIN (
+				SELECT session_id, COUNT(*) as page_count
+				FROM events
+				WHERE website_id = $1 AND timestamp >= NOW() - INTERVAL '1 day' * $2 AND event_type = 'pageview'
+				GROUP BY session_id
+			) s ON e.session_id = s.session_id
+			WHERE e.website_id = $1 AND e.timestamp >= NOW() - INTERVAL '1 day' * $2 AND e.event_type = 'pageview'
 		)
 		SELECT 
-			e.page as page,
+			page,
 			COUNT(*) as views,
-			COUNT(DISTINCT e.visitor_id) as unique_visitors,
+			COUNT(DISTINCT visitor_id) as unique_visitors,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE s.page_count = 1) * 100.0) / 
-				NULLIF(COUNT(DISTINCT e.session_id), 0), 0
+				(COUNT(*) FILTER (WHERE page_count = 1) * 100.0) / 
+				NULLIF(COUNT(DISTINCT session_id), 0), 0
 			) as bounce_rate,
-			COALESCE(AVG(e.time_on_page), 0) as avg_time,
+			COALESCE(AVG(time_on_page), 0) as avg_time,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE e.page = (
-					SELECT e2.page 
-					FROM events e2 
-					WHERE e2.session_id = e.session_id 
-					AND e2.event_type = 'pageview' 
-					ORDER BY e2.timestamp ASC 
-					LIMIT 1
-				)) * 100.0) / NULLIF(COUNT(DISTINCT e.session_id), 0), 0
+				(COUNT(*) FILTER (WHERE visit_order = 1) * 100.0) / 
+				NULLIF(COUNT(DISTINCT session_id), 0), 0
 			) as entry_rate
-		FROM events e
-		LEFT JOIN session_stats s ON e.session_id = s.session_id
-		WHERE e.website_id = $1 
-		AND e.timestamp >= NOW() - INTERVAL '1 day' * $2
-		AND e.event_type = 'pageview'
-		AND e.page IS NOT NULL
-		GROUP BY e.page
+		FROM event_ranked
+		GROUP BY page
 		ORDER BY views DESC
 		LIMIT $3`
 

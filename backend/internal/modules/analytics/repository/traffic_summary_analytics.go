@@ -36,11 +36,11 @@ func (ts *TrafficSummaryAnalytics) GetTrafficSummary(ctx context.Context, websit
 		)
 		SELECT 
 			COUNT(*) as total_page_views,
-			COUNT(DISTINCT e.session_id) as total_visitors,
+			COUNT(DISTINCT e.visitor_id) as total_visitors,
 			COUNT(DISTINCT e.visitor_id) as unique_visitors,
 			COUNT(DISTINCT e.session_id) as total_sessions,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE s.page_count = 1) * 100.0) / 
+				(COUNT(DISTINCT CASE WHEN s.page_count = 1 THEN e.session_id END) * 100.0) / 
 				NULLIF(COUNT(DISTINCT e.session_id), 0), 0
 			) as bounce_rate,
 			COALESCE(
@@ -50,8 +50,32 @@ func (ts *TrafficSummaryAnalytics) GetTrafficSummary(ctx context.Context, websit
 			0.0 as growth_rate,
 			0.0 as visitors_growth_rate,
 			0.0 as sessions_growth_rate,
-			0 as new_visitors,
-			0 as returning_visitors,
+			(
+				SELECT COUNT(DISTINCT ev.visitor_id)
+				FROM events ev
+				WHERE ev.website_id = $1 
+				AND ev.timestamp >= NOW() - INTERVAL '1 day' * $2
+				AND ev.event_type = 'pageview'
+				AND NOT EXISTS (
+					SELECT 1 FROM events ev2 
+					WHERE ev2.website_id = $1 
+					AND ev2.visitor_id = ev.visitor_id 
+					AND ev2.timestamp < NOW() - INTERVAL '1 day' * $2
+				)
+			) as new_visitors,
+			(
+				SELECT COUNT(DISTINCT ev.visitor_id)
+				FROM events ev
+				WHERE ev.website_id = $1 
+				AND ev.timestamp >= NOW() - INTERVAL '1 day' * $2
+				AND ev.event_type = 'pageview'
+				AND EXISTS (
+					SELECT 1 FROM events ev2 
+					WHERE ev2.website_id = $1 
+					AND ev2.visitor_id = ev.visitor_id 
+					AND ev2.timestamp < NOW() - INTERVAL '1 day' * $2
+				)
+			) as returning_visitors,
 			50.0 as engagement_score,
 			25.0 as retention_rate
 		FROM events e

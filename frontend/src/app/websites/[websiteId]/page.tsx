@@ -46,6 +46,7 @@ import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
 import { EventsDetails } from '@/components/analytics/EventsDetails';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
+import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
 import { LandingExitAnalysis } from '@/components/analytics/LandingExitAnalysis';
 import { FunnelInsightsCard } from '@/components/analytics/FunnelInsightsCard';
 import { DataImportExportModal } from '@/components/analytics/DataImportExportModal';
@@ -64,6 +65,7 @@ export default function WebsiteDashboardPage() {
   const [selectedModal, setSelectedModal] = useState<string | null>(null);
   const [modalType, setModalType] = useState<string>('');
   const [showAddWebsiteModal, setShowAddWebsiteModal] = useState(false);
+  const [showAddGoalModal, setShowAddGoalModal] = useState(false);
 
 
     // Filter state
@@ -156,11 +158,7 @@ export default function WebsiteDashboardPage() {
   const { data: topBrowsers, isLoading: browsersLoading, error: browsersError } = useTopBrowsers(websiteId, dateRange);
   const { data: topDevices, isLoading: devicesLoading, error: devicesError } = useTopDevices(websiteId, dateRange);
   const { data: topOS, isLoading: osLoading, error: osError } = useTopOS(websiteId, dateRange);
-  const { data: dailyStats, isLoading: dailyLoading, error: dailyError } = useDailyStats(websiteId, dateRange);
-
-  // Note: trafficSummaryChart removed - use dailyStats for chart data instead
-  const trafficSummaryChart = isDemoMode ? demoData?.dailyStats : dailyStats;
-  const trafficChartLoading = isDemoMode ? false : dailyLoading;
+  const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange);
 
   const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(websiteId, dateRange);
   const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, dateRange);
@@ -524,9 +522,9 @@ export default function WebsiteDashboardPage() {
         {/* Traffic Overview */}
         <section className="">
           <TrafficOverview
-            dailyStats={trafficSummaryChart || finalDailyStats}
+            dailyStats={finalDailyStats}
             hourlyStats={finalHourlyStats}
-            isLoading={!isDemoMode && (dashboardLoading || dailyLoading || trafficChartLoading)}
+            isLoading={!isDemoMode && (dashboardLoading || dailyLoading)}
           />
         </section>
 
@@ -577,9 +575,15 @@ export default function WebsiteDashboardPage() {
                   <CardTitle className="text-lg font-bold tracking-tight">Goal Conversions</CardTitle>
                   <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Behavioral Targets</p>
                 </div>
-                <div className="w-10 h-10 rounded bg-purple-500/10 flex items-center justify-center">
-                  <Target className="h-5 w-5 text-purple-500" />
-                </div>
+                <Button 
+                  onClick={() => setShowAddGoalModal(true)}
+                  variant="outline" 
+                  size="sm" 
+                  className="h-9 px-4 font-bold rounded gap-2 shadow-sm transition-transform active:scale-95"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Add Goal
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="p-8 pt-4 flex-1">
@@ -675,6 +679,12 @@ export default function WebsiteDashboardPage() {
         open={showAddWebsiteModal}
         onOpenChange={setShowAddWebsiteModal}
         onSuccess={handleWebsiteAdded}
+      />
+
+      <AddGoalModal 
+        open={showAddGoalModal}
+        onOpenChange={setShowAddGoalModal}
+        websiteId={websiteId}
       />
     </div>
   );

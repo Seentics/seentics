@@ -236,21 +236,29 @@ func (s *BillingService) StartPeriodicSync(interval time.Duration) {
 		for range ticker.C {
 			ctx := context.Background()
 
-			// Get all unique user IDs from Redis usage keys
+			// Get all unique user IDs using SCAN to avoid blocking Redis
 			pattern := "usage:*:websites"
-			keys, err := s.redis.Keys(ctx, pattern).Result()
-			if err != nil {
-				fmt.Printf("Error getting Redis keys for periodic sync: %v\n", err)
-				continue
-			}
-
-			// Extract user IDs and sync each
 			userIDs := make(map[string]bool)
-			for _, key := range keys {
-				// Key format: usage:{userID}:websites
-				parts := splitKey(key)
-				if len(parts) >= 2 {
-					userIDs[parts[1]] = true
+			cursor := uint64(0)
+
+			for {
+				keys, nextCursor, err := s.redis.Scan(ctx, cursor, pattern, 100).Result()
+				if err != nil {
+					fmt.Printf("Error scanning Redis keys for periodic sync: %v\n", err)
+					break
+				}
+
+				for _, key := range keys {
+					// Key format: usage:{userID}:websites
+					parts := splitKey(key)
+					if len(parts) >= 2 {
+						userIDs[parts[1]] = true
+					}
+				}
+
+				cursor = nextCursor
+				if cursor == 0 {
+					break
 				}
 			}
 
@@ -469,13 +477,14 @@ func (s *BillingService) HandleLemonSqueezyWebhook(ctx context.Context, body []b
 // VerifyLemonSqueezySignature verifies the HMAC signature from Lemon Squeezy
 func (s *BillingService) VerifyLemonSqueezySignature(body []byte, signature string) bool {
 	if signature == "SKIP_VERIFICATION" {
-		return true
+		// Only allow skip in non-production
+		return os.Getenv("ENVIRONMENT") != "production"
 	}
 
 	secret := os.Getenv("LEMON_SQUEEZY_WEBHOOK_SECRET")
 	if secret == "" {
-		fmt.Println("Warning: LEMON_SQUEEZY_WEBHOOK_SECRET not set")
-		return true // Allow for now during dev
+		fmt.Println("CRITICAL: LEMON_SQUEEZY_WEBHOOK_SECRET not set. Webhook rejected.")
+		return false
 	}
 
 	h := hmac.New(sha256.New, []byte(secret))

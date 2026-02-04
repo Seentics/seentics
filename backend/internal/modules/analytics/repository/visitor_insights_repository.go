@@ -30,26 +30,21 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 	// Here we use a query that acts on the events table directly.
 
 	query := `
-		WITH visitor_status AS (
+		WITH visitor_agg AS (
 			SELECT 
 				visitor_id,
-				MIN(timestamp) as first_visit
+				MIN(timestamp) as first_visit,
+				MAX(timestamp) as last_visit
 			FROM events
 			WHERE website_id = $1
 			GROUP BY visitor_id
+			HAVING MAX(timestamp) >= $2
 		),
 		period_stats AS (
 			SELECT
-				SUM(CASE WHEN first_visit >= $2 THEN 1 ELSE 0 END) as new_visitors,
-				SUM(CASE WHEN first_visit < $2 AND visitor_id IN (
-					SELECT DISTINCT visitor_id FROM events 
-					WHERE website_id = $1 AND timestamp >= $2
-				) THEN 1 ELSE 0 END) as returning_visitors
-			FROM visitor_status
-			WHERE visitor_id IN (
-				SELECT DISTINCT visitor_id FROM events 
-				WHERE website_id = $1 AND timestamp >= $2
-			)
+				COUNT(*) FILTER (WHERE first_visit >= $2) as new_visitors,
+				COUNT(*) FILTER (WHERE first_visit < $2) as returning_visitors
+			FROM visitor_agg
 		),
 		session_stats AS (
 			SELECT 

@@ -206,6 +206,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 	}
 
 	router := gin.New()
+	router.Use(middleware.RequestSizeLimitMiddleware(2 * 1024 * 1024)) // 2MB limit
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	router.Use(middleware.ClientIPMiddleware())
 	router.Use(middleware.Logger(logger))

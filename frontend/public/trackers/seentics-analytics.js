@@ -101,10 +101,59 @@
 
     // Track clicks
     d.addEventListener('click', (e) => {
-      const target = e.target;
-      if (target.tagName === 'A' || target.tagName === 'BUTTON') {
+      const target = e.target.closest('a, button');
+      if (target) {
         trackClick(target);
       }
+    }, true);
+
+    // Track form submissions
+    d.addEventListener('submit', (e) => {
+      const form = e.target;
+      const formData = {};
+      const inputs = form.querySelectorAll('input, select, textarea');
+      
+      inputs.forEach(input => {
+        // Skip sensitive fields like passwords
+        if (input.type === 'password' || input.name.toLowerCase().includes('password')) return;
+        
+        const name = input.name || input.id || input.tagName.toLowerCase();
+        if (input.type === 'checkbox' || input.type === 'radio') {
+          if (input.checked) formData[name] = input.value;
+        } else {
+          formData[name] = input.value;
+        }
+      });
+
+      trackEvent('form_submission', {
+        form_id: form.id || null,
+        form_action: form.action || null,
+        form_name: form.name || null,
+        form_data: formData
+      });
+    }, true);
+
+    // Track video interactions (HTML5 Video)
+    d.querySelectorAll('video').forEach(video => {
+      video.addEventListener('play', () => {
+        trackEvent('video_play', {
+          video_src: video.currentSrc,
+          video_time: Math.round(video.currentTime)
+        });
+      });
+
+      video.addEventListener('pause', () => {
+        trackEvent('video_pause', {
+          video_src: video.currentSrc,
+          video_time: Math.round(video.currentTime)
+        });
+      });
+
+      video.addEventListener('ended', () => {
+        trackEvent('video_complete', {
+          video_src: video.currentSrc
+        });
+      });
     });
 
     // Track scroll

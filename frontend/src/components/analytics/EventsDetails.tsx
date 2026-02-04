@@ -100,13 +100,14 @@ export function EventsDetails({ items }: EventsDetailsProps) {
 
 	const eventMeta = (type: string) => {
 		const t = type.toLowerCase();
-		if (t.includes('form_submit')) return { label: 'Form Submit', icon: FormInput, color: '#3B82F6' };
+		if (t.includes('form_submit') || t.includes('form_submission')) return { label: 'Form Submission', icon: FormInput, color: '#3B82F6' };
+		if (t.includes('click')) return { label: 'Button Click', icon: MousePointerClick, color: '#10B981' };
 		if (t.includes('external_link')) return { label: 'External Link', icon: ExternalLink, color: '#06B6D4' };
 		if (t.includes('file_download')) return { label: 'File Download', icon: FileDown, color: '#F59E0B' };
 		if (t.includes('search')) return { label: 'Search', icon: Search, color: '#10B981' };
-		if (t.includes('video')) return { label: 'Video', icon: PlayCircle, color: '#D946EF' };
-		if (t.includes('conversion')) return { label: 'Conversion', icon: MousePointerClick, color: '#8B5CF6' };
-		return { label: type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), icon: Target, color: '#64748B' };
+		if (t.includes('video')) return { label: 'Video Activity', icon: PlayCircle, color: '#D946EF' };
+		if (t.includes('conversion')) return { label: 'Goal Conversion', icon: Target, color: '#8B5CF6' };
+		return { label: type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), icon: Activity, color: '#64748B' };
 	};
 
 	return (
