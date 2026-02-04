@@ -24,7 +24,8 @@ import {
     Activity,
     CheckCircle2,
     XCircle,
-    Clock
+    Clock,
+    LayoutGrid
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -149,12 +150,20 @@ export default function AutomationsPage() {
                 title="Automations"
                 description="Scale your growth with intelligent behavioral triggers."
             >
-                <Link href={`/websites/${websiteId}/automations/builder`}>
-                    <Button variant="brand" className="h-12 px-6 font-black rounded gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">
-                        <Plus className="h-5 w-5" />
-                        Create Automation
-                    </Button>
-                </Link>
+                <div className="flex items-center gap-3">
+                    <Link href={`/websites/${websiteId}/automations/templates`}>
+                        <Button variant="outline" className="h-12 px-6 font-black rounded gap-2 border-2 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">
+                            <LayoutGrid className="h-5 w-5" />
+                            Templates
+                        </Button>
+                    </Link>
+                    <Link href={`/websites/${websiteId}/automations/builder`}>
+                        <Button variant="brand" className="h-12 px-6 font-black rounded gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">
+                            <Plus className="h-5 w-5" />
+                            Create Automation
+                        </Button>
+                    </Link>
+                </div>
             </DashboardPageHeader>
 
             {/* Stats Grid */}
@@ -366,21 +375,7 @@ export default function AutomationsPage() {
                 </CardContent>
             </Card>
 
-            {/* Support Message */}
-            <div className="flex flex-col sm:flex-row items-center justify-between p-8 rounded-[2.5rem] bg-primary text-primary-foreground gap-6">
-                <div className="flex items-center gap-6 text-center sm:text-left">
-                    <div className="hidden sm:flex w-16 h-16 rounded bg-primary-foreground/10 items-center justify-center flex-shrink-0">
-                        <Zap className="h-8 w-8 text-primary-foreground" />
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-black">Need more integrations?</h3>
-                        <p className="text-primary-foreground/80 font-medium mt-1">We're constantly adding new triggers and actions. Tell us what you need.</p>
-                    </div>
-                </div>
-                <Button variant="secondary" className="h-12 px-8 rounded font-black flex-shrink-0">
-                    Request Feature
-                </Button>
-            </div>
+            
         </div>
     );
 }

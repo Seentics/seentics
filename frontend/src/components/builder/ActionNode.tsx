@@ -21,25 +21,33 @@ const getActionIcon = (actionType: string) => {
     webhook: Globe,
     modal: Bell,
     banner: BarChart3,
+    notification: Bell,
+    redirect: Globe,
     crm: Database,
     javascript: Code2,
     analytics: Zap,
+    wait: Clock,
+    delay: Clock,
   };
   return icons[actionType] || Send;
 };
 
 const getActionColor = (actionType: string) => {
   const colors: Record<string, string> = {
-    email: 'bg-blue-500/10 text-blue-600',
-    slack: 'bg-purple-500/10 text-purple-600',
-    webhook: 'bg-cyan-500/10 text-cyan-600',
-    modal: 'bg-pink-500/10 text-pink-600',
-    banner: 'bg-rose-500/10 text-rose-600',
+    email: 'bg-blue-500/10 text-blue-500',
+    slack: 'bg-purple-500/10 text-purple-500',
+    webhook: 'bg-cyan-500/10 text-cyan-500',
+    modal: 'bg-pink-500/10 text-pink-500',
+    banner: 'bg-rose-500/10 text-rose-500',
+    notification: 'bg-orange-500/10 text-orange-500',
+    redirect: 'bg-blue-500/10 text-blue-500',
     crm: 'bg-indigo-500/10 text-indigo-600',
-    javascript: 'bg-yellow-500/10 text-yellow-600',
-    analytics: 'bg-green-500/10 text-green-600',
+    javascript: 'bg-yellow-500/10 text-yellow-500',
+    analytics: 'bg-green-500/10 text-green-500',
+    wait: 'bg-amber-500/10 text-amber-500',
+    delay: 'bg-amber-500/10 text-amber-500',
   };
-  return colors[actionType] || 'bg-blue-500/10 text-blue-600';
+  return colors[actionType] || 'bg-blue-500/10 text-blue-500';
 };
 
 export const ActionNode = memo(({ data, selected, isConnectable }: NodeProps) => {
@@ -49,29 +57,29 @@ export const ActionNode = memo(({ data, selected, isConnectable }: NodeProps) =>
 
   return (
     <div
-      className={`p-3 rounded border w-[220px] transition-all ${
+      className={`p-3.5 rounded-xl border transition-all w-[240px] shadow-2xl ${
         selected
-          ? 'bg-slate-800 border-primary ring-2 ring-primary/20 scale-105 z-50 shadow-xl shadow-primary/10'
-          : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-700/50'
+          ? 'bg-slate-900 border-primary ring-4 ring-primary/20 scale-105 z-50 shadow-primary/20'
+          : 'bg-slate-900/80 backdrop-blur-md border-slate-800 hover:border-slate-700'
       }`}
     >
       <Handle
         type="target"
         position={Position.Top}
         isConnectable={isConnectable}
-        className="!w-2 !h-2 !bg-primary !border-slate-900 !border-2"
-        style={{ top: -4 }}
+        className="!w-3 !h-3 !bg-primary !border-[#020617] !border-[3px] !shadow-lg"
+        style={{ top: -6 }}
       />
 
       <div className="flex items-center gap-3">
-        <div className={`h-9 w-9 rounded flex items-center justify-center flex-shrink-0 shadow-sm ${colorClass}`}>
-          <Icon size={18} />
+        <div className={`h-10 w-10 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0 shadow-inner`}>
+          <Icon size={20} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 leading-none mb-1.5">
             Action
           </p>
-          <h4 className="text-xs font-black text-slate-200 truncate leading-tight">
+          <h4 className="text-[13px] font-extrabold text-white truncate leading-none">
             {data.label}
           </h4>
         </div>
@@ -81,8 +89,8 @@ export const ActionNode = memo(({ data, selected, isConnectable }: NodeProps) =>
         type="source"
         position={Position.Bottom}
         isConnectable={isConnectable}
-        className="!w-2 !h-2 !bg-primary !border-slate-900 !border-2"
-        style={{ bottom: -4 }}
+        className="!w-3 !h-3 !bg-primary !border-[#020617] !border-[3px] !shadow-lg"
+        style={{ bottom: -6 }}
       />
     </div>
   );

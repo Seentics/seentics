@@ -33,7 +33,7 @@ export default function SettingsPage() {
 
             <Tabs defaultValue="profile" className="w-full space-y-8">
                 <div className="border-b border-border/40 pb-px">
-                    <TabsList className="h-auto dark:bg-gray-800/50 p-2 gap-6 w-full justify-start overflow-x-auto custom-scrollbar no-scrollbar flex-nowrap">
+                    <TabsList className="h-auto dark:bg-gray-800/50 p-2 gap-6 w-full justify-start overflow-x-auto custom-scrollbar no-scrollbar flex-nowrap rounded-md">
                         {tabs.map((tab) => (
                             <TabsTrigger
                                 key={tab.id}
@@ -49,7 +49,7 @@ export default function SettingsPage() {
 
                 {tabs.map((tab) => (
                     <TabsContent key={tab.id} value={tab.id} className="mt-0 outline-none">
-                        <div className="p-4 dark:bg-gray-800/50">
+                        <div className="">
                             {/* @ts-ignore */}
                             <tab.component websiteId={websiteId} />
                         </div>

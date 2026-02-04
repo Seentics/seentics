@@ -66,7 +66,20 @@ export default function RootLayout({
         {/* Initialize authentication state */}
         <AuthInitializer />
 
-        {/* Load the Seentics tracker script */}
+        {/* Seentics Analytics */}
+        <Script 
+          async 
+          src="http://localhost:3000/trackers/seentics-core.js" 
+          data-website-id="a6e093753d63695749a942e8"
+          data-auto-load="analytics,automation,funnels"
+        />
+        <Script 
+          async 
+          src="http://localhost:3000/trackers/seentics-automation.js" 
+          data-website-id="a6e093753d63695749a942e8"
+        />
+
+        {/* Tracking Code Components */}
         <TrackerScript />
 
         {/* Cookie Consent Manager */}

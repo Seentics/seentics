@@ -242,6 +242,11 @@
     })
   };
 
+  // State flags
+  const flags = {
+    isReady: false
+  };
+
   // Initialize core
   const init = (options = {}) => {
     Object.assign(config, options);
@@ -272,6 +277,7 @@
       d.addEventListener(event, utils.debounce(session.updateActivity, 1000));
     });
 
+    flags.isReady = true;
     eventEmitter.emit('core:ready', { config, state });
   };
 
@@ -288,7 +294,8 @@
     page,
     on: eventEmitter.on,
     emit: eventEmitter.emit,
-    off: eventEmitter.off
+    off: eventEmitter.off,
+    isReady: () => flags.isReady
   };
 
   // Auto-init if data-website-id is present

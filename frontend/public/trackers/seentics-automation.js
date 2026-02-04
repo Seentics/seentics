@@ -17,7 +17,8 @@
   const automation = {
     activeAutomations: [],
     executedAutomations: new Set(),
-    sessionExecutions: new Set()
+    sessionExecutions: new Set(),
+    initialized: false
   };
 
   // Fetch active automations
@@ -33,28 +34,72 @@
     }
   };
 
-  // Check if automation should execute based on frequency
-  const shouldExecute = (auto) => {
+  // Check if automation should execute based on frequency and conditions
+  const shouldExecute = (auto, triggerData = {}) => {
     const key = auto.id;
-    // Handle both camelCase and snake_case
     const triggerConfig = auto.triggerConfig || auto.trigger_config || {};
+    const conditions = auto.conditions || [];
     const frequency = triggerConfig.frequency || 'every';
 
+    // 1. Check Frequency
+    let frequencyPassed = true;
     switch (frequency) {
       case 'once':
       case 'once_per_visitor':
-        return !automation.executedAutomations.has(key);
+        frequencyPassed = !automation.executedAutomations.has(key);
+        break;
       case 'once_per_session':
-        return !automation.sessionExecutions.has(key);
+        frequencyPassed = !automation.sessionExecutions.has(key);
+        break;
       case 'once_per_day':
         const lastExec = localStorage.getItem(`seentics_auto_${key}`);
-        if (!lastExec) return true;
-        const dayAgo = Date.now() - 86400000;
-        return parseInt(lastExec) < dayAgo;
-      case 'every':
-      case 'always':
-      default:
-        return true;
+        if (lastExec) {
+          const dayAgo = Date.now() - 86400000;
+          frequencyPassed = parseInt(lastExec) < dayAgo;
+        }
+        break;
+    }
+
+    if (!frequencyPassed) return false;
+
+    // 2. Check Advanced Conditions (Device, Language, Scroll, etc.)
+    for (const condition of conditions) {
+      const { type, operator, value } = condition;
+      let actualValue;
+
+      switch (type) {
+        case 'device':
+          actualValue = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+          break;
+        case 'visitor':
+          actualValue = S.state.sessionStart === S.state.lastActivity ? 'new' : 'returning';
+          break;
+        case 'language':
+          actualValue = navigator.language.substring(0, 2).toLowerCase();
+          break;
+        case 'url_param':
+          const urlParams = new URLSearchParams(window.location.search);
+          actualValue = urlParams.get(condition.param);
+          break;
+        case 'referrer':
+          actualValue = d.referrer;
+          break;
+      }
+
+      if (!evaluateCondition(actualValue, operator, value)) return false;
+    }
+
+    return true;
+  };
+
+  const evaluateCondition = (actual, operator, expected) => {
+    switch (operator) {
+      case 'eq': return actual == expected;
+      case 'neq': return actual != expected;
+      case 'contains': return String(actual).includes(expected);
+      case 'gt': return Number(actual) > Number(expected);
+      case 'lt': return Number(actual) < Number(expected);
+      default: return true;
     }
   };
 
@@ -68,8 +113,7 @@
 
     if (frequency === 'once' || frequency === 'once_per_visitor') {
       automation.executedAutomations.add(key);
-      const stored = JSON.parse(localStorage.getItem('seentics_executed_autos') || '[]');
-      stored.push(key);
+      const stored = Array.from(automation.executedAutomations);
       localStorage.setItem('seentics_executed_autos', JSON.stringify(stored));
     }
 
@@ -80,17 +124,16 @@
 
   // Execute automation actions
   const executeActions = async (auto, triggerData = {}) => {
-    for (const action of auto.actions || []) {
+    const actions = auto.actions || [];
+    for (const action of actions) {
       try {
         await executeAction(action, triggerData);
       } catch (error) {
-        if (S.config.debug) {
-          console.error('[Seentics Automation] Action execution failed:', error);
-        }
+        if (S.config.debug) console.error('[Seentics Automation] Action failed:', error);
       }
     }
 
-    // Track execution
+    // Track execution server-side
     S.api.send('automations/track', {
       automation_id: auto.id,
       website_id: S.config.websiteId,
@@ -103,33 +146,93 @@
 
   // Execute single action
   const executeAction = async (action, data) => {
-    // Handle both camelCase and snake_case
     const config = action.actionConfig || action.action_config || {};
-    const actionType = action.actionType || action.action_type;
+    const actionType = (action.actionType || action.action_type || '').toLowerCase();
 
     switch (actionType) {
-      case 'modal':
-        showModal(config);
-        break;
-      case 'banner':
-        showBanner(config);
-        break;
-      case 'notification':
-        showNotification(config);
-        break;
-      case 'script':
-        injectScript(config);
+      case 'modal': showModal(config); break;
+      case 'banner': showBanner(config); break;
+      case 'notification': showNotification(config); break;
+      case 'script': injectScript(config); break;
+      case 'redirect': if (config.url) window.location.href = config.url; break;
+      case 'hide_element':
+        if (config.selector) {
+          const el = d.querySelector(config.selector);
+          if (el) el.style.display = 'none';
+        }
         break;
       case 'webhook':
-        // Webhooks are handled server-side
-        break;
       case 'email':
-        // Emails are handled server-side
+        // These are primarily logged or handled by the backend
         break;
     }
 
     S.emit('automation:action', { type: actionType, config });
   };
+
+  // Trigger evaluation engine
+  const evaluateTriggers = (eventType, eventData = {}) => {
+    automation.activeAutomations.forEach(auto => {
+      const triggerType = (auto.triggerType || auto.trigger_type || '').toLowerCase();
+      const triggerConfig = auto.triggerConfig || auto.trigger_config || {};
+      
+      let isTriggerMatch = false;
+
+      // Handle custom triggers
+      if (triggerType === 'time_on_page' && eventType === 'timer') {
+         isTriggerMatch = eventData.seconds >= (triggerConfig.seconds || 10);
+      } else if (triggerType === 'scroll_depth' && eventType === 'scroll') {
+         isTriggerMatch = eventData.depth >= (triggerConfig.depth || 50);
+      } else if (triggerType === eventType.toLowerCase().replace('_', '')) {
+         isTriggerMatch = true;
+      }
+
+      if (isTriggerMatch) {
+        // Page path matching
+        if (triggerConfig.page && triggerConfig.page !== '*') {
+          if (window.location.pathname !== triggerConfig.page) return;
+        }
+        
+        if (shouldExecute(auto, eventData)) {
+          if (S.config.debug) console.log('[Seentics Automation] Triggering:', auto.name || auto.id);
+          executeActions(auto, eventData);
+          markExecuted(auto);
+        }
+      }
+    });
+  };
+
+  // Listener Setup
+  const setupAutomationListeners = () => {
+    S.on('analytics:pageview', (data) => evaluateTriggers('pageview', data));
+    S.on('analytics:event', (data) => evaluateTriggers('event', data));
+    
+    // Exit intent
+    d.addEventListener('mouseout', (e) => {
+      if (e.clientY < 0) evaluateTriggers('page_exit', { reason: 'exit_intent' });
+    });
+
+    // Timer trigger
+    let elapsed = 0;
+    const timer = setInterval(() => {
+      elapsed++;
+      evaluateTriggers('timer', { seconds: elapsed });
+      if (elapsed > 3600) clearInterval(timer);
+    }, 1000);
+
+    // Scroll trigger
+    let maxScroll = 0;
+    w.addEventListener('scroll', S.utils.debounce(() => {
+      const scrollHeight = d.documentElement.scrollHeight - w.innerHeight;
+      if (scrollHeight <= 0) return;
+      const depth = Math.round((w.scrollY / scrollHeight) * 100);
+      if (depth > maxScroll) {
+        maxScroll = depth;
+        evaluateTriggers('scroll', { depth: maxScroll });
+      }
+    }, 500));
+  };
+
 
   // UI Actions
   const showModal = (config) => {
@@ -288,61 +391,26 @@
     (config.position === 'head' ? d.head : d.body).appendChild(script);
   };
 
-  // Trigger evaluation
-  const evaluateTriggers = (eventType, eventData = {}) => {
-    automation.activeAutomations.forEach(auto => {
-      // Handle both camelCase and snake_case
-      const triggerType = (auto.triggerType || auto.trigger_type || '').toLowerCase();
-      const triggerConfig = auto.triggerConfig || auto.trigger_config || {};
-      const normalizedEventType = eventType.toLowerCase().replace('_', '');
-      
-      // Match trigger type (normalize both to handle pageView vs pageview)
-      if (triggerType === normalizedEventType || triggerType === eventType) {
-        // For page view triggers, check if page matches
-        if (triggerType === 'pageview' && triggerConfig.page) {
-          const currentPage = window.location.pathname;
-          const targetPage = triggerConfig.page;
-          
-          // Skip if page doesn't match
-          if (targetPage !== currentPage && targetPage !== '*') {
-            return;
-          }
-        }
-        
-        if (shouldExecute(auto)) {
-          if (S.config.debug) {
-            console.log('[Seentics Automation] Executing automation:', auto.name || auto.id);
-          }
-          executeActions(auto, eventData);
-          markExecuted(auto);
-        }
-      }
-    });
-  };
-
-  // Setup automation listeners
-  const setupAutomationListeners = () => {
-    // Listen to analytics events
-    S.on('analytics:pageview', (data) => evaluateTriggers('pageview', data));
-    S.on('analytics:event', (data) => evaluateTriggers('event', data));
-    
-    // Exit intent
-    d.addEventListener('mouseout', (e) => {
-      if (e.clientY < 0) {
-        evaluateTriggers('page_exit', { reason: 'exit_intent' });
-      }
-    });
-  };
-
   // Initialize
-  S.on('core:ready', async () => {
+  const init = async () => {
+    // Prevent double init
+    if (automation.initialized) return;
+    automation.initialized = true;
+
     await loadAutomations();
     setupAutomationListeners();
 
     // Load previously executed automations
     const stored = JSON.parse(localStorage.getItem('seentics_executed_autos') || '[]');
     stored.forEach(id => automation.executedAutomations.add(id));
-  });
+  };
+
+  // Listen for core ready or init if already ready
+  if (S.isReady && S.isReady()) {
+    init();
+  } else {
+    S.on('core:ready', init);
+  }
 
   // Public API
   w.seentics = w.seentics || {};

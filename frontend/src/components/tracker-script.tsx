@@ -21,13 +21,21 @@ export default function TrackerScript() {
 
   if (isLocalhost) {
     return (
-      <Script
-        defer
-        data-website-id="a3b6608e-ef7f-4283-b374-c7624f94fe3d"
-        data-auto-load="analytics,automation,funnels"
-        src="http://localhost:3000/trackers/seentics-core.js"
-        strategy="afterInteractive"
-      />
+      <>
+        <Script
+          defer
+          data-website-id="a6e093753d63695749a942e8"
+          data-auto-load="analytics,automation,funnels"
+          src="http://localhost:3000/trackers/seentics-core.js"
+          strategy="afterInteractive"
+        />
+        <Script
+          defer
+          data-website-id="a6e093753d63695749a942e8"
+          src="http://localhost:3000/trackers/seentics-automation.js"
+          strategy="afterInteractive"
+        />
+      </>
     );
   }
 

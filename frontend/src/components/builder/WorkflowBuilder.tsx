@@ -4,6 +4,7 @@ import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import ReactFlow, {
   addEdge,
   Background,
+  BackgroundVariant,
   Controls,
   Connection,
   Edge,
@@ -19,21 +20,6 @@ import 'reactflow/dist/style.css';
 import { useParams, useSearchParams } from 'next/navigation';
 
 const reactFlowStyle = `
-  .react-flow__node {
-    padding: 0 !important;
-    border: none !important;
-    // background: transparent !important;
-    box-shadow: none !important;
-  }
-  .react-flow__handle {
-    width: 8px !important;
-    height: 8px !important;
-    background: hsl(var(--primary)) !important;
-    border: 2px solid #0f172a !important;
-  }
-  .react-flow__attribution {
-    display: none !important;
-  }
 `;
 
 import { TriggerNode } from './TriggerNode';
@@ -86,20 +72,27 @@ export const WorkflowBuilder = ({
     setEdges, 
     onEdgesChange, 
     loadAutomation, 
+    loadTemplate,
     resetWorkflow,
     updateNode,
+    addNode,
     selectedNodeId,
     setSelectedNodeId
   } = useAutomationStore();
+
+  const searchParams = useSearchParams();
+  const templateId = searchParams?.get('template');
 
   // Load animation effect
   useEffect(() => {
     if (automationId) {
       loadAutomation(websiteId, automationId);
+    } else if (templateId) {
+      loadTemplate(templateId);
     } else {
       resetWorkflow();
     }
-  }, [automationId, websiteId, loadAutomation, resetWorkflow]);
+  }, [automationId, templateId, websiteId, loadAutomation, loadTemplate, resetWorkflow]);
 
   const onConnect = useCallback(
     (params: Connection | Edge) =>
@@ -156,16 +149,9 @@ export const WorkflowBuilder = ({
         data: { label: `${label}`, config: initialConfig },
       };
 
-      // If we're dropping a trigger node, we might want to clean up existing orphaned ones 
-      // or ensure only one trigger exists.
-      if (type === 'triggerNode') {
-        const otherNodes = nodes.filter(n => n.type !== 'triggerNode' || edges.some(e => e.source === n.id));
-        setNodes([...otherNodes, newNode]);
-      } else {
-        setNodes([...nodes, newNode]);
-      }
+      addNode(newNode);
     },
-    [reactFlowInstance, nodes, edges, setNodes]
+    [reactFlowInstance, addNode]
   );
 
   const onNodeClick = (event: React.MouseEvent, node: Node) => {
@@ -183,62 +169,51 @@ export const WorkflowBuilder = ({
   , [nodes, selectedNodeId]);
 
   return (
-    <div className="flex h-screen w-full bg-slate-950 overflow-hidden flex-col text-slate-200">
+    <div className="fixed inset-0 bg-[#020617] overflow-hidden flex flex-col text-slate-200 z-[50]">
       <BuilderToolbar 
         websiteId={websiteId}
         automationId={automationId}
         onTestClick={() => setShowExecutionPreview(true)} 
       />
+      
       <style dangerouslySetInnerHTML={{ __html: reactFlowStyle }} />
-      <div className="flex flex-1 overflow-hidden" ref={reactFlowWrapper}>
-        <div className="flex-1 h-full relative">
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onInit={setReactFlowInstance}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onNodeClick={onNodeClick}
-            fitView
-            className=""
-          >
-            <Background color="#334155" gap={24} size={1} />
-            <Controls className="!bg-white dark:!bg-slate-800 !border-0 !shadow-xl !rounded" />
+      
+      <div className="relative flex-1" ref={reactFlowWrapper}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onInit={setReactFlowInstance}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          onNodeClick={onNodeClick}
+          fitView
+          className="bg-transparent"
+          connectionMode={ConnectionMode.Loose}
+        >
+          <Background color="#1e293b" gap={20} size={1} variant={BackgroundVariant.Dots} />
+          <Controls className="!bg-slate-900 !border-slate-800 !shadow-2xl !rounded-xl overflow-hidden" />
+          
+          {/* Main Sidebar - Positioned Absolutely */}
+          <Panel position="top-right" className="!m-0 h-full pointer-events-none">
+            <div className="h-full pointer-events-auto h-[calc(100vh-64px)]">
+              <EnhancedBuilderSidebar />
+            </div>
+          </Panel>
 
-            {/* Stats Panel */}
-            {/* <Panel position="top-left" className="!border-0 !shadow-lg !rounded bg-white dark:bg-slate-800 p-4 space-y-2 hidden md:block">
-              <div className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest opacity-50">
-                📊 Workflow Stats
-              </div>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded p-2 min-w-[70px]">
-                  <div className="text-sm font-black text-primary">{nodes.length}</div>
-                  <div className="text-[10px] text-muted-foreground font-bold uppercase">Nodes</div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded p-2 min-w-[70px]">
-                  <div className="text-sm font-black text-primary">{edges.length}</div>
-                  <div className="text-[10px] text-muted-foreground font-bold uppercase">Edges</div>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-900/50 rounded p-2 min-w-[70px]">
-                  <div className="text-sm font-black text-green-600">0%</div>
-                  <div className="text-[10px] text-muted-foreground font-bold uppercase">Health</div>
-                </div>
-              </div>
-            </Panel> */}
-          </ReactFlow>
-        </div>
-        <EnhancedBuilderSidebar />
+          {/* Configuration Panel - Overlay */}
+          {showConfigPanel && selectedNode && (
+            <div className="absolute inset-y-0 left-0 w-96 z-50 animate-in slide-in-from-left duration-300">
+              <NodeConfigPanel 
+                node={selectedNode} 
+                onClose={handleCloseConfigPanel}
+              />
+            </div>
+          )}
+        </ReactFlow>
       </div>
-
-      {showConfigPanel && selectedNode && (
-        <NodeConfigPanel 
-          node={selectedNode} 
-          onClose={handleCloseConfigPanel}
-        />
-      )}
     </div>
   );
 };

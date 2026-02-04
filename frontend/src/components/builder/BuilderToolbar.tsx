@@ -58,82 +58,67 @@ export const BuilderToolbar = ({
   };
 
   return (
-    <div className="h-16 border-b border-slate-800 bg-slate-900 px-6 flex items-center justify-between z-[110] shrink-0">
-      <div className="flex items-center gap-6">
+    <div className="h-16 border-b border-slate-800 bg-slate-950/60 backdrop-blur-md px-6 flex items-center justify-between z-[110] sticky top-0">
+      <div className="flex items-center gap-4">
         <Link href={`/websites/${websiteId}/automations`}>
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 font-bold rounded-full transition-colors"
+            className="h-9 w-9 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-all"
           >
-            <X size={20} />
+            <ChevronLeft size={20} />
           </Button>
         </Link>
-        <div className="h-6 w-[1px] bg-border" />
+        <div className="h-5 w-[1px] bg-slate-800" />
         <div className="flex flex-col">
           <Input 
             value={automation.name || ''} 
             onChange={(e) => setAutomation({ name: e.target.value })}
-            placeholder="Workflow Name..."
-            className="h-7 p-0 border-none bg-transparent font-black text-sm tracking-tight focus-visible:ring-0 min-w-[200px]"
+            placeholder="Untitled Workflow"
+            className="h-6 p-0 border-none bg-transparent font-extrabold text-[15px] tracking-tight focus-visible:ring-0 min-w-[240px] text-white placeholder:text-slate-600"
           />
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-            {isDirty ? 'Unsaved Changes' : 'All changes saved'}
-          </p>
+          <div className="flex items-center gap-2">
+            <div className={`h-1.5 w-1.5 rounded-full ${isDirty ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
+            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+              {isDirty ? 'Unsaved Changes' : 'Cloud Synced'}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        {/* Undo/Redo */}
-        {/* <div className="flex items-center gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-          >
-            <Undo2 size={16} />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-          >
-            <Redo2 size={16} />
-          </Button>
-        </div> */}
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1.5 mr-2">
+          <div className="flex -space-x-2">
+            {[1, 2].map(i => (
+              <div key={i} className="h-7 w-7 rounded-full border-2 border-slate-900 bg-slate-800 flex items-center justify-center text-[10px] font-bold text-slate-400">
+                {String.fromCharCode(64 + i)}
+              </div>
+            ))}
+          </div>
+          <p className="text-[10px] font-bold text-slate-500 ml-1">Team Editing</p>
+        </div>
 
-        <div className="h-6 w-[1px] bg-border" />
+        <div className="h-5 w-[1px] bg-slate-800" />
 
-        {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          {/* <Button
-            variant="outline"
-            className="h-9 px-3 rounded font-bold text-[11px] uppercase tracking-wider gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          <Button
+            variant="ghost"
+            className="h-9 px-4 rounded-xl font-bold text-[11px] uppercase tracking-wider gap-2 text-slate-400 hover:text-white hover:bg-slate-800 transition-all border border-transparent hover:border-slate-700"
             onClick={onTestClick}
           >
-            <Eye size={14} />
-            TEST
+            <Play size={14} className="fill-current" />
+            Simulate
           </Button>
+          
           <Button
-            variant="outline"
-            className="h-9 px-3 rounded font-bold text-[11px] uppercase tracking-wider gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-          >
-            <Download size={14} />
-            EXPORT
-          </Button> */}
-          <Button
-            variant="brand"
-            className="h-9 px-4 rounded font-bold text-[11px] uppercase tracking-wider gap-2 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            variant="default"
+            className="h-9 px-5 rounded font-black text-[11px] uppercase tracking-widest gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all"
             onClick={handleSave}
             disabled={isSaving}
           >
             <Save size={14} />
-            {isSaving ? 'SAVING...' : 'SAVE'}
+            {isSaving ? 'Saving...' : 'Save Workflow'}
           </Button>
-          {/* <Button className="h-10 px-6 rounded font-black text-[11px] uppercase tracking-wider gap-2 shadow-lg shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary text-white">
-            <Zap size={14} className="fill-current" />
-            GO LIVE
-          </Button> */}
         </div>
       </div>
     </div>

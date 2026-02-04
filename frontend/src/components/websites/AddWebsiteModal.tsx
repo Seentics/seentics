@@ -95,59 +95,78 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Add New Website</DialogTitle>
-          <DialogDescription>
-            Add a website to start tracking analytics. You'll receive a tracking code to install on your site.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Website Name</Label>
-              <Input
-                id="name"
-                placeholder="My Awesome Site"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={isLoading}
-                autoFocus
-              />
-            </div>
-            
-            <div className="grid gap-2">
-              <Label htmlFor="url">Website URL</Label>
-              <Input
-                id="url"
-                type="text"
-                placeholder="https://example.com"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={isLoading}
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter your website's URL (e.g., example.com or https://example.com)
-              </p>
-            </div>
-          </div>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <div className="p-6">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-xl font-bold flex items-center gap-2">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Loader2 className={isLoading ? "h-4 w-4 animate-spin text-primary" : "h-4 w-4 text-primary"} />
+              </div>
+              Add New Website
+            </DialogTitle>
+            <DialogDescription>
+              Enter your website details to start tracking.
+            </DialogDescription>
+          </DialogHeader>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Add Website
-            </Button>
-          </DialogFooter>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 ml-1">
+                  Website Name
+                </Label>
+                <Input
+                  id="name"
+                  placeholder="e.g. My Awesome Site"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isLoading}
+                  autoFocus
+                  className="rounded-xl h-11 border-zinc-200 dark:border-zinc-800"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="url" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80 ml-1">
+                  Website URL
+                </Label>
+                <Input
+                  id="url"
+                  placeholder="https://example.com"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  disabled={isLoading}
+                  className="rounded-xl h-11 border-zinc-200 dark:border-zinc-800"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button 
+                type="button" 
+                variant="ghost" 
+                onClick={() => onOpenChange(false)}
+                disabled={isLoading}
+                className="flex-1 rounded-xl h-11"
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isLoading}
+                className="flex-1 rounded-xl h-11 shadow-lg shadow-primary/20"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  'Create Website'
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
       </DialogContent>
     </Dialog>
 

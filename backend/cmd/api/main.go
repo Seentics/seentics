@@ -253,6 +253,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			path == "/api/v1/funnels/track" ||
 			path == "/api/v1/funnels/active" ||
 			path == "/api/v1/workflows/execution/action" ||
+			strings.HasPrefix(path, "/api/v1/tracker/config/") ||
 			strings.HasPrefix(path, "/api/v1/workflows/site/") {
 			c.Next()
 			return

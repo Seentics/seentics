@@ -40,61 +40,54 @@ const getConditionColor = (conditionType: string) => {
 };
 
 export const AdvancedConditionNode = memo(({ data, selected, isConnectable }: NodeProps) => {
-  const conditionType = data.config?.conditionType || data.conditionType || 'if';
-  const Icon = getConditionIcon(conditionType);
-  const colorClass = getConditionColor(conditionType);
-
   return (
     <div
-      className={`p-3 rounded border w-[220px] transition-all ${
+      className={`p-3.5 rounded-xl border transition-all w-[240px] shadow-2xl ${
         selected
-          ? 'bg-slate-800 border-purple-500 ring-2 ring-purple-500/20 scale-105 z-50 shadow-xl shadow-purple-500/10'
-          : 'bg-slate-800 border-slate-700 hover:border-slate-500 hover:bg-slate-700/50'
+          ? 'bg-slate-900 border-primary ring-4 ring-primary/20 scale-105 z-50 shadow-primary/20'
+          : 'bg-slate-900/80 backdrop-blur-md border-slate-800 hover:border-slate-700'
       }`}
     >
       <Handle
         type="target"
         position={Position.Top}
         isConnectable={isConnectable}
-        className="!w-2 !h-2 !bg-primary !border-slate-900 !border-2"
-        style={{ top: -4 }}
+        className="!w-3 !h-3 !bg-primary !border-[#020617] !border-[3px] !shadow-lg"
+        style={{ top: -6 }}
       />
 
       <div className="flex items-center gap-3">
-        <div className={`h-9 w-9 rounded flex items-center justify-center flex-shrink-0 shadow-sm border border-slate-700/50 ${colorClass}`}>
-          <Icon size={18} />
+        <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-500 flex-shrink-0 shadow-inner border border-pink-500/20">
+          <InfinityIcon size={20} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[9px] font-black uppercase tracking-widest text-slate-500 mb-0.5">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 leading-none mb-1.5">
             Logic
           </p>
-          <h4 className="text-xs font-black text-slate-200 truncate leading-tight">
-            {data.label}
+          <h4 className="text-[13px] font-extrabold text-white truncate leading-none">
+            {data.label || 'Advanced Logic'}
           </h4>
         </div>
       </div>
 
-      {/* TRUE Output */}
       <Handle
         type="source"
         position={Position.Bottom}
         id="true"
         isConnectable={isConnectable}
-        className="!w-2 !h-2 !bg-green-500 !border-slate-900 !border-2"
-        style={{ left: '35%', bottom: -4 }}
+        className="!w-3 !h-3 !bg-emerald-500 !border-[#020617] !border-[3px] !shadow-lg"
+        style={{ left: '35%', bottom: -6 }}
       />
       
-      {/* FALSE Output */}
       <Handle
         type="source"
         position={Position.Bottom}
         id="false"
         isConnectable={isConnectable}
-        className="!w-2 !h-2 !bg-red-500 !border-slate-900 !border-2"
-        style={{ left: '65%', bottom: -4 }}
+        className="!w-3 !h-3 !bg-rose-500 !border-[#020617] !border-[3px] !shadow-lg"
+        style={{ left: '65%', bottom: -6 }}
       />
     </div>
   );
 });
-
 AdvancedConditionNode.displayName = 'AdvancedConditionNode';

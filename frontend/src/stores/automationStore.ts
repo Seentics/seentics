@@ -121,6 +121,7 @@ interface AutomationStoreState {
   loadAutomation: (websiteId: string, id: string) => Promise<void>;
   publishAutomation: (websiteId: string, id: string) => Promise<void>;
   testAutomation: (testData: any) => Promise<{ success: boolean }>;
+  loadTemplate: (templateId: string) => void;
   resetWorkflow: () => void;
 
   // Transformation helper
@@ -315,6 +316,73 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
   testAutomation: async (testData) => {
     // Current implementation placeholder as per original
     return { success: true };
+  },
+
+  loadTemplate: (templateId) => {
+    const templates: Record<string, any> = {
+      'welcome-modal': {
+        name: 'Welcome Modal',
+        nodes: [
+          { id: 't1', type: 'triggerNode', data: { label: 'Home Page Visit', config: { triggerType: 'pageView', page: '/' } }, position: { x: 250, y: 100 } },
+          { id: 'a1', type: 'actionNode', data: { label: 'Welcome Modal', config: { actionType: 'modal', title: 'Welcome! 👋', content: "Thanks for visiting our site. We're glad you're here!", primaryButton: 'Get Started' } }, position: { x: 250, y: 300 } }
+        ],
+        edges: [{ id: 'e1-2', source: 't1', target: 'a1', animated: true }]
+      },
+      'exit-intent-promotion': {
+        name: 'Exit Intent Discount',
+        nodes: [
+          { id: 't1', type: 'triggerNode', data: { label: 'Exit Intent', config: { triggerType: 'exitIntent' } }, position: { x: 250, y: 100 } },
+          { id: 'a1', type: 'actionNode', data: { label: 'Offer Banner', config: { actionType: 'banner', content: 'Wait! Use code SAVE20 for 20% off your first order! 🏷️', backgroundColor: '#8b5cf6', position: 'top' } }, position: { x: 250, y: 300 } }
+        ],
+        edges: [{ id: 'e1-2', source: 't1', target: 'a1', animated: true }]
+      },
+      'scroll-depth-banner': {
+        name: 'Scroll Depth Reward',
+        nodes: [
+          { id: 't1', type: 'triggerNode', data: { label: 'Page Scroll (70%)', config: { triggerType: 'scroll', scrollDepth: 70 } }, position: { x: 250, y: 100 } },
+          { id: 'a1', type: 'actionNode', data: { label: 'Reward Notification', config: { actionType: 'notification', title: 'Reading Streak! 🔥', message: "You're a top reader! Check out our related articles.", type: 'success' } }, position: { x: 250, y: 300 } }
+        ],
+        edges: [{ id: 'e1-2', source: 't1', target: 'a1', animated: true }]
+      },
+      'time-on-page-notification': {
+        name: 'Support Help Trigger',
+        nodes: [
+          { id: 't1', type: 'triggerNode', data: { label: 'Idle for 60s', config: { triggerType: 'timeOnPage', duration: 60, unit: 'seconds' } }, position: { x: 250, y: 100 } },
+          { id: 'a1', type: 'actionNode', data: { label: 'Help Message', config: { actionType: 'notification', title: 'Need help? 🙋', message: "We noticed you've been here a while. Any questions?", type: 'info' } }, position: { x: 250, y: 300 } }
+        ],
+        edges: [{ id: 'e1-2', source: 't1', target: 'a1', animated: true }]
+      },
+      'pricing-web-hook': {
+        name: 'CRM Pricing Lead',
+        nodes: [
+          { id: 't1', type: 'triggerNode', data: { label: 'Pricing View', config: { triggerType: 'pageView', page: '/pricing' } }, position: { x: 250, y: 100 } },
+          { id: 'a1', type: 'actionNode', data: { label: 'Sync to CRM', config: { actionType: 'webhook', method: 'POST', url: 'https://hooks.zapier.com/example', body: { event: 'high_intent_pricing_visit' } } }, position: { x: 250, y: 300 } }
+        ],
+        edges: [{ id: 'e1-2', source: 't1', target: 'a1', animated: true }]
+      },
+      'abandoned-cart-notification': {
+        name: 'Abandoned Cart Alert',
+        nodes: [
+          { id: 't1', type: 'triggerNode', data: { label: 'Cart Idle (5m)', config: { triggerType: 'timeOnPage', duration: 5, unit: 'minutes', page: '/checkout' } }, position: { x: 250, y: 100 } },
+          { id: 'a1', type: 'actionNode', data: { label: 'Recovery Notification', config: { actionType: 'notification', title: 'Don\'t miss out!', message: "Completing your order? Your items are still saved.", type: 'warning' } }, position: { x: 250, y: 300 } }
+        ],
+        edges: [{ id: 'e1-2', source: 't1', target: 'a1', animated: true }]
+      }
+    };
+
+    const template = templates[templateId];
+    if (template) {
+      set({
+        nodes: template.nodes,
+        edges: template.edges,
+        automation: {
+          name: template.name,
+          description: `Created from ${template.name} template`,
+          enabled: false
+        },
+        isDirty: true
+      });
+    }
   },
 
   resetWorkflow: () => {

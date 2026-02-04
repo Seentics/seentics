@@ -19,7 +19,8 @@
     pageLoadTime: Date.now(),
     scrollDepth: 0,
     timeOnPage: 0,
-    interactions: []
+    interactions: [],
+    initialized: false
   };
 
   // Track pageview
@@ -221,8 +222,21 @@
     }, 100);
   };
 
-  // Listen for core ready
-  S.on('core:ready', setupAutoTracking);
+  // Initialize
+  const init = () => {
+    // Prevent double init
+    if (analytics.initialized) return;
+    analytics.initialized = true;
+
+    setupAutoTracking();
+  };
+
+  // Listen for core ready or init if already ready
+  if (S.isReady && S.isReady()) {
+    init();
+  } else {
+    S.on('core:ready', init);
+  }
 
   // Public API
   w.seentics = w.seentics || {};
@@ -234,10 +248,5 @@
     getTimeOnPage: () => analytics.timeOnPage,
     getScrollDepth: () => analytics.scrollDepth
   };
-
-  // If core is already ready, setup immediately
-  if (S.state.visitorId) {
-    setupAutoTracking();
-  }
 
 })(window, document);

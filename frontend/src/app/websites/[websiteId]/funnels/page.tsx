@@ -315,21 +315,7 @@ export default function FunnelsPage() {
                 </CardContent>
             </Card>
 
-            {/* Support Message */}
-            <div className="flex flex-col sm:flex-row items-center justify-between p-8 rounded-[2.5rem] bg-primary text-primary-foreground gap-6">
-                <div className="flex items-center gap-6 text-center sm:text-left">
-                    <div className="hidden sm:flex w-16 h-16 rounded bg-primary-foreground/10 items-center justify-center flex-shrink-0">
-                        <TrendingUp className="h-8 w-8 text-primary-foreground" />
-                    </div>
-                    <div>
-                        <h3 className="text-xl font-black uppercase whitespace-nowrap">Conversion Insights</h3>
-                        <p className="text-primary-foreground/80 font-medium mt-1">Deploy Seentics AI to identify leakage points in your customer journey automatically.</p>
-                    </div>
-                </div>
-                <Button variant="secondary" className="h-12 px-8 rounded font-black flex-shrink-0">
-                    Get AI Report
-                </Button>
-            </div>
+           
         </div>
     );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, ChevronRight, Save, Copy, Trash2 } from 'lucide-react';
+import { X, ChevronRight, Save, Copy, Trash2, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAutomationStore } from '@/stores/automationStore';
@@ -24,45 +24,45 @@ export const NodeConfigPanel = ({ node, onClose }: NodeConfigPanelProps) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-800 rounded-lg w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh] scale-in-center">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-             <div className="h-9 w-9 rounded bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-              <Settings size={18} />
-            </div>
-            <div>
-              <h2 className="font-bold text-base text-white leading-tight">Node Settings</h2>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{node.data.label}</p>
-            </div>
+    <div className="w-full h-full bg-slate-950/90 backdrop-blur-xl border-r border-slate-800 flex flex-col shadow-2xl animate-in slide-in-from-left duration-300">
+      {/* Header */}
+      <div className="px-6 py-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-inner">
+            <Settings2 size={20} />
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-slate-800 text-slate-400 h-8 w-8">
-            <X size={16} />
-          </Button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-8">
-          {node.type === 'triggerNode' && <TriggerConfig config={config} setConfig={setConfig} />}
-          {node.type === 'actionNode' && <ActionConfig config={config} setConfig={setConfig} />}
-          {node.type === 'conditionNode' && <ConditionConfig config={config} setConfig={setConfig} />}
-          
-          <div className="pt-6 border-t border-slate-800">
-            <ExecutionSettings config={config} setConfig={setConfig} />
+          <div>
+            <h2 className="font-extrabold text-lg text-white leading-none mb-1">Settings</h2>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">{node.data.label}</p>
           </div>
         </div>
+        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-xl hover:bg-slate-800 text-slate-500 hover:text-white h-9 w-9 transition-all">
+          <X size={20} />
+        </Button>
+      </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/50 flex items-center gap-2">
-          <Button onClick={handleSave} className="flex-1 rounded h-10 gap-2 bg-primary hover:bg-primary/90 text-white font-bold text-xs uppercase tracking-wider">
-            <Save size={14} />
-            Save changes
-          </Button>
-          <Button variant="outline" onClick={onClose} className="rounded border-slate-700 text-slate-400 hover:bg-slate-800 h-10 px-4 text-xs font-bold uppercase tracking-wider">
-            Cancel
-          </Button>
+      <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-slate-800 to-transparent mx-auto" />
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto px-6 py-8 space-y-10 scrollbar-hide">
+        {node.type === 'triggerNode' && <TriggerConfig config={config} setConfig={setConfig} />}
+        {node.type === 'actionNode' && <ActionConfig config={config} setConfig={setConfig} />}
+        {node.type === 'conditionNode' && <ConditionConfig config={config} setConfig={setConfig} />}
+        
+        <div className="pt-8 border-t border-slate-800/50">
+          <ExecutionSettings config={config} setConfig={setConfig} />
         </div>
+      </div>
+
+      {/* Footer */}
+      <div className="p-6 border-t border-slate-800 bg-slate-950/50 backdrop-blur-md flex flex-col gap-3">
+        <Button onClick={handleSave} className="w-full rounded-xl h-12 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-black text-xs uppercase tracking-widest shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">
+          <Save size={16} />
+          Sync Changes
+        </Button>
+        <Button variant="ghost" onClick={onClose} className="w-full rounded-xl text-slate-500 hover:text-white hover:bg-slate-800 h-11 text-xs font-bold uppercase tracking-wider transition-all">
+          Dismiss
+        </Button>
       </div>
     </div>
   );
@@ -178,7 +178,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
         <div className="space-y-4">
           <Field label="Incoming Webhook URL">
             <Input
-              placeholder="Slach webhook URL"
+              placeholder="Slack webhook URL"
               value={config.webhookUrl || ''}
               onChange={(e) => setConfig({ ...config, webhookUrl: e.target.value })}
               className="bg-slate-900 border-slate-800 h-11"
@@ -192,6 +192,145 @@ const ActionConfig = ({ config, setConfig }: any) => {
             />
           </Field>
         </div>
+      )}
+
+      {actionType === 'modal' && (
+        <div className="space-y-4">
+          <Field label="Modal Title">
+            <Input
+              placeholder="Limited Offer!"
+              value={config.title || ''}
+              onChange={(e) => setConfig({ ...config, title: e.target.value })}
+              className="bg-slate-950 border-slate-800 h-11"
+            />
+          </Field>
+          <Field label="Content Text">
+            <textarea
+              placeholder="Sign up now and get 50% off..."
+              value={config.content || ''}
+              onChange={(e) => setConfig({ ...config, content: e.target.value })}
+              className="w-full h-24 p-4 bg-slate-950 border border-slate-800 rounded text-sm text-white"
+            />
+          </Field>
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <Field label="Primary Button">
+                <Input
+                  placeholder="Get Started"
+                  value={config.primaryButton || ''}
+                  onChange={(e) => setConfig({ ...config, primaryButton: e.target.value })}
+                  className="bg-slate-950 border-slate-800 h-11"
+                />
+              </Field>
+            </div>
+            <div className="flex-1">
+              <Field label="Secondary Button">
+                <Input
+                  placeholder="Maybe Later"
+                  value={config.secondaryButton || ''}
+                  onChange={(e) => setConfig({ ...config, secondaryButton: e.target.value })}
+                  className="bg-slate-950 border-slate-800 h-11"
+                />
+              </Field>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {actionType === 'banner' && (
+        <div className="space-y-4">
+          <Field label="Banner Content">
+            <Input
+              placeholder="New feature announcement! 🚀"
+              value={config.content || ''}
+              onChange={(e) => setConfig({ ...config, content: e.target.value })}
+              className="bg-slate-950 border-slate-800 h-11"
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Background Color">
+              <Input
+                type="color"
+                value={config.backgroundColor || '#4f46e5'}
+                onChange={(e) => setConfig({ ...config, backgroundColor: e.target.value })}
+                className="bg-slate-950 border-slate-800 h-11 p-1"
+              />
+            </Field>
+            <Field label="Text Color">
+              <Input
+                type="color"
+                value={config.textColor || '#ffffff'}
+                onChange={(e) => setConfig({ ...config, textColor: e.target.value })}
+                className="bg-slate-950 border-slate-800 h-11 p-1"
+              />
+            </Field>
+          </div>
+          <Field label="Position">
+            <select
+              value={config.position || 'bottom'}
+              onChange={(e) => setConfig({ ...config, position: e.target.value })}
+              className="w-full h-11 px-3 bg-slate-950 border border-slate-800 rounded text-sm text-white"
+            >
+              <option value="top">Top Segment</option>
+              <option value="bottom">Bottom Segment</option>
+            </select>
+          </Field>
+        </div>
+      )}
+
+      {actionType === 'notification' && (
+        <div className="space-y-4">
+          <Field label="Title">
+            <Input
+              placeholder="Success!"
+              value={config.title || ''}
+              onChange={(e) => setConfig({ ...config, title: e.target.value })}
+              className="bg-slate-950 border-slate-800 h-11"
+            />
+          </Field>
+          <Field label="Message">
+            <Input
+              placeholder="Your data has been saved."
+              value={config.message || ''}
+              onChange={(e) => setConfig({ ...config, message: e.target.value })}
+              className="bg-slate-950 border-slate-800 h-11"
+            />
+          </Field>
+          <Field label="Type">
+            <select
+              value={config.type || 'info'}
+              onChange={(e) => setConfig({ ...config, type: e.target.value })}
+              className="w-full h-11 px-3 bg-slate-950 border border-slate-800 rounded text-sm text-white"
+            >
+              <option value="info">Information</option>
+              <option value="success">Success</option>
+              <option value="warning">Warning</option>
+              <option value="error">Error</option>
+            </select>
+          </Field>
+        </div>
+      )}
+
+      {actionType === 'redirect' && (
+        <Field label="Destination URL">
+          <Input
+            placeholder="https://example.com/thank-you"
+            value={config.url || ''}
+            onChange={(e) => setConfig({ ...config, url: e.target.value })}
+            className="bg-slate-950 border-slate-800 h-11"
+          />
+        </Field>
+      )}
+
+      {actionType === 'javascript' && (
+        <Field label="Custom JavaScript Code">
+          <textarea
+            placeholder="console.log('Hello from Seentics!');"
+            value={config.code || ''}
+            onChange={(e) => setConfig({ ...config, code: e.target.value })}
+            className="w-full h-64 p-4 bg-slate-950 border border-slate-800 rounded text-sm text-white font-mono"
+          />
+        </Field>
       )}
 
       {actionType === 'webhook' && (
@@ -235,70 +374,10 @@ const ActionConfig = ({ config, setConfig }: any) => {
           </Field>
         </div>
       )}
-
-      {(actionType === 'modal' || actionType === 'banner') && (
-        <div className="space-y-4">
-          <Field label="Title / Heading">
-            <Input
-              placeholder="Important Update"
-              value={config.title || ''}
-              onChange={(e) => setConfig({ ...config, title: e.target.value })}
-              className="bg-slate-950 border-slate-800 h-11"
-            />
-          </Field>
-          <Field label="Display Content">
-            <textarea
-              placeholder="What should the user see?"
-               value={config.content || ''}
-              onChange={(e) => setConfig({ ...config, content: e.target.value })}
-              className="w-full h-32 p-4 bg-slate-950 border border-slate-800 rounded text-sm text-white outline-none focus:ring-1 ring-primary/20 transition-all"
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Button Text">
-              <Input
-                placeholder="Continue"
-                value={config.buttonText || ''}
-                onChange={(e) => setConfig({ ...config, buttonText: e.target.value })}
-                className="bg-slate-950 border-slate-800 h-11"
-              />
-            </Field>
-             <Field label="Duration (0=infinite)">
-              <Input
-                type="number"
-                value={config.duration || 0}
-                onChange={(e) => setConfig({ ...config, duration: parseInt(e.target.value) })}
-                className="bg-slate-900 border-slate-800 h-11"
-              />
-            </Field>
-          </div>
-          <Field label="Position">
-            <select
-              value={config.position || 'bottom'}
-              onChange={(e) => setConfig({ ...config, position: e.target.value })}
-              className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
-            >
-              <option value="bottom">Bottom</option>
-              <option value="top">Top</option>
-              <option value="center">Center</option>
-            </select>
-          </Field>
-        </div>
-      )}
-
-      {actionType === 'javascript' && (
-        <Field label="Custom Script">
-          <textarea
-            value={config.code || ''}
-            onChange={(e) => setConfig({ ...config, code: e.target.value })}
-            className="w-full h-80 p-4 bg-slate-950 border border-slate-800 rounded text-xs font-mono text-white outline-none focus:ring-1 ring-primary/20 transition-all"
-            placeholder="console.log('Running script...')"
-          />
-        </Field>
-      )}
     </div>
   );
 };
+
 
 const ConditionConfig = ({ config, setConfig }: any) => {
   const conditionType = config.conditionType || 'if';
@@ -306,6 +385,64 @@ const ConditionConfig = ({ config, setConfig }: any) => {
   return (
     <div className="space-y-6">
       <SectionHead title="Logic Criteria" subtitle="Control the flow based on data" />
+
+      {conditionType === 'device' && (
+        <Field label="Match Device">
+          <select
+            value={config.device || 'mobile'}
+            onChange={(e) => setConfig({ ...config, device: e.target.value })}
+            className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
+          >
+            <option value="mobile">Mobile Devices</option>
+            <option value="desktop">Desktop / Laptop</option>
+            <option value="tablet">Tablets</option>
+          </select>
+        </Field>
+      )}
+
+      {conditionType === 'visitor' && (
+        <Field label="Visitor Status">
+          <select
+            value={config.status || 'new'}
+            onChange={(e) => setConfig({ ...config, status: e.target.value })}
+            className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
+          >
+            <option value="new">New Visitors</option>
+            <option value="returning">Returning Visitors</option>
+          </select>
+        </Field>
+      )}
+
+      {conditionType === 'url_param' && (
+        <div className="space-y-4">
+          <Field label="Parameter Name">
+            <Input
+              placeholder="e.g. utm_source"
+              value={config.param || ''}
+              onChange={(e) => setConfig({ ...config, param: e.target.value })}
+              className="bg-slate-950 border-slate-800 h-11"
+            />
+          </Field>
+          <Field label="Comparison">
+            <div className="flex gap-2">
+              <select
+                value={config.operator || 'eq'}
+                onChange={(e) => setConfig({ ...config, operator: e.target.value })}
+                className="w-1/3 h-11 px-3 bg-slate-950 border border-slate-800 rounded text-sm text-white"
+              >
+                <option value="eq">Equals</option>
+                <option value="contains">Contains</option>
+              </select>
+              <Input
+                placeholder="Value"
+                value={config.value || ''}
+                onChange={(e) => setConfig({ ...config, value: e.target.value })}
+                className="flex-1 bg-slate-950 border-slate-800 h-11"
+              />
+            </div>
+          </Field>
+        </div>
+      )}
 
       {conditionType === 'if' && (
         <div className="space-x-2 flex items-end">
@@ -388,16 +525,17 @@ const ExecutionSettings = ({ config, setConfig }: any) => (
           onChange={(e) => setConfig({ ...config, frequency: e.target.value })}
           className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white outline-none"
         >
-          <option value="once">Once per user</option>
-          <option value="perSession">Once per session</option>
-          <option value="every">Every occurrence</option>
+          <option value="once_per_visitor">Once per Visitor</option>
+          <option value="once_per_session">Once per Session</option>
+          <option value="once_per_day">Once per Day</option>
+          <option value="always">Always Trigger</option>
         </select>
       </Field>
-      <Field label="Restricting Path">
+      <Field label="Specific Path Only">
         <Input
-          placeholder="/optional-filter"
-          value={config.pageFilter || ''}
-          onChange={(e) => setConfig({ ...config, pageFilter: e.target.value })}
+          placeholder="e.g. /checkout (Optional)"
+          value={config.pathFilter || ''}
+          onChange={(e) => setConfig({ ...config, pathFilter: e.target.value })}
           className="bg-slate-900 border-slate-800 h-11"
         />
       </Field>
@@ -418,5 +556,3 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
     {children}
   </div>
 );
-
-import { Zap, Activity, Settings2, BarChart3, Settings } from 'lucide-react';

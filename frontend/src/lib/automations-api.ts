@@ -5,7 +5,7 @@ import api from './api';
 export interface AutomationAction {
     id?: string;
     automationId?: string;
-    actionType: 'webhook' | 'email' | 'script' | 'banner';
+    actionType: 'webhook' | 'email' | 'script' | 'banner' | 'modal' | 'notification' | 'redirect' | 'hide_element';
     actionConfig: Record<string, any>;
     orderIndex?: number;
 }

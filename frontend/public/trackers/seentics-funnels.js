@@ -17,6 +17,7 @@
   const funnel = {
     activeFunnels: [],
     currentFunnels: new Map(), // funnelId -> { currentStep, completedSteps, startedAt }
+    initialized: false
   };
 
   // Load active funnels
@@ -203,10 +204,21 @@
   };
 
   // Initialize
-  S.on('core:ready', async () => {
+  const init = async () => {
+    // Prevent double init
+    if (funnel.initialized) return;
+    funnel.initialized = true;
+
     await loadFunnels();
     setupFunnelListeners();
-  });
+  };
+
+  // Listen for core ready or init if already ready
+  if (S.isReady && S.isReady()) {
+    init();
+  } else {
+    S.on('core:ready', init);
+  }
 
   // Public API
   w.seentics = w.seentics || {};
