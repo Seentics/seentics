@@ -22,6 +22,23 @@ func NewWebsiteHandler(service *services.WebsiteService, logger zerolog.Logger) 
 	}
 }
 
+// GetTrackerConfig handles the GET /api/v1/tracker/config/:site_id request (Public)
+func (h *WebsiteHandler) GetTrackerConfig(c *gin.Context) {
+	siteID := c.Param("site_id")
+	if siteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Site ID is required"})
+		return
+	}
+
+	config, err := h.service.GetTrackerConfig(c.Request.Context(), siteID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Website not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, config)
+}
+
 // Create handles the POST /api/v1/user/websites request
 func (h *WebsiteHandler) Create(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")

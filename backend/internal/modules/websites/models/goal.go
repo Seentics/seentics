@@ -12,12 +12,14 @@ type Goal struct {
 	Name       string    `json:"name" db:"name"`
 	Type       string    `json:"type" db:"type"`             // 'event', 'pageview'
 	Identifier string    `json:"identifier" db:"identifier"` // event name or page path
+	Selector   *string   `json:"selector,omitempty" db:"selector"`
 	CreatedAt  time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt  time.Time `json:"updatedAt" db:"updated_at"`
 }
 
 type CreateGoalRequest struct {
-	Name       string `json:"name" binding:"required"`
-	Type       string `json:"type" binding:"required,oneof=event pageview"`
-	Identifier string `json:"identifier" binding:"required"`
+	Name       string  `json:"name" binding:"required"`
+	Type       string  `json:"type" binding:"required,oneof=event pageview"`
+	Identifier string  `json:"identifier" binding:"required"`
+	Selector   *string `json:"selector,omitempty"`
 }

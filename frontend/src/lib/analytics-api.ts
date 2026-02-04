@@ -607,6 +607,7 @@ export const analyticsKeys = {
   hourlyStats: (websiteId: string, days: number) => [...analyticsKeys.all, 'hourly-stats', websiteId, days] as const,
   activityTrends: (websiteId: string) => [...analyticsKeys.all, 'activity-trends', websiteId] as const,
   dailyStats: (websiteId: string, days: number) => [...analyticsKeys.all, 'daily-stats', websiteId, days] as const,
+  goalStats: (websiteId: string, days: number) => [...analyticsKeys.all, 'goal-stats', websiteId, days] as const,
   customEvents: (websiteId: string, days: number) => [...analyticsKeys.all, 'custom-events', websiteId, days] as const,
   userRetention: (websiteId: string, days: number) => [...analyticsKeys.all, 'user-retention', websiteId, days] as const,
   visitorInsights: (websiteId: string, days: number) => [...analyticsKeys.all, 'visitor-insights', websiteId, days] as const,
@@ -725,6 +726,22 @@ export const useCustomEvents = (websiteId: string, days: number = 30) => {
     enabled: !!websiteId,
     staleTime: 0, // Force refresh immediately to see backend changes
     gcTime: 10 * 60 * 1000,   // 10 minutes
+  });
+};
+
+// Goal Stats Hook
+export const useGoalStats = (websiteId: string, days: number = 30) => {
+  return useQuery({
+    queryKey: analyticsKeys.goalStats(websiteId, days),
+    queryFn: async () => {
+      if (websiteId === 'demo') {
+        const demo = getDemoData();
+        return { goals: demo.customEvents?.top_events || [] };
+      }
+      const response = await api.get(`/analytics/goals-stats/${websiteId}?days=${days}`);
+      return response.data;
+    },
+    enabled: !!websiteId,
   });
 };
 

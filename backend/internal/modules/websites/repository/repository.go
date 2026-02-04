@@ -201,7 +201,7 @@ func (r *WebsiteRepository) Update(ctx context.Context, website *models.Website)
 // --- Goals ---
 
 func (r *WebsiteRepository) ListGoals(ctx context.Context, websiteID uuid.UUID) ([]models.Goal, error) {
-	query := `SELECT id, website_id, name, type, identifier, created_at, updated_at FROM goals WHERE website_id = $1 ORDER BY created_at DESC`
+	query := `SELECT id, website_id, name, type, identifier, selector, created_at, updated_at FROM goals WHERE website_id = $1 ORDER BY created_at DESC`
 	rows, err := r.db.Query(ctx, query, websiteID)
 	if err != nil {
 		return nil, err
@@ -211,7 +211,7 @@ func (r *WebsiteRepository) ListGoals(ctx context.Context, websiteID uuid.UUID) 
 	var goals []models.Goal
 	for rows.Next() {
 		var g models.Goal
-		if err := rows.Scan(&g.ID, &g.WebsiteID, &g.Name, &g.Type, &g.Identifier, &g.CreatedAt, &g.UpdatedAt); err != nil {
+		if err := rows.Scan(&g.ID, &g.WebsiteID, &g.Name, &g.Type, &g.Identifier, &g.Selector, &g.CreatedAt, &g.UpdatedAt); err != nil {
 			return nil, err
 		}
 		goals = append(goals, g)
@@ -220,8 +220,8 @@ func (r *WebsiteRepository) ListGoals(ctx context.Context, websiteID uuid.UUID) 
 }
 
 func (r *WebsiteRepository) CreateGoal(ctx context.Context, goal *models.Goal) error {
-	query := `INSERT INTO goals (website_id, name, type, identifier, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`
-	return r.db.QueryRow(ctx, query, goal.WebsiteID, goal.Name, goal.Type, goal.Identifier, time.Now(), time.Now()).Scan(&goal.ID)
+	query := `INSERT INTO goals (website_id, name, type, identifier, selector, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+	return r.db.QueryRow(ctx, query, goal.WebsiteID, goal.Name, goal.Type, goal.Identifier, goal.Selector, time.Now(), time.Now()).Scan(&goal.ID)
 }
 
 func (r *WebsiteRepository) DeleteGoal(ctx context.Context, id uuid.UUID, websiteID uuid.UUID) error {

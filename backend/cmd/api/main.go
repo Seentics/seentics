@@ -255,6 +255,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			analytics.GET("/activity-trends/:website_id", analyticsHandler.GetActivityTrends)
 			analytics.GET("/daily-stats/:website_id", analyticsHandler.GetDailyStats)
 			analytics.GET("/hourly-stats/:website_id", analyticsHandler.GetHourlyStats)
+			analytics.GET("/goals-stats/:website_id", analyticsHandler.GetGoalStats)
 			analytics.GET("/custom-events/:website_id", analyticsHandler.GetCustomEvents)
 			analytics.GET("/live-visitors/:website_id", analyticsHandler.GetLiveVisitors)
 			analytics.GET("/geolocation-breakdown/:website_id", analyticsHandler.GetGeolocationBreakdown)
@@ -273,6 +274,8 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			v1.GET("/privacy/retention-policies", privacyHandler.GetDataRetentionPolicies)
 			v1.POST("/privacy/cleanup", privacyHandler.RunDataRetentionCleanup)
 		}
+
+		v1.GET("/tracker/config/:site_id", websiteHandler.GetTrackerConfig)
 
 		admin := v1.Group("/admin")
 		{

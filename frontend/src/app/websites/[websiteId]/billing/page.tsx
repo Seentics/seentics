@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { UpgradePlanModal } from '@/components/subscription/UpgradePlanModal';
 import { createPortalSession } from '@/lib/billing-api';
 import api from '@/lib/api';
+import { DashboardPageHeader } from '@/components/dashboard-header';
 
 export default function AccountBillingSettings() {
     const params = useParams();
@@ -57,10 +58,10 @@ export default function AccountBillingSettings() {
 
     return (
         <div className="max-w-[1440px] mx-auto p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div>
-                <h1 className="text-2xl font-black tracking-tight text-foreground uppercase">Billing & Subscription</h1>
-                <p className="text-muted-foreground font-medium">Manage your subscription, usage limits, and billing details.</p>
-            </div>
+            <DashboardPageHeader 
+                title="Billing & Subscription"
+                description="Manage your subscription, usage limits, and billing details."
+            />
 
             <div className="grid lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">

@@ -14,10 +14,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface DataImportExportModalProps {
   websiteId: string;
+  websiteName?: string;
   dateRange: number;
 }
 
-export const DataImportExportModal = ({ websiteId, dateRange }: DataImportExportModalProps) => {
+export const DataImportExportModal = ({ websiteId, websiteName, dateRange }: DataImportExportModalProps) => {
   const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'export' | 'import'>('export');
   const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json');
@@ -50,7 +51,8 @@ export const DataImportExportModal = ({ websiteId, dateRange }: DataImportExport
       link.href = url;
       
       const timestamp = new Date().toISOString().split('T')[0];
-      link.download = `analytics-${websiteId}-${timestamp}.${exportFormat === 'json' ? 'json' : 'csv'}`;
+      const safeName = (websiteName || websiteId).toLowerCase().replace(/[^a-z0-9]/g, '-');
+      link.download = `analytics-${safeName}-${timestamp}.${exportFormat === 'json' ? 'json' : 'csv'}`;
       
       document.body.appendChild(link);
       link.click();

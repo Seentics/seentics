@@ -36,7 +36,37 @@ func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg
 	}
 }
 
-// CreateWebsite handles the logic of creating a new website tracking profile
+// GetTrackerConfig returns the configuration for the tracker script
+func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string) (map[string]interface{}, error) {
+	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	if err != nil {
+		return nil, err
+	}
+
+	goals, err := s.repo.ListGoals(ctx, w.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter and format goals for the tracker
+	trackerGoals := make([]map[string]interface{}, 0)
+	for _, g := range goals {
+		if g.Type == "event" && g.Selector != nil && *g.Selector != "" {
+			trackerGoals = append(trackerGoals, map[string]interface{}{
+				"id":       g.ID,
+				"name":     g.Identifier, // Use the identifier as the event name
+				"selector": *g.Selector,
+			})
+		}
+	}
+
+	return map[string]interface{}{
+		"site_id": w.SiteID,
+		"goals":   trackerGoals,
+	}, nil
+}
+
+// CreateWebsite creates a new website tracking profile
 func (s *WebsiteService) CreateWebsite(ctx context.Context, userID uuid.UUID, req models.CreateWebsiteRequest) (*models.Website, error) {
 	// Generate unique 24-char site_id (KSUID/NanoID style)
 	siteID := generateID(12) // 24 hex chars
@@ -196,6 +226,7 @@ func (s *WebsiteService) CreateGoal(ctx context.Context, siteID string, req mode
 		Name:       req.Name,
 		Type:       req.Type,
 		Identifier: req.Identifier,
+		Selector:   req.Selector,
 	}
 
 	if err := s.repo.CreateGoal(ctx, goal); err != nil {

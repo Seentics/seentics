@@ -312,6 +312,16 @@ func (s *AnalyticsService) GetActivityTrends(ctx context.Context, websiteID stri
 	return s.repo.GetActivityTrends(ctx, websiteID)
 }
 
+func (s *AnalyticsService) GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.EventItem, error) {
+	websiteID = s.resolveWebsiteID(ctx, websiteID)
+	s.logger.Info().
+		Str("website_id", websiteID).
+		Int("days", days).
+		Msg("Getting goal stats")
+
+	return s.repo.GetGoalStats(ctx, websiteID, days)
+}
+
 func (s *AnalyticsService) ExportWebsiteData(ctx context.Context, websiteID string, days int, format string) ([]byte, error) {
 	websiteID = s.resolveWebsiteID(ctx, websiteID)
 

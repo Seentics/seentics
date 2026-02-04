@@ -233,9 +233,9 @@ export const getGoals = async (websiteId: string): Promise<Goal[]> => {
   return response.data.data || [];
 };
 
-export const addGoal = async (websiteId: string, data: { name: string; type: string; identifier: string }): Promise<Goal> => {
+export const addGoal = async (websiteId: string, data: { name: string; type: string; identifier: string; selector?: string }): Promise<Goal> => {
   const response = await api.post(`/user/websites/${websiteId}/goals`, data);
-  return response.data.data;
+  return response.data;
 };
 
 export const deleteGoal = async (websiteId: string, goalId: string): Promise<void> => {

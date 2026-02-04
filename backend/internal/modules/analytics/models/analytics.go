@@ -133,6 +133,13 @@ type CustomEventStat struct {
 	CommonProperties Properties `json:"common_properties" db:"common_properties"`
 }
 
+// EventItem represents a single custom event metric
+type EventItem struct {
+	EventType        string     `json:"event_type" db:"event_type"`
+	Count            int        `json:"count" db:"count"`
+	SampleProperties Properties `json:"sample_properties,omitempty" db:"sample_properties"`
+}
+
 // TopItem - USED in top_continents_analytics.go
 type TopItem struct {
 	Name       string  `json:"name" db:"name"`

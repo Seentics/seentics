@@ -11,21 +11,19 @@ import {
     Settings,
     LogOut,
     Shield,
-    Globe,
-    User,
     ChevronUp,
     Headset,
-    Lock,
     Mail,
     MessageSquare,
     FileText,
-    Activity
+    ChevronLeft,
+    ChevronRight,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/stores/useAuthStore';
+import { useLayoutStore } from '@/stores/useLayoutStore';
 import { Button } from '@/components/ui/button';
-import { ThemeToggle } from '../theme-toggle';
 import { motion } from 'framer-motion';
 import {
     Popover,
@@ -34,9 +32,10 @@ import {
 } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 
-export function NavSidebar({ websiteId }: { websiteId: string }) {
+export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; mobile?: boolean }) {
     const pathname = usePathname();
     const { user, logout } = useAuth();
+    const { isSidebarOpen, toggleSidebar, closeMobileMenu } = useLayoutStore();
 
     const links = [
         {
@@ -106,116 +105,119 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
         }
     ];
 
+    const containerClasses = mobile 
+        ? "h-full w-full bg-white dark:bg-sidebar/40 flex flex-col"
+        : cn(
+            "h-screen fixed top-0 left-0 bg-white dark:bg-sidebar/40 backdrop-blur-2xl border-r border-sidebar-border/30 flex flex-col hidden lg:flex z-50 transition-all duration-300 ease-in-out",
+            isSidebarOpen ? "w-[280px]" : "w-[80px]"
+        );
+
     return (
-        <aside className="w-[280px] h-screen fixed top-0 left-0 bg-sidebar/70 dark:bg-sidebar/40 backdrop-blur-2xl border-r border-sidebar-border/30 flex flex-col hidden lg:flex z-50">
-            <div className="p-8 pb-8">
-                <Link href="/" className="flex items-center gap-3 group transition-transform hover:scale-[1.02]">
-                    <Logo size="xl" showText={true} textClassName="text-xl font-bold tracking-tight text-foreground" />
+        <aside className={containerClasses}>
+            {/* Toggle Button - Only on Desktop */}
+            {!mobile && (
+                <button 
+                    onClick={toggleSidebar}
+                    className="absolute -right-3 top-20 bg-background border border-sidebar-border/50 rounded-full p-1.5 hover:bg-accent transition-colors z-[60] shadow-sm"
+                >
+                    {isSidebarOpen ? (
+                        <ChevronLeft size={14} className="text-muted-foreground" />
+                    ) : (
+                        <ChevronRight size={14} className="text-muted-foreground" />
+                    )}
+                </button>
+            )}
+
+            <div className={cn(
+                "p-8 pb-8 transition-all duration-300", 
+                (!isSidebarOpen && !mobile) && "p-4 flex justify-center",
+                mobile && "p-6"
+            )}>
+                <Link href="/" className="flex items-center gap-3 group transition-transform">
+                    <Logo size={(isSidebarOpen || mobile) ? "xl" : "lg"} showText={isSidebarOpen || mobile} textClassName="text-xl font-bold tracking-tight text-foreground" />
                 </Link>
             </div>
 
             <nav className="flex-1 px-4 space-y-1.5 overflow-y-auto custom-scrollbar pb-10">
-                {links.map((link) => {
+                {links.map((link, idx) => {
                     const isActive = link.matchExact
                         ? pathname === link.href
                         : pathname.startsWith(link.href);
 
-                    // All links are now enabled for demo mode
-                    const isDisabled = false;
+                    const isDisabled = link.href === '#';
 
                     return (
-                        <div key={link.href} className="px-1">
-                             {/* @ts-ignore */}
-                            {link.separator && (
+                        <div key={`${link.title}-${idx}`} className="px-1">
+                            {link.separator && (isSidebarOpen || mobile) && (
                                 <div className="px-3 pt-6 pb-2">
                                     <div className="h-[1px] bg-sidebar-border/20 mb-3" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 block pl-1">Module: Experimental</span>
+                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 block pl-1 whitespace-nowrap">Module: Experimental</span>
                                 </div>
                             )}
+                            {link.separator && (!isSidebarOpen && !mobile) && (
+                                <div className="my-4 h-[1px] bg-sidebar-border/20 mx-2" />
+                            )}
                             <Link 
-                                href={link.href} 
-                                className={cn("block relative group", isDisabled && "pointer-events-none opacity-50 grayscale")}
+                                href={link.href}
+                                onClick={() => mobile && closeMobileMenu()}
+                                className={cn(
+                                    "flex items-center gap-3 px-3.5 py-3 rounded group transition-all duration-200 relative",
+                                    isActive 
+                                        ? "bg-primary text-white shadow-xl shadow-primary/20 font-bold" 
+                                        : "hover:bg-sidebar-accent/50 text-muted-foreground font-medium",
+                                    (!isSidebarOpen && !mobile) && "justify-center px-0",
+                                    isDisabled && "opacity-50 cursor-not-allowed pointer-events-none"
+                                )}
                             >
-                                {isActive && (
-                                    <motion.div 
-                                        layoutId="active-nav-bg"
-                                        className="absolute inset-0 bg-primary/10 dark:bg-primary/5 rounded-xl border border-primary/20"
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        transition={{ duration: 0.3 }}
-                                    />
-                                )}
-                                {isActive && (
-                                    <motion.div 
-                                        layoutId="active-nav-indicator"
-                                        className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-primary rounded-r-full shadow-[0_0_15px_rgba(var(--primary),0.5)]"
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                    />
-                                )}
-                                
-                                <div className={cn(
-                                    "relative flex items-center gap-3.5 px-4 py-3 rounded-xl transition-all duration-300",
-                                    isActive
-                                        ? "text-primary shadow-sm"
-                                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                                )}>
-                                    <div className="relative">
-                                        <link.icon className={cn(
-                                            "h-[18px] w-[18px] shrink-0 transition-all duration-500", 
-                                            isActive ? "scale-110 text-primary" : "text-muted-foreground group-hover:text-foreground group-hover:scale-110"
-                                        )} />
-                                        {/* @ts-ignore */}
-                                        {link.isNew && (
-                                            <span className="absolute -top-1.5 -right-1.5 flex h-2.5 w-2.5">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-sidebar"></span>
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex flex-col min-w-0 flex-1">
-                                        <div className="flex items-center justify-between">
-                                            <span className={cn(
-                                                "font-bold text-[13px] tracking-tight leading-tight truncate", 
-                                                isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                                            )}>
-                                                {link.title}
-                                            </span>
-                                            {/* @ts-ignore */}
+                                <link.icon size={20} className={cn(
+                                    "shrink-0 transition-transform duration-300",
+                                    isActive ? "text-white" : "text-muted-foreground group-hover:scale-110 group-hover:text-primary"
+                                )} />
+                                {(isSidebarOpen || mobile) && (
+                                    <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm tracking-tight">{link.title}</span>
                                             {link.badge && (
-                                                <span className="px-1.5 py-0.5 text-[8px] font-black uppercase tracking-tighter rounded-md bg-muted/40 text-muted-foreground/60 border border-border/40 group-hover:bg-primary/10 group-hover:text-primary group-hover:border-primary/20 leading-none transition-colors">
-                                                    {/* @ts-ignore */}
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-black uppercase">
                                                     {link.badge}
                                                 </span>
                                             )}
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </Link>
                         </div>
                     );
                 })}
             </nav>
 
-            <div className="p-6 mt-auto bg-gradient-to-t from-sidebar/50 to-transparent">
+            <div className={cn(
+                "p-4 border-t border-sidebar-border/20",
+                (!isSidebarOpen && !mobile) && "flex justify-center"
+            )}>
                 {user && (
                     <Popover>
                         <PopoverTrigger asChild>
-                            <button className="w-full flex items-center gap-3 p-2.5 rounded-2xl bg-muted/20 dark:bg-muted/10 border border-border/10 hover:border-primary/20 hover:bg-muted transition-all text-left group shadow-sm active:scale-95 duration-200">
+                            <button className={cn(
+                                "flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-sidebar-accent/50 transition-all duration-300 group ring-primary/20 hover:ring-2 backdrop-blur-sm",
+                                (!isSidebarOpen && !mobile) && "justify-center p-2"
+                            )}>
                                 <Avatar className="h-9 w-9 border-2 border-background shadow-md group-hover:scale-105 transition-transform">
                                     <AvatarImage src={user.avatar || undefined} />
                                     <AvatarFallback className="bg-primary text-primary-foreground font-black text-xs uppercase text-center flex items-center justify-center pt-0.5">
                                         {user.name?.[0] || user.email?.[0] || 'U'}
                                     </AvatarFallback>
                                 </Avatar>
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-black text-foreground truncate uppercase tracking-tight">{user.name || 'User'}</p>
-                                    <p className="text-[10px] text-muted-foreground/60 truncate font-bold uppercase tracking-widest leading-none mt-0.5">Settings</p>
-                                </div>
-                                <ChevronUp className="h-4 w-4 text-muted-foreground/20 group-hover:text-primary transition-all duration-300 group-hover:-translate-y-0.5" />
+                                {(isSidebarOpen || mobile) && (
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <p className="text-xs font-black text-foreground truncate uppercase tracking-tight">{user.name || 'User'}</p>
+                                        <p className="text-[10px] text-muted-foreground/60 truncate font-bold uppercase tracking-widest leading-none mt-0.5">Settings</p>
+                                    </div>
+                                )}
+                                {(isSidebarOpen || mobile) && <ChevronUp className="h-4 w-4 text-muted-foreground/20 group-hover:text-primary transition-all duration-300 group-hover:-translate-y-0.5" />}
                             </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-72 p-0 mb-3 rounded-2xl border-border/40 bg-card/95 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)]" side="right" align="end" sideOffset={12}>
+                        <PopoverContent className="w-72 p-0 mb-3 rounded-2xl border-border/40 bg-card/95 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)]" side={(isSidebarOpen || mobile) ? "top" : "right"} align={(isSidebarOpen || mobile) ? "center" : "end"} sideOffset={12}>
                              <div className="p-4 bg-muted/20 rounded-t-2xl">
                                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-1">Active Session</p>
                                 <p className="text-sm font-black text-foreground">{user.name || 'Account'}</p>
@@ -223,7 +225,7 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                             </div>
                             <Separator className="opacity-10" />
                             <div className="p-2 space-y-1">
-                                <Link href={`/websites/${websiteId}/settings`}>
+                                <Link href={`/websites/${websiteId}/settings`} onClick={() => mobile && closeMobileMenu()}>
                                     <Button variant="ghost" size="sm" className="w-full justify-start h-10 text-xs font-bold gap-3 rounded-xl hover:bg-muted group">
                                         <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
                                             <Settings size={14} />
@@ -234,7 +236,10 @@ export function NavSidebar({ websiteId }: { websiteId: string }) {
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => logout()}
+                                    onClick={() => {
+                                        mobile && closeMobileMenu();
+                                        logout();
+                                    }}
                                     className="w-full justify-start h-10 text-xs font-bold gap-3 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-xl group"
                                 >
                                     <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform">

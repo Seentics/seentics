@@ -49,8 +49,7 @@
   // Track custom event
   const trackEvent = (eventName, properties = {}) => {
     S.queue.add({
-      event_type: 'event',
-      event_name: eventName,
+      event_type: eventName,
       page_view_id: analytics.pageViewId,
       page_url: w.location.href,
       page: w.location.pathname,
@@ -94,10 +93,48 @@
     analytics.timeOnPage = Math.round((Date.now() - analytics.pageLoadTime) / 1000);
   };
 
+  // Load custom goal configurations from API
+  const loadGoalConfig = async () => {
+    try {
+      const response = await fetch(`${S.config.apiHost}/api/v1/tracker/config/${S.config.websiteId}`);
+      if (!response.ok) return;
+      const config = await response.json();
+      
+      if (config.goals && Array.isArray(config.goals)) {
+        config.goals.forEach(goal => {
+          if (goal.selector) {
+            setupGoalListener(goal);
+          }
+        });
+      }
+    } catch (e) {
+      if (S.config.debug) console.error('[Seentics] Failed to load goal config', e);
+    }
+  };
+
+  // Setup listener for a specific goal selector
+  const setupGoalListener = (goal) => {
+    d.addEventListener('click', (e) => {
+      // Check if the clicked element or its parent matches the selector
+      const target = e.target.closest(goal.selector);
+      if (target) {
+        trackEvent(goal.name, {
+          goal_id: goal.id,
+          trigger: 'selector_match',
+          selector: goal.selector,
+          text: target.textContent?.substring(0, 50).trim()
+        });
+      }
+    }, true);
+  };
+
   // Auto-tracking setup
   const setupAutoTracking = () => {
     // Track initial pageview
     trackPageView();
+    
+    // Load custom goals
+    loadGoalConfig();
 
     // Track clicks
     d.addEventListener('click', (e) => {

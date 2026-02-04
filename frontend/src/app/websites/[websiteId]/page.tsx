@@ -33,6 +33,7 @@ import {
   useTopReferrers,
   useUserRetention,
   useVisitorInsights,
+  useGoalStats,
 } from '@/lib/analytics-api';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
@@ -53,6 +54,8 @@ import { DataImportExportModal } from '@/components/analytics/DataImportExportMo
 import { AutomationInsightTable } from '@/components/analytics/AutomationSynergyChart';
 import { FilterModal } from '@/components/analytics/FilterModal';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { DashboardPageHeader } from '@/components/dashboard-header';
+import { LayoutDashboard } from 'lucide-react';
 
 export default function WebsiteDashboardPage() {
   const params = useParams();
@@ -159,6 +162,7 @@ export default function WebsiteDashboardPage() {
   const { data: topDevices, isLoading: devicesLoading, error: devicesError } = useTopDevices(websiteId, dateRange);
   const { data: topOS, isLoading: osLoading, error: osError } = useTopOS(websiteId, dateRange);
   const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange);
+  const { data: goalStats, isLoading: goalStatsLoading } = useGoalStats(websiteId, dateRange);
 
   const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(websiteId, dateRange);
   const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, dateRange);
@@ -352,6 +356,9 @@ export default function WebsiteDashboardPage() {
     transformedCustomEvents.unique_events = transformedCustomEvents.top_events.length;
   }
 
+  // Define manual goals if no goals are returned from API
+  const finalGoalStats = (goalStats?.goals || []).length > 0 ? goalStats.goals : (transformedCustomEvents.top_events as any[])
+    .filter(e => !['pageview', 'page_view', 'page_visible', 'page_hidden', 'exit_intent'].includes(e.event_type));
 
 
   const handleModalOpen = (type: string) => {
@@ -437,22 +444,22 @@ export default function WebsiteDashboardPage() {
 
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        {/* Header Section inside Content (Title + Filters) */}
-        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6 pb-2">
-          <div className="flex items-center gap-3">
-            {/* Demo Mode Badge */}
-            {isDemoMode && (
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wider border border-blue-500/20 shadow-sm shadow-blue-500/5">
-                DEMO MODE
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
+        <DashboardPageHeader 
+          title="Overview"
+          description="Track your website visitor behavior in real-time."
+        >
+            <div className="flex items-center gap-3">
+              {/* Demo Mode Badge */}
+              {isDemoMode && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wider border border-blue-500/20 shadow-sm shadow-blue-500/5">
+                  DEMO MODE
+                </div>
+              )}
+            </div>
 
             <div className="h-10 w-10 flex items-center justify-center bg-card/50 backdrop-blur-md hover:bg-card transition-colors rounded shadow-sm border border-border/40">
                 <ThemeToggle />
-              </div>
+            </div>
             {/* Website Switcher */}
             <Select value={websiteId} onValueChange={handleWebsiteChange}>
               <SelectTrigger className="w-full sm:w-[220px] h-10 bg-card/50 backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm border border-border/40">
@@ -494,12 +501,13 @@ export default function WebsiteDashboardPage() {
               />
               <DataImportExportModal
                 websiteId={websiteId}
+                websiteName={currentWebsite?.name || 'website'}
                 dateRange={dateRange}
               />
             </div>
-          </div>
-        </div>
+        </DashboardPageHeader>
 
+        {/* Stats Grid */}
         {/* Summary Cards */}
         <div className="">
           {/* SummaryCards already inside dashboard. Transforming to use better container if needed. */}
@@ -579,7 +587,7 @@ export default function WebsiteDashboardPage() {
                   onClick={() => setShowAddGoalModal(true)}
                   variant="outline" 
                   size="sm" 
-                  className="h-9 px-4 font-bold rounded gap-2 shadow-sm transition-transform active:scale-95"
+                  className="px-4 font-bold text-sm rounded gap-2 shadow-sm transition-transform active:scale-95"
                 >
                   <PlusCircle className="h-4 w-4" />
                   Add Goal
@@ -589,8 +597,7 @@ export default function WebsiteDashboardPage() {
             <CardContent className="p-8 pt-4 flex-1">
               <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 <EventsDetails
-                  items={(transformedCustomEvents.top_events as any[])
-                    .filter(e => !['pageview', 'page_view', 'page_visible', 'page_hidden', 'exit_intent'].includes(e.event_type))}
+                  items={finalGoalStats}
                 />
               </div>
             </CardContent>

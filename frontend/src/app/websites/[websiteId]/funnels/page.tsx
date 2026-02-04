@@ -40,6 +40,7 @@ import { useFunnels, useDeleteFunnel, useUpdateFunnel } from '@/lib/funnels-api'
 import { useToast } from '@/hooks/use-toast';
 import { formatNumber } from '@/lib/analytics-api';
 import Link from 'next/link';
+import { DashboardPageHeader } from '@/components/dashboard-header';
 
 export default function FunnelsPage() {
     const params = useParams();
@@ -124,24 +125,17 @@ export default function FunnelsPage() {
 
     return (
         <div className="p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1400px] mx-auto">
-            {/* Header Section */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
-                            <Filter className="h-4 w-4 text-primary" />
-                        </div>
-                        <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Funnels</h1>
-                    </div>
-                    <p className="text-muted-foreground font-medium">Visualize and optimize multi-stage user journeys.</p>
-                </div>
+            <DashboardPageHeader 
+                title="Funnels"
+                description="Visualize and optimize multi-stage user journeys."
+            >
                 <Link href={`/websites/${websiteId}/funnels/builder`}>
                     <Button variant="brand" className="h-12 px-6 font-black rounded gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">
                         <Plus className="h-5 w-5" />
                         Create Funnel
                     </Button>
                 </Link>
-            </div>
+            </DashboardPageHeader>
 
             {/* Premium Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">

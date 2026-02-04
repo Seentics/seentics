@@ -7,8 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Mail, Calendar, Loader2, Send } from 'lucide-react';
+import { Mail, Calendar, Loader2, Send, HelpCircle } from 'lucide-react';
 import Script from 'next/script';
+import { DashboardPageHeader } from '@/components/dashboard-header';
 
 export default function SupportPage() {
   const params = useParams();
@@ -49,10 +50,10 @@ export default function SupportPage() {
 
   return (
     <div className="p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-[1440px] mx-auto">
-      <div>
-        <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Support & Help</h1>
-        <p className="text-muted-foreground font-medium">Have questions? We're here to help you get the most out of Seentics.</p>
-      </div>
+      <DashboardPageHeader 
+        title="Support & Help"
+        description="Have questions? We're here to help you get the most out of Seentics."
+      />
 
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Contact Form */}

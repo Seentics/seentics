@@ -43,6 +43,7 @@ import { formatNumber } from '@/lib/analytics-api';
 import { useAutomations, useDeleteAutomation, useToggleAutomation } from '@/lib/automations-api';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { DashboardPageHeader } from '@/components/dashboard-header';
 
 const actionIcons: Record<string, any> = {
     email: Mail,
@@ -144,24 +145,17 @@ export default function AutomationsPage() {
 
     return (
         <div className="p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1400px] mx-auto">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center">
-                            <Workflow className="h-4 w-4 text-primary" />
-                        </div>
-                        <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">Automations</h1>
-                    </div>
-                    <p className="text-muted-foreground font-medium">Scale your growth with intelligent behavioral triggers.</p>
-                </div>
+            <DashboardPageHeader 
+                title="Automations"
+                description="Scale your growth with intelligent behavioral triggers."
+            >
                 <Link href={`/websites/${websiteId}/automations/builder`}>
                     <Button variant="brand" className="h-12 px-6 font-black rounded gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">
                         <Plus className="h-5 w-5" />
                         Create Automation
                     </Button>
                 </Link>
-            </div>
+            </DashboardPageHeader>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">

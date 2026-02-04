@@ -456,7 +456,7 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 	utmData, _ := h.service.GetUTMAnalytics(c.Request.Context(), websiteID, days)
 
 	// Transform the data to match frontend expectations
-	transformedEvents := gin.H{
+	response := gin.H{
 		"website_id":      websiteID,
 		"date_range":      fmt.Sprintf("%d days", days),
 		"top_events":      customEvents,
@@ -466,24 +466,35 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 		"utm_performance": utmData,
 	}
 
-	c.JSON(http.StatusOK, transformedEvents)
+	c.JSON(http.StatusOK, response)
 }
 
-func (h *AnalyticsHandler) GetActivityTrends(c *gin.Context) {
+func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
 		return
 	}
 
-	trends, err := h.service.GetActivityTrends(c.Request.Context(), websiteID)
+	days := 7
+	if d := c.Query("days"); d != "" {
+		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
+			days = parsedDays
+		}
+	}
+
+	stats, err := h.service.GetGoalStats(c.Request.Context(), websiteID, days)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get activity trends")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get activity trends"})
+		h.logger.Error().Err(err).Msg("Failed to get goal stats")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get goal stats"})
 		return
 	}
 
-	c.JSON(http.StatusOK, trends)
+	c.JSON(http.StatusOK, gin.H{
+		"website_id": websiteID,
+		"date_range": fmt.Sprintf("%d days", days),
+		"goals":      stats,
+	})
 }
 
 // GetLiveVisitors returns the number of currently active visitors
@@ -671,4 +682,21 @@ func (h *AnalyticsHandler) ImportAnalytics(c *gin.Context) {
 		"message": "Data imported successfully",
 		"count":   count,
 	})
+}
+
+func (h *AnalyticsHandler) GetActivityTrends(c *gin.Context) {
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	data, err := h.service.GetActivityTrends(c.Request.Context(), websiteID)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get activity trends")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get activity trends"})
+		return
+	}
+
+	c.JSON(http.StatusOK, data)
 }
