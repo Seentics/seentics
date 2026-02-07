@@ -164,12 +164,12 @@ const getBrowserName = (browser: string) => {
 };
 export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoading, showHeader = false }) => {
   if (isLoading) {
-    return <Skeleton className="h-64 w-full" />;
+    return <Skeleton className="h-[400px] w-full" />;
   }
 
   const chartData = data?.top_browsers || [];
   const filteredData = chartData.filter((item: any) => (item.visitors || 0) > 0);
-  const sortedData = [...filteredData].sort((a: any, b: any) => b.visitors - a.visitors).slice(0, 7);
+  const sortedData = [...filteredData].sort((a: any, b: any) => b.visitors - a.visitors).slice(0, 30);
   const totalVisitors = sortedData.reduce((sum: number, item: any) => sum + item.visitors, 0);
 
   if (sortedData.length === 0) {
@@ -185,9 +185,9 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 h-[400px] flex flex-col">
       {showHeader && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between shrink-0">
           <h3 className="text-lg font-semibold text-foreground">Top Browsers</h3>
         </div>
       )}
@@ -195,7 +195,7 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
 
 
       {/* Browsers List */}
-      <div className="space-y-0">
+      <div className="space-y-0 flex-1 overflow-y-auto pr-1 custom-scrollbar">
         {sortedData.map((item: any, index: number) => {
           const browserName = getBrowserName(item.browser);
           const percentage = ((item.visitors / totalVisitors) * 100).toFixed(1);
@@ -267,4 +267,4 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
       </div> */}
     </div>
   );
-}; 
+};

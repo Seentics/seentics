@@ -98,5 +98,84 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 		insights.ReturningVisitorPercentage = float64(insights.ReturningVisitors) / float64(total) * 100
 	}
 
+	// Fetch Top Entry Pages
+	entryQuery := `
+		WITH session_pages AS (
+			SELECT 
+				session_id,
+				page,
+				ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp ASC) as visit_order,
+				COUNT(*) OVER (PARTITION BY session_id) as total_pages
+			FROM events
+			WHERE website_id = $1 AND timestamp >= $2 AND event_type = 'pageview'
+		)
+		SELECT 
+			page,
+			COUNT(*) as sessions,
+			COALESCE(
+				(COUNT(*) FILTER (WHERE total_pages = 1) * 100.0) / NULLIF(COUNT(*), 0), 
+				0
+			) as bounce_rate
+		FROM session_pages
+		WHERE visit_order = 1
+		GROUP BY page
+		ORDER BY sessions DESC
+		LIMIT 10`
+
+	entryRows, err := r.db.Query(ctx, entryQuery, websiteID, startDate)
+	if err == nil {
+		defer entryRows.Close()
+		for entryRows.Next() {
+			var stat models.PageInsightStat
+			if err := entryRows.Scan(&stat.Page, &stat.Sessions, &stat.BounceRate); err == nil {
+				insights.TopEntryPages = append(insights.TopEntryPages, stat)
+			}
+		}
+	}
+
+	// Fetch Top Exit Pages
+	exitQuery := `
+		WITH session_stats AS (
+			SELECT 
+				session_id,
+				page,
+				ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp DESC) as visit_order_desc
+			FROM events
+			WHERE website_id = $1 AND timestamp >= $2 AND event_type = 'pageview'
+		),
+		exit_counts AS (
+			SELECT page, COUNT(*) as exit_sessions
+			FROM session_stats
+			WHERE visit_order_desc = 1
+			GROUP BY page
+		),
+		total_page_views AS (
+			SELECT page, COUNT(*) as total_views
+			FROM events
+			WHERE website_id = $1 AND timestamp >= $2 AND event_type = 'pageview'
+			GROUP BY page
+		)
+		SELECT 
+			ec.page,
+			ec.exit_sessions,
+			(ec.exit_sessions * 100.0 / NULLIF(tpv.total_views, 0)) as exit_rate
+		FROM exit_counts ec
+		JOIN total_page_views tpv ON ec.page = tpv.page
+		ORDER BY ec.exit_sessions DESC
+		LIMIT 10`
+
+	exitRows, err := r.db.Query(ctx, exitQuery, websiteID, startDate)
+	if err == nil {
+		defer exitRows.Close()
+		for exitRows.Next() {
+			var stat models.PageInsightStat
+			var exitRate float64
+			if err := exitRows.Scan(&stat.Page, &stat.Sessions, &exitRate); err == nil {
+				stat.ExitRate = &exitRate
+				insights.TopExitPages = append(insights.TopExitPages, stat)
+			}
+		}
+	}
+
 	return &insights, nil
 }

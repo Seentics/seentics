@@ -89,7 +89,7 @@ export default function HeatmapViewPage() {
 
     setLoading(true);
     try {
-      const response = await api.get(`/api/v1/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}`);
+      const response = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}`);
       setPoints(response.data.points || []);
     } catch (err) {
       console.error('Failed to fetch heatmap data:', err);

@@ -18,17 +18,7 @@ func NewTopSourcesAnalytics(db *pgxpool.Pool) *TopSourcesAnalytics {
 // GetTopSources returns the top traffic sources for a website with analytics
 func (ts *TopSourcesAnalytics) GetTopSources(ctx context.Context, websiteID string, days int, limit int) ([]models.SourceStat, error) {
 	query := `
-		WITH session_stats AS (
-			SELECT 
-				session_id,
-				COUNT(*) as page_count
-			FROM events
-			WHERE website_id = $1 
-			AND timestamp >= NOW() - INTERVAL '1 day' * $2
-			AND event_type = 'pageview'
-			GROUP BY session_id
-		),
-		source_categorized AS (
+		WITH source_categorized AS (
 			SELECT 
 				CASE 
 					-- UTM Source takes priority for campaign tracking
@@ -55,7 +45,7 @@ func (ts *TopSourcesAnalytics) GetTopSources(ctx context.Context, websiteID stri
 				END as source_category,
 				e.visitor_id,
 				e.session_id,
-				e.timestamp
+				COUNT(*) OVER (PARTITION BY e.session_id) as total_session_pages
 			FROM events e
 			WHERE e.website_id = $1 
 			AND e.timestamp >= NOW() - INTERVAL '1 day' * $2
@@ -66,11 +56,10 @@ func (ts *TopSourcesAnalytics) GetTopSources(ctx context.Context, websiteID stri
 			COUNT(*) as views,
 			COUNT(DISTINCT sc.visitor_id) as unique_visitors,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE s.page_count = 1) * 100.0) / 
+				(COUNT(*) FILTER (WHERE total_session_pages = 1) * 100.0) / 
 				NULLIF(COUNT(DISTINCT sc.session_id), 0), 0
 			) as bounce_rate
 		FROM source_categorized sc
-		LEFT JOIN session_stats s ON sc.session_id = s.session_id
 		GROUP BY sc.source_category
 		ORDER BY unique_visitors DESC, views DESC
 		LIMIT $3

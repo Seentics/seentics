@@ -17,7 +17,7 @@ export default function PrivacyPage() {
                 description="Configure data protection and GDPR compliance for your website."
             />
 
-            <div className="bg-card rounded-[2.5rem] border border-border/40 p-8 shadow-sm">
+            <div className="bg-card rounded border border-border/40 p-8 shadow-sm">
                 <PrivacySettingsComponent websiteId={websiteId} />
             </div>
         </div>

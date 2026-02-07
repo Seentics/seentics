@@ -708,7 +708,11 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, insights)
+	c.JSON(http.StatusOK, gin.H{
+		"website_id":       websiteID,
+		"date_range":       fmt.Sprintf("%d days", days),
+		"visitor_insights": insights,
+	})
 }
 
 func (h *AnalyticsHandler) parseFilters(c *gin.Context) models.AnalyticsFilters {

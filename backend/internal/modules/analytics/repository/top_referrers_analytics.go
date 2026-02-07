@@ -18,21 +18,10 @@ func NewTopReferrersAnalytics(db *pgxpool.Pool) *TopReferrersAnalytics {
 // GetTopReferrers returns the top referrers for a website with analytics
 func (tr *TopReferrersAnalytics) GetTopReferrers(ctx context.Context, websiteID string, days int, limit int) ([]models.ReferrerStat, error) {
 	query := `
-		WITH session_stats AS (
-			SELECT 
-				session_id,
-				COUNT(*) as page_count
-			FROM events
-			WHERE website_id = $1 
-			AND timestamp >= NOW() - INTERVAL '1 day' * $2
-			AND event_type = 'pageview'
-			GROUP BY session_id
-		),
-		normalized_referrers AS (
+		WITH normalized_referrers AS (
 			SELECT 
 				CASE 
 					WHEN e.referrer LIKE '%utm_source=%' THEN 
-						-- Extract base referrer from UTM URLs and normalize
 						CASE 
 							WHEN e.referrer LIKE '%localhost%' THEN 'Internal Navigation'
 							WHEN e.referrer LIKE '%google%' THEN 'Google'
@@ -44,16 +33,15 @@ func (tr *TopReferrersAnalytics) GetTopReferrers(ctx context.Context, websiteID 
 							ELSE 'External Sites'
 						END
 					ELSE 
-						-- Normalize regular referrers
 						CASE 
 							WHEN e.referrer IS NULL OR e.referrer = '' THEN 'Direct Traffic'
 							WHEN LOWER(e.referrer) LIKE '%localhost%' THEN 'Internal Navigation'
 							WHEN LOWER(e.referrer) LIKE '%google%' THEN 'Google'
-							WHEN LOWER(e.referrer) LIKE '%facebook%' THEN 'Facebook'
-							WHEN LOWER(e.referrer) LIKE '%twitter%' THEN 'Twitter'
-							WHEN LOWER(e.referrer) LIKE '%linkedin%' THEN 'LinkedIn'
-							WHEN LOWER(e.referrer) LIKE '%youtube%' THEN 'YouTube'
-							WHEN LOWER(e.referrer) LIKE '%instagram%' THEN 'Instagram'
+							WHEN LOWER(e.referrer) LIKE '%%facebook%%' THEN 'Facebook'
+							WHEN LOWER(e.referrer) LIKE '%%twitter%%' THEN 'Twitter'
+							WHEN LOWER(e.referrer) LIKE '%%linkedin%%' THEN 'LinkedIn'
+							WHEN LOWER(e.referrer) LIKE '%%youtube%%' THEN 'YouTube'
+							WHEN LOWER(e.referrer) LIKE '%%instagram%%' THEN 'Instagram'
 							WHEN LOWER(e.referrer) LIKE '%mail.google%' OR LOWER(e.referrer) LIKE '%accounts.google%' THEN 'Google'
 							WHEN LOWER(e.referrer) IN ('direct', 'none', 'null') THEN 'Direct Traffic'
 							ELSE 'External Sites'
@@ -61,7 +49,7 @@ func (tr *TopReferrersAnalytics) GetTopReferrers(ctx context.Context, websiteID 
 				END as normalized_referrer,
 				e.visitor_id,
 				e.session_id,
-				e.timestamp
+				COUNT(*) OVER (PARTITION BY e.session_id) as total_session_pages
 			FROM events e
 			WHERE e.website_id = $1 
 			AND e.timestamp >= NOW() - INTERVAL '1 day' * $2
@@ -72,11 +60,10 @@ func (tr *TopReferrersAnalytics) GetTopReferrers(ctx context.Context, websiteID 
 			COUNT(*) as views,
 			COUNT(DISTINCT nr.visitor_id) as unique_visitors,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE s.page_count = 1) * 100.0) / 
+				(COUNT(*) FILTER (WHERE total_session_pages = 1) * 100.0) / 
 				NULLIF(COUNT(DISTINCT nr.session_id), 0), 0
 			) as bounce_rate
 		FROM normalized_referrers nr
-		LEFT JOIN session_stats s ON nr.session_id = s.session_id
 		WHERE nr.normalized_referrer IS NOT NULL AND nr.normalized_referrer != ''
 		GROUP BY nr.normalized_referrer
 		ORDER BY unique_visitors DESC, views DESC

@@ -104,31 +104,16 @@ func (r *CustomEventsAggregatedRepository) UpsertCustomEvent(ctx context.Context
 // GetCustomEventStats returns aggregated custom event statistics
 func (r *CustomEventsAggregatedRepository) GetCustomEventStats(ctx context.Context, websiteID string, days int) ([]models.CustomEventStat, error) {
 	query := `
-		WITH event_totals AS (
-			SELECT 
-				event_type,
-				SUM(count) AS total_count
-			FROM custom_events_aggregated
-			WHERE website_id = $1
-			AND last_seen >= NOW() - INTERVAL '1 day' * $2
-			GROUP BY event_type
-		), recent_samples AS (
-			SELECT DISTINCT ON (event_type)
-				event_type,
-				sample_properties
-			FROM custom_events_aggregated
-			WHERE website_id = $1
-			AND last_seen >= NOW() - INTERVAL '1 day' * $2
-			ORDER BY event_type, last_seen DESC
-		)
 		SELECT 
-			et.event_type,
-			et.total_count,
-			rs.sample_properties
-		FROM event_totals et
-		LEFT JOIN recent_samples rs USING (event_type)
-		ORDER BY et.total_count DESC
-		LIMIT 50`
+			event_type,
+			SUM(count) AS total_count,
+			sample_properties
+		FROM custom_events_aggregated
+		WHERE website_id = $1
+		AND last_seen >= NOW() - INTERVAL '1 day' * $2
+		GROUP BY event_type, event_signature, sample_properties
+		ORDER BY total_count DESC
+		LIMIT 100`
 
 	rows, err := r.db.Query(ctx, query, websiteID, days)
 	if err != nil {
@@ -163,14 +148,35 @@ func (r *CustomEventsAggregatedRepository) GetCustomEventStats(ctx context.Conte
 	return events, rows.Err()
 }
 
-// createEventSignature creates a unique signature for an event based on its type only
-// This ensures proper aggregation of events of the same type regardless of property variations
+// createEventSignature creates a unique signature for an event based on its type and key identifying properties
+// This ensures that different interactive elements (different buttons, different forms)
+// are tracked as separate conversion targets.
 func (r *CustomEventsAggregatedRepository) createEventSignature(eventType string, properties models.Properties) string {
-	// Use only event type for signature to enable proper aggregation
-	// Properties are stored separately as sample_properties for analysis
-	signatureData := strings.ToLower(eventType)
+	// Start with lowercase event type
+	signatureParts := []string{strings.ToLower(eventType)}
 
-	// Create hash of the event type only
+	// Add key identifying properties if they exist
+	// These specific keys distinguish between different targets of the same event type
+	identifyKeys := []string{
+		"element_id",
+		"element_text",
+		"element_tag",
+		"form_id",
+		"form_name",
+		"href",
+		"page",  // Distinguish same button on different pages
+		"depth", // For scroll_depth events
+	}
+
+	for _, key := range identifyKeys {
+		if val, ok := properties[key]; ok {
+			signatureParts = append(signatureParts, fmt.Sprintf("%s:%v", key, val))
+		}
+	}
+
+	signatureData := strings.Join(signatureParts, "|")
+
+	// Create SHA-256 hash of the identifying data
 	hash := sha256.Sum256([]byte(signatureData))
 	return hex.EncodeToString(hash[:])
 }

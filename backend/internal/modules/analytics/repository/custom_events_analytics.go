@@ -19,6 +19,7 @@ func NewCustomEventsAnalytics(db *pgxpool.Pool) *CustomEventsAnalytics {
 // GetCustomEventStats returns custom event statistics for a website
 func (ce *CustomEventsAnalytics) GetCustomEventStats(ctx context.Context, websiteID string, days int) ([]models.CustomEventStat, error) {
 	// Get aggregated event counts from the custom_events_aggregated table
+	// Grouping by event_signature ensures different interaction targets stay separate
 	query := `
 		SELECT 
 			event_type,
@@ -27,9 +28,9 @@ func (ce *CustomEventsAnalytics) GetCustomEventStats(ctx context.Context, websit
 		FROM custom_events_aggregated
 		WHERE website_id = $1 
 		AND last_seen >= NOW() - INTERVAL '1 day' * $2
-		GROUP BY event_type, sample_properties
+		GROUP BY event_type, event_signature, sample_properties
 		ORDER BY total_count DESC
-		LIMIT 50`
+		LIMIT 100`
 
 	rows, err := ce.db.Query(ctx, query, websiteID, days)
 	if err != nil {

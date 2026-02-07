@@ -53,7 +53,7 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 h-[400px]">
         {[...Array(5)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse">
             <div className="flex items-center space-x-4">
@@ -93,7 +93,7 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
       const valA = a.visitors || a.views || a.value || 0;
       const valB = b.visitors || b.views || b.value || 0;
       return valB - valA;
-    }).slice(0, 8);
+    }).slice(0, 30);
 
     return (
       <div className="space-y-0 mt-4">
@@ -146,28 +146,34 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
+    <div className="h-[400px] flex flex-col">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
            <div className="space-y-1">
               <CardTitle className="text-lg font-bold tracking-tight">System Insights</CardTitle>
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Devices, OS, & Tech Specs</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded">
+           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded shrink-0">
              <TabsTrigger value="devices" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Devices</TabsTrigger>
              <TabsTrigger value="os" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">OS</TabsTrigger>
              <TabsTrigger value="screens" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Screens</TabsTrigger>
            </TabsList>
         </div>
         
-        <TabsContent value="devices" className="mt-0 focus-visible:outline-none focus:outline-none">
-          <PageList items={data?.top_devices || []} type="device" />
+        <TabsContent value="devices" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+            <PageList items={data?.top_devices || []} type="device" />
+          </div>
         </TabsContent>
-        <TabsContent value="os" className="mt-0 focus-visible:outline-none focus:outline-none">
-          <PageList items={osData?.top_os || []} type="os" />
+        <TabsContent value="os" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+            <PageList items={osData?.top_os || []} type="os" />
+          </div>
         </TabsContent>
-        <TabsContent value="screens" className="mt-0 focus-visible:outline-none focus:outline-none">
-          <PageList items={screenData} type="screen" />
+        <TabsContent value="screens" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+            <PageList items={screenData} type="screen" />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

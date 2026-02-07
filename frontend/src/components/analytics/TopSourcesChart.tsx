@@ -65,7 +65,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 h-[400px]">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse">
             <div className="flex items-center space-x-4">
@@ -119,7 +119,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
     const maxVal = Math.max(...filtered.map(r => r.visitors), 1);
     return filtered
       .sort((a, b) => b.visitors - a.visitors)
-      .slice(0, 8)
+      .slice(0, 30)
       .map(r => ({
         label: r.referrer || 'Direct',
         visitors: r.visitors,
@@ -186,9 +186,9 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
+    <div className="h-[400px] flex flex-col">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
            <div className="space-y-1">
               <CardTitle className="text-lg font-bold tracking-tight">Traffic Sources</CardTitle>
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Main acquisition channels</p>
@@ -201,17 +201,25 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
            </TabsList>
         </div>
         
-        <TabsContent value="overview" className="mt-0 focus-visible:outline-none focus:outline-none">
-          <PageList type="overview" />
+        <TabsContent value="overview" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+            <PageList type="overview" />
+          </div>
         </TabsContent>
-        <TabsContent value="referrers" className="mt-0 focus-visible:outline-none focus:outline-none">
-          <PageList type="referrers" />
+        <TabsContent value="referrers" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+            <PageList type="referrers" />
+          </div>
         </TabsContent>
-        <TabsContent value="search" className="mt-0 focus-visible:outline-none focus:outline-none">
-          <PageList type="search" />
+        <TabsContent value="search" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+            <PageList type="search" />
+          </div>
         </TabsContent>
-        <TabsContent value="social" className="mt-0 focus-visible:outline-none focus:outline-none">
-          <PageList type="social" />
+        <TabsContent value="social" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+            <PageList type="social" />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

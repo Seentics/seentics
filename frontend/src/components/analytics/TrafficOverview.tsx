@@ -28,8 +28,8 @@ export function TrafficOverview({
   const listData = dailyStats?.daily_stats || [];
 
   return (
-    <Card className={cn("col-span-full bg-card/50 shadow-sm shadow-black/5 overflow-hidden", className)}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+    <Card className={cn("col-span-full bg-card/50 shadow-sm shadow-black/5 overflow-hidden h-[500px]", className)}>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7 shrink-0">
         <div className="space-y-1">
           <CardTitle className="text-lg font-bold tracking-tight">Traffic Overview</CardTitle>
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Visitor volume over time</p>

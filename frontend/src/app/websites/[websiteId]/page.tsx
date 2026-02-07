@@ -413,26 +413,6 @@ export default function WebsiteDashboardPage() {
 
 
   const renderContent = () => {
-    if (!isDemoMode && dashboardLoading) {
-      return (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <Card key={i} className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none">
-                <CardHeader className="pb-2">
-                  <div className="h-4 bg-muted rounded animate-pulse" />
-                </CardHeader>
-                <CardContent>
-                  <div className="h-8 bg-muted rounded animate-pulse mb-2" />
-                  <div className="h-4 bg-muted rounded animate-pulse w-1/2" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      );
-    }
-
     // Handle errors (simplified) - skip in demo mode
     if (!isDemoMode && dashboardError) {
       return (
@@ -514,6 +494,7 @@ export default function WebsiteDashboardPage() {
           <SummaryCards
             websiteId={websiteId}
             isDemo={isDemoMode}
+            isLoading={!isDemoMode && dashboardLoading}
             data={finalDashboardData || {
               total_visitors: 0,
               unique_visitors: 0,
@@ -598,6 +579,7 @@ export default function WebsiteDashboardPage() {
               <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 <EventsDetails
                   items={finalGoalStats}
+                  isLoading={!isDemoMode && goalStatsLoading}
                 />
               </div>
             </CardContent>

@@ -74,16 +74,10 @@ func (s *BillingService) GetUserSubscriptionData(ctx context.Context, userID str
 			shouldRecalibrate = true
 		}
 
-		// Monthly events are critical and easily unsynced; always check the source of truth
-		// when loading the billing page to ensure 100% accuracy for the user
-		if resourceType == models.ResourceMonthlyEvents {
-			shouldRecalibrate = true
-		}
-
 		usageMap[resourceType] = count
 	}
 
-	// If we're suspicious or for critical resources, recalibrate from actual tables
+	// If data is missing from Redis, recalibrate from actual tables
 	if shouldRecalibrate {
 		recalibrated, err := s.RecalibrateUsage(ctx, userID)
 		if err == nil {

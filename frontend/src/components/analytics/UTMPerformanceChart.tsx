@@ -54,7 +54,7 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
   
   if (isLoading) {
     return (
-      <div className="space-y-2 mt-4">
+      <div className="space-y-2 mt-4 h-[400px]">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 rounded border border-border/20 animate-pulse">
             <div className="flex items-center space-x-4">
@@ -84,7 +84,7 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
       .sort((a, b) => b.visitors - a.visitors);
   };
 
-  const listData = getListData(utmTab).slice(0, 8);
+  const listData = getListData(utmTab).slice(0, 30);
 
   if (!data || listData.length === 0) {
     return (
@@ -97,7 +97,7 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
   }
 
   return (
-    <div className="space-y-2  animate-in fade-in duration-500">
+    <div className="space-y-2 animate-in fade-in duration-500 h-[400px] overflow-y-auto pr-1 custom-scrollbar">
       {listData.map((item, idx) => (
         <div key={idx} className="flex items-center justify-between p-3 border-b transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
           <div className="flex items-center space-x-4 flex-1 min-w-0">

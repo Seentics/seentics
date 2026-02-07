@@ -12,7 +12,15 @@ import {
   Tablet,
   Download,
   Share2,
-  Maximize2
+  Maximize2,
+  ChevronLeft,
+  Settings2,
+  Eye,
+  Activity,
+  Zap,
+  CheckCircle2,
+  Layers,
+  Info
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,6 +33,8 @@ import { Sparkles, Loader2, Ruler } from 'lucide-react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Slider } from "@/components/ui/slider";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 export default function HeatmapViewPage() {
   const { websiteId } = useParams();
@@ -37,7 +47,7 @@ export default function HeatmapViewPage() {
   const { data: website, isLoading: isLoadingWebsite } = useQuery({
     queryKey: ['website', websiteId],
     queryFn: async () => {
-      const response = await api.get(`/api/v1/websites/${websiteId}`);
+      const response = await api.get(`/websites/${websiteId}`);
       return response.data;
     },
     enabled: !!websiteId && websiteId !== 'demo',
@@ -51,6 +61,7 @@ export default function HeatmapViewPage() {
   const [viewSize, setViewSize] = useState({ width: 0, height: 0 }); // Viewport size
   const [scrollPos, setScrollPos] = useState({ top: 0, left: 0 }); // Current scroll position
   const [showHeightControl, setShowHeightControl] = useState(false);
+  const [opacity, setOpacity] = useState([70]);
   const mainScrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -138,7 +149,7 @@ export default function HeatmapViewPage() {
     for (let i = 0; i < count; i++) {
         // Create clusters for more realistic look across the full page height
         const centerX = Math.random() * 900 + 50;
-        const centerY = Math.random() * 900 + 50;
+        const centerY = Math.random() * 2000 + 100; // Spread across height
         const clusterSize = Math.floor(Math.random() * 12) + 2;
         
         for (let j = 0; j < clusterSize; j++) {
@@ -152,48 +163,29 @@ export default function HeatmapViewPage() {
     return dummyPoints;
   };
 
-  const fetchHeatmapData = async () => {
-    setLoading(true);
-    try {
-      if (isDemo || isFreePlan) {
-        // Generate more realistic demo points across the whole page (0-1000 grid)
-        const mockPoints = [];
-        for (let i = 0; i < 300; i++) {
-          mockPoints.push({
-            x: Math.floor(Math.random() * 800) + 100,
-            y: Math.floor(Math.random() * 1000),
-            intensity: Math.floor(Math.random() * 50) + 10
-          });
-        }
-        // Add some hot spots
-        for (let i = 0; i < 8; i++) {
-          const hotX = Math.floor(Math.random() * 800) + 100;
-          const hotY = Math.floor(Math.random() * 1000);
-          for (let j = 0; j < 40; j++) {
-            mockPoints.push({
-              x: Math.max(0, Math.min(1000, hotX + (Math.random() * 60 - 30))),
-              y: Math.max(0, Math.min(1000, hotY + (Math.random() * 60 - 30))),
-              intensity: Math.floor(Math.random() * 80) + 20
-            });
-          }
-        }
-        setPoints(mockPoints);
+  useEffect(() => {
+    const fetchPoints = async () => {
+      setLoading(true);
+      if (showDummy) {
+        setPoints(generateDummyPoints(activeType));
+        setLoading(false);
         return;
       }
 
-      const response = await api.get(`/api/v1/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}`);
-      setPoints(response.data.points || []);
-    } catch (err) {
-      console.error('Failed to fetch heatmap data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+      try {
+        const response = await api.get(`/heatmaps?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}`);
+        setPoints(response.data.points || []);
+      } catch (err) {
+        console.error('Failed to fetch heatmap points:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  useEffect(() => {
-    fetchHeatmapData();
-  }, [websiteId, url, activeType]);
+    fetchPoints();
+  }, [websiteId, url, activeType, showDummy]);
 
+  // Update view size on mount and resize
   useEffect(() => {
     const updateSize = () => {
       if (containerRef.current) {
@@ -213,179 +205,232 @@ export default function HeatmapViewPage() {
     };
   }, [device, loading]);
 
+  const getDeviceWidth = () => {
+      if (device === 'mobile') return 375;
+      if (device === 'tablet') return 768;
+      return 1200; // Desktop
+  };
+
+  const getDeviceScale = () => {
+      if (viewSize.width === 0) return 1;
+      const targetWidth = getDeviceWidth();
+      if (viewSize.width > targetWidth + 40) return 1;
+      return (viewSize.width - 40) / targetWidth;
+  };
+
+  const deviceWidth = getDeviceWidth();
+  const scale = getDeviceScale();
+
   const siteUrl = isDemo 
     ? 'https://seentics.com' 
     : (website?.url 
       ? `${website.url.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`
-      : url);
+      : (website?.protocol || 'https://') + (website?.domain || '') + url);
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-background text-foreground">
-      {isFreePlan && !isDemo && (
-        <div className="px-6 py-2 bg-primary/5 border-b border-primary/20">
-          <div className="flex items-center justify-between text-xs sm:text-sm">
-            <span className="flex items-center gap-2">
-              <Sparkles className="h-3 w-3 text-primary" />
-              <span className="text-muted-foreground"><strong>Free Plan:</strong> Showing dummy data. Upgrade to see real interactions.</span>
-            </span>
-            <Link href={`/websites/${websiteId}/billing`}>
-              <Button size="sm" variant="link" className="h-auto p-0 text-primary">Upgrade Now</Button>
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b bg-card z-20 shadow-sm shrink-0">
+    <div className="h-screen flex flex-col bg-zinc-950 text-white overflow-hidden select-none">
+      {/* Premium Navigation Header */}
+      <header className="h-16 border-b border-white/5 bg-zinc-900/50 backdrop-blur-xl flex items-center justify-between px-6 z-50">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="hover:bg-white/10 text-zinc-400 hover:text-white">
+            <ChevronLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-lg font-semibold flex items-center gap-2">
-              Heatmap: {url}
-              <Badge variant="outline" className="ml-2 font-normal">
-                {activeType === 'click' ? 'Click Map' : 'Move Map'}
-              </Badge>
+          <div className="flex flex-col">
+            <h1 className="text-sm font-black tracking-widest uppercase flex items-center gap-2">
+              Heatmap Analysis
+              <Badge variant="outline" className="text-[10px] py-0 h-4 border-primary text-primary font-black uppercase tracking-tighter">Live</Badge>
             </h1>
+            <span className="text-[10px] font-medium text-zinc-500 truncate max-w-[200px] md:max-w-md">{url}</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <Tabs value={activeType} onValueChange={(val) => setActiveType(val as any)}>
-            <TabsList>
-              <TabsTrigger value="click" className="gap-2">
-                <MousePointerClick className="h-4 w-4" /> Click
-              </TabsTrigger>
-              <TabsTrigger value="move" className="gap-2">
-                <MousePointer2 className="h-4 w-4" /> Move
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+        <div className="hidden md:flex items-center gap-6">
+           <div className="flex gap-2 items-center">
+             <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Overlay Type</span>
+             <Tabs value={activeType} onValueChange={(v: any) => setActiveType(v)} className="bg-black/40 p-1 rounded-lg border border-white/5">
+                <TabsList className="h-8 bg-transparent p-0 gap-1">
+                    <TabsTrigger value="click" className="h-6 px-3 text-[10px] font-bold uppercase rounded data-[state=active]:bg-primary data-[state=active]:text-white">
+                        <MousePointerClick className="h-3 w-3 mr-1.5" /> Click
+                    </TabsTrigger>
+                    <TabsTrigger value="move" className="h-6 px-3 text-[10px] font-bold uppercase rounded data-[state=active]:bg-primary data-[state=active]:text-white">
+                        <MousePointer2 className="h-3 w-3 mr-1.5" /> Move
+                    </TabsTrigger>
+                </TabsList>
+              </Tabs>
+           </div>
 
-          <div className="flex items-center border rounded-md p-1 bg-muted/50">
-            <Button 
-              variant={device === 'desktop' ? 'secondary' : 'ghost'} 
-              size="sm" 
-              className="h-8 w-8 p-0"
-              onClick={() => setDevice('desktop')}
-            >
-              <Monitor className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant={device === 'tablet' ? 'secondary' : 'ghost'} 
-              size="sm" 
-              className="h-8 w-8 p-0"
-              onClick={() => setDevice('tablet')}
-            >
-              <Tablet className="h-4 w-4" />
-            </Button>
-            <Button 
-              variant={device === 'mobile' ? 'secondary' : 'ghost'} 
-              size="sm" 
-              className="h-8 w-8 p-0"
-              onClick={() => setDevice('mobile')}
-            >
-              <Smartphone className="h-4 w-4" />
-            </Button>
-          </div>
+           <div className="h-8 w-px bg-white/5" />
 
-          <div className="h-8 w-[1px] bg-border mx-2" />
-
-          <Button variant="outline" size="sm" className="gap-2" onClick={fetchHeatmapData}>
-            <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Download className="h-4 w-4" />
-            Export
-          </Button>
+           <div className="flex flex gap-2 items-center">
+             <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Viewport</span>
+             <Tabs value={device} onValueChange={(v: any) => setDevice(v)} className="bg-black/40 p-1 rounded-lg border border-white/5">
+                <TabsList className="h-8 bg-transparent p-0 gap-1">
+                    <TabsTrigger value="desktop" className="h-6 w-8 p-0 rounded data-[state=active]:bg-zinc-800"><Monitor className="h-3.5 w-3.5" /></TabsTrigger>
+                    <TabsTrigger value="tablet" className="h-6 w-8 p-0 rounded data-[state=active]:bg-zinc-800"><Tablet className="h-3.5 w-3.5" /></TabsTrigger>
+                    <TabsTrigger value="mobile" className="h-6 w-8 p-0 rounded data-[state=active]:bg-zinc-800"><Smartphone className="h-3.5 w-3.5" /></TabsTrigger>
+                </TabsList>
+              </Tabs>
+           </div>
         </div>
-      </div>
 
-      {/* Main Content Area */}
-      <div 
-        className="flex-1 bg-muted/30 overflow-y-auto flex flex-col items-center relative scroll-smooth bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:20px_20px]"
-        ref={mainScrollRef}
-        onScroll={handleMainScroll}
-      >
-        <div 
-            className="w-full flex justify-center pt-8"
+        <div className="flex items-center gap-3">
+          <div className="hidden lg:flex flex-col items-end mr-2">
+             <div className="flex items-center gap-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">{isFreePlan || isDemo ? "Preview with dummy data" : "Live Mode"}</span>
+             </div>
+             <span className="text-[9px] text-zinc-500 font-bold uppercase">{points.length} samples loaded</span>
+          </div>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-lg bg-white/5 border-white/10 hover:bg-white/10"><Share2 className="h-4 w-4" /></Button>
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-lg bg-white/5 border-white/10 hover:bg-white/10"><Download className="h-4 w-4" /></Button>
+        </div>
+      </header>
+
+      <main className="flex-1 flex overflow-hidden bg-zinc-950 relative">
+        {/* Floating Side Tools */}
+        <div className="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
+           <TooltipProvider>
+             <div className="bg-zinc-900 shadow-2xl rounded-2xl p-2 border border-white/10 flex flex-col gap-2">
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                         <Button variant="ghost" size="icon" className="h-10 w-10 text-zinc-500 hover:text-white hover:bg-white/5"><Layers className="h-5 w-5" /></Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Visibility</TooltipContent>
+                </Tooltip>
+                <div className="px-2 py-4">
+                     <div className="h-[100px] flex flex-col items-center gap-2">
+                        <span className="text-[8px] font-black uppercase text-zinc-600 vertical-text origin-center rotate-180">Opacity</span>
+                        <div className="mt-2 h-full py-2">
+                            <Slider 
+                                orientation="vertical" 
+                                value={opacity} 
+                                onValueChange={setOpacity} 
+                                max={100} 
+                                step={5}
+                                className="h-full"
+                            />
+                        </div>
+                     </div>
+                </div>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                         <Button variant="ghost" size="icon" className="h-10 w-10 text-zinc-500 hover:text-white hover:bg-white/5" onClick={() => setShowHeightControl(!showHeightControl)}><Ruler className="h-5 w-5" /></Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Page Height</TooltipContent>
+                </Tooltip>
+             </div>
+           </TooltipProvider>
+
+           {/* Stats Floating Card */}
+           {/* <div className="bg-primary/10 backdrop-blur-md shadow-2xl rounded-2xl p-4 border border-primary/20 flex flex-col gap-4 mt-4 w-[160px]">
+              <div className="space-y-1">
+                 <span className="text-[9px] font-black uppercase tracking-widest text-primary/80">Interaction Density</span>
+                 <div className="text-xl font-black">Medium</div>
+              </div>
+              <div className="space-y-1">
+                 <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Avg. Pos</span>
+                 <div className="text-sm font-bold text-zinc-400">Centered</div>
+              </div>
+              <div className="pt-2 border-t border-white/5">
+                 <div className="flex items-center gap-2 text-[10px] text-primary font-bold">
+                    <CheckCircle2 className="h-3 w-3" />
+                    Verified Data
+                 </div>
+              </div>
+           </div> */}
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-start overflow-hidden pt-5 pb-20 relative">
+          <div 
+            className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out rounded-xl ring-1 ring-white/10"
             style={{ 
-                height: Math.max(dimensions.height || 1000, 1000) + 200, // Extra space at bottom
-                minHeight: '100%'
+              width: `${deviceWidth}px`, 
+              transform: `scale(${scale})`,
+              transformOrigin: 'top center',
             }}
-        >
-            <div 
-                ref={containerRef}
-                className={`sticky top-0 bg-white shadow-2xl ring-1 ring-black/5 transition-all duration-300 ease-in-out ${
-                    device === 'desktop' ? 'w-full max-w-7xl' : 
-                    device === 'tablet' ? 'w-[768px]' : 
-                    'w-[375px]'
-                } h-[calc(100vh-80px)] overflow-hidden rounded-t-lg`}
-            >
-                {/* Heatmap Overlay */}
-                {!loading && (isDemo || !isLoadingWebsite) && viewSize.width > 0 && (
-                    <div className="absolute inset-0 pointer-events-none z-10">
-                        <HeatmapOverlay 
-                            points={points} 
-                            type={activeType} 
-                            width={viewSize.width} 
-                            height={viewSize.height}
-                            totalWidth={dimensions.width || viewSize.width}
-                            totalHeight={dimensions.height || 0}
-                            scrollTop={scrollPos.top}
-                            scrollLeft={scrollPos.left}
-                        />
-                    </div>
-                )}
+          >
+            {/* Mock Web Browser Chrome */}
+            <div className="h-10 bg-zinc-800 rounded-t-xl border-b border-white/5 flex items-center px-4 gap-3 select-none">
+               <div className="flex gap-1.5">
+                  <div className="h-2.5 w-2.5 rounded-full bg-rose-500/30" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-amber-500/30" />
+                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-500/30" />
+               </div>
+               <div className="flex-1 bg-black/40 h-6 rounded-md flex items-center px-3 justify-between">
+                  <span className="text-[10px] text-zinc-500 truncate font-mono">{siteUrl}</span>
+                  <Maximize2 className="h-2.5 w-2.5 text-zinc-600" />
+               </div>
+            </div>
 
-                {/* Iframe of the website */}
-                {isDemo || !isLoadingWebsite ? (
+            <div 
+               ref={mainScrollRef}
+               onScroll={handleMainScroll}
+               className="bg-white overflow-y-auto overflow-x-hidden rounded-b-xl hide-scrollbar"
+               style={{ height: 'calc(100vh - 150px)' }}
+            >
+                <div style={{ height: `${dimensions.height}px`, width: '100%', position: 'relative' }}>
+                    <HeatmapOverlay 
+                        points={points} 
+                        width={deviceWidth} 
+                        height={dimensions.height} 
+                        opacity={opacity[0] / 100}
+                    />
+                    
+                    {loading && (
+                        <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center gap-4 text-zinc-900 backdrop-blur-sm">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <div className="flex flex-col items-center">
+                                <span className="font-black uppercase tracking-widest text-xs">Assembling Map</span>
+                                <span className="text-[10px] font-medium opacity-50">Calibrating interactive coordinates...</span>
+                            </div>
+                        </div>
+                    )}
+
                     <iframe 
                         ref={iframeRef}
-                        src={siteUrl}
-                        className="border-none pointer-events-auto"
-                        style={{ 
-                            height: '100%', 
-                            width: 'calc(100% + 20px)', // Offset to hide the native scrollbar
-                            marginRight: '-20px'
-                        }}
-                        title="Heatmap View"
-                        scrolling="yes" 
-                        onLoad={() => {
-                            if (iframeRef.current?.contentWindow) {
-                                iframeRef.current.contentWindow.postMessage('SEENTICS_GET_DIMENSIONS', '*');
-                            }
-                        }}
+                        src={siteUrl} 
+                        className="w-full h-full border-none pointer-events-none"
                     />
-                ) : (
-                    <div className="flex items-center justify-center h-full">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                )}
-
-                {loading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-30">
-                        <div className="flex flex-col items-center gap-4">
-                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-                            <p className="font-medium text-sm">Syncing heat data...</p>
-                        </div>
-                    </div>
-                )}
+                </div>
             </div>
+          </div>
+
+          {showHeightControl && (
+            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-zinc-900/90 border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col gap-2 w-80 z-[60]">
+               <div className="flex items-center gap-2 mb-2">
+                    <Info className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-bold">Manual Height Calibration</span>
+               </div>
+               <p className="text-[10px] text-zinc-400 mb-2">We couldn't automatically detect the page height. Adjust it manually to align the heatmap correctly.</p>
+               <div className="space-y-2">
+                 <div className="flex justify-between text-[10px] font-black uppercase text-zinc-500">
+                    <span>Height</span>
+                    <span>{dimensions.height}px</span>
+                 </div>
+                 <Slider 
+                    value={[dimensions.height]} 
+                    onValueChange={(v) => setDimensions({ ...dimensions, height: v[0] })}
+                    min={500}
+                    max={10000}
+                    step={100}
+                 />
+               </div>
+               <Button size="sm" className="mt-2 h-7 rounded text-[10px] font-black uppercase" onClick={() => setShowHeightControl(false)}>Dismiss</Button>
+            </div>
+          )}
         </div>
-      </div>
-      
-      {/* Footer Info */}
-      <div className="px-6 py-2 border-t bg-background text-xs text-muted-foreground flex justify-between items-center">
-        <div>
-          Showing {points.reduce((acc, p) => acc + p.intensity, 0)} total {activeType === 'click' ? 'clicks' : 'movements'}
+      </main>
+
+      {/* Top Banner for Demo/Free */}
+      {/* {(isFreePlan || isDemo) && (
+        <div className="bg-amber-500 text-black py-1 px-4 text-center">
+            <p className="text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-4">
+                <Sparkles className="h-3 w-3" />
+                Preview Mode: Visualizing simulated user interactions for this domain
+                <Link href={isDemo ? '/pricing' : `/websites/${websiteId}/billing`} className="underline ml-2">Upgrade for Live Tracking</Link>
+            </p>
         </div>
-        <div>
-          Resolution: 0.1% grid (1000x1000)
-        </div>
-      </div>
+      )} */}
     </div>
   );
 }

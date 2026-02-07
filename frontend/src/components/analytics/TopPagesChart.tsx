@@ -99,7 +99,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 h-[400px]">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse text-muted">
              <div className="flex items-center space-x-4 flex-1">
@@ -126,7 +126,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
       );
     }
 
-    const sortedItems = [...items].sort((a, b) => (b.views || b.sessions || 0) - (a.views || a.sessions || 0)).slice(0, 8);
+    const sortedItems = [...items].sort((a, b) => (b.views || b.sessions || 0) - (a.views || a.sessions || 0)).slice(0, 30);
     const maxVal = Math.max(...sortedItems.map(item => item.views || item.sessions || 1));
 
     return (
@@ -172,32 +172,36 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
-             <div className="space-y-1">
-                <CardTitle className="text-lg font-bold tracking-tight">Top Pages</CardTitle>
-                <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Most visited & landing destinations</p>
-             </div>
-             <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded">
-               <TabsTrigger value="top" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Top</TabsTrigger>
-               <TabsTrigger value="entry" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Entry</TabsTrigger>
-               <TabsTrigger value="exit" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Exit</TabsTrigger>
-             </TabsList>
-          </div>
-          
-          <TabsContent value="top" className="mt-0 focus-visible:outline-none focus:outline-none">
+    <div className="h-[400px] flex flex-col">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
+           <div className="space-y-1">
+              <CardTitle className="text-lg font-bold tracking-tight">Top Pages</CardTitle>
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Most visited & landing destinations</p>
+           </div>
+           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded shrink-0">
+             <TabsTrigger value="top" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Top</TabsTrigger>
+             <TabsTrigger value="entry" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Entry</TabsTrigger>
+             <TabsTrigger value="exit" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Exit</TabsTrigger>
+           </TabsList>
+        </div>
+        
+        <TabsContent value="top" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
             <PageList items={data?.top_pages || []} type="top" />
-          </TabsContent>
-          <TabsContent value="entry" className="mt-0 focus-visible:outline-none focus:outline-none">
+          </div>
+        </TabsContent>
+        <TabsContent value="entry" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
             <PageList items={entryPages} type="entry" />
-          </TabsContent>
-          <TabsContent value="exit" className="mt-0 focus-visible:outline-none focus:outline-none">
+          </div>
+        </TabsContent>
+        <TabsContent value="exit" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
             <PageList items={exitPages} type="exit" />
-          </TabsContent>
-        </Tabs>
-      </div>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

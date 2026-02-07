@@ -20,7 +20,7 @@ export interface SubscriptionUsage {
 
 export interface SubscriptionData {
   id: string;
-  plan: 'starter' | 'growth' | 'scale' | 'pro_plus';
+  plan: 'free' | 'starter' | 'growth' | 'scale' | 'pro_plus';
   status: string;
   usage: SubscriptionUsage;
   features: string[];
@@ -70,7 +70,17 @@ export const useSubscription = (): UseSubscriptionReturn => {
       setLoading(false);
       return;
     }
-    // ...existing code...
+    try {
+      setLoading(true);
+      const response = await api.get('/user/billing/usage');
+      setSubscription(response.data.data);
+      setError(null);
+    } catch (err: any) {
+      console.error('Failed to fetch subscription:', err);
+      setError(err.response?.data?.error || 'Failed to sync billing data');
+    } finally {
+      setLoading(false);
+    }
   }, [isAuthenticated, user]);
 
   useEffect(() => {
@@ -84,19 +94,23 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const canCreateHeatmap = subscription?.usage?.heatmaps?.canCreate ?? false;
 
   const canTrackEvents = useCallback((count: number = 1): boolean => {
-    // ...existing code...
+    if (!subscription) return false;
+    return subscription.usage.monthlyEvents.current + count <= subscription.usage.monthlyEvents.limit;
   }, [subscription]);
 
   const getUsagePercentage = useCallback((type: keyof SubscriptionUsage): number => {
-    // ...existing code...
+    if (!subscription || !subscription.usage[type]) return 0;
+    const { current, limit } = subscription.usage[type];
+    return limit > 0 ? (current / limit) * 100 : 0;
   }, [subscription]);
 
   const isNearLimit = useCallback((type: keyof SubscriptionUsage, threshold: number = 80): boolean => {
-    // ...existing code...
-  }, [getUsagePercentage, subscription]);
+    return getUsagePercentage(type) >= threshold;
+  }, [getUsagePercentage]);
 
   const hasReachedLimit = useCallback((type: keyof SubscriptionUsage): boolean => {
-    // ...existing code...
+    if (!subscription || !subscription.usage[type]) return true;
+    return !subscription.usage[type].canCreate;
   }, [subscription]);
 
   return {

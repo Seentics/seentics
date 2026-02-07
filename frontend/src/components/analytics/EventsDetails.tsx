@@ -18,22 +18,38 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/lib/analytics-api';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type EventItem = {
 	event_type: string;
 	count: number;
+	sample_properties: Record<string, any>;
 	description?: string;
-	common_properties?: string[];
-	sample_properties?: Record<string, any>;
-	sample_event?: Record<string, any>;
 };
 
 interface EventsDetailsProps {
 	items: EventItem[];
+	isLoading?: boolean;
 }
 
-export function EventsDetails({ items }: EventsDetailsProps) {
+export function EventsDetails({ items, isLoading }: EventsDetailsProps) {
 	const [expanded, setExpanded] = React.useState<Record<string, boolean>>({});
+
+	if (isLoading) {
+		return (
+			<div className="space-y-4 h-[400px]">
+				{[...Array(5)].map((_, i) => (
+					<div key={i} className="flex items-center justify-between p-4 bg-accent/5 rounded border border-border/40">
+						<div className="flex items-center gap-3">
+							<Skeleton className="h-4 w-4 rounded-full" />
+							<Skeleton className="h-4 w-32" />
+						</div>
+						<Skeleton className="h-4 w-12" />
+					</div>
+				))}
+			</div>
+		);
+	}
 
 	if (!items || items.length === 0) {
 		return (
@@ -98,22 +114,32 @@ export function EventsDetails({ items }: EventsDetailsProps) {
 		} catch { }
 	};
 
-	const eventMeta = (type: string) => {
+	const eventMeta = (type: string, props?: Record<string, any>) => {
 		const t = type.toLowerCase();
-		if (t.includes('form_submit') || t.includes('form_submission')) return { label: 'Form Submission', icon: FormInput, color: '#3B82F6' };
-		if (t.includes('click')) return { label: 'Button Click', icon: MousePointerClick, color: '#10B981' };
+		if (t.includes('form_submit') || t.includes('form_submission')) {
+			const formId = props?.form_id || props?.form_name || 'Form';
+			return { label: `Form: ${formId}`, icon: FormInput, color: '#3B82F6' };
+		}
+		if (t.includes('click')) {
+			const target = props?.element_text || props?.element_id || props?.element_tag || 'Element';
+			return { label: `Click: ${target}`, icon: MousePointerClick, color: '#10B981' };
+		}
 		if (t.includes('external_link')) return { label: 'External Link', icon: ExternalLink, color: '#06B6D4' };
 		if (t.includes('file_download')) return { label: 'File Download', icon: FileDown, color: '#F59E0B' };
 		if (t.includes('search')) return { label: 'Search', icon: Search, color: '#10B981' };
 		if (t.includes('video')) return { label: 'Video Activity', icon: PlayCircle, color: '#D946EF' };
 		if (t.includes('conversion')) return { label: 'Goal Conversion', icon: Target, color: '#8B5CF6' };
+		if (t.includes('scroll_depth')) {
+			const depth = props?.depth || '0';
+			return { label: `Scroll: ${depth}%`, icon: Activity, color: '#6366f1' };
+		}
 		return { label: type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), icon: Activity, color: '#64748B' };
 	};
 
 	return (
-		<div className="space-y-1">
+		<div className="space-y-1 h-[400px] overflow-y-auto pr-1 custom-scrollbar">
 			{items.map((event, index) => {
-				const meta = eventMeta(event.event_type);
+				const meta = eventMeta(event.event_type, event.sample_properties);
 				const filtered = filterEventProps(event.sample_properties);
 				const chips = [
 					filtered.element_text && { label: String(filtered.element_text), variant: 'outline' },

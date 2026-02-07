@@ -198,7 +198,7 @@ export const WorkflowBuilder = ({
           
           {/* Main Sidebar - Positioned Absolutely */}
           <Panel position="top-right" className="!m-0 h-full pointer-events-none">
-            <div className="h-full pointer-events-auto h-[calc(100vh-64px)]">
+            <div className="h-[calc(100vh-64px)] pointer-events-auto">
               <EnhancedBuilderSidebar />
             </div>
           </Panel>

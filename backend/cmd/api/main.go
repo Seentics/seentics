@@ -384,6 +384,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			websites.GET("", websiteHandler.List)
 			websites.POST("", middleware.BillingLimitMiddleware(billingService, models.ResourceWebsites), websiteHandler.Create)
 			websites.GET("/:id", websiteHandler.Get)
+			websites.GET("/by-site-id/:id", websiteHandler.Get)
 			websites.PUT("/:id", websiteHandler.Update)
 			websites.DELETE("/:id", websiteHandler.Delete)
 

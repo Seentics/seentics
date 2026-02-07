@@ -239,16 +239,19 @@
     const modal = d.createElement('div');
     modal.className = 'seentics-modal-root';
 
+    const primaryAction = config.primaryAction || 'close';
+    const secondaryAction = config.secondaryAction || 'close';
+
     const html = config.customHtml || `
       <div class="seentics-modal-overlay">
         <div class="seentics-modal-content">
-          <button class="seentics-modal-close" data-seentics-close>&times;</button>
+          <button class="seentics-modal-close" data-seentics-close aria-label="Close">&times;</button>
           <div class="seentics-modal-body">
-            <h2>${config.title || 'Modal'}</h2>
-            <p>${config.content || ''}</p>
+            <h2 class="seentics-modal-title">${config.title || 'Attention'}</h2>
+            <div class="seentics-modal-text">${config.content || ''}</div>
             <div class="seentics-modal-actions">
-              <button class="seentics-btn-primary" data-seentics-close>${config.primaryButton || 'OK'}</button>
-              ${config.secondaryButton ? `<button class="seentics-btn-secondary" data-seentics-close>${config.secondaryButton}</button>` : ''}
+              ${config.secondaryButton ? `<button class="seentics-btn-secondary" data-seentics-action="${secondaryAction}">${config.secondaryButton}</button>` : ''}
+              <button class="seentics-btn-primary" data-seentics-action="${primaryAction}">${config.primaryButton || 'Continue'}</button>
             </div>
           </div>
         </div>
@@ -260,35 +263,68 @@
     const style = d.createElement('style');
     style.textContent = config.customCss || `
       .seentics-modal-overlay {
-        position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
-        display: flex; align-items: center; justify-content: center; z-index: 999999;
-        animation: seentics-fade-in 0.3s ease-out;
+        position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);
+        display: flex; align-items: center; justify-content: center; z-index: 2147483647;
+        animation: seentics-fade-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .seentics-modal-content {
-        background: white; border-radius: 16px; max-width: 500px; width: 90%;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.3); position: relative;
-        animation: seentics-scale-in 0.3s ease-out;
+        background: #ffffff; border-radius: 20px; max-width: 480px; width: 90%;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); position: relative;
+        overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.1);
+        animation: seentics-slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .seentics-modal-close {
-        position: absolute; top: 16px; right: 16px; background: transparent;
-        border: none; font-size: 32px; cursor: pointer; color: #666;
+        position: absolute; top: 20px; right: 20px; background: #f1f5f9;
+        border: none; width: 32px; height: 32px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 20px; cursor: pointer; color: #64748b; transition: all 0.2s;
       }
-      .seentics-modal-body { padding: 48px 32px 32px; }
-      .seentics-modal-body h2 { margin: 0 0 16px; font-size: 24px; font-weight: 700; }
-      .seentics-modal-body p { margin: 0 0 24px; font-size: 16px; line-height: 1.6; color: #666; }
+      .seentics-modal-close:hover { background: #e2e8f0; color: #0f172a; }
+      .seentics-modal-body { padding: 40px 32px 32px; }
+      .seentics-modal-title { 
+        margin: 0 0 12px; font-size: 24px; font-weight: 800; color: #0f172a; 
+        letter-spacing: -0.025em; line-height: 1.2;
+      }
+      .seentics-modal-text { 
+        margin: 0 0 32px; font-size: 16px; line-height: 1.6; color: #475569; 
+      }
       .seentics-modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
       .seentics-btn-primary, .seentics-btn-secondary {
-        padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;
-        cursor: pointer; border: none; transition: all 0.2s;
+        padding: 12px 24px; border-radius: 12px; font-size: 15px; font-weight: 700;
+        cursor: pointer; border: none; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
       }
-      .seentics-btn-primary { background: #4F46E5; color: white; }
-      .seentics-btn-secondary { background: #f0f0f0; color: #666; }
+      .seentics-btn-primary { background: #4f46e5; color: #ffffff; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); }
+      .seentics-btn-primary:hover { background: #4338ca; transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3); }
+      .seentics-btn-secondary { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
+      .seentics-btn-secondary:hover { background: #f1f5f9; color: #0f172a; }
       @keyframes seentics-fade-in { from { opacity: 0; } to { opacity: 1; } }
-      @keyframes seentics-scale-in { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+      @keyframes seentics-slide-up { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     `;
 
     d.head.appendChild(style);
     d.body.appendChild(modal);
+
+    const handleAction = (action, url) => {
+      if (action === 'redirect' && url) {
+        window.location.href = url;
+      }
+      modal.remove();
+      style.remove();
+    };
+
+    modal.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-seentics-action]');
+      if (btn) {
+        const action = btn.getAttribute('data-seentics-action');
+        const url = action === 'primary' ? config.primaryUrl : config.secondaryUrl;
+        handleAction(action, url);
+        return;
+      }
+      if (e.target.matches('[data-seentics-close]') || e.target.classList.contains('seentics-modal-overlay')) {
+        modal.remove();
+        style.remove();
+      }
+    });
 
     if (config.customJs) {
       try {
@@ -297,76 +333,120 @@
         console.error('[Seentics] Modal JS error:', e);
       }
     }
-
-    modal.addEventListener('click', (e) => {
-      if (e.target.matches('[data-seentics-close]') || e.target.classList.contains('seentics-modal-overlay')) {
-        modal.remove();
-        style.remove();
-      }
-    });
   };
 
   const showBanner = (config) => {
     const banner = d.createElement('div');
     banner.className = 'seentics-banner-root';
+    const position = config.position || 'bottom';
 
     const html = config.customHtml || `
       <div class="seentics-banner" style="
-        position: fixed; ${config.position || 'bottom'}: 0; left: 0; right: 0;
-        background: ${config.backgroundColor || '#000'}; color: ${config.textColor || '#fff'};
-        padding: 16px 48px 16px 20px; z-index: 999998;
-        animation: seentics-slide-${config.position === 'top' ? 'down' : 'up'} 0.3s ease-out;
+        position: fixed; ${position}: 0; left: 0; right: 0;
+        background: ${config.backgroundColor || '#0f172a'}; 
+        color: ${config.textColor || '#ffffff'};
+        padding: 16px 24px; z-index: 2147483646;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+        animation: seentics-slide-${position === 'top' ? 'down' : 'up'} 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex; align-items: center; justify-content: center;
       ">
-        <div style="display: flex; align-items: center; gap: 12px; max-width: 1200px; margin: 0 auto;">
-          <span style="font-size: 20px;">${config.icon || '📢'}</span>
-          <span style="flex: 1; font-size: 15px; font-weight: 500;">${config.content || ''}</span>
+        <div style="display: flex; align-items: center; gap: 16px; max-width: 1200px; width: 100%; margin: 0 auto; position: relative;">
+          <div style="background: rgba(255,255,255,0.15); width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
+            ${config.icon || '✨'}
+          </div>
+          <div style="flex: 1; font-size: 15px; font-weight: 600; line-height: 1.4; letter-spacing: 0.01em;">
+            ${config.content || ''}
+          </div>
+          <div style="display: flex; gap: 12px; align-items: center;">
+            ${config.primaryButton ? `
+              <button class="seentics-banner-btn" data-seentics-action="redirect" style="
+                background: #ffffff; color: #0f172a; padding: 8px 20px; border-radius: 8px; 
+                font-size: 13px; font-weight: 700; border: none; cursor: pointer;
+                transition: transform 0.2s;
+              ">${config.primaryButton}</button>
+            ` : ''}
+            ${config.closeButton !== false ? `
+              <button class="seentics-banner-close" data-seentics-close style="
+                background: rgba(255,255,255,0.1); border: none; color: inherit; 
+                width: 32px; height: 32px; border-radius: 8px; display: flex; 
+                align-items: center; justify-content: center; font-size: 20px; cursor: pointer;
+              ">&times;</button>
+            ` : ''}
+          </div>
         </div>
-        ${config.closeButton !== false ? '<button class="seentics-banner-close" data-seentics-close style="position: absolute; top: 50%; right: 16px; transform: translateY(-50%); background: transparent; border: none; color: inherit; font-size: 28px; cursor: pointer;">&times;</button>' : ''}
       </div>
     `;
 
     banner.innerHTML = html;
     d.body.appendChild(banner);
 
-    if (config.closeButton !== false) {
-      banner.addEventListener('click', (e) => {
-        if (e.target.matches('[data-seentics-close]')) {
-          banner.remove();
-        }
-      });
-    }
+    const style = d.createElement('style');
+    style.textContent = `
+       @keyframes seentics-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+       @keyframes seentics-slide-down { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+       .seentics-banner-btn:hover { transform: scale(1.05); }
+    `;
+    d.head.appendChild(style);
+
+    banner.addEventListener('click', (e) => {
+      if (e.target.matches('[data-seentics-close]')) {
+        banner.remove();
+        style.remove();
+      } else if (e.target.closest('[data-seentics-action="redirect"]')) {
+        if (config.primaryUrl) window.location.href = config.primaryUrl;
+      }
+    });
 
     if (config.duration > 0) {
-      setTimeout(() => banner.remove(), config.duration * 1000);
+      setTimeout(() => { banner.remove(); style.remove(); }, config.duration * 1000);
     }
   };
 
   const showNotification = (config) => {
     const notification = d.createElement('div');
-    const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
-    const colors = { success: '#10B981', error: '#EF4444', warning: '#F59E0B', info: '#3B82F6' };
+    const type = config.type || 'info';
+    const icons = { success: '✓', error: '✕', warning: '!', info: 'ℹ' };
+    const colors = { 
+      success: { bg: '#ecfdf5', border: '#10b981', text: '#064e3b', icon: '#10b981' },
+      error: { bg: '#fef2f2', border: '#ef4444', text: '#7f1d1d', icon: '#ef4444' },
+      warning: { bg: '#fffbeb', border: '#f59e0b', text: '#78350f', icon: '#f59e0b' },
+      info: { bg: '#eff6ff', border: '#3b82f6', text: '#1e3a8a', icon: '#3b82f6' }
+    };
+    const c = colors[type];
 
     notification.innerHTML = `
-      <div style="
-        position: fixed; ${config.position || 'top'}: 20px; right: 20px;
-        background: white; border-radius: 12px; padding: 16px; min-width: 320px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.15); z-index: 999997;
-        border-left: 4px solid ${colors[config.type] || colors.info};
-        animation: seentics-slide-in-right 0.3s ease-out;
+      <div class="seentics-notification" style="
+        position: fixed; ${config.position || 'top'}: 24px; right: 24px;
+        background: ${c.bg}; border: 1px solid ${c.border}40; border-radius: 16px; 
+        padding: 16px; min-width: 340px; max-width: 420px;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        z-index: 2147483645; display: flex; gap: 16px;
+        animation: seentics-slide-in-right 0.5s cubic-bezier(0.16, 1, 0.3, 1);
       ">
-        <div style="display: flex; gap: 12px;">
-          <div style="font-size: 24px;">${icons[config.type] || icons.info}</div>
-          <div style="flex: 1;">
-            <div style="font-size: 14px; font-weight: 600; color: #1a1a1a; margin-bottom: 4px;">${config.title || 'Notification'}</div>
-            <div style="font-size: 13px; color: #666; line-height: 1.4;">${config.message || ''}</div>
-          </div>
-          <button data-seentics-close style="background: transparent; border: none; font-size: 20px; cursor: pointer; color: #999;">&times;</button>
+        <div style="
+          background: ${c.icon}; color: white; width: 32px; height: 32px; 
+          border-radius: 10px; display: flex; align-items: center; justify-content: center;
+          font-size: 16px; font-weight: bold; flex-shrink: 0;
+        ">
+          ${icons[type]}
         </div>
+        <div style="flex: 1;">
+          <div style="font-size: 15px; font-weight: 700; color: ${c.text}; margin-bottom: 4px;">${config.title || 'Notification'}</div>
+          <div style="font-size: 13px; color: ${c.text}99; line-height: 1.5; font-weight: 500;">${config.message || ''}</div>
+        </div>
+        <button data-seentics-close style="
+          background: transparent; border: none; font-size: 20px; cursor: pointer; 
+          color: ${c.text}40; padding: 0; line-height: 1; height: fit-content;
+          transition: color 0.2s;
+        ">&times;</button>
       </div>
     `;
 
     const style = d.createElement('style');
-    style.textContent = '@keyframes seentics-slide-in-right { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }';
+    style.textContent = \`
+      @keyframes seentics-slide-in-right { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+      .seentics-notification [data-seentics-close]:hover { color: \${c.text} !important; }
+    \`;
     d.head.appendChild(style);
     d.body.appendChild(notification);
 
@@ -377,11 +457,13 @@
       }
     });
 
-    if (config.duration > 0) {
+    if (config.duration > 0 || !config.duration) {
       setTimeout(() => {
-        notification.remove();
-        style.remove();
-      }, config.duration * 1000);
+        if (notification.parentNode) {
+          notification.remove();
+          style.remove();
+        }
+      }, (config.duration || 5) * 1000);
     }
   };
 

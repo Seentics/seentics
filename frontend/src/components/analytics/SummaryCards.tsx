@@ -22,6 +22,7 @@ interface SummaryCardsProps {
   data: any;
   websiteId?: string;
   isDemo?: boolean;
+  isLoading?: boolean;
 }
 
 const GrowthIndicator = ({ current, previous, inverse = false }: {
@@ -159,8 +160,8 @@ const SummaryCard = ({
   );
 };
 
-export function SummaryCards({ data, websiteId, isDemo }: SummaryCardsProps) {
-  if (!data) {
+export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCardsProps) {
+  if (isLoading || !data) {
     return (
       <div className="bg-card/50 shadow-sm rounded overflow-hidden mb-8 border dark:border-none">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 divide-x divide-border/20">

@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	"golang.org/x/sync/errgroup"
 )
 
 type AnalyticsService struct {
@@ -76,33 +77,54 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
-		Msg("Getting dashboard data")
+		Msg("Getting dashboard data in parallel")
 
-	metrics, err := s.repo.GetDashboardMetrics(ctx, websiteID, days, filters)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get dashboard metrics")
-		return nil, fmt.Errorf("failed to get dashboard metrics: %w", err)
-	}
+	g, gCtx := errgroup.WithContext(ctx)
 
-	// Get comparison data if available
+	var metrics *models.DashboardMetrics
 	var comparison *models.ComparisonMetrics
-	if days <= 30 { // Only calculate comparison for reasonable time ranges
-		comparison, _ = s.repo.GetComparisonMetrics(ctx, websiteID, days, filters)
+	var liveVisitors int
+
+	// 1. Fetch main dashboard metrics
+	g.Go(func() error {
+		var err error
+		metrics, err = s.repo.GetDashboardMetrics(gCtx, websiteID, days, filters)
+		if err != nil {
+			s.logger.Error().Err(err).Msg("Failed to get dashboard metrics")
+			return fmt.Errorf("failed to get dashboard metrics: %w", err)
+		}
+		return nil
+	})
+
+	// 2. Fetch comparison data (only for reasonable ranges)
+	if days <= 30 {
+		g.Go(func() error {
+			var err error
+			comparison, err = s.repo.GetComparisonMetrics(gCtx, websiteID, days, filters)
+			if err != nil {
+				// We don't want to fail the whole dashboard if comparison fails
+				s.logger.Warn().Err(err).Msg("Failed to get comparison metrics")
+				return nil
+			}
+			return nil
+		})
 	}
 
-	// Get live visitors data
-	s.logger.Info().
-		Str("website_id", websiteID).
-		Msg("Getting live visitors for dashboard")
-	liveVisitors, err := s.repo.GetLiveVisitors(ctx, websiteID)
-	if err != nil {
-		s.logger.Error().Err(err).Msg("Failed to get live visitors")
-		liveVisitors = 0
+	// 3. Fetch live visitors
+	g.Go(func() error {
+		var err error
+		liveVisitors, err = s.repo.GetLiveVisitors(gCtx, websiteID)
+		if err != nil {
+			s.logger.Warn().Err(err).Msg("Failed to get live visitors")
+			liveVisitors = 0
+		}
+		return nil
+	})
+
+	// Wait for all goroutines to finish
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
-	s.logger.Info().
-		Str("website_id", websiteID).
-		Int("live_visitors", liveVisitors).
-		Msg("Retrieved live visitors for dashboard")
 
 	return &models.DashboardData{
 		WebsiteID:         websiteID,

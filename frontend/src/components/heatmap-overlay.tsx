@@ -4,24 +4,26 @@ import React, { useEffect, useRef } from 'react';
 
 interface HeatmapOverlayProps {
   points: { x: number, y: number, intensity: number }[];
-  type: 'click' | 'move';
-  width: number; // Viewport width
-  height: number; // Viewport height
-  totalWidth: number; // Total page width
-  totalHeight: number; // Total page height
+  type?: 'click' | 'move';
+  width: number; // Total width to render
+  height: number; // Total height to render
+  totalWidth?: number; // Total logical width (for normalization)
+  totalHeight?: number; // Total logical height (for normalization)
   scrollTop?: number;
   scrollLeft?: number;
+  opacity?: number;
 }
 
 export default function HeatmapOverlay({ 
   points, 
-  type, 
+  type = 'click', 
   width, 
   height, 
   totalWidth,
   totalHeight,
   scrollTop = 0, 
-  scrollLeft = 0 
+  scrollLeft = 0,
+  opacity = 0.7
 }: HeatmapOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -35,8 +37,9 @@ export default function HeatmapOverlay({
     // Clear previous frame
     ctx.clearRect(0, 0, width, height);
 
-    // Use a simpler rendering path for performance during scroll
-    // 1. Create a transient canvas for the grayscale 'heat'
+    if (points.length === 0) return;
+
+    // Use a simpler rendering path for performance
     const heatCanvas = document.createElement('canvas');
     heatCanvas.width = width;
     heatCanvas.height = height;
@@ -45,7 +48,6 @@ export default function HeatmapOverlay({
 
     // Heat settings
     const radius = type === 'click' ? 18 : 30;
-    const blur = type === 'click' ? 10 : 15;
     
     // Create a radial gradient brush once
     const brush = document.createElement('canvas');
@@ -63,11 +65,12 @@ export default function HeatmapOverlay({
     // Draw all points to the heat canvas
     points.forEach(point => {
       // De-normalize from 1000 range to TOTAL page dimensions
-      const absoluteX = (point.x / 1000) * (totalWidth || width);
-      const absoluteY = (point.y / 1000) * (totalHeight || height);
+      // If totalWidth is provided, use it for normalization ratio, else assume point.x is relative to width
+      const absoluteX = totalWidth ? (point.x / 1000) * totalWidth : (point.x / 1000) * width;
+      const absoluteY = totalHeight ? (point.y / 1000) * totalHeight : (point.y / 1000) * height;
       
-      const x = absoluteX - (scrollLeft || 0);
-      const y = absoluteY - (scrollTop || 0);
+      const x = absoluteX - scrollLeft;
+      const y = absoluteY - scrollTop;
 
       // Visibility check
       if (x < -radius || x > width + radius || y < -radius || y > height + radius) return;
@@ -77,7 +80,7 @@ export default function HeatmapOverlay({
       hctx.drawImage(brush, x - radius, y - radius);
     });
 
-    // 2. Colorize using a gradient lookup table (pre-generated)
+    // Colorize using a gradient lookup table
     const gradientCanvas = document.createElement('canvas');
     gradientCanvas.width = 1;
     gradientCanvas.height = 256;
@@ -106,20 +109,22 @@ export default function HeatmapOverlay({
                 data[i] = gradientData[offset];
                 data[i + 1] = gradientData[offset + 1];
                 data[i + 2] = gradientData[offset + 2];
-                // Boost alpha slightly for visibility but keep it dynamic
-                data[i + 3] = alpha * 0.9;
+                // Apply global opacity here
+                data[i + 3] = alpha * opacity;
             }
         }
     }
 
     ctx.putImageData(imgData, 0, 0);
 
-    // 3. Optional: Draw small indicator for high intensity points in click map
+    // Optional: Draw small indicator for high intensity points in click map
     if (type === 'click') {
         points.forEach(point => {
             if (point.intensity < 20) return;
-            const x = (point.x / 1000) * (totalWidth || width) - (scrollLeft || 0);
-            const y = (point.y / 1000) * (totalHeight || height) - (scrollTop || 0);
+            const absoluteX = totalWidth ? (point.x / 1000) * totalWidth : (point.x / 1000) * width;
+            const absoluteY = totalHeight ? (point.y / 1000) * totalHeight : (point.y / 1000) * height;
+            const x = absoluteX - scrollLeft;
+            const y = absoluteY - scrollTop;
             
             if (x >= 0 && x <= width && y >= 0 && y <= height) {
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
@@ -131,7 +136,7 @@ export default function HeatmapOverlay({
         });
     }
 
-  }, [points, type, width, height, totalWidth, totalHeight, scrollTop, scrollLeft]);
+  }, [points, type, width, height, totalWidth, totalHeight, scrollTop, scrollLeft, opacity]);
 
   return (
     <canvas 
