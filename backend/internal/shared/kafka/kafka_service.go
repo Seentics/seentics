@@ -32,10 +32,12 @@ func NewKafkaService(bootstrapServers string, topic string, logger zerolog.Logge
 		Brokers:  []string{bootstrapServers},
 		GroupID:  "analytics-consumer-group",
 		Topic:    topic,
-		MinBytes: 10e3, // 10KB
+		MinBytes: 1,    // Send as soon as 1 byte is available
 		MaxBytes: 10e6, // 10MB
-		// Commit messages after they are processed
-		StartOffset: kafka.LastOffset,
+		// Fetch messages every 500ms even if MinBytes is not reached
+		MaxWait: 500 * time.Millisecond,
+		// Start from the beginning if no committed offset exists
+		StartOffset: kafka.FirstOffset,
 	})
 
 	return &KafkaService{
