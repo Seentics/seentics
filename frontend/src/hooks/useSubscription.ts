@@ -14,12 +14,13 @@ export interface SubscriptionUsage {
   websites: UsageStatus;
   workflows: UsageStatus;
   funnels: UsageStatus;
+  heatmaps: UsageStatus;
   monthlyEvents: UsageStatus;
 }
 
 export interface SubscriptionData {
   id: string;
-  plan: 'free' | 'standard' | 'pro' | 'enterprise';
+  plan: 'starter' | 'growth' | 'scale' | 'pro_plus';
   status: string;
   usage: SubscriptionUsage;
   features: string[];
@@ -35,6 +36,7 @@ export interface UseSubscriptionReturn {
   canCreateWebsite: boolean;
   canCreateWorkflow: boolean;
   canCreateFunnel: boolean;
+  canCreateHeatmap: boolean;
   canTrackEvents: (count?: number) => boolean;
   getUsagePercentage: (type: keyof SubscriptionUsage) => number;
   isNearLimit: (type: keyof SubscriptionUsage, threshold?: number) => boolean;
@@ -42,22 +44,19 @@ export interface UseSubscriptionReturn {
 }
 
 export const useSubscription = (): UseSubscriptionReturn => {
-  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { user, isAuthenticated } = useAuth();
-
+  // ...existing code...
   const fetchSubscription = useCallback(async () => {
     // Demo Mode logic
     if (typeof window !== 'undefined' && (window.location.pathname.includes('/websites/demo') || !isAuthenticated)) {
       setSubscription({
         id: 'demo-user',
-        plan: 'enterprise',
+        plan: 'scale',
         status: 'active',
         usage: {
           websites: { current: 1, limit: 10, canCreate: true },
           workflows: { current: 3, limit: 100, canCreate: true },
           funnels: { current: 2, limit: 50, canCreate: true },
+          heatmaps: { current: 1, limit: 20, canCreate: true },
           monthlyEvents: { current: 45000, limit: 1000000, canCreate: true }
         },
         features: ['all'],
@@ -67,38 +66,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
       setLoading(false);
       return;
     }
-
-    if (!isAuthenticated || !user) {
-      setSubscription(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch from API
-      const response = await api.get('/user/billing/usage');
-
-      if (response.data.success) {
-        setSubscription({
-          id: user.id,
-          plan: response.data.data.plan,
-          status: 'active',
-          usage: response.data.data.usage,
-          features: response.data.data.features || [],
-          isActive: true
-        });
-      } else {
-        throw new Error(response.data.message || 'Failed to fetch subscription');
-      }
-    } catch (err: any) {
-      console.error('Error fetching subscription:', err);
-      setError(err.response?.data?.message || err.message || 'Unknown error occurred');
-    } finally {
-      setLoading(false);
-    }
+    // ...existing code...
   }, [isAuthenticated, user]);
 
   useEffect(() => {
@@ -109,37 +77,22 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const canCreateWebsite = subscription?.usage?.websites?.canCreate ?? false;
   const canCreateWorkflow = subscription?.usage?.workflows?.canCreate ?? false;
   const canCreateFunnel = subscription?.usage?.funnels?.canCreate ?? false;
+  const canCreateHeatmap = subscription?.usage?.heatmaps?.canCreate ?? false;
 
   const canTrackEvents = useCallback((count: number = 1): boolean => {
-    if (!subscription?.usage?.monthlyEvents) return false;
-    const { current, limit } = subscription.usage.monthlyEvents;
-    // Always allow if unlimited
-    if (limit === -1) return true;
-    return (current + count) <= limit;
+    // ...existing code...
   }, [subscription]);
 
   const getUsagePercentage = useCallback((type: keyof SubscriptionUsage): number => {
-    if (!subscription?.usage?.[type]) return 0;
-    const { current, limit } = subscription.usage[type];
-    // Handle unlimited (-1) limits
-    if (limit === -1) return 0;
-    return Math.min((current / limit) * 100, 100);
+    // ...existing code...
   }, [subscription]);
 
   const isNearLimit = useCallback((type: keyof SubscriptionUsage, threshold: number = 80): boolean => {
-    if (!subscription?.usage?.[type]) return false;
-    const { limit } = subscription.usage[type];
-    // Never near limit if unlimited
-    if (limit === -1) return false;
-    return getUsagePercentage(type) >= threshold;
+    // ...existing code...
   }, [getUsagePercentage, subscription]);
 
   const hasReachedLimit = useCallback((type: keyof SubscriptionUsage): boolean => {
-    if (!subscription?.usage?.[type]) return false;
-    const { current, limit } = subscription.usage[type];
-    // Never reached limit if unlimited
-    if (limit === -1) return false;
-    return current >= limit;
+    // ...existing code...
   }, [subscription]);
 
   return {
@@ -150,6 +103,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
     canCreateWebsite,
     canCreateWorkflow,
     canCreateFunnel,
+    canCreateHeatmap,
     canTrackEvents,
     getUsagePercentage,
     isNearLimit,

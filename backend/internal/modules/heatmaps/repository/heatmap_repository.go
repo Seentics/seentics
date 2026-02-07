@@ -12,6 +12,8 @@ type HeatmapRepository interface {
 	RecordHeatmap(ctx context.Context, websiteID string, points []models.HeatmapPoint) error
 	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time) ([]models.HeatmapPoint, error)
 	GetHeatmapPages(ctx context.Context, websiteID string) ([]string, error)
+	CountHeatmapPages(ctx context.Context, websiteID string) (int, error)
+	HeatmapExistsForURL(ctx context.Context, websiteID string, url string) (bool, error)
 }
 
 type heatmapRepository struct {
@@ -87,4 +89,18 @@ func (r *heatmapRepository) GetHeatmapPages(ctx context.Context, websiteID strin
 	}
 
 	return pages, nil
+}
+
+func (r *heatmapRepository) CountHeatmapPages(ctx context.Context, websiteID string) (int, error) {
+	query := `SELECT COUNT(DISTINCT url) FROM heatmap_points WHERE website_id = $1`
+	var count int
+	err := r.db.QueryRow(ctx, query, websiteID).Scan(&count)
+	return count, err
+}
+
+func (r *heatmapRepository) HeatmapExistsForURL(ctx context.Context, websiteID string, url string) (bool, error) {
+	query := `SELECT EXISTS(SELECT 1 FROM heatmap_points WHERE website_id = $1 AND url = $2 LIMIT 1)`
+	var exists bool
+	err := r.db.QueryRow(ctx, query, websiteID, url).Scan(&exists)
+	return exists, err
 }

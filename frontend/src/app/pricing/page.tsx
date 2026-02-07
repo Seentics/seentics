@@ -15,14 +15,15 @@ const plans = [
         id: 'starter',
         name: 'Starter',
         price: '0',
-        description: 'Perfect for hobby projects and early adopters.',
+        description: 'Perfect for exploring our unique analytics power.',
         icon: Star,
         color: 'blue',
         features: [
-            '5,000 monthly events',
+            '10,000 monthly events',
             '1 conversion funnel',
             '1 automation rule',
             'Basic analytics dashboard',
+            'No Heatmap data',
             '1 connected domain',
             'Community support'
         ]
@@ -30,34 +31,36 @@ const plans = [
     {
         id: 'growth',
         name: 'Growth',
-        price: '19',
-        description: 'Everything you need for growing small businesses.',
+        price: '15',
+        description: 'Scaling fast? Get the deep insights you need.',
         icon: Zap,
         color: 'emerald',
         recommended: true,
         features: [
-            '50,000 monthly events',
+            '200,000 monthly events',
             '5 conversion funnels',
             '5 automation rules',
+            '1 Heatmap per site',
             'Advanced funnel insights',
             'Email support',
-            '1 connected domain'
+            '3 connected domains'
         ]
     },
     {
         id: 'scale',
         name: 'Scale',
-        price: '49',
+        price: '39',
         description: 'Advanced features for scaling agencies and businesses.',
         icon: Rocket,
         color: 'purple',
         features: [
-            '200,000 monthly events',
+            '1,000,000 monthly events',
             'Unlimited funnels',
-            '20 automation rules',
+            'Unlimited automation rules',
+            'Unlimited Heatmaps',
             'Custom event tracking',
             'Priority email support',
-            '5 connected domains',
+            '10 connected domains',
             'CSV data export'
         ]
     },
@@ -65,12 +68,13 @@ const plans = [
         id: 'pro_plus',
         name: 'Pro+',
         price: '99',
-        description: 'Elite features with lifetime access options.',
+        description: 'Elite features for high-traffic enterprises.',
         icon: Crown,
         color: 'amber',
         features: [
-            '500,000+ monthly events',
+            '10,000,000 monthly events',
             'Unlimited funnels & rules',
+            'Unlimited Heatmaps',
             'Multi-user team access',
             'Premium chat/email support',
             'Custom integrations',
@@ -104,16 +108,12 @@ export default function PricingPage() {
         <div className="min-h-screen bg-background py-20 px-6">
             <div className="max-w-7xl mx-auto">
                 <div className="text-center space-y-4 mb-20 animate-in fade-in slide-in-from-top-4 duration-700">
-                    <Badge variant="outline" className="px-4 py-1.5 rounded-full border-primary/20 text-primary font-black uppercase tracking-widest text-[10px]">
-                        Simple & Fair Pricing
-                    </Badge>
                     <h1 className="text-5xl md:text-6xl font-black tracking-tight text-slate-900 dark:text-white">
-                        Choose the right plan for <br />
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-emerald-500"> your business growth</span>
+                        Simple <br />
+                        <span className="text-primary italic">pricing.</span>
                     </h1>
                     <p className="text-slate-500 dark:text-slate-400 text-lg max-w-2xl mx-auto font-medium">
-                        Stop overpaying for analytics. Start getting insights.
-                        Transparent pricing that scales with your traffic.
+                        Start for free. No credit card required. Upgrade when you're ready for more power.
                     </p>
 
                     <div className="flex items-center justify-center gap-4 pt-8">
@@ -160,7 +160,7 @@ export default function PricingPage() {
                                 <CardContent className="flex-1 space-y-8">
                                     <div className="flex items-baseline gap-1">
                                         <span className="text-5xl font-black tracking-tight">${price}</span>
-                                        <span className="text-muted-foreground font-bold text-sm uppercase tracking-widest">/mo</span>
+                                        <span className="text-muted-foreground font-bold text-sm uppercase tracking-widest">{plan.id === 'starter' ? '/forever' : '/mo'}</span>
                                     </div>
 
                                     <ul className="space-y-4">
@@ -183,7 +183,7 @@ export default function PricingPage() {
                                             <Loader2 size={24} className="animate-spin" />
                                         ) : (
                                             <>
-                                                Get Started
+                                                {plan.id === 'starter' ? 'Start for free' : plan.id === 'growth' ? 'Join Growth plan' : 'Select Plan'}
                                                 <ArrowRight size={20} />
                                             </>
                                         )}

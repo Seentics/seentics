@@ -43,6 +43,10 @@ func BillingLimitMiddleware(service *services.BillingService, resourceType strin
 			canCreate = usage.Usage.Workflows.CanCreate
 			limit = usage.Usage.Workflows.Limit
 			current = usage.Usage.Workflows.Current
+		case models.ResourceHeatmaps:
+			canCreate = usage.Usage.Heatmaps.CanCreate
+			limit = usage.Usage.Heatmaps.Limit
+			current = usage.Usage.Heatmaps.Current
 		default:
 			c.Next()
 			return

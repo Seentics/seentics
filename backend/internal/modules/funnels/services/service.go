@@ -105,7 +105,19 @@ func (s *FunnelService) TrackFunnelEvent(ctx context.Context, req *models.TrackF
 		return fmt.Errorf("funnel tracking is disabled for this website")
 	}
 
-	// For now, we'll just log this and record in analytics if implemented
+	// Funnel events also count towards the event quota
+	if s.billing != nil {
+		can, err := s.billing.CanTrackEvent(ctx, w.UserID.String())
+		if err != nil {
+			return err
+		}
+		if !can {
+			return fmt.Errorf("monthly event limit reached")
+		}
+	}
+
+	// For now, these events are primarily used for real-time calculation in GetFunnelStats
+	// which looks at the main 'events' table. We could record them separately if needed.
 	return nil
 }
 

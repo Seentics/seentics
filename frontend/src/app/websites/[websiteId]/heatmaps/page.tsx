@@ -25,10 +25,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import Link from 'next/link';
 import api from '@/lib/api';
+import { getWebsiteBySiteId } from '@/lib/websites-api';
+import { useQuery } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Settings as SettingsIcon } from 'lucide-react';
 
 const DUMMY_PAGES = [
   '/',
@@ -43,6 +45,13 @@ export default function HeatmapsPage() {
   const { websiteId } = useParams();
   const router = useRouter();
   const { subscription } = useSubscription();
+
+  const { data: website } = useQuery({
+    queryKey: ['website', websiteId],
+    queryFn: () => getWebsiteBySiteId(websiteId as string),
+    enabled: !!websiteId && websiteId !== 'demo',
+  });
+
   const [pages, setPages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,10 +60,12 @@ export default function HeatmapsPage() {
   const isFreePlan = subscription?.plan === 'free';
   const showDummy = isDemo || isFreePlan;
 
+  const isHeatmapDisabled = website && !website.heatmapEnabled;
+
   useEffect(() => {
     const fetchPages = async () => {
       // For demo or free plan, use dummy pages
-      if (showDummy) {
+      if (showDummy || isHeatmapDisabled) {
         setPages(DUMMY_PAGES);
         setLoading(false);
         return;
@@ -79,7 +90,38 @@ export default function HeatmapsPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {isFreePlan && !isDemo && (
+      {(isFreePlan || isDemo) && (
+        <Alert className="bg-amber-500/10 border-amber-500/20">
+          <Sparkles className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-600 font-bold">Preview Mode</AlertTitle>
+          <AlertDescription className="text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <span>You are viewing <strong>dummy data</strong>. Real heatmap tracking is a premium feature. Please upgrade to any paid plan to start recording real sessions.</span>
+            <Link href={isDemo ? '/pricing' : `/websites/${websiteId}/billing`}>
+              <Button size="sm" variant="outline" className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10 gap-2 font-black uppercase tracking-widest text-[10px]">
+                View Plans
+              </Button>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isHeatmapDisabled && !isFreePlan && !isDemo && (
+        <Alert className="bg-rose-500/10 border-rose-500/20">
+          <MousePointer2 className="h-4 w-4 text-rose-600" />
+          <AlertTitle className="text-rose-600 font-bold">Feature Disabled</AlertTitle>
+          <AlertDescription className="text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <span>Heatmap script loading is currently disabled for this website. You are seeing <strong>dummy data</strong> for preview purposes. Fix this in your property settings to start recording real sessions.</span>
+            <Link href={`/websites/${websiteId}/settings`}>
+              <Button size="sm" variant="outline" className="border-rose-500/30 text-rose-600 hover:bg-rose-500/10 gap-2">
+                <SettingsIcon className="h-3.5 w-3.5" />
+                Go to Settings
+              </Button>
+            </Link>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isFreePlan && !isDemo && !isHeatmapDisabled && (
         <Alert className="bg-primary/5 border-primary/20">
           <Sparkles className="h-4 w-4 text-primary" />
           <AlertTitle className="text-primary font-bold">Premium Feature</AlertTitle>

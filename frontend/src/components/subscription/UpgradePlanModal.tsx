@@ -12,7 +12,7 @@ interface UpgradePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentPlan: 'free' | 'starter' | 'growth' | 'scale' | 'pro_plus';
-  limitType: 'websites' | 'workflows' | 'funnels' | 'monthlyEvents';
+  limitType: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'monthlyEvents';
   currentUsage: number;
   limit: number;
 }
@@ -26,9 +26,10 @@ const planDetails = {
     color: 'blue',
     features: [
       "3 Websites",
-      "100,000 Monthly Events",
-      "10 Conversion Funnels",
-      "10 Active Automations",
+      "200,000 Monthly Events",
+      "1 Heatmap per site",
+      "5 Conversion Funnels",
+      "5 Active Automations",
       "1 Year Data Retention",
       "Priority Email Support"
     ],
@@ -42,7 +43,8 @@ const planDetails = {
     color: 'purple',
     features: [
       "10 Websites",
-      "500,000 Monthly Events",
+      "1,000,000 Monthly Events",
+      "Unlimited Heatmaps",
       "Unlimited Automations",
       "Unlimited Funnels",
       "3 Years Data Retention",
@@ -53,13 +55,13 @@ const planDetails = {
   },
   pro_plus: {
     name: 'Pro+',
-    price: '$149',
+    price: '$99',
     period: 'per month',
     icon: Sparkles,
     color: 'amber',
     features: [
       "50 Websites",
-      "5,000,000 Monthly Events",
+      "10,000,000 Monthly Events",
       "Unlimited Everything",
       "Custom Data Retention",
       "White-label Reports",
@@ -74,6 +76,7 @@ const limitMessages = {
   websites: 'You\'ve reached your website limit',
   workflows: 'You\'ve reached your workflow limit',
   funnels: 'You\'ve reached your funnel limit',
+  heatmaps: 'You\'ve reached your heatmap limit',
   monthlyEvents: 'You\'ve reached your monthly events limit'
 };
 

@@ -64,7 +64,7 @@ export function BillingSettingsComponent() {
                 </div>
               </div>
               <div className="flex items-baseline gap-2 mb-8">
-                <h3 className="text-5xl font-black tracking-tight">${normalizedPlan.includes('starter') ? '0' : normalizedPlan.includes('growth') ? '15' : normalizedPlan.includes('scale') ? '39' : '149'}</h3>
+                <h3 className="text-5xl font-black tracking-tight">${normalizedPlan.includes('starter') ? '0' : normalizedPlan.includes('growth') ? '15' : normalizedPlan.includes('scale') ? '39' : '99'}</h3>
                 <span className="text-lg font-bold text-muted-foreground">/ month</span>
               </div>
 
@@ -119,6 +119,13 @@ export function BillingSettingsComponent() {
                   icon: Filter,
                   current: subscription?.usage?.funnels?.current || 0,
                   limit: subscription?.usage?.funnels?.limit || 1
+                },
+                {
+                  name: 'Heatmaps',
+                  key: 'heatmaps',
+                  icon: BarChart3,
+                  current: subscription?.usage?.heatmaps?.current || 0,
+                  limit: subscription?.usage?.heatmaps?.limit || 0
                 },
                 {
                   name: 'Automations',

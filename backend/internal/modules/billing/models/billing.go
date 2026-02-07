@@ -24,6 +24,7 @@ type Plan struct {
 	MaxWebsites         int       `json:"maxWebsites" db:"max_websites"`
 	MaxFunnels          int       `json:"maxFunnels" db:"max_funnels"`
 	MaxAutomationRules  int       `json:"maxAutomationRules" db:"max_automation_rules"`
+	MaxHeatmaps         int       `json:"maxHeatmaps" db:"max_heatmaps"`
 	MaxConnectedDomains int       `json:"maxConnectedDomains" db:"max_connected_domains"`
 	Features            []string  `json:"features" db:"features"`
 	CreatedAt           time.Time `json:"createdAt" db:"created_at"`
@@ -62,6 +63,7 @@ const (
 	ResourceWebsites      = "websites"
 	ResourceFunnels       = "funnels"
 	ResourceAutomations   = "automations"
+	ResourceHeatmaps      = "heatmaps"
 )
 
 // UsageStatus represents the status of a specific resource limit
@@ -76,6 +78,7 @@ type SubscriptionUsage struct {
 	Websites      UsageStatus `json:"websites"`
 	Workflows     UsageStatus `json:"workflows"`
 	Funnels       UsageStatus `json:"funnels"`
+	Heatmaps      UsageStatus `json:"heatmaps"`
 	MonthlyEvents UsageStatus `json:"monthlyEvents"`
 }
 

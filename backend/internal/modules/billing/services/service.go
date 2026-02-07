@@ -27,6 +27,11 @@ func NewBillingService(repo *repository.BillingRepository, redis *redis.Client) 
 	}
 }
 
+// GetSubscription returns the raw subscription for a user
+func (s *BillingService) GetSubscription(ctx context.Context, userID string) (*models.Subscription, error) {
+	return s.repo.GetUserSubscription(ctx, userID)
+}
+
 // GetUserSubscriptionData returns aggregated usage and plan data for the frontend
 // Reads from Redis first, syncs to DB before returning
 func (s *BillingService) GetUserSubscriptionData(ctx context.Context, userID string) (*models.SubscriptionResponse, error) {
@@ -57,6 +62,7 @@ func (s *BillingService) GetUserSubscriptionData(ctx context.Context, userID str
 		models.ResourceWebsites,
 		models.ResourceFunnels,
 		models.ResourceAutomations,
+		models.ResourceHeatmaps,
 		models.ResourceMonthlyEvents,
 	}
 
@@ -105,6 +111,11 @@ func (s *BillingService) GetUserSubscriptionData(ctx context.Context, userID str
 				Current:   usageMap[models.ResourceAutomations],
 				Limit:     plan.MaxAutomationRules,
 				CanCreate: plan.MaxAutomationRules == -1 || usageMap[models.ResourceAutomations] < plan.MaxAutomationRules,
+			},
+			Heatmaps: models.UsageStatus{
+				Current:   usageMap[models.ResourceHeatmaps],
+				Limit:     plan.MaxHeatmaps,
+				CanCreate: plan.MaxHeatmaps == -1 || usageMap[models.ResourceHeatmaps] < plan.MaxHeatmaps,
 			},
 			MonthlyEvents: models.UsageStatus{
 				Current:   usageMap[models.ResourceMonthlyEvents],
@@ -199,6 +210,7 @@ func (s *BillingService) SyncUsageToDatabase(ctx context.Context, userID string)
 		models.ResourceWebsites,
 		models.ResourceFunnels,
 		models.ResourceAutomations,
+		models.ResourceHeatmaps,
 		models.ResourceMonthlyEvents,
 	}
 

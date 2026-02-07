@@ -19,6 +19,7 @@ import {
     ChevronLeft,
     ChevronRight,
     MousePointer2,
+    Lock,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -38,6 +39,8 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
     const { user, logout } = useAuth();
     const { isSidebarOpen, toggleSidebar, closeMobileMenu } = useLayoutStore();
 
+    const isDemo = websiteId === 'demo';
+
     const links = [
         {
             title: 'Overview',
@@ -56,38 +59,44 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             title: 'Automations',
             href: `/websites/${websiteId}/automations`,
             icon: Workflow,
-            description: 'Workflows & Triggers'
+            description: 'Workflows & Triggers',
+            isLocked: isDemo
         },
         {
             title: 'Funnels',
             href: `/websites/${websiteId}/funnels`,
             icon: Filter,
-            description: 'Conversion Journeys'
+            description: 'Conversion Journeys',
+            isLocked: isDemo
         },
         
         {
             title: 'Billing',
             href: `/websites/${websiteId}/billing`,
             icon: CreditCard,
-            description: 'Plan & Payment'
+            description: 'Plan & Payment',
+            isLocked: isDemo
         },
         {
             title: 'Privacy',
             href: `/websites/${websiteId}/privacy`,
             icon: Shield,
-            description: 'GDPR & Privacy'
+            description: 'GDPR & Privacy',
+            isLocked: isDemo
         },
         {
             title: 'Settings',
             href: `/websites/${websiteId}/settings`,
             icon: Settings,
-            description: 'General Preferences'
+            description: 'General Preferences',
+            isLocked: isDemo
         },
         {
             title: 'Support',
             href: `/websites/${websiteId}/support`,
             icon: Headset,
-            description: 'Help & Contact'
+            description: 'Help & Contact',
+            isLocked: isDemo
         },
         {
             title: 'Emails',
@@ -95,21 +104,24 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             icon: Mail,
             description: 'Email Marketing',
             badge: 'Upcoming',
-            separator: true
+            separator: true,
+            isLocked: isDemo
         },
         {
             title: 'Support Desk',
             href: '#',
             icon: MessageSquare,
             description: 'Help Desk',
-            badge: 'Upcoming'
+            badge: 'Upcoming',
+            isLocked: isDemo
         },
         {
             title: 'Forms',
             href: '#',
             icon: FileText,
             description: 'Lead Gen Forms',
-            badge: 'Upcoming'
+            badge: 'Upcoming',
+            isLocked: isDemo
         }
     ];
 
@@ -152,7 +164,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                         ? pathname === link.href
                         : pathname.startsWith(link.href);
 
-                    const isDisabled = link.href === '#';
+                    const isDisabled = link.href === '#' || (link as any).isLocked;
 
                     return (
                         <div key={`${link.title}-${idx}`} className="px-1">
@@ -166,15 +178,28 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                 <div className="my-4 h-[1px] bg-sidebar-border/20 mx-2" />
                             )}
                             <Link 
-                                href={link.href}
-                                onClick={() => mobile && closeMobileMenu()}
+                                href={isDisabled ? '#' : link.href}
+                                onClick={(e) => {
+                                    if (isDisabled) {
+                                        e.preventDefault();
+                                        if ((link as any).isLocked) {
+                                            toast({
+                                                title: "Demo Mode Restricted",
+                                                description: "This feature is restricted in the demo environment.",
+                                                variant: "destructive",
+                                            });
+                                        }
+                                        return;
+                                    }
+                                    mobile && closeMobileMenu();
+                                }}
                                 className={cn(
                                     "flex items-center gap-3 px-3.5 py-3 rounded group transition-all duration-200 relative",
                                     isActive 
                                         ? "bg-primary text-white shadow-xl shadow-primary/20 font-bold" 
                                         : "hover:bg-sidebar-accent/50 text-muted-foreground font-medium",
                                     (!isSidebarOpen && !mobile) && "justify-center px-0",
-                                    isDisabled && "opacity-50 cursor-not-allowed pointer-events-none"
+                                    isDisabled && "opacity-50 cursor-not-allowed"
                                 )}
                             >
                                 <link.icon size={20} className={cn(
@@ -185,6 +210,9 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                     <div className="flex flex-col">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm tracking-tight">{link.title}</span>
+                                            {(link as any).isLocked && (
+                                                <Lock size={12} className="text-muted-foreground/60" />
+                                            )}
                                             {link.badge && (
                                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-black uppercase">
                                                     {link.badge}

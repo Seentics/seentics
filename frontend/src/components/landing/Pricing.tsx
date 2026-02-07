@@ -15,9 +15,10 @@ const plans = [
     color: "text-primary bg-primary/10 border-primary/20",
     features: [
       "1 Website",
-      "5,000 Monthly Events",
+      "10,000 Monthly Events",
       '1 Automation Workflow',
       "1 Conversion Funnel",
+      "No Heatmap Data",
       "30 Days Data Retention",
       "Real-time Dashboard",
       "Community Support"
@@ -26,16 +27,17 @@ const plans = [
   {
     name: "Growth",
     price: "15",
-    period: "per month",
+    period: "month",
     description: "Scaling fast? Get the deep insights you need.",
     icon: Zap,
     popular: true,
     color: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
     features: [
       "3 Websites",
-      "100,000 Monthly Events",
-      "10 Conversion Funnels",
-      "10 Active Automations",
+      "200,000 Monthly Events",
+      "5 Conversion Funnels",
+      "5 Active Automations",
+      "1 Heatmap per site",
       "1 Year Data Retention",
       "Priority Email Support"
     ]
@@ -43,16 +45,17 @@ const plans = [
   {
     name: "Scale",
     price: "39",
-    period: "per month",
-    description: "Dominate your market with automation.",
+    period: "month",
+    description: "Advanced features for scaling agencies and businesses.",
     icon: Crown,
     popular: false,
     color: "text-violet-500 bg-violet-500/10 border-violet-500/20",
     features: [
       "10 Websites",
-      "500,000 Monthly Events",
+      "1,000,000 Monthly Events",
       "Unlimited Automations",
       'Unlimited Funnels',
+      "Unlimited Heatmaps",
       "3 Years Data Retention",
       "24/7 Priority Support",
       "API Access"
@@ -60,16 +63,17 @@ const plans = [
   },
   {
     name: "Pro+",
-    price: "149",
-    period: "per month",
-    description: "The ultimate power for large-scale operations.",
+    price: "99",
+    period: "month",
+    description: "Elite features for high-traffic enterprises.",
     icon: Sparkles,
     popular: false,
     color: "text-amber-500 bg-amber-500/10 border-amber-500/20",
     features: [
-      "50 Websites",
-      "5,000,000 Monthly Events",
+      "Unlimited Websites",
+      "10,000,000 Monthly Events",
       "Unlimited Everything",
+      "Unlimited Heatmaps",
       "Custom Data Retention",
       "White-label Reports",
       "Dedicated Success Manager",

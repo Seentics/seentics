@@ -7,12 +7,14 @@ import {
     User,
     Globe,
     Target,
-    Settings
+    Settings,
+    Zap
 } from 'lucide-react';
 
 import { ProfileSettings } from '@/components/profile-settings';
 import { WebsitesSettingsComponent } from '@/components/settings/WebsitesSettingsComponent';
 import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
+import { ScriptSettingsComponent } from '@/components/settings/ScriptSettingsComponent';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 
 export default function SettingsPage() {
@@ -22,6 +24,7 @@ export default function SettingsPage() {
     const tabs = [
         { id: 'profile', label: 'User Profile', icon: User, component: ProfileSettings },
         { id: 'websites', label: 'Websites', icon: Globe, component: WebsitesSettingsComponent },
+        { id: 'scripts', label: 'Feature Scripts', icon: Zap, component: ScriptSettingsComponent },
     ];
 
     return (

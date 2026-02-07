@@ -13,6 +13,7 @@ export const FEATURES = {
   WEBSITE_MANAGEMENT: true,
   WORKFLOW_BASIC: true,
   FUNNEL_BASIC: true,
+  HEATMAPS: true,
 
   // Billing and subscription features
   BILLING_PAGE: true,

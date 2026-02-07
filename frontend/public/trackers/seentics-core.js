@@ -249,12 +249,30 @@
   };
 
   // Initialize core
-  const init = (options = {}) => {
+  const init = async (options = {}) => {
     Object.assign(config, options);
     
     if (!config.websiteId) {
       console.error('[Seentics] Website ID is required');
       return;
+    }
+
+    // Try fetching remote config for module toggles
+    try {
+      const remoteConfig = await api.get(`tracker/config/${config.websiteId}`);
+      if (remoteConfig) {
+        config.dynamicConfig = remoteConfig;
+        // Update module toggles based on backend settings
+        if (remoteConfig.automation_enabled !== undefined) config.autoLoad.automation = !!remoteConfig.automation_enabled;
+        if (remoteConfig.funnel_enabled !== undefined) config.autoLoad.funnels = !!remoteConfig.funnel_enabled;
+        if (remoteConfig.heatmap_enabled !== undefined) config.autoLoad.heatmap = !!remoteConfig.heatmap_enabled;
+        
+        if (config.debug) {
+          console.log('[Seentics] Config loaded:', config.autoLoad);
+        }
+      }
+    } catch (err) {
+      if (config.debug) console.warn('[Seentics] Using default config due to error:', err);
     }
 
     session.init();
@@ -319,27 +337,27 @@
     }
     
     if (websiteId) {
-      init({ websiteId, debug, apiHost: apiHost || config.apiHost });
-      
-      // Auto-load modules
-      const basePath = script.src.substring(0, script.src.lastIndexOf('/') + 1);
-      const loadModule = (name) => {
-        const moduleScript = d.createElement('script');
-        moduleScript.src = `${basePath}seentics-${name}.js`;
-        moduleScript.async = true;
-        moduleScript.onerror = () => {
-          if (config.debug) {
-            console.warn(`[Seentics] Failed to load ${name} module`);
-          }
+      init({ websiteId, debug, apiHost: apiHost || config.apiHost }).then(() => {
+        // Auto-load modules
+        const basePath = script.src.substring(0, script.src.lastIndexOf('/') + 1);
+        const loadModule = (name) => {
+          const moduleScript = d.createElement('script');
+          moduleScript.src = `${basePath}seentics-${name}.js`;
+          moduleScript.async = true;
+          moduleScript.onerror = () => {
+            if (config.debug) {
+              console.warn(`[Seentics] Failed to load ${name} module`);
+            }
+          };
+          d.head.appendChild(moduleScript);
         };
-        d.head.appendChild(moduleScript);
-      };
-      
-      // Load enabled modules
-      if (config.autoLoad.analytics) loadModule('analytics');
-      if (config.autoLoad.automation) loadModule('automation');
-      if (config.autoLoad.funnels) loadModule('funnels');
-      if (config.autoLoad.heatmap) loadModule('heatmap');
+        
+        // Load enabled modules
+        if (config.autoLoad.analytics) loadModule('analytics');
+        if (config.autoLoad.automation) loadModule('automation');
+        if (config.autoLoad.funnels) loadModule('funnels');
+        if (config.autoLoad.heatmap) loadModule('heatmap');
+      });
     }
   }
 

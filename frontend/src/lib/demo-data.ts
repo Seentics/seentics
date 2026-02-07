@@ -372,6 +372,9 @@ export const getDemoWebsite = () => ({
     updatedAt: new Date().toISOString(),
     isVerified: true,
     isActive: true,
+    automationEnabled: true,
+    funnelEnabled: true,
+    heatmapEnabled: true,
     verificationToken: '',
     settings: {
         allowedOrigins: ['*'],

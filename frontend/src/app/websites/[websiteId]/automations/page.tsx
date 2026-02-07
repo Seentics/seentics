@@ -42,7 +42,10 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber } from '@/lib/analytics-api';
 import { useAutomations, useDeleteAutomation, useToggleAutomation } from '@/lib/automations-api';
+import { getWebsiteBySiteId } from '@/lib/websites-api';
+import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from 'next/link';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 
@@ -62,6 +65,14 @@ export default function AutomationsPage() {
     const { toast } = useToast();
 
     const [searchTerm, setSearchTerm] = useState('');
+
+    const { data: website } = useQuery({
+        queryKey: ['website', websiteId],
+        queryFn: () => getWebsiteBySiteId(websiteId),
+        enabled: !!websiteId,
+    });
+
+    const isAutomationDisabled = website && !website.automationEnabled;
 
     // Fetch automations from API
     const { data, isLoading, error, refetch } = useAutomations(websiteId);
@@ -145,11 +156,28 @@ export default function AutomationsPage() {
     }
 
     return (
-        <div className="p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1400px] mx-auto">
-            <DashboardPageHeader 
+        <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-7xl mx-auto">
+            {isAutomationDisabled && (
+                <Alert className="bg-amber-500/10 border-amber-500/20">
+                    <Zap className="h-4 w-4 text-amber-600" />
+                    <AlertTitle className="text-amber-600 font-bold">Scripts Disabled</AlertTitle>
+                    <AlertDescription className="text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <span>The automation script is currently disabled for this website. Your workflows will not execute on your site. Update your settings to re-enable them.</span>
+                        <Link href={`/websites/${websiteId}/settings`}>
+                            <Button size="sm" variant="outline" className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10 gap-2">
+                                <Activity className="h-3.5 w-3.5" />
+                                Go to Settings
+                            </Button>
+                        </Link>
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            <DashboardPageHeader
                 title="Automations"
-                description="Scale your growth with intelligent behavioral triggers."
+                description="Create powerful automated workflows based on user interactions and events."
             >
+
                 <div className="flex items-center gap-3">
                     <Link href={`/websites/${websiteId}/automations/templates`}>
                         <Button variant="outline" className="h-12 px-6 font-black rounded gap-2 border-2 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">

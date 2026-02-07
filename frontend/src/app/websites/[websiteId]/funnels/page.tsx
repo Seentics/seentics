@@ -37,8 +37,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFunnels, useDeleteFunnel, useUpdateFunnel } from '@/lib/funnels-api';
+import { getWebsiteBySiteId } from '@/lib/websites-api';
+import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { formatNumber } from '@/lib/analytics-api';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from 'next/link';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 
@@ -48,6 +51,14 @@ export default function FunnelsPage() {
     const websiteId = params?.websiteId as string;
     const { toast } = useToast();
     const [searchTerm, setSearchTerm] = useState('');
+
+    const { data: website } = useQuery({
+        queryKey: ['website', websiteId],
+        queryFn: () => getWebsiteBySiteId(websiteId),
+        enabled: !!websiteId,
+    });
+
+    const isFunnelDisabled = website && !website.funnelEnabled;
 
     const { data, isLoading, error, refetch } = useFunnels(websiteId);
     const deleteFunnel = useDeleteFunnel();
@@ -124,10 +135,26 @@ export default function FunnelsPage() {
     }
 
     return (
-        <div className="p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1400px] mx-auto">
-            <DashboardPageHeader 
-                title="Funnels"
-                description="Visualize and optimize multi-stage user journeys."
+        <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-7xl mx-auto">
+            {isFunnelDisabled && (
+                <Alert className="bg-indigo-500/10 border-indigo-500/20">
+                    <Target className="h-4 w-4 text-indigo-600" />
+                    <AlertTitle className="text-indigo-600 font-bold">Scripts Disabled</AlertTitle>
+                    <AlertDescription className="text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <span>Funnel tracking is currently disabled for this website. You will not see conversion data for your steps. Handle this in your settings.</span>
+                        <Link href={`/websites/${websiteId}/settings`}>
+                            <Button size="sm" variant="outline" className="border-indigo-500/30 text-indigo-600 hover:bg-indigo-500/10 gap-2">
+                                <TrendingUp className="h-3.5 w-3.5" />
+                                Go to Settings
+                            </Button>
+                        </Link>
+                    </AlertDescription>
+                </Alert>
+            )}
+
+            <DashboardPageHeader
+                title="Conversion Funnels"
+                description="Track multi-step conversion paths and identify exactly where your users drop off."
             >
                 <Link href={`/websites/${websiteId}/funnels/builder`}>
                     <Button variant="brand" className="h-12 px-6 font-black rounded gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">

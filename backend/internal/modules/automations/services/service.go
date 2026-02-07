@@ -236,5 +236,16 @@ func (s *AutomationService) TrackExecution(ctx context.Context, exec *models.Aut
 		return fmt.Errorf("automation is disabled for this website")
 	}
 
+	// Check if user still has event quota (executions count as data points/events)
+	if s.billing != nil {
+		can, err := s.billing.CanTrackEvent(ctx, w.UserID.String())
+		if err != nil {
+			return err
+		}
+		if !can {
+			return fmt.Errorf("monthly event limit reached")
+		}
+	}
+
 	return s.repo.CreateExecution(ctx, exec)
 }

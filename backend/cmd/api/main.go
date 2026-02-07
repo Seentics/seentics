@@ -178,7 +178,7 @@ func main() {
 
 	// Heatmaps
 	heatmapRepo := heatmapRepoPkg.NewHeatmapRepository(db)
-	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService)
+	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, billingService)
 	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
 
 	// Logs & Metrics

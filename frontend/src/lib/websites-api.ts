@@ -10,6 +10,9 @@ export type Website = {
   updatedAt: string;
   isVerified: boolean;
   isActive: boolean;
+  automationEnabled: boolean;
+  funnelEnabled: boolean;
+  heatmapEnabled: boolean;
   verificationToken: string;
   settings: {
     allowedOrigins: string[];
@@ -42,6 +45,9 @@ export async function getWebsites(): Promise<Website[]> {
       updatedAt: w.updated_at,
       isVerified: w.is_verified,
       isActive: w.is_active,
+      automationEnabled: w.automation_enabled ?? true,
+      funnelEnabled: w.funnel_enabled ?? true,
+      heatmapEnabled: w.heatmap_enabled ?? true,
       verificationToken: w.verification_token,
       settings: w.settings || {
         allowedOrigins: [],
@@ -91,6 +97,9 @@ export async function addWebsite(website: { name: string; url: string }, userId:
       updatedAt: websiteData.updated_at,
       isVerified: websiteData.is_verified || false,
       isActive: websiteData.is_active || true,
+      automationEnabled: websiteData.automation_enabled ?? true,
+      funnelEnabled: websiteData.funnel_enabled ?? true,
+      heatmapEnabled: websiteData.heatmap_enabled ?? true,
       verificationToken: websiteData.verification_token || '',
       settings: websiteData.settings || {
         allowedOrigins: [],
@@ -152,6 +161,9 @@ export async function getWebsiteBySiteId(siteId: string): Promise<Website | null
       updatedAt: w.updated_at,
       isVerified: w.is_verified,
       isActive: w.is_active,
+      automationEnabled: w.automation_enabled ?? true,
+      funnelEnabled: w.funnel_enabled ?? true,
+      heatmapEnabled: w.heatmap_enabled ?? true,
       verificationToken: w.verification_token,
       settings: w.settings || {
         allowedOrigins: [],
@@ -177,11 +189,18 @@ export async function getWebsiteBySiteId(siteId: string): Promise<Website | null
 // Updates an existing website.
 export async function updateWebsite(
   websiteId: string,
-  data: Partial<Pick<Website, 'name' | 'url' | 'settings'>>,
+  data: Partial<Pick<Website, 'name' | 'url' | 'isActive' | 'automationEnabled' | 'funnelEnabled' | 'heatmapEnabled' | 'settings'>>,
   userId: string
 ): Promise<Website> {
   try {
-    const response = await api.put(`/user/websites/${websiteId}`, { ...data, userId });
+    const response = await api.put(`/user/websites/${websiteId}`, {
+      ...data,
+      user_id: userId,
+      is_active: data.isActive,
+      automation_enabled: data.automationEnabled,
+      funnel_enabled: data.funnelEnabled,
+      heatmap_enabled: data.heatmapEnabled
+    });
     const w = response.data.data;
 
     return {
@@ -194,6 +213,9 @@ export async function updateWebsite(
       updatedAt: w.updated_at,
       isVerified: w.is_verified,
       isActive: w.is_active,
+      automationEnabled: w.automation_enabled ?? true,
+      funnelEnabled: w.funnel_enabled ?? true,
+      heatmapEnabled: w.heatmap_enabled ?? true,
       verificationToken: w.verification_token,
       settings: w.settings || {
         allowedOrigins: [],

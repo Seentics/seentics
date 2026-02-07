@@ -36,7 +36,7 @@ func GetEventLimits() map[string]int {
 
 	// Cloud version has limits
 	return map[string]int{
-		"events_per_month": 10000, // default free tier
+		"events_per_month": 10000, // default free tier (10k)
 		"batch_size":       100,
 	}
 }

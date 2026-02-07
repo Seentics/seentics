@@ -199,11 +199,6 @@ func (s *WebsiteService) ValidateOriginDomain(origin string, registeredDomain st
 	siteDomain = strings.Split(siteDomain, "/")[0]
 	siteDomain = strings.TrimPrefix(siteDomain, "www.")
 
-	// Allow localhost for development
-	if originDomain == "localhost" || originDomain == "127.0.0.1" {
-		return true
-	}
-
 	return originDomain == siteDomain
 }
 
