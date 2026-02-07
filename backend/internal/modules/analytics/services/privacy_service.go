@@ -2,25 +2,57 @@ package services
 
 import (
 	"analytics-app/internal/modules/analytics/repository/privacy"
+	websiteServicePkg "analytics-app/internal/modules/websites/services"
+	"context"
+	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
 type PrivacyService struct {
 	privacyRepo *privacy.PrivacyRepository
+	websites    *websiteServicePkg.WebsiteService
 	logger      zerolog.Logger
 }
 
-func NewPrivacyService(privacyRepo *privacy.PrivacyRepository, logger zerolog.Logger) *PrivacyService {
+func NewPrivacyService(privacyRepo *privacy.PrivacyRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger) *PrivacyService {
 	return &PrivacyService{
 		privacyRepo: privacyRepo,
+		websites:    websites,
 		logger:      logger,
 	}
 }
 
+// validateOwnership ensures the website belongs to the user
+func (s *PrivacyService) validateOwnership(ctx context.Context, websiteID string, userID string) (string, error) {
+	if userID == "" {
+		return "", fmt.Errorf("user_id is required")
+	}
+
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return "", fmt.Errorf("invalid user_id format")
+	}
+
+	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	if err != nil {
+		return "", fmt.Errorf("website not found")
+	}
+
+	if w.UserID != uid {
+		return "", fmt.Errorf("unauthorized access to website data")
+	}
+
+	return w.SiteID, nil
+}
+
 // ExportUserAnalytics exports all analytics data for a specific user
-func (s *PrivacyService) ExportUserAnalytics(userID string) (map[string]interface{}, error) {
+func (s *PrivacyService) ExportUserAnalytics(userID string, authUserID string) (map[string]interface{}, error) {
+	if userID != authUserID {
+		return nil, fmt.Errorf("unauthorized: cannot export data for another user")
+	}
 	s.logger.Info().Str("user_id", userID).Msg("Starting analytics data export")
 
 	exportData := map[string]interface{}{
@@ -58,7 +90,10 @@ func (s *PrivacyService) ExportUserAnalytics(userID string) (map[string]interfac
 }
 
 // DeleteUserData deletes all analytics data for a specific user
-func (s *PrivacyService) DeleteUserData(userID string) error {
+func (s *PrivacyService) DeleteUserData(userID string, authUserID string) error {
+	if userID != authUserID {
+		return fmt.Errorf("unauthorized: cannot delete data for another user")
+	}
 	s.logger.Info().Str("user_id", userID).Msg("Starting user analytics data deletion")
 
 	err := s.privacyRepo.DeleteUserData(userID)
@@ -72,16 +107,21 @@ func (s *PrivacyService) DeleteUserData(userID string) error {
 }
 
 // DeleteWebsiteData deletes all analytics data for a specific website
-func (s *PrivacyService) DeleteWebsiteData(websiteID string) error {
-	s.logger.Info().Str("website_id", websiteID).Msg("Starting website analytics data deletion")
-
-	err := s.privacyRepo.DeleteWebsiteData(websiteID)
+func (s *PrivacyService) DeleteWebsiteData(websiteID string, authUserID string) error {
+	canonicalID, err := s.validateOwnership(context.Background(), websiteID, authUserID)
 	if err != nil {
-		s.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to delete website analytics data")
 		return err
 	}
 
-	s.logger.Info().Str("website_id", websiteID).Msg("Website analytics data deletion completed")
+	s.logger.Info().Str("website_id", canonicalID).Msg("Starting website analytics data deletion")
+
+	err = s.privacyRepo.DeleteWebsiteData(canonicalID)
+	if err != nil {
+		s.logger.Error().Err(err).Str("website_id", canonicalID).Msg("Failed to delete website analytics data")
+		return err
+	}
+
+	s.logger.Info().Str("website_id", canonicalID).Msg("Website analytics data deletion completed")
 	return nil
 }
 

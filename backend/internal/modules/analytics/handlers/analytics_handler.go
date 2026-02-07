@@ -23,7 +23,21 @@ func NewAnalyticsHandler(service *services.AnalyticsService, logger zerolog.Logg
 	}
 }
 
+func (h *AnalyticsHandler) getUserID(c *gin.Context) string {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		return ""
+	}
+	return userID.(string)
+}
+
 func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -39,7 +53,7 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 
 	filters := h.parseFilters(c)
 
-	data, err := h.service.GetDashboard(c.Request.Context(), websiteID, days, filters)
+	data, err := h.service.GetDashboard(c.Request.Context(), websiteID, days, filters, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get dashboard data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get dashboard data"})
@@ -50,6 +64,12 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -70,7 +90,7 @@ func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
 		}
 	}
 
-	pages, err := h.service.GetTopPages(c.Request.Context(), websiteID, days, limit)
+	pages, err := h.service.GetTopPages(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get top pages")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top pages"})
@@ -85,6 +105,12 @@ func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetPageUTMBreakdown(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -105,7 +131,7 @@ func (h *AnalyticsHandler) GetPageUTMBreakdown(c *gin.Context) {
 	}
 
 	// Get page UTM breakdown from repository
-	breakdown, err := h.service.GetPageUTMBreakdown(c.Request.Context(), websiteID, pagePath, days)
+	breakdown, err := h.service.GetPageUTMBreakdown(c.Request.Context(), websiteID, pagePath, days, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get page UTM breakdown")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get page UTM breakdown"})
@@ -116,6 +142,12 @@ func (h *AnalyticsHandler) GetPageUTMBreakdown(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetTopReferrers(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -136,7 +168,7 @@ func (h *AnalyticsHandler) GetTopReferrers(c *gin.Context) {
 		}
 	}
 
-	referrers, err := h.service.GetTopReferrers(c.Request.Context(), websiteID, days, limit)
+	referrers, err := h.service.GetTopReferrers(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get top referrers")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top referrers"})
@@ -151,6 +183,12 @@ func (h *AnalyticsHandler) GetTopReferrers(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -171,7 +209,7 @@ func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
 		}
 	}
 
-	sources, err := h.service.GetTopSources(c.Request.Context(), websiteID, days, limit)
+	sources, err := h.service.GetTopSources(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get top sources")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top sources"})
@@ -186,6 +224,12 @@ func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -206,7 +250,7 @@ func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
 		}
 	}
 
-	countries, err := h.service.GetTopCountries(c.Request.Context(), websiteID, days, limit)
+	countries, err := h.service.GetTopCountries(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get top countries")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top countries"})
@@ -221,6 +265,12 @@ func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -241,7 +291,7 @@ func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
 		}
 	}
 
-	browsers, err := h.service.GetTopBrowsers(c.Request.Context(), websiteID, days, limit)
+	browsers, err := h.service.GetTopBrowsers(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get top browsers")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top browsers"})
@@ -256,6 +306,12 @@ func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetTopDevices(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -276,7 +332,7 @@ func (h *AnalyticsHandler) GetTopDevices(c *gin.Context) {
 		}
 	}
 
-	devices, err := h.service.GetTopDevices(c.Request.Context(), websiteID, days, limit)
+	devices, err := h.service.GetTopDevices(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get top devices")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top devices"})
@@ -291,6 +347,12 @@ func (h *AnalyticsHandler) GetTopDevices(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetTopOS(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -311,7 +373,7 @@ func (h *AnalyticsHandler) GetTopOS(c *gin.Context) {
 		}
 	}
 
-	osList, err := h.service.GetTopOS(c.Request.Context(), websiteID, days, limit)
+	osList, err := h.service.GetTopOS(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get top OS")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top OS"})
@@ -326,6 +388,12 @@ func (h *AnalyticsHandler) GetTopOS(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetTrafficSummary(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -339,7 +407,7 @@ func (h *AnalyticsHandler) GetTrafficSummary(c *gin.Context) {
 		}
 	}
 
-	summary, err := h.service.GetTrafficSummary(c.Request.Context(), websiteID, days)
+	summary, err := h.service.GetTrafficSummary(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get traffic summary")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get traffic summary"})
@@ -350,6 +418,12 @@ func (h *AnalyticsHandler) GetTrafficSummary(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -366,7 +440,7 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 	// Get timezone from query parameter, default to UTC
 	timezone := c.DefaultQuery("timezone", "UTC")
 
-	stats, err := h.service.GetDailyStats(c.Request.Context(), websiteID, days, timezone)
+	stats, err := h.service.GetDailyStats(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get daily stats")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get daily stats"})
@@ -382,6 +456,12 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -398,7 +478,7 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 	fmt.Printf("DEBUG Handler: timezone=%s\n", timezone)
 
 	// Always fetch last 24 hours for hourly stats
-	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, 1, timezone)
+	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, 1, timezone, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get hourly stats")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get hourly stats"})
@@ -414,6 +494,12 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -428,7 +514,7 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 	}
 
 	// Get custom events data from repository
-	customEvents, err := h.service.GetCustomEvents(c.Request.Context(), websiteID, days)
+	customEvents, err := h.service.GetCustomEvents(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get custom events")
 		// Return empty data in the format the frontend expects
@@ -453,7 +539,7 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 	}
 
 	// Get UTM performance data for this website
-	utmData, _ := h.service.GetUTMAnalytics(c.Request.Context(), websiteID, days)
+	utmData, _ := h.service.GetUTMAnalytics(c.Request.Context(), websiteID, days, userID)
 
 	// Transform the data to match frontend expectations
 	response := gin.H{
@@ -470,6 +556,12 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -483,7 +575,7 @@ func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
 		}
 	}
 
-	stats, err := h.service.GetGoalStats(c.Request.Context(), websiteID, days)
+	stats, err := h.service.GetGoalStats(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get goal stats")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get goal stats"})
@@ -499,6 +591,12 @@ func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
 
 // GetLiveVisitors returns the number of currently active visitors
 func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -506,7 +604,7 @@ func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
 	}
 
 	// Get visitors active in the last 5 minutes
-	liveVisitors, err := h.service.GetLiveVisitors(c.Request.Context(), websiteID)
+	liveVisitors, err := h.service.GetLiveVisitors(c.Request.Context(), websiteID, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get live visitors")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get live visitors"})
@@ -522,6 +620,12 @@ func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
 
 // GetGeolocationBreakdown returns comprehensive geolocation analytics
 func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -535,7 +639,7 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 		}
 	}
 
-	breakdown, err := h.service.GetGeolocationBreakdown(c.Request.Context(), websiteID, days)
+	breakdown, err := h.service.GetGeolocationBreakdown(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get geolocation breakdown")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get geolocation breakdown"})
@@ -547,6 +651,12 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 
 // GetUserRetention returns user retention cohort data
 func (h *AnalyticsHandler) GetUserRetention(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -560,7 +670,7 @@ func (h *AnalyticsHandler) GetUserRetention(c *gin.Context) {
 		}
 	}
 
-	retention, err := h.service.GetUserRetention(c.Request.Context(), websiteID, days)
+	retention, err := h.service.GetUserRetention(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get user retention data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user retention data"})
@@ -572,6 +682,12 @@ func (h *AnalyticsHandler) GetUserRetention(c *gin.Context) {
 
 // GetVisitorInsights returns visitor insights (new vs returning)
 func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -585,7 +701,7 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 		}
 	}
 
-	insights, err := h.service.GetVisitorInsights(c.Request.Context(), websiteID, days)
+	insights, err := h.service.GetVisitorInsights(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get visitor insights")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get visitor insights"})
@@ -609,6 +725,12 @@ func (h *AnalyticsHandler) parseFilters(c *gin.Context) models.AnalyticsFilters 
 }
 
 func (h *AnalyticsHandler) ExportAnalytics(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -624,7 +746,7 @@ func (h *AnalyticsHandler) ExportAnalytics(c *gin.Context) {
 
 	format := c.DefaultQuery("format", "json")
 
-	data, err := h.service.ExportWebsiteData(c.Request.Context(), websiteID, days, format)
+	data, err := h.service.ExportWebsiteData(c.Request.Context(), websiteID, days, format, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to export analytics data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to export analytics data"})
@@ -642,6 +764,12 @@ func (h *AnalyticsHandler) ExportAnalytics(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) ImportAnalytics(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.PostForm("websiteId")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "websiteId is required"})
@@ -671,7 +799,7 @@ func (h *AnalyticsHandler) ImportAnalytics(c *gin.Context) {
 		return
 	}
 
-	count, err := h.service.ImportWebsiteData(c.Request.Context(), websiteID, source, data)
+	count, err := h.service.ImportWebsiteData(c.Request.Context(), websiteID, source, data, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to import analytics data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to import data: %v", err)})
@@ -685,13 +813,19 @@ func (h *AnalyticsHandler) ImportAnalytics(c *gin.Context) {
 }
 
 func (h *AnalyticsHandler) GetActivityTrends(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
 		return
 	}
 
-	data, err := h.service.GetActivityTrends(c.Request.Context(), websiteID)
+	data, err := h.service.GetActivityTrends(c.Request.Context(), websiteID, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get activity trends")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get activity trends"})

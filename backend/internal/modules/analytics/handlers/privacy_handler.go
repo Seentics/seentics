@@ -23,8 +23,22 @@ func NewPrivacyHandler(
 	}
 }
 
+func (h *PrivacyHandler) getUserID(c *gin.Context) string {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		return ""
+	}
+	return userID.(string)
+}
+
 // ExportUserAnalytics exports all analytics data for a specific user
 func (h *PrivacyHandler) ExportUserAnalytics(c *gin.Context) {
+	authUserID := h.getUserID(c)
+	if authUserID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	userID := c.Param("user_id")
 	if userID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -34,7 +48,7 @@ func (h *PrivacyHandler) ExportUserAnalytics(c *gin.Context) {
 		return
 	}
 
-	exportData, err := h.privacyService.ExportUserAnalytics(userID)
+	exportData, err := h.privacyService.ExportUserAnalytics(userID, authUserID)
 	if err != nil {
 		h.logger.Error().Err(err).Str("user_id", userID).Msg("Failed to export analytics data")
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -54,6 +68,12 @@ func (h *PrivacyHandler) ExportUserAnalytics(c *gin.Context) {
 
 // DeleteUserAnalytics handles the deletion of all analytics data for a specific user
 func (h *PrivacyHandler) DeleteUserAnalytics(c *gin.Context) {
+	authUserID := h.getUserID(c)
+	if authUserID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	userID := c.Param("user_id")
 	if userID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
@@ -62,7 +82,7 @@ func (h *PrivacyHandler) DeleteUserAnalytics(c *gin.Context) {
 
 	h.logger.Info().Str("user_id", userID).Msg("Starting user analytics data deletion")
 
-	err := h.privacyService.DeleteUserData(userID)
+	err := h.privacyService.DeleteUserData(userID, authUserID)
 	if err != nil {
 		h.logger.Error().Err(err).Str("user_id", userID).Msg("Failed to delete user analytics data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user data"})
@@ -78,6 +98,12 @@ func (h *PrivacyHandler) DeleteUserAnalytics(c *gin.Context) {
 
 // DeleteWebsiteAnalytics handles the deletion of all analytics data for a specific website
 func (h *PrivacyHandler) DeleteWebsiteAnalytics(c *gin.Context) {
+	authUserID := h.getUserID(c)
+	if authUserID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Website ID is required"})
@@ -86,7 +112,7 @@ func (h *PrivacyHandler) DeleteWebsiteAnalytics(c *gin.Context) {
 
 	h.logger.Info().Str("website_id", websiteID).Msg("Starting website analytics data deletion")
 
-	err := h.privacyService.DeleteWebsiteData(websiteID)
+	err := h.privacyService.DeleteWebsiteData(websiteID, authUserID)
 	if err != nil {
 		h.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to delete website analytics data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete website data"})

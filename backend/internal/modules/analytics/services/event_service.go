@@ -6,8 +6,6 @@ import (
 	"analytics-app/internal/shared/kafka"
 	"context"
 	"fmt"
-	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -177,25 +175,16 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 	}
 
 	// Domain Validation
-	if event.Referrer != nil && *event.Referrer != "" {
-		refURL, err := url.Parse(*event.Referrer)
-		if err == nil {
-			refDomain := strings.TrimPrefix(refURL.Hostname(), "www.")
-			siteDomain := strings.TrimPrefix(website.URL, "http://")
-			siteDomain = strings.TrimPrefix(siteDomain, "https://")
-			siteDomain = strings.Split(siteDomain, "/")[0]
-			siteDomain = strings.TrimPrefix(siteDomain, "www.")
-
-			if refDomain != siteDomain && !strings.Contains(refDomain, "localhost") {
-				s.logger.Warn().
-					Str("ref_domain", refDomain).
-					Str("site_domain", siteDomain).
-					Msg("Domain mismatch")
-				// We might still allow it but track it? Or block it?
-				// For now, let's keep it strict if requested
-				return nil, fmt.Errorf("domain mismatch")
-			}
-		}
+	origin := ""
+	if event.Referrer != nil {
+		origin = *event.Referrer
+	}
+	if !s.websites.ValidateOriginDomain(origin, website.URL) {
+		s.logger.Warn().
+			Str("referrer", origin).
+			Str("site_domain", website.URL).
+			Msg("Domain mismatch")
+		return nil, fmt.Errorf("domain mismatch")
 	}
 
 	// 2. Check billing limits
@@ -253,29 +242,28 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 		}, nil
 	}
 
-	s.logger.Info().
-		Str("site_id", req.SiteID).
-		Int("events_count", len(req.Events)).
-		Msg("Processing batch events to Kafka")
-
-	// Resolve SiteID to canonical SiteID if possible (handles UUIDs from dashboard)
-	originalSiteID := req.SiteID
-	var userID string
-
-	if website, err := s.websites.GetWebsiteBySiteID(ctx, req.SiteID); err == nil {
-		req.SiteID = website.SiteID
-		userID = website.UserID.String()
-
-		s.logger.Debug().
-			Str("original_id", originalSiteID).
-			Str("canonical_id", req.SiteID).
-			Msg("Resolved website ID for batch")
-	} else {
-		s.logger.Warn().
-			Err(err).
-			Str("site_id", req.SiteID).
-			Msg("Failed to resolve website ID for batch, using provided ID")
+	// Resolve SiteID to canonical SiteID if possible
+	website, err := s.websites.GetWebsiteBySiteID(ctx, req.SiteID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid website_id")
 	}
+
+	if !website.IsActive {
+		return nil, fmt.Errorf("website is inactive")
+	}
+
+	// Validate Domain for the batch based on the first event or provided domain
+	// We check against the first event's referrer or a common domain in the request if available
+	testOrigin := ""
+	if len(req.Events) > 0 && req.Events[0].Referrer != nil {
+		testOrigin = *req.Events[0].Referrer
+	}
+	if !s.websites.ValidateOriginDomain(testOrigin, website.URL) {
+		return nil, fmt.Errorf("domain mismatch")
+	}
+
+	req.SiteID = website.SiteID
+	userID := website.UserID.String()
 
 	// Process and enrich all events
 	accepted := 0

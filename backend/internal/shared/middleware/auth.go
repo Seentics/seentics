@@ -108,3 +108,16 @@ func UnifiedAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// RoleMiddleware checks if the user has the required role
+func RoleMiddleware(requiredRole string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role, exists := c.Get("user_role")
+		if !exists || role != requiredRole {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: insufficient permissions"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}

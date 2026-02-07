@@ -18,6 +18,14 @@ func NewFunnelHandler(service *services.FunnelService) *FunnelHandler {
 	}
 }
 
+func (h *FunnelHandler) getUserID(c *gin.Context) string {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		return ""
+	}
+	return userID.(string)
+}
+
 // ListFunnels godoc
 // @Summary List all funnels for a website
 // @Tags funnels
@@ -26,9 +34,15 @@ func NewFunnelHandler(service *services.FunnelService) *FunnelHandler {
 // @Success 200 {array} models.Funnel
 // @Router /api/websites/{website_id}/funnels [get]
 func (h *FunnelHandler) ListFunnels(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 
-	funnels, err := h.service.ListFunnels(c.Request.Context(), websiteID)
+	funnels, err := h.service.ListFunnels(c.Request.Context(), websiteID, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -49,9 +63,15 @@ func (h *FunnelHandler) ListFunnels(c *gin.Context) {
 // @Success 200 {object} models.Funnel
 // @Router /api/websites/{website_id}/funnels/{funnel_id} [get]
 func (h *FunnelHandler) GetFunnel(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	funnelID := c.Param("funnel_id")
 
-	funnel, err := h.service.GetFunnel(c.Request.Context(), funnelID)
+	funnel, err := h.service.GetFunnel(c.Request.Context(), funnelID, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Funnel not found"})
 		return
@@ -103,6 +123,12 @@ func (h *FunnelHandler) CreateFunnel(c *gin.Context) {
 // @Success 200 {object} models.Funnel
 // @Router /api/websites/{website_id}/funnels/{funnel_id} [put]
 func (h *FunnelHandler) UpdateFunnel(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	funnelID := c.Param("funnel_id")
 
 	var req models.UpdateFunnelRequest
@@ -111,7 +137,7 @@ func (h *FunnelHandler) UpdateFunnel(c *gin.Context) {
 		return
 	}
 
-	funnel, err := h.service.UpdateFunnel(c.Request.Context(), funnelID, &req)
+	funnel, err := h.service.UpdateFunnel(c.Request.Context(), funnelID, &req, userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -128,10 +154,15 @@ func (h *FunnelHandler) UpdateFunnel(c *gin.Context) {
 // @Success 204
 // @Router /api/websites/{website_id}/funnels/{funnel_id} [delete]
 func (h *FunnelHandler) DeleteFunnel(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	funnelID := c.Param("funnel_id")
 
-	err := h.service.DeleteFunnel(c.Request.Context(), funnelID)
-	if err != nil {
+	if err := h.service.DeleteFunnel(c.Request.Context(), funnelID, userID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -167,9 +198,14 @@ func (h *FunnelHandler) GetActiveFunnels(c *gin.Context) {
 		return
 	}
 
-	funnels, err := h.service.GetActiveFunnels(c.Request.Context(), websiteID)
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = c.Request.Header.Get("Referer")
+	}
+
+	funnels, err := h.service.GetActiveFunnels(c.Request.Context(), websiteID, origin)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -187,9 +223,14 @@ func (h *FunnelHandler) TrackFunnelEvent(c *gin.Context) {
 		return
 	}
 
-	err := h.service.TrackFunnelEvent(c.Request.Context(), &req)
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = c.Request.Header.Get("Referer")
+	}
+
+	err := h.service.TrackFunnelEvent(c.Request.Context(), &req, origin)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 

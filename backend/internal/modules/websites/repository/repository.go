@@ -27,8 +27,8 @@ func NewWebsiteRepository(db *pgxpool.Pool) *WebsiteRepository {
 // Create inserts a new website into the database
 func (r *WebsiteRepository) Create(ctx context.Context, website *models.Website) error {
 	query := `
-		INSERT INTO websites (site_id, user_id, name, url, tracking_id, is_active, is_verified, verification_token, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO websites (site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 		RETURNING id
 	`
 
@@ -40,6 +40,9 @@ func (r *WebsiteRepository) Create(ctx context.Context, website *models.Website)
 		website.TrackingID,
 		website.IsActive,
 		website.IsVerified,
+		website.AutomationEnabled,
+		website.FunnelEnabled,
+		website.HeatmapEnabled,
 		website.VerificationToken,
 		website.CreatedAt,
 		website.UpdatedAt,
@@ -55,7 +58,7 @@ func (r *WebsiteRepository) Create(ctx context.Context, website *models.Website)
 // ListByUserID returns all websites owned by a user
 func (r *WebsiteRepository) ListByUserID(ctx context.Context, userID uuid.UUID) ([]models.Website, error) {
 	query := `
-		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, verification_token, created_at, updated_at
+		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at
 		FROM websites
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -79,6 +82,9 @@ func (r *WebsiteRepository) ListByUserID(ctx context.Context, userID uuid.UUID) 
 			&w.TrackingID,
 			&w.IsActive,
 			&w.IsVerified,
+			&w.AutomationEnabled,
+			&w.FunnelEnabled,
+			&w.HeatmapEnabled,
 			&w.VerificationToken,
 			&w.CreatedAt,
 			&w.UpdatedAt,
@@ -95,7 +101,7 @@ func (r *WebsiteRepository) ListByUserID(ctx context.Context, userID uuid.UUID) 
 // GetByID returns a website by internal UUID
 func (r *WebsiteRepository) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Website, error) {
 	query := `
-		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, verification_token, created_at, updated_at
+		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at
 		FROM websites
 		WHERE id = $1 AND user_id = $2
 	`
@@ -110,6 +116,9 @@ func (r *WebsiteRepository) GetByID(ctx context.Context, id uuid.UUID, userID uu
 		&w.TrackingID,
 		&w.IsActive,
 		&w.IsVerified,
+		&w.AutomationEnabled,
+		&w.FunnelEnabled,
+		&w.HeatmapEnabled,
 		&w.VerificationToken,
 		&w.CreatedAt,
 		&w.UpdatedAt,
@@ -128,7 +137,7 @@ func (r *WebsiteRepository) GetByID(ctx context.Context, id uuid.UUID, userID uu
 // GetBySiteID returns a website by public site_id
 func (r *WebsiteRepository) GetBySiteID(ctx context.Context, siteID string) (*models.Website, error) {
 	query := `
-		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, verification_token, created_at, updated_at
+		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at
 		FROM websites
 		WHERE site_id = $1 OR id::text = $1
 	`
@@ -143,6 +152,9 @@ func (r *WebsiteRepository) GetBySiteID(ctx context.Context, siteID string) (*mo
 		&w.TrackingID,
 		&w.IsActive,
 		&w.IsVerified,
+		&w.AutomationEnabled,
+		&w.FunnelEnabled,
+		&w.HeatmapEnabled,
 		&w.VerificationToken,
 		&w.CreatedAt,
 		&w.UpdatedAt,
@@ -178,14 +190,17 @@ func (r *WebsiteRepository) Delete(ctx context.Context, id string, userID uuid.U
 func (r *WebsiteRepository) Update(ctx context.Context, website *models.Website) error {
 	query := `
 		UPDATE websites
-		SET name = $1, url = $2, is_active = $3, updated_at = $4
-		WHERE id = $5 AND user_id = $6
+		SET name = $1, url = $2, is_active = $3, automation_enabled = $4, funnel_enabled = $5, heatmap_enabled = $6, updated_at = $7
+		WHERE id = $8 AND user_id = $9
 	`
 
 	_, err := r.db.Exec(ctx, query,
 		website.Name,
 		website.URL,
 		website.IsActive,
+		website.AutomationEnabled,
+		website.FunnelEnabled,
+		website.HeatmapEnabled,
 		time.Now(),
 		website.ID,
 		website.UserID,

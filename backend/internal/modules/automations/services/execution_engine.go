@@ -86,7 +86,7 @@ func (e *ExecutionEngine) ExecuteAutomation(ctx context.Context, automation *mod
 	}
 
 	// Record execution
-	return e.service.TrackExecution(ctx, execution)
+	return e.service.TrackExecution(ctx, execution, "")
 }
 
 // shouldExecute checks frequency control rules
@@ -273,7 +273,7 @@ func (e *ExecutionEngine) executeEmail(ctx context.Context, action models.Automa
 // ProcessEvent processes an analytics event and triggers matching automations
 func (e *ExecutionEngine) ProcessEvent(ctx context.Context, websiteID string, eventData map[string]interface{}) error {
 	// Get active automations for this website
-	automations, err := e.service.GetActiveAutomations(ctx, websiteID)
+	automations, err := e.service.GetActiveAutomations(ctx, websiteID, "")
 	if err != nil {
 		return fmt.Errorf("failed to get active automations: %w", err)
 	}

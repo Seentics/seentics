@@ -143,12 +143,12 @@ func main() {
 
 	// Automations
 	autoRepo := autoRepoPkg.NewAutomationRepository(db)
-	autoService := autoServicePkg.NewAutomationService(autoRepo, billingService)
+	autoService := autoServicePkg.NewAutomationService(autoRepo, billingService, websiteService)
 	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
 
 	eventService := services.NewEventService(eventRepo, db, kafkaService, billingService, websiteService, autoService, logger)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger)
-	privacyService := services.NewPrivacyService(privacyRepo, logger)
+	privacyService := services.NewPrivacyService(privacyRepo, websiteService, logger)
 
 	// Handlers
 	eventHandler := handlers.NewEventHandler(eventService, logger)
@@ -159,7 +159,7 @@ func main() {
 
 	// Funnels
 	funnelRepo := funnelRepoPkg.NewFunnelRepository(db)
-	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, billingService)
+	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, billingService, websiteService)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 
 	// Notifications
@@ -173,12 +173,12 @@ func main() {
 
 	// Support Desk
 	supportRepo := supportRepoPkg.NewSupportDeskRepository(db)
-	supportService := supportServicePkg.NewSupportDeskService(supportRepo)
+	supportService := supportServicePkg.NewSupportDeskService(supportRepo, websiteService)
 	supportHandler := supportHandlerPkg.NewSupportDeskHandler(supportService)
 
 	// Heatmaps
 	heatmapRepo := heatmapRepoPkg.NewHeatmapRepository(db)
-	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo)
+	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService)
 	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
 
 	// Logs & Metrics
@@ -245,7 +245,6 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 	router.Use(middleware.ClientIPMiddleware())
 	router.Use(middleware.Logger(logger))
 	router.Use(middleware.Recovery(logger))
-	router.Use(middleware.RateLimitMiddleware(redisClient))
 
 	// Serve static files for avatars
 	router.Static("/uploads", "./uploads")
@@ -270,6 +269,9 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		}
 		middleware.UnifiedAuthMiddleware(cfg)(c)
 	})
+
+	// Apply Rate Limiting AFTER Auth so it can identify users by ID
+	router.Use(middleware.RateLimitMiddleware(redisClient))
 
 	router.GET("/health", healthHandler.HealthCheck)
 	v1 := router.Group("/api/v1")
@@ -313,7 +315,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 
 		v1.GET("/tracker/config/:site_id", websiteHandler.GetTrackerConfig)
 
-		admin := v1.Group("/admin")
+		admin := v1.Group("/admin", middleware.RoleMiddleware("admin"))
 		{
 			admin.GET("/analytics/stats", adminHandler.GetAnalyticsStats)
 

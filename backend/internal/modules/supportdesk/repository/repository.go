@@ -99,3 +99,14 @@ func (r *SupportDeskRepository) GetChatWidget(ctx context.Context, websiteID str
 	}
 	return &w, nil
 }
+
+func (r *SupportDeskRepository) GetFormByID(ctx context.Context, id string) (*models.SupportForm, error) {
+	query := `SELECT id, website_id, name, description, fields, is_active, created_at, updated_at
+			  FROM support_forms WHERE id = $1`
+	var f models.SupportForm
+	err := r.db.QueryRow(ctx, query, id).Scan(&f.ID, &f.WebsiteID, &f.Name, &f.Description, &f.Fields, &f.IsActive, &f.CreatedAt, &f.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &f, nil
+}

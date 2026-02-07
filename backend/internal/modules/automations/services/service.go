@@ -5,25 +5,58 @@ import (
 	"analytics-app/internal/modules/automations/repository"
 	billingModels "analytics-app/internal/modules/billing/models"
 	billingServicePkg "analytics-app/internal/modules/billing/services"
+	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"context"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 type AutomationService struct {
-	repo    *repository.AutomationRepository
-	billing *billingServicePkg.BillingService
+	repo     *repository.AutomationRepository
+	billing  *billingServicePkg.BillingService
+	websites *websiteServicePkg.WebsiteService
 }
 
-func NewAutomationService(repo *repository.AutomationRepository, billing *billingServicePkg.BillingService) *AutomationService {
+func NewAutomationService(repo *repository.AutomationRepository, billing *billingServicePkg.BillingService, websites *websiteServicePkg.WebsiteService) *AutomationService {
 	return &AutomationService{
-		repo:    repo,
-		billing: billing,
+		repo:     repo,
+		billing:  billing,
+		websites: websites,
 	}
 }
 
+// validateOwnership ensures the website belongs to the user
+func (s *AutomationService) validateOwnership(ctx context.Context, websiteID string, userID string) (string, error) {
+	if userID == "" {
+		return "", fmt.Errorf("user_id is required")
+	}
+
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return "", fmt.Errorf("invalid user_id format")
+	}
+
+	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	if err != nil {
+		return "", fmt.Errorf("website not found")
+	}
+
+	if w.UserID != uid {
+		return "", fmt.Errorf("unauthorized access to website data")
+	}
+
+	return w.SiteID, nil
+}
+
 // ListAutomations retrieves all automations for a website with stats
-func (s *AutomationService) ListAutomations(ctx context.Context, websiteID string) ([]models.Automation, error) {
-	automations, err := s.repo.ListAutomations(ctx, websiteID)
+func (s *AutomationService) ListAutomations(ctx context.Context, websiteID string, userID string) ([]models.Automation, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	automations, err := s.repo.ListAutomations(ctx, canonicalID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list automations: %w", err)
 	}
@@ -40,10 +73,15 @@ func (s *AutomationService) ListAutomations(ctx context.Context, websiteID strin
 }
 
 // GetAutomation retrieves a single automation by ID
-func (s *AutomationService) GetAutomation(ctx context.Context, id string) (*models.Automation, error) {
+func (s *AutomationService) GetAutomation(ctx context.Context, id string, userID string) (*models.Automation, error) {
 	automation, err := s.repo.GetAutomationByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get automation: %w", err)
+	}
+
+	// Verify owner
+	if userID != "system" && automation.UserID != userID {
+		return nil, fmt.Errorf("unauthorized access to automation")
 	}
 
 	// Load stats
@@ -57,6 +95,11 @@ func (s *AutomationService) GetAutomation(ctx context.Context, id string) (*mode
 
 // CreateAutomation creates a new automation
 func (s *AutomationService) CreateAutomation(ctx context.Context, req *models.CreateAutomationRequest, websiteID, userID string) (*models.Automation, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Validate request
 	if req.Name == "" {
 		return nil, fmt.Errorf("automation name is required")
@@ -70,7 +113,7 @@ func (s *AutomationService) CreateAutomation(ctx context.Context, req *models.Cr
 
 	// Create automation model
 	automation := &models.Automation{
-		WebsiteID:     websiteID,
+		WebsiteID:     canonicalID,
 		UserID:        userID,
 		Name:          req.Name,
 		Description:   req.Description,
@@ -82,7 +125,7 @@ func (s *AutomationService) CreateAutomation(ctx context.Context, req *models.Cr
 	}
 
 	// Save to database
-	err := s.repo.CreateAutomation(ctx, automation)
+	err = s.repo.CreateAutomation(ctx, automation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create automation: %w", err)
 	}
@@ -99,15 +142,14 @@ func (s *AutomationService) CreateAutomation(ctx context.Context, req *models.Cr
 }
 
 // UpdateAutomation updates an existing automation
-func (s *AutomationService) UpdateAutomation(ctx context.Context, id string, req *models.UpdateAutomationRequest) (*models.Automation, error) {
-	// Check if automation exists
-	existing, err := s.repo.GetAutomationByID(ctx, id)
+func (s *AutomationService) UpdateAutomation(ctx context.Context, id string, req *models.UpdateAutomationRequest, userID string) (*models.Automation, error) {
+	// Check ownership
+	existing, err := s.GetAutomation(ctx, id, userID)
 	if err != nil {
-		return nil, fmt.Errorf("automation not found: %w", err)
+		return nil, err
 	}
 
-	// Update automation
-	err = s.repo.UpdateAutomation(ctx, id, req)
+	err = s.repo.UpdateAutomation(ctx, existing.ID, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update automation: %w", err)
 	}
@@ -116,37 +158,26 @@ func (s *AutomationService) UpdateAutomation(ctx context.Context, id string, req
 	return s.repo.GetAutomationByID(ctx, existing.ID)
 }
 
-// DeleteAutomation deletes an automation
-func (s *AutomationService) DeleteAutomation(ctx context.Context, id string) error {
-	// Get automation to extract userID before deletion
-	automation, err := s.repo.GetAutomationByID(ctx, id)
+// DeleteAutomation removes an automation
+func (s *AutomationService) DeleteAutomation(ctx context.Context, id string, userID string) error {
+	// Check ownership
+	_, err := s.GetAutomation(ctx, id, userID)
 	if err != nil {
-		return fmt.Errorf("automation not found: %w", err)
+		return err
 	}
 
-	err = s.repo.DeleteAutomation(ctx, id)
-	if err != nil {
-		return fmt.Errorf("failed to delete automation: %w", err)
-	}
-
-	// Decrement usage in Redis
-	if s.billing != nil {
-		if err := s.billing.IncrementUsageRedis(ctx, automation.UserID, billingModels.ResourceAutomations, -1); err != nil {
-			fmt.Printf("Warning: failed to decrement automation usage: %v\n", err)
-		}
-	}
-
-	return nil
+	return s.repo.DeleteAutomation(ctx, id)
 }
 
 // ToggleAutomation toggles the active status of an automation
-func (s *AutomationService) ToggleAutomation(ctx context.Context, id string) (*models.Automation, error) {
-	automation, err := s.repo.GetAutomationByID(ctx, id)
+func (s *AutomationService) ToggleAutomation(ctx context.Context, id string, userID string) (*models.Automation, error) {
+	// Check ownership
+	existing, err := s.GetAutomation(ctx, id, userID)
 	if err != nil {
-		return nil, fmt.Errorf("automation not found: %w", err)
+		return nil, err
 	}
 
-	newStatus := !automation.IsActive
+	newStatus := !existing.IsActive
 	err = s.repo.UpdateAutomation(ctx, id, &models.UpdateAutomationRequest{
 		IsActive: &newStatus,
 	})
@@ -158,7 +189,13 @@ func (s *AutomationService) ToggleAutomation(ctx context.Context, id string) (*m
 }
 
 // GetAutomationStats retrieves statistics for an automation
-func (s *AutomationService) GetAutomationStats(ctx context.Context, id string) (*models.AutomationStats, error) {
+func (s *AutomationService) GetAutomationStats(ctx context.Context, id string, userID string) (*models.AutomationStats, error) {
+	// Check ownership
+	_, err := s.GetAutomation(ctx, id, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	stats, err := s.repo.GetAutomationStats(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get automation stats: %w", err)
@@ -166,12 +203,38 @@ func (s *AutomationService) GetAutomationStats(ctx context.Context, id string) (
 	return stats, nil
 }
 
-// GetActiveAutomations retrieves all active automations for a website
-func (s *AutomationService) GetActiveAutomations(ctx context.Context, websiteID string) ([]models.Automation, error) {
-	return s.repo.GetActiveAutomations(ctx, websiteID)
+// GetActiveAutomations retrieves all active automations for a website (Public)
+func (s *AutomationService) GetActiveAutomations(ctx context.Context, websiteID string, origin string) ([]models.Automation, error) {
+	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	if err != nil {
+		return nil, fmt.Errorf("website not found")
+	}
+
+	if !s.websites.ValidateOriginDomain(origin, w.URL) {
+		return nil, fmt.Errorf("domain mismatch")
+	}
+
+	if !w.AutomationEnabled {
+		return []models.Automation{}, nil
+	}
+
+	return s.repo.GetActiveAutomations(ctx, w.SiteID)
 }
 
-// TrackExecution records an automated action execution
-func (s *AutomationService) TrackExecution(ctx context.Context, exec *models.AutomationExecution) error {
+// TrackExecution records an automated action execution (Public)
+func (s *AutomationService) TrackExecution(ctx context.Context, exec *models.AutomationExecution, origin string) error {
+	w, err := s.websites.GetWebsiteBySiteID(ctx, exec.WebsiteID)
+	if err != nil {
+		return fmt.Errorf("website not found")
+	}
+
+	if !s.websites.ValidateOriginDomain(origin, w.URL) {
+		return fmt.Errorf("domain mismatch")
+	}
+
+	if !w.AutomationEnabled {
+		return fmt.Errorf("automation is disabled for this website")
+	}
+
 	return s.repo.CreateExecution(ctx, exec)
 }

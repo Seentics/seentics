@@ -16,6 +16,9 @@ type Website struct {
 	TrackingID        string    `json:"tracking_id" db:"tracking_id"`
 	IsActive          bool      `json:"is_active" db:"is_active"`
 	IsVerified        bool      `json:"is_verified" db:"is_verified"`
+	AutomationEnabled bool      `json:"automation_enabled" db:"automation_enabled"`
+	FunnelEnabled     bool      `json:"funnel_enabled" db:"funnel_enabled"`
+	HeatmapEnabled    bool      `json:"heatmap_enabled" db:"heatmap_enabled"`
 	VerificationToken string    `json:"verification_token" db:"verification_token"`
 	CreatedAt         time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
@@ -29,7 +32,10 @@ type CreateWebsiteRequest struct {
 
 // UpdateWebsiteRequest defines the payload for updating an existing website
 type UpdateWebsiteRequest struct {
-	Name     *string `json:"name"`
-	URL      *string `json:"url"`
-	IsActive *bool   `json:"is_active"`
+	Name              *string `json:"name"`
+	URL               *string `json:"url"`
+	IsActive          *bool   `json:"is_active"`
+	AutomationEnabled *bool   `json:"automation_enabled"`
+	FunnelEnabled     *bool   `json:"funnel_enabled"`
+	HeatmapEnabled    *bool   `json:"heatmap_enabled"`
 }

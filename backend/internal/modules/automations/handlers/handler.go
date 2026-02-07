@@ -18,6 +18,14 @@ func NewAutomationHandler(service *services.AutomationService) *AutomationHandle
 	}
 }
 
+func (h *AutomationHandler) getUserID(c *gin.Context) string {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		return ""
+	}
+	return userID.(string)
+}
+
 // ListAutomations godoc
 // @Summary List all automations for a website
 // @Tags automations
@@ -26,9 +34,15 @@ func NewAutomationHandler(service *services.AutomationService) *AutomationHandle
 // @Success 200 {array} models.Automation
 // @Router /api/websites/{website_id}/automations [get]
 func (h *AutomationHandler) ListAutomations(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Param("website_id")
 
-	automations, err := h.service.ListAutomations(c.Request.Context(), websiteID)
+	automations, err := h.service.ListAutomations(c.Request.Context(), websiteID, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -49,9 +63,15 @@ func (h *AutomationHandler) ListAutomations(c *gin.Context) {
 // @Success 200 {object} models.Automation
 // @Router /api/websites/{website_id}/automations/{automation_id} [get]
 func (h *AutomationHandler) GetAutomation(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	automationID := c.Param("automation_id")
 
-	automation, err := h.service.GetAutomation(c.Request.Context(), automationID)
+	automation, err := h.service.GetAutomation(c.Request.Context(), automationID, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Automation not found"})
 		return
@@ -104,6 +124,12 @@ func (h *AutomationHandler) CreateAutomation(c *gin.Context) {
 // @Success 200 {object} models.Automation
 // @Router /api/websites/{website_id}/automations/{automation_id} [put]
 func (h *AutomationHandler) UpdateAutomation(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	automationID := c.Param("automation_id")
 
 	var req models.UpdateAutomationRequest
@@ -112,7 +138,7 @@ func (h *AutomationHandler) UpdateAutomation(c *gin.Context) {
 		return
 	}
 
-	automation, err := h.service.UpdateAutomation(c.Request.Context(), automationID, &req)
+	automation, err := h.service.UpdateAutomation(c.Request.Context(), automationID, &req, userID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -129,10 +155,15 @@ func (h *AutomationHandler) UpdateAutomation(c *gin.Context) {
 // @Success 204
 // @Router /api/websites/{website_id}/automations/{automation_id} [delete]
 func (h *AutomationHandler) DeleteAutomation(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	automationID := c.Param("automation_id")
 
-	err := h.service.DeleteAutomation(c.Request.Context(), automationID)
-	if err != nil {
+	if err := h.service.DeleteAutomation(c.Request.Context(), automationID, userID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -149,9 +180,15 @@ func (h *AutomationHandler) DeleteAutomation(c *gin.Context) {
 // @Success 200 {object} models.Automation
 // @Router /api/websites/{website_id}/automations/{automation_id}/toggle [post]
 func (h *AutomationHandler) ToggleAutomation(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	automationID := c.Param("automation_id")
 
-	automation, err := h.service.ToggleAutomation(c.Request.Context(), automationID)
+	automation, err := h.service.ToggleAutomation(c.Request.Context(), automationID, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -169,9 +206,15 @@ func (h *AutomationHandler) ToggleAutomation(c *gin.Context) {
 // @Success 200 {object} models.AutomationStats
 // @Router /api/websites/{website_id}/automations/{automation_id}/stats [get]
 func (h *AutomationHandler) GetAutomationStats(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	automationID := c.Param("automation_id")
 
-	stats, err := h.service.GetAutomationStats(c.Request.Context(), automationID)
+	stats, err := h.service.GetAutomationStats(c.Request.Context(), automationID, userID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -192,9 +235,14 @@ func (h *AutomationHandler) GetActiveWorkflows(c *gin.Context) {
 		return
 	}
 
-	automations, err := h.service.GetActiveAutomations(c.Request.Context(), siteId)
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = c.Request.Header.Get("Referer")
+	}
+
+	automations, err := h.service.GetActiveAutomations(c.Request.Context(), siteId, origin)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -212,9 +260,14 @@ func (h *AutomationHandler) TrackExecution(c *gin.Context) {
 		return
 	}
 
-	err := h.service.TrackExecution(c.Request.Context(), &exec)
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = c.Request.Header.Get("Referer")
+	}
+
+	err := h.service.TrackExecution(c.Request.Context(), &exec, origin)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 

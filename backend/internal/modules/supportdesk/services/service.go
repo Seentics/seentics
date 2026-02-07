@@ -3,17 +3,47 @@ package services
 import (
 	"analytics-app/internal/modules/supportdesk/models"
 	"analytics-app/internal/modules/supportdesk/repository"
+	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"context"
 	"crypto/rand"
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 type SupportDeskService struct {
-	repo *repository.SupportDeskRepository
+	repo     *repository.SupportDeskRepository
+	websites *websiteServicePkg.WebsiteService
 }
 
-func NewSupportDeskService(repo *repository.SupportDeskRepository) *SupportDeskService {
-	return &SupportDeskService{repo: repo}
+func NewSupportDeskService(repo *repository.SupportDeskRepository, websites *websiteServicePkg.WebsiteService) *SupportDeskService {
+	return &SupportDeskService{
+		repo:     repo,
+		websites: websites,
+	}
+}
+
+// validateOwnership ensures the website belongs to the user
+func (s *SupportDeskService) validateOwnership(ctx context.Context, websiteID string, userID string) (string, error) {
+	if userID == "" {
+		return "", fmt.Errorf("user_id is required")
+	}
+
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return "", fmt.Errorf("invalid user_id format")
+	}
+
+	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	if err != nil {
+		return "", fmt.Errorf("website not found")
+	}
+
+	if w.UserID != uid {
+		return "", fmt.Errorf("unauthorized access to website data")
+	}
+
+	return w.SiteID, nil
 }
 
 func generateID(prefix string) string {
@@ -23,10 +53,15 @@ func generateID(prefix string) string {
 }
 
 // Forms
-func (s *SupportDeskService) CreateForm(ctx context.Context, websiteID, name, description string, fields []byte) (*models.SupportForm, error) {
+func (s *SupportDeskService) CreateForm(ctx context.Context, websiteID, userID, name, description string, fields []byte) (*models.SupportForm, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	form := &models.SupportForm{
 		ID:          generateID("frm"),
-		WebsiteID:   websiteID,
+		WebsiteID:   canonicalID,
 		Name:        name,
 		Description: description,
 		Fields:      fields,
@@ -38,12 +73,31 @@ func (s *SupportDeskService) CreateForm(ctx context.Context, websiteID, name, de
 	return form, nil
 }
 
-func (s *SupportDeskService) GetWebsiteForms(ctx context.Context, websiteID string) ([]models.SupportForm, error) {
-	return s.repo.GetForms(ctx, websiteID)
+func (s *SupportDeskService) GetWebsiteForms(ctx context.Context, websiteID, userID string) ([]models.SupportForm, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetForms(ctx, canonicalID)
 }
 
 // Submissions
-func (s *SupportDeskService) SubmitForm(ctx context.Context, formID string, data []byte, ip, ua string) error {
+func (s *SupportDeskService) SubmitForm(ctx context.Context, formID string, data []byte, ip, ua, origin string) error {
+	// Public endpoint - validate origin
+	form, err := s.repo.GetFormByID(ctx, formID)
+	if err != nil {
+		return fmt.Errorf("form not found")
+	}
+
+	w, err := s.websites.GetWebsiteBySiteID(ctx, form.WebsiteID)
+	if err != nil {
+		return fmt.Errorf("website not found")
+	}
+
+	if !s.websites.ValidateOriginDomain(origin, w.URL) {
+		return fmt.Errorf("domain mismatch")
+	}
+
 	sub := &models.FormSubmission{
 		ID:        generateID("sub"),
 		FormID:    formID,
@@ -55,7 +109,20 @@ func (s *SupportDeskService) SubmitForm(ctx context.Context, formID string, data
 }
 
 // Tickets
-func (s *SupportDeskService) CreateTicket(ctx context.Context, websiteID, userID, subject, description, priority, source string, metadata []byte) (*models.Ticket, error) {
+func (s *SupportDeskService) CreateTicket(ctx context.Context, websiteID, userID, subject, description, priority, source string, metadata []byte, origin string) (*models.Ticket, error) {
+	// Canonical check
+	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	if err != nil {
+		return nil, fmt.Errorf("website not found")
+	}
+
+	// If public (no userID), validate origin
+	if userID == "" {
+		if !s.websites.ValidateOriginDomain(origin, w.URL) {
+			return nil, fmt.Errorf("domain mismatch")
+		}
+	}
+
 	var uid *string
 	if userID != "" {
 		uid = &userID
@@ -63,7 +130,7 @@ func (s *SupportDeskService) CreateTicket(ctx context.Context, websiteID, userID
 
 	ticket := &models.Ticket{
 		ID:          generateID("tkt"),
-		WebsiteID:   websiteID,
+		WebsiteID:   w.SiteID,
 		UserID:      uid,
 		Subject:     subject,
 		Description: description,
@@ -78,14 +145,23 @@ func (s *SupportDeskService) CreateTicket(ctx context.Context, websiteID, userID
 	return ticket, nil
 }
 
-func (s *SupportDeskService) GetWebsiteTickets(ctx context.Context, websiteID string) ([]models.Ticket, error) {
-	return s.repo.GetTickets(ctx, websiteID)
+func (s *SupportDeskService) GetWebsiteTickets(ctx context.Context, websiteID, userID string) ([]models.Ticket, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetTickets(ctx, canonicalID)
 }
 
 // Chat Widget
-func (s *SupportDeskService) ConfigureChatWidget(ctx context.Context, websiteID, name string, config []byte, isActive bool) (*models.ChatWidget, error) {
+func (s *SupportDeskService) ConfigureChatWidget(ctx context.Context, websiteID, userID, name string, config []byte, isActive bool) (*models.ChatWidget, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	// Check if exists
-	existing, err := s.repo.GetChatWidget(ctx, websiteID)
+	existing, err := s.repo.GetChatWidget(ctx, canonicalID)
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +173,7 @@ func (s *SupportDeskService) ConfigureChatWidget(ctx context.Context, websiteID,
 
 	widget := &models.ChatWidget{
 		ID:        id,
-		WebsiteID: websiteID,
+		WebsiteID: canonicalID,
 		Name:      name,
 		Config:    config,
 		IsActive:  isActive,
@@ -109,6 +185,24 @@ func (s *SupportDeskService) ConfigureChatWidget(ctx context.Context, websiteID,
 	return widget, nil
 }
 
-func (s *SupportDeskService) GetChatWidget(ctx context.Context, websiteID string) (*models.ChatWidget, error) {
-	return s.repo.GetChatWidget(ctx, websiteID)
+func (s *SupportDeskService) GetChatWidget(ctx context.Context, websiteID, origin string) (*models.ChatWidget, error) {
+	// Public access for the widget - validate origin
+	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	if err != nil {
+		return nil, fmt.Errorf("website not found")
+	}
+
+	if !s.websites.ValidateOriginDomain(origin, w.URL) {
+		return nil, fmt.Errorf("domain mismatch")
+	}
+
+	return s.repo.GetChatWidget(ctx, w.SiteID)
+}
+
+func (s *SupportDeskService) GetChatWidgetSecure(ctx context.Context, websiteID, userID string) (*models.ChatWidget, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetChatWidget(ctx, canonicalID)
 }

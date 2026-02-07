@@ -2,9 +2,9 @@ package middleware
 
 import (
 	"analytics-app/internal/shared/config"
-	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,32 +20,50 @@ func RateLimitMiddleware(redisClient *redis.Client) gin.HandlerFunc {
 			return
 		}
 
-		// Determine limit and window based on endpoint
+		path := c.Request.URL.Path
+		clientIP := c.ClientIP()
+
+		// Default limits
 		limit := 100
 		window := time.Minute
-		keyPrefix := "rl:analytics"
+		keyPrefix := "rl:general"
+		identifier := clientIP
 
-		// Higher limits for ingestion endpoints
-		if c.Request.URL.Path == "/api/v1/analytics/event" || c.Request.URL.Path == "/api/v1/analytics/event/batch" {
-			limit = 5000 // 5000 events per minute per IP for ingestion
+		// Granular Rate Limiting Logic
+		switch {
+		case path == "/api/v1/analytics/event" || path == "/api/v1/analytics/batch" || path == "/api/v1/heatmaps/record":
+			// Ingestion Endpoints (High throughput) - ALWAYS use IP for ingestion
+			limit = 5000
 			keyPrefix = "rl:ingest"
-		}
-
-		// Get client identifier (IP or User ID)
-		identifier := c.ClientIP()
-		// Only use UserID for non-ingestion endpoints (ingestion is usually anonymous/public)
-		if keyPrefix == "rl:analytics" {
+			identifier = clientIP
+		case path == "/api/v1/user/auth/login" || path == "/api/v1/user/auth/register":
+			// Auth Endpoints (Security sensitive)
+			limit = 10
+			keyPrefix = "rl:auth"
+			identifier = clientIP
+		case strings.HasPrefix(path, "/api/v1/admin/"):
+			// Admin Endpoints
+			limit = 50
+			keyPrefix = "rl:admin"
+			if userID, exists := c.Get("user_id"); exists {
+				identifier = userID.(string)
+			}
+		default:
+			// Dashboard/API access
+			limit = 200
+			keyPrefix = "rl:api"
 			if userID, exists := c.Get("user_id"); exists {
 				identifier = userID.(string)
 			}
 		}
 
 		key := fmt.Sprintf("%s:%s", keyPrefix, identifier)
-		ctx := context.Background()
+		ctx := c.Request.Context()
 
 		count, err := redisClient.Incr(ctx, key).Result()
 		if err != nil {
-			c.Next() // Don't block on Redis error
+			// Fail open on Redis errors to avoid blocking the service
+			c.Next()
 			return
 		}
 
@@ -54,11 +72,14 @@ func RateLimitMiddleware(redisClient *redis.Client) gin.HandlerFunc {
 		}
 
 		if count > int64(limit) {
-			c.JSON(http.StatusTooManyRequests, gin.H{
+			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", limit))
+			c.Header("X-RateLimit-Remaining", "0")
+			c.Header("Retry-After", "60")
+
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"error":   "Rate limit exceeded",
-				"message": "Too many requests. Please slow down.",
+				"message": "Too many requests. Please try again later.",
 			})
-			c.Abort()
 			return
 		}
 

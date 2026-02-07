@@ -30,9 +30,16 @@ func (h *WebsiteHandler) GetTrackerConfig(c *gin.Context) {
 		return
 	}
 
-	config, err := h.service.GetTrackerConfig(c.Request.Context(), siteID)
+	// Capture origin for domain validation
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = c.Request.Header.Get("Referer")
+	}
+
+	config, err := h.service.GetTrackerConfig(c.Request.Context(), siteID, origin)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Website not found"})
+		h.logger.Warn().Err(err).Str("site_id", siteID).Str("origin", origin).Msg("Tracker config fetch failed")
+		c.JSON(http.StatusNotFound, gin.H{"error": "Website not found or domain mismatch"})
 		return
 	}
 

@@ -11,6 +11,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -37,10 +39,15 @@ func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg
 }
 
 // GetTrackerConfig returns the configuration for the tracker script
-func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string) (map[string]interface{}, error) {
+func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, origin string) (map[string]interface{}, error) {
 	w, err := s.GetWebsiteBySiteID(ctx, siteID)
 	if err != nil {
 		return nil, err
+	}
+
+	// Domain Validation
+	if !s.ValidateOriginDomain(origin, w.URL) {
+		return nil, fmt.Errorf("domain mismatch")
 	}
 
 	goals, err := s.repo.ListGoals(ctx, w.ID)
@@ -61,13 +68,34 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string) (m
 	}
 
 	return map[string]interface{}{
-		"site_id": w.SiteID,
-		"goals":   trackerGoals,
+		"site_id":            w.SiteID,
+		"automation_enabled": w.AutomationEnabled,
+		"funnel_enabled":     w.FunnelEnabled,
+		"heatmap_enabled":    w.HeatmapEnabled,
+		"goals":              trackerGoals,
 	}, nil
 }
 
 // CreateWebsite creates a new website tracking profile
 func (s *WebsiteService) CreateWebsite(ctx context.Context, userID uuid.UUID, req models.CreateWebsiteRequest) (*models.Website, error) {
+	// 0. Validate Domain
+	if req.URL == "" {
+		return nil, fmt.Errorf("website URL is required")
+	}
+
+	rawURL := req.URL
+	if !strings.HasPrefix(rawURL, "http://") && !strings.HasPrefix(rawURL, "https://") {
+		rawURL = "https://" + rawURL
+	}
+
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil || parsedURL.Hostname() == "" {
+		return nil, fmt.Errorf("invalid website URL format")
+	}
+
+	// Normalize URL to just the domain
+	normalizedURL := strings.TrimPrefix(parsedURL.Hostname(), "www.")
+
 	// Generate unique 24-char site_id (KSUID/NanoID style)
 	siteID := generateID(12) // 24 hex chars
 
@@ -75,15 +103,18 @@ func (s *WebsiteService) CreateWebsite(ctx context.Context, userID uuid.UUID, re
 	trackingID := fmt.Sprintf("ST-%s", generateID(8))
 
 	website := &models.Website{
-		SiteID:     siteID,
-		UserID:     userID,
-		Name:       req.Name,
-		URL:        req.URL,
-		TrackingID: trackingID,
-		IsActive:   true,
-		IsVerified: false,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+		SiteID:            siteID,
+		UserID:            userID,
+		Name:              req.Name,
+		URL:               normalizedURL,
+		TrackingID:        trackingID,
+		IsActive:          true,
+		IsVerified:        false,
+		AutomationEnabled: true,
+		FunnelEnabled:     true,
+		HeatmapEnabled:    true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	}
 
 	if err := s.repo.Create(ctx, website); err != nil {
@@ -143,6 +174,39 @@ func (s *WebsiteService) GetWebsiteBySiteID(ctx context.Context, siteID string) 
 	return w, nil
 }
 
+// ValidateOriginDomain checks if the origin matches the registered domain
+func (s *WebsiteService) ValidateOriginDomain(origin string, registeredDomain string) bool {
+	if origin == "" {
+		return true // Allow if origin is missing (though trackers should provide it)
+	}
+
+	var originDomain string
+	if strings.Contains(origin, "://") {
+		parsedURL, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+		originDomain = parsedURL.Hostname()
+	} else {
+		originDomain = origin
+	}
+
+	originDomain = strings.TrimPrefix(originDomain, "www.")
+
+	// registeredDomain should already be normalized, but we'll be safe
+	siteDomain := strings.TrimPrefix(registeredDomain, "http://")
+	siteDomain = strings.TrimPrefix(siteDomain, "https://")
+	siteDomain = strings.Split(siteDomain, "/")[0]
+	siteDomain = strings.TrimPrefix(siteDomain, "www.")
+
+	// Allow localhost for development
+	if originDomain == "localhost" || originDomain == "127.0.0.1" {
+		return true
+	}
+
+	return originDomain == siteDomain
+}
+
 func (s *WebsiteService) invalidateCache(ctx context.Context, siteID string) {
 	if s.redis == nil {
 		return
@@ -179,6 +243,15 @@ func (s *WebsiteService) UpdateWebsite(ctx context.Context, id string, userID uu
 	}
 	if req.IsActive != nil {
 		original.IsActive = *req.IsActive
+	}
+	if req.AutomationEnabled != nil {
+		original.AutomationEnabled = *req.AutomationEnabled
+	}
+	if req.FunnelEnabled != nil {
+		original.FunnelEnabled = *req.FunnelEnabled
+	}
+	if req.HeatmapEnabled != nil {
+		original.HeatmapEnabled = *req.HeatmapEnabled
 	}
 
 	// 3. Save

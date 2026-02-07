@@ -22,6 +22,14 @@ func NewHeatmapHandler(service services.HeatmapService, logger zerolog.Logger) *
 	}
 }
 
+func (h *HeatmapHandler) getUserID(c *gin.Context) string {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		return ""
+	}
+	return userID.(string)
+}
+
 // RecordHeatmap handles incoming heatmap data (batch of points)
 func (h *HeatmapHandler) RecordHeatmap(c *gin.Context) {
 	var req models.HeatmapRecordRequest
@@ -32,8 +40,13 @@ func (h *HeatmapHandler) RecordHeatmap(c *gin.Context) {
 
 	h.logger.Debug().Int("points", len(req.Points)).Msg("Recording heatmap data")
 
-	if err := h.service.RecordHeatmapData(req); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record heatmap data"})
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = c.Request.Header.Get("Referer")
+	}
+
+	if err := h.service.RecordHeatmapData(req, origin); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -42,6 +55,12 @@ func (h *HeatmapHandler) RecordHeatmap(c *gin.Context) {
 
 // GetHeatmapData returns aggregated heatmap points for visualization
 func (h *HeatmapHandler) GetHeatmapData(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Query("website_id")
 	url := c.Query("url")
 	heatmapType := c.DefaultQuery("type", "click")
@@ -57,7 +76,7 @@ func (h *HeatmapHandler) GetHeatmapData(c *gin.Context) {
 
 	h.logger.Debug().Str("website_id", websiteID).Str("url", url).Str("type", heatmapType).Msg("Fetching heatmap data")
 
-	points, err := h.service.GetHeatmapData(c.Request.Context(), websiteID, url, heatmapType, from, to)
+	points, err := h.service.GetHeatmapData(c.Request.Context(), websiteID, url, heatmapType, from, to, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to fetch heatmap data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch heatmap data"})
@@ -68,6 +87,12 @@ func (h *HeatmapHandler) GetHeatmapData(c *gin.Context) {
 }
 
 func (h *HeatmapHandler) GetHeatmapPages(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	websiteID := c.Query("website_id")
 	if websiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
@@ -76,7 +101,7 @@ func (h *HeatmapHandler) GetHeatmapPages(c *gin.Context) {
 
 	h.logger.Debug().Str("website_id", websiteID).Msg("Getting heatmap pages")
 
-	pages, err := h.service.GetHeatmapPages(c.Request.Context(), websiteID)
+	pages, err := h.service.GetHeatmapPages(c.Request.Context(), websiteID, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get heatmap pages")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get heatmap pages"})

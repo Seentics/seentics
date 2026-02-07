@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
@@ -39,9 +40,38 @@ func (s *AnalyticsService) resolveWebsiteID(ctx context.Context, websiteID strin
 	return website.SiteID
 }
 
-func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters) (*models.DashboardData, error) {
-	// Canonicalize website ID
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+// validateOwnership ensures the website belongs to the user
+func (s *AnalyticsService) validateOwnership(ctx context.Context, websiteID string, userID string) (string, error) {
+	if userID == "" {
+		return "", fmt.Errorf("user_id is required")
+	}
+
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return "", fmt.Errorf("invalid user_id format")
+	}
+
+	// Try to get website by SiteID and UserID
+	// We'll use the websites service for this
+	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	if err != nil {
+		return "", fmt.Errorf("website not found")
+	}
+
+	if w.UserID != uid {
+		return "", fmt.Errorf("unauthorized access to website data")
+	}
+
+	return w.SiteID, nil
+}
+
+func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters, userID string) (*models.DashboardData, error) {
+	// Validate ownership and canonicalize website ID
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
 
 	s.logger.Info().
 		Str("website_id", websiteID).
@@ -90,8 +120,13 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 	}, nil
 }
 
-func (s *AnalyticsService) GetTopPages(ctx context.Context, websiteID string, days, limit int) ([]models.PageStat, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetTopPages(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.PageStat, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -101,8 +136,13 @@ func (s *AnalyticsService) GetTopPages(ctx context.Context, websiteID string, da
 	return s.repo.GetTopPages(ctx, websiteID, days, limit)
 }
 
-func (s *AnalyticsService) GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int) (map[string]interface{}, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int, userID string) (map[string]interface{}, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Str("page_path", pagePath).
@@ -112,8 +152,13 @@ func (s *AnalyticsService) GetPageUTMBreakdown(ctx context.Context, websiteID, p
 	return s.repo.GetPageUTMBreakdown(ctx, websiteID, pagePath, days)
 }
 
-func (s *AnalyticsService) GetTopReferrers(ctx context.Context, websiteID string, days, limit int) ([]models.ReferrerStat, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetTopReferrers(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.ReferrerStat, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -123,8 +168,13 @@ func (s *AnalyticsService) GetTopReferrers(ctx context.Context, websiteID string
 	return s.repo.GetTopReferrers(ctx, websiteID, days, limit)
 }
 
-func (s *AnalyticsService) GetTopSources(ctx context.Context, websiteID string, days, limit int) ([]models.SourceStat, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetTopSources(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.SourceStat, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -134,8 +184,13 @@ func (s *AnalyticsService) GetTopSources(ctx context.Context, websiteID string, 
 	return s.repo.GetTopSources(ctx, websiteID, days, limit)
 }
 
-func (s *AnalyticsService) GetTopCountries(ctx context.Context, websiteID string, days, limit int) ([]models.CountryStat, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetTopCountries(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.CountryStat, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -145,8 +200,13 @@ func (s *AnalyticsService) GetTopCountries(ctx context.Context, websiteID string
 	return s.repo.GetTopCountries(ctx, websiteID, days, limit)
 }
 
-func (s *AnalyticsService) GetTopBrowsers(ctx context.Context, websiteID string, days, limit int) ([]models.BrowserStat, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetTopBrowsers(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.BrowserStat, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -156,8 +216,13 @@ func (s *AnalyticsService) GetTopBrowsers(ctx context.Context, websiteID string,
 	return s.repo.GetTopBrowsers(ctx, websiteID, days, limit)
 }
 
-func (s *AnalyticsService) GetTopDevices(ctx context.Context, websiteID string, days, limit int) ([]models.DeviceStat, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetTopDevices(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.DeviceStat, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -167,8 +232,13 @@ func (s *AnalyticsService) GetTopDevices(ctx context.Context, websiteID string, 
 	return s.repo.GetTopDevices(ctx, websiteID, days, limit)
 }
 
-func (s *AnalyticsService) GetTopOS(ctx context.Context, websiteID string, days, limit int) ([]models.OSStat, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetTopOS(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.OSStat, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -178,8 +248,13 @@ func (s *AnalyticsService) GetTopOS(ctx context.Context, websiteID string, days,
 	return s.repo.GetTopOS(ctx, websiteID, days, limit)
 }
 
-func (s *AnalyticsService) GetTrafficSummary(ctx context.Context, websiteID string, days int) (*models.TrafficSummary, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetTrafficSummary(ctx context.Context, websiteID string, days int, userID string) (*models.TrafficSummary, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -188,8 +263,12 @@ func (s *AnalyticsService) GetTrafficSummary(ctx context.Context, websiteID stri
 	return s.repo.GetTrafficSummary(ctx, websiteID, days)
 }
 
-func (s *AnalyticsService) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.DailyStat, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string, userID string) ([]models.DailyStat, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
 	if days <= 0 {
 		days = 30
 	}
@@ -209,8 +288,13 @@ func (s *AnalyticsService) GetDailyStats(ctx context.Context, websiteID string, 
 	return result, nil
 }
 
-func (s *AnalyticsService) GetHourlyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.HourlyStat, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetHourlyStats(ctx context.Context, websiteID string, days int, timezone string, userID string) ([]models.HourlyStat, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Str("timezone", timezone).
@@ -219,8 +303,13 @@ func (s *AnalyticsService) GetHourlyStats(ctx context.Context, websiteID string,
 	return s.repo.GetHourlyStats(ctx, websiteID, days, timezone)
 }
 
-func (s *AnalyticsService) GetCustomEvents(ctx context.Context, websiteID string, days int) ([]models.CustomEventStat, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetCustomEvents(ctx context.Context, websiteID string, days int, userID string) ([]models.CustomEventStat, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -230,8 +319,13 @@ func (s *AnalyticsService) GetCustomEvents(ctx context.Context, websiteID string
 }
 
 // GetLiveVisitors returns the number of currently active visitors
-func (s *AnalyticsService) GetLiveVisitors(ctx context.Context, websiteID string) (int, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetLiveVisitors(ctx context.Context, websiteID string, userID string) (int, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return 0, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Msg("Getting live visitors")
@@ -239,8 +333,13 @@ func (s *AnalyticsService) GetLiveVisitors(ctx context.Context, websiteID string
 	return s.repo.GetLiveVisitors(ctx, websiteID)
 }
 
-func (s *AnalyticsService) GetUTMAnalytics(ctx context.Context, websiteID string, days int) (map[string]interface{}, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetUTMAnalytics(ctx context.Context, websiteID string, days int, userID string) (map[string]interface{}, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -250,8 +349,13 @@ func (s *AnalyticsService) GetUTMAnalytics(ctx context.Context, websiteID string
 }
 
 // GetGeolocationBreakdown returns comprehensive geolocation analytics
-func (s *AnalyticsService) GetGeolocationBreakdown(ctx context.Context, websiteID string, days int) (*models.GeolocationBreakdown, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetGeolocationBreakdown(ctx context.Context, websiteID string, days int, userID string) (*models.GeolocationBreakdown, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -281,8 +385,13 @@ func (s *AnalyticsService) GetGeolocationBreakdown(ctx context.Context, websiteI
 }
 
 // User Retention Service Method
-func (s *AnalyticsService) GetUserRetention(ctx context.Context, websiteID string, days int) (*models.RetentionData, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetUserRetention(ctx context.Context, websiteID string, days int, userID string) (*models.RetentionData, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -292,8 +401,13 @@ func (s *AnalyticsService) GetUserRetention(ctx context.Context, websiteID strin
 }
 
 // Visitor Insights Service Method
-func (s *AnalyticsService) GetVisitorInsights(ctx context.Context, websiteID string, days int) (*models.VisitorInsights, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetVisitorInsights(ctx context.Context, websiteID string, days int, userID string) (*models.VisitorInsights, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -303,8 +417,13 @@ func (s *AnalyticsService) GetVisitorInsights(ctx context.Context, websiteID str
 }
 
 // Activity Trends Service Method
-func (s *AnalyticsService) GetActivityTrends(ctx context.Context, websiteID string) (*models.ActivityTrendsResponse, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetActivityTrends(ctx context.Context, websiteID string, userID string) (*models.ActivityTrendsResponse, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Msg("Getting activity trends")
@@ -312,8 +431,13 @@ func (s *AnalyticsService) GetActivityTrends(ctx context.Context, websiteID stri
 	return s.repo.GetActivityTrends(ctx, websiteID)
 }
 
-func (s *AnalyticsService) GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.EventItem, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) GetGoalStats(ctx context.Context, websiteID string, days int, userID string) ([]models.EventItem, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().
 		Str("website_id", websiteID).
 		Int("days", days).
@@ -322,8 +446,12 @@ func (s *AnalyticsService) GetGoalStats(ctx context.Context, websiteID string, d
 	return s.repo.GetGoalStats(ctx, websiteID, days)
 }
 
-func (s *AnalyticsService) ExportWebsiteData(ctx context.Context, websiteID string, days int, format string) ([]byte, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) ExportWebsiteData(ctx context.Context, websiteID string, days int, format string, userID string) ([]byte, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
 
 	// Fetch analytics data for the period
 	metrics, err := s.repo.GetDashboardMetrics(ctx, websiteID, days, models.AnalyticsFilters{})
@@ -366,8 +494,13 @@ func (s *AnalyticsService) ExportWebsiteData(ctx context.Context, websiteID stri
 	return json.MarshalIndent(exportData, "", "  ")
 }
 
-func (s *AnalyticsService) ImportWebsiteData(ctx context.Context, websiteID string, source string, data []byte) (int, error) {
-	websiteID = s.resolveWebsiteID(ctx, websiteID)
+func (s *AnalyticsService) ImportWebsiteData(ctx context.Context, websiteID string, source string, data []byte, userID string) (int, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return 0, err
+	}
+	websiteID = canonicalID
+
 	s.logger.Info().Str("website_id", websiteID).Str("source", source).Msg("Processing import")
 
 	// In a real implementation, we would parse based on source:
