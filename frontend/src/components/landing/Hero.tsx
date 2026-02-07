@@ -1,11 +1,27 @@
-import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Play, LayoutDashboard, MousePointer2, ShieldCheck, CheckCircle, Zap } from 'lucide-react';
+import { ArrowRight, Play, LayoutDashboard, MousePointer2, ShieldCheck, CheckCircle, Zap, X, Maximize2 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/stores/useAuthStore';
 
 export default function Hero() {
   const { isAuthenticated } = useAuth();
+  const [isZoomed, setIsZoomed] = useState(false);
+
+  // Prevent scroll when zoomed
+  useEffect(() => {
+    if (isZoomed) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isZoomed]);
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -24,144 +40,132 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center pt-60 pb-40 overflow-hidden bg-transparent">
-      {/* Ambient Background Visuals */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-blue-500/5 blur-[100px] rounded-full animate-pulse delay-1000" />
+    <section className="relative pt-32 pb-20 md:pt-48 md:pb-32 overflow-hidden bg-background">
+      {/* Background decor */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-full -z-10 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/5 blur-[120px] rounded-full" />
+        <div className="absolute bottom-[20%] right-[-5%] w-[30%] h-[30%] bg-blue-500/5 blur-[100px] rounded-full" />
       </div>
 
       <div className="container mx-auto px-6 relative z-10">
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-          className="max-w-5xl mx-auto flex flex-col items-center text-center"
-        >
-          {/* Headline */}
+        <div className="max-w-4xl mx-auto text-center">
           <motion.h1
-            variants={itemVariants}
-            className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[1.2] mb-8 text-foreground"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-foreground mb-6 md:mb-8 leading-[1.1]"
           >
-            Websites Analytics <br />
-            That <span className="text-primary italic relative">
-              Acts
-              <span className="absolute -bottom-1 left-0 w-full h-2 bg-primary/20 -z-10 rounded-full" />
-            </span>
+            Analytics that actually <br />
+            <span className="text-primary italic">drives growth.</span>
           </motion.h1>
 
-          {/* Subheadline */}
           <motion.p
-            variants={itemVariants}
-            className="text-lg sm:text-xl text-muted-foreground/70 max-w-3xl mx-auto mb-14 leading-[1.6] font-medium"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-base md:text-xl text-muted-foreground/80 max-w-2xl mx-auto mb-10 md:mb-12 leading-relaxed"
           >
-            Understand how visitors use your site and take action instantly. Automatically <span className="text-foreground font-semibold">show modals</span>, <span className="text-foreground font-semibold">send emails</span>, or <span className="text-foreground font-semibold">trigger webhooks</span> to engage your users at exactly the right moment.
+            Understand visitor behavior with <span className="text-foreground font-semibold">Live Analytics</span>, <span className="text-foreground font-semibold">Heatmaps</span>, and <span className="text-foreground font-semibold">Funnels</span>. Take action automatically with logic-driven popups and emails.
           </motion.p>
 
-          {/* Action Hub */}
-          <motion.div variants={itemVariants} className="flex flex-col items-center gap-8 w-full mb-24">
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-              {isAuthenticated ? (
-                <Link href="/websites" className="w-full sm:w-auto">
-                  <Button variant="brand" className="h-16 px-12 text-lg font-bold rounded-xl active:scale-95 group shadow-2xl shadow-primary/20 transition-all text-primary-foreground">
-                    Go to dashboard
-                    <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-              ) : (
-                <Link href="/signup" className="w-full sm:w-auto">
-                  <Button variant="brand" className="h-16 px-12 text-lg font-bold rounded-xl active:scale-95 group shadow-2xl shadow-primary/20 transition-all text-primary-foreground">
-                    Get started for free
-                    <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-              )}
-              <Link href="/websites/demo" className="w-full sm:w-auto">
-                <Button variant="outline" className="h-16 px-12 text-lg font-bold rounded-xl w-full sm:w-auto bg-transparent border-border hover:bg-accent text-foreground transition-all flex items-center justify-center gap-3">
-                  <Play className="h-5 w-5 fill-current text-primary" />
-                  View live demo
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20"
+          >
+            {isAuthenticated ? (
+              <Link href="/websites" className="w-full sm:w-auto">
+                <Button variant="brand" className="h-14 px-10 text-base font-bold rounded-xl active:scale-95 group shadow-xl shadow-primary/20 transition-all w-full">
+                  Go to Dashboard
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-            </div>
-
-            {/* Trust Badges */}
-            <div className="flex flex-wrap justify-center gap-8 mt-4 opacity-80 grayscale-[0.5] hover:grayscale-0 transition-all duration-500">
-               <div className="flex items-center gap-3">
-                 <ShieldCheck className="h-5 w-5 text-primary" />
-                 <span className="text-sm font-bold tracking-wide text-foreground/80">Privacy First</span>
-               </div>
-               <div className="flex items-center gap-3">
-                 <CheckCircle className="h-5 w-5 text-primary" />
-                 <span className="text-sm font-bold tracking-wide text-foreground/80">GDPR Compliant</span>
-               </div>
-               <div className="flex items-center gap-3">
-                 <Zap className="h-5 w-5 text-primary" />
-                 <span className="text-sm font-bold tracking-wide text-foreground/80">Lightweight Script</span>
-               </div>
-            </div>
+            ) : (
+              <Link href="/signup" className="w-full sm:w-auto">
+                <Button variant="brand" className="h-14 px-10 text-base font-bold rounded-xl active:scale-95 group shadow-xl shadow-primary/20 transition-all w-full">
+                  Start for Free
+                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+            )}
+            <Link href="/websites/demo" className="w-full sm:w-auto">
+              <Button variant="outline" className="h-14 px-10 text-base font-bold rounded-xl active:scale-95 shadow-sm bg-card/50 backdrop-blur-sm border-border hover:bg-accent text-foreground transition-all flex items-center justify-center gap-2 w-full">
+                <Play className="h-4 w-4 fill-primary text-primary" />
+                View Demo
+              </Button>
+            </Link>
           </motion.div>
 
-          {/* High-Fidelity Dashboard Card */}
+          {/* Real Dashboard Preview */}
           <motion.div
-            variants={itemVariants}
-            className="relative w-full max-w-5xl"
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4 }}
+            className="relative max-w-7xl mx-auto px-4"
           >
-            <div className="absolute -inset-10 bg-primary/10 blur-[100px] opacity-50 -z-10" />
+            <div className="absolute inset-x-0 -top-40 -z-10 flex justify-center overflow-hidden [mask-image:radial-gradient(50%_50%_at_50%_50%,#000_20%,transparent_100%)]">
+              <div className="w-[70rem] flex-none h-[40rem] bg-gradient-to-r from-primary/20 via-sky-400/20 to-primary/20 blur-3xl opacity-40 animate-pulse" />
+            </div>
 
-            <div className="relative p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/50 shadow-2xl overflow-hidden aspect-[16/9]">
-              <div className="w-full h-full rounded-lg bg-white dark:bg-slate-900 p-8 flex flex-col items-start justify-start text-left relative overflow-hidden">
-
-                {/* Mock UI Header */}
-                <div className="w-full flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded bg-primary/10 border border-primary/20 flex items-center justify-center">
-                      <LayoutDashboard className="h-5 w-5 text-primary" />
+            <div className="relative group cursor-zoom-in" onClick={() => setIsZoomed(true)}>
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-sky-500/20 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000" />
+              <div className="relative rounded-2xl border border-border/50 bg-card/80 backdrop-blur-sm p-2 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)]">
+                <div className="rounded-xl overflow-hidden border border-border/40 relative">
+                  <Image 
+                    src="/analytics-dashboard.png"
+                    alt="Seentics Analytics Dashboard"
+                    width={2400}
+                    height={1350}
+                    className="w-full h-auto transition-transform duration-500 group-hover:scale-[1.01]"
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+                    <div className="bg-white/90 dark:bg-slate-900/90 p-3 rounded-full shadow-lg backdrop-blur-md">
+                      <Maximize2 className="w-6 h-6 text-primary" />
                     </div>
-                    <div className="h-5 w-40 bg-slate-100 dark:bg-slate-800 rounded-full" />
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="h-3 w-12 bg-slate-50 dark:bg-slate-800/50 rounded-full" />
-                    <div className="h-3 w-20 bg-primary/20 rounded-full" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-6 w-full mb-10">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="p-6 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/30 flex flex-col gap-3">
-                      <div className="h-2.5 w-20 bg-slate-200 dark:bg-slate-700 rounded-full" />
-                      <div className="h-8 w-32 bg-slate-900 dark:bg-white/10 rounded" />
-                    </div>
-                  ))}
-                </div>
-
-                {/* Large Chart Area */}
-                <div className="w-full flex-1 rounded-lg bg-slate-50 dark:bg-slate-800/30 border border-slate-100 dark:border-slate-800/50 p-8 relative overflow-hidden">
-                    {/* Simplified Grid Lines */}
-                    <div className="absolute inset-0 flex flex-col justify-between p-8 opacity-10">
-                        {[1, 2, 3, 4].map(i => <div key={i} className="h-px bg-slate-400 w-full" />)}
-                    </div>
-                  <div className="absolute inset-x-8 bottom-8 h-[70%] flex items-end gap-3">
-                    {[35, 65, 40, 85, 55, 75, 50, 95, 60, 80, 45, 90].map((h, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 bg-primary/10 hover:bg-primary/30 transition-all duration-500 rounded-t-sm relative group"
-                        style={{ height: `${h}%` }}
-                      >
-                        {i === 7 && (
-                            <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-4 py-2 bg-primary text-white text-[10px] font-black tracking-widest rounded shadow-xl animate-bounce">
-                                Live
-                            </div>
-                        )}
-                        <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-20 transition-opacity" />
-                      </div>
-                    ))}
                   </div>
                 </div>
               </div>
             </div>
           </motion.div>
-        </motion.div>
+        </div>
       </div>
+
+      <AnimatePresence>
+        {isZoomed && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsZoomed(false)}
+            className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 md:p-10"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative max-w-7xl w-full max-h-[90vh] rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setIsZoomed(false)}
+                className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/80 text-white rounded-full backdrop-blur-md transition-colors border border-white/10"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <Image 
+                src="/analytics-dashboard.png"
+                alt="Seentics Analytics Dashboard"
+                width={2400}
+                height={1350}
+                className="object-contain w-full h-full"
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Scroll Indicator */}
       <motion.div

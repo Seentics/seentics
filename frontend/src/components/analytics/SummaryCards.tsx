@@ -207,7 +207,7 @@ export function SummaryCards({ data, websiteId, isDemo }: SummaryCardsProps) {
       previousValue: data.comparison?.previous_period?.avg_session_time,
       icon: Clock,
       format: 'duration' as const,
-      inverse: true,
+      inverse: false,
     },
     {
       title: 'Bounce Rate',

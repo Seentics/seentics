@@ -6,26 +6,26 @@ export default function Features() {
   const features = [
     {
       icon: BarChart3,
-      title: "Live Analytics",
-      description: "See exactly who is on your site right now and what they're doing. No delays, just live data.",
+      title: "Real-time Analytics",
+      description: "See exactly who is on your site right now and what they're doing. No delays, just raw live data.",
       color: "text-primary bg-primary/10"
     },
     {
       icon: Filter,
-      title: "Sales Funnels",
-      description: "Find exactly where you're losing customers. Visualize your path to checkout and fix leaks instantly.",
+      title: "Advanced Funnels",
+      description: "Visualize customer journeys and identify drop-off points. Optimize your path to conversion.",
       color: "text-primary bg-primary/10"
     },
     {
-      icon: Workflow,
-      title: "Smart Automation",
-      description: "Reach your users at the perfect moment. Trigger actions based on what they do on your site.",
+      icon: Layers,
+      title: "Visual Heatmaps",
+      description: "Understand where users click and scroll. Get visual evidence of how your content performs.",
       color: "text-primary bg-primary/10"
     },
     {
       icon: Shield,
-      title: "Safe & Private",
-      description: "Track everything without annoying cookie banners. We respect privacy while giving you the data you need.",
+      title: "Privacy First",
+      description: "Compliant with GDPR and PECR by design. No cookies, no personal data, no headache.",
       color: "text-primary bg-primary/10"
     },
   ];
@@ -48,26 +48,32 @@ export default function Features() {
   };
 
   return (
-    <section id="features" className="py-24 relative overflow-hidden bg-transparent">
+    <section id="features" className="py-24 bg-background">
       <div className="container mx-auto px-6">
-        {/* Features Grid */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto"
-        >
+        <div className="text-center max-w-3xl mx-auto mb-20">
+          <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground mb-6">
+            Powerful features. <br />
+            <span className="text-primary italic">Zero-config setup.</span>
+          </h2>
+          <p className="text-lg text-muted-foreground/80 leading-relaxed font-medium">
+            Get comprehensive insights without the technical overhead. Seentics works out of the box with any website.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
           {features.map((feature, index) => (
             <motion.div
               key={index}
-              variants={itemVariants}
-              className="p-8 rounded-3xl bg-card/40 backdrop-blur-xl border border-border/50 group hover:border-primary/30 transition-all duration-500 hover:shadow-2xl hover:shadow-primary/5 flex flex-col items-start"
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className="p-6 md:p-8 rounded-2xl border border-border/50 bg-card hover:border-primary/20 transition-all duration-300"
             >
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 border border-primary/20 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-500">
-                <feature.icon className="h-6 w-6" />
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-6 text-primary">
+                <feature.icon className="h-5 w-5" />
               </div>
-              <h3 className="text-xl font-bold mb-3 tracking-tight text-foreground">
+              <h3 className="text-lg font-bold mb-3 tracking-tight text-foreground">
                 {feature.title}
               </h3>
               <p className="text-sm text-muted-foreground/70 leading-relaxed font-medium">
@@ -75,7 +81,7 @@ export default function Features() {
               </p>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
       </div>
     </section>
   );

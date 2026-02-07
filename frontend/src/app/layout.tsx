@@ -8,7 +8,7 @@ import './globals.css';
 import AuthInitializer from '@/components/auth-initializer';
 import CookieConsentManager from '@/components/cookie-consent-manager';
 import TrackerScript from '@/components/tracker-script';
-import TawkMessenger from '@/components/tawk-messenger';
+// import TawkMessenger from '@/components/tawk-messenger';
 import { Toaster } from '@/components/ui/toaster';
 import { LimitReachedTopBar } from '@/components/subscription';
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -86,7 +86,7 @@ export default function RootLayout({
         <CookieConsentManager />
 
         {/* Global Chat Support */}
-        <TawkMessenger />
+        {/* <TawkMessenger /> */}
 
         {/* Lemon Squeezy Checkout Script */}
         <Script src="https://assets.lemonsqueezy.com/lemon.js" strategy="lazyOnload" />

@@ -14,18 +14,16 @@ import Footer from '@/components/landing/Footer';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-transparent relative">
+    <div className="min-h-screen bg-background relative overflow-x-hidden">
       <LandingHeader />
-            <main>
+      <main>
         <Hero /> 
-        <Features />
-        <AutomationWorkflows />
-        {/* <BYODBSection /> */}
-        {/* <ImportExportSection /> */}
-        {/* <VisionSection /> */}
-        <Pricing />
-        {/* <LifetimeDeal /> */}
-        <FAQ />
+        <div className="relative">
+          <Features />
+          <AutomationWorkflows />
+          <Pricing />
+          <FAQ />
+        </div>
       </main>
       <Footer />
     </div>

@@ -18,7 +18,7 @@ const plans = [
       "10,000 Monthly Events",
       '1 Automation Workflow',
       "1 Conversion Funnel",
-      "No Heatmap Data",
+      "Visual Heatmaps (View Only)",
       "30 Days Data Retention",
       "Real-time Dashboard",
       "Community Support"
@@ -37,7 +37,7 @@ const plans = [
       "200,000 Monthly Events",
       "5 Conversion Funnels",
       "5 Active Automations",
-      "1 Heatmap per site",
+      "1 Active Heatmap",
       "1 Year Data Retention",
       "Priority Email Support"
     ]
@@ -103,107 +103,87 @@ export default function Pricing() {
   };
 
   return (
-    <section id="pricing" className="py-24 sm:py-48 relative overflow-hidden bg-transparent">
-      <div className="container mx-auto px-6 relative z-10">
-
-        {/* Header */}
-        <div className="text-center mb-24 sm:mb-32">
-          <motion.h3
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-4xl sm:text-6xl font-black tracking-tighter mb-8 leading-[0.95] text-foreground"
-          >
-            Simple <br />
+    <section id="pricing" className="py-24 bg-background border-t border-border/40">
+      <div className="container mx-auto px-6">
+        <div className="text-center max-w-3xl mx-auto mb-20">
+          <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground mb-6">
+            Simple, honest <br />
             <span className="text-primary italic">pricing.</span>
-          </motion.h3>
-          <p className="text-lg sm:text-xl text-muted-foreground/60 max-w-2xl mx-auto font-bold tracking-tight">
-            Start for free. No credit card required. Upgrade when you're ready for more power.
+          </h2>
+          <p className="text-lg text-muted-foreground/80 font-medium">
+            Start for free. No credit card required. Upgrade when you need more power.
           </p>
         </div>
 
-        {/* Pricing Cards */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mb-24"
-        >
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mb-20">
           {plans.map((plan, index) => (
             <motion.div
               key={index}
-              variants={itemVariants}
-              className={`p-10 rounded-xl bg-card border ${plan.popular ? 'border-primary/30 shadow-2xl shadow-primary/5' : 'border-border'} flex flex-col relative overflow-hidden`}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5, delay: index * 0.1 }}
+              className={`p-6 md:p-8 rounded-2xl border ${plan.popular ? 'border-primary ring-1 ring-primary/20' : 'border-border/60'} bg-card flex flex-col relative`}
             >
-                {plan.popular && (
-                  <div className="absolute top-0 right-0 py-2.5 px-8 bg-primary text-primary-foreground text-[11px] font-bold tracking-wider rounded-bl-2xl">
-                    Popular
-                  </div>
-                )}
-
-                <div className="mb-10">
-                  <h3 className="text-3xl font-black mb-2 tracking-tighter text-foreground">{plan.name}</h3>
-                  <div className="flex items-baseline gap-1 mb-6">
-                    <span className="text-5xl font-black tracking-tighter text-foreground">${plan.price}</span>
-                    <span className="text-muted-foreground/40 font-bold text-sm pl-1">/{plan.period === 'forever' ? 'forever' : 'month'}</span>
-                  </div>
-                  <p className="text-muted-foreground/60 font-bold text-sm leading-relaxed tracking-tight">
-                    {plan.description}
-                  </p>
+              {plan.popular && (
+                <div className="absolute top-0 right-8 -translate-y-1/2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest py-1 px-3 rounded-full">
+                  Popular
                 </div>
+              )}
 
-                <div className="space-y-4 mb-10 flex-grow">
-                  {plan.features.slice(0, 5).map((feature, i) => (
-                    <div key={i} className="flex items-center gap-4 group/item">
-                      <div className="flex-shrink-0 p-1 bg-primary/10 rounded-full border border-primary/20">
-                        <CheckCircle className="h-3.5 w-3.5 text-primary" />
-                      </div>
-                      <span className="text-sm font-bold text-foreground/70 tracking-tight">{feature}</span>
-                    </div>
-                  ))}
+              <div className="mb-8">
+                <h3 className="text-xl font-bold mb-2 tracking-tight">{plan.name}</h3>
+                <div className="flex items-baseline gap-1 mb-4">
+                  <span className="text-4xl font-bold tracking-tight">${plan.price}</span>
+                  <span className="text-muted-foreground font-medium text-sm pl-0.5">/{plan.period === 'forever' ? 'forever' : 'mo'}</span>
                 </div>
+                <p className="text-sm text-muted-foreground/80 font-medium leading-relaxed">
+                  {plan.description}
+                </p>
+              </div>
 
-                <Link href={isAuthenticated ? "/websites" : "/signup"}>
-                  <Button
-                    variant={plan.popular ? "brand" : "outline"}
-                    className={`w-full h-16 rounded-xl font-bold text-lg transition-all ${!plan.popular && 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-700 text-foreground shadow-lg shadow-slate-200/50 dark:shadow-none'
-                      }`}
-                  >
-                    {plan.name === 'Starter' ? 'Start for free' : `Join ${plan.name} plan`}
-                  </Button>
-                </Link>
+              <div className="space-y-4 mb-8 flex-grow">
+                {plan.features.slice(0, 8).map((feature, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <CheckCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                    <span className="text-sm font-medium text-foreground/80 tracking-tight">{feature}</span>
+                  </div>
+                ))}
+              </div>
+
+              <Link href={isAuthenticated ? "/websites" : "/signup"}>
+                <Button
+                  variant={plan.popular ? "brand" : "outline"}
+                  className="w-full h-12 rounded-xl font-bold text-sm transition-all"
+                >
+                  {plan.name === 'Starter' ? 'Get Started' : `Go ${plan.name}`}
+                </Button>
+              </Link>
             </motion.div>
           ))}
-        </motion.div>
+        </div>
 
-        {/* Compact Sales Trigger */}
-        <motion.div
-            initial={{ opacity: 0, scale: 0.98 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="max-w-4xl mx-auto p-12 rounded-xl bg-slate-950 text-white text-center relative overflow-hidden"
-        >
-             <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-                <div className="absolute top-[-50%] left-[-20%] w-[80%] h-[150%] bg-primary/10 blur-[100px] rounded-full" />
-            </div>
-            <h3 className="text-3xl font-black mb-6 tracking-tighter relative z-10">Running at scale?</h3>
-            <p className="text-slate-400 font-bold mb-10 max-w-xl mx-auto relative z-10">
-                Custom infrastructure and unlimited volume for high-traffic websites. Let's build a plan that fits your business.
+        {/* Sales Trigger */}
+        <div className="max-w-4xl mx-auto p-12 rounded-2xl bg-primary/[0.03] border border-primary/10 text-center relative overflow-hidden group hover:border-primary/20 transition-all duration-500">
+          <div className="relative z-10">
+            <h3 className="text-2xl font-bold mb-4 tracking-tight">Need something bigger?</h3>
+            <p className="text-muted-foreground font-medium mb-8 max-w-xl mx-auto leading-relaxed">
+              Custom infrastructure, unlimited volume, and priority support for high-traffic enterprises.
             </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-6 relative z-10">
-                <Link href="/contact" className="w-full sm:w-auto">
-                    <Button variant="outline" className="h-16 px-12 bg-transparent border-slate-800 hover:bg-white/5 text-lg font-bold w-full sm:w-auto rounded-xl">
-                        Contact sales
-                    </Button>
-                </Link>
-                <Link href="/signup" className="w-full sm:w-auto">
-                    <Button variant="brand" className="h-16 px-12 text-lg font-bold w-full sm:w-auto rounded-xl shadow-xl shadow-primary/20">
-                        Start for free
-                    </Button>
-                </Link>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link href="/contact" className="w-full sm:w-auto">
+                <Button variant="outline" className="h-12 px-8 text-sm font-bold w-full sm:w-auto rounded-xl">
+                  Contact Sales
+                </Button>
+              </Link>
+              <Link href="/signup" className="w-full sm:w-auto">
+                <Button variant="brand" className="h-12 px-8 text-sm font-bold w-full sm:w-auto rounded-xl shadow-lg shadow-primary/20">
+                  Try It Now
+                </Button>
+              </Link>
             </div>
-        </motion.div>
+          </div>
+        </div>
       </div>
     </section>
   );

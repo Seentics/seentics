@@ -80,11 +80,27 @@ export interface DashboardData {
   bounce_rate: number;
   // Comparison metrics for growth indicators
   comparison?: {
-    visitor_change: number;
-    pageview_change: number;
-    session_change: number;
-    bounce_change: number;
-    duration_change: number;
+    current_period?: {
+      total_visitors: number;
+      unique_visitors: number;
+      page_views: number;
+      sessions: number;
+      bounce_rate: number;
+      avg_session_time: number;
+    };
+    previous_period?: {
+      total_visitors: number;
+      unique_visitors: number;
+      page_views: number;
+      sessions: number;
+      bounce_rate: number;
+      avg_session_time: number;
+    };
+    visitor_change?: number;
+    pageview_change?: number;
+    session_change?: number;
+    bounce_change?: number;
+    duration_change?: number;
   };
 }
 
@@ -389,6 +405,19 @@ export const useDashboardData = (websiteId: string, days: number = 7, filters: A
   });
 };
 
+// Public Dashboard Data - used for shared/public dashboards
+export const usePublicDashboardData = (publicId: string, days: number = 7) => {
+  return useQuery({
+    queryKey: ['public-dashboard', publicId, days],
+    queryFn: async () => {
+      const response = await api.get(`/analytics/public/dashboard/${publicId}`, {
+        params: { days: days.toString() }
+      });
+      return response.data;
+    },
+    enabled: !!publicId,
+  });
+};
 
 
 // Top Pages
@@ -922,6 +951,7 @@ export default {
 
   // Hooks
   useDashboardData,
+  usePublicDashboardData,
 
   useTopPages,
   useTopReferrers,

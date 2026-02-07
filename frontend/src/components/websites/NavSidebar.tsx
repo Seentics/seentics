@@ -33,6 +33,7 @@ import {
     PopoverTrigger,
 } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
+import { toast } from 'sonner';
 
 export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; mobile?: boolean }) {
     const pathname = usePathname();
@@ -183,11 +184,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                     if (isDisabled) {
                                         e.preventDefault();
                                         if ((link as any).isLocked) {
-                                            toast({
-                                                title: "Demo Mode Restricted",
-                                                description: "This feature is restricted in the demo environment.",
-                                                variant: "destructive",
-                                            });
+                                            toast.error("This feature is restricted in the demo environment.");
                                         }
                                         return;
                                     }

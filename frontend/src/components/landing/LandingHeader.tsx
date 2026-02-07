@@ -6,7 +6,6 @@ import { Menu, X, Sparkles, MoveRight, Github, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '../ui/logo';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PromotionBanner } from '../promotion-banner';
 
 export default function LandingHeader() {
   const { user, isAuthenticated } = useAuth();
@@ -21,99 +20,96 @@ export default function LandingHeader() {
 
   const navLinks = [
     { name: 'Features', href: '#features' },
-    { name: 'Import', href: '#import-export' },
-    { name: 'Vision', href: '#vision' },
+    { name: 'Automations', href: '#automations' },
     { name: 'Pricing', href: '#pricing' },
+    { name: 'FAQ', href: '#faq' },
   ];
 
   return (
     <header 
-      className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 ${
+      className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${
         scrolled 
-          ? 'glass bg-background/60 border-b border-border backdrop-blur-xl h-auto' 
-          : 'bg-transparent h-auto'
+          ? 'bg-background/80 border-b border-border/40 backdrop-blur-md h-16' 
+          : 'bg-transparent h-20'
       }`}
     >
-      <PromotionBanner />
-      <div className="container mx-auto px-6 h-16 sm:h-20 flex items-center justify-between">
+      <div className="container mx-auto px-6 h-full flex items-center justify-between">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <Logo size='lg' />
-          <span className="text-xl font-black tracking-tighter text-foreground">Seentics</span>
+        <Link href="/" className="flex items-center gap-2 group">
+          <Logo size='md' />
+          <span className="text-lg font-bold tracking-tight text-foreground">Seentics</span>
         </Link>
 
-        {/* Centered Navigation */}
-        <nav className="hidden lg:flex items-center absolute left-1/2 -translate-x-1/2 z-20">
-          <div className="flex items-center gap-2">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                href={link.href}
-                className="px-5 py-2 rounded-full text-[13px] font-bold text-foreground/60 hover:text-foreground hover:bg-foreground/5 transition-all tracking-wider"
-              >
-                {link.name}
-              </Link>
-            ))}
-          </div>
+        {/* Navigation */}
+        <nav className="hidden md:flex items-center gap-8">
+          {navLinks.map((link) => (
+            <Link
+              key={link.name}
+              href={link.href}
+              className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {link.name}
+            </Link>
+          ))}
         </nav>
 
         {/* Actions */}
-        <div className="hidden lg:flex items-center gap-6">
-          <ThemeToggle />
-
-          <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-4">
             {isAuthenticated ? (
               <Link href="/websites">
-                <Button variant="brand" className="h-12 px-8 rounded-xl font-bold text-sm active:scale-95 shadow-lg shadow-primary/10 transition-all">
+                <Button size="sm" variant="brand" className="rounded-lg font-bold px-5">
                   Dashboard
                 </Button>
               </Link>
             ) : (
               <>
                 <Link href="/signin">
-                  <span className="text-sm font-bold text-foreground/50 hover:text-foreground transition-colors cursor-pointer px-6">
-                    Sign in
+                  <span className="text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer mr-2">
+                    Log in
                   </span>
                 </Link>
                 <Link href="/signup">
-                  <Button variant="brand" className="h-12 px-10 rounded-xl font-bold text-sm active:scale-95 shadow-lg shadow-primary/10 transition-all">
-                    Start for free
+                  <Button size="sm" variant="brand" className="rounded-lg font-bold px-5">
+                    Sign up
                   </Button>
                 </Link>
               </>
             )}
           </div>
+          <ThemeToggle />
+          
+          {/* Mobile Toggle */}
+          <button 
+            className="md:hidden p-2 rounded-lg hover:bg-accent text-foreground transition-all"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </div>
-
-        {/* Mobile Toggle */}
-        <button 
-          className="lg:hidden p-3 rounded-full hover:bg-foreground/5 text-foreground transition-all"
-          onClick={() => setMobileOpen(!mobileOpen)}
-        >
-          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
       </div>
 
       {/* Mobile Menu */}
       <AnimatePresence>
         {mobileOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="absolute top-full left-0 right-0 border-b border-border bg-background/95 backdrop-blur-2xl lg:hidden"
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-full left-0 right-0 border-b border-border bg-background/95 backdrop-blur-2xl lg:hidden overflow-hidden"
           >
-            <div className="container mx-auto px-6 py-10 flex flex-col gap-8">
-              <nav className="flex flex-col gap-2">
+            <div className="container mx-auto px-6 py-8 flex flex-col gap-6">
+              <nav className="flex flex-col">
                 {navLinks.map((link) => (
                   <Link
                     key={link.name}
                     href={link.href}
                     onClick={() => setMobileOpen(false)}
-                    className="flex items-center justify-between py-4 border-b border-border/50 group"
+                    className="flex items-center justify-between py-4 border-b border-border/10 last:border-0 group"
                   >
-                    <span className="text-xl font-bold tracking-tight">{link.name}</span>
-                    <ArrowRight className="h-5 w-5 opacity-0 group-hover:opacity-100 transition-all -translate-x-4 group-hover:translate-x-0" />
+                    <span className="text-lg font-bold tracking-tight">{link.name}</span>
+                    <ArrowRight className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
                   </Link>
                 ))}
               </nav>
