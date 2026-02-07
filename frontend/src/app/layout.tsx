@@ -27,8 +27,30 @@ import Script from 'next/script';
 // });
 
 export const metadata: Metadata = {
-  title: 'Seentics',
-  description: 'Privacy-focused real-time website analytics. Understand your traffic without compromise.',
+  title: 'Seentics | Analytics that actually drives growth',
+  description: 'Privacy-focused real-time website analytics with built-in behavioral automations. Understand your traffic and act on it automatically.',
+  openGraph: {
+    title: 'Seentics | Analytics that actually drives growth',
+    description: 'Privacy-focused real-time website analytics with built-in behavioral automations. Understand your traffic and act on it automatically.',
+    url: 'https://seentics.com',
+    siteName: 'Seentics',
+    images: [
+      {
+        url: 'https://seentics.com/analytics-dashboard.png',
+        width: 1200,
+        height: 630,
+        alt: 'Seentics Analytics Dashboard',
+      },
+    ],
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Seentics | Analytics that actually drives growth',
+    description: 'Privacy-focused real-time website analytics with built-in behavioral automations.',
+    images: ['https://seentics.com/analytics-dashboard.png'],
+  },
 };
 
 export default function RootLayout({
@@ -69,13 +91,13 @@ export default function RootLayout({
         {/* Seentics Analytics */}
         <Script 
           async 
-          src="http://localhost:3000/trackers/seentics-core.js" 
+          src="https://seentics.com/trackers/seentics-core.js" 
           data-website-id="a6e093753d63695749a942e8"
           data-auto-load="analytics,automation,funnels"
         />
         <Script 
           async 
-          src="http://localhost:3000/trackers/seentics-automation.js" 
+          src="https://seentics.com/trackers/seentics-automation.js" 
           data-website-id="a6e093753d63695749a942e8"
         />
 

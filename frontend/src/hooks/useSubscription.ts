@@ -44,7 +44,11 @@ export interface UseSubscriptionReturn {
 }
 
 export const useSubscription = (): UseSubscriptionReturn => {
-  // ...existing code...
+  const [subscription, setSubscription] = useState<SubscriptionData | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
+
   const fetchSubscription = useCallback(async () => {
     // Demo Mode logic
     if (typeof window !== 'undefined' && (window.location.pathname.includes('/websites/demo') || !isAuthenticated)) {
