@@ -200,16 +200,45 @@ function SignUpFlow() {
 
   const handleWebsiteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!websiteData.siteName.trim() || !websiteData.siteUrl.trim()) {
-        setError('Please fill in all website details');
+    
+    const { siteName, siteUrl } = websiteData;
+    
+    if (!siteName.trim()) {
+        toast({
+            title: "Validation Error",
+            description: "Please provide a website name.",
+            variant: "destructive"
+        });
+        return;
+    }
+
+    if (!siteUrl.trim()) {
+        toast({
+            title: "Validation Error",
+            description: "Please provide a valid domain name.",
+            variant: "destructive"
+        });
+        return;
+    }
+
+    // Domain validation regex
+    const domainRegex = /^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}$/;
+    const cleanUrl = siteUrl.replace(/^(https?:\/\/)/, '').replace(/\/$/, '');
+    
+    if (!domainRegex.test(cleanUrl)) {
+        toast({
+            title: "Invalid Domain",
+            description: "Please provide a valid domain name (e.g. example.com).",
+            variant: "destructive"
+        });
         return;
     }
 
     try {
         setIsLoading(true);
-        const normalizedUrl = websiteData.siteUrl.startsWith('http') ? websiteData.siteUrl : `https://${websiteData.siteUrl}`;
+        const normalizedUrl = siteUrl.startsWith('http') ? siteUrl : `https://${siteUrl}`;
         const response = await api.post('/user/websites', { 
-            name: websiteData.siteName.trim(), 
+            name: siteName.trim(), 
             url: normalizedUrl 
         });
 
@@ -219,11 +248,15 @@ function SignUpFlow() {
         setShowTrackingModal(true);
 
         toast({
-            title: "Success!",
+            title: "Success",
             description: "Your website has been added. Welcome to Seentics!",
         });
     } catch (error: any) {
-        setError(error.message || 'Failed to add website');
+        toast({
+            title: "Error",
+            description: error.response?.data?.message || error.message || 'Failed to add website',
+            variant: "destructive"
+        });
     } finally {
         setIsLoading(false);
     }
@@ -235,7 +268,7 @@ function SignUpFlow() {
       name: 'Starter',
       price: '$0',
       description: 'Side projects & hobbyists',
-      features: ['1 Website', '5,000 Events', '1 Automation', '1 Funnel', 'Basic Reports'],
+      features: ['1 Website', '10,000 Events', '3 Automations', '2 Funnels', 'Basic Reports'],
       buttonText: 'Get Started',
       accent: 'blue'
     },
@@ -244,7 +277,7 @@ function SignUpFlow() {
       name: 'Growth',
       price: '$19',
       description: 'Scaling startups & SaaS',
-      features: ['5 Websites', '100,000 Events', '10 Automations', '10 Funnels', 'Custom Goals', 'Email Support'],
+      features: ['10 Websites', '100,000 Events', '10 Automations', '10 Funnels', 'Custom Goals', 'Email Support'],
       buttonText: 'Power Up',
       accent: 'indigo',
       popular: true
@@ -254,7 +287,7 @@ function SignUpFlow() {
       name: 'Scale',
       price: '$49',
       description: 'Agencies & Enterprises',
-      features: ['Unlimited Sites', '300,000 Events', '30 Automations', '30 Funnels', 'Advanced API', 'Priority Support'],
+      features: ['Unlimited Sites', '1,000,000 Events', '100 Automations', '50 Funnels', 'Advanced API', 'Priority Support'],
       buttonText: 'Go Global',
       accent: 'purple'
     }

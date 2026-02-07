@@ -91,14 +91,8 @@ export default function RootLayout({
         {/* Seentics Analytics */}
         <Script 
           async 
-          src="https://seentics.com/trackers/seentics-core.js" 
-          data-website-id="a6e093753d63695749a942e8"
-          data-auto-load="analytics,automation,funnels"
-        />
-        <Script 
-          async 
-          src="https://seentics.com/trackers/seentics-automation.js" 
-          data-website-id="a6e093753d63695749a942e8"
+          src="https://www.seentics.com/trackers/seentics-core.js" 
+          data-website-id="b6b8419e270d8a6dd69f0c2a"
         />
 
         {/* Tracking Code Components */}
