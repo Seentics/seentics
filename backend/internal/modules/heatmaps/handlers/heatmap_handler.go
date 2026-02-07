@@ -1,0 +1,87 @@
+package handlers
+
+import (
+	"analytics-app/internal/modules/heatmaps/models"
+	"analytics-app/internal/modules/heatmaps/services"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog"
+)
+
+type HeatmapHandler struct {
+	service services.HeatmapService
+	logger  zerolog.Logger
+}
+
+func NewHeatmapHandler(service services.HeatmapService, logger zerolog.Logger) *HeatmapHandler {
+	return &HeatmapHandler{
+		service: service,
+		logger:  logger,
+	}
+}
+
+// RecordHeatmap handles incoming heatmap data (batch of points)
+func (h *HeatmapHandler) RecordHeatmap(c *gin.Context) {
+	var req models.HeatmapRecordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.logger.Debug().Int("points", len(req.Points)).Msg("Recording heatmap data")
+
+	if err := h.service.RecordHeatmapData(req); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to record heatmap data"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// GetHeatmapData returns aggregated heatmap points for visualization
+func (h *HeatmapHandler) GetHeatmapData(c *gin.Context) {
+	websiteID := c.Query("website_id")
+	url := c.Query("url")
+	heatmapType := c.DefaultQuery("type", "click")
+
+	if websiteID == "" || url == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id and url are required"})
+		return
+	}
+
+	// Default to last 30 days
+	to := time.Now()
+	from := to.AddDate(0, 0, -30)
+
+	h.logger.Debug().Str("website_id", websiteID).Str("url", url).Str("type", heatmapType).Msg("Fetching heatmap data")
+
+	points, err := h.service.GetHeatmapData(c.Request.Context(), websiteID, url, heatmapType, from, to)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to fetch heatmap data")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch heatmap data"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"points": points})
+}
+
+func (h *HeatmapHandler) GetHeatmapPages(c *gin.Context) {
+	websiteID := c.Query("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	h.logger.Debug().Str("website_id", websiteID).Msg("Getting heatmap pages")
+
+	pages, err := h.service.GetHeatmapPages(c.Request.Context(), websiteID)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get heatmap pages")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get heatmap pages"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"pages": pages})
+}

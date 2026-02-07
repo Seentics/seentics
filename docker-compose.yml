@@ -39,45 +39,12 @@ services:
       retries: 3
       start_period: 5s
 
-  # ---------------------------------------------------------------------------
-  # Nginx Reverse Proxy (SSL Termination)
-  # ---------------------------------------------------------------------------
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/options-ssl-nginx.conf:/etc/nginx/ssl/options-ssl-nginx.conf:ro
-      - ./nginx/ssl-dhparams.pem:/etc/nginx/ssl/ssl-dhparams.pem:ro
-      - ./certbot/conf:/etc/letsencrypt:ro
-      - ./certbot/www:/var/www/certbot:ro
-      - ./frontend/public/trackers:/usr/share/nginx/html/trackers:ro
-    depends_on:
-      - analytics-backend
-    networks:
-      - seentics-network
-    restart: unless-stopped
-    command: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g \"daemon off;\"'"
-
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - ./certbot/conf:/etc/letsencrypt
-      - ./certbot/www:/var/www/certbot
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-
-  # ---------------------------------------------------------------------------
   # Infrastructure
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
     container_name: redis
-    ports:
-      - "6379:6379"
+    # No port 6379 needed on host if ALB handles public traffic
     command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--save", "", "--appendonly", "no" ]
     volumes:
       - redis-data:/data
@@ -94,16 +61,14 @@ services:
   kafka:
     image: apache/kafka:latest
     container_name: kafka
-    ports:
-      - "9092:9092"
-      - "9094:9094"
+    # No ports needed on host if ALB handles public traffic
     environment:
       - KAFKA_NODE_ID=1
       - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
       - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
       - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
@@ -118,7 +83,6 @@ services:
 volumes:
   redis-data:
   kafka-data:
-
 
 networks:
   seentics-network:

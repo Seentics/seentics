@@ -18,6 +18,7 @@ import {
     FileText,
     ChevronLeft,
     ChevronRight,
+    MousePointer2,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -46,6 +47,12 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             description: 'Traffic & Summary'
         },
         {
+            title: 'Heatmaps',
+            href: `/websites/${websiteId}/heatmaps`,
+            icon: MousePointer2,
+            description: 'User Interaction Maps'
+        },
+        {
             title: 'Automations',
             href: `/websites/${websiteId}/automations`,
             icon: Workflow,
@@ -57,6 +64,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             icon: Filter,
             description: 'Conversion Journeys'
         },
+        
         {
             title: 'Billing',
             href: `/websites/${websiteId}/billing`,

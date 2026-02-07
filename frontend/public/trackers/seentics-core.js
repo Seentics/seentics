@@ -20,7 +20,8 @@
     autoLoad: {
       analytics: true,
       automation: true,
-      funnels: true
+      funnels: true,
+      heatmap: true
     }
   };
 
@@ -312,7 +313,8 @@
       config.autoLoad = {
         analytics: modules.includes('analytics'),
         automation: modules.includes('automation'),
-        funnels: modules.includes('funnels')
+        funnels: modules.includes('funnels'),
+        heatmap: modules.includes('heatmap')
       };
     }
     
@@ -337,6 +339,7 @@
       if (config.autoLoad.analytics) loadModule('analytics');
       if (config.autoLoad.automation) loadModule('automation');
       if (config.autoLoad.funnels) loadModule('funnels');
+      if (config.autoLoad.heatmap) loadModule('heatmap');
     }
   }
 

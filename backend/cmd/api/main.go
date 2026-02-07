@@ -54,6 +54,10 @@ import (
 	logsRepoPkg "analytics-app/internal/modules/serverlogs/repository"
 	logsServicePkg "analytics-app/internal/modules/serverlogs/services"
 
+	heatmapHandlerPkg "analytics-app/internal/modules/heatmaps/handlers"
+	heatmapRepoPkg "analytics-app/internal/modules/heatmaps/repository"
+	heatmapServicePkg "analytics-app/internal/modules/heatmaps/services"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/rs/zerolog"
@@ -172,6 +176,11 @@ func main() {
 	supportService := supportServicePkg.NewSupportDeskService(supportRepo)
 	supportHandler := supportHandlerPkg.NewSupportDeskHandler(supportService)
 
+	// Heatmaps
+	heatmapRepo := heatmapRepoPkg.NewHeatmapRepository(db)
+	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo)
+	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
+
 	// Logs & Metrics
 	logsRepo := logsRepoPkg.NewLogsRepository(db)
 	logsService := logsServicePkg.NewLogsService(logsRepo)
@@ -182,7 +191,7 @@ func main() {
 	logger.Info().Msg("Started periodic billing sync worker")
 
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, notiHandler, emailHandler, supportHandler, logsHandler, logger)
+	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, notiHandler, emailHandler, supportHandler, heatmapHandler, logsHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -225,7 +234,7 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, notiHandler *notiHandlerPkg.NotificationHandler, emailHandler *emailHandlerPkg.EmailHandler, supportHandler *supportHandlerPkg.SupportDeskHandler, logsHandler *logsHandlerPkg.LogsHandler, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, notiHandler *notiHandlerPkg.NotificationHandler, emailHandler *emailHandlerPkg.EmailHandler, supportHandler *supportHandlerPkg.SupportDeskHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, logsHandler *logsHandlerPkg.LogsHandler, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -253,6 +262,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			path == "/api/v1/funnels/track" ||
 			path == "/api/v1/funnels/active" ||
 			path == "/api/v1/workflows/execution/action" ||
+			path == "/api/v1/heatmaps/record" ||
 			strings.HasPrefix(path, "/api/v1/tracker/config/") ||
 			strings.HasPrefix(path, "/api/v1/workflows/site/") {
 			c.Next()
@@ -408,6 +418,13 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 
 			support.POST("/tickets", supportHandler.CreateTicket)
 			support.GET("/tickets", supportHandler.ListTickets)
+		}
+
+		heatmaps := v1.Group("/heatmaps")
+		{
+			heatmaps.POST("/record", heatmapHandler.RecordHeatmap)
+			heatmaps.GET("/data", heatmapHandler.GetHeatmapData)
+			heatmaps.GET("/pages", heatmapHandler.GetHeatmapPages)
 		}
 	}
 

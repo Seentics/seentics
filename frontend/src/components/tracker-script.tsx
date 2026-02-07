@@ -25,7 +25,7 @@ export default function TrackerScript() {
         <Script
           defer
           data-website-id="a6e093753d63695749a942e8"
-          data-auto-load="analytics,automation,funnels"
+          data-auto-load="analytics,automation,funnels,heatmap"
           src="http://localhost:3000/trackers/seentics-core.js"
           strategy="afterInteractive"
         />
