@@ -1,0 +1,27 @@
+{
+  "seentics-core.js": {
+    "base64": "g7w61aA2R0fM+MTpWcoaSIvErtkeIABlyg+vt77QncQ=",
+    "hex": "83bc3ad5a0364747ccf8c4e959ca1a488bc4aed91e200065ca0fafb7bed09dc4",
+    "size": "13.04 KB"
+  },
+  "seentics-analytics.js": {
+    "base64": "HIrd46wWJFTa7PsZBrYirpaus+KwSdpc8etM3IoOp8I=",
+    "hex": "1c8adde3ac162454daecfb1906b622ae96aeb3e2b049da5cf1eb4cdc8a0ea7c2",
+    "size": "7.61 KB"
+  },
+  "seentics-automation.js": {
+    "base64": "Z/kkz+C3teULFzMKOY/cuUCWGSIs8HFcSVbzPW2kM+c=",
+    "hex": "67f924cfe0b7b5e50b17330a398fdcb9409619222cf0715c4956f33d6da433e7",
+    "size": "18.87 KB"
+  },
+  "seentics-funnels.js": {
+    "base64": "WFXDTQ3ma+8uofk2b3JnT4EFsidGDOm0lnrhBV8AluY=",
+    "hex": "5855c34d0de66bef2ea1f9366f72674f8105b227460ce9b4967ae1055f0096e6",
+    "size": "7.00 KB"
+  },
+  "seentics-heatmap.js": {
+    "base64": "Ucjvv6toenH4Z1S39OdwfYSKzWapUz6uZRruWJdXiJE=",
+    "hex": "51c8efbfab687a71f86754b7f4e7707d848acd66a9533eae651aee5897578891",
+    "size": "5.37 KB"
+  }
+}

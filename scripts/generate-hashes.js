@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
-const trackerDir = path.join(__dirname, '../public/trackers');
+const trackerDir = path.join(__dirname, '../frontend/public/trackers');
 const files = [
   'seentics-core.js',
   'seentics-analytics.js',
