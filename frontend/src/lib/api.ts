@@ -19,6 +19,17 @@ function getStoredTokens() {
   }
 }
 
+// Helper function to logout user and clear auth state
+function performLogout() {
+  // Clear localStorage
+  localStorage.removeItem('auth-storage');
+  
+  // Redirect to signin with expired message
+  if (typeof window !== 'undefined') {
+    window.location.href = '/signin?expired=true';
+  }
+}
+
 // Create Axios instance
 const api = axios.create({
   baseURL: getApiUrl(),
@@ -85,15 +96,10 @@ api.interceptors.response.use(
       const { refresh_token } = getStoredTokens();
 
       if (!refresh_token) {
-        // No refresh token available - redirect to login
+        // No refresh token available - logout and redirect
         isRefreshing = false;
         processQueue(new Error('No refresh token available'));
-        
-        // Clear auth state and redirect
-        localStorage.removeItem('auth-storage');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/signin?expired=true';
-        }
+        performLogout();
         return Promise.reject(error);
       }
 
@@ -130,13 +136,18 @@ api.interceptors.response.use(
         isRefreshing = false;
         processQueue(refreshError);
 
-        // Refresh failed - clear auth and redirect to login
-        localStorage.removeItem('auth-storage');
-        if (typeof window !== 'undefined') {
-          window.location.href = '/signin?expired=true';
-        }
+        // Refresh failed - logout user and redirect
+        console.error('Token refresh failed:', refreshError);
+        performLogout();
         return Promise.reject(refreshError);
       }
+    }
+
+    // Handle other 401 errors (invalid token, etc.)
+    if (error.response?.status === 401) {
+      console.error('Unauthorized access - logging out user');
+      performLogout();
+      return Promise.reject(error);
     }
 
     // Handle other error messages
