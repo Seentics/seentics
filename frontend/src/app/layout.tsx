@@ -99,7 +99,7 @@ export default function RootLayout({
         <TrackerScript />
 
         {/* Cookie Consent Manager */}
-        <CookieConsentManager />
+        {/* <CookieConsentManager /> */}
 
         {/* Global Chat Support */}
         {/* <TawkMessenger /> */}
