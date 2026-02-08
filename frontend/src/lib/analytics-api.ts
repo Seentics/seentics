@@ -474,6 +474,21 @@ export const getTopOS = async (websiteId: string, days: number = 7): Promise<Get
   return response.data;
 };
 
+// Top Resolutions
+export const getTopResolutions = async (websiteId: string, days: number = 7, limit: number = 10): Promise<any> => {
+  if (websiteId === 'demo') {
+    return { top_resolutions: [
+        { name: '1920x1080', count: 4500, percentage: 45.0 },
+        { name: '1366x768', count: 3200, percentage: 32.0 },
+        { name: '375x812', count: 2800, percentage: 28.0 },
+        { name: '1440x900', count: 2100, percentage: 21.0 },
+        { name: '414x896', count: 1500, percentage: 15.0 }
+    ]};
+  }
+  const response = await api.get(`/analytics/top-resolutions/${websiteId}?days=${days}&limit=${limit}`);
+  return response.data;
+};
+
 // Traffic Summary
 export const getTrafficSummary = async (websiteId: string, days: number = 7): Promise<TrafficSummary> => {
   if (websiteId === 'demo') {
@@ -697,6 +712,16 @@ export const useTopOS = (websiteId: string, days: number = 7) => {
   return useQuery<GetTopOSResponse>({
     queryKey: analyticsKeys.topOS(websiteId, days),
     queryFn: () => getTopOS(websiteId, days),
+    enabled: !!websiteId,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+// Top Resolutions Hook
+export const useTopResolutions = (websiteId: string, days: number = 7) => {
+  return useQuery<any>({
+    queryKey: ['top-resolutions', websiteId, days],
+    queryFn: () => getTopResolutions(websiteId, days),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
   });

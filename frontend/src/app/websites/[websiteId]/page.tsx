@@ -29,6 +29,7 @@ import {
   useTopCountries,
   useTopDevices,
   useTopOS,
+  useTopResolutions,
   useTopPages,
   useTopReferrers,
   useUserRetention,
@@ -161,6 +162,7 @@ export default function WebsiteDashboardPage() {
   const { data: topBrowsers, isLoading: browsersLoading, error: browsersError } = useTopBrowsers(websiteId, dateRange);
   const { data: topDevices, isLoading: devicesLoading, error: devicesError } = useTopDevices(websiteId, dateRange);
   const { data: topOS, isLoading: osLoading, error: osError } = useTopOS(websiteId, dateRange);
+  const { data: topResolutions, isLoading: resolutionsLoading } = useTopResolutions(websiteId, dateRange);
   const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange);
   const { data: goalStats, isLoading: goalStatsLoading } = useGoalStats(websiteId, dateRange);
 
@@ -184,6 +186,13 @@ export default function WebsiteDashboardPage() {
   const finalTopBrowsers = isDemoMode ? demoData?.topBrowsers : topBrowsers;
   const finalTopDevices = isDemoMode ? demoData?.topDevices : topDevices;
   const finalTopOS = isDemoMode ? demoData?.topOS : topOS;
+  const finalTopResolutions = isDemoMode ? { top_resolutions: [
+    { name: '1920x1080', count: 450, percentage: 45.0 },
+    { name: '1366x768', count: 320, percentage: 32.0 },
+    { name: '375x812', count: 280, percentage: 28.0 },
+    { name: '1440x900', count: 210, percentage: 21.0 },
+    { name: '414x896', count: 150, percentage: 15.0 }
+  ]} : topResolutions;
   const finalDailyStats = isDemoMode ? demoData?.dailyStats : dailyStats;
   const finalHourlyStats = isDemoMode ? demoData?.hourlyStats : hourlyStats;
   const finalGeolocationData = isDemoMode ? demoData?.geolocationData : geolocationData;
@@ -263,6 +272,16 @@ export default function WebsiteDashboardPage() {
     })) || []
   } : {
     top_os: []
+  };
+
+  const transformedTopResolutions = finalTopResolutions ? {
+    top_resolutions: finalTopResolutions.top_resolutions?.map((res: any) => ({
+      name: res.name || 'Unknown',
+      count: res.count || 0,
+      percentage: res.percentage || 0,
+    })) || []
+  } : {
+    top_resolutions: []
   };
 
 
@@ -552,7 +571,8 @@ export default function WebsiteDashboardPage() {
               <TopDevicesChart
                 data={transformedTopDevices}
                 osData={transformedTopOS}
-                isLoading={devicesLoading || osLoading}
+                screenData={transformedTopResolutions}
+                isLoading={devicesLoading || osLoading || resolutionsLoading}
               />
             </CardContent>
           </Card>

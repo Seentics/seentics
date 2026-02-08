@@ -27,6 +27,7 @@ type MainAnalyticsRepository struct {
 	visitorInsights *VisitorInsightsAnalytics
 	activityTrends  *ActivityTrendsAnalytics
 	goals           *GoalAnalytics
+	topResolutions  *TopResolutionsAnalytics
 }
 
 // NewMainAnalyticsRepository creates a new main analytics repository
@@ -48,6 +49,7 @@ func NewMainAnalyticsRepository(db *pgxpool.Pool) *MainAnalyticsRepository {
 		visitorInsights: NewVisitorInsightsAnalytics(db),
 		activityTrends:  NewActivityTrendsAnalytics(db),
 		goals:           NewGoalAnalytics(db),
+		topResolutions:  NewTopResolutionsAnalytics(db),
 	}
 }
 
@@ -177,4 +179,9 @@ func (r *MainAnalyticsRepository) GetActivityTrends(ctx context.Context, website
 
 func (r *MainAnalyticsRepository) GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.EventItem, error) {
 	return r.goals.GetGoalStats(ctx, websiteID, days)
+}
+
+// Top Devices Analytics Methods
+func (r *MainAnalyticsRepository) GetTopResolutions(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error) {
+	return r.topResolutions.GetTopResolutions(ctx, websiteID, days, limit)
 }

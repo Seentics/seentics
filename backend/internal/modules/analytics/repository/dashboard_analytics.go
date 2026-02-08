@@ -177,7 +177,7 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 
 	results := make(map[int]periodResult)
 	allParams := append([]interface{}{websiteID, days}, filterParams...)
-	
+
 	rows, err := da.db.Query(ctx, combinedQuery, allParams...)
 	if err != nil {
 		return nil, err
@@ -231,6 +231,4 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 		BounceChange:       calcFloat(current.BounceRate, previous.BounceRate, previous.Sessions),
 		DurationChange:     calcFloat(current.AvgSessionTime, previous.AvgSessionTime, previous.Sessions),
 	}, nil
-}
-
 }

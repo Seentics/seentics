@@ -173,6 +173,7 @@ type DashboardData struct {
 	TopPages          []PageStat           `json:"top_pages"`
 	TopSources        []SourceStat         `json:"top_sources"`
 	TopCountries      []CountryStat        `json:"top_countries"`
+	TopResolutions    []TopItem            `json:"top_resolutions"`
 	Geolocation       GeolocationBreakdown `json:"geolocation"`
 }
 

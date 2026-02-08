@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 
-const TRIGGER_TYPES = [
+export const TRIGGER_TYPES = [
   {
     type: 'pageView',
     label: 'Page View',
@@ -70,7 +70,7 @@ const TRIGGER_TYPES = [
   },
 ];
 
-const LOGIC_TYPES = [
+export const LOGIC_TYPES = [
   {
     type: 'conditionNode',
     subtype: 'device',
@@ -121,7 +121,7 @@ const LOGIC_TYPES = [
   },
 ];
 
-const ACTION_TYPES = [
+export const ACTION_TYPES = [
   {
     type: 'actionNode',
     subtype: 'email',
@@ -191,9 +191,10 @@ const ACTION_TYPES = [
 export const EnhancedBuilderSidebar = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const onDragStart = (event: React.DragEvent, nodeType: string, label: string, subtype?: string) => {
+  const onDragStart = (event: React.DragEvent, nodeType: string, label: string, description: string, subtype?: string) => {
     event.dataTransfer.setData('application/reactflow', nodeType);
     event.dataTransfer.setData('application/reactflow-label', label);
+    event.dataTransfer.setData('application/reactflow-description', description);
     if (subtype) {
       event.dataTransfer.setData('application/reactflow-subtype', subtype);
     }
@@ -225,9 +226,9 @@ export const EnhancedBuilderSidebar = () => {
 
   const NodeItem = ({ item, type, subtype }: { item: any; type: string; subtype?: string }) => (
     <div
-      onDragStart={(event) => onDragStart(event, type, item.label, subtype)}
+      onDragStart={(event) => onDragStart(event, type, item.label, item.description, subtype)}
       draggable
-      className="p-3.5 rounded border border-slate-800/50 bg-slate-800/20 hover:border-primary/50 hover:bg-slate-800 transition-all cursor-grab active:cursor-grabbing group shadow-sm flex flex-col gap-2"
+      className="p-3.5 rounded border-b  border-slate-700 bg-slate-800/20 hover:border-primary/50 hover:bg-slate-800 transition-all cursor-grab active:cursor-grabbing group shadow-sm flex flex-col gap-2"
     >
       <div className="flex items-center gap-3">
         <div className={`h-9 w-9 rounded-lg ${colorMap[item.color]} flex items-center justify-center flex-shrink-0 shadow-inner group-hover:scale-110 transition-transform`}>
@@ -246,7 +247,7 @@ export const EnhancedBuilderSidebar = () => {
   );
 
   return (
-    <aside className="w-[380px] h-full border-l border-slate-800 bg-slate-950/80 backdrop-blur-xl flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)]">
+    <aside className="w-[380px] h-full max-h-screen border-l border-slate-800 bg-gray-800/50 backdrop-blur-xl flex flex-col shadow-[-20px_0_50px_rgba(0,0,0,0.5)] overflow-hidden">
       {/* Header */}
       <div className="p-6">
         <div className="flex items-center justify-between">
@@ -287,7 +288,7 @@ export const EnhancedBuilderSidebar = () => {
           </TabsList>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar min-h-0">
           <TabsContent value="triggers" className="m-0 mt-0 space-y-3 animate-in fade-in slide-in-from-right-2 duration-300">
             <div className="grid grid-cols-1 gap-3">
               {filteredTriggers.map((trigger) => (

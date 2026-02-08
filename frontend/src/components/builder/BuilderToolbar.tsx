@@ -58,8 +58,8 @@ export const BuilderToolbar = ({
   };
 
   return (
-    <div className="h-16 border-b border-slate-800 bg-slate-950/60 backdrop-blur-md px-6 flex items-center justify-between z-[110] sticky top-0">
-      <div className="flex items-center gap-4">
+    <div className="h-20 border-b border-slate-800 bg-gray-800/50 backdrop-blur-xl px-10 flex items-center justify-between z-[110] flex-shrink-0">
+      <div className="flex items-center gap-6">
         <Link href={`/websites/${websiteId}/automations`}>
           <Button
             variant="ghost"
@@ -75,7 +75,7 @@ export const BuilderToolbar = ({
             value={automation.name || ''} 
             onChange={(e) => setAutomation({ name: e.target.value })}
             placeholder="Untitled Workflow"
-            className="h-6 p-0 border-none bg-transparent font-extrabold text-[15px] tracking-tight focus-visible:ring-0 min-w-[240px] text-white placeholder:text-slate-600"
+            className="h-7 p-0 border-none bg-transparent font-black text-lg tracking-tight focus-visible:ring-0 min-w-[300px] text-white placeholder:text-slate-600"
           />
           <div className="flex items-center gap-2">
             <div className={`h-1.5 w-1.5 rounded-full ${isDirty ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} />
@@ -86,7 +86,7 @@ export const BuilderToolbar = ({
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <div className="flex items-center gap-1.5 mr-2">
           <div className="flex -space-x-2">
             {[1, 2].map(i => (

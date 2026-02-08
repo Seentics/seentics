@@ -23,16 +23,21 @@ export default function Layout({ children }: LayoutProps) {
   const { isSidebarOpen, isMobileMenuOpen, toggleMobileMenu, closeMobileMenu } = useLayoutStore();
 
   const isHeatmapView = pathname.includes('/heatmaps/view');
+  const isBuilderView = pathname.includes('/automations/builder');
+  const isFullscreenView = isHeatmapView || isBuilderView;
 
   return (
-    <div className="flex min-h-screen bg-background text-foreground overflow-x-hidden">
+    <div className={cn(
+      "flex bg-background text-foreground overflow-x-hidden",
+      isFullscreenView ? "h-screen overflow-hidden fixed inset-0" : "min-h-screen"
+    )}>
       <TrackerScript />
       
       {/* Desktop Sidebar */}
-      {!isHeatmapView && <NavSidebar websiteId={websiteId} />}
+      {!isFullscreenView && <NavSidebar websiteId={websiteId} />}
 
       {/* Mobile Header */}
-      {!isHeatmapView && (
+      {!isFullscreenView && (
         <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-md border-b border-border/40 z-40 px-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Logo size="lg" showText={true} textClassName="text-lg font-bold" />
@@ -58,8 +63,9 @@ export default function Layout({ children }: LayoutProps) {
 
       <main className={cn(
         "flex-1 w-full relative min-w-0 transition-all duration-300 ease-in-out bg-background text-foreground",
-        !isHeatmapView && "pt-16 lg:pt-0", 
-        (!isHeatmapView && isSidebarOpen) ? "lg:ml-[280px]" : (!isHeatmapView ? "lg:ml-[80px]" : "ml-0"),
+        isFullscreenView && "overflow-hidden h-full",
+        !isFullscreenView && "pt-16 lg:pt-0", 
+        (!isFullscreenView && isSidebarOpen) ? "lg:ml-[280px]" : (!isFullscreenView ? "lg:ml-[80px]" : "ml-0"),
         "px-0" 
       )}>
         {children}

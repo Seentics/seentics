@@ -347,6 +347,19 @@ func (r *EventRepository) prepareEvent(event *models.Event) {
 	if event.VisitorID == "" {
 		r.logger.Warn().Str("event_id", event.ID.String()).Msg("Event missing visitor_id")
 	}
+
+	// Move screen dimensions from top-level fields to properties for storage if present
+	if event.ScreenWidth != nil || event.ScreenHeight != nil {
+		if event.Properties == nil {
+			event.Properties = make(models.Properties)
+		}
+		if event.ScreenWidth != nil {
+			event.Properties["screen_width"] = *event.ScreenWidth
+		}
+		if event.ScreenHeight != nil {
+			event.Properties["screen_height"] = *event.ScreenHeight
+		}
+	}
 }
 func (r *EventRepository) eventArgs(event *models.Event) []interface{} {
 	// Convert properties to JSON

@@ -68,37 +68,33 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
   }
 
   const PageList = ({ items, type }: { items: any[], type: 'device' | 'os' | 'screen' }) => {
-    if (!items || items.length === 0) {
-      // Mock screen data if none provided
-      const displayItems = type === 'screen' ? [
-        { name: '1920x1080', value: 4500 },
-        { name: '1366x768', value: 3200 },
-        { name: '375x812', value: 2800 },
-        { name: '1440x900', value: 2100 },
-        { name: '414x896', value: 1500 }
-      ] : items;
-
-      if (!displayItems || displayItems.length === 0) {
-        return (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
-            <Layers className="h-10 w-10 mb-2 opacity-20" />
-            <p className="text-[10px] font-bold uppercase tracking-widest">No data available</p>
-          </div>
-        );
-      }
-      return <PageList items={displayItems} type={type} />;
+    // If we have screenData from props, use it
+    let displayItems = items;
+    
+    // Support the wrapper object format if provided
+    if (type === 'screen' && items && (items as any).top_resolutions) {
+      displayItems = (items as any).top_resolutions;
     }
 
-    const sortedItems = [...items].sort((a, b) => {
-      const valA = a.visitors || a.views || a.value || 0;
-      const valB = b.visitors || b.views || b.value || 0;
+    if (!displayItems || displayItems.length === 0) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
+          <Layers className="h-10 w-10 mb-2 opacity-20" />
+          <p className="text-[10px] font-bold uppercase tracking-widest">No data available</p>
+        </div>
+      );
+    }
+
+    const sortedItems = [...displayItems].sort((a, b) => {
+      const valA = a.visitors || a.views || a.value || a.count || 0;
+      const valB = b.visitors || b.views || b.value || b.count || 0;
       return valB - valA;
     }).slice(0, 30);
 
     return (
       <div className="space-y-0 mt-4">
         {sortedItems.map((item, index) => {
-          const val = item.visitors || item.views || item.value || 0;
+          const val = item.visitors || item.views || item.value || item.count || 0;
           const label = item.device || item.os || item.name || 'Unknown';
           const img = getSystemImage(label, type);
 
@@ -108,7 +104,8 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
                 <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                   <Image
                     src={img}
-                    alt={label}
+                    alt=""
+                    aria-hidden="true"
                     width={20}
                     height={20}
                     className="object-contain"

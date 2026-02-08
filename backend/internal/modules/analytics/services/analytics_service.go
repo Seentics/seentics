@@ -84,6 +84,7 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 	var metrics *models.DashboardMetrics
 	var comparison *models.ComparisonMetrics
 	var liveVisitors int
+	var topResolutions []models.TopItem
 
 	// 1. Fetch main dashboard metrics
 	g.Go(func() error {
@@ -121,6 +122,17 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 		return nil
 	})
 
+	// 4. Fetch top resolutions
+	g.Go(func() error {
+		var err error
+		topResolutions, err = s.repo.GetTopResolutions(gCtx, websiteID, days, 10)
+		if err != nil {
+			s.logger.Warn().Err(err).Msg("Failed to get top resolutions")
+			topResolutions = []models.TopItem{}
+		}
+		return nil
+	})
+
 	// Wait for all goroutines to finish
 	if err := g.Wait(); err != nil {
 		return nil, err
@@ -137,6 +149,7 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 		BounceRate:        metrics.BounceRate,
 		Comparison:        comparison,
 		Metrics:           metrics,
+		TopResolutions:    topResolutions,
 		NewVisitors:       0, // TODO: Implement real calculation
 		ReturningVisitors: 0, // TODO: Implement real calculation
 	}, nil
@@ -252,6 +265,22 @@ func (s *AnalyticsService) GetTopDevices(ctx context.Context, websiteID string, 
 		Msg("Getting top devices")
 
 	return s.repo.GetTopDevices(ctx, websiteID, days, limit)
+}
+
+func (s *AnalyticsService) GetTopResolutions(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.TopItem, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	websiteID = canonicalID
+
+	s.logger.Info().
+		Str("website_id", websiteID).
+		Int("days", days).
+		Int("limit", limit).
+		Msg("Getting top resolutions")
+
+	return s.repo.GetTopResolutions(ctx, websiteID, days, limit)
 }
 
 func (s *AnalyticsService) GetTopOS(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.OSStat, error) {

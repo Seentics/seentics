@@ -264,6 +264,47 @@ func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
 	})
 }
 
+func (h *AnalyticsHandler) GetTopResolutions(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	days := 7
+	if d := c.Query("days"); d != "" {
+		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
+			days = parsedDays
+		}
+	}
+
+	limit := 10
+	if l := c.Query("limit"); l != "" {
+		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+
+	resolutions, err := h.service.GetTopResolutions(c.Request.Context(), websiteID, days, limit, userID)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get top resolutions")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top resolutions"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"website_id":      websiteID,
+		"date_range":      fmt.Sprintf("%d days", days),
+		"top_resolutions": resolutions,
+	})
+}
+
 func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {

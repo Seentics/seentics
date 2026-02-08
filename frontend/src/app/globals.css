@@ -230,3 +230,21 @@
 .gradient-text {
   @apply bg-clip-text text-transparent bg-gradient-to-br from-primary via-blue-500 to-sky-400 font-black;
 }
+
+/* Refined Scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-slate-800/50 rounded-full border-2 border-transparent bg-clip-padding transition-colors;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-700/80;
+}

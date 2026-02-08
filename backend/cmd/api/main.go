@@ -288,6 +288,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			analytics.GET("/top-countries/:website_id", analyticsHandler.GetTopCountries)
 			analytics.GET("/top-browsers/:website_id", analyticsHandler.GetTopBrowsers)
 			analytics.GET("/top-devices/:website_id", analyticsHandler.GetTopDevices)
+			analytics.GET("/top-resolutions/:website_id", analyticsHandler.GetTopResolutions)
 			analytics.GET("/top-os/:website_id", analyticsHandler.GetTopOS)
 			analytics.GET("/traffic-summary/:website_id", analyticsHandler.GetTrafficSummary)
 			analytics.GET("/activity-trends/:website_id", analyticsHandler.GetActivityTrends)

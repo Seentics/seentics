@@ -2,6 +2,7 @@
 import React from 'react';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
+import StickyScrollStack from '@/components/landing/StickyScrollStack';
 import BYODBSection from '@/components/landing/BYODBSection';
 import AutomationWorkflows from '@/components/landing/AutomationWorkflows';
 import ImportExportSection from '@/components/landing/ImportExportSection';

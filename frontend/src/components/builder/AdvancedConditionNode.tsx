@@ -4,7 +4,7 @@ import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import {
   GitBranch,
-  Infinity,
+  Infinity as InfinityIcon,
   MoreVertical,
   Clock,
   Users,
@@ -44,7 +44,7 @@ export const AdvancedConditionNode = memo(({ data, selected, isConnectable }: No
     <div
       className={`p-3.5 rounded-xl border transition-all w-[240px] shadow-2xl ${
         selected
-          ? 'bg-slate-900 border-primary ring-4 ring-primary/20 scale-105 z-50 shadow-primary/20'
+          ? 'bg-slate-900 border-primary ring-4 ring-primary/20 scale-105 z-50'
           : 'bg-slate-900/80 backdrop-blur-md border-slate-800 hover:border-slate-700'
       }`}
     >
@@ -57,16 +57,16 @@ export const AdvancedConditionNode = memo(({ data, selected, isConnectable }: No
       />
 
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-500 flex-shrink-0 shadow-inner border border-pink-500/20">
+        <div className="h-10 w-10 rounded-lg bg-pink-500/10 flex items-center justify-center text-pink-500 flex-shrink-0 shadow-inner border border-pink-500/20 group-hover:scale-110 transition-transform">
           <InfinityIcon size={20} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 leading-none mb-1.5">
-            Logic
-          </p>
-          <h4 className="text-[13px] font-extrabold text-white truncate leading-none">
+          <p className="text-[13px] font-bold text-white truncate leading-none mb-1">
             {data.label || 'Advanced Logic'}
-          </h4>
+          </p>
+          <p className="text-[10px] font-medium text-slate-500 line-clamp-2 leading-relaxed">
+            {data.description || 'Complex matching'}
+          </p>
         </div>
       </div>
 

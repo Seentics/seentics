@@ -387,14 +387,7 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
 
   resetWorkflow: () => {
     set({
-      nodes: [
-        {
-          id: 'trigger_1',
-          type: 'triggerNode',
-          data: { label: 'New Trigger', config: { triggerType: 'pageView' } },
-          position: { x: 250, y: 150 },
-        }
-      ],
+      nodes: [],
       edges: [],
       automation: {
         name: 'New Workflow',
