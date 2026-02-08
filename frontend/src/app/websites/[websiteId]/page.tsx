@@ -449,11 +449,11 @@ export default function WebsiteDashboardPage() {
         >
             <div className="flex items-center gap-3">
               {/* Demo Mode Badge */}
-              {isDemoMode && (
+              {/* {isDemoMode && (
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wider border border-blue-500/20 shadow-sm shadow-blue-500/5">
                   DEMO MODE
                 </div>
-              )}
+              )} */}
             </div>
 
             <div className="h-10 w-10 flex items-center justify-center bg-card/50 backdrop-blur-md hover:bg-card transition-colors rounded shadow-sm border border-border/40">
