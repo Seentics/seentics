@@ -73,7 +73,7 @@
     trackEvent('click', clickData);
   };
 
-  // Scroll depth tracking
+  // Scroll depth tracking - only track significant milestones
   const trackScrollDepth = S.utils.debounce(() => {
     const scrollHeight = d.documentElement.scrollHeight - w.innerHeight;
     const scrolled = w.scrollY;
@@ -82,8 +82,8 @@
     if (depth > analytics.scrollDepth) {
       analytics.scrollDepth = depth;
 
-      // Track milestones
-      if ([25, 50, 75, 90, 100].includes(depth)) {
+      // Only track major milestones (50%, 100%) to reduce noise
+      if ([50, 100].includes(depth)) {
         trackEvent('scroll_depth', { depth });
       }
     }
@@ -129,6 +129,64 @@
     }, true);
   };
 
+  // High-value patterns for auto-tracking
+  const isHighValueElement = (element) => {
+    if (!element) return false;
+    
+    const text = (element.textContent || '').toLowerCase().trim();
+    const id = (element.id || '').toLowerCase();
+    const className = (element.className || '').toLowerCase();
+    const href = (element.href || '').toLowerCase();
+    
+    // High-value text patterns (actions that indicate conversion intent)
+    const highValueTexts = [
+      'buy', 'purchase', 'checkout', 'add to cart', 'add to bag',
+      'subscribe', 'sign up', 'signup', 'register', 'join',
+      'get started', 'start free', 'try free', 'free trial',
+      'download', 'install', 'get now',
+      'contact', 'request', 'demo', 'schedule',
+      'upgrade', 'pro', 'premium', 'pricing',
+      'submit', 'send', 'confirm', 'complete',
+      'book', 'reserve', 'order',
+      'learn more', 'view plans', 'see pricing'
+    ];
+    
+    // High-value class/ID patterns
+    const highValuePatterns = [
+      'cta', 'call-to-action', 'primary-button', 'action-button',
+      'add-cart', 'add-to-cart', 'buy-button', 'purchase',
+      'checkout', 'subscribe', 'signup', 'register',
+      'submit', 'download', 'pricing', 'plan',
+      'upgrade', 'pro', 'premium'
+    ];
+    
+    // High-value href patterns
+    const highValuePaths = [
+      '/checkout', '/cart', '/basket',
+      '/signup', '/register', '/join',
+      '/pricing', '/plans', '/upgrade',
+      '/demo', '/contact', '/trial',
+      '/download', '/subscribe'
+    ];
+    
+    // Check text content
+    const hasHighValueText = highValueTexts.some(pattern => text.includes(pattern));
+    
+    // Check class/ID
+    const hasHighValueClass = highValuePatterns.some(pattern => 
+      className.includes(pattern) || id.includes(pattern)
+    );
+    
+    // Check href
+    const hasHighValuePath = highValuePaths.some(path => href.includes(path));
+    
+    // Check for form submit buttons
+    const isFormSubmit = element.type === 'submit' || 
+                         (element.tagName === 'BUTTON' && element.closest('form'));
+    
+    return hasHighValueText || hasHighValueClass || hasHighValuePath || isFormSubmit;
+  };
+
   // Auto-tracking setup
   const setupAutoTracking = () => {
     // Track initial pageview
@@ -137,19 +195,49 @@
     // Load custom goals
     loadGoalConfig();
 
-    // Track clicks
+    // Smart click tracking: explicit tracking OR high-value auto-detection
     d.addEventListener('click', (e) => {
-      const target = e.target.closest('a, button');
-      if (target) {
+      const target = e.target.closest('a, button, [role="button"]');
+      if (!target) return;
+      
+      // Priority 1: Explicitly marked for tracking (user-defined)
+      const explicitlyTracked = target.hasAttribute('data-track') || 
+                                target.hasAttribute('data-track-click') ||
+                                target.classList.contains('track-click');
+      
+      // Priority 2: Auto-detect high-value elements
+      const isHighValue = isHighValueElement(target);
+      
+      if (explicitlyTracked || isHighValue) {
         trackClick(target);
       }
     }, true);
 
-    // Track form submissions
+    // Track form submissions (all forms are considered high-value)
     d.addEventListener('submit', (e) => {
       const form = e.target;
       const formData = {};
       const inputs = form.querySelectorAll('input, select, textarea');
+      
+      // Identify form type based on fields and context
+      const formId = form.id || '';
+      const formClass = form.className || '';
+      const formAction = (form.action || '').toLowerCase();
+      
+      let formType = 'generic';
+      if (formId.includes('contact') || formClass.includes('contact') || formAction.includes('contact')) {
+        formType = 'contact';
+      } else if (formId.includes('signup') || formClass.includes('signup') || formAction.includes('signup')) {
+        formType = 'signup';
+      } else if (formId.includes('subscribe') || formClass.includes('subscribe') || formAction.includes('subscribe')) {
+        formType = 'newsletter';
+      } else if (formId.includes('checkout') || formClass.includes('checkout') || formAction.includes('checkout')) {
+        formType = 'checkout';
+      } else if (formId.includes('login') || formClass.includes('login') || formAction.includes('login')) {
+        formType = 'login';
+      } else if (formId.includes('search') || formClass.includes('search') || formAction.includes('search')) {
+        formType = 'search';
+      }
       
       // Sensitive field patterns to exclude
       const sensitivePatterns = [
@@ -185,12 +273,16 @@
         form_id: form.id || null,
         form_action: form.action || null,
         form_name: form.name || null,
+        form_type: formType,
+        field_count: inputs.length,
         form_data: formData
       });
     }, true);
 
-    // Track video interactions (HTML5 Video)
+    // Track video interactions (HTML5 Video) - high engagement indicator
     d.querySelectorAll('video').forEach(video => {
+      let watchedMilestones = new Set();
+      
       video.addEventListener('play', () => {
         trackEvent('video_play', {
           video_src: video.currentSrc,
@@ -198,10 +290,19 @@
         });
       });
 
-      video.addEventListener('pause', () => {
-        trackEvent('video_pause', {
-          video_src: video.currentSrc,
-          video_time: Math.round(video.currentTime)
+      // Track viewing milestones (25%, 50%, 75%, 100%)
+      video.addEventListener('timeupdate', () => {
+        const percent = Math.round((video.currentTime / video.duration) * 100);
+        const milestones = [25, 50, 75, 100];
+        
+        milestones.forEach(milestone => {
+          if (percent >= milestone && !watchedMilestones.has(milestone)) {
+            watchedMilestones.add(milestone);
+            trackEvent('video_progress', {
+              video_src: video.currentSrc,
+              milestone: milestone
+            });
+          }
         });
       });
 
@@ -211,6 +312,29 @@
         });
       });
     });
+    
+    // Track important image clicks (product images, hero images)
+    d.addEventListener('click', (e) => {
+      const img = e.target.closest('img');
+      if (!img) return;
+      
+      // Only track images with specific classes or in specific contexts
+      const isProductImage = img.classList.contains('product-image') || 
+                            img.closest('.product') || 
+                            img.closest('[class*="product"]');
+      const isGalleryImage = img.closest('.gallery') || 
+                            img.closest('[class*="gallery"]');
+      const isHeroImage = img.closest('.hero') || 
+                         img.closest('[class*="hero"]');
+      
+      if (isProductImage || isGalleryImage || isHeroImage) {
+        trackEvent('image_click', {
+          image_src: img.src,
+          image_alt: img.alt || null,
+          context: isProductImage ? 'product' : isGalleryImage ? 'gallery' : 'hero'
+        });
+      }
+    }, true);
 
     // Track scroll
     w.addEventListener('scroll', trackScrollDepth);
