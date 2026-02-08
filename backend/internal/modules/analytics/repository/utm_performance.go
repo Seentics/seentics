@@ -7,13 +7,10 @@ import (
 
 // GetUTMAnalytics returns UTM campaign performance data
 func (da *DashboardAnalytics) GetUTMAnalytics(ctx context.Context, websiteID string, days int) (map[string]interface{}, error) {
-	// Get UTM sources - group NULL and empty values as 'direct'
+	// Get UTM sources - ONLY show traffic with UTM parameters
 	sourcesQuery := fmt.Sprintf(`
 		SELECT 
-			CASE 
-				WHEN utm_source IS NULL OR utm_source = '' THEN 'direct'
-				ELSE utm_source
-			END as source,
+			utm_source as source,
 			COUNT(DISTINCT visitor_id) as unique_visitors,
 			COUNT(*) as total_pageviews,
 			COUNT(DISTINCT session_id) as sessions
@@ -21,10 +18,9 @@ func (da *DashboardAnalytics) GetUTMAnalytics(ctx context.Context, websiteID str
 		WHERE website_id = $1 
 		AND timestamp >= NOW() - INTERVAL '%d days'
 		AND event_type = 'pageview'
-		GROUP BY CASE 
-			WHEN utm_source IS NULL OR utm_source = '' THEN 'direct'
-			ELSE utm_source
-		END
+		AND utm_source IS NOT NULL
+		AND utm_source != ''
+		GROUP BY utm_source
 		ORDER BY unique_visitors DESC
 		LIMIT 10`, days)
 
@@ -51,23 +47,19 @@ func (da *DashboardAnalytics) GetUTMAnalytics(ctx context.Context, websiteID str
 		})
 	}
 
-	// Get UTM mediums
+	// Get UTM mediums - ONLY show traffic with UTM parameters
 	mediumsQuery := fmt.Sprintf(`
 		SELECT 
-			CASE 
-				WHEN utm_medium IS NULL OR utm_medium = '' THEN 'none'
-				ELSE utm_medium
-			END as medium,
+			utm_medium as medium,
 			COUNT(DISTINCT visitor_id) as unique_visitors,
 			COUNT(*) as total_pageviews
 		FROM events
 		WHERE website_id = $1 
 		AND timestamp >= NOW() - INTERVAL '%d days'
 		AND event_type = 'pageview'
-		GROUP BY CASE 
-			WHEN utm_medium IS NULL OR utm_medium = '' THEN 'none'
-			ELSE utm_medium
-		END
+		AND utm_medium IS NOT NULL
+		AND utm_medium != ''
+		GROUP BY utm_medium
 		ORDER BY unique_visitors DESC
 		LIMIT 10`, days)
 
