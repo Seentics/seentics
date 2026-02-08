@@ -642,11 +642,11 @@ export default function WebsiteDashboardPage() {
           </section>
         </div>
 
-        {/* TECHNICAL DETAILS */}
+        {/* SYSTEM & BEHAVIOR */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
             <LayoutDashboard className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Technical Details</h2>
+            <h2 className="text-lg font-bold tracking-tight">System & Behavior</h2>
             <div className="h-px bg-border flex-1 ml-4" />
           </div>
 
