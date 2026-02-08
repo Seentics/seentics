@@ -89,11 +89,10 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Visitor distribution across global regions</p>
                 </div>
                 <Tabs value={geoTab} onValueChange={setGeoTab} className="w-full lg:w-auto">
-                    <TabsList className="grid w-full grid-cols-4 h-9 bg-accent/10 p-1 rounded">
+                    <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/10 p-1 rounded">
                         <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background' value="map">Map</TabsTrigger>
                         <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background' value="countries">Countries</TabsTrigger>
                         <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background' value="cities">Cities</TabsTrigger>
-                        <TabsTrigger className='text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background' value="continents">Continents</TabsTrigger>
                     </TabsList>
                 </Tabs>
             </CardHeader>

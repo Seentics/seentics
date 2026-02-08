@@ -149,8 +149,8 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 			WHERE visit_order_desc = 1
 			GROUP BY page
 		),
-		total_page_views AS (
-			SELECT page, COUNT(*) as total_views
+		total_sessions_per_page AS (
+			SELECT page, COUNT(DISTINCT session_id) as total_sessions
 			FROM events
 			WHERE website_id = $1 AND timestamp >= $2 AND event_type = 'pageview'
 			GROUP BY page
@@ -158,9 +158,9 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 		SELECT 
 			ec.page,
 			ec.exit_sessions,
-			(ec.exit_sessions * 100.0 / NULLIF(tpv.total_views, 0)) as exit_rate
+			(ec.exit_sessions * 100.0 / NULLIF(tsp.total_sessions, 0)) as exit_rate
 		FROM exit_counts ec
-		JOIN total_page_views tpv ON ec.page = tpv.page
+		JOIN total_sessions_per_page tsp ON ec.page = tsp.page
 		ORDER BY ec.exit_sessions DESC
 		LIMIT 10`
 

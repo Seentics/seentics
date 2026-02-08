@@ -48,19 +48,32 @@ const getSourceImage = (label: string) => {
 export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChartProps) {
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Helpers to classify categories
+  // Helpers to classify categories - matching backend logic
   const isOrganic = (r: string) => {
     const s = (r || '').toLowerCase();
-    return s.includes('google') || s.includes('bing') || s.includes('yahoo') || s.includes('duckduckgo');
+    return s.includes('google') || s.includes('bing') || s.includes('yahoo') || 
+           s.includes('duckduckgo') || s.includes('search') || s.includes('baidu') || 
+           s.includes('yandex');
   };
-  const isDirect = (r: string) => (r || '').toLowerCase().includes('direct');
+  
+  const isDirect = (r: string) => {
+    const s = (r || '').toLowerCase();
+    return s.includes('direct') || s.includes('none') || s.includes('null') || 
+           s === '' || s.includes('(not set)');
+  };
+  
   const isSocial = (r: string) => {
     const s = (r || '').toLowerCase();
-    return s.includes('facebook') || s.includes('twitter') || s.includes('linkedin') || s.includes('instagram') || s.includes('reddit') || s.includes('tiktok') || s.includes('pinterest') || s.includes('youtube');
+    return s.includes('facebook') || s.includes('twitter') || s.includes('linkedin') || 
+           s.includes('instagram') || s.includes('reddit') || s.includes('tiktok') || 
+           s.includes('pinterest') || s.includes('youtube') || s.includes('snapchat') ||
+           s.includes('whatsapp') || s.includes('telegram');
   };
+  
   const isEmail = (r: string) => {
     const s = (r || '').toLowerCase();
-    return s.includes('email') || s.includes('mail');
+    return s.includes('email') || s.includes('mail') || s.includes('newsletter') ||
+           s.includes('mailchimp') || s.includes('sendgrid');
   };
 
   if (isLoading) {
@@ -112,9 +125,19 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
         }));
     }
 
+    // Filter referrers based on tab type
     let filtered = referrers;
-    if (type === 'search') filtered = referrers.filter(r => isOrganic(r.referrer));
-    if (type === 'social') filtered = referrers.filter(r => isSocial(r.referrer));
+    if (type === 'search') {
+      filtered = referrers.filter(r => isOrganic(r.referrer));
+    } else if (type === 'social') {
+      filtered = referrers.filter(r => isSocial(r.referrer));
+    } else if (type === 'referrers') {
+      // Referral tab: exclude direct, search, social, and email
+      filtered = referrers.filter(r => {
+        const ref = r.referrer || '';
+        return !isDirect(ref) && !isOrganic(ref) && !isSocial(ref) && !isEmail(ref);
+      });
+    }
 
     const maxVal = Math.max(...filtered.map(r => r.visitors), 1);
     return filtered
@@ -123,7 +146,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
       .map(r => ({
         label: r.referrer || 'Direct',
         visitors: r.visitors,
-        color: type === 'search' ? '#34A853' : type === 'social' ? '#EA4335' : '#4285F4',
+        color: type === 'search' ? '#34A853' : type === 'social' ? '#EA4335' : type === 'referrers' ? '#8B5CF6' : '#4285F4',
         image: getSourceImage(r.referrer || 'Direct'),
         percentage: (r.visitors / maxVal) * 100
       }));
@@ -133,10 +156,17 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
     const items = getSourceData(type);
 
     if (items.length === 0) {
+      const emptyMessages = {
+        overview: 'No traffic data available',
+        referrers: 'No referral traffic detected',
+        search: 'No search engine traffic',
+        social: 'No social media traffic'
+      };
+      
       return (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
           <Layers className="h-10 w-10 mb-2 opacity-20" />
-          <p className="text-[10px] font-bold uppercase tracking-widest">No traffic data</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest">{emptyMessages[type]}</p>
         </div>
       );
     }
