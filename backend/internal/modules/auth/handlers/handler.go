@@ -64,6 +64,27 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	})
 }
 
+// RefreshToken handles refreshing an expired access token using a refresh token
+func (h *AuthHandler) RefreshToken(c *gin.Context) {
+	var req struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
+	
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "refresh_token is required"})
+		return
+	}
+
+	tokens, err := h.service.RefreshToken(c.Request.Context(), req.RefreshToken)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Token refresh failed")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, tokens)
+}
+
 // ForgotPassword handles requesting a password reset
 func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	var req models.ForgotPasswordRequest

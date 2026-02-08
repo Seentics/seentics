@@ -231,3 +231,38 @@ func (s *AuthService) GenerateTokens(user *models.User) (*models.TokenDetails, e
 		RefreshToken: refreshStr,
 	}, nil
 }
+
+// RefreshToken validates a refresh token and generates new access and refresh tokens
+func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*models.TokenDetails, error) {
+	// Parse and validate the refresh token
+	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(s.cfg.JWTSecret), nil
+	})
+
+	if err != nil || !token.Valid {
+		return nil, fmt.Errorf("invalid or expired refresh token")
+	}
+
+	// Extract user_id from token claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, fmt.Errorf("invalid token claims")
+	}
+
+	userID, ok := claims["user_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("user_id not found in token")
+	}
+
+	// Get user from database to ensure they still exist
+	user, err := s.repo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	// Generate new tokens
+	return s.GenerateTokens(user)
+}

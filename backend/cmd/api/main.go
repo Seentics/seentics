@@ -253,6 +253,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		path := c.Request.URL.Path
 		if path == "/health" || c.Request.Method == "OPTIONS" ||
 			strings.HasPrefix(path, "/api/v1/user/auth/") ||
+			strings.HasPrefix(path, "/api/v1/auth/") ||
 			strings.HasPrefix(path, "/uploads/") ||
 			path == "/api/v1/analytics/event" ||
 			path == "/api/v1/analytics/batch" ||
@@ -367,10 +368,21 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		v1.POST("/webhooks/lemonsqueezy", billingHandler.Webhook)
 		v1.POST("/test/webhooks/lemonsqueezy", billingHandler.Webhook)
 
+		// Public auth endpoints (no authentication required)
+		publicAuth := v1.Group("/auth")
+		{
+			publicAuth.POST("/register", authHandler.Register)
+			publicAuth.POST("/login", authHandler.Login)
+			publicAuth.POST("/refresh", authHandler.RefreshToken)
+			publicAuth.POST("/forgot-password", authHandler.ForgotPassword)
+			publicAuth.POST("/reset-password", authHandler.ResetPassword)
+		}
+
 		auth := v1.Group("/user/auth")
 		{
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
+			auth.POST("/refresh", authHandler.RefreshToken)
 		}
 
 		users := v1.Group("/user/users")
