@@ -92,7 +92,7 @@ func (da *DashboardAnalytics) GetDashboardMetrics(ctx context.Context, websiteID
 		)
 		SELECT 
 			COALESCE(SUM(page_count), 0) as page_views,
-			COUNT(DISTINCT visitor_id) as total_visitors,
+			COUNT(*) as total_visitors,
 			COUNT(DISTINCT visitor_id) as unique_visitors,
 			COUNT(*) as sessions,
 			COALESCE(
@@ -156,7 +156,7 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 		SELECT 
 			period,
 			COALESCE(SUM(page_count), 0) as page_views,
-			COUNT(DISTINCT visitor_id) as total_visitors,
+			COUNT(*) as total_visitors,
 			COUNT(DISTINCT visitor_id) as unique_visitors,
 			COUNT(*) as sessions,
 			COALESCE((COUNT(*) FILTER (WHERE page_count = 1) * 100.0) / NULLIF(COUNT(*), 0), 0) as bounce_rate,
