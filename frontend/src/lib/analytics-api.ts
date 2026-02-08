@@ -402,6 +402,9 @@ export const useDashboardData = (websiteId: string, days: number = 7, filters: A
       return response.data;
     },
     enabled: !!websiteId,
+    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchOnWindowFocus: true,
+    staleTime: 20000, // Consider data stale after 20 seconds
   });
 };
 

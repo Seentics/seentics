@@ -92,7 +92,7 @@ export default function RootLayout({
         <Script 
           async 
           src="https://www.seentics.com/trackers/seentics-core.js" 
-          data-website-id="b6b8419e270d8a6dd69f0c2a"
+          data-website-id="2324e420-987e-4f63-b9ff-f27101bfb1c4"
         />
 
         {/* Tracking Code Components */}
