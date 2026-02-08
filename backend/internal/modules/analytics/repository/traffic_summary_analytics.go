@@ -44,28 +44,44 @@ func (ts *TrafficSummaryAnalytics) GetTrafficSummary(ctx context.Context, websit
 					LIMIT 1
 				) as is_returning
 			FROM (SELECT DISTINCT visitor_id FROM period_events) pe
+		),
+		aggregated AS (
+			SELECT 
+				COUNT(*) as event_count,
+				COUNT(DISTINCT visitor_id) as visitor_count
+			FROM period_events
+		),
+		session_metrics AS (
+			SELECT 
+				COUNT(*) as session_count,
+				COUNT(*) FILTER (WHERE pages = 1) as bounce_sessions,
+				AVG(duration) as avg_duration
+			FROM sessions
+		),
+		visitor_metrics AS (
+			SELECT 
+				COUNT(*) FILTER (WHERE NOT is_returning) as new_visitor_count,
+				COUNT(*) FILTER (WHERE is_returning) as returning_visitor_count
+			FROM visitors
 		)
 		SELECT 
-			COALESCE((SELECT COUNT(*) FROM period_events), 0) as total_page_views,
-			COALESCE((SELECT COUNT(DISTINCT visitor_id) FROM period_events), 0) as total_visitors,
-			COALESCE((SELECT COUNT(DISTINCT visitor_id) FROM period_events), 0) as unique_visitors,
-			COALESCE((SELECT COUNT(*) FROM sessions), 0) as total_sessions,
-			COALESCE(
-				(SELECT COUNT(*) FROM sessions WHERE pages = 1) * 100.0 / 
-				NULLIF((SELECT COUNT(*) FROM sessions), 0), 0
-			) as bounce_rate,
-			COALESCE((SELECT CAST(AVG(duration) AS INTEGER) FROM sessions), 0) as avg_session_time,
-			COALESCE(
-				(SELECT COUNT(*) FROM period_events) * 1.0 / 
-				NULLIF((SELECT COUNT(*) FROM sessions), 0), 0
-			) as pages_per_session,
+			COALESCE(a.event_count, 0) as total_page_views,
+			COALESCE(a.visitor_count, 0) as total_visitors,
+			COALESCE(a.visitor_count, 0) as unique_visitors,
+			COALESCE(sm.session_count, 0) as total_sessions,
+			COALESCE(sm.bounce_sessions * 100.0 / NULLIF(sm.session_count, 0), 0) as bounce_rate,
+			COALESCE(CAST(sm.avg_duration AS INTEGER), 0) as avg_session_time,
+			COALESCE(a.event_count * 1.0 / NULLIF(sm.session_count, 0), 0) as pages_per_session,
 			0.0 as growth_rate,
 			0.0 as visitors_growth_rate,
 			0.0 as sessions_growth_rate,
-			COALESCE((SELECT COUNT(*) FROM visitors WHERE NOT is_returning), 0) as new_visitors,
-			COALESCE((SELECT COUNT(*) FROM visitors WHERE is_returning), 0) as returning_visitors,
+			COALESCE(vm.new_visitor_count, 0) as new_visitors,
+			COALESCE(vm.returning_visitor_count, 0) as returning_visitors,
 			50.0 as engagement_score,
-			25.0 as retention_rate`
+			25.0 as retention_rate
+		FROM aggregated a
+		CROSS JOIN session_metrics sm
+		CROSS JOIN visitor_metrics vm`
 
 	var summary models.TrafficSummary
 	err := ts.db.QueryRow(ctx, query, websiteID, days).Scan(

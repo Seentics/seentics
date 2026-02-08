@@ -64,33 +64,46 @@ func (tp *TopPagesAnalytics) normalizePage(page string) string {
 // GetTopPages returns the top pages for a website with analytics
 func (tp *TopPagesAnalytics) GetTopPages(ctx context.Context, websiteID string, days int, limit int) ([]models.PageStat, error) {
 	query := `
-		WITH event_stats AS (
+		WITH session_pages AS (
 			SELECT 
-				page,
-				visitor_id,
 				session_id,
-				time_on_page,
-				COUNT(*) OVER (PARTITION BY session_id) as total_session_pages,
-				ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp ASC) as visit_order
+				COUNT(*) as page_count,
+				MIN(timestamp) as first_page_time
 			FROM events
 			WHERE website_id = $1 
 			AND timestamp >= NOW() - INTERVAL '1 day' * $2 
 			AND event_type = 'pageview'
+			GROUP BY session_id
+		),
+		page_stats AS (
+			SELECT 
+				e.page,
+				e.visitor_id,
+				e.session_id,
+				e.time_on_page,
+				e.timestamp,
+				sp.page_count,
+				sp.first_page_time
+			FROM events e
+			INNER JOIN session_pages sp ON e.session_id = sp.session_id
+			WHERE e.website_id = $1 
+			AND e.timestamp >= NOW() - INTERVAL '1 day' * $2 
+			AND e.event_type = 'pageview'
 		)
 		SELECT 
 			page,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE total_session_pages = 1) * 100.0) / 
+				(COUNT(*) FILTER (WHERE page_count = 1) * 100.0) / 
 				NULLIF(COUNT(DISTINCT session_id), 0), 0
 			) as bounce_rate,
 			COALESCE(AVG(time_on_page), 0) as avg_time,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE visit_order = 1) * 100.0) / 
+				(COUNT(*) FILTER (WHERE timestamp = first_page_time) * 100.0) / 
 				NULLIF(COUNT(DISTINCT session_id), 0), 0
 			) as entry_rate
-		FROM event_stats
+		FROM page_stats
 		GROUP BY page
 		ORDER BY views DESC
 		LIMIT $3`

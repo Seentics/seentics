@@ -492,6 +492,15 @@ export const getTopResolutions = async (websiteId: string, days: number = 7, lim
   return response.data;
 };
 
+// Live Visitors
+export const getLiveVisitors = async (websiteId: string): Promise<number> => {
+  if (websiteId === 'demo') {
+    return Math.floor(Math.random() * 50) + 10; // Random 10-60 for demo
+  }
+  const response = await api.get(`/analytics/live-visitors/${websiteId}`);
+  return response.data.live_visitors || 0;
+};
+
 // Traffic Summary
 export const getTrafficSummary = async (websiteId: string, days: number = 7): Promise<TrafficSummary> => {
   if (websiteId === 'demo') {
@@ -650,6 +659,7 @@ export const analyticsKeys = {
   topBrowsers: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-browsers', websiteId, days] as const,
   topDevices: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-devices', websiteId, days] as const,
   topOS: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-os', websiteId, days] as const,
+  liveVisitors: (websiteId: string) => [...analyticsKeys.all, 'live-visitors', websiteId] as const,
   trafficSummary: (websiteId: string, days: number) => [...analyticsKeys.all, 'traffic-summary', websiteId, days] as const,
   hourlyStats: (websiteId: string, days: number) => [...analyticsKeys.all, 'hourly-stats', websiteId, days] as const,
   activityTrends: (websiteId: string) => [...analyticsKeys.all, 'activity-trends', websiteId] as const,
@@ -727,6 +737,17 @@ export const useTopResolutions = (websiteId: string, days: number = 7) => {
     queryFn: () => getTopResolutions(websiteId, days),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
+  });
+};
+
+// Live Visitors Hook
+export const useLiveVisitors = (websiteId: string) => {
+  return useQuery<number>({
+    queryKey: analyticsKeys.liveVisitors(websiteId),
+    queryFn: () => getLiveVisitors(websiteId),
+    enabled: !!websiteId,
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 30 * 1000, // Refresh every 30 seconds
   });
 };
 

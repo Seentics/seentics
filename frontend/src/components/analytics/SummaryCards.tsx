@@ -1,7 +1,7 @@
 'use client';
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { formatDuration, formatNumber, formatPercentage } from '@/lib/analytics-api';
+import { formatDuration, formatNumber, formatPercentage, useLiveVisitors } from '@/lib/analytics-api';
 import { 
   ArrowDownRight, 
   ArrowUpRight, 
@@ -12,7 +12,8 @@ import {
   TrendingDown, 
   Users, 
   Zap,
-  Activity
+  Activity,
+  Radio
 } from 'lucide-react';
 import React from 'react';
 import { cn } from '@/lib/utils';
@@ -31,11 +32,11 @@ const GrowthIndicator = ({ current, previous, inverse = false }: {
   inverse?: boolean;
 }) => {
   if (previous === 0) {
-    if (current > 0) return <span className="text-emerald-500 text-[10px] font-black uppercase tracking-widest flex items-center bg-emerald-500/10 px-1.5 py-0.5 rounded ml-2">New</span>;
+    if (current > 0) return <span className="text-emerald-500 text-[10px] font-black uppercase tracking-widest flex items-center bg-emerald-500/10 px-1.5 py-0.5 rounded">New</span>;
     return <span className="text-muted-foreground/40 text-[10px] uppercase font-bold ml-2">—</span>;
   }
   if (current === previous) {
-    return <span className="text-muted-foreground/40 text-[10px] uppercase font-bold ml-2">0.0%</span>;
+    return <span className="text-muted-foreground/40 text-[10px] uppercase font-bold">0.0%</span>;
   }
 
   const growth = ((current - previous) / previous) * 100;
@@ -43,7 +44,7 @@ const GrowthIndicator = ({ current, previous, inverse = false }: {
 
   return (
     <div className={cn(
-        "flex items-center text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ml-2",
+        "flex items-center text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded",
         isPositive ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10'
     )}>
       {isPositive ? <ArrowUpRight className="h-2.5 w-2.5 mr-0.5" strokeWidth={3} /> : <ArrowDownRight className="h-2.5 w-2.5 mr-0.5" strokeWidth={3} />}
@@ -113,27 +114,27 @@ const SummaryCard = ({
         </div>
       </div>
       
-      <div className="flex items-end justify-between">
-        <div className="space-y-0 relative z-10">
+      <div className="flex items-end justify-between gap-2">
+        <div className="space-y-0 relative z-10 min-w-0 flex-1">
           <div className={cn(
-            "text-2xl font-bold tracking-tight text-foreground/80 group-hover:text-primary transition-all duration-300",
+            "text-2xl font-bold tracking-tight text-foreground/80 group-hover:text-primary transition-all duration-300 whitespace-nowrap",
             title === 'Live Visitors' && "text-emerald-500 group-hover:text-emerald-400"
           )}>
             {formatValue(value)}
           </div>
-          {subtitle && (
-            <div className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider opacity-40 mt-1">{subtitle}</div>
-          )}
-        </div>
-        
+          {/* {subtitle && (
+            <div className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider opacity-40 mt-1 whitespace-nowrap">{subtitle}</div>
+          )} */}
         {previousValue !== undefined && (
-          <div className="pb-1">
+          <div className="mt-2 inline-block p-0">
             <GrowthIndicator current={value} previous={previousValue} inverse={inverse} />
           </div>
         )}
+        </div>
+        
 
         {href && (
-           <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-all group-hover:translate-x-1" />
+           <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-all group-hover:translate-x-1 flex-shrink-0" />
         )}
       </div>
 
@@ -161,11 +162,13 @@ const SummaryCard = ({
 };
 
 export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCardsProps) {
+  const { data: liveVisitors, isLoading: liveLoading } = useLiveVisitors(websiteId || '');
+  
   if (isLoading || !data) {
     return (
       <div className="bg-card/50 shadow-sm rounded overflow-hidden mb-8 border dark:border-none">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 divide-x divide-border/20">
-          {[...Array(5)].map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/20">
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="p-6">
               <Skeleton className="h-4 w-20 mb-4" />
               <div className="space-y-2">
@@ -180,6 +183,13 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCard
   }
 
   const cards = [
+    {
+      title: 'Live Visitors',
+      value: liveVisitors || 0,
+      icon: Radio,
+      format: 'number' as const,
+      subtitle: 'Active now',
+    },
     {
       title: 'Total Visitors',
       value: data.total_visitors || 0,
@@ -222,7 +232,7 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCard
 
   return (
     <div className="bg-card/50 shadow-sm shadow-black/5 rounded overflow-hidden mb-8 border dark:border-none">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 divide-x divide-border/40">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/40">
         {cards.map((card, index) => (
           <SummaryCard key={index} {...card} />
         ))}
