@@ -33,17 +33,17 @@ type Plan struct {
 
 // Subscription represents a user's current plan status
 type Subscription struct {
-	ID                   string    `json:"id" db:"id"`
-	UserID               string    `json:"userId" db:"user_id"`
-	PlanID               string    `json:"planId" db:"plan_id"`
-	Status               string    `json:"status" db:"status"`
-	PaddleSubscriptionID string    `json:"paddleSubscriptionId" db:"paddle_subscription_id"`
-	PaddleCustomerID     string    `json:"paddleCustomerId" db:"paddle_customer_id"`
-	CurrentPeriodStart   time.Time `json:"currentPeriodStart" db:"current_period_start"`
-	CurrentPeriodEnd     time.Time `json:"currentPeriodEnd" db:"current_period_end"`
-	CancelAtPeriodEnd    bool      `json:"cancelAtPeriodEnd" db:"cancel_at_period_end"`
-	CreatedAt            time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt            time.Time `json:"updatedAt" db:"updated_at"`
+	ID                   string     `json:"id" db:"id"`
+	UserID               string     `json:"userId" db:"user_id"`
+	PlanID               string     `json:"planId" db:"plan_id"`
+	Status               string     `json:"status" db:"status"`
+	PaddleSubscriptionID string     `json:"paddleSubscriptionId" db:"paddle_subscription_id"`
+	PaddleCustomerID     string     `json:"paddleCustomerId" db:"paddle_customer_id"`
+	CurrentPeriodStart   *time.Time `json:"currentPeriodStart" db:"current_period_start"`
+	CurrentPeriodEnd     *time.Time `json:"currentPeriodEnd" db:"current_period_end"`
+	CancelAtPeriodEnd    bool       `json:"cancelAtPeriodEnd" db:"cancel_at_period_end"`
+	CreatedAt            time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt            time.Time  `json:"updatedAt" db:"updated_at"`
 
 	// Enriched data
 	Plan *Plan `json:"plan,omitempty" db:"-"`
@@ -51,10 +51,10 @@ type Subscription struct {
 
 // Usage represents current usage for a specific resource
 type Usage struct {
-	UserID       string    `json:"userId" db:"user_id"`
-	ResourceType string    `json:"resourceType" db:"resource_type"`
-	CurrentCount int       `json:"currentCount" db:"current_count"`
-	ResetAt      time.Time `json:"resetAt" db:"reset_at"`
+	UserID       string     `json:"userId" db:"user_id"`
+	ResourceType string     `json:"resourceType" db:"resource_type"`
+	CurrentCount int        `json:"currentCount" db:"current_count"`
+	ResetAt      *time.Time `json:"resetAt" db:"reset_at"`
 }
 
 // Resource types

@@ -381,12 +381,14 @@ func (s *BillingService) SetUsage(ctx context.Context, userID, resourceType stri
 
 // SelectFreePlan initializes a free subscription for a new user
 func (s *BillingService) SelectFreePlan(ctx context.Context, userID string) error {
+	now := time.Now()
+	end := time.Now().AddDate(100, 0, 0)
 	sub := &models.Subscription{
 		UserID:             userID,
 		PlanID:             models.PlanStarter,
 		Status:             "active",
-		CurrentPeriodStart: time.Now(),
-		CurrentPeriodEnd:   time.Now().AddDate(100, 0, 0), // Essentially permanent for free
+		CurrentPeriodStart: &now,
+		CurrentPeriodEnd:   &end, // Essentially permanent for free
 	}
 
 	err := s.repo.UpsertSubscription(ctx, sub)
@@ -450,12 +452,12 @@ func (s *BillingService) HandleLemonSqueezyWebhook(ctx context.Context, body []b
 			PlanID:               planID,
 			Status:               payload.Data.Attributes.Status,
 			PaddleSubscriptionID: payload.Data.ID, // We reuse the field for LS ID
-			CurrentPeriodEnd:     payload.Data.Attributes.RenewsAt,
+			CurrentPeriodEnd:     &payload.Data.Attributes.RenewsAt,
 		}
 
 		// If it's cancelled but not yet expired, ends_at might be set
 		if payload.Data.Attributes.Status == "cancelled" && payload.Data.Attributes.EndsAt != nil {
-			sub.CurrentPeriodEnd = *payload.Data.Attributes.EndsAt
+			sub.CurrentPeriodEnd = payload.Data.Attributes.EndsAt
 		}
 
 		err := s.repo.UpsertSubscription(ctx, sub)
