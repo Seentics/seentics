@@ -261,7 +261,7 @@ export default function HeatmapViewPage() {
 
            <div className="h-8 w-px bg-white/5" />
 
-           <div className="flex flex gap-2 items-center">
+           <div className="flex gap-2 items-center">
              <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Viewport</span>
              <Tabs value={device} onValueChange={(v: any) => setDevice(v)} className="bg-black/40 p-1 rounded-lg border border-white/5">
                 <TabsList className="h-8 bg-transparent p-0 gap-1">
@@ -372,8 +372,13 @@ export default function HeatmapViewPage() {
                     <HeatmapOverlay 
                         points={points} 
                         width={deviceWidth} 
-                        height={dimensions.height} 
+                        height={dimensions.height}
+                        totalWidth={dimensions.width}
+                        totalHeight={dimensions.height}
+                        scrollTop={scrollPos.top}
+                        scrollLeft={scrollPos.left}
                         opacity={opacity[0] / 100}
+                        type={activeType}
                     />
                     
                     {loading && (

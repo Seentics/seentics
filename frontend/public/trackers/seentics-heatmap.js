@@ -53,6 +53,16 @@
     };
 
     /**
+     * Detect device type based on screen width
+     */
+    const getDeviceType = () => {
+      const width = w.innerWidth;
+      if (width < 768) return 'mobile';
+      if (width < 1024) return 'tablet';
+      return 'desktop';
+    };
+
+    /**
      * Add point to buffer
      */
     const addPoint = (type, x, y) => {
@@ -61,6 +71,7 @@
         x: x,
         y: y,
         url: w.location.pathname,
+        device_type: getDeviceType(),
         timestamp: Math.floor(Date.now() / 1000)
       });
 
