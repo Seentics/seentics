@@ -223,7 +223,35 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 		return &c
 	}
 
+	// Calculate pages per session for both periods
+	currentPagesPerSession := 0.0
+	if current.Sessions > 0 {
+		currentPagesPerSession = float64(current.PageViews) / float64(current.Sessions)
+	}
+	previousPagesPerSession := 0.0
+	if previous.Sessions > 0 {
+		previousPagesPerSession = float64(previous.PageViews) / float64(previous.Sessions)
+	}
+
 	return &models.ComparisonMetrics{
+		CurrentPeriod: models.DashboardMetrics{
+			PageViews:       current.PageViews,
+			TotalVisitors:   current.TotalVisitors,
+			UniqueVisitors:  current.UniqueVisitors,
+			Sessions:        current.Sessions,
+			BounceRate:      current.BounceRate,
+			AvgSessionTime:  current.AvgSessionTime,
+			PagesPerSession: currentPagesPerSession,
+		},
+		PreviousPeriod: models.DashboardMetrics{
+			PageViews:       previous.PageViews,
+			TotalVisitors:   previous.TotalVisitors,
+			UniqueVisitors:  previous.UniqueVisitors,
+			Sessions:        previous.Sessions,
+			BounceRate:      previous.BounceRate,
+			AvgSessionTime:  previous.AvgSessionTime,
+			PagesPerSession: previousPagesPerSession,
+		},
 		TotalVisitorChange: calcInt(current.TotalVisitors, previous.TotalVisitors),
 		VisitorChange:      calcInt(current.UniqueVisitors, previous.UniqueVisitors),
 		PageviewChange:     calcInt(current.PageViews, previous.PageViews),
