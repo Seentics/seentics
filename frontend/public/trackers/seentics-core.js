@@ -33,7 +33,10 @@
     sessionStart: null,
     lastActivity: Date.now(),
     eventQueue: [],
-    isProcessing: false
+    isProcessing: false,
+    retryCount: 0,
+    retryDelay: 1000, // Initial delay: 1 second
+    maxRetryDelay: 60000 // Max delay: 60 seconds
   };
 
   // Event emitter for inter-module communication
@@ -216,6 +219,10 @@
         await api.batch(eventsToSend);
         eventEmitter.emit('queue:flushed', { count: eventsToSend.length });
         
+        // Reset retry backoff on success
+        state.retryCount = 0;
+        state.retryDelay = 1000;
+        
         // Clear any persisted failed events on success
         try {
           localStorage.removeItem('seentics_failed_events');
@@ -233,7 +240,23 @@
           if (config.debug) console.warn('[Seentics] Failed to persist events', e);
         }
         
-        eventEmitter.emit('queue:error', { error });
+        // Implement exponential backoff
+        state.retryCount++;
+        state.retryDelay = Math.min(
+          state.retryDelay * 2,
+          state.maxRetryDelay
+        );
+        
+        if (config.debug) {
+          console.warn(`[Seentics] Retry #${state.retryCount}, next attempt in ${state.retryDelay}ms`);
+        }
+        
+        // Schedule retry with exponential backoff
+        setTimeout(() => {
+          queue.flush();
+        }, state.retryDelay);
+        
+        eventEmitter.emit('queue:error', { error, retryCount: state.retryCount, retryDelay: state.retryDelay });
       } finally {
         state.isProcessing = false;
       }
@@ -333,6 +356,44 @@
     eventEmitter.emit('core:ready', { config, state });
   };
 
+  // Script integrity verification
+  const integrity = {
+    verify: async (scriptUrl, expectedHash) => {
+      try {
+        const response = await fetch(scriptUrl);
+        const scriptContent = await response.text();
+        
+        // Calculate SHA-256 hash
+        const msgBuffer = new TextEncoder().encode(scriptContent);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        
+        if (expectedHash && hashHex !== expectedHash) {
+          console.error('[Seentics] Script integrity check failed!');
+          return false;
+        }
+        
+        if (config.debug) {
+          console.log(`[Seentics] Script integrity verified: ${scriptUrl}`);
+        }
+        return true;
+      } catch (error) {
+        if (config.debug) {
+          console.warn('[Seentics] Integrity check failed:', error);
+        }
+        return false;
+      }
+    },
+    
+    // Generate CSP nonce for inline scripts
+    generateNonce: () => {
+      const array = new Uint8Array(16);
+      crypto.getRandomValues(array);
+      return btoa(String.fromCharCode(...array));
+    }
+  };
+
   // Public API
   w.SEENTICS_CORE = {
     version: '2.0',
@@ -344,6 +405,7 @@
     api,
     queue,
     page,
+    integrity,
     on: eventEmitter.on,
     emit: eventEmitter.emit,
     off: eventEmitter.off,

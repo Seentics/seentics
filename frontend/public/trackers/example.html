@@ -5,12 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Seentics Tracking - Example</title>
   
+  <!-- Content Security Policy (CSP) for enhanced security -->
+  <!-- Update the script-src hash values after generating them for your domain -->
+  <meta http-equiv="Content-Security-Policy" 
+        content="default-src 'self'; 
+                 script-src 'self' 'unsafe-inline' https://your-api-domain.com; 
+                 connect-src 'self' https://your-api-domain.com; 
+                 img-src 'self' data: https:; 
+                 style-src 'self' 'unsafe-inline';">
+  
   <!-- Seentics Tracking Scripts (New Consolidated Version) -->
   <!-- Core is required, load modules as needed -->
-  <script src="/trackers/seentics-core.js" data-website-id="YOUR_WEBSITE_ID" data-debug="true"></script>
-  <script src="/trackers/seentics-analytics.js"></script>
-  <script src="/trackers/seentics-automation.js"></script>
-  <script src="/trackers/seentics-funnels.js"></script>
+  <!-- Add integrity="sha256-HASH" attributes in production for tamper detection -->
+  <script src="/trackers/seentics-core.js" 
+          data-website-id="YOUR_WEBSITE_ID" 
+          data-debug="true"
+          crossorigin="anonymous"></script>
+  <script src="/trackers/seentics-analytics.js" 
+          crossorigin="anonymous"></script>
+  <script src="/trackers/seentics-automation.js" 
+          crossorigin="anonymous"></script>
+  <script src="/trackers/seentics-funnels.js" 
+          crossorigin="anonymous"></script>
   
   <style>
     body {
