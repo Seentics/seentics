@@ -99,7 +99,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
 
   if (isLoading) {
     return (
-      <div className="space-y-4 h-[400px]">
+      <div className="space-y-4 h-[500px]">
         {[...Array(6)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse text-muted">
              <div className="flex items-center space-x-4 flex-1">
@@ -172,7 +172,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   };
 
   return (
-    <div className="h-[400px] flex flex-col">
+    <div className="h-[500px] flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
            <div className="space-y-1">
