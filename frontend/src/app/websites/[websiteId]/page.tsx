@@ -577,18 +577,16 @@ export default function WebsiteDashboardPage() {
             {/* Campaign Intelligence */}
             <Card className="rounded bg-card/50 overflow-hidden">
               <CardHeader className="p-8 pb-6 border-b border-border/40">
-                <div className="flex flex-col space-y-4">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg font-bold tracking-tight">Campaign Intelligence</CardTitle>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">UTM Source & Performance</p>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div className="space-y-1 min-w-0 shrink-0">
+                    <CardTitle className="text-lg font-bold tracking-tight whitespace-nowrap">Campaign Intelligence</CardTitle>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50 whitespace-nowrap">UTM Source & Performance</p>
                   </div>
-                  <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full">
-                    <TabsList className="grid w-full grid-cols-5 h-11 bg-muted/20 p-1 rounded">
+                  <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto shrink-0">
+                    <TabsList className="grid w-full grid-cols-3 h-11 bg-muted/20 p-1 rounded">
                       <TabsTrigger value="sources" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Sources</TabsTrigger>
                       <TabsTrigger value="mediums" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Mediums</TabsTrigger>
                       <TabsTrigger value="campaigns" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Campaigns</TabsTrigger>
-                      <TabsTrigger value="terms" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Terms</TabsTrigger>
-                      <TabsTrigger value="content" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Content</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
