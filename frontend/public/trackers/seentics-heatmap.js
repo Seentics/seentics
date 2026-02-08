@@ -31,7 +31,8 @@
       flushInterval: 5000, // 5 seconds
       lastMoveTime: 0,
       moveThreshold: 150, // 150ms between move captures
-      lastUrl: w.location.href
+      lastUrl: w.location.href,
+      samplingRate: 0.1 // Sample 10% of mousemove events (configurable)
     };
 
     /**
@@ -146,10 +147,13 @@
       }
     }, { passive: true });
 
-    // Capture movements
+    // Capture movements with sampling
     d.addEventListener('mousemove', (e) => {
       const now = Date.now();
       if (now - heatmapState.lastMoveTime < heatmapState.moveThreshold) return;
+      
+      // Random sampling to reduce data volume
+      if (Math.random() > heatmapState.samplingRate) return;
       
       heatmapState.lastMoveTime = now;
       const coords = getNormalizedCoords(e);

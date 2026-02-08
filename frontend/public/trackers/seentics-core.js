@@ -215,14 +215,44 @@
       try {
         await api.batch(eventsToSend);
         eventEmitter.emit('queue:flushed', { count: eventsToSend.length });
+        
+        // Clear any persisted failed events on success
+        try {
+          localStorage.removeItem('seentics_failed_events');
+        } catch (e) {}
       } catch (error) {
-        // Re-add failed events
+        // Re-add failed events to queue
         state.eventQueue.unshift(...eventsToSend);
+        
+        // Persist failed events to localStorage for retry
+        try {
+          const persistedEvents = JSON.parse(localStorage.getItem('seentics_failed_events') || '[]');
+          const combined = [...persistedEvents, ...eventsToSend].slice(-100); // Keep last 100
+          localStorage.setItem('seentics_failed_events', JSON.stringify(combined));
+        } catch (e) {
+          if (config.debug) console.warn('[Seentics] Failed to persist events', e);
+        }
+        
         eventEmitter.emit('queue:error', { error });
       } finally {
         state.isProcessing = false;
       }
-    }, 1000)
+    }, 1000),
+    
+    // Restore failed events from localStorage
+    restore: () => {
+      try {
+        const persistedEvents = JSON.parse(localStorage.getItem('seentics_failed_events') || '[]');
+        if (persistedEvents.length > 0) {
+          state.eventQueue.unshift(...persistedEvents);
+          if (config.debug) {
+            console.log(`[Seentics] Restored ${persistedEvents.length} failed events`);
+          }
+        }
+      } catch (e) {
+        if (config.debug) console.warn('[Seentics] Failed to restore events', e);
+      }
+    }
   };
 
   // Page tracking
@@ -277,6 +307,9 @@
 
     session.init();
 
+    // Restore any failed events from localStorage
+    queue.restore();
+
     // Auto-flush queue before page unload
     w.addEventListener('beforeunload', () => {
       if (state.eventQueue.length > 0) {
@@ -291,9 +324,9 @@
       }
     }, 5000);
 
-    // Activity tracking
+    // Activity tracking (passive listeners for better performance)
     ['click', 'scroll', 'mousemove', 'keydown'].forEach(event => {
-      d.addEventListener(event, utils.debounce(session.updateActivity, 1000));
+      d.addEventListener(event, utils.debounce(session.updateActivity, 1000), { passive: true });
     });
 
     flags.isReady = true;

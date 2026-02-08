@@ -151,15 +151,33 @@
       const formData = {};
       const inputs = form.querySelectorAll('input, select, textarea');
       
+      // Sensitive field patterns to exclude
+      const sensitivePatterns = [
+        /password/i,
+        /credit[_-]?card/i,
+        /cc[_-]?number/i,
+        /cvv/i,
+        /ssn/i,
+        /social[_-]?security/i,
+        /routing[_-]?number/i,
+        /account[_-]?number/i,
+        /pin/i,
+        /tax[_-]?id/i
+      ];
+      
       inputs.forEach(input => {
-        // Skip sensitive fields like passwords
-        if (input.type === 'password' || input.name.toLowerCase().includes('password')) return;
+        const fieldName = input.name || input.id || input.tagName.toLowerCase();
         
-        const name = input.name || input.id || input.tagName.toLowerCase();
+        // Skip sensitive fields
+        if (input.type === 'password' || 
+            sensitivePatterns.some(pattern => pattern.test(fieldName))) {
+          return;
+        }
+        
         if (input.type === 'checkbox' || input.type === 'radio') {
-          if (input.checked) formData[name] = input.value;
+          if (input.checked) formData[fieldName] = input.value;
         } else {
-          formData[name] = input.value;
+          formData[fieldName] = input.value;
         }
       });
 
@@ -211,7 +229,12 @@
 
     // SPA navigation support
     let lastPath = w.location.pathname;
-    setInterval(() => {
+    
+    // Use History API detection instead of polling
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    
+    const handleNavigation = () => {
       if (w.location.pathname !== lastPath) {
         lastPath = w.location.pathname;
         analytics.pageLoadTime = Date.now();
@@ -219,7 +242,20 @@
         analytics.timeOnPage = 0;
         trackPageView();
       }
-    }, 100);
+    };
+    
+    history.pushState = function(...args) {
+      originalPushState.apply(this, args);
+      handleNavigation();
+    };
+    
+    history.replaceState = function(...args) {
+      originalReplaceState.apply(this, args);
+      handleNavigation();
+    };
+    
+    // Handle browser back/forward
+    w.addEventListener('popstate', handleNavigation);
   };
 
   // Initialize
