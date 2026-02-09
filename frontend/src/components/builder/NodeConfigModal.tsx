@@ -202,6 +202,24 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
     },
   });
 
+  // Declare all refs at top level to comply with React Hooks rules
+  const modalTitleRef = useRef<HTMLInputElement>(null);
+  const modalContentRef = useRef<HTMLTextAreaElement>(null);
+  const modalButtonRef = useRef<HTMLInputElement>(null);
+  const bannerContentRef = useRef<HTMLTextAreaElement>(null);
+  const bannerButtonRef = useRef<HTMLInputElement>(null);
+  const notificationTitleRef = useRef<HTMLInputElement>(null);
+  const notificationMessageRef = useRef<HTMLTextAreaElement>(null);
+  const recipientRef = useRef<HTMLInputElement>(null);
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const emailSubjectRef = useRef<HTMLInputElement>(null);
+  const emailBodyRef = useRef<HTMLTextAreaElement>(null);
+  const scriptCodeRef = useRef<HTMLTextAreaElement>(null);
+  const webhookUrlRef = useRef<HTMLInputElement>(null);
+  const redirectUrlRef = useRef<HTMLInputElement>(null);
+  const hideElementSelectorRef = useRef<HTMLInputElement>(null);
+
   const updateConfig = (key: string, value: any) => {
     setLocalData(prev => ({
       ...prev,
@@ -623,10 +641,6 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
 
     // Email Action
     if (node.type === 'actionNode' && subtype === 'email') {
-      const recipientRef = React.useRef<HTMLInputElement>(null);
-      const subjectRef = React.useRef<HTMLInputElement>(null);
-      const bodyRef = React.useRef<HTMLTextAreaElement>(null);
-      
       return (
         <div className="space-y-6">
           <div className="space-y-2">
@@ -728,10 +742,6 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
 
     // Modal Action
     if (node.type === 'actionNode' && subtype === 'modal') {
-      const modalTitleRef = useRef<HTMLInputElement>(null);
-      const modalContentRef = useRef<HTMLTextAreaElement>(null);
-      const modalButtonRef = useRef<HTMLInputElement>(null);
-      
       return (
         <div className="space-y-6">
           <div className="space-y-2">
@@ -799,9 +809,6 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
 
     // Banner Action
     if (node.type === 'actionNode' && subtype === 'banner') {
-      const bannerContentRef = useRef<HTMLTextAreaElement>(null);
-      const bannerButtonRef = useRef<HTMLInputElement>(null);
-      
       return (
         <div className="space-y-6">
           <div className="space-y-2">
@@ -901,9 +908,6 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
 
     // Notification (Toast) Action
     if (node.type === 'actionNode' && subtype === 'notification') {
-      const notificationTitleRef = useRef<HTMLInputElement>(null);
-      const notificationMessageRef = useRef<HTMLTextAreaElement>(null);
-      
       return (
         <div className="space-y-6">
           <div className="space-y-2">

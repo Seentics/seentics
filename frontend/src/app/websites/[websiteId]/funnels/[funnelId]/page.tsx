@@ -48,7 +48,8 @@ export default function FunnelDetailsPage() {
     const dropoffRate = 100 - (stats.conversionRate || 0);
 
     return (
-        <div className="space-y-6">
+        <div className="min-h-screen bg-background">
+            <div className="container max-w-7xl mx-auto py-8 px-4 space-y-6">
             {/* Header */}
             <DashboardPageHeader
                 title={funnel.name}
@@ -276,7 +277,8 @@ export default function FunnelDetailsPage() {
                         </table>
                     </div>
                 </CardContent>
-            </Card>
+                </Card>
+            </div>
         </div>
     );
 }

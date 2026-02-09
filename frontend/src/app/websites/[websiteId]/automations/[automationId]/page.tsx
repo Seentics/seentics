@@ -67,7 +67,8 @@ export default function AutomationDetailsPage() {
         : actionIcons.default;
 
     return (
-        <div className="space-y-6">
+        <div className="min-h-screen bg-background">
+            <div className="container max-w-7xl mx-auto py-8 px-4 space-y-6">
             {/* Header */}
             <DashboardPageHeader
                 title={automation.name}
@@ -302,7 +303,8 @@ export default function AutomationDetailsPage() {
                         </div>
                     </div>
                 </CardContent>
-            </Card>
+                </Card>
+            </div>
         </div>
     );
 }

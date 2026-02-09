@@ -72,7 +72,7 @@ export const WorkflowBuilder = ({
 
       addNode(newNode);
     },
-    [addNode]
+    [addNode, nodes]
   );
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);

@@ -58,18 +58,18 @@ func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, orig
 
 	// 4. Check heatmap page limit
 	if plan.MaxHeatmaps > 0 && len(req.Points) > 0 {
-		count, _ := s.repo.CountHeatmapPages(context.Background(), w.SiteID)
+		count, _ := s.repo.CountHeatmapPages(context.Background(), w.ID.String())
 		if count >= plan.MaxHeatmaps {
 			// Check if the URL from the first point already exists
 			url := req.Points[0].URL
-			exists, _ := s.repo.HeatmapExistsForURL(context.Background(), w.SiteID, url)
+			exists, _ := s.repo.HeatmapExistsForURL(context.Background(), w.ID.String(), url)
 			if !exists {
 				return fmt.Errorf("heatmap limit reached (%d/%d pages). upgrade for more heatmap pages", count, plan.MaxHeatmaps)
 			}
 		}
 	}
 
-	return s.repo.RecordHeatmap(context.Background(), w.SiteID, req.Points)
+	return s.repo.RecordHeatmap(context.Background(), w.ID.String(), req.Points)
 }
 
 type heatmapService struct {
@@ -106,7 +106,7 @@ func (s *heatmapService) validateOwnership(ctx context.Context, websiteID string
 		return "", fmt.Errorf("unauthorized access to website data")
 	}
 
-	return w.SiteID, nil
+	return w.ID.String(), nil
 }
 
 func (s *heatmapService) GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time, userID string) ([]models.HeatmapPoint, error) {
