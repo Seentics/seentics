@@ -85,19 +85,19 @@ export const WorkflowBuilder = ({
       />
       
       <div 
-        className="relative flex-1 flex" 
+        className="relative flex-1 flex overflow-hidden" 
         onDrop={onDrop}
         onDragOver={onDragOver}
       >
-        {/* Central Linear Builder */}
+        {/* List-Based Builder */}
         <LinearBuilder />
         
         {/* Sidebar */}
-        <div className="w-[380px] h-full border-l border-slate-800 bg-gray-800/50 backdrop-blur-xl">
+        <div className="w-[340px] h-full border-l border-slate-800 bg-slate-900/50 backdrop-blur-xl">
            <EnhancedBuilderSidebar />
         </div>
 
-        {/* Configuration Modal - Replaces the Side Panel */}
+        {/* Configuration Modal */}
         {selectedNode && (
           <NodeConfigModal 
             node={selectedNode} 

@@ -74,6 +74,7 @@ type AutomationCondition struct {
 	AutomationID    string    `json:"automationId" db:"automation_id"`
 	ConditionType   string    `json:"conditionType" db:"condition_type"`
 	ConditionConfig JSONB     `json:"conditionConfig" db:"condition_config"`
+	OrderIndex      int       `json:"orderIndex" db:"order_index"`
 	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
 }
 
@@ -120,4 +121,65 @@ type UpdateAutomationRequest struct {
 	IsActive      *bool                  `json:"isActive"`
 	Actions       *[]AutomationAction    `json:"actions"`
 	Conditions    *[]AutomationCondition `json:"conditions"`
+}
+
+// Test automation models
+type TestAutomationResult struct {
+	Success    bool                  `json:"success"`
+	Message    string                `json:"message"`
+	Trigger    *TestTriggerResult    `json:"trigger,omitempty"`
+	Conditions *TestConditionsResult `json:"conditions,omitempty"`
+	Actions    *TestActionsResult    `json:"actions,omitempty"`
+}
+
+type TestTriggerResult struct {
+	Matched bool   `json:"matched"`
+	Message string `json:"message"`
+}
+
+type TestConditionsResult struct {
+	Total   int                   `json:"total"`
+	Passed  int                   `json:"passed"`
+	Failed  int                   `json:"failed"`
+	Details []TestConditionDetail `json:"details"`
+}
+
+type TestConditionDetail struct {
+	Index   int    `json:"index"`
+	Type    string `json:"type"`
+	Passed  bool   `json:"passed"`
+	Message string `json:"message"`
+}
+
+type TestActionsResult struct {
+	Total    int                `json:"total"`
+	Executed int                `json:"executed"`
+	Details  []TestActionDetail `json:"details"`
+}
+
+type TestActionDetail struct {
+	Index    int    `json:"index"`
+	Type     string `json:"type"`
+	WouldRun bool   `json:"wouldRun"`
+	Message  string `json:"message"`
+}
+
+type TestAutomationRequest struct {
+	Automation struct {
+		ID      string `json:"id"`
+		Name    string `json:"name"`
+		Trigger struct {
+			Type   string                 `json:"type"`
+			Config map[string]interface{} `json:"config"`
+		} `json:"trigger"`
+		Conditions []struct {
+			Type   string                 `json:"type"`
+			Config map[string]interface{} `json:"config"`
+		} `json:"conditions"`
+		Actions []struct {
+			Type   string                 `json:"type"`
+			Config map[string]interface{} `json:"config"`
+		} `json:"actions"`
+	} `json:"automation"`
+	TestData map[string]interface{} `json:"testData"`
 }

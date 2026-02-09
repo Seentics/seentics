@@ -273,3 +273,56 @@ func (h *AutomationHandler) TrackExecution(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
+
+// TestAutomation godoc
+// @Summary Test an automation with sample data
+// @Tags automations
+// @Accept json
+// @Produce json
+// @Param test_request body models.TestAutomationRequest true "Test data"
+// @Success 200 {object} models.TestAutomationResult
+// @Router /api/automations/test [post]
+func (h *AutomationHandler) TestAutomation(c *gin.Context) {
+	var req models.TestAutomationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Convert request to automation model for testing
+	automation := &models.Automation{
+		ID:            req.Automation.ID,
+		Name:          req.Automation.Name,
+		TriggerType:   req.Automation.Trigger.Type,
+		TriggerConfig: req.Automation.Trigger.Config,
+		Conditions:    []models.AutomationCondition{},
+		Actions:       []models.AutomationAction{},
+	}
+
+	// Convert conditions
+	for i, cond := range req.Automation.Conditions {
+		automation.Conditions = append(automation.Conditions, models.AutomationCondition{
+			ConditionType:   cond.Type,
+			ConditionConfig: cond.Config,
+			OrderIndex:      i,
+		})
+	}
+
+	// Convert actions
+	for i, action := range req.Automation.Actions {
+		automation.Actions = append(automation.Actions, models.AutomationAction{
+			ActionType:   action.Type,
+			ActionConfig: action.Config,
+			OrderIndex:   i,
+		})
+	}
+
+	// Run test
+	result, err := h.service.TestAutomation(c.Request.Context(), automation, req.TestData)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
+}

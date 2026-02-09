@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"="width=device-width, initial-scale=1.0">
+  <title>Automation Test - Real Website</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    .website-header {
+      background: white;
+      border-bottom: 1px solid #e2e8f0;
+      padding: 16px 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo {
+      font-size: 24px;
+      font-weight: 700;
+      color: #667eea;
+    }
+    .nav-links {
+      display: flex;
+      gap: 32px;
+    }
+    .nav-links a {
+      color: #64748b;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover {
+      color: #667eea;
+    }
+    .hero {
+      max-width: 1200px;
+      margin: 80px auto;
+      padding: 0 24px;
+      text-align: center;
+    }
+    .hero h1 {
+      font-size: 56px;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 20px;
+      color: #64748b;
+      margin-bottom: 40px;
+      line-height: 1.6;
+    }
+    .cta-buttons {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+    .btn {
+      padding: 14px 32px;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+    }
+    .btn-secondary {
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+    .features {
+      max-width: 1200px;
+      margin: 120px auto;
+      padding: 0 24px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 32px;
+      margin-top: 60px;
+    }
+    .feature-card {
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+      transition: all 0.3s;
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+    }
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+    .feature-card h3 {
+      font-size: 22px;
+      margin-bottom: 12px;
+      color: #1e293b;
+    }
+    .feature-card p {
+      color: #64748b;
+      line-height: 1.6;
+    }
+    .test-indicator {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      z-index: 200;
+      border: 2px solid #667eea;
+      min-width: 280px;
+    }
+    .test-indicator-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #667eea;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+    .test-indicator-message {
+      font-size: 14px;
+      color: #1e293b;
+      line-height: 1.4;
+    }
+    .test-progress {
+      width: 100%;
+      height: 4px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .test-progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      width: 0%;
+      transition: width 0.5s ease;
+    }
+    .automation-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.3s ease;
+    }
+    .automation-modal.visible {
+      display: flex;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 20px;
+      padding: 48px;
+      max-width: 600px;
+      width: 90%;
+      box-shadow: 0 25px 70px rgba(0,0,0,0.3);
+      animation: slideUp 0.4s ease;
+      position: relative;
+    }
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: #f1f5f9;
+      border: none;
+      border-radius: 8px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      color: #64748b;
+      transition: all 0.2s;
+    }
+    .modal-close:hover {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+    .modal-icon {
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin: 0 auto 24px;
+    }
+    .modal-title {
+      font-size: 32px;
+      font-weight: 800;
+      margin-bottom: 16px;
+      text-align: center;
+      color: #1e293b;
+    }
+    .modal-text {
+      font-size: 18px;
+      color: #64748b;
+      margin-bottom: 32px;
+      line-height: 1.6;
+      text-align: center;
+    }
+    .modal-button {
+      width: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+    .modal-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px rgba(102, 126, 234, 0.4);
+    }
+    .automation-banner {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 20px;
+      text-align: center;
+      font-weight: 600;
+      font-size: 16px;
+      z-index: 999;
+      animation: slideDown 0.4s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .automation-banner.visible {
+      display: block;
+    }
+    .scroll-indicator {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: white;
+      padding: 12px 20px;
+      border-radius: 30px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      font-size: 14px;
+      font-weight: 600;
+      color: #667eea;
+      z-index: 100;
+    }
+    .footer {
+      background: #1e293b;
+      color: white;
+      padding: 60px 24px;
+      margin-top: 120px;
+    }
+    .section-title {
+      font-size: 42px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #1e293b;
+    }
+    .section-subtitle {
+      text-align: center;
+      font-size: 18px;
+      color: #64748b;
+      margin-bottom: 60px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-100%); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <header class="website-header">
+    <div class="header-content">
+      <div class="logo">🚀 TestSite</div>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#about">About</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="test-indicator" id="test-indicator">
+    <div class="test-indicator-title">🧪 Automation Test</div>
+    <div class="test-indicator-message" id="test-message">Waiting for test to start...</div>
+    <div class="test-progress">
+      <div class="test-progress-bar" id="test-progress-bar"></div>
+    </div>
+  </div>
+
+  <div class="scroll-indicator" id="scroll-indicator">
+    Scroll: <span id="scroll-percentage">0</span>%
+  </div>
+
+  <section class="hero">
+    <h1>Build Amazing Products with Our Platform</h1>
+    <p>The ultimate solution for modern teams. Boost productivity, streamline workflows, and achieve more with our powerful tools and integrations.</p>
+    <div class="cta-buttons">
+      <button class="btn btn-primary" id="cta-primary">Get Started Free</button>
+      <button class="btn btn-secondary" id="cta-secondary">Watch Demo</button>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <h2 class="section-title">Powerful Features</h2>
+    <p class="section-subtitle">Everything you need to succeed, all in one place</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">⚡</div>
+        <h3>Lightning Fast</h3>
+        <p>Experience blazing fast performance with our optimized infrastructure and global CDN.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔒</div>
+        <h3>Secure by Default</h3>
+        <p>Enterprise-grade security with end-to-end encryption and compliance certifications.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎨</div>
+        <h3>Beautiful Design</h3>
+        <p>Stunning interfaces designed with user experience at the forefront.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="features" style="margin-top: 100px;">
+    <h2 class="section-title">Why Choose Us?</h2>
+    <p class="section-subtitle">Join thousands of satisfied customers worldwide</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <h3>24/7 Support</h3>
+        <p>Our dedicated team is always here to help you succeed.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Easy Integration</h3>
+        <p>Connect with your favorite tools in just a few clicks.</p>
+      </div>
+      <div class="feature-card">
+        <h3>Regular Updates</h3>
+        <p>New features and improvements delivered continuously.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div style="max-width: 1200px; margin: 0 auto; text-align: center;">
+      <div class="logo" style="font-size: 32px; margin-bottom: 16px;">🚀 TestSite</div>
+      <p style="color: #94a3b8; margin-bottom: 8px;">© 2026 TestSite. All rights reserved.</p>
+      <p style="color: #64748b; font-size: 14px;">This is a realistic test environment for automation testing.</p>
+    </div>
+  </footer>
+
+  <div class="automation-modal" id="automation-modal">
+    <div class="modal-content">
+      <button class="modal-close" id="modal-close">✕</button>
+      <div class="modal-icon" id="modal-icon">📢</div>
+      <h2 class="modal-title" id="modal-title">Modal Title</h2>
+      <p class="modal-text" id="modal-text">Modal content goes here</p>
+      <button class="modal-button" id="modal-button">Close</button>
+    </div>
+  </div>
+
+  <div class="automation-banner" id="automation-banner"></div>
+
+  <script>
+    let currentStep = 0;
+    let totalSteps = 0;
+    let scrollDepth = 0;
+    let timeOnPage = 0;
+    let pageLoadTime = Date.now();
+
+    function updateScrollDepth() {
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      const maxScroll = documentHeight - windowHeight;
+      scrollDepth = maxScroll > 0 ? Math.round((scrollTop / maxScroll) * 100) : 0;
+      document.getElementById('scroll-percentage').textContent = scrollDepth;
+    }
+
+    window.addEventListener('scroll', updateScrollDepth);
+    setInterval(() => {
+      timeOnPage = Math.floor((Date.now() - pageLoadTime) / 1000);
+    }, 1000);
+
+    function logStep(step, status, message) {
+      updateTestIndicator(message, status);
+      updateProgress();
+      window.parent.postMessage({
+        type: 'EXECUTION_STEP',
+        step,
+        status,
+        message,
+        timestamp: new Date().toISOString()
+      }, '*');
+    }
+
+    function updateTestIndicator(message, status = 'running') {
+      const indicator = document.getElementById('test-message');
+      indicator.textContent = message;
+      if (status === 'success') {
+        indicator.style.color = '#10b981';
+      } else if (status === 'failed') {
+        indicator.style.color = '#ef4444';
+      } else {
+        indicator.style.color = '#1e293b';
+      }
+    }
+
+    function updateProgress() {
+      const progress = totalSteps > 0 ? (currentStep / totalSteps) * 100 : 0;
+      document.getElementById('test-progress-bar').style.width = progress + '%';
+    }
+
+    function showModal(title, content, icon = '📢') {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('automation-modal');
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-text').textContent = content;
+        document.getElementById('modal-icon').textContent = icon;
+        modal.classList.add('visible');
+        
+        const closeHandler = () => {
+          modal.classList.remove('visible');
+          document.getElementById('modal-button').removeEventListener('click', closeHandler);
+          document.getElementById('modal-close').removeEventListener('click', closeHandler);
+          setTimeout(resolve, 300);
+        };
+        
+        document.getElementById('modal-button').addEventListener('click', closeHandler);
+        document.getElementById('modal-close').addEventListener('click', closeHandler);
+      });
+    }
+
+    function showBanner(message, bgColor = '#667eea', duration = 3000) {
+      return new Promise((resolve) => {
+        const banner = document.getElementById('automation-banner');
+        banner.textContent = message;
+        banner.style.background = bgColor;
+        banner.style.color = 'white';
+        banner.classList.add('visible');
+        setTimeout(() => {
+          banner.classList.remove('visible');
+          setTimeout(resolve, 300);
+        }, duration);
+      });
+    }
+
+    function simulateRedirect(url) {
+      logStep(currentStep, 'success', 'Redirecting to: ' + url);
+      document.body.style.transition = 'opacity 0.5s';
+      document.body.style.opacity = '0';
+      setTimeout(() => {
+        updateTestIndicator('✅ Would redirect to: ' + url, 'success');
+        document.body.style.opacity = '1';
+      }, 500);
+    }
+
+    function simulateEmail(to, subject) {
+      logStep(currentStep, 'success', 'Email sent to ' + to + ' - "' + subject + '"');
+      return showBanner('✉️ Email Sent: ' + subject, '#10b981', 2500);
+    }
+
+    async function simulateWebhook(url, payload) {
+      logStep(currentStep, 'running', 'Calling webhook: ' + url);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      logStep(currentStep, 'success', 'Webhook called successfully');
+      return showBanner('🔗 Webhook triggered', '#8b5cf6', 2000);
+    }
+
+    function evaluateTrigger(trigger) {
+      currentStep++;
+      logStep(currentStep, 'running', 'Checking trigger: ' + trigger.type);
+      let triggerMet = false;
+      
+      switch(trigger.type) {
+        case 'page_view':
+          triggerMet = true;
+          break;
+        case 'button_click':
+          triggerMet = true;
+          break;
+        case 'scroll_depth':
+          triggerMet = scrollDepth >= (trigger.depth || 0);
+          break;
+        case 'time_on_page':
+          triggerMet = timeOnPage >= (trigger.seconds || 0);
+          break;
+        default:
+          triggerMet = true;
+      }
+      
+      if (triggerMet) {
+        logStep(currentStep, 'success', '✓ Trigger met: ' + trigger.type);
+      } else {
+        logStep(currentStep, 'failed', '✗ Trigger not met: ' + trigger.type);
+      }
+      
+      return triggerMet;
+    }
+
+    function evaluateCondition(condition) {
+      currentStep++;
+      logStep(currentStep, 'running', 'Evaluating condition: ' + condition.type);
+      let conditionMet = false;
+      
+      switch(condition.type) {
+        case 'url_contains':
+          conditionMet = window.location.href.includes(condition.value || '');
+          break;
+        case 'device_type':
+          const isMobile = window.innerWidth <= 768;
+          conditionMet = condition.value === (isMobile ? 'mobile' : 'desktop');
+          break;
+        default:
+          conditionMet = true;
+      }
+      
+      if (conditionMet) {
+        logStep(currentStep, 'success', '✓ Condition met: ' + condition.type);
+      } else {
+        logStep(currentStep, 'failed', '✗ Condition not met: ' + condition.type);
+      }
+      
+      return conditionMet;
+    }
+
+    async function executeAction(action) {
+      currentStep++;
+      logStep(currentStep, 'running', 'Executing action: ' + action.type);
+      
+      try {
+        switch(action.type) {
+          case 'show_modal':
+            await showModal(
+              action.title || 'Notification',
+              action.content || 'This is a test modal',
+              action.icon || '📢'
+            );
+            break;
+          case 'show_banner':
+            await showBanner(
+              action.message || 'Banner message',
+              action.bgColor || '#667eea',
+              action.duration || 3000
+            );
+            break;
+          case 'redirect':
+            simulateRedirect(action.url || '/');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            break;
+          case 'send_email':
+            await simulateEmail(
+              action.to || 'user@example.com',
+              action.subject || 'Automated Email'
+            );
+            break;
+          case 'call_webhook':
+            await simulateWebhook(
+              action.url || 'https://api.example.com/webhook',
+              action.payload || {}
+            );
+            break;
+          default:
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        logStep(currentStep, 'success', '✓ Action completed: ' + action.type);
+        return true;
+      } catch (error) {
+        logStep(currentStep, 'failed', '✗ Action failed: ' + error.message);
+        return false;
+      }
+    }
+
+    async function runAutomationTest(config) {
+      currentStep = 0;
+      totalSteps = 1;
+      if (config.conditions) totalSteps += config.conditions.length;
+      if (config.actions) totalSteps += config.actions.length;
+      
+      logStep(0, 'running', '🚀 Starting automation test: "' + config.name + '"');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const triggerMet = evaluateTrigger(config.trigger);
+      if (!triggerMet) {
+        logStep(currentStep + 1, 'failed', '❌ Test stopped: Trigger not met');
+        window.parent.postMessage({ type: 'TEST_COMPLETE', success: false }, '*');
+        return;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      if (config.conditions && config.conditions.length > 0) {
+        for (const condition of config.conditions) {
+          const conditionMet = evaluateCondition(condition);
+          if (!conditionMet) {
+            logStep(currentStep + 1, 'failed', '❌ Test stopped: Condition not met');
+            window.parent.postMessage({ type: 'TEST_COMPLETE', success: false }, '*');
+            return;
+          }
+          await new Promise(resolve => setTimeout(resolve, 800));
+        }
+      }
+      
+      if (config.actions && config.actions.length > 0) {
+        for (const action of config.actions) {
+          const success = await executeAction(action);
+          if (!success) {
+            logStep(currentStep + 1, 'failed', '❌ Test stopped: Action failed');
+            window.parent.postMessage({ type: 'TEST_COMPLETE', success: false }, '*');
+            return;
+          }
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+      
+      logStep(currentStep + 1, 'success', '✅ Automation test completed successfully!');
+      await showBanner('🎉 Test Passed - All steps executed!', '#10b981', 3000);
+      window.parent.postMessage({ type: 'TEST_COMPLETE', success: true }, '*');
+    }
+
+    window.addEventListener('message', (event) => {
+      if (event.data.type === 'START_AUTOMATION_TEST') {
+        runAutomationTest(event.data.config);
+      }
+    });
+
+    document.getElementById('cta-primary').addEventListener('click', (e) => {
+      e.preventDefault();
+      showBanner('🎯 CTA Button Clicked!', '#667eea', 2000);
+    });
+
+    document.getElementById('cta-secondary').addEventListener('click', (e) => {
+      e.preventDefault();
+      showBanner('📺 Demo Request Received!', '#8b5cf6', 2000);
+    });
+
+    window.addEventListener('load', () => {
+      updateScrollDepth();
+      window.parent.postMessage({ type: 'SANDBOX_READY' }, '*');
+      console.log('🎯 Automation test sandbox loaded and ready');
+    });
+  </script>
+</body>
+</html>

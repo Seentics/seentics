@@ -285,7 +285,11 @@ export default function AutomationsPage() {
                                         const successRate = auto.stats?.successRate || 0;
 
                                         return (
-                                            <tr key={auto.id} className="hover:bg-muted/10 transition-colors group">
+                                            <tr 
+                                                key={auto.id} 
+                                                className="hover:bg-muted/10 transition-colors group cursor-pointer"
+                                                onClick={() => router.push(`/websites/${websiteId}/automations/${auto.id}`)}
+                                            >
                                                 <td className="px-6 py-6 min-w-[300px]">
                                                     <div className="flex items-center gap-4">
                                                         <div className="w-12 h-12 rounded bg-card dark:bg-card/50 border border-border flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
@@ -350,7 +354,7 @@ export default function AutomationsPage() {
                                                         {auto.isActive ? 'active' : 'paused'}
                                                     </Badge>
                                                 </td>
-                                                <td className="px-6 py-6 text-right">
+                                                <td className="px-6 py-6 text-right" onClick={(e) => e.stopPropagation()}>
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
                                                             <Button variant="ghost" size="icon" className="h-9 w-9 rounded hover:bg-muted">

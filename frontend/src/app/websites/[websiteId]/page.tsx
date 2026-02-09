@@ -71,8 +71,7 @@ export default function WebsiteDashboardPage() {
   const [showAddWebsiteModal, setShowAddWebsiteModal] = useState(false);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
 
-
-    // Filter state
+  // Filter state
   const [dateRange, setDateRange] = useState<number>(7);
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
@@ -487,7 +486,7 @@ export default function WebsiteDashboardPage() {
               </SelectContent>
             </Select>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <FilterModal 
                 dateRange={dateRange}
                 isCustomRange={isCustomRange}
@@ -497,11 +496,6 @@ export default function WebsiteDashboardPage() {
                 onCustomDateChange={handleCustomDateChange}
                 onFiltersChange={setAdvancedFilters}
                 activeFiltersCount={Object.keys(advancedFilters).length}
-              />
-              <DataImportExportModal
-                websiteId={websiteId}
-                websiteName={currentWebsite?.name || 'website'}
-                dateRange={dateRange}
               />
             </div>
         </DashboardPageHeader>

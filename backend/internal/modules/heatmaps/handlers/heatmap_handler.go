@@ -38,14 +38,17 @@ func (h *HeatmapHandler) RecordHeatmap(c *gin.Context) {
 		return
 	}
 
-	h.logger.Debug().Int("points", len(req.Points)).Msg("Recording heatmap data")
+	h.logger.Debug().Int("points", len(req.Points)).Str("website_id", req.WebsiteID).Msg("Recording heatmap data")
 
 	origin := c.Request.Header.Get("Origin")
 	if origin == "" {
 		origin = c.Request.Header.Get("Referer")
 	}
 
+	h.logger.Debug().Str("origin", origin).Str("website_id", req.WebsiteID).Msg("Heatmap request origin")
+
 	if err := h.service.RecordHeatmapData(req, origin); err != nil {
+		h.logger.Error().Err(err).Str("website_id", req.WebsiteID).Str("origin", origin).Msg("Failed to record heatmap")
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return
 	}

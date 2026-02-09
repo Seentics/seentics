@@ -252,6 +252,12 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
   saveAutomation: async (websiteId, automationId) => {
     try {
       const workflow = get().getLinearizedWorkflow();
+      
+      // Validate: at least one action is required
+      if (!workflow.actions || workflow.actions.length === 0) {
+        throw new Error('At least one action is required to save the automation. Please add an action from the sidebar.');
+      }
+      
       const url = automationId
         ? `/websites/${websiteId}/automations/${automationId}`
         : `/websites/${websiteId}/automations`;
@@ -314,8 +320,67 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
   },
 
   testAutomation: async (testData) => {
-    // Current implementation placeholder as per original
-    return { success: true };
+    try {
+      const { automation, nodes } = get();
+      
+      // Validate workflow structure
+      const triggerNodes = nodes.filter(n => n.type === 'triggerNode');
+      const conditionNodes = nodes.filter(n => n.type === 'conditionNode');
+      const actionNodes = nodes.filter(n => n.type === 'actionNode');
+      
+      if (triggerNodes.length === 0) {
+        throw new Error('No trigger node found');
+      }
+      if (actionNodes.length === 0) {
+        throw new Error('No action nodes found');
+      }
+      
+      // Prepare test payload
+      const testPayload = {
+        automation: {
+          id: automation.id,
+          name: automation.name,
+          trigger: {
+            type: triggerNodes[0].data.config?.triggerType || 'pageView',
+            config: triggerNodes[0].data.config || {}
+          },
+          conditions: conditionNodes.map(node => ({
+            type: node.data.config?.conditionType || 'page_match',
+            config: node.data.config || {}
+          })),
+          actions: actionNodes.map(node => ({
+            type: node.data.config?.actionType || 'modal',
+            config: node.data.config || {}
+          }))
+        },
+        testData: testData || {
+          page_url: window.location.href,
+          visitor_id: 'test_visitor_' + Date.now(),
+          session_id: 'test_session_' + Date.now(),
+          timestamp: new Date().toISOString()
+        }
+      };
+      
+      // Make API call to test endpoint
+      const response = await fetch(`/api/automations/test`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(testPayload)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Test execution failed');
+      }
+      
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Failed to test automation:', error);
+      throw error;
+    }
   },
 
   loadTemplate: (templateId) => {

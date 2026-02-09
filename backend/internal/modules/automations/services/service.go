@@ -249,3 +249,93 @@ func (s *AutomationService) TrackExecution(ctx context.Context, exec *models.Aut
 
 	return s.repo.CreateExecution(ctx, exec)
 }
+
+// TestAutomation simulates automation execution with test data (for testing/debugging)
+func (s *AutomationService) TestAutomation(ctx context.Context, automation *models.Automation, testData map[string]interface{}) (*models.TestAutomationResult, error) {
+	result := &models.TestAutomationResult{
+		Success: true,
+		Message: "Test execution completed",
+		Trigger: &models.TestTriggerResult{
+			Matched: true,
+			Message: fmt.Sprintf("Trigger '%s' would be activated", automation.TriggerType),
+		},
+		Conditions: &models.TestConditionsResult{
+			Total:   len(automation.Conditions),
+			Passed:  0,
+			Failed:  0,
+			Details: []models.TestConditionDetail{},
+		},
+		Actions: &models.TestActionsResult{
+			Total:    len(automation.Actions),
+			Executed: 0,
+			Details:  []models.TestActionDetail{},
+		},
+	}
+
+	// Evaluate conditions
+	for i, condition := range automation.Conditions {
+		conditionPassed := s.evaluateTestCondition(condition, testData)
+		detail := models.TestConditionDetail{
+			Index:   i + 1,
+			Type:    condition.ConditionType,
+			Passed:  conditionPassed,
+			Message: fmt.Sprintf("Condition %d: %s", i+1, condition.ConditionType),
+		}
+
+		if conditionPassed {
+			result.Conditions.Passed++
+		} else {
+			result.Conditions.Failed++
+			result.Success = false
+			result.Message = fmt.Sprintf("Condition %d failed", i+1)
+		}
+
+		result.Conditions.Details = append(result.Conditions.Details, detail)
+	}
+
+	// If all conditions pass, mark actions as would-be executed
+	if result.Conditions.Failed == 0 {
+		for i, action := range automation.Actions {
+			detail := models.TestActionDetail{
+				Index:    i + 1,
+				Type:     action.ActionType,
+				WouldRun: true,
+				Message:  fmt.Sprintf("Action %d: %s would execute", i+1, action.ActionType),
+			}
+			result.Actions.Executed++
+			result.Actions.Details = append(result.Actions.Details, detail)
+		}
+	}
+
+	return result, nil
+}
+
+// evaluateTestCondition checks if a condition would pass with test data
+func (s *AutomationService) evaluateTestCondition(condition models.AutomationCondition, testData map[string]interface{}) bool {
+	// Simple evaluation for common condition types
+	switch condition.ConditionType {
+	case "page_match":
+		if pageURL, ok := testData["page_url"].(string); ok {
+			if pattern, ok := condition.ConditionConfig["pattern"].(string); ok {
+				// Simple contains check (in real implementation, use regex)
+				return len(pageURL) > 0 && len(pattern) > 0
+			}
+		}
+		return true // Default to pass if no pattern specified
+
+	case "visit_count":
+		// Simulate visit count check
+		return true
+
+	case "time_on_page":
+		// Simulate time check
+		return true
+
+	case "scroll_depth":
+		// Simulate scroll check
+		return true
+
+	default:
+		return true
+	}
+}

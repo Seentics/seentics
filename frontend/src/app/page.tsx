@@ -8,6 +8,7 @@ import AutomationWorkflows from '@/components/landing/AutomationWorkflows';
 import ImportExportSection from '@/components/landing/ImportExportSection';
 import VisionSection from '@/components/landing/VisionSection';
 import Features from '@/components/landing/Features';
+import Comparison from '@/components/landing/Comparison';
 import Pricing from '@/components/landing/Pricing';
 import { LifetimeDeal } from '@/components/landing/LifetimeDeal';
 import FAQ from '@/components/landing/FAQ';
@@ -20,6 +21,7 @@ export default function LandingPage() {
       <main>
         <Hero /> 
         <div className="relative">
+          <Comparison />
           <Features />
           <AutomationWorkflows />
           <Pricing />

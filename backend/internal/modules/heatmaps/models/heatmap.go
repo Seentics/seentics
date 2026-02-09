@@ -7,15 +7,15 @@ import (
 
 type HeatmapPoint struct {
 	WebsiteID  string    `json:"website_id" db:"website_id"`
-	URL        string    `json:"url" db:"url"`                 // Frontend uses "url"
-	Type       string    `json:"type" db:"type"`               // Frontend uses "type" - 'click' or 'move'
+	URL        string    `json:"url" db:"page_path"`           // Frontend uses "url", DB uses "page_path"
+	Type       string    `json:"type" db:"event_type"`         // Frontend uses "type", DB uses "event_type"
 	DeviceType string    `json:"device_type" db:"device_type"` // 'desktop', 'tablet', 'mobile'
 	XPercent   int       `json:"x_percent" db:"x_percent"`     // X coordinate (0-1000 range)
 	YPercent   int       `json:"y_percent" db:"y_percent"`     // Y coordinate (0-1000 range)
 	X          int       `json:"x" db:"x"`                     // Alias for frontend compatibility
 	Y          int       `json:"y" db:"y"`                     // Alias for frontend compatibility
 	Intensity  int       `json:"intensity" db:"intensity"`
-	LastSeen   time.Time `json:"last_seen" db:"last_seen"`
+	LastSeen   time.Time `json:"last_seen" db:"last_updated"` // DB uses "last_updated"
 }
 
 // UnmarshalJSON handles both "x"/"y" and "x_percent"/"y_percent" from frontend

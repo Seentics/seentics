@@ -153,24 +153,35 @@ export default function HeatmapsPage() {
         </div>
       </DashboardPageHeader>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {[
-          { title: 'Pages Tracked', value: pages.length, icon: Activity, color: 'text-primary' },
-          { title: 'Total Recordings', value: pages.reduce((acc, p) => acc + p.views, 0), icon: Eye, color: 'text-blue-500' },
-          { title: 'Interaction Pulse', value: 'High', icon: Zap, color: 'text-amber-500' },
-          { title: 'Avg. Engagement', value: '74%', icon: Target, color: 'text-emerald-500' }
-        ].map((stat, i) => (
-          <Card key={i} className="bg-card/50 shadow-sm border-border/40 group overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50">{stat.title}</span>
-              <stat.icon className={cn("h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity", stat.color)} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-black tracking-tight">{stat.value}</div>
-            </CardContent>
-            <div className={cn("absolute bottom-0 left-0 h-1 bg-current opacity-10 w-full", stat.color.replace('text-', 'bg-'))} />
-          </Card>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <StatsCard 
+          title="Total Pages" 
+          value={pages.length} 
+          icon={Activity} 
+          description="Tracked pages"
+          color="primary"
+        />
+        <StatsCard 
+          title="Live Tracking" 
+          value={pages.filter(p => p.active).length} 
+          icon={Zap} 
+          description="Active in real-time"
+          color="green"
+        />
+        <StatsCard 
+          title="30d Interactions" 
+          value={pages.reduce((acc, p) => acc + p.clicks, 0)} 
+          icon={MousePointerClick} 
+          description="Total clicks recorded"
+          color="blue"
+        />
+        <StatsCard 
+          title="Avg. Scroll Depth" 
+          value={pages.length > 0 ? `${Math.round(pages.reduce((acc, p) => acc + p.avg_scroll, 0) / pages.length)}%` : '0%'} 
+          icon={Target} 
+          description="User engagement"
+          color="purple"
+        />
       </div>
 
       <Card className="bg-card/50 border-border/40 overflow-hidden shadow-sm shadow-black/5">
@@ -280,5 +291,39 @@ export default function HeatmapsPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function StatsCard({ title, value, icon: Icon, description, color = 'primary' }: any) {
+  const colorClasses: Record<string, string> = {
+    primary: 'text-primary bg-primary/10',
+    green: 'text-green-500 bg-green-500/10',
+    blue: 'text-blue-500 bg-blue-500/10',
+    purple: 'text-purple-500 bg-purple-500/10',
+  };
+
+  const formatNumber = (num: number) => {
+    return num.toLocaleString();
+  };
+
+  return (
+    <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card dark:bg-gray-800/50 rounded overflow-hidden border border-muted-foreground/5 flex flex-col justify-between">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardDescription className="font-black text-[10px] uppercase tracking-widest text-muted-foreground">{title}</CardDescription>
+          <div className={`p-2 rounded ${colorClasses[color]}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+        <CardTitle className="text-2xl font-black text-slate-900 dark:text-white mt-2">
+          {typeof value === 'number' ? formatNumber(value) : value}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="flex items-center gap-2">
+          <p className="text-[11px] font-bold text-muted-foreground">{description}</p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

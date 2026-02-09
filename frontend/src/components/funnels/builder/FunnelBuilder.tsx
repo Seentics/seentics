@@ -31,6 +31,7 @@ import {
 import { useFunnel, useCreateFunnel, useUpdateFunnel } from '@/lib/funnels-api';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FunnelTestSandbox } from './FunnelTestSandbox';
 import Link from 'next/link';
 
 export const FunnelBuilder = () => {
@@ -42,6 +43,7 @@ export const FunnelBuilder = () => {
     const isEditMode = searchParams?.get('mode') === 'edit' || !!funnelId;
     const { toast } = useToast();
 
+    const [showTestSandbox, setShowTestSandbox] = useState(false);
     const { data: existingFunnel, isLoading: loadingFunnel } = useFunnel(websiteId, funnelId || '');
     const createFunnel = useCreateFunnel();
     const updateFunnel = useUpdateFunnel();
@@ -130,213 +132,235 @@ export const FunnelBuilder = () => {
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex h-screen w-full bg-slate-50 dark:bg-slate-900 overflow-hidden flex-col">
-            {/* Toolbar */}
-            <div className="h-20 border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl px-8 flex items-center justify-between z-20">
-                <div className="flex items-center gap-6">
+        <div className="fixed inset-0 z-[100] flex h-screen w-full bg-slate-50 dark:bg-slate-950 overflow-hidden flex-col">
+            {/* Clean Modern Toolbar */}
+            <div className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 flex items-center justify-between z-20 shadow-sm">
+                <div className="flex items-center gap-4">
                     <Link href={`/websites/${websiteId}/funnels`}>
-                        <Button variant="ghost" size="icon" className="group rounded hover:bg-primary/10 transition-colors">
-                            <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+                            <ArrowLeft className="h-5 w-5" />
                         </Button>
                     </Link>
-                    <div className="h-8 w-[2px] bg-muted-foreground/10 rounded-full" />
-                    <div className="flex flex-col">
+                    <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-700" />
+                    <div>
                         <input
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="bg-transparent border-none text-2xl font-black tracking-tight leading-none focus:outline-none focus:ring-0 placeholder:opacity-30"
-                            placeholder="Unnamed Path..."
+                            className="bg-transparent border-none text-lg font-semibold focus:outline-none focus:ring-0 placeholder:text-slate-400"
+                            placeholder="Funnel Name"
                         />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Architecture Studio</p>
+                        <p className="text-xs text-slate-500">Conversion Path Builder</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                    <Button
+                        variant="outline"
+                        className="h-9 px-4 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800"
+                        onClick={() => setShowTestSandbox(true)}
+                        disabled={steps.length < 2}
+                    >
+                        <Activity className="h-4 w-4 mr-2" />
+                        Test Funnel
+                    </Button>
                     <Link href={`/websites/${websiteId}/funnels`}>
-                        <Button variant="ghost" className="rounded font-black uppercase tracking-widest text-xs h-12 px-8 border border-transparent hover:border-muted-foreground/10">
+                        <Button variant="ghost" className="h-9 px-4">
                             Cancel
                         </Button>
                     </Link>
                     <Button
-                        variant="brand"
-                        className="rounded h-12 px-10 font-black uppercase tracking-widest shadow-xl shadow-primary/20 gap-3"
+                        className="h-9 px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
                         onClick={handleSave}
                         disabled={createFunnel.isPending || updateFunnel.isPending}
                     >
-                        {createFunnel.isPending || updateFunnel.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
-                        {funnelId ? 'Update Funnel' : 'Launch Funnel'}
+                        {createFunnel.isPending || updateFunnel.isPending ? (
+                            <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Saving...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="h-4 w-4 mr-2" />
+                                {funnelId ? 'Update' : 'Save'} Funnel
+                            </>
+                        )}
                     </Button>
                 </div>
             </div>
 
-            <div className="flex flex-1 overflow-hidden">
-                <div className="flex-1 h-full relative overflow-hidden flex flex-col items-center bg-slate-50 dark:bg-slate-950">
-                    <ScrollArea className="w-full h-full relative">
-                        <div className="max-w-3xl mx-auto py-20 px-10 flex flex-col pb-60">
-                            {/* Visual Header */}
-                            <div className="flex flex-col items-center gap-4 mb-16 opacity-50">
-                                <div className="w-12 h-12 rounded-full border-2 border-dashed border-primary flex items-center justify-center">
-                                    <Activity className="w-6 h-6 text-primary" strokeWidth={1.5} />
-                                </div>
-                                <div className="h-10 w-[2px] bg-gradient-to-b from-primary to-transparent" />
-                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary italic">Traffic Injection Point</p>
-                            </div>
-
-                            <div className="space-y-0 relative">
-                                {steps.map((step, index) => (
-                                    <div key={step.id} className="relative">
-                                        {index > 0 && (
-                                            <div className="flex flex-col items-center -my-2 relative z-10 pointer-events-none">
-                                                <div className="h-12 w-[3px] bg-primary/20 rounded-full" />
-                                                <div className="p-2 rounded-full bg-white dark:bg-slate-900 border-2 border-primary/20 shadow-lg text-primary">
-                                                    <ChevronRight size={14} strokeWidth={3} />
-                                                </div>
-                                                <div className="h-12 w-[3px] bg-primary/30 rounded-full" />
-                                            </div>
-                                        )}
-                                        <Card className="group relative border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card/80 dark:bg-gray-800/80 backdrop-blur-xl rounded border border-muted-foreground/5 overflow-hidden hover:scale-[1.01] transition-all">
-                                            <div className="absolute top-0 left-0 w-1.5 h-full bg-primary" />
-                                            <CardContent className="p-8">
-                                                <div className="flex items-start gap-6">
-                                                    <div className="h-14 w-14 rounded bg-primary text-white flex items-center justify-center font-black text-xl shadow-xl shadow-primary/20">
-                                                        {index + 1}
-                                                    </div>
-                                                    <div className="flex-1 space-y-6">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="space-y-1">
-                                                                <input
-                                                                    value={step.name}
-                                                                    onChange={(e) => updateStep(step.id, { name: e.target.value })}
-                                                                    className="bg-transparent border-none text-xl font-black leading-none focus:outline-none focus:ring-0 placeholder:opacity-30 tracking-tight p-0"
-                                                                    placeholder="Node Designation..."
-                                                                />
-                                                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Stage Configuration</p>
-                                                            </div>
-                                                            {steps.length > 1 && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="icon"
-                                                                    className="rounded h-10 w-10 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                                    onClick={() => deleteStep(step.id)}
-                                                                >
-                                                                    <Trash2 size={18} />
-                                                                </Button>
-                                                            )}
-                                                        </div>
-
-                                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                                            <div className="space-y-3">
-                                                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">Event Archetype</Label>
-                                                                <Select 
-                                                                    value={step.type} 
-                                                                    onValueChange={(val) => updateStep(step.id, { 
-                                                                        type: val,
-                                                                        name: val === 'page_view' ? 'Entry Point' : 'Action Trigger'
-                                                                    })}
-                                                                >
-                                                                    <SelectTrigger className="h-12 rounded bg-muted/30 border-none font-bold tracking-tight">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent className="rounded border-muted-foreground/10">
-                                                                        <SelectItem value="page_view" className="font-bold py-3">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <MousePointer className="w-4 h-4" />
-                                                                                Page Reach
-                                                                            </div>
-                                                                        </SelectItem>
-                                                                        <SelectItem value="event" className="font-bold py-3">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <Zap className="w-4 h-4" />
-                                                                                Custom Pulse
-                                                                            </div>
-                                                                        </SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-
-                                                            <div className="space-y-3">
-                                                                <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 ml-1">
-                                                                    {step.type === 'page_view' ? 'Destination Path' : 'Event Key'}
-                                                                </Label>
-                                                                <Input
-                                                                    placeholder={step.type === 'page_view' ? 'e.g., /checkout' : 'e.g., btn_click'}
-                                                                    value={step.value}
-                                                                    onChange={(e) => updateStep(step.id, { value: e.target.value })}
-                                                                    className="h-12 rounded bg-muted/30 border-none font-bold focus-visible:ring-primary/20"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="mt-16 flex flex-col items-center gap-6">
-                                <div className="h-12 w-[2px] bg-gradient-to-b from-primary/30 to-transparent" />
-                                <div className="flex items-center gap-4">
-                                    <Button 
-                                        variant="outline" 
-                                        className="h-14 rounded px-10 font-black uppercase tracking-widest border-2 border-primary/20 hover:border-primary hover:bg-primary/5 text-primary gap-3 shadow-xl shadow-primary/5 transition-all" 
-                                        onClick={() => addStep('page_view')}
-                                    >
-                                        <PlusCircle size={20} />
-                                        Append Node
-                                    </Button>
-                                    <Button 
-                                        variant="ghost" 
-                                        className="h-14 rounded px-6 font-black uppercase tracking-widest text-muted-foreground hover:bg-muted-foreground/5 gap-3"
-                                    >
-                                        <GitBranch size={20} />
-                                        Logical Split
-                                    </Button>
-                                </div>
-                                <div className="mt-8 px-6 py-3 rounded-full bg-slate-900 border border-white/5 shadow-2xl">
-                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-3">
-                                        <Target className="w-3 h-3 text-primary animate-pulse" />
-                                        Finalizing Conversion Core
-                                    </p>
-                                </div>
-                            </div>
+            <div className="flex-1 overflow-hidden">
+                <ScrollArea className="h-full">
+                    <div className="max-w-4xl mx-auto py-12 px-6">
+                        {/* Header Info */}
+                        <div className="mb-8 text-center">
+                            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+                                Build Your Conversion Funnel
+                            </h2>
+                            <p className="text-slate-600 dark:text-slate-400">
+                                Add steps to track user journey from entry to conversion
+                            </p>
                         </div>
-                    </ScrollArea>
-                </div>
 
-                {/* Live Preview Sidebar */}
-                <div className="w-[400px] border-l bg-white dark:bg-slate-900 z-10 hidden xl:flex flex-col">
-                    <div className="p-8 border-b">
-                        <h4 className="text-xl font-black uppercase tracking-tighter mb-1">Architecture Preview</h4>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60">Real-time Path Simulation</p>
-                    </div>
-                    <ScrollArea className="flex-1 p-8">
-                        <div className="space-y-4">
-                            {steps.map((s, i) => (
-                                <div key={s.id} className="flex items-center gap-4">
-                                    <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center font-black italic text-xs text-primary">
-                                        {i + 1}
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-[11px] font-black uppercase tracking-tight truncate">{s.name || 'Unnamed Stage'}</p>
-                                        <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest leading-none">
-                                            {s.type === 'page_view' ? 'REACH' : 'ACT'} → {s.value || 'None'}
+                        {/* Steps List */}
+                        <div className="space-y-4 mb-8">
+                            {steps.map((step, index) => (
+                                <div key={step.id}>
+                                    {index > 0 && (
+                                        <div className="flex justify-center py-2">
+                                            <div className="flex items-center gap-2 text-slate-400">
+                                                <div className="h-8 w-0.5 bg-slate-300 dark:bg-slate-700" />
+                                                <ChevronRight className="h-4 w-4" />
+                                                <div className="h-8 w-0.5 bg-slate-300 dark:bg-slate-700" />
+                                            </div>
+                                        </div>
+                                    )}
+                                    
+                                    <Card className="border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+                                        <CardContent className="p-6">
+                                            <div className="flex items-start gap-4">
+                                                {/* Step Number */}
+                                                <div className="h-12 w-12 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg flex-shrink-0">
+                                                    {index + 1}
+                                                </div>
+
+                                                {/* Step Content */}
+                                                <div className="flex-1 space-y-4">
+                                                    <div className="flex items-center justify-between">
+                                                        <input
+                                                            value={step.name}
+                                                            onChange={(e) => updateStep(step.id, { name: e.target.value })}
+                                                            className="bg-transparent border-none text-lg font-semibold text-slate-900 dark:text-white focus:outline-none focus:ring-0 placeholder:text-slate-400"
+                                                            placeholder="Step Name"
+                                                        />
+                                                        {steps.length > 1 && (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-9 w-9 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                                onClick={() => deleteStep(step.id)}
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div className="space-y-2">
+                                                            <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                                Step Type
+                                                            </Label>
+                                                            <Select 
+                                                                value={step.type} 
+                                                                onValueChange={(val) => updateStep(step.id, { 
+                                                                    type: val,
+                                                                    name: val === 'page_view' ? 'Page Visit' : 'Event Action'
+                                                                })}
+                                                            >
+                                                                <SelectTrigger className="h-10 border-slate-300 dark:border-slate-700">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="page_view">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <MousePointer className="w-4 h-4" />
+                                                                            Page View
+                                                                        </div>
+                                                                    </SelectItem>
+                                                                    <SelectItem value="event">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Zap className="w-4 h-4" />
+                                                                            Custom Event
+                                                                        </div>
+                                                                    </SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <Label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                                                {step.type === 'page_view' ? 'Page Path' : 'Event Name'}
+                                                            </Label>
+                                                            <Input
+                                                                placeholder={step.type === 'page_view' ? '/checkout' : 'button_clicked'}
+                                                                value={step.value}
+                                                                onChange={(e) => updateStep(step.id, { value: e.target.value })}
+                                                                className="h-10 border-slate-300 dark:border-slate-700"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Add Step Button */}
+                        <div className="flex justify-center">
+                            <Button 
+                                variant="outline" 
+                                className="h-12 px-8 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:text-emerald-600" 
+                                onClick={() => addStep('page_view')}
+                            >
+                                <PlusCircle className="h-5 w-5 mr-2" />
+                                Add Step
+                            </Button>
+                        </div>
+
+                        {/* Info Banner */}
+                        {steps.length < 2 && (
+                            <div className="mt-8 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+                                <div className="flex items-start gap-3">
+                                    <Target className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="font-medium text-amber-900 dark:text-amber-200">
+                                            At least 2 steps required
+                                        </p>
+                                        <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                                            Add more steps to create a complete conversion funnel that tracks user journey.
                                         </p>
                                     </div>
                                 </div>
-                            ))}
-                            {steps.length < 2 && (
-                                <div className="p-6 rounded bg-red-500/5 border border-red-500/10 text-red-500">
-                                    <p className="text-[10px] font-black uppercase tracking-widest">Invalid Topology</p>
-                                    <p className="text-[9px] mt-1 font-medium leading-relaxed opacity-80">
-                                        Conversion funnels require a minimum of two connected nodes to create a measurable flux path.
-                                    </p>
+                            </div>
+                        )}
+
+                        {/* Summary Card */}
+                        {steps.length >= 2 && (
+                            <div className="mt-8 p-6 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-lg">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <BarChart3 className="h-5 w-5 text-emerald-600" />
+                                    <h3 className="font-semibold text-slate-900 dark:text-white">Funnel Summary</h3>
                                 </div>
-                            )}
-                        </div>
-                    </ScrollArea>
-                </div>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600 dark:text-slate-400">Total Steps:</span>
+                                        <span className="font-medium text-slate-900 dark:text-white">{steps.length}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600 dark:text-slate-400">Entry Point:</span>
+                                        <span className="font-medium text-slate-900 dark:text-white">{steps[0]?.name || 'Not set'}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-slate-600 dark:text-slate-400">Conversion Goal:</span>
+                                        <span className="font-medium text-slate-900 dark:text-white">{steps[steps.length - 1]?.name || 'Not set'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
             </div>
+
+            <FunnelTestSandbox
+                isOpen={showTestSandbox}
+                onClose={() => setShowTestSandbox(false)}
+                funnel={{
+                    name: name,
+                    steps: steps
+                }}
+                websiteId={websiteId}
+            />
         </div>
     );
 };

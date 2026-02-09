@@ -243,7 +243,11 @@ export default function FunnelsPage() {
                                 </thead>
                                 <tbody className="divide-y divide-muted-foreground/5">
                                     {filteredFunnels.map((funnel) => (
-                                        <tr key={funnel.id} className="hover:bg-muted/10 transition-colors group">
+                                        <tr 
+                                            key={funnel.id} 
+                                            className="hover:bg-muted/10 transition-colors group cursor-pointer"
+                                            onClick={() => router.push(`/websites/${websiteId}/funnels/${funnel.id}`)}
+                                        >
                                             <td className="px-6 py-6 min-w-[300px]">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-12 h-12 rounded bg-card dark:bg-card/50 border border-border flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
@@ -288,7 +292,7 @@ export default function FunnelsPage() {
                                                     {funnel.isActive ? 'active' : 'idle'}
                                                 </Badge>
                                             </td>
-                                            <td className="px-6 py-6 text-right">
+                                            <td className="px-6 py-6 text-right" onClick={(e) => e.stopPropagation()}>
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>
                                                         <Button variant="ghost" size="icon" className="h-9 w-9 rounded hover:bg-muted">
@@ -298,7 +302,7 @@ export default function FunnelsPage() {
                                                     <DropdownMenuContent align="end" className="w-48 rounded p-2 border-muted-foreground/10 shadow-xl">
                                                         <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">Actions</DropdownMenuLabel>
                                                         <DropdownMenuItem 
-                                                            onClick={() => router.push(`/websites/${websiteId}/funnels/builder?id=${funnel.id}`)}
+                                                            onClick={() => router.push(`/websites/${websiteId}/funnels/${funnel.id}`)}
                                                             className="flex items-center gap-2 px-3 py-2 cursor-pointer font-bold text-sm text-slate-700 dark:text-slate-300"
                                                         >
                                                             <Eye className="h-4 w-4" /> View Details

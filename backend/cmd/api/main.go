@@ -341,6 +341,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 
 		v1.GET("/workflows/site/:website_id/active", autoHandler.GetActiveWorkflows)
 		v1.POST("/workflows/execution/action", autoHandler.TrackExecution)
+		v1.POST("/automations/test", autoHandler.TestAutomation)
 
 		funnels := v1.Group("/websites/:website_id/funnels")
 		{

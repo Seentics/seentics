@@ -1,7 +1,6 @@
 package services
 
 import (
-	billingModels "analytics-app/internal/modules/billing/models"
 	billingServicePkg "analytics-app/internal/modules/billing/services"
 	"analytics-app/internal/modules/heatmaps/models"
 	"analytics-app/internal/modules/heatmaps/repository"
@@ -23,41 +22,41 @@ func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, orig
 	// Validate website existence
 	w, err := s.websites.GetWebsiteBySiteID(context.Background(), req.WebsiteID)
 	if err != nil {
-		return fmt.Errorf("invalid website_id")
+		return fmt.Errorf("invalid website_id: %s", req.WebsiteID)
 	}
 
 	if !w.IsActive {
-		return fmt.Errorf("website is inactive")
+		return fmt.Errorf("website is inactive: %s", req.WebsiteID)
 	}
 
 	// 1. Domain Validation
 	if !s.websites.ValidateOriginDomain(origin, w.URL) {
-		return fmt.Errorf("domain mismatch")
+		return fmt.Errorf("domain mismatch: origin=%s, expected=%s", origin, w.URL)
 	}
 
-	// 2. Feature Toggle Check
-	if !w.HeatmapEnabled {
-		return fmt.Errorf("heatmap recording is disabled for this website")
-	}
-
-	// 3. Billing Check - Count heatmaps as a separate resource check
-	// We count a "session" of heatmap data as 1 toward the limit if it doesn't already exist for this URL
-	// But simpler: Check if user plane allows heatmaps at all
+	// 2. Billing Check - Check if user's plan allows heatmaps
 	sub, err := s.billing.GetSubscription(context.Background(), w.UserID.String())
 	if err != nil {
-		return fmt.Errorf("failed to verify subscription")
+		return fmt.Errorf("failed to verify subscription: %v", err)
 	}
 
-	plan := &billingModels.Plan{ID: billingModels.PlanStarter, MaxHeatmaps: 0}
-	if sub != nil && sub.Plan != nil {
-		plan = sub.Plan
+	// If no subscription found, default to starter (no heatmaps)
+	if sub == nil || sub.Plan == nil {
+		return fmt.Errorf("no active subscription found. please subscribe to a plan to enable heatmaps")
 	}
+
+	plan := sub.Plan
 
 	if plan.MaxHeatmaps == 0 {
-		return fmt.Errorf("heatmaps are not available on your current plan. please upgrade to enable this feature")
+		return fmt.Errorf("heatmaps not available on %s plan. upgrade to growth or higher to enable heatmaps", plan.Name)
 	}
 
-	// If MaxHeatmaps > 0, we should ideally check how many unique URLs have heatmap data for this website
+	// 3. Feature Toggle Check - Only check if explicitly disabled (manual override)
+	if !w.HeatmapEnabled {
+		return fmt.Errorf("heatmap recording is manually disabled for this website. enable it in settings")
+	}
+
+	// 4. Check heatmap page limit
 	if plan.MaxHeatmaps > 0 && len(req.Points) > 0 {
 		count, _ := s.repo.CountHeatmapPages(context.Background(), w.SiteID)
 		if count >= plan.MaxHeatmaps {
@@ -65,7 +64,7 @@ func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, orig
 			url := req.Points[0].URL
 			exists, _ := s.repo.HeatmapExistsForURL(context.Background(), w.SiteID, url)
 			if !exists {
-				return fmt.Errorf("heatmap limit reached for this website (%d/%d). please upgrade for more", count, plan.MaxHeatmaps)
+				return fmt.Errorf("heatmap limit reached (%d/%d pages). upgrade for more heatmap pages", count, plan.MaxHeatmaps)
 			}
 		}
 	}

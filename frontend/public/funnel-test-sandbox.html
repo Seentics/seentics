@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Funnel Test Sandbox</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: #333;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 50px;
+      max-width: 900px;
+      width: 100%;
+      box-shadow: 0 25px 70px rgba(0,0,0,0.3);
+      transition: all 0.5s ease;
+    }
+    
+    .step-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 40px;
+      padding-bottom: 30px;
+      border-bottom: 2px solid #f3f4f6;
+    }
+    
+    .step-dot {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-center;
+      font-weight: bold;
+      color: #9ca3af;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    .step-dot.active {
+      background: #10b981;
+      color: white;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+      transform: scale(1.2);
+    }
+    
+    .step-dot.completed {
+      background: #10b981;
+      color: white;
+    }
+    
+    .step-line {
+      width: 60px;
+      height: 3px;
+      background: #e5e7eb;
+      transition: all 0.3s ease;
+    }
+    
+    .step-line.completed {
+      background: #10b981;
+    }
+    
+    h1 {
+      font-size: 36px;
+      margin-bottom: 16px;
+      color: #1a202c;
+      text-align: center;
+    }
+    
+    .subtitle {
+      text-align: center;
+      font-size: 18px;
+      color: #6b7280;
+      margin-bottom: 40px;
+    }
+    
+    p {
+      font-size: 16px;
+      color: #4a5568;
+      margin-bottom: 24px;
+      line-height: 1.8;
+    }
+    
+    .status {
+      background: #f0fdf4;
+      border: 2px solid #10b981;
+      border-radius: 12px;
+      padding: 20px;
+      margin-top: 30px;
+    }
+    
+    .status-title {
+      font-weight: 700;
+      color: #059669;
+      margin-bottom: 10px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .status-message {
+      font-size: 14px;
+      color: #065f46;
+      line-height: 1.6;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #e5e7eb;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 20px;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+      width: 0%;
+      transition: width 0.5s ease;
+    }
+    
+    .cta-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 16px 40px;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 16px;
+      text-decoration: none;
+      margin-top: 30px;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 10px 30px rgba(16, 185, 129, 0.3);
+      transition: all 0.3s ease;
+    }
+    
+    .cta-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px rgba(16, 185, 129, 0.4);
+    }
+    
+    .step-info {
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-left: 4px solid #10b981;
+    }
+    
+    .step-name {
+      font-weight: 700;
+      color: #1f2937;
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+    
+    .step-type {
+      display: inline-block;
+      background: #10b981;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .container {
+      animation: fadeIn 0.5s ease;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+    
+    .step-dot.active {
+      animation: pulse 2s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="step-indicator" id="step-indicator">
+      <!-- Steps will be dynamically inserted here -->
+    </div>
+
+    <div class="step-info" id="step-info">
+      <div class="step-name" id="step-name">Waiting for funnel test...</div>
+      <span class="step-type" id="step-type">READY</span>
+    </div>
+
+    <h1 id="page-title">🎯 Funnel Flow Test</h1>
+    <p class="subtitle" id="page-subtitle">
+      Watch how users progress through your conversion funnel
+    </p>
+    
+    <p id="page-content">
+      This sandbox environment simulates a user's journey through your funnel steps.
+      Each step represents a key milestone in your conversion path.
+    </p>
+    
+    <div class="status">
+      <div class="status-title">Test Status</div>
+      <div class="status-message" id="status-message">
+        Ready to begin funnel simulation...
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+    </div>
+
+    <button class="cta-button" id="cta-button" style="display: none;">
+      Continue to Next Step
+    </button>
+  </div>
+
+  <script>
+    // Test mode flag
+    window.__SEENTICS_FUNNEL_TEST__ = true;
+    window.__CURRENT_STEP__ = -1;
+    window.__FUNNEL_STEPS__ = [];
+
+    function updateUI(stepIndex, step) {
+      const stepName = document.getElementById('step-name');
+      const stepType = document.getElementById('step-type');
+      const pageTitle = document.getElementById('page-title');
+      const pageSubtitle = document.getElementById('page-subtitle');
+      const pageContent = document.getElementById('page-content');
+      const statusMessage = document.getElementById('status-message');
+      const progressFill = document.getElementById('progress-fill');
+      const ctaButton = document.getElementById('cta-button');
+
+      if (step) {
+        stepName.textContent = step.name;
+        stepType.textContent = step.type === 'page_view' ? 'PAGE VIEW' : 'EVENT';
+        
+        if (step.type === 'page_view') {
+          pageTitle.textContent = `📄 ${step.name}`;
+          pageSubtitle.textContent = `Simulating page view: ${step.value}`;
+          pageContent.textContent = `Users who reach this page are at step ${stepIndex + 1} of ${window.__FUNNEL_STEPS__.length} in your conversion funnel. This step tracks visits to: ${step.value}`;
+        } else {
+          pageTitle.textContent = `⚡ ${step.name}`;
+          pageSubtitle.textContent = `Simulating event: ${step.value}`;
+          pageContent.textContent = `This step tracks when users perform the action: "${step.value}". This is a critical interaction point in your funnel.`;
+        }
+
+        const progress = ((stepIndex + 1) / window.__FUNNEL_STEPS__.length) * 100;
+        progressFill.style.width = `${progress}%`;
+        
+        statusMessage.textContent = `Step ${stepIndex + 1} of ${window.__FUNNEL_STEPS__.length}: ${step.name}`;
+        
+        // Show CTA button for next step
+        if (stepIndex < window.__FUNNEL_STEPS__.length - 1) {
+          ctaButton.style.display = 'inline-block';
+          ctaButton.textContent = 'Continue to Next Step →';
+        } else {
+          ctaButton.style.display = 'inline-block';
+          ctaButton.textContent = '🎉 Complete Funnel';
+        }
+      }
+
+      updateStepIndicator(stepIndex);
+    }
+
+    function updateStepIndicator(currentIndex) {
+      const container = document.getElementById('step-indicator');
+      container.innerHTML = '';
+
+      window.__FUNNEL_STEPS__.forEach((step, index) => {
+        if (index > 0) {
+          const line = document.createElement('div');
+          line.className = 'step-line';
+          if (index <= currentIndex) {
+            line.classList.add('completed');
+          }
+          container.appendChild(line);
+        }
+
+        const dot = document.createElement('div');
+        dot.className = 'step-dot';
+        dot.textContent = index + 1;
+        
+        if (index < currentIndex) {
+          dot.classList.add('completed');
+          dot.textContent = '✓';
+        } else if (index === currentIndex) {
+          dot.classList.add('active');
+        }
+        
+        container.appendChild(dot);
+      });
+    }
+
+    function progressToNextStep() {
+      const currentIndex = window.__CURRENT_STEP__;
+      const nextIndex = currentIndex + 1;
+
+      if (nextIndex >= window.__FUNNEL_STEPS__.length) {
+        // Funnel complete
+        document.getElementById('step-name').textContent = 'Funnel Completed!';
+        document.getElementById('step-type').textContent = 'SUCCESS';
+        document.getElementById('page-title').textContent = '🎉 Conversion Complete!';
+        document.getElementById('page-subtitle').textContent = 'User successfully completed all funnel steps';
+        document.getElementById('page-content').textContent = 'Congratulations! This user would have completed your entire conversion funnel. All steps were successfully tracked.';
+        document.getElementById('status-message').textContent = 'Funnel test completed successfully!';
+        document.getElementById('progress-fill').style.width = '100%';
+        document.getElementById('cta-button').style.display = 'none';
+        
+        window.parent.postMessage({
+          type: 'FUNNEL_COMPLETE'
+        }, '*');
+        return;
+      }
+
+      window.__CURRENT_STEP__ = nextIndex;
+      const step = window.__FUNNEL_STEPS__[nextIndex];
+      
+      updateUI(nextIndex, step);
+      
+      // Notify parent of progress
+      window.parent.postMessage({
+        type: 'STEP_PROGRESSED',
+        stepIndex: nextIndex
+      }, '*');
+    }
+
+    // Button click handler
+    document.getElementById('cta-button').addEventListener('click', () => {
+      progressToNextStep();
+    });
+
+    // Listen for test commands from parent
+    window.addEventListener('message', async (event) => {
+      if (event.data.type === 'START_FUNNEL_TEST') {
+        const { funnel } = event.data;
+        
+        window.__FUNNEL_STEPS__ = funnel.steps;
+        window.__CURRENT_STEP__ = -1;
+        
+        // Show initial state
+        document.getElementById('step-name').textContent = 'Starting Funnel Test...';
+        document.getElementById('step-type').textContent = 'INITIALIZING';
+        document.getElementById('page-title').textContent = '🎯 Funnel Test Started';
+        document.getElementById('page-subtitle').textContent = funnel.name;
+        document.getElementById('page-content').textContent = `Testing ${funnel.steps.length} step funnel. The test will simulate user progression through each step.`;
+        document.getElementById('status-message').textContent = 'Click the button below to progress through the funnel...';
+        document.getElementById('progress-fill').style.width = '0%';
+        
+        updateStepIndicator(-1);
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Auto-start first step
+        progressToNextStep();
+      }
+    });
+
+    // Notify parent that iframe is ready
+    window.parent.postMessage({
+      type: 'FUNNEL_TEST_READY'
+    }, '*');
+
+    console.log('🧪 Funnel Test Sandbox loaded and ready');
+  </script>
+</body>
+</html>

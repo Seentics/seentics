@@ -84,6 +84,36 @@
         case 'referrer':
           actualValue = d.referrer;
           break;
+        case 'page_views':
+          actualValue = S.state.pageViews || 1;
+          break;
+        case 'traffic_source':
+          const ref = d.referrer.toLowerCase();
+          if (!ref) {
+            actualValue = 'direct';
+          } else if (ref.includes('google') || ref.includes('bing')) {
+            actualValue = 'organic';
+          } else if (ref.includes('facebook') || ref.includes('twitter') || ref.includes('linkedin')) {
+            actualValue = 'social';
+          } else if (urlParams && (urlParams.get('utm_medium') === 'cpc' || urlParams.get('gclid'))) {
+            actualValue = 'paid';
+          } else {
+            actualValue = 'referral';
+          }
+          break;
+        case 'cookie':
+          const getCookie = (name) => {
+            const cookies = d.cookie.split(';');
+            for (let cookie of cookies) {
+              const [key, val] = cookie.trim().split('=');
+              if (key === name) return val;
+            }
+            return null;
+          };
+          actualValue = getCookie(condition.cookie_name);
+          if (operator === 'exists') return actualValue !== null;
+          if (operator === 'not_exists') return actualValue === null;
+          break;
       }
 
       if (!evaluateCondition(actualValue, operator, value)) return false;
@@ -125,9 +155,54 @@
   // Execute automation actions
   const executeActions = async (auto, triggerData = {}) => {
     const actions = auto.actions || [];
+    
+    // Track automation execution start
+    if (typeof S !== 'undefined' && S.track) {
+      S.track('automation_triggered', {
+        automation_id: auto.id,
+        automation_name: auto.name,
+        trigger_type: auto.triggerType || auto.trigger_type,
+        trigger_data: triggerData,
+        action_count: actions.length,
+        timestamp: Date.now()
+      });
+    }
+    
+    let successCount = 0;
+    let failureCount = 0;
+    
     for (const action of actions) {
       try {
         await executeAction(action, triggerData);
+        successCount++;
+      } catch (err) {
+        failureCount++;
+        console.error('[Seentics Automation] Action execution failed:', err);
+        
+        // Track failed action
+        if (typeof S !== 'undefined' && S.track) {
+          S.track('automation_action_failed', {
+            automation_id: auto.id,
+            action_type: action.actionType || action.action_type,
+            error: err.message || 'Unknown error'
+          });
+        }
+      }
+    }
+    
+    // Track automation execution complete
+    if (typeof S !== 'undefined' && S.track) {
+      S.track('automation_completed', {
+        automation_id: auto.id,
+        automation_name: auto.name,
+        status: failureCount === 0 ? 'success' : 'partial_failure',
+        success_count: successCount,
+        failure_count: failureCount,
+        total_actions: actions.length,
+        timestamp: Date.now()
+      });
+    }
+  };
       } catch (error) {
         if (S.config.debug) console.error('[Seentics Automation] Action failed:', error);
       }
@@ -145,20 +220,131 @@
   };
 
   // Execute single action
+  // Variable replacement system
+  const replaceVariables = (text, data = {}) => {
+    if (!text || typeof text !== 'string') return text;
+    
+    const getUserData = () => ({
+      user_id: S.state.userId || S.state.visitorId || 'anonymous',
+      user_email: S.state.userEmail || data.user_email || '',
+      user_name: S.state.userName || data.user_name || '',
+      user_ip: S.state.userIp || '',
+      user_country: S.state.country || '',
+      user_city: S.state.city || '',
+      user_language: navigator.language || '',
+      user_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || '',
+    });
+    
+    const getSessionData = () => ({
+      session_id: S.state.sessionId || '',
+      page_views: S.state.pageViews || 1,
+      time_on_site: S.state.timeOnSite || 0,
+      referrer: d.referrer || '',
+      utm_source: new URLSearchParams(w.location.search).get('utm_source') || '',
+      utm_medium: new URLSearchParams(w.location.search).get('utm_medium') || '',
+      utm_campaign: new URLSearchParams(w.location.search).get('utm_campaign') || '',
+    });
+    
+    const getPageData = () => ({
+      page_url: w.location.href,
+      page_title: d.title,
+      page_path: w.location.pathname,
+      scroll_depth: Math.round((w.scrollY / (d.documentElement.scrollHeight - w.innerHeight)) * 100) || 0,
+    });
+    
+    const getDeviceData = () => ({
+      device_type: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
+      browser: navigator.userAgent,
+      os: navigator.platform,
+      screen_width: w.screen.width,
+      screen_height: w.screen.height,
+    });
+    
+    const getTimestampData = () => {
+      const now = new Date();
+      return {
+        timestamp: Math.floor(now.getTime() / 1000),
+        date: now.toISOString().split('T')[0],
+        time: now.toTimeString().split(' ')[0],
+        day_of_week: now.toLocaleDateString('en-US', { weekday: 'long' }),
+      };
+    };
+    
+    const allData = {
+      ...getUserData(),
+      ...getSessionData(),
+      ...getPageData(),
+      ...getDeviceData(),
+      ...getTimestampData(),
+      ...data, // Override with trigger data
+    };
+    
+    // Replace {{variable}} patterns
+    return text.replace(/\{\{([^}]+)\}\}/g, (match, key) => {
+      const trimmedKey = key.trim();
+      return allData[trimmedKey] !== undefined ? allData[trimmedKey] : match;
+    });
+  };
+
   const executeAction = async (action, data) => {
     const config = action.actionConfig || action.action_config || {};
     const actionType = (action.actionType || action.action_type || '').toLowerCase();
 
+    // Process variables in config
+    const processedConfig = {};
+    for (const key in config) {
+      if (typeof config[key] === 'string') {
+        processedConfig[key] = replaceVariables(config[key], data);
+      } else {
+        processedConfig[key] = config[key];
+      }
+    }
+
     switch (actionType) {
-      case 'modal': showModal(config); break;
-      case 'banner': showBanner(config); break;
-      case 'notification': showNotification(config); break;
-      case 'script': injectScript(config); break;
-      case 'redirect': if (config.url) window.location.href = config.url; break;
+      case 'modal': showModal(processedConfig); break;
+      case 'banner': showBanner(processedConfig); break;
+      case 'notification': showNotification(processedConfig); break;
+      case 'script': injectScript(processedConfig); break;
+      case 'redirect': 
+        if (processedConfig.url) {
+          const delay = parseInt(processedConfig.delay) || 0;
+          setTimeout(() => {
+            if (processedConfig.newTab) {
+              w.open(processedConfig.url, '_blank');
+            } else {
+              w.location.href = processedConfig.url;
+            }
+          }, delay * 1000);
+        }
+        break;
       case 'hide_element':
-        if (config.selector) {
-          const el = d.querySelector(config.selector);
+      case 'hideelement':
+        if (processedConfig.selector) {
+          const el = d.querySelector(processedConfig.selector);
           if (el) el.style.display = 'none';
+        }
+        break;
+      case 'show_element':
+      case 'showelement':
+        if (processedConfig.selector) {
+          const el = d.querySelector(processedConfig.selector);
+          if (el) el.style.display = processedConfig.display_type || 'block';
+        }
+        break;
+      case 'track_event':
+      case 'trackevent':
+        if (processedConfig.event_name) {
+          const props = processedConfig.properties ? JSON.parse(processedConfig.properties) : {};
+          S.emit('analytics:event', { event: processedConfig.event_name, properties: props });
+        }
+        break;
+      case 'set_cookie':
+      case 'setcookie':
+        if (processedConfig.cookie_name && processedConfig.cookie_value) {
+          const days = parseInt(processedConfig.expiration_days) || 30;
+          const date = new Date();
+          date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+          d.cookie = `${processedConfig.cookie_name}=${processedConfig.cookie_value}; expires=${date.toUTCString()}; path=/`;
         }
         break;
       case 'webhook':
@@ -179,18 +365,60 @@
       let isTriggerMatch = false;
 
       // Handle custom triggers
-      if (triggerType === 'time_on_page' && eventType === 'timer') {
+      if (triggerType === 'timeonpage' && eventType === 'timer') {
          isTriggerMatch = eventData.seconds >= (triggerConfig.seconds || 10);
-      } else if (triggerType === 'scroll_depth' && eventType === 'scroll') {
-         isTriggerMatch = eventData.depth >= (triggerConfig.depth || 50);
+      } else if (triggerType === 'scrolldepth' && eventType === 'scroll') {
+         isTriggerMatch = eventData.depth >= (triggerConfig.percentage || triggerConfig.depth || 50);
+      } else if (triggerType === 'exitintent' && eventType === 'page_exit') {
+         isTriggerMatch = true;
+      } else if (triggerType === 'formsubmit' && eventType === 'formsubmit') {
+         if (triggerConfig.selector) {
+           const form = d.querySelector(triggerConfig.selector);
+           isTriggerMatch = form && (form.id === eventData.formId || form.className.includes(eventData.formClass));
+         } else {
+           isTriggerMatch = true;
+         }
+      } else if (triggerType === 'inactivity' && eventType === 'inactivity') {
+         isTriggerMatch = eventData.seconds >= (triggerConfig.seconds || 30);
+      } else if (triggerType === 'funneldropoff' && eventType === 'funneldropoff') {
+         if (triggerConfig.funnel_id) {
+           isTriggerMatch = eventData.funnel_id === triggerConfig.funnel_id;
+           if (isTriggerMatch && triggerConfig.step) {
+             isTriggerMatch = eventData.step === triggerConfig.step;
+           }
+         } else {
+           isTriggerMatch = true;
+         }
+      } else if (triggerType === 'funnelcomplete' && eventType === 'funnelcomplete') {
+         if (triggerConfig.funnel_id) {
+           isTriggerMatch = eventData.funnel_id === triggerConfig.funnel_id;
+         } else {
+           isTriggerMatch = true;
+         }
+      } else if (triggerType === 'goalcompleted' && eventType === 'goalcompleted') {
+         if (triggerConfig.goal_id) {
+           isTriggerMatch = eventData.goal_id === triggerConfig.goal_id;
+           if (isTriggerMatch && triggerConfig.min_value) {
+             isTriggerMatch = (eventData.value || 0) >= parseFloat(triggerConfig.min_value);
+           }
+         } else {
+           isTriggerMatch = true;
+         }
       } else if (triggerType === eventType.toLowerCase().replace('_', '')) {
          isTriggerMatch = true;
       }
 
       if (isTriggerMatch) {
         // Page path matching
-        if (triggerConfig.page && triggerConfig.page !== '*') {
-          if (window.location.pathname !== triggerConfig.page) return;
+        if (triggerConfig.url_pattern && triggerConfig.url_pattern !== '*') {
+          const pattern = triggerConfig.url_pattern;
+          const currentPath = w.location.pathname;
+          if (pattern.includes('*')) {
+            const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+            if (!regex.test(currentPath)) return;
+          } else if (currentPath !== pattern) {
+            return;
+          }
         }
         
         if (shouldExecute(auto, eventData)) {
@@ -207,10 +435,41 @@
     S.on('analytics:pageview', (data) => evaluateTriggers('pageview', data));
     S.on('analytics:event', (data) => evaluateTriggers('event', data));
     
+    // Funnel events
+    S.on('funnel:dropoff', (data) => evaluateTriggers('funneldropoff', data));
+    S.on('funnel:complete', (data) => evaluateTriggers('funnelcomplete', data));
+    S.on('goal:completed', (data) => evaluateTriggers('goalcompleted', data));
+    
     // Exit intent
     d.addEventListener('mouseout', (e) => {
       if (e.clientY < 0) evaluateTriggers('page_exit', { reason: 'exit_intent' });
     });
+
+    // Form submit tracking
+    d.addEventListener('submit', (e) => {
+      const form = e.target;
+      evaluateTriggers('formsubmit', { 
+        formId: form.id, 
+        formClass: form.className,
+        formAction: form.action 
+      });
+    }, true);
+
+    // Inactivity tracking
+    let inactivityTimer = null;
+    let lastActivity = Date.now();
+    const resetInactivity = () => {
+      lastActivity = Date.now();
+      if (inactivityTimer) clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        const inactiveSeconds = Math.floor((Date.now() - lastActivity) / 1000);
+        evaluateTriggers('inactivity', { seconds: inactiveSeconds });
+      }, 30000); // Check every 30s
+    };
+    ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'].forEach(event => {
+      d.addEventListener(event, S.utils.debounce(resetInactivity, 1000));
+    });
+    resetInactivity();
 
     // Timer trigger
     let elapsed = 0;
