@@ -29,8 +29,8 @@ export default function BillingSettings() {
 
   const currentPlan = {
     name: subscription?.plan || 'Free',
-    price: subscription?.plan === 'free' ? '$0' : (subscription?.plan === 'pro' ? '$49/mo' : (subscription?.plan === 'pro_plus' ? '$99/mo' : '$0')),
-    usage: `${subscription?.usage.monthlyEvents.current.toLocaleString()} / ${subscription?.usage.monthlyEvents.limit === -1 ? '∞' : (subscription?.usage.monthlyEvents.limit / 1000) + 'K'}`,
+    price: subscription?.plan === 'free' ? '$0' : (subscription?.plan === 'pro_plus' ? '$99/mo' : (subscription?.plan === 'growth' ? '$29/mo' : '$0')),
+    usage: `${subscription?.usage.monthlyEvents.current.toLocaleString()} / ${subscription?.usage.monthlyEvents.limit === -1 ? '∞' : ((subscription?.usage.monthlyEvents.limit || 0) / 1000) + 'K'}`,
     percentage: getUsagePercentage('monthlyEvents'),
     status: 'Active'
   };

@@ -18,7 +18,6 @@ import {
   Sun, 
   Moon, 
   Smartphone,
-  Desktop,
   Tablet,
   Zap,
   Sparkles,

@@ -25,7 +25,7 @@ import { useQueryClient } from '@tanstack/react-query';
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  website: Website;
+  website?: Website;
 }
 
 export function SettingsModal({ isOpen, onClose, website }: SettingsModalProps) {
@@ -33,6 +33,10 @@ export function SettingsModal({ isOpen, onClose, website }: SettingsModalProps) 
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   
+  // If no website provided, show placeholder or fetch default
+  if (!website) {
+    return null;
+  }
   // Local state for form
   const [formData, setFormData] = useState({
       name: '',

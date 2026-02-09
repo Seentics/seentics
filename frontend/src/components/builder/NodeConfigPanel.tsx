@@ -367,7 +367,9 @@ const ActionConfig = ({ config, setConfig }: any) => {
                 try {
                   const body = JSON.parse(e.target.value);
                   setConfig({ ...config, body });
-                } catch (err) {}
+                } catch (error) {
+                    console.error('Failed to parse expression:', error);
+                }
               }}
               className="w-full h-40 p-4 bg-slate-950 border border-slate-800 rounded text-xs font-mono text-white outline-none focus:ring-1 ring-primary/20 transition-all"
             />

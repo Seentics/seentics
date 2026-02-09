@@ -111,7 +111,9 @@ export function EventsDetails({ items, isLoading }: EventsDetailsProps) {
 	const copyToClipboard = async (text: string) => {
 		try {
 			await navigator.clipboard.writeText(text);
-		} catch { }
+		} catch (error) {
+			console.error('Failed to parse sample properties:', error);
+		}
 	};
 
 	const eventMeta = (type: string, props?: Record<string, any>) => {

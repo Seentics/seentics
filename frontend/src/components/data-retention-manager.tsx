@@ -57,7 +57,7 @@ const DEFAULT_POLICIES: RetentionPolicy[] = [
     id: '2',
     dataType: 'Session Data',
     retentionPeriod: 1,
-    retentionUnit: 'year',
+    retentionUnit: 'years',
     autoDelete: true,
     description: 'User session information and behavior patterns',
     lastCleanup: new Date('2024-01-15'),

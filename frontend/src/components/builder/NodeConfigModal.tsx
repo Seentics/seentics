@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Settings2, 
@@ -656,7 +656,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               placeholder="e.g. admin@example.com or {{user_email}}"
               className="bg-slate-900/50 border-slate-800 h-11 text-white font-mono text-sm"
             />
-            <p className="text-[10px] text-slate-500">Use variables like {{user_email}} for dynamic recipients</p>
+            <p className="text-[10px] text-slate-500">Use variables like {'{'}{'{'} user_email {'}'}{'}'}  for dynamic recipients</p>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -689,7 +689,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="p-3 rounded-xl border border-blue-500/20 bg-blue-500/5">
             <p className="text-[10px] text-blue-400 flex items-start gap-2">
               <Info size={12} className="mt-0.5 flex-shrink-0" />
-              <span>All {{variables}} will be replaced with real user data when the automation runs.</span>
+              <span>All {'{'}{'{'} variables {'}'}{'}'}  will be replaced with real user data when the automation runs.</span>
             </p>
           </div>
         </div>
@@ -747,7 +747,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Modal Title</Label>
-              <VariableHelper onInsert={(variable) => insertVariable(modalTitleRef, 'title', variable)} />
+              <VariableHelper onInsert={(variable) => insertVariable(modalTitleRef, variable)} />
             </div>
             <Input 
               ref={modalTitleRef}
@@ -760,7 +760,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Modal Content</Label>
-              <VariableHelper onInsert={(variable) => insertVariable(modalContentRef, 'content', variable)} />
+              <VariableHelper onInsert={(variable) => insertVariable(modalContentRef, variable)} />
             </div>
             <Textarea 
               ref={modalContentRef}
@@ -774,7 +774,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Primary Button Text</Label>
-                <VariableHelper onInsert={(variable) => insertVariable(modalButtonRef, 'primaryButton', variable)} />
+                <VariableHelper onInsert={(variable) => insertVariable(modalButtonRef, variable)} />
               </div>
               <Input 
                 ref={modalButtonRef}
@@ -814,7 +814,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Banner Message</Label>
-              <VariableHelper onInsert={(variable) => insertVariable(bannerContentRef, 'content', variable)} />
+              <VariableHelper onInsert={(variable) => insertVariable(bannerContentRef, variable)} />
             </div>
             <Textarea 
               ref={bannerContentRef}
@@ -873,7 +873,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Button Text (Optional)</Label>
-              <VariableHelper onInsert={(variable) => insertVariable(bannerButtonRef, 'buttonText', variable)} />
+              <VariableHelper onInsert={(variable) => insertVariable(bannerButtonRef, variable)} />
             </div>
             <Input 
               ref={bannerButtonRef}
@@ -913,7 +913,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Notification Title</Label>
-              <VariableHelper onInsert={(variable) => insertVariable(notificationTitleRef, 'title', variable)} />
+              <VariableHelper onInsert={(variable) => insertVariable(notificationTitleRef, variable)} />
             </div>
             <Input 
               ref={notificationTitleRef}
@@ -926,7 +926,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Message</Label>
-              <VariableHelper onInsert={(variable) => insertVariable(notificationMessageRef, 'message', variable)} />
+              <VariableHelper onInsert={(variable) => insertVariable(notificationMessageRef, variable)} />
             </div>
             <Textarea 
               ref={notificationMessageRef}

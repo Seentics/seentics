@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAutomations } from '@/lib/automations-api';
+import { useAutomations, AutomationStats } from '@/lib/automations-api';
 import { formatNumber } from '@/lib/analytics-api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 
@@ -55,10 +55,16 @@ export default function AutomationDetailsPage() {
         );
     }
 
-    const stats = automation.stats || {};
-    const totalExecutions = stats.totalExecutions || 0;
-    const successCount = stats.successCount || 0;
-    const failureCount = stats.failureCount || 0;
+    const stats: AutomationStats = automation.stats ?? {
+        totalExecutions: 0,
+        successCount: 0,
+        failureCount: 0,
+        successRate: 0,
+        last30Days: 0,
+    };
+    const totalExecutions = stats.totalExecutions;
+    const successCount = stats.successCount;
+    const failureCount = stats.failureCount;
     const successRate = totalExecutions > 0 ? (successCount / totalExecutions) * 100 : 0;
     const failureRate = totalExecutions > 0 ? (failureCount / totalExecutions) * 100 : 0;
 
@@ -180,17 +186,17 @@ export default function AutomationDetailsPage() {
                                 {automation.triggerType === 'custom_event' && 'Triggers on a custom event'}
                                 {automation.triggerType === 'form_submission' && 'Triggers when a form is submitted'}
                             </p>
-                            {automation.targetUrl && (
+                            {automation.triggerConfig?.targetUrl && (
                                 <div className="mt-2">
                                     <Badge variant="outline" className="font-mono text-xs">
-                                        {automation.targetUrl}
+                                        {automation.triggerConfig.targetUrl}
                                     </Badge>
                                 </div>
                             )}
-                            {automation.thresholdValue && (
+                            {automation.triggerConfig?.thresholdValue && (
                                 <div className="mt-2">
                                     <span className="text-xs font-bold text-muted-foreground">
-                                        Threshold: <span className="text-primary">{automation.thresholdValue}</span>
+                                        Threshold: <span className="text-primary">{automation.triggerConfig.thresholdValue}</span>
                                     </span>
                                 </div>
                             )}
@@ -241,10 +247,10 @@ export default function AutomationDetailsPage() {
                                                 {action.actionType === 'redirect' && 'Redirects user to another page'}
                                                 {action.actionType === 'hide_element' && 'Hides a page element'}
                                             </p>
-                                            {action.config && Object.keys(action.config).length > 0 && (
+                                            {action.actionConfig && Object.keys(action.actionConfig).length > 0 && (
                                                 <div className="mt-3 p-3 bg-muted/30 rounded text-xs font-mono">
                                                     <pre className="overflow-x-auto">
-                                                        {JSON.stringify(action.config, null, 2)}
+                                                        {JSON.stringify(action.actionConfig, null, 2)}
                                                     </pre>
                                                 </div>
                                             )}

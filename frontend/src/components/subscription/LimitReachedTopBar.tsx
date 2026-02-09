@@ -75,11 +75,16 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
       title: 'Monthly events limit reached',
       description: 'You\'ve reached your monthly events limit. Upgrade for higher limits.',
       icon: <AlertTriangle className="h-4 w-4" />
+    },
+    heatmaps: {
+      title: 'Heatmap limit reached',
+      description: 'You\'ve reached your heatmap limit. Upgrade to record more sessions.',
+      icon: <AlertTriangle className="h-4 w-4" />
     }
   };
 
   const message = limitMessages[reachedLimit];
-  const PlanIcon = subscription.plan === 'pro' ? Crown : Zap;
+  const PlanIcon = subscription.plan === 'pro_plus' ? Crown : Zap;
 
   return (
     <>
@@ -101,7 +106,7 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
             </div>
             
             <div className="flex items-center space-x-2">
-              {subscription.plan !== 'pro' && (
+              {subscription.plan !== 'pro_plus' && (
                 <Button
                   size="sm"
                   onClick={handleUpgrade}

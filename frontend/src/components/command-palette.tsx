@@ -35,7 +35,7 @@ export function CommandPalette() {
 
   const { data: websites, isLoading } = useQuery({
     queryKey: ['websites'],
-    queryFn: () => getWebsites(user?.id || ''),
+    queryFn: () => getWebsites(),
     enabled: open && !!user?.id,
   });
 

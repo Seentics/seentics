@@ -33,7 +33,8 @@ export function useAuthGuard() {
     };
 
     checkAuth();
-  }, [isAuthenticated, user, isTokenExpired, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user]);
 
   // Refresh token function
   const refreshToken = useCallback(async () => {
@@ -44,7 +45,7 @@ export function useAuthGuard() {
 
   // Auto-refresh token before it expires
   useEffect(() => {
-    if (!access_token) return;
+    if (!access_token || !isAuthenticated) return;
 
     const checkTokenExpiry = () => {
       if (isTokenExpired()) {
@@ -55,8 +56,10 @@ export function useAuthGuard() {
     // Check every 5 minutes
     const interval = setInterval(checkTokenExpiry, 5 * 60 * 1000);
     
-    return () => clearInterval(interval);
-  }, [access_token, isTokenExpired, refreshToken]);
+    return () => {
+      clearInterval(interval);
+    };
+  }, [access_token, isAuthenticated, isTokenExpired, refreshToken]);
 
   return {
     isAuthenticated,

@@ -3,6 +3,16 @@
 import { useState } from 'react';
 import TrackerScript from './tracker-script';
 
+// Extend Window interface for tracker test mode
+declare global {
+  interface Window {
+    seenticsTest?: {
+      trackEvent: (name: string, props: Record<string, any>) => void;
+      getInfo: () => any;
+    };
+  }
+}
+
 export default function TrackerTestDemo() {
   const [events, setEvents] = useState<Array<{name: string, props: any, timestamp: string}>>([]);
 

@@ -35,6 +35,7 @@ export type User = {
   setTokens: (data: { access_token: string; refresh_token: string }) => void
   setRememberMe: (rememberMe: boolean) => void
   setLoading: (isLoading: boolean) => void
+  initializeAuth: () => void
   logout: () => void
   resetAuth: () => void
   isTokenExpired: () => boolean

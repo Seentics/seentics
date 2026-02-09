@@ -31,7 +31,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from 'next/link';
 import api from '@/lib/api';
-import { getWebsiteBySiteId } from '@/lib/websites-api';
 import { useQuery } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -55,7 +54,10 @@ export default function HeatmapsPage() {
 
   const { data: website } = useQuery({
     queryKey: ['website', websiteId],
-    queryFn: () => getWebsiteBySiteId(websiteId as string),
+    queryFn: async () => {
+      const response = await api.get(`/websites/${websiteId}`);
+      return response.data;
+    },
     enabled: !!websiteId && websiteId !== 'demo',
   });
 
@@ -80,14 +82,29 @@ export default function HeatmapsPage() {
 
       try {
         const response = await api.get(`/heatmaps/pages?website_id=${websiteId}`);
-        // Map simple strings from API to objects with random-ish stats for better UI
-        const apiPages = (response.data.pages || []).map((page: string) => ({
-          url: page,
-          views: Math.floor(Math.random() * 1000) + 100,
-          clicks: Math.floor(Math.random() * 5000) + 500,
-          avg_scroll: Math.floor(Math.random() * 40) + 40,
-          active: true
-        }));
+        
+        // Backend should return pages with stats, but if not, use basic structure
+        const apiPages = (response.data.pages || []).map((page: any) => {
+          // If page is a string, it's the old format - create basic structure
+          if (typeof page === 'string') {
+            return {
+              url: page,
+              views: 0,
+              clicks: 0,
+              avg_scroll: 0,
+              active: true
+            };
+          }
+          // If page is an object, use it directly (new format with stats)
+          return {
+            url: page.url || page,
+            views: page.views || 0,
+            clicks: page.clicks || 0,
+            avg_scroll: page.avg_scroll || 0,
+            active: page.active !== false
+          };
+        });
+        
         setPages(apiPages);
       } catch (err) {
         console.error('Failed to fetch heatmap pages:', err);

@@ -41,14 +41,14 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
       price: '$19',
       description: 'For growing businesses',
       features: ['Unlimited Websites', '1M Events/mo', 'Unlimited Retention', 'Priority Support', 'No Branding'],
-      current: currentPlan === 'pro',
+      current: currentPlan === 'pro_plus',
     },
     {
         name: 'Enterprise',
         price: 'Custom',
         description: 'For large organizations',
         features: ['Unlimited Everything', 'SLA', 'Dedicated Account Manager', 'SSO', 'Custom Contracts'],
-        current: currentPlan === 'enterprise',
+        current: false, // Enterprise plan doesn't exist in current plan types
     }
   ];
 

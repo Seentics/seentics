@@ -20,7 +20,8 @@ const defaultMessages = {
   websites: 'You\'ve reached your website limit. Upgrade to add more websites.',
   workflows: 'You\'ve reached your workflow limit. Upgrade to create more automation workflows.',
   funnels: 'You\'ve reached your funnel limit. Upgrade to build more conversion funnels.',
-  monthlyEvents: 'You\'ve reached your monthly events limit. Upgrade to track more events.'
+  monthlyEvents: 'You\'ve reached your monthly events limit. Upgrade to track more events.',
+  heatmaps: 'You\'ve reached your heatmap limit. Upgrade to record more heatmap sessions.'
 };
 
 export const LimitReachedAlert: React.FC<LimitReachedAlertProps> = ({
@@ -63,7 +64,7 @@ export const LimitReachedAlert: React.FC<LimitReachedAlertProps> = ({
           </div>
           
           <div className="flex items-center gap-2 ml-4">
-            {showUpgradeButton && subscription.plan !== 'pro' && (
+            {showUpgradeButton && subscription.plan !== 'pro_plus' && (
               <Button
                 size="sm"
                 onClick={() => setShowUpgradeModal(true)}

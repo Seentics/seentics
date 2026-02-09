@@ -1,4 +1,7 @@
 
+// Firebase imports and functions commented out - not currently in use
+// These functions are not used anywhere in the codebase
+/*
 import {
   doc,
   getDoc,
@@ -69,3 +72,4 @@ export async function removeTagFromVisitor(visitorId: string, tag: string): Prom
     console.warn(`Could not remove tag "${tag}" from visitor "${visitorId}":`, error);
   }
 }
+*/

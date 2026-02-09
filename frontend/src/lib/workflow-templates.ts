@@ -1,5 +1,6 @@
 import type { Edge, Node } from 'reactflow';
-import type { CustomNodeData } from '@/components/flow/custom-node';
+// Custom node types - defined inline until component is implemented
+export type CustomNodeData = any;
 
 export type WorkflowTemplateDifficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 

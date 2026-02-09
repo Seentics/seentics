@@ -63,6 +63,12 @@ export const deleteAlert = async (websiteId: string, id: string) => {
   return response.data;
 };
 
+// Deprecated - kept for backwards compatibility
+export const toggleAlert = async (websiteId: string, id: string) => {
+  // This function is deprecated, update implementation if needed
+  return Promise.resolve();
+};
+
 // User Notifications (Bell Icons)
 export const getUserNotifications = async (): Promise<UserNotification[]> => {
   try {

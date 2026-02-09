@@ -259,7 +259,9 @@ export default function HeatmapViewPage() {
                             try {
                                 const h = iframeRef.current.contentWindow?.document.body.scrollHeight;
                                 if (h) setDimensions(d => ({ ...d, height: h }));
-                            } catch (e) {}
+                            } catch (error) {
+                                console.error('Failed to parse JSON data:', error);
+                            }
                         }
                     }, 500);
                 }}

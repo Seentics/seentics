@@ -109,6 +109,7 @@ export default function PublicDashboardPage() {
 
                 <TrafficOverview 
                     dailyStats={dashboardData.daily_stats || []} 
+                    hourlyStats={dashboardData.hourly_stats || []}
                     isLoading={false} 
                 />
 

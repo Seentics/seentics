@@ -20,7 +20,8 @@ const typeLabels = {
   websites: 'Websites',
   workflows: 'Workflows', 
   funnels: 'Funnels',
-  monthlyEvents: 'Monthly Events'
+  monthlyEvents: 'Monthly Events',
+  heatmaps: 'Heatmaps'
 };
 
 export const UsageCard: React.FC<UsageCardProps> = ({
@@ -123,7 +124,7 @@ export const UsageCard: React.FC<UsageCardProps> = ({
               <span className={getStatusColor()}>
                 {percentage.toFixed(0)}% used
               </span>
-              {subscription.plan !== 'pro' && (
+              {subscription.plan !== 'pro_plus' && (
                 <Button
                   variant="ghost"
                   size="sm"

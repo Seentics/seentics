@@ -32,6 +32,9 @@ export const hasFeature = (feature: keyof typeof FEATURES): boolean => {
   return FEATURES[feature] === true;
 };
 
+// Open source mode flag
+export const isOpenSource = false;
+
 // Usage limits for display based on plan
 export const LIMITS = {
   free: {

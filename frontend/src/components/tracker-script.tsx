@@ -3,12 +3,17 @@
 import Script from 'next/script';
 import { useEffect, useState } from 'react';
 
+interface TrackerScriptProps {
+  testMode?: boolean;
+  siteId?: string;
+}
+
 /**
  * Simplified TrackerScript as requested.
  * - Localhost: Uses hardcoded ID 5c05b1c8... and seentics-core.js
  * - Production: Fallback to process.env.NEXT_PUBLIC_DEFAULT_SITE_ID or clean logic
  */
-export default function TrackerScript() {
+export default function TrackerScript({ testMode, siteId }: TrackerScriptProps = {}) {
   const [isLocalhost, setIsLocalhost] = useState(false);
 
   useEffect(() => {

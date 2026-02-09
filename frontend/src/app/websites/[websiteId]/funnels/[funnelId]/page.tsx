@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useFunnels } from '@/lib/funnels-api';
+import { FunnelStats, FunnelStep, useFunnels } from '@/lib/funnels-api';
 import { formatNumber } from '@/lib/analytics-api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 
@@ -43,9 +43,15 @@ export default function FunnelDetailsPage() {
         );
     }
 
-    const stats = funnel.stats || {};
-    const steps = funnel.steps || [];
-    const dropoffRate = 100 - (stats.conversionRate || 0);
+    const stats: FunnelStats = funnel.stats ?? {
+        totalEntries: 0,
+        completions: 0,
+        conversionRate: 0,
+        stepBreakdown: [],
+    };
+    const steps: FunnelStep[] = funnel.steps ?? [];
+    const stepBreakdown = stats.stepBreakdown ?? [];
+    const dropoffRate = 100 - stats.conversionRate;
 
     return (
         <div className="min-h-screen bg-background">
@@ -145,7 +151,7 @@ export default function FunnelDetailsPage() {
                     <CardDescription>Step-by-step conversion breakdown</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                    {stats.stepBreakdown?.map((step, index) => {
+                    {stepBreakdown.map((step, index) => {
                         const isLast = index === steps.length - 1;
                         const maxCount = stats.totalEntries || 1;
                         const widthPercent = (step.count / maxCount) * 100;
@@ -238,7 +244,7 @@ export default function FunnelDetailsPage() {
                             </thead>
                             <tbody className="divide-y">
                                 {steps.map((step, index) => {
-                                    const stepStat = stats.stepBreakdown?.[index];
+                                    const stepStat = stepBreakdown[index];
                                     return (
                                         <tr key={step.id} className="hover:bg-muted/5">
                                             <td className="py-4 px-4">
