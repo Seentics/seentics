@@ -62,10 +62,28 @@ export default function HeatmapViewPage() {
   const [scrollPos, setScrollPos] = useState({ top: 0, left: 0 }); // Current scroll position
   const [showHeightControl, setShowHeightControl] = useState(false);
   const [opacity, setOpacity] = useState([70]);
+  const [isSameOrigin, setIsSameOrigin] = useState(false);
+  const [iframeError, setIframeError] = useState(false);
   const mainScrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const lastScrollSent = useRef(0);
+
+  // Detect if the URL is same-origin (dashboard page)
+  useEffect(() => {
+    if (!website?.url) return;
+    
+    try {
+      const currentOrigin = window.location.origin;
+      const targetUrl = new URL(website.url);
+      const isSame = currentOrigin === targetUrl.origin;
+      setIsSameOrigin(isSame);
+      console.log('Same-origin check:', { currentOrigin, targetOrigin: targetUrl.origin, isSame });
+    } catch (err) {
+      console.error('Error checking origin:', err);
+      setIsSameOrigin(false);
+    }
+  }, [website?.url]);
 
   // Sync scroll from main container to iframe
   const handleMainScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -221,11 +239,35 @@ export default function HeatmapViewPage() {
   const deviceWidth = getDeviceWidth();
   const scale = getDeviceScale();
 
-  const siteUrl = isDemo 
-    ? 'https://seentics.com' 
-    : (website?.url 
-      ? `${website.url.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`
-      : (website?.protocol || 'https://') + (website?.domain || '') + url);
+  // Build the URL for the iframe
+  // For same-origin authenticated pages, use the direct URL (will share auth cookies)
+  // For cross-origin, use the external URL
+  const buildIframeUrl = () => {
+    if (isDemo) return 'https://seentics.com';
+    
+    if (!website?.url) return '/';
+    
+    const baseUrl = website.url.replace(/\/$/, '');
+    const fullPath = url.startsWith('/') ? url : `/${url}`;
+    const targetUrl = `${baseUrl}${fullPath}`;
+    
+    // Check if it's same origin
+    try {
+      const targetOrigin = new URL(targetUrl).origin;
+      const currentOrigin = window.location.origin;
+      
+      if (targetOrigin === currentOrigin) {
+        // Same origin - use direct path to share cookies
+        return fullPath;
+      }
+    } catch (err) {
+      console.error('Error parsing URL:', err);
+    }
+    
+    return targetUrl;
+  };
+
+  const siteUrl = buildIframeUrl();
 
   return (
     <div className="h-screen flex flex-col bg-zinc-950 text-white overflow-hidden select-none">
@@ -391,9 +433,36 @@ export default function HeatmapViewPage() {
                         </div>
                     )}
 
+                    {iframeError && (
+                        <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center gap-4 text-zinc-900">
+                            <div className="h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center mb-2">
+                                <Info className="h-8 w-8 text-amber-600" />
+                            </div>
+                            <div className="flex flex-col items-center text-center px-4">
+                                <span className="font-black uppercase tracking-widest text-sm">Page Load Restricted</span>
+                                <span className="text-xs text-zinc-600 mt-2 max-w-md">
+                                  This page cannot be displayed in preview mode. The heatmap data is still being collected and can be viewed in the data table.
+                                </span>
+                                <Button onClick={() => setIframeError(false)} className="mt-4" size="sm">
+                                  Retry
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
                     <iframe 
                         ref={iframeRef}
-                        src={siteUrl} 
+                        src={siteUrl}
+                        onError={() => {
+                          console.error('Iframe failed to load:', siteUrl);
+                          setIframeError(true);
+                        }}
+                        onLoad={() => {
+                          setIframeError(false);
+                          console.log('Iframe loaded successfully:', siteUrl);
+                        }}
+                        sandbox={isSameOrigin ? 'allow-same-origin allow-scripts allow-forms' : undefined}
+                        referrerPolicy="same-origin"
                         className="w-full h-full border-none pointer-events-none"
                     />
                 </div>
