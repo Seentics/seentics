@@ -12,7 +12,7 @@ interface UpgradePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentPlan: 'free' | 'starter' | 'growth' | 'scale' | 'pro_plus';
-  limitType: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'monthlyEvents';
+  limitType: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'replays' | 'monthlyEvents';
   currentUsage: number;
   limit: number;
 }
@@ -20,16 +20,17 @@ interface UpgradePlanModalProps {
 const planDetails = {
   growth: {
     name: 'Growth',
-    price: '$15',
+    price: '$29',
     period: 'per month',
     icon: Zap,
     color: 'blue',
     features: [
-      "3 Websites",
+      "5 Websites",
       "200,000 Monthly Events",
-      "1 Heatmap per site",
-      "5 Conversion Funnels",
-      "5 Active Automations",
+      "500 Session Recordings",
+      "10 Active Heatmaps",
+      "20 Conversion Funnels",
+      "20 Active Automations",
       "1 Year Data Retention",
       "Priority Email Support"
     ],
@@ -37,19 +38,19 @@ const planDetails = {
   },
   scale: {
     name: 'Scale',
-    price: '$39',
+    price: '$89',
     period: 'per month',
     icon: Crown,
     color: 'purple',
     features: [
-      "10 Websites",
+      "15 Websites",
       "1,000,000 Monthly Events",
-      "Unlimited Heatmaps",
-      "Unlimited Automations",
-      "Unlimited Funnels",
-      "3 Years Data Retention",
-      "24/7 Priority Support",
-      "API Access"
+      "2,500 Session Recordings",
+      "50 Active Heatmaps",
+      "100 Active Automations",
+      "100 Conversion Funnels",
+      "2 Years Data Retention",
+      "24/7 Priority Support"
     ],
     buttonText: 'Upgrade to Scale'
   },
@@ -77,6 +78,7 @@ const limitMessages = {
   workflows: 'You\'ve reached your workflow limit',
   funnels: 'You\'ve reached your funnel limit',
   heatmaps: 'You\'ve reached your heatmap limit',
+  replays: 'You\'ve reached your session recording limit',
   monthlyEvents: 'You\'ve reached your monthly events limit'
 };
 

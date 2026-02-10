@@ -31,7 +31,7 @@ func RateLimitMiddleware(redisClient *redis.Client) gin.HandlerFunc {
 
 		// Granular Rate Limiting Logic
 		switch {
-		case path == "/api/v1/analytics/event" || path == "/api/v1/analytics/batch" || path == "/api/v1/heatmaps/record":
+		case path == "/api/v1/analytics/event" || path == "/api/v1/analytics/batch" || path == "/api/v1/heatmaps/record" || path == "/api/v1/replays/record":
 			// Ingestion Endpoints (High throughput) - ALWAYS use IP for ingestion
 			limit = 5000
 			keyPrefix = "rl:ingest"

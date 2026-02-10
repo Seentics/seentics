@@ -15,6 +15,7 @@ export interface SubscriptionUsage {
   workflows: UsageStatus;
   funnels: UsageStatus;
   heatmaps: UsageStatus;
+  replays: UsageStatus;
   monthlyEvents: UsageStatus;
 }
 
@@ -61,6 +62,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
           workflows: { current: 3, limit: 100, canCreate: true },
           funnels: { current: 2, limit: 50, canCreate: true },
           heatmaps: { current: 1, limit: 20, canCreate: true },
+          replays: { current: 4, limit: 500, canCreate: true },
           monthlyEvents: { current: 45000, limit: 1000000, canCreate: true }
         },
         features: ['all'],

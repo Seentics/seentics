@@ -8,38 +8,33 @@ export default function Comparison() {
   const comparisons = [
     {
       title: 'All-in-One Platform',
-      seentics: 'Analytics + Heatmaps + Funnels + Automations',
-      others: 'Need 3-4 different tools'
+      seentics: 'Analytics, Heatmaps, Recordings, Funnels & Automations',
+      others: 'Need 4-5 different expensive tools'
+    },
+    {
+      title: 'Session Recordings',
+      seentics: 'High-fidelity replays included',
+      others: 'Separate tool ($29-99+/mo)'
     },
     {
       title: 'Privacy & GDPR',
-      seentics: 'No cookies, fully compliant',
-      others: 'Cookie banners required'
-    },
-    {
-      title: 'Real-time Analytics',
-      seentics: 'Live visitor tracking included',
-      others: 'Often delayed or limited'
-    },
-    {
-      title: 'Web Performance',
-      seentics: 'Core Web Vitals monitoring',
-      others: 'Limited or not included'
+      seentics: 'No cookies, fully PII masked',
+      others: 'Cookie banners & tracking headaches'
     },
     {
       title: 'Visual Heatmaps',
-      seentics: 'Built-in click & scroll maps',
-      others: 'Separate tool needed ($39+/mo)'
+      seentics: 'Built-in click, scroll & move maps',
+      others: 'Limited or extra $49/mo'
     },
     {
       title: 'Automated Workflows',
-      seentics: 'Trigger actions based on behavior',
-      others: 'Not available in analytics tools'
+      seentics: 'Engage visitors automatically',
+      others: 'Requires complex zapier integrations'
     },
     {
       title: 'Pricing',
-      seentics: 'Starting at $9/month',
-      others: 'Often $30-100+/month per tool'
+      seentics: 'Free Forever available',
+      others: 'Total cost of $150-300+/month'
     }
   ];
 

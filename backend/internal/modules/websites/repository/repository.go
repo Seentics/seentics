@@ -139,7 +139,7 @@ func (r *WebsiteRepository) GetBySiteID(ctx context.Context, siteID string) (*mo
 	query := `
 		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at
 		FROM websites
-		WHERE site_id = $1 OR id::text = $1
+		WHERE site_id = $1
 	`
 
 	var w models.Website
@@ -165,6 +165,42 @@ func (r *WebsiteRepository) GetBySiteID(ctx context.Context, siteID string) (*mo
 			return nil, ErrWebsiteNotFound
 		}
 		return nil, fmt.Errorf("failed to get website by site_id: %w", err)
+	}
+
+	return &w, nil
+}
+
+// GetByUUIDOnly returns a website by internal UUID without user_id check (use with caution)
+func (r *WebsiteRepository) GetByUUIDOnly(ctx context.Context, id uuid.UUID) (*models.Website, error) {
+	query := `
+		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at
+		FROM websites
+		WHERE id = $1
+	`
+
+	var w models.Website
+	err := r.db.QueryRow(ctx, query, id).Scan(
+		&w.ID,
+		&w.SiteID,
+		&w.UserID,
+		&w.Name,
+		&w.URL,
+		&w.TrackingID,
+		&w.IsActive,
+		&w.IsVerified,
+		&w.AutomationEnabled,
+		&w.FunnelEnabled,
+		&w.HeatmapEnabled,
+		&w.VerificationToken,
+		&w.CreatedAt,
+		&w.UpdatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrWebsiteNotFound
+		}
+		return nil, fmt.Errorf("failed to get website by uuid: %w", err)
 	}
 
 	return &w, nil

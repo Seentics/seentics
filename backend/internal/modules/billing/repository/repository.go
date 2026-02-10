@@ -26,7 +26,7 @@ func (r *BillingRepository) GetUserSubscription(ctx context.Context, userID stri
 		SELECT s.id, s.user_id, s.plan_id, s.status, s.paddle_subscription_id, s.paddle_customer_id,
 		       s.current_period_start, s.current_period_end, s.cancel_at_period_end, s.created_at, s.updated_at,
 		       p.id, p.name, p.description, p.max_monthly_events, p.max_websites, p.max_funnels, 
-		       p.max_automation_rules, p.max_heatmaps, p.max_connected_domains, p.features
+		       p.max_automation_rules, p.max_heatmaps, p.max_replays, p.max_connected_domains, p.features
 		FROM subscriptions s
 		JOIN plans p ON s.plan_id = p.id
 		WHERE s.user_id = $1
@@ -39,7 +39,7 @@ func (r *BillingRepository) GetUserSubscription(ctx context.Context, userID stri
 		&s.ID, &s.UserID, &s.PlanID, &s.Status, &s.PaddleSubscriptionID, &s.PaddleCustomerID,
 		&s.CurrentPeriodStart, &s.CurrentPeriodEnd, &s.CancelAtPeriodEnd, &s.CreatedAt, &s.UpdatedAt,
 		&p.ID, &p.Name, &p.Description, &p.MaxMonthlyEvents, &p.MaxWebsites, &p.MaxFunnels,
-		&p.MaxAutomationRules, &p.MaxHeatmaps, &p.MaxConnectedDomains, &p.Features,
+		&p.MaxAutomationRules, &p.MaxHeatmaps, &p.MaxReplays, &p.MaxConnectedDomains, &p.Features,
 	)
 
 	if err != nil {
@@ -57,7 +57,7 @@ func (r *BillingRepository) GetUserSubscription(ctx context.Context, userID stri
 func (r *BillingRepository) GetPlanByID(ctx context.Context, planID string) (*models.Plan, error) {
 	query := `
 		SELECT id, name, description, max_monthly_events, max_websites, max_funnels, 
-		       max_automation_rules, max_heatmaps, max_connected_domains, features
+		       max_automation_rules, max_heatmaps, max_replays, max_connected_domains, features
 		FROM plans
 		WHERE id = $1
 	`
@@ -65,7 +65,7 @@ func (r *BillingRepository) GetPlanByID(ctx context.Context, planID string) (*mo
 	var p models.Plan
 	err := r.db.QueryRow(ctx, query, planID).Scan(
 		&p.ID, &p.Name, &p.Description, &p.MaxMonthlyEvents, &p.MaxWebsites, &p.MaxFunnels,
-		&p.MaxAutomationRules, &p.MaxHeatmaps, &p.MaxConnectedDomains, &p.Features,
+		&p.MaxAutomationRules, &p.MaxHeatmaps, &p.MaxReplays, &p.MaxConnectedDomains, &p.Features,
 	)
 
 	if err != nil {
@@ -206,6 +206,21 @@ func (r *BillingRepository) CountUserResources(ctx context.Context, userID strin
 		counts[models.ResourceHeatmaps] = 0
 	} else {
 		counts[models.ResourceHeatmaps] = heatmapsCount
+	}
+
+	// Count replay sessions (unique session_id per user)
+	var replaysCount int
+	replaysQuery := `
+		SELECT COUNT(DISTINCT session_id)
+		FROM session_replays sr
+		JOIN websites w ON sr.website_id = w.site_id
+		WHERE w.user_id::text = $1
+	`
+	err = r.db.QueryRow(ctx, replaysQuery, userID).Scan(&replaysCount)
+	if err != nil {
+		counts[models.ResourceReplays] = 0
+	} else {
+		counts[models.ResourceReplays] = replaysCount
 	}
 
 	// Count monthly events (recalibrate from BOTH system and custom event tables)

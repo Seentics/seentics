@@ -88,13 +88,6 @@ export default function RootLayout({
         {/* Initialize authentication state */}
         <AuthInitializer />
 
-        {/* Seentics Analytics */}
-        <Script 
-          async 
-          src="https://www.seentics.com/trackers/seentics-core.js" 
-          data-website-id="2324e420-987e-4f63-b9ff-f27101bfb1c4"
-        />
-
         {/* Tracking Code Components */}
         <TrackerScript />
 

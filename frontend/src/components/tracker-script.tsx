@@ -26,34 +26,23 @@ export default function TrackerScript({ testMode, siteId }: TrackerScriptProps =
 
   if (isLocalhost) {
     return (
-      <>
         <Script
           defer
-          data-website-id="a6e093753d63695749a942e8"
-          data-auto-load="analytics,automation,funnels,heatmap"
+          data-website-id="03bd2f5e-87a3-4a9b-925f-91fb5e4d50d2"
+          data-auto-load="analytics,automation,funnels,heatmap,replay"
           src="http://localhost:3000/trackers/seentics-core.js"
           strategy="afterInteractive"
         />
-        <Script
-          defer
-          data-website-id="a6e093753d63695749a942e8"
-          src="http://localhost:3000/trackers/seentics-automation.js"
-          strategy="afterInteractive"
-        />
-      </>
     );
   }
 
-  // Production fallback: Use environment variable or simple logic
-  // Since user asked to remove complexity, we keep it minimal.
-  const prodSiteId = process.env.NEXT_PUBLIC_DEFAULT_SITE_ID;
-  if (!prodSiteId) return null;
-
+  // Production: Use specific tracking code as requested
   return (
     <Script
-        src="/trackers/seentics-core.js"
-        data-website-id={prodSiteId}
-        data-auto-load="analytics,automation,funnels"
+        id="seentics-analytics"
+        src="https://www.seentics.com/trackers/seentics-core.js"
+        data-website-id="2324e420-987e-4f63-b9ff-f27101bfb1c4"
+        data-auto-load="analytics,automation,funnels,heatmap,replay"
         strategy="afterInteractive"
     />
   );

@@ -57,9 +57,17 @@ func (h *EventHandler) TrackEvent(c *gin.Context) {
 
 	response, err := h.service.TrackEvent(c.Request.Context(), &event)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to track event")
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to track event",
+		h.logger.Error().Err(err).Str("website_id", event.WebsiteID).Msg("Failed to track event")
+
+		status := http.StatusInternalServerError
+		if err.Error() == "domain mismatch" || err.Error() == "invalid website_id" || err.Error() == "website is inactive" {
+			status = http.StatusForbidden
+		} else if err.Error() == "monthly event limit reached" {
+			status = http.StatusTooManyRequests
+		}
+
+		c.JSON(status, gin.H{
+			"error": err.Error(),
 		})
 		return
 	}
@@ -121,9 +129,15 @@ func (h *EventHandler) TrackBatchEvents(c *gin.Context) {
 
 	response, err := h.service.TrackBatchEvents(c.Request.Context(), &req)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to track batch events")
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to track batch events",
+		h.logger.Error().Err(err).Str("site_id", req.SiteID).Msg("Failed to track batch events")
+
+		status := http.StatusInternalServerError
+		if err.Error() == "domain mismatch" || err.Error() == "invalid website_id" || err.Error() == "website is inactive" {
+			status = http.StatusForbidden
+		}
+
+		c.JSON(status, gin.H{
+			"error": err.Error(),
 		})
 		return
 	}

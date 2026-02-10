@@ -22,7 +22,7 @@ export default function ComplianceSection() {
       icon: Shield,
       title: 'GDPR Compliant',
       description: 'Full compliance with European data protection regulations',
-      features: ['Right to Access', 'Right to Deletion', 'Data Portability', 'Consent Management']
+      features: ['Right to Access', 'Right to Deletion', 'Data Portability', 'PII Masking by Default']
     },
     {
       icon: Lock,
@@ -83,7 +83,7 @@ export default function ComplianceSection() {
           </h2>
           <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto">
             Seentics is designed with privacy-first principles, ensuring your business meets global data protection standards 
-            while building customer trust through transparent data practices.
+            through anonymous recording and transparent data practices.
           </p>
         </div>
 

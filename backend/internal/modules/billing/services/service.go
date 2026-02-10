@@ -56,35 +56,13 @@ func (s *BillingService) GetUserSubscriptionData(ctx context.Context, userID str
 		return nil, err
 	}
 
-	// Read usage from Redis (with DB fallback)
-	usageMap := make(map[string]int)
-	resourceTypes := []string{
-		models.ResourceWebsites,
-		models.ResourceFunnels,
-		models.ResourceAutomations,
-		models.ResourceHeatmaps,
-		models.ResourceMonthlyEvents,
-	}
-
-	shouldRecalibrate := false
-	for _, resourceType := range resourceTypes {
-		count, err := s.GetUsageFromRedis(ctx, userID, resourceType)
-		if err != nil {
-			fmt.Printf("Error getting usage for %s: %v\n", resourceType, err)
-			shouldRecalibrate = true
-		}
-
-		usageMap[resourceType] = count
-	}
-
-	// If data is missing from Redis, recalibrate from actual tables
-	if shouldRecalibrate {
-		recalibrated, err := s.RecalibrateUsage(ctx, userID)
-		if err == nil {
-			for k, v := range recalibrated {
-				usageMap[k] = v
-			}
-		}
+	// Read usage by recalibrating for 100% accuracy on billing page
+	// If data is missing from Redis or seems stale (e.g. 0), consider recalibrating
+	// Actually, let's always recalibrate for meta-resources on billing page to be 100% accurate
+	usageMap, err := s.RecalibrateUsage(ctx, userID)
+	if err != nil {
+		fmt.Printf("Warning: recalibration failed, falling back to empty usage: %v\n", err)
+		usageMap = make(map[string]int)
 	}
 
 	response := &models.SubscriptionResponse{
@@ -115,6 +93,11 @@ func (s *BillingService) GetUserSubscriptionData(ctx context.Context, userID str
 				Current:   usageMap[models.ResourceMonthlyEvents],
 				Limit:     plan.MaxMonthlyEvents,
 				CanCreate: plan.MaxMonthlyEvents == -1 || usageMap[models.ResourceMonthlyEvents] < plan.MaxMonthlyEvents,
+			},
+			Replays: models.UsageStatus{
+				Current:   usageMap[models.ResourceReplays],
+				Limit:     plan.MaxReplays,
+				CanCreate: plan.MaxReplays == -1 || usageMap[models.ResourceReplays] < plan.MaxReplays,
 			},
 		},
 	}
@@ -345,6 +328,53 @@ func (s *BillingService) CanTrackEvent(ctx context.Context, userID string) (bool
 	s.setCache(ctx, cacheKey, canTrack)
 
 	return canTrack, nil
+}
+
+// CanCreateResource checks if a user can create another resource based on their plan limits
+func (s *BillingService) CanCreateResource(ctx context.Context, userID string, resourceType string) (bool, error) {
+	sub, err := s.repo.GetUserSubscription(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+
+	planID := models.PlanStarter
+	if sub != nil {
+		planID = sub.PlanID
+	}
+
+	plan, err := s.repo.GetPlanByID(ctx, planID)
+	if err != nil {
+		return false, err
+	}
+
+	var limit int
+	switch resourceType {
+	case models.ResourceWebsites:
+		limit = plan.MaxWebsites
+	case models.ResourceFunnels:
+		limit = plan.MaxFunnels
+	case models.ResourceAutomations:
+		limit = plan.MaxAutomationRules
+	case models.ResourceHeatmaps:
+		limit = plan.MaxHeatmaps
+	case models.ResourceReplays:
+		limit = plan.MaxReplays
+	default:
+		return true, nil
+	}
+
+	if limit == -1 {
+		return true, nil
+	}
+
+	// For creations, we ALWAYS recalibrate to ensure strict enforcement
+	counts, err := s.RecalibrateUsage(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+
+	current := counts[resourceType]
+	return current < limit, nil
 }
 
 func (s *BillingService) setCache(ctx context.Context, key string, can bool) {

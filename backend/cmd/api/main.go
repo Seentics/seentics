@@ -57,6 +57,9 @@ import (
 	heatmapHandlerPkg "analytics-app/internal/modules/heatmaps/handlers"
 	heatmapRepoPkg "analytics-app/internal/modules/heatmaps/repository"
 	heatmapServicePkg "analytics-app/internal/modules/heatmaps/services"
+	replayHandlerPkg "analytics-app/internal/modules/replays/handlers"
+	replayRepoPkg "analytics-app/internal/modules/replays/repository"
+	replayServicePkg "analytics-app/internal/modules/replays/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
@@ -135,7 +138,7 @@ func main() {
 
 	// Websites
 	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
-	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, billingService, redisClient, logger)
+	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, billingService, redisClient, cfg.Environment, logger)
 	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
 
 	// Kafka & Events
@@ -185,13 +188,17 @@ func main() {
 	logsRepo := logsRepoPkg.NewLogsRepository(db)
 	logsService := logsServicePkg.NewLogsService(logsRepo)
 	logsHandler := logsHandlerPkg.NewLogsHandler(logsService)
+	// Replays
+	replayRepo := replayRepoPkg.NewReplayRepository(db)
+	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, billingService)
+	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 
 	// Start periodic billing sync (every 5 minutes)
 	billingService.StartPeriodicSync(5 * time.Minute)
 	logger.Info().Msg("Started periodic billing sync worker")
 
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, notiHandler, emailHandler, supportHandler, heatmapHandler, logsHandler, logger)
+	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, notiHandler, emailHandler, supportHandler, heatmapHandler, logsHandler, replayHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -234,7 +241,7 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, notiHandler *notiHandlerPkg.NotificationHandler, emailHandler *emailHandlerPkg.EmailHandler, supportHandler *supportHandlerPkg.SupportDeskHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, logsHandler *logsHandlerPkg.LogsHandler, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, notiHandler *notiHandlerPkg.NotificationHandler, emailHandler *emailHandlerPkg.EmailHandler, supportHandler *supportHandlerPkg.SupportDeskHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, logsHandler *logsHandlerPkg.LogsHandler, replayHandler *replayHandlerPkg.ReplayHandler, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -263,6 +270,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			path == "/api/v1/funnels/active" ||
 			path == "/api/v1/workflows/execution/action" ||
 			path == "/api/v1/heatmaps/record" ||
+			path == "/api/v1/replays/record" ||
 			strings.HasPrefix(path, "/api/v1/tracker/config/") ||
 			strings.HasPrefix(path, "/api/v1/workflows/site/") {
 			c.Next()
@@ -442,6 +450,14 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			heatmaps.POST("/record", heatmapHandler.RecordHeatmap)
 			heatmaps.GET("/data", heatmapHandler.GetHeatmapData)
 			heatmaps.GET("/pages", heatmapHandler.GetHeatmapPages)
+		}
+
+		replays := v1.Group("/replays")
+		{
+			replays.POST("/record", replayHandler.RecordReplay)
+			replays.GET("/sessions", replayHandler.ListSessions)
+			replays.GET("/data/:session_id", replayHandler.GetReplay)
+			replays.DELETE("/sessions/:session_id", replayHandler.DeleteReplay)
 		}
 	}
 

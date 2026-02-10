@@ -124,6 +124,15 @@ func (s *AutomationService) CreateAutomation(ctx context.Context, req *models.Cr
 		Conditions:    req.Conditions,
 	}
 
+	// Check plan limits
+	canCreate, err := s.billing.CanCreateResource(ctx, userID, billingModels.ResourceAutomations)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify plan limits: %w", err)
+	}
+	if !canCreate {
+		return nil, fmt.Errorf("automation limit reached for your plan. please upgrade to add more automations")
+	}
+
 	// Save to database
 	err = s.repo.CreateAutomation(ctx, automation)
 	if err != nil {

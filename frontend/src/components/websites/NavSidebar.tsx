@@ -19,6 +19,7 @@ import {
     ChevronLeft,
     ChevronRight,
     MousePointer2,
+    Video,
     Lock,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
@@ -55,6 +56,12 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             href: `/websites/${websiteId}/heatmaps`,
             icon: MousePointer2,
             description: 'User Interaction Maps'
+        },
+        {
+            title: 'Session Replay',
+            href: `/websites/${websiteId}/replays`,
+            icon: Video,
+            description: 'Watch User Sessions'
         },
         {
             title: 'Automations',

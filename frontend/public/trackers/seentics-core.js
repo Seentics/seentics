@@ -21,7 +21,8 @@
       analytics: true,
       automation: true,
       funnels: true,
-      heatmap: true
+      heatmap: true,
+      replay: true
     }
   };
 
@@ -319,6 +320,7 @@
         if (remoteConfig.automation_enabled !== undefined) config.autoLoad.automation = !!remoteConfig.automation_enabled;
         if (remoteConfig.funnel_enabled !== undefined) config.autoLoad.funnels = !!remoteConfig.funnel_enabled;
         if (remoteConfig.heatmap_enabled !== undefined) config.autoLoad.heatmap = !!remoteConfig.heatmap_enabled;
+        if (remoteConfig.replay_enabled !== undefined) config.autoLoad.replay = !!remoteConfig.replay_enabled;
         
         if (config.debug) {
           console.log('[Seentics] Config loaded:', config.autoLoad);
@@ -427,7 +429,8 @@
         analytics: modules.includes('analytics'),
         automation: modules.includes('automation'),
         funnels: modules.includes('funnels'),
-        heatmap: modules.includes('heatmap')
+        heatmap: modules.includes('heatmap'),
+        replay: modules.includes('replay')
       };
     }
     
@@ -452,6 +455,7 @@
         if (config.autoLoad.automation) loadModule('automation');
         if (config.autoLoad.funnels) loadModule('funnels');
         if (config.autoLoad.heatmap) loadModule('heatmap');
+        if (config.autoLoad.replay) loadModule('replay');
       });
     }
   }

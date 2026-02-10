@@ -3,7 +3,7 @@
 import React from 'react';
 import { useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Zap, Check, Shield, BarChart3, Filter, Workflow, Loader2 } from 'lucide-react';
+import { CreditCard, Zap, Check, Shield, BarChart3, Filter, Workflow, Loader2, Map, Video } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -133,6 +133,20 @@ export default function AccountBillingSettings() {
                                     icon: Workflow,
                                     current: subscription?.usage?.workflows?.current || 0,
                                     limit: subscription?.usage?.workflows?.limit || 1
+                                },
+                                {
+                                    name: 'Heatmaps',
+                                    key: 'heatmaps',
+                                    icon: Map,
+                                    current: subscription?.usage?.heatmaps?.current || 0,
+                                    limit: subscription?.usage?.heatmaps?.limit || 1
+                                },
+                                {
+                                    name: 'Session Recordings',
+                                    key: 'replays',
+                                    icon: Video,
+                                    current: subscription?.usage?.replays?.current || 0,
+                                    limit: subscription?.usage?.replays?.limit || 3
                                 },
                             ].map((resource) => {
                                 const percentage = getUsagePercentage(resource.key as any);

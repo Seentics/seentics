@@ -3,7 +3,7 @@
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Check, X, Target, Zap, Shield, Brain, Workflow, Clock, Users, Crown } from 'lucide-react';
+import { Check, X, Target, Zap, Shield, Brain, Workflow, Clock, Users, Crown, Play } from 'lucide-react';
 
 const platforms = [
   {
@@ -52,6 +52,14 @@ const keyFeatures = [
     google: true,
     plausible: true, 
     fathom: true,
+    seentics: true
+  },
+  {
+    feature: 'Session Recordings',
+    icon: Play,
+    google: false,
+    plausible: false,
+    fathom: false,
     seentics: true
   },
   {

@@ -245,7 +245,7 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	// Resolve SiteID to canonical SiteID if possible
 	website, err := s.websites.GetWebsiteBySiteID(ctx, req.SiteID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid website_id")
+		return nil, fmt.Errorf("invalid website_id: %s", req.SiteID)
 	}
 
 	if !website.IsActive {

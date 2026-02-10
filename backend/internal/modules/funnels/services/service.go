@@ -158,6 +158,15 @@ func (s *FunnelService) CreateFunnel(ctx context.Context, req *models.CreateFunn
 		Steps:       req.Steps,
 	}
 
+	// Check plan limits
+	canCreate, err := s.billing.CanCreateResource(ctx, userID, billingModels.ResourceFunnels)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify plan limits: %w", err)
+	}
+	if !canCreate {
+		return nil, fmt.Errorf("funnel limit reached for your plan. please upgrade to add more funnels")
+	}
+
 	err = s.repo.CreateFunnel(ctx, funnel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create funnel: %w", err)

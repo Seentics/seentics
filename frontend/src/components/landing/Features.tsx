@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { BarChart3, Shield, Zap, Globe, Check, Layers, Database, MoveRight, Workflow, Filter } from 'lucide-react';
+import { BarChart3, Shield, Zap, Globe, Check, Layers, Database, MoveRight, Workflow, Filter, Play } from 'lucide-react';
 import React from 'react';
 
 export default function Features() {
@@ -17,15 +17,15 @@ export default function Features() {
       color: "text-primary bg-primary/10"
     },
     {
-      icon: Layers,
-      title: "Visual Heatmaps",
-      description: "Understand where users click and scroll. Get visual evidence of how your content performs.",
+      icon: Play,
+      title: "Session Recordings",
+      description: "Watch high-fidelity replays of user sessions. See where they hesitate, where they get stuck, and why they leave.",
       color: "text-primary bg-primary/10"
     },
     {
       icon: Shield,
-      title: "Privacy First",
-      description: "Compliant with GDPR and PECR by design. No cookies, no personal data, no headache.",
+      title: "Privacy Guaranteed",
+      description: "PII masking by default. We never capture passwords or sensitive data. 100% GDPR, CCPA, and PECR compliant.",
       color: "text-primary bg-primary/10"
     },
   ];

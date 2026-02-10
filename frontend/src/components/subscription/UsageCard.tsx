@@ -21,7 +21,8 @@ const typeLabels = {
   workflows: 'Workflows', 
   funnels: 'Funnels',
   monthlyEvents: 'Monthly Events',
-  heatmaps: 'Heatmaps'
+  heatmaps: 'Heatmaps',
+  replays: 'Session Recordings'
 };
 
 export const UsageCard: React.FC<UsageCardProps> = ({

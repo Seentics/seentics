@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Globe, Workflow, Filter, BarChart3, Crown, Zap, Infinity } from 'lucide-react';
+import { Globe, Workflow, Filter, BarChart3, Crown, Zap, Infinity, Map } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { UsageCard } from './UsageCard';
 import { Button } from '@/components/ui/button';
@@ -148,12 +148,26 @@ export const UsageDashboard: React.FC = () => {
           icon={Filter}
           description="Conversion funnels set up"
         />
+
+        <UsageCard
+          type="heatmaps"
+          title="Heatmaps"
+          icon={Map}
+          description="Visual interaction maps"
+        />
         
         <UsageCard
           type="monthlyEvents"
           title="Monthly Events"
           icon={BarChart3}
           description="Events tracked this month"
+        />
+
+        <UsageCard
+          type="replays"
+          title="Session Recordings"
+          icon={Zap}
+          description="Recorded user sessions"
         />
       </div>
 

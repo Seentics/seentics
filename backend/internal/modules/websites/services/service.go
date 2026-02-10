@@ -25,15 +25,17 @@ type WebsiteService struct {
 	authRepo *authRepoPkg.AuthRepository
 	billing  *billingServicePkg.BillingService
 	redis    *redis.Client
+	env      string
 	logger   zerolog.Logger
 }
 
-func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, billing *billingServicePkg.BillingService, redis *redis.Client, logger zerolog.Logger) *WebsiteService {
+func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, billing *billingServicePkg.BillingService, redis *redis.Client, env string, logger zerolog.Logger) *WebsiteService {
 	return &WebsiteService{
 		repo:     repo,
 		authRepo: authRepo,
 		billing:  billing,
 		redis:    redis,
+		env:      env,
 		logger:   logger,
 	}
 }
@@ -117,6 +119,15 @@ func (s *WebsiteService) CreateWebsite(ctx context.Context, userID uuid.UUID, re
 		UpdatedAt:         time.Now(),
 	}
 
+	// Check plan limits
+	canCreate, err := s.billing.CanCreateResource(ctx, userID.String(), billingModels.ResourceWebsites)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify plan limits: %w", err)
+	}
+	if !canCreate {
+		return nil, fmt.Errorf("website limit reached for your plan. please upgrade to add more websites")
+	}
+
 	if err := s.repo.Create(ctx, website); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to create website")
 		return nil, err
@@ -174,6 +185,25 @@ func (s *WebsiteService) GetWebsiteBySiteID(ctx context.Context, siteID string) 
 	return w, nil
 }
 
+// GetWebsiteByAnyID returns details for a specific site, trying SiteID first then UUID
+func (s *WebsiteService) GetWebsiteByAnyID(ctx context.Context, id string) (*models.Website, error) {
+	// 1. Try SiteID (24-char)
+	w, err := s.GetWebsiteBySiteID(ctx, id)
+	if err == nil {
+		return w, nil
+	}
+
+	// 2. Try UUID
+	if uid, errParse := uuid.Parse(id); errParse == nil {
+		wUUID, errUUID := s.repo.GetByUUIDOnly(ctx, uid)
+		if errUUID == nil {
+			return wUUID, nil
+		}
+	}
+
+	return nil, fmt.Errorf("website not found with id: %s", id)
+}
+
 // ValidateOriginDomain checks if the origin matches the registered domain
 func (s *WebsiteService) ValidateOriginDomain(origin string, registeredDomain string) bool {
 	if origin == "" {
@@ -192,6 +222,15 @@ func (s *WebsiteService) ValidateOriginDomain(origin string, registeredDomain st
 	}
 
 	originDomain = strings.TrimPrefix(originDomain, "www.")
+
+	s.logger.Debug().
+		Str("env", s.env).
+		Str("host", originDomain).
+		Msg("Validating origin domain")
+
+	if s.env != "production" && (originDomain == "localhost" || originDomain == "127.0.0.1") {
+		return true
+	}
 
 	// registeredDomain should already be normalized, but we'll be safe
 	siteDomain := strings.TrimPrefix(registeredDomain, "http://")

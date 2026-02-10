@@ -15,50 +15,51 @@ const plans = [
     color: "text-primary bg-primary/10 border-primary/20",
     features: [
       "1 Website",
-      "10,000 Monthly Events",
-      '1 Automation Workflow',
+      "15,000 Monthly Events",
+      "3 Session Recordings",
+      "1 Active Heatmap",
       "1 Conversion Funnel",
-      "Visual Heatmaps (View Only)",
+      "1 Automation Workflow",
       "30 Days Data Retention",
-      "Real-time Dashboard",
       "Community Support"
     ]
   },
   {
     name: "Growth",
-    price: "15",
+    price: "29",
     period: "month",
     description: "Scaling fast? Get the deep insights you need.",
     icon: Zap,
     popular: true,
     color: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
     features: [
-      "3 Websites",
+      "5 Websites",
       "200,000 Monthly Events",
-      "5 Conversion Funnels",
-      "5 Active Automations",
-      "1 Active Heatmap",
+      "500 Session Recordings",
+      "10 Active Heatmaps",
+      "20 Conversion Funnels",
+      "20 Active Automations",
       "1 Year Data Retention",
       "Priority Email Support"
     ]
   },
   {
     name: "Scale",
-    price: "39",
+    price: "89",
     period: "month",
     description: "Advanced features for scaling agencies and businesses.",
     icon: Crown,
     popular: false,
     color: "text-violet-500 bg-violet-500/10 border-violet-500/20",
     features: [
-      "10 Websites",
+      "15 Websites",
       "1,000,000 Monthly Events",
-      "Unlimited Automations",
-      'Unlimited Funnels',
-      "Unlimited Heatmaps",
-      "3 Years Data Retention",
-      "24/7 Priority Support",
-      "API Access"
+      "2,500 Session Recordings",
+      "50 Active Heatmaps",
+      "100 Active Automations",
+      "100 Conversion Funnels",
+      "2 Years Data Retention",
+      "24/7 Priority Support"
     ]
   },
   {

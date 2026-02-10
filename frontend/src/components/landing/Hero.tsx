@@ -74,7 +74,7 @@ export default function Hero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-base md:text-xl text-muted-foreground/80 max-w-2xl mx-auto mb-10 md:mb-12 leading-relaxed"
           >
-            Understand visitor behavior with <span className="text-foreground font-semibold">Live Analytics</span>, <span className="text-foreground font-semibold">Heatmaps</span>, and <span className="text-foreground font-semibold">Funnels</span>. Take action automatically with logic-driven popups and emails.
+            Understand visitor behavior with <span className="text-foreground font-semibold">Live Analytics</span>, <span className="text-foreground font-semibold">Heatmaps</span>, <span className="text-foreground font-semibold">Webcam-free Session Recordings</span>, and <span className="text-foreground font-semibold">Funnels</span>. And take<span className="text-foreground font-semibold"> actions</span> automatically with logic-driven popups and emails.
           </motion.p>
 
           <motion.div
