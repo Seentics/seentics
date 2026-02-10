@@ -40,7 +40,7 @@ const getSourceImage = (label: string) => {
   if (lower.includes('instagram')) return '/images/instagram.png';
   if (lower.includes('tiktok')) return '/images/tiktok.png';
   if (lower.includes('pinterest')) return '/images/pinterest.png';
-  if (lower.includes('email') || lower.includes('mail')) return '/images/search.png'; // Fallback for email
+  if (lower.includes('email') || lower.includes('mail')) return '/images/search.png';
   if (lower.includes('direct') || lower.includes('referral') || lower.includes('link')) return '/images/link.png';
   return '/images/planet-earth.png';
 };

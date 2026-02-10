@@ -97,9 +97,9 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
   }
 
   return (
-    <div className="space-y-2 animate-in fade-in duration-500 h-[400px] overflow-y-auto pr-1 custom-scrollbar">
+    <div className="space-y-2 animate-in fade-in duration-500 h-[400px] overflow-y-auto custom-scrollbar">
       {listData.map((item, idx) => (
-        <div key={idx} className="flex items-center justify-between p-3 border-b transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
+        <div key={idx} className="flex items-center justify-between p-1 border-b transition-all duration-300 hover:bg-accent/5 hover:border-border/40 group">
           <div className="flex items-center space-x-4 flex-1 min-w-0">
             <div className="w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm shrink-0 overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
               <Image 

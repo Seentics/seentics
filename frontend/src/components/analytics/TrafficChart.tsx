@@ -86,7 +86,7 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
             <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
           </div>
         )}
-        <div className="flex items-center space-x-6 text-sm ml-auto">
+        <div className="flex items-center space-x-6 text-sm ml-auto mx-12">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 rounded-full bg-blue-500" />
             <span className="text-muted-foreground">Page Views</span>

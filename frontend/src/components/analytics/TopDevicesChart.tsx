@@ -45,7 +45,7 @@ const getSystemImage = (label: string, type: 'device' | 'os' | 'screen') => {
     return '/images/planet-earth.png';
   }
   
-  return '/images/monitor.png'; // Fallback for screens
+  return '/images/monitor.png';
 };
 
 export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevicesChartProps) {

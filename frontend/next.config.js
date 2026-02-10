@@ -20,7 +20,10 @@ const nextConfig = {
         pathname: '/**',
       },
       {
-        hostname:'flagcdn.com'
+        protocol: 'https',
+        hostname: 'flagcdn.com',
+        port: '',
+        pathname: '/**',
       },
       {
         protocol: 'https',

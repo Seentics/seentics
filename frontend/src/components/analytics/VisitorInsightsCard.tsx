@@ -55,7 +55,7 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
       {/* Primary Metrics Grid */}
       <div className="grid grid-cols-2 gap-4">
         {/* New Visitors */}
-        <div className="bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg p-4 border border-primary/20 hover:border-primary/40 transition-colors group">
+        <div className="border p-4 rounded-md hover:border-primary/40 transition-colors group">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 bg-primary/10 rounded">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -64,7 +64,7 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
           </div>
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-2xl font-black text-foreground">{(data?.new_visitors || 0).toLocaleString()}</p>
+              <p className="text-2xl font-black text-green-600  ">{(data?.new_visitors || 0).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground font-medium mt-0.5">First-time users</p>
             </div>
             <div className="text-right">
@@ -76,7 +76,7 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
         </div>
 
         {/* Returning Visitors */}
-        <div className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 rounded-lg p-4 border border-emerald-500/20 hover:border-emerald-500/40 transition-colors group">
+        <div className="border rounded-md p-4 hover:border-emerald-500/40 transition-colors group">
           <div className="flex items-center gap-2 mb-2">
             <div className="p-1.5 bg-emerald-500/10 rounded">
               <ArrowRightLeft className="h-4 w-4 text-emerald-500" />

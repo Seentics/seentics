@@ -530,72 +530,7 @@ export default function WebsiteDashboardPage() {
           />
         </section>
 
-        {/* CONVERSION & MARKETING INTELLIGENCE */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <Target className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Conversion & Marketing</h2>
-            <div className="h-px bg-border flex-1 ml-4" />
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Goal Conversions */}
-            <Card className="rounded bg-card/50">
-              <CardHeader className="p-8 pb-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg font-bold tracking-tight">Goal Conversions</CardTitle>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Behavioral Targets</p>
-                  </div>
-                  <Button 
-                    onClick={() => setShowAddGoalModal(true)}
-                    variant="outline" 
-                    size="sm" 
-                    className="px-4 font-bold text-sm rounded gap-2 shadow-sm transition-transform active:scale-95"
-                  >
-                    <PlusCircle className="h-4 w-4" />
-                    Add Goal
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="p-8 pt-4 flex-1">
-                <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                  <EventsDetails
-                    items={finalGoalStats}
-                    isLoading={!isDemoMode && goalStatsLoading}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Campaign Intelligence */}
-            <Card className="rounded bg-card/50 overflow-hidden">
-              <CardHeader className="p-8 pb-6 border-b border-border/40">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="space-y-1 min-w-0 shrink-0">
-                    <CardTitle className="text-lg font-bold tracking-tight whitespace-nowrap">Campaign Intelligence</CardTitle>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50 whitespace-nowrap">UTM Source & Performance</p>
-                  </div>
-                  <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto shrink-0">
-                    <TabsList className="grid w-full grid-cols-3 h-11 bg-muted/20 p-1 rounded">
-                      <TabsTrigger value="sources" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Sources</TabsTrigger>
-                      <TabsTrigger value="mediums" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Mediums</TabsTrigger>
-                      <TabsTrigger value="campaigns" className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Campaigns</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                </div>
-              </CardHeader>
-              <CardContent className="p-8 pt-6">
-                <UTMPerformanceChart
-                  data={transformedCustomEvents.utm_performance as any}
-                  isLoading={customEventsLoading}
-                  hideTabs={true}
-                  controlledTab={utmTab}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+       
 
         {/* AUDIENCE INTELLIGENCE */}
         <div className="space-y-4">
@@ -632,6 +567,73 @@ export default function WebsiteDashboardPage() {
               isLoading={!isDemoMode && geolocationLoading}
             />
           </section>
+        </div>
+
+ {/* CONVERSION & MARKETING INTELLIGENCE */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <Target className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-bold tracking-tight">Conversion & Marketing</h2>
+            <div className="h-px bg-border flex-1 ml-4" />
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Goal Conversions */}
+            <Card className="rounded bg-card/50">
+              <CardHeader className="p-8 pb-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <CardTitle className="text-lg font-bold tracking-tight">Goal Conversions</CardTitle>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Behavioral Targets</p>
+                  </div>
+                  <Button 
+                    onClick={() => setShowAddGoalModal(true)}
+                    variant="secondary" 
+                    size="sm" 
+                    className="px-2 py-0 font-bold text-[10px] rounded gap-2 shadow-sm transition-transform active:scale-95"
+                  >
+                    <PlusCircle className="h-4 w-4" />
+                    Add Goal
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 flex-1">
+                <div className="max-h-[400px] overflow-y-auto  custom-scrollbar">
+                  <EventsDetails
+                    items={finalGoalStats}
+                    isLoading={!isDemoMode && goalStatsLoading}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Campaign Intelligence */}
+            <Card className="rounded bg-card/50 overflow-hidden">
+              <CardHeader className="p-8 pb-6 border-b border-border/40">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                  <div className="space-y-1 min-w-0 shrink-0">
+                    <CardTitle className="text-lg font-bold tracking-tight whitespace-nowrap">Campaign Intelligence</CardTitle>
+                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50 whitespace-nowrap">UTM Source & Performance</p>
+                  </div>
+                  <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto shrink-0">
+                    <TabsList className="grid w-full grid-cols-3 h-11 bg-muted/20 p-1 rounded">
+                      <TabsTrigger value="sources" className="text-[10px]  font-bold uppercase tracking-wider">Sources</TabsTrigger>
+                      <TabsTrigger value="mediums" className="text-[10px] font-bold uppercase tracking-wider">Mediums</TabsTrigger>
+                      <TabsTrigger value="campaigns" className="text-[10px]  font-bold uppercase tracking-wider">Campaigns</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
+                </div>
+              </CardHeader>
+              <CardContent className=" pt-6">
+                <UTMPerformanceChart
+                  data={transformedCustomEvents.utm_performance as any}
+                  isLoading={customEventsLoading}
+                  hideTabs={true}
+                  controlledTab={utmTab}
+                />
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
         {/* SYSTEM & BEHAVIOR */}

@@ -53,7 +53,7 @@ export function TrafficOverview({
         </Tabs>
       </CardHeader>
       
-      <CardContent className='p-6 pt-0 border-none outline-none'>
+      <CardContent className='p-0 pt-0 border-none outline-none'>
         {view === 'chart' && (
           <div className="h-[400px]">
             <TrafficChart data={dailyStats} isLoading={isLoading} />

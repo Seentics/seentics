@@ -27,7 +27,6 @@ const getBrowserIcon = (browser: string) => {
           height={32}
           className="object-contain"
           onError={(e) => {
-            // Fallback to colored background if image fails to load
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
             target.nextElementSibling?.classList.remove('hidden');
@@ -53,7 +52,6 @@ const getBrowserIcon = (browser: string) => {
           height={32}
           className="object-contain"
           onError={(e) => {
-            // Fallback to colored background if image fails to load
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
             target.nextElementSibling?.classList.remove('hidden');
@@ -79,7 +77,6 @@ const getBrowserIcon = (browser: string) => {
           height={32}
           className="object-contain"
           onError={(e) => {
-            // Fallback to colored background if image fails to load
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
             target.nextElementSibling?.classList.remove('hidden');
@@ -105,7 +102,6 @@ const getBrowserIcon = (browser: string) => {
           height={32}
           className="object-contain"
           onError={(e) => {
-            // Fallback to colored background if image fails to load
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
             target.nextElementSibling?.classList.remove('hidden');
@@ -131,7 +127,6 @@ const getBrowserIcon = (browser: string) => {
           height={32}
           className="object-contain"
           onError={(e) => {
-            // Fallback to colored background if image fails to load
             const target = e.target as HTMLImageElement;
             target.style.display = 'none';
             target.nextElementSibling?.classList.remove('hidden');
@@ -154,6 +149,7 @@ const getBrowserIcon = (browser: string) => {
   );
 };
 
+
 const getBrowserName = (browser: string) => {
   const lowerBrowser = browser.toLowerCase();
   if (lowerBrowser.includes('chrome')) return 'Chrome';
@@ -162,6 +158,7 @@ const getBrowserName = (browser: string) => {
   if (lowerBrowser.includes('edge')) return 'Edge';
   return browser;
 };
+
 export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoading, showHeader = false }) => {
   if (isLoading) {
     return <Skeleton className="h-[400px] w-full" />;
