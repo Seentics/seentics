@@ -55,8 +55,16 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 
 	data, err := h.service.GetDashboard(c.Request.Context(), websiteID, days, filters, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get dashboard data")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get dashboard data"})
+		h.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to get dashboard data")
+
+		status := http.StatusInternalServerError
+		if err.Error() == "website not found" {
+			status = http.StatusNotFound
+		} else if err.Error() == "unauthorized" {
+			status = http.StatusForbidden
+		}
+
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -92,8 +100,16 @@ func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
 
 	pages, err := h.service.GetTopPages(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get top pages")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top pages"})
+		h.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to get top pages")
+
+		status := http.StatusInternalServerError
+		if err.Error() == "website not found" {
+			status = http.StatusNotFound
+		} else if err.Error() == "unauthorized" {
+			status = http.StatusForbidden
+		}
+
+		c.JSON(status, gin.H{"error": err.Error()})
 		return
 	}
 

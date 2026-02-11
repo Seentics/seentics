@@ -20,7 +20,7 @@ type HeatmapService interface {
 
 func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, origin string) error {
 	// Validate website existence
-	w, err := s.websites.GetWebsiteBySiteID(context.Background(), req.WebsiteID)
+	w, err := s.websites.GetWebsiteByAnyID(context.Background(), req.WebsiteID)
 	if err != nil {
 		return fmt.Errorf("invalid website_id: %s", req.WebsiteID)
 	}
@@ -97,7 +97,7 @@ func (s *heatmapService) validateOwnership(ctx context.Context, websiteID string
 		return "", fmt.Errorf("invalid user_id format")
 	}
 
-	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	w, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
 	if err != nil {
 		return "", fmt.Errorf("website not found")
 	}

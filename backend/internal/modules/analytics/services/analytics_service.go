@@ -34,7 +34,7 @@ func (s *AnalyticsService) resolveWebsiteID(ctx context.Context, websiteID strin
 	if s.websites == nil {
 		return websiteID
 	}
-	website, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
 	if err != nil {
 		return websiteID
 	}
@@ -52,9 +52,9 @@ func (s *AnalyticsService) validateOwnership(ctx context.Context, websiteID stri
 		return "", fmt.Errorf("invalid user_id format")
 	}
 
-	// Try to get website by SiteID and UserID
+	// Try to get website by Any ID (UUID or SiteID)
 	// We'll use the websites service for this
-	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	w, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
 	if err != nil {
 		return "", fmt.Errorf("website not found")
 	}

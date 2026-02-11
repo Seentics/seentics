@@ -162,7 +162,7 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 	s.shutdownMu.RUnlock()
 
 	// 1. Validate Website and Domain
-	website, err := s.websites.GetWebsiteBySiteID(ctx, event.WebsiteID)
+	website, err := s.websites.GetWebsiteByAnyID(ctx, event.WebsiteID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid website_id")
 	}
@@ -243,7 +243,7 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	}
 
 	// Resolve SiteID to canonical SiteID if possible
-	website, err := s.websites.GetWebsiteBySiteID(ctx, req.SiteID)
+	website, err := s.websites.GetWebsiteByAnyID(ctx, req.SiteID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid website_id: %s", req.SiteID)
 	}
@@ -424,7 +424,7 @@ func (s *EventService) processBatch(batch []models.Event) {
 		// We do this here too because Kafka messages might have been produced using the old UUID
 		// if the producer service hadn't been updated yet or if there's a leak.
 		if len(event.WebsiteID) > 24 { // Likely a UUID
-			if website, err := s.websites.GetWebsiteBySiteID(ctx, event.WebsiteID); err == nil {
+			if website, err := s.websites.GetWebsiteByAnyID(ctx, event.WebsiteID); err == nil {
 				event.WebsiteID = website.SiteID
 			}
 		}

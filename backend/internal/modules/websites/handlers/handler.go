@@ -68,6 +68,7 @@ func (h *WebsiteHandler) Create(c *gin.Context) {
 
 	website, err := h.service.CreateWebsite(c.Request.Context(), userID, req)
 	if err != nil {
+		h.logger.Error().Err(err).Str("user_id", userID.String()).Msg("Failed to create website")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create website"})
 		return
 	}
