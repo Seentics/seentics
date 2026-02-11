@@ -31,6 +31,20 @@ func (h *AnalyticsHandler) getUserID(c *gin.Context) string {
 	return userID.(string)
 }
 
+func (h *AnalyticsHandler) handleError(c *gin.Context, err error, msg string) {
+	h.logger.Error().Err(err).Msg(msg)
+
+	status := http.StatusInternalServerError
+	errStr := err.Error()
+	if errStr == "website not found" {
+		status = http.StatusNotFound
+	} else if errStr == "unauthorized access to website data" || errStr == "unauthorized" {
+		status = http.StatusForbidden
+	}
+
+	c.JSON(status, gin.H{"error": errStr})
+}
+
 func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -55,16 +69,7 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 
 	data, err := h.service.GetDashboard(c.Request.Context(), websiteID, days, filters, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to get dashboard data")
-
-		status := http.StatusInternalServerError
-		if err.Error() == "website not found" {
-			status = http.StatusNotFound
-		} else if err.Error() == "unauthorized" {
-			status = http.StatusForbidden
-		}
-
-		c.JSON(status, gin.H{"error": err.Error()})
+		h.handleError(c, err, "Failed to get dashboard data")
 		return
 	}
 
@@ -100,16 +105,7 @@ func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
 
 	pages, err := h.service.GetTopPages(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to get top pages")
-
-		status := http.StatusInternalServerError
-		if err.Error() == "website not found" {
-			status = http.StatusNotFound
-		} else if err.Error() == "unauthorized" {
-			status = http.StatusForbidden
-		}
-
-		c.JSON(status, gin.H{"error": err.Error()})
+		h.handleError(c, err, "Failed to get top pages")
 		return
 	}
 
@@ -149,8 +145,7 @@ func (h *AnalyticsHandler) GetPageUTMBreakdown(c *gin.Context) {
 	// Get page UTM breakdown from repository
 	breakdown, err := h.service.GetPageUTMBreakdown(c.Request.Context(), websiteID, pagePath, days, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get page UTM breakdown")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get page UTM breakdown"})
+		h.handleError(c, err, "Failed to get page UTM breakdown")
 		return
 	}
 
@@ -186,8 +181,7 @@ func (h *AnalyticsHandler) GetTopReferrers(c *gin.Context) {
 
 	referrers, err := h.service.GetTopReferrers(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get top referrers")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top referrers"})
+		h.handleError(c, err, "Failed to get top referrers")
 		return
 	}
 
@@ -227,8 +221,7 @@ func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
 
 	sources, err := h.service.GetTopSources(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get top sources")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top sources"})
+		h.handleError(c, err, "Failed to get top sources")
 		return
 	}
 
@@ -268,8 +261,7 @@ func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
 
 	countries, err := h.service.GetTopCountries(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get top countries")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top countries"})
+		h.handleError(c, err, "Failed to get top countries")
 		return
 	}
 
@@ -309,8 +301,7 @@ func (h *AnalyticsHandler) GetTopResolutions(c *gin.Context) {
 
 	resolutions, err := h.service.GetTopResolutions(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get top resolutions")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top resolutions"})
+		h.handleError(c, err, "Failed to get top resolutions")
 		return
 	}
 
@@ -350,8 +341,7 @@ func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
 
 	browsers, err := h.service.GetTopBrowsers(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get top browsers")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top browsers"})
+		h.handleError(c, err, "Failed to get top browsers")
 		return
 	}
 
@@ -391,8 +381,7 @@ func (h *AnalyticsHandler) GetTopDevices(c *gin.Context) {
 
 	devices, err := h.service.GetTopDevices(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get top devices")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top devices"})
+		h.handleError(c, err, "Failed to get top devices")
 		return
 	}
 
@@ -432,8 +421,7 @@ func (h *AnalyticsHandler) GetTopOS(c *gin.Context) {
 
 	osList, err := h.service.GetTopOS(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get top OS")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get top OS"})
+		h.handleError(c, err, "Failed to get top OS")
 		return
 	}
 
@@ -466,8 +454,7 @@ func (h *AnalyticsHandler) GetTrafficSummary(c *gin.Context) {
 
 	summary, err := h.service.GetTrafficSummary(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get traffic summary")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get traffic summary"})
+		h.handleError(c, err, "Failed to get traffic summary")
 		return
 	}
 
@@ -499,8 +486,7 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 
 	stats, err := h.service.GetDailyStats(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get daily stats")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get daily stats"})
+		h.handleError(c, err, "Failed to get daily stats")
 		return
 	}
 
@@ -537,8 +523,7 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 	// Always fetch last 24 hours for hourly stats
 	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, 1, timezone, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get hourly stats")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get hourly stats"})
+		h.handleError(c, err, "Failed to get hourly stats")
 		return
 	}
 
@@ -634,8 +619,7 @@ func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
 
 	stats, err := h.service.GetGoalStats(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get goal stats")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get goal stats"})
+		h.handleError(c, err, "Failed to get goal stats")
 		return
 	}
 
@@ -660,11 +644,9 @@ func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
 		return
 	}
 
-	// Get visitors active in the last 5 minutes
 	liveVisitors, err := h.service.GetLiveVisitors(c.Request.Context(), websiteID, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get live visitors")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get live visitors"})
+		h.handleError(c, err, "Failed to get live visitors")
 		return
 	}
 
@@ -698,8 +680,7 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 
 	breakdown, err := h.service.GetGeolocationBreakdown(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get geolocation breakdown")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get geolocation breakdown"})
+		h.handleError(c, err, "Failed to get geolocation breakdown")
 		return
 	}
 
@@ -729,8 +710,7 @@ func (h *AnalyticsHandler) GetUserRetention(c *gin.Context) {
 
 	retention, err := h.service.GetUserRetention(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get user retention data")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user retention data"})
+		h.handleError(c, err, "Failed to get user retention data")
 		return
 	}
 
@@ -760,8 +740,7 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 
 	insights, err := h.service.GetVisitorInsights(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get visitor insights")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get visitor insights"})
+		h.handleError(c, err, "Failed to get visitor insights")
 		return
 	}
 
@@ -809,8 +788,7 @@ func (h *AnalyticsHandler) ExportAnalytics(c *gin.Context) {
 
 	data, err := h.service.ExportWebsiteData(c.Request.Context(), websiteID, days, format, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to export analytics data")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to export analytics data"})
+		h.handleError(c, err, "Failed to export analytics data")
 		return
 	}
 
@@ -862,8 +840,7 @@ func (h *AnalyticsHandler) ImportAnalytics(c *gin.Context) {
 
 	count, err := h.service.ImportWebsiteData(c.Request.Context(), websiteID, source, data, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to import analytics data")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to import data: %v", err)})
+		h.handleError(c, err, "Failed to import analytics data")
 		return
 	}
 
@@ -888,8 +865,7 @@ func (h *AnalyticsHandler) GetActivityTrends(c *gin.Context) {
 
 	data, err := h.service.GetActivityTrends(c.Request.Context(), websiteID, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get activity trends")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get activity trends"})
+		h.handleError(c, err, "Failed to get activity trends")
 		return
 	}
 

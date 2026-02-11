@@ -136,9 +136,12 @@ func main() {
 	billingService := billingServicePkg.NewBillingService(billingRepo, redisClient)
 	billingHandler := billingHandlerPkg.NewBillingHandler(billingService, logger)
 
+	// Heatmaps (Repository only, for website service)
+	heatmapRepo := heatmapRepoPkg.NewHeatmapRepository(db)
+
 	// Websites
 	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
-	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, billingService, redisClient, cfg.Environment, logger)
+	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, billingService, heatmapRepo, redisClient, cfg.Environment, logger)
 	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
 
 	// Kafka & Events
@@ -179,8 +182,7 @@ func main() {
 	supportService := supportServicePkg.NewSupportDeskService(supportRepo, websiteService)
 	supportHandler := supportHandlerPkg.NewSupportDeskHandler(supportService)
 
-	// Heatmaps
-	heatmapRepo := heatmapRepoPkg.NewHeatmapRepository(db)
+	// Heatmaps (Service)
 	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, billingService)
 	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
 

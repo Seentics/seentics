@@ -11,9 +11,10 @@ import (
 type HeatmapRepository interface {
 	RecordHeatmap(ctx context.Context, websiteID string, points []models.HeatmapPoint) error
 	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time) ([]models.HeatmapPoint, error)
-	GetHeatmapPages(ctx context.Context, websiteID string) ([]string, error)
+	GetHeatmapPages(ctx context.Context, websiteID string, siteID string) ([]models.HeatmapPageStat, error)
 	CountHeatmapPages(ctx context.Context, websiteID string) (int, error)
 	HeatmapExistsForURL(ctx context.Context, websiteID string, url string) (bool, error)
+	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
 }
 
 type heatmapRepository struct {
@@ -72,26 +73,31 @@ func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string
 	return points, nil
 }
 
-func (r *heatmapRepository) GetHeatmapPages(ctx context.Context, websiteID string) ([]string, error) {
+func (r *heatmapRepository) GetHeatmapPages(ctx context.Context, websiteID string, siteID string) ([]models.HeatmapPageStat, error) {
 	query := `
-		SELECT DISTINCT page_path 
-		FROM heatmap_points 
-		WHERE website_id = $1 
-		ORDER BY page_path ASC
+		SELECT 
+			hp.page_path, 
+			SUM(hp.intensity) as total_clicks,
+			(SELECT COUNT(*) FROM events WHERE website_id = $2 AND page = hp.page_path AND event_type = 'pageview') as total_views
+		FROM heatmap_points hp
+		WHERE hp.website_id = $1 AND hp.event_type = 'click'
+		GROUP BY hp.page_path
+		ORDER BY total_clicks DESC
 	`
-	rows, err := r.db.Query(ctx, query, websiteID)
+	rows, err := r.db.Query(ctx, query, websiteID, siteID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var pages []string
+	var pages []models.HeatmapPageStat
 	for rows.Next() {
-		var page string
-		if err := rows.Scan(&page); err != nil {
+		var p models.HeatmapPageStat
+		if err := rows.Scan(&p.URL, &p.Clicks, &p.Views); err != nil {
 			return nil, err
 		}
-		pages = append(pages, page)
+		p.Active = true
+		pages = append(pages, p)
 	}
 
 	return pages, nil
@@ -109,4 +115,24 @@ func (r *heatmapRepository) HeatmapExistsForURL(ctx context.Context, websiteID s
 	var exists bool
 	err := r.db.QueryRow(ctx, query, websiteID, url).Scan(&exists)
 	return exists, err
+}
+
+func (r *heatmapRepository) GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error) {
+	query := `SELECT DISTINCT page_path FROM heatmap_points WHERE website_id = $1`
+	rows, err := r.db.Query(ctx, query, websiteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var urls []string
+	for rows.Next() {
+		var url string
+		if err := rows.Scan(&url); err != nil {
+			return nil, err
+		}
+		urls = append(urls, url)
+	}
+
+	return urls, nil
 }

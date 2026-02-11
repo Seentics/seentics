@@ -15,7 +15,8 @@ import (
 type HeatmapService interface {
 	RecordHeatmapData(req models.HeatmapRecordRequest, origin string) error
 	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time, userID string) ([]models.HeatmapPoint, error)
-	GetHeatmapPages(ctx context.Context, websiteID string, userID string) ([]string, error)
+	GetHeatmapPages(ctx context.Context, websiteID string, userID string) ([]models.HeatmapPageStat, error)
+	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
 }
 
 func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, origin string) error {
@@ -86,41 +87,47 @@ func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServi
 	}
 }
 
-// validateOwnership ensures the website belongs to the user
-func (s *heatmapService) validateOwnership(ctx context.Context, websiteID string, userID string) (string, error) {
+// validateOwnership ensures the website belongs to the user and returns (canonicalUUID, siteID, error)
+func (s *heatmapService) validateOwnership(ctx context.Context, websiteID string, userID string) (string, string, error) {
 	if userID == "" {
-		return "", fmt.Errorf("user_id is required")
+		return "", "", fmt.Errorf("user_id is required")
 	}
 
 	uid, err := uuid.Parse(userID)
 	if err != nil {
-		return "", fmt.Errorf("invalid user_id format")
+		return "", "", fmt.Errorf("invalid user_id format")
 	}
 
 	w, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
 	if err != nil {
-		return "", fmt.Errorf("website not found")
+		return "", "", fmt.Errorf("website not found")
 	}
 
 	if w.UserID != uid {
-		return "", fmt.Errorf("unauthorized access to website data")
+		return "", "", fmt.Errorf("unauthorized access to website data")
 	}
 
-	return w.ID.String(), nil
+	return w.ID.String(), w.SiteID, nil
 }
 
 func (s *heatmapService) GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time, userID string) ([]models.HeatmapPoint, error) {
-	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	canonicalID, _, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
 	return s.repo.GetHeatmapData(ctx, canonicalID, url, heatmapType, from, to)
 }
 
-func (s *heatmapService) GetHeatmapPages(ctx context.Context, websiteID string, userID string) ([]string, error) {
-	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+func (s *heatmapService) GetHeatmapPages(ctx context.Context, websiteID string, userID string) ([]models.HeatmapPageStat, error) {
+	canonicalID, siteID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetHeatmapPages(ctx, canonicalID)
+	return s.repo.GetHeatmapPages(ctx, canonicalID, siteID)
+}
+
+func (s *heatmapService) GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error) {
+	// Note: We don't use validateOwnership here because this is called by the internal WebsiteService
+	// for the tracker config, which already has the website object.
+	return s.repo.GetTrackedURLs(ctx, websiteID)
 }

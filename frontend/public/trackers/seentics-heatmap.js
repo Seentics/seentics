@@ -32,8 +32,26 @@
       lastMoveTime: 0,
       moveThreshold: 150, // 150ms between move captures
       lastUrl: w.location.href,
-      samplingRate: 0.1 // Sample 10% of mousemove events (configurable)
+      samplingRate: 0.1, // Sample 10% of mousemove events (configurable)
+      enabled: config.heatmap_enabled
     };
+
+    // Check plan limits
+    const currentPath = w.location.pathname;
+    const maxHeatmaps = config.max_heatmaps || 0;
+    const trackedUrls = config.tracked_urls || [];
+    const isTracked = trackedUrls.includes(currentPath);
+
+    if (heatmapState.enabled && maxHeatmaps !== -1) {
+      if (!isTracked && trackedUrls.length >= maxHeatmaps) {
+        heatmapState.enabled = false;
+        if (config.debug) {
+          console.log('[Seentics Heatmap] Limit reached, skipping this page:', currentPath);
+        }
+      }
+    }
+
+    if (!heatmapState.enabled) return;
 
     /**
      * Normalize coordinates to 0-1000 range

@@ -15,28 +15,32 @@ import (
 	"strings"
 	"time"
 
+	heatmapRepoPkg "analytics-app/internal/modules/heatmaps/repository"
+
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
 type WebsiteService struct {
-	repo     *repository.WebsiteRepository
-	authRepo *authRepoPkg.AuthRepository
-	billing  *billingServicePkg.BillingService
-	redis    *redis.Client
-	env      string
-	logger   zerolog.Logger
+	repo        *repository.WebsiteRepository
+	authRepo    *authRepoPkg.AuthRepository
+	billing     *billingServicePkg.BillingService
+	heatmapRepo heatmapRepoPkg.HeatmapRepository
+	redis       *redis.Client
+	env         string
+	logger      zerolog.Logger
 }
 
-func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, billing *billingServicePkg.BillingService, redis *redis.Client, env string, logger zerolog.Logger) *WebsiteService {
+func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, billing *billingServicePkg.BillingService, heatmapRepo heatmapRepoPkg.HeatmapRepository, redis *redis.Client, env string, logger zerolog.Logger) *WebsiteService {
 	return &WebsiteService{
-		repo:     repo,
-		authRepo: authRepo,
-		billing:  billing,
-		redis:    redis,
-		env:      env,
-		logger:   logger,
+		repo:        repo,
+		authRepo:    authRepo,
+		billing:     billing,
+		heatmapRepo: heatmapRepo,
+		redis:       redis,
+		env:         env,
+		logger:      logger,
 	}
 }
 
@@ -69,11 +73,30 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 		}
 	}
 
+	// Fetch heatmap limits and tracked URLs
+	maxHeatmaps := 0
+	trackedURLs := []string{}
+
+	if w.HeatmapEnabled {
+		sub, err := s.billing.GetSubscription(ctx, w.UserID.String())
+		if err == nil && sub != nil && sub.Plan != nil {
+			maxHeatmaps = sub.Plan.MaxHeatmaps
+		}
+
+		// Get already tracked URLs
+		urls, err := s.heatmapRepo.GetTrackedURLs(ctx, w.ID.String())
+		if err == nil {
+			trackedURLs = urls
+		}
+	}
+
 	return map[string]interface{}{
 		"site_id":            w.SiteID,
 		"automation_enabled": w.AutomationEnabled,
 		"funnel_enabled":     w.FunnelEnabled,
 		"heatmap_enabled":    w.HeatmapEnabled,
+		"max_heatmaps":       maxHeatmaps,
+		"tracked_urls":       trackedURLs,
 		"goals":              trackerGoals,
 	}, nil
 }

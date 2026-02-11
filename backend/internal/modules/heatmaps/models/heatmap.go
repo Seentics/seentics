@@ -46,3 +46,15 @@ type HeatmapRecordRequest struct {
 	WebsiteID string         `json:"website_id"`
 	Points    []HeatmapPoint `json:"points"`
 }
+
+type HeatmapPageStat struct {
+	URL       string `json:"url"`
+	Views     int    `json:"views"`
+	Clicks    int    `json:"clicks"`
+	AvgScroll int    `json:"avg_scroll"`
+	Active    bool   `json:"active"`
+}
+
+type HeatmapPagesResponse struct {
+	Pages []HeatmapPageStat `json:"pages"`
+}
