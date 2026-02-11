@@ -452,6 +452,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			heatmaps.POST("/record", heatmapHandler.RecordHeatmap)
 			heatmaps.GET("/data", heatmapHandler.GetHeatmapData)
 			heatmaps.GET("/pages", heatmapHandler.GetHeatmapPages)
+			heatmaps.DELETE("/pages", heatmapHandler.DeleteHeatmapPage)
 		}
 
 		replays := v1.Group("/replays")

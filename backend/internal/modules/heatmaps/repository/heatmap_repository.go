@@ -15,6 +15,7 @@ type HeatmapRepository interface {
 	CountHeatmapPages(ctx context.Context, websiteID string) (int, error)
 	HeatmapExistsForURL(ctx context.Context, websiteID string, url string) (bool, error)
 	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
+	DeleteHeatmapPage(ctx context.Context, websiteID string, url string) error
 }
 
 type heatmapRepository struct {
@@ -34,14 +35,14 @@ func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string,
 		}
 
 		query := `
-			INSERT INTO heatmap_points (website_id, page_path, event_type, device_type, x_percent, y_percent, intensity, last_updated)
-			VALUES ($1, $2, $3, $4, $5, $6, 1, NOW())
-			ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent)
+			INSERT INTO heatmap_points (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, intensity, last_updated)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, 1, NOW())
+			ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector)
 			DO UPDATE SET 
 				intensity = heatmap_points.intensity + 1,
 				last_updated = NOW()
 		`
-		_, err := r.db.Exec(ctx, query, websiteID, p.URL, p.Type, deviceType, p.XPercent, p.YPercent)
+		_, err := r.db.Exec(ctx, query, websiteID, p.URL, p.Type, deviceType, p.XPercent, p.YPercent, p.Selector)
 		if err != nil {
 			return err
 		}
@@ -51,7 +52,7 @@ func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string,
 
 func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time) ([]models.HeatmapPoint, error) {
 	query := `
-		SELECT x_percent, y_percent, intensity 
+		SELECT x_percent, y_percent, intensity, target_selector 
 		FROM heatmap_points 
 		WHERE website_id = $1 AND page_path = $2 AND event_type = $3 AND last_updated BETWEEN $4 AND $5
 	`
@@ -64,7 +65,7 @@ func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string
 	var points []models.HeatmapPoint
 	for rows.Next() {
 		var p models.HeatmapPoint
-		if err := rows.Scan(&p.XPercent, &p.YPercent, &p.Intensity); err != nil {
+		if err := rows.Scan(&p.XPercent, &p.YPercent, &p.Intensity, &p.Selector); err != nil {
 			return nil, err
 		}
 		points = append(points, p)
@@ -135,4 +136,10 @@ func (r *heatmapRepository) GetTrackedURLs(ctx context.Context, websiteID string
 	}
 
 	return urls, nil
+}
+
+func (r *heatmapRepository) DeleteHeatmapPage(ctx context.Context, websiteID string, url string) error {
+	query := `DELETE FROM heatmap_points WHERE website_id = $1 AND page_path = $2`
+	_, err := r.db.Exec(ctx, query, websiteID, url)
+	return err
 }

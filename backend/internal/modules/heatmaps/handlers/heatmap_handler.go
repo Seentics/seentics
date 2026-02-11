@@ -113,3 +113,28 @@ func (h *HeatmapHandler) GetHeatmapPages(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"pages": pages})
 }
+func (h *HeatmapHandler) DeleteHeatmapPage(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Query("website_id")
+	url := c.Query("url")
+
+	if websiteID == "" || url == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id and url are required"})
+		return
+	}
+
+	h.logger.Debug().Str("website_id", websiteID).Str("url", url).Msg("Deleting heatmap page")
+
+	if err := h.service.DeleteHeatmapPage(c.Request.Context(), websiteID, url, userID); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to delete heatmap page")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete heatmap page"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}

@@ -64,6 +64,8 @@ export default function HeatmapsPage() {
   const [pages, setPages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const isDemo = websiteId === 'demo';
   const isFreePlan = subscription?.plan === 'free';
@@ -71,53 +73,75 @@ export default function HeatmapsPage() {
 
   const isHeatmapDisabled = website && !website.heatmapEnabled;
 
-  useEffect(() => {
-    const fetchPages = async () => {
-      // For demo or free plan, use dummy pages
-      if (showDummy || isHeatmapDisabled) {
-        setPages(DUMMY_PAGES);
-        setLoading(false);
-        return;
-      }
+  const fetchPages = async () => {
+    // For demo or free plan, use dummy pages
+    if (showDummy || isHeatmapDisabled) {
+      setPages(DUMMY_PAGES);
+      setLoading(false);
+      return;
+    }
 
-      try {
-        const response = await api.get(`/heatmaps/pages?website_id=${websiteId}`);
-        
-        // Backend should return pages with stats, but if not, use basic structure
-        const apiPages = (response.data.pages || []).map((page: any) => {
-          // If page is a string, it's the old format - create basic structure
-          if (typeof page === 'string') {
-            return {
-              url: page,
-              views: 0,
-              clicks: 0,
-              avg_scroll: 0,
-              active: true
-            };
-          }
-          // If page is an object, use it directly (new format with stats)
+    try {
+      const response = await api.get(`/heatmaps/pages?website_id=${websiteId}`);
+      
+      const apiPages = (response.data.pages || []).map((page: any) => {
+        if (typeof page === 'string') {
           return {
-            url: page.url || page,
-            views: page.views || 0,
-            clicks: page.clicks || 0,
-            avg_scroll: page.avg_scroll || 0,
-            active: page.active !== false
+            url: page,
+            views: 0,
+            clicks: 0,
+            avg_scroll: 0,
+            active: true
           };
-        });
-        
-        setPages(apiPages);
-      } catch (err) {
-        console.error('Failed to fetch heatmap pages:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+        }
+        return {
+          url: page.url || page,
+          views: page.views || 0,
+          clicks: page.clicks || 0,
+          avg_scroll: page.avg_scroll || 0,
+          active: page.active !== false
+        };
+      });
+      
+      setPages(apiPages);
+    } catch (err) {
+      console.error('Failed to fetch heatmap pages:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchPages();
   }, [websiteId, showDummy, isHeatmapDisabled]);
 
+  const handleDeletePage = async (url: string) => {
+    if (showDummy) {
+      setPages(pages.filter(p => p.url !== url));
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete heatmap data for ${url}?`)) return;
+
+    try {
+      await api.delete(`/heatmaps/pages?website_id=${websiteId}&url=${encodeURIComponent(url)}`);
+      setPages(pages.filter(p => p.url !== url));
+    } catch (err) {
+      console.error('Failed to delete heatmap page:', err);
+      alert('Failed to delete heatmap page data. Please try again.');
+    }
+  };
+
   const filteredPages = pages.filter(page => 
     page.url.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Pagination Logic
+  const totalItems = filteredPages.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const currentItems = filteredPages.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   );
 
   return (
@@ -215,7 +239,10 @@ export default function HeatmapsPage() {
                   placeholder="Filter by URL..." 
                   className="pl-9 w-full md:w-[280px] h-10 bg-muted/20 border-border/40 focus:bg-background transition-all"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
+                  }}
                 />
               </div>
               <Select defaultValue="all">
@@ -257,11 +284,11 @@ export default function HeatmapsPage() {
                     <th className="p-4 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50">Views</th>
                     <th className="p-4 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50">Total Clicks</th>
                     <th className="p-4 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50">Scroll Depth</th>
-                    <th className="p-4 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50 text-right">Visualization</th>
+                    <th className="p-4 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/40">
-                  {filteredPages.map((page) => (
+                  {currentItems.map((page) => (
                     <tr key={page.url} className="group hover:bg-accent/5 transition-colors">
                       <td className="p-6">
                         <div className="flex flex-col">
@@ -292,17 +319,71 @@ export default function HeatmapsPage() {
                          </div>
                       </td>
                       <td className="p-6 text-right">
-                        <Link href={`/websites/${websiteId}/heatmaps/view?url=${encodeURIComponent(page.url)}`}>
-                          <Button variant="outline" size="sm" className="gap-2 h-9 rounded dark:bg-gray-800 bg-white hover:bg-primary hover:text-white transition-all group/btn shadow-sm border-border/60">
-                            <span className="font-bold text-[10px] uppercase tracking-widest">Analyze</span>
-                            <ChevronRight className="h-3.5 w-3.5 group-hover/btn:translate-x-1 transition-transform" />
+                        <div className="flex items-center justify-end gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 text-[10px] uppercase font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
+                            onClick={() => handleDeletePage(page.url)}
+                          >
+                            Delete
                           </Button>
-                        </Link>
+                          <Link href={`/websites/${websiteId}/heatmaps/view?url=${encodeURIComponent(page.url)}`}>
+                            <Button variant="outline" size="sm" className="gap-2 h-9 rounded dark:bg-gray-800 bg-white hover:bg-primary hover:text-white transition-all group/btn shadow-sm border-border/60">
+                              <span className="font-bold text-[10px] uppercase tracking-widest">Analyze</span>
+                              <ChevronRight className="h-3.5 w-3.5 group-hover/btn:translate-x-1 transition-transform" />
+                            </Button>
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+
+              {totalPages > 1 && (
+                <div className="p-6 border-t border-border/40 flex items-center justify-between bg-muted/5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-50">
+                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} pages
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage(p => p - 1)}
+                      className="h-8 px-4 font-bold text-[10px] uppercase tracking-wider"
+                    >
+                      Previous
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {[...Array(totalPages)].map((_, i) => (
+                        <Button
+                          key={i}
+                          variant={currentPage === i + 1 ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(i + 1)}
+                          className={cn(
+                            "h-8 w-8 p-0 font-bold text-xs",
+                            currentPage === i + 1 && "bg-primary text-white"
+                          )}
+                        >
+                          {i + 1}
+                        </Button>
+                      ))}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage(p => p + 1)}
+                      className="h-8 px-4 font-bold text-[10px] uppercase tracking-wider"
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>

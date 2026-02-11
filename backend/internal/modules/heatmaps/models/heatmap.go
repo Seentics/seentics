@@ -12,8 +12,9 @@ type HeatmapPoint struct {
 	DeviceType string    `json:"device_type" db:"device_type"` // 'desktop', 'tablet', 'mobile'
 	XPercent   int       `json:"x_percent" db:"x_percent"`     // X coordinate (0-1000 range)
 	YPercent   int       `json:"y_percent" db:"y_percent"`     // Y coordinate (0-1000 range)
-	X          int       `json:"x" db:"x"`                     // Alias for frontend compatibility
-	Y          int       `json:"y" db:"y"`                     // Alias for frontend compatibility
+	Selector   string    `json:"selector" db:"target_selector"`
+	X          int       `json:"x" db:"x"` // Alias for frontend compatibility
+	Y          int       `json:"y" db:"y"` // Alias for frontend compatibility
 	Intensity  int       `json:"intensity" db:"intensity"`
 	LastSeen   time.Time `json:"last_seen" db:"last_updated"` // DB uses "last_updated"
 }

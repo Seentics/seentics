@@ -31,8 +31,12 @@
       flushInterval: 5000, // 5 seconds
       lastMoveTime: 0,
       moveThreshold: 150, // 150ms between move captures
+      lastMoveX: -1,
+      lastMoveY: -1,
+      minMoveDistance: 5, // Percent units (0-1000 range)
+      gridSize: 10, // Grid size for binning (0-1000 range)
       lastUrl: w.location.href,
-      samplingRate: 0.1, // Sample 10% of mousemove events (configurable)
+      samplingRate: 0.1, // Sample 10% of mousemove events
       enabled: config.heatmap_enabled
     };
 
@@ -54,20 +58,49 @@
     if (!heatmapState.enabled) return;
 
     /**
-     * Normalize coordinates to 0-1000 range
+     * Normalize and Bin coordinates to 0-1000 range with grid clamping
      */
     const getNormalizedCoords = (e) => {
       const doc = d.documentElement;
       const scrollWidth = Math.max(doc.scrollWidth, doc.offsetWidth, doc.clientWidth);
       const scrollHeight = Math.max(doc.scrollHeight, doc.offsetHeight, doc.clientHeight);
 
-      const x = (e.pageX / scrollWidth) * 1000;
-      const y = (e.pageY / scrollHeight) * 1000;
+      let x = (e.pageX / scrollWidth) * 1000;
+      let y = (e.pageY / scrollHeight) * 1000;
+
+      // Apply Binning (Grid Clamping)
+      x = Math.round(x / heatmapState.gridSize) * heatmapState.gridSize;
+      y = Math.round(y / heatmapState.gridSize) * heatmapState.gridSize;
 
       return {
         x: Math.round(Math.min(1000, Math.max(0, x))),
         y: Math.round(Math.min(1000, Math.max(0, y)))
       };
+    };
+
+    /**
+     * Generate a unique CSS selector for an element
+     */
+    const getSelector = (el) => {
+      if (!(el instanceof Element)) return '';
+      const path = [];
+      while (el.nodeType === Node.ELEMENT_NODE) {
+        let selector = el.nodeName.toLowerCase();
+        if (el.id) {
+          selector += '#' + el.id;
+          path.unshift(selector);
+          break;
+        } else {
+          let sib = el, nth = 1;
+          while (sib = sib.previousElementSibling) {
+            if (sib.nodeName.toLowerCase() == selector) nth++;
+          }
+          if (nth != 1) selector += ':nth-of-type(' + nth + ')';
+        }
+        path.unshift(selector);
+        el = el.parentNode;
+      }
+      return path.join(' > ');
     };
 
     /**
@@ -83,11 +116,12 @@
     /**
      * Add point to buffer
      */
-    const addPoint = (type, x, y) => {
+    const addPoint = (type, x, y, selector = '') => {
       heatmapState.buffer.push({
         type: type, // 'click' or 'move'
         x: x,
         y: y,
+        selector: selector,
         url: w.location.pathname,
         device_type: getDeviceType(),
         timestamp: Math.floor(Date.now() / 1000)
@@ -126,8 +160,6 @@
         if (config.debug) {
           console.error('[Seentics Heatmap] Error sending points', err);
         }
-        // If it failed, we might want to put them back in the buffer, 
-        // but for high volume data like moves, we can just drop them to avoid bloat.
       }
     };
 
@@ -162,7 +194,9 @@
       if (event.data?.type === 'SEENTICS_SET_SCROLL') {
         w.scrollTo(event.data.left || 0, event.data.top || 0);
       }
-    });    // Send scroll position to parent for heatmap alignment
+    });
+
+    // Send scroll position to parent for heatmap alignment
     w.addEventListener('scroll', () => {
       const scrollTop = w.pageYOffset || d.documentElement.scrollTop;
       const scrollLeft = w.pageXOffset || d.documentElement.scrollLeft;
@@ -175,8 +209,8 @@
         }, '*');
       }
     }, { passive: true });
-
-    // Capture movements with sampling
+    
+    // Capture movements with sampling and distance threshold
     d.addEventListener('mousemove', (e) => {
       const now = Date.now();
       if (now - heatmapState.lastMoveTime < heatmapState.moveThreshold) return;
@@ -184,15 +218,25 @@
       // Random sampling to reduce data volume
       if (Math.random() > heatmapState.samplingRate) return;
       
-      heatmapState.lastMoveTime = now;
       const coords = getNormalizedCoords(e);
+      
+      // Distance threshold check
+      const dx = Math.abs(coords.x - heatmapState.lastMoveX);
+      const dy = Math.abs(coords.y - heatmapState.lastMoveY);
+      if (dx < heatmapState.minMoveDistance && dy < heatmapState.minMoveDistance) return;
+
+      heatmapState.lastMoveTime = now;
+      heatmapState.lastMoveX = coords.x;
+      heatmapState.lastMoveY = coords.y;
+      
       addPoint('move', coords.x, coords.y);
     });
 
-    // Listen for clicks
+    // Listen for clicks with selector capture
     d.addEventListener('click', (e) => {
       const coords = getNormalizedCoords(e);
-      addPoint('click', coords.x, coords.y);
+      const selector = getSelector(e.target);
+      addPoint('click', coords.x, coords.y, selector);
     });
 
     // Flush on page leave or interval
@@ -209,7 +253,7 @@
     observer.observe(d.body, { childList: true, subtree: true });
 
     if (config.debug) {
-      console.log('[Seentics Heatmap] Initialized');
+      console.log('[Seentics Heatmap] Optimized tracker initialized');
     }
   }
 
