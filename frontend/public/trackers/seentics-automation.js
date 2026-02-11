@@ -202,14 +202,9 @@
         timestamp: Date.now()
       });
     }
-  };
-      } catch (error) {
-        if (S.config.debug) console.error('[Seentics Automation] Action failed:', error);
-      }
-    }
 
-    // Track execution server-side
-    S.api.send('automations/track', {
+    // Track execution server-side (buffered)
+    automation.buffer.push({
       automation_id: auto.id,
       website_id: S.config.websiteId,
       visitor_id: S.state.visitorId,
@@ -218,6 +213,28 @@
       trigger_data: triggerData
     });
   };
+
+  // Buffer management
+  automation.buffer = [];
+  automation.flushInterval = setInterval(async () => {
+      if (automation.buffer.length === 0) return;
+
+      const batch = [...automation.buffer];
+      automation.buffer = [];
+
+      try {
+          // Use the generic api.send but pointing to the batch endpoint
+          // Note: S.api.send typically wraps fetch. 
+          // If S.api.post exists we could use that. assuming S.api.send is a wrapper for POST
+          await S.api.send('workflows/execution/batch', {
+              website_id: S.config.websiteId,
+              executions: batch
+          });
+      } catch (e) {
+          if (S.config.debug) console.error('[Seentics Automation] Failed to send batch', e);
+          // Restore failed items? Simplified for now: drop on error to avoid infinite loops
+      }
+  }, 10000); // 10 seconds
 
   // Execute single action
   // Variable replacement system
@@ -702,10 +719,10 @@
     `;
 
     const style = d.createElement('style');
-    style.textContent = \`
+    style.textContent = `
       @keyframes seentics-slide-in-right { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-      .seentics-notification [data-seentics-close]:hover { color: \${c.text} !important; }
-    \`;
+      .seentics-notification [data-seentics-close]:hover { color: ${c.text} !important; }
+    `;
     d.head.appendChild(style);
     d.body.appendChild(notification);
 

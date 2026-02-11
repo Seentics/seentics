@@ -13,6 +13,12 @@ export type Website = {
   automationEnabled: boolean;
   funnelEnabled: boolean;
   heatmapEnabled: boolean;
+  heatmapIncludePatterns?: string;
+  heatmapExcludePatterns?: string;
+  replayEnabled: boolean;
+  replaySamplingRate: number;
+  replayIncludePatterns?: string;
+  replayExcludePatterns?: string;
   verificationToken: string;
   settings: {
     allowedOrigins: string[];
@@ -48,6 +54,12 @@ export async function getWebsites(): Promise<Website[]> {
       automationEnabled: w.automation_enabled ?? true,
       funnelEnabled: w.funnel_enabled ?? true,
       heatmapEnabled: w.heatmap_enabled ?? true,
+      heatmapIncludePatterns: w.heatmap_include_patterns,
+      heatmapExcludePatterns: w.heatmap_exclude_patterns,
+      replayEnabled: w.replay_enabled ?? true,
+      replaySamplingRate: w.replay_sampling_rate ?? 1.0,
+      replayIncludePatterns: w.replay_include_patterns,
+      replayExcludePatterns: w.replay_exclude_patterns,
       verificationToken: w.verification_token,
       settings: w.settings || {
         allowedOrigins: [],
@@ -100,6 +112,12 @@ export async function addWebsite(website: { name: string; url: string }, userId:
       automationEnabled: websiteData.automation_enabled ?? true,
       funnelEnabled: websiteData.funnel_enabled ?? true,
       heatmapEnabled: websiteData.heatmap_enabled ?? true,
+      heatmapIncludePatterns: websiteData.heatmap_include_patterns,
+      heatmapExcludePatterns: websiteData.heatmap_exclude_patterns,
+      replayEnabled: websiteData.replay_enabled ?? true,
+      replaySamplingRate: websiteData.replay_sampling_rate ?? 1.0,
+      replayIncludePatterns: websiteData.replay_include_patterns,
+      replayExcludePatterns: websiteData.replay_exclude_patterns,
       verificationToken: websiteData.verification_token || '',
       settings: websiteData.settings || {
         allowedOrigins: [],
@@ -164,6 +182,12 @@ export async function getWebsiteBySiteId(siteId: string): Promise<Website | null
       automationEnabled: w.automation_enabled ?? true,
       funnelEnabled: w.funnel_enabled ?? true,
       heatmapEnabled: w.heatmap_enabled ?? true,
+      heatmapIncludePatterns: w.heatmap_include_patterns,
+      heatmapExcludePatterns: w.heatmap_exclude_patterns,
+      replayEnabled: w.replay_enabled ?? true,
+      replaySamplingRate: w.replay_sampling_rate ?? 1.0,
+      replayIncludePatterns: w.replay_include_patterns,
+      replayExcludePatterns: w.replay_exclude_patterns,
       verificationToken: w.verification_token,
       settings: w.settings || {
         allowedOrigins: [],
@@ -189,7 +213,7 @@ export async function getWebsiteBySiteId(siteId: string): Promise<Website | null
 // Updates an existing website.
 export async function updateWebsite(
   websiteId: string,
-  data: Partial<Pick<Website, 'name' | 'url' | 'isActive' | 'automationEnabled' | 'funnelEnabled' | 'heatmapEnabled' | 'settings'>>,
+  data: Partial<Pick<Website, 'name' | 'url' | 'isActive' | 'automationEnabled' | 'funnelEnabled' | 'heatmapEnabled' | 'heatmapIncludePatterns' | 'heatmapExcludePatterns' | 'replayEnabled' | 'replaySamplingRate' | 'replayIncludePatterns' | 'replayExcludePatterns' | 'settings'>>,
   userId: string
 ): Promise<Website> {
   try {
@@ -199,7 +223,13 @@ export async function updateWebsite(
       is_active: data.isActive,
       automation_enabled: data.automationEnabled,
       funnel_enabled: data.funnelEnabled,
-      heatmap_enabled: data.heatmapEnabled
+      heatmap_enabled: data.heatmapEnabled,
+      heatmap_include_patterns: data.heatmapIncludePatterns,
+      heatmap_exclude_patterns: data.heatmapExcludePatterns,
+      replay_enabled: data.replayEnabled,
+      replay_sampling_rate: data.replaySamplingRate,
+      replay_include_patterns: data.replayIncludePatterns,
+      replay_exclude_patterns: data.replayExcludePatterns
     });
     const w = response.data.data;
 
@@ -216,6 +246,10 @@ export async function updateWebsite(
       automationEnabled: w.automation_enabled ?? true,
       funnelEnabled: w.funnel_enabled ?? true,
       heatmapEnabled: w.heatmap_enabled ?? true,
+      heatmapIncludePatterns: w.heatmap_include_patterns,
+      heatmapExcludePatterns: w.heatmap_exclude_patterns,
+      replayEnabled: w.replay_enabled ?? true,
+      replaySamplingRate: w.replay_sampling_rate ?? 1.0,
       verificationToken: w.verification_token,
       settings: w.settings || {
         allowedOrigins: [],

@@ -33,6 +33,7 @@ func (h *ReplayHandler) getUserID(c *gin.Context) string {
 func (h *ReplayHandler) RecordReplay(c *gin.Context) {
 	var req models.RecordReplayRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to bind replay recording request")
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -145,4 +146,29 @@ func (h *ReplayHandler) DeleteReplay(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// GetPageSnapshot returns rrweb events for the initial state of a URL
+func (h *ReplayHandler) GetPageSnapshot(c *gin.Context) {
+	websiteID := c.Query("website_id")
+	url := c.Query("url")
+
+	if websiteID == "" || url == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id and url are required"})
+		return
+	}
+
+	h.logger.Debug().
+		Str("website_id", websiteID).
+		Str("url", url).
+		Msg("Fetching page snapshot for heatmap")
+
+	events, err := h.service.GetPageSnapshot(c.Request.Context(), websiteID, url)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to fetch page snapshot")
+		c.JSON(http.StatusNotFound, gin.H{"error": "No snapshot found for this URL"})
+		return
+	}
+
+	c.Data(http.StatusOK, "application/json", events)
 }

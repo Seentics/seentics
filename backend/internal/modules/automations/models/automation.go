@@ -112,6 +112,12 @@ type CreateAutomationRequest struct {
 	Conditions    []AutomationCondition `json:"conditions"`
 }
 
+// BatchExecutionRequest represents a batch of automation executions
+type BatchExecutionRequest struct {
+	WebsiteID  string                `json:"website_id" binding:"required"`
+	Executions []AutomationExecution `json:"executions" binding:"required"`
+}
+
 // UpdateAutomationRequest represents the request to update an automation
 type UpdateAutomationRequest struct {
 	Name          *string                `json:"name"`

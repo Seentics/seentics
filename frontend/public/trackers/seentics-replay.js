@@ -28,7 +28,7 @@
     const replayConfig = {
       rrwebUrl: 'https://cdn.jsdelivr.net/npm/rrweb@latest/dist/rrweb.min.js',
       chunkSize: 1000, // Send every 1000 events
-      flushInterval: 30000 // Every 30 seconds
+      flushInterval: 10000 // Every 10 seconds
     };
 
     // Replay state
@@ -97,7 +97,17 @@
         if (config.debug) {
           console.error('[Seentics Replay] Failed to send chunk', err);
         }
-        // Restore buffer on failure to retry (limit retry depth)
+
+        // If it's a 400 error, it's a permanent schema mismatch or invalid data
+        // Stop retrying and clear buffer to avoid infinite loop
+        if (err.message && err.message.includes('400')) {
+             if (config.debug) {
+                 console.warn('[Seentics Replay] Permanent 400 error, stopping retries for this chunk');
+             }
+             return;
+        }
+
+        // Restore buffer on other failures to retry (limit retry depth)
         if (replayState.buffer.length < 2000) {
             replayState.buffer = [...events, ...replayState.buffer];
             replayState.sequence--;

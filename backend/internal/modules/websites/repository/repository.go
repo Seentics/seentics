@@ -27,8 +27,8 @@ func NewWebsiteRepository(db *pgxpool.Pool) *WebsiteRepository {
 // Create inserts a new website into the database
 func (r *WebsiteRepository) Create(ctx context.Context, website *models.Website) error {
 	query := `
-		INSERT INTO websites (site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		INSERT INTO websites (site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, heatmap_include_patterns, heatmap_exclude_patterns, replay_enabled, replay_sampling_rate, replay_include_patterns, replay_exclude_patterns, verification_token, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		RETURNING id
 	`
 
@@ -43,6 +43,12 @@ func (r *WebsiteRepository) Create(ctx context.Context, website *models.Website)
 		website.AutomationEnabled,
 		website.FunnelEnabled,
 		website.HeatmapEnabled,
+		website.HeatmapIncludePatterns,
+		website.HeatmapExcludePatterns,
+		website.ReplayEnabled,
+		website.ReplaySamplingRate,
+		website.ReplayIncludePatterns,
+		website.ReplayExcludePatterns,
 		website.VerificationToken,
 		website.CreatedAt,
 		website.UpdatedAt,
@@ -58,7 +64,7 @@ func (r *WebsiteRepository) Create(ctx context.Context, website *models.Website)
 // ListByUserID returns all websites owned by a user
 func (r *WebsiteRepository) ListByUserID(ctx context.Context, userID uuid.UUID) ([]models.Website, error) {
 	query := `
-		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at
+		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, heatmap_include_patterns, heatmap_exclude_patterns, replay_enabled, replay_sampling_rate, replay_include_patterns, replay_exclude_patterns, verification_token, created_at, updated_at
 		FROM websites
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -85,6 +91,12 @@ func (r *WebsiteRepository) ListByUserID(ctx context.Context, userID uuid.UUID) 
 			&w.AutomationEnabled,
 			&w.FunnelEnabled,
 			&w.HeatmapEnabled,
+			&w.HeatmapIncludePatterns,
+			&w.HeatmapExcludePatterns,
+			&w.ReplayEnabled,
+			&w.ReplaySamplingRate,
+			&w.ReplayIncludePatterns,
+			&w.ReplayExcludePatterns,
 			&w.VerificationToken,
 			&w.CreatedAt,
 			&w.UpdatedAt,
@@ -101,7 +113,7 @@ func (r *WebsiteRepository) ListByUserID(ctx context.Context, userID uuid.UUID) 
 // GetByID returns a website by internal UUID
 func (r *WebsiteRepository) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Website, error) {
 	query := `
-		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at
+		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, heatmap_include_patterns, heatmap_exclude_patterns, replay_enabled, replay_sampling_rate, replay_include_patterns, replay_exclude_patterns, verification_token, created_at, updated_at
 		FROM websites
 		WHERE id = $1 AND user_id = $2
 	`
@@ -119,6 +131,10 @@ func (r *WebsiteRepository) GetByID(ctx context.Context, id uuid.UUID, userID uu
 		&w.AutomationEnabled,
 		&w.FunnelEnabled,
 		&w.HeatmapEnabled,
+		&w.HeatmapIncludePatterns,
+		&w.HeatmapExcludePatterns,
+		&w.ReplayEnabled,
+		&w.ReplaySamplingRate,
 		&w.VerificationToken,
 		&w.CreatedAt,
 		&w.UpdatedAt,
@@ -137,9 +153,9 @@ func (r *WebsiteRepository) GetByID(ctx context.Context, id uuid.UUID, userID uu
 // GetBySiteID returns a website by public site_id
 func (r *WebsiteRepository) GetBySiteID(ctx context.Context, siteID string) (*models.Website, error) {
 	query := `
-		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at
+		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, heatmap_include_patterns, heatmap_exclude_patterns, replay_enabled, replay_sampling_rate, replay_include_patterns, replay_exclude_patterns, verification_token, created_at, updated_at
 		FROM websites
-		WHERE site_id = $1
+		WHERE site_id = $1 OR id::text = $1
 	`
 
 	var w models.Website
@@ -155,6 +171,10 @@ func (r *WebsiteRepository) GetBySiteID(ctx context.Context, siteID string) (*mo
 		&w.AutomationEnabled,
 		&w.FunnelEnabled,
 		&w.HeatmapEnabled,
+		&w.HeatmapIncludePatterns,
+		&w.HeatmapExcludePatterns,
+		&w.ReplayEnabled,
+		&w.ReplaySamplingRate,
 		&w.VerificationToken,
 		&w.CreatedAt,
 		&w.UpdatedAt,
@@ -173,7 +193,7 @@ func (r *WebsiteRepository) GetBySiteID(ctx context.Context, siteID string) (*mo
 // GetByUUIDOnly returns a website by internal UUID without user_id check (use with caution)
 func (r *WebsiteRepository) GetByUUIDOnly(ctx context.Context, id uuid.UUID) (*models.Website, error) {
 	query := `
-		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, verification_token, created_at, updated_at
+		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, heatmap_include_patterns, heatmap_exclude_patterns, replay_enabled, replay_sampling_rate, replay_include_patterns, replay_exclude_patterns, verification_token, created_at, updated_at
 		FROM websites
 		WHERE id = $1
 	`
@@ -191,6 +211,10 @@ func (r *WebsiteRepository) GetByUUIDOnly(ctx context.Context, id uuid.UUID) (*m
 		&w.AutomationEnabled,
 		&w.FunnelEnabled,
 		&w.HeatmapEnabled,
+		&w.HeatmapIncludePatterns,
+		&w.HeatmapExcludePatterns,
+		&w.ReplayEnabled,
+		&w.ReplaySamplingRate,
 		&w.VerificationToken,
 		&w.CreatedAt,
 		&w.UpdatedAt,
@@ -226,8 +250,8 @@ func (r *WebsiteRepository) Delete(ctx context.Context, id string, userID uuid.U
 func (r *WebsiteRepository) Update(ctx context.Context, website *models.Website) error {
 	query := `
 		UPDATE websites
-		SET name = $1, url = $2, is_active = $3, automation_enabled = $4, funnel_enabled = $5, heatmap_enabled = $6, updated_at = $7
-		WHERE id = $8 AND user_id = $9
+		SET name = $1, url = $2, is_active = $3, automation_enabled = $4, funnel_enabled = $5, heatmap_enabled = $6, heatmap_include_patterns = $7, heatmap_exclude_patterns = $8, replay_enabled = $9, replay_sampling_rate = $10, replay_include_patterns = $11, replay_exclude_patterns = $12, updated_at = $13
+		WHERE id = $14 AND user_id = $15
 	`
 
 	_, err := r.db.Exec(ctx, query,
@@ -237,6 +261,12 @@ func (r *WebsiteRepository) Update(ctx context.Context, website *models.Website)
 		website.AutomationEnabled,
 		website.FunnelEnabled,
 		website.HeatmapEnabled,
+		website.HeatmapIncludePatterns,
+		website.HeatmapExcludePatterns,
+		website.ReplayEnabled,
+		website.ReplaySamplingRate,
+		website.ReplayIncludePatterns,
+		website.ReplayExcludePatterns,
 		time.Now(),
 		website.ID,
 		website.UserID,

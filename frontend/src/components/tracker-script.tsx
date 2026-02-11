@@ -14,22 +14,33 @@ interface TrackerScriptProps {
  * - Production: Fallback to process.env.NEXT_PUBLIC_DEFAULT_SITE_ID or clean logic
  */
 export default function TrackerScript({ testMode, siteId }: TrackerScriptProps = {}) {
-  const [isLocalhost, setIsLocalhost] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setIsLocalhost(
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const isLocalhost = typeof window !== 'undefined' && (
       window.location.hostname === 'localhost' || 
       window.location.hostname === '127.0.0.1' ||
       window.location.hostname.includes('localhost')
     );
-  }, []);
+
+  // Dynamic ID detection for local dev to support testing different sites
+  const getLocalSiteId = () => {
+    if (typeof window === 'undefined') return '62b7d738d65f124e4a7cb2a2';
+    const path = window.location.pathname;
+    const match = path.match(/\/websites\/([a-f0-9-]+)/);
+    return match ? match[1] : '62b7d738d65f124e4a7cb2a2';
+  };
 
   if (isLocalhost) {
     return (
         <Script
-          defer
-          data-website-id="03bd2f5e-87a3-4a9b-925f-91fb5e4d50d2"
-          data-auto-load="analytics,automation,funnels,heatmap,replay"
+          async
+          data-website-id={getLocalSiteId()}
           src="http://localhost:3000/trackers/seentics-core.js"
           strategy="afterInteractive"
         />

@@ -79,3 +79,9 @@ type TrackFunnelEventRequest struct {
 	StepName       string    `json:"step_name"`
 	Timestamp      time.Time `json:"timestamp"`
 }
+
+// BatchFunnelEventRequest represents a batch of funnel events
+type BatchFunnelEventRequest struct {
+	WebsiteID string                    `json:"website_id" binding:"required"`
+	Events    []TrackFunnelEventRequest `json:"events" binding:"required"`
+}

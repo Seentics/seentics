@@ -20,6 +20,11 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka-local:9092
       - KAFKA_TOPIC_EVENTS=analytics_events
       - CLOUD_ENABLED=false
+      - S3_ENDPOINT=http://minio-local:9000
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
+      - S3_BUCKET_REPLAYS=seentics-replays
+      - AWS_REGION=us-east-1
     depends_on:
       postgres-local:
         condition: service_healthy
@@ -90,6 +95,38 @@ services:
     volumes:
       - kafka-local-data:/var/lib/kafka/data
 
+  # MinIO for Local S3
+  minio-local:
+    image: minio/minio:latest
+    container_name: minio-local
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-local-data:/data
+    networks:
+      - seentics-local-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  createbuckets-local:
+    image: minio/mc
+    depends_on:
+      minio-local:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c " /usr/bin/mc alias set myminio http://minio-local:9000 minioadmin minioadmin; /usr/bin/mc mb --ignore-existing myminio/seentics-replays; /usr/bin/mc anonymous set public myminio/seentics-replays; exit 0; "
+    networks:
+      - seentics-local-network
+
 networks:
   seentics-local-network:
     driver: bridge
@@ -97,3 +134,4 @@ networks:
 volumes:
   postgres-local-data:
   kafka-local-data:
+  minio-local-data:

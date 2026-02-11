@@ -196,10 +196,10 @@ func (r *BillingRepository) CountUserResources(ctx context.Context, userID strin
 	// Count heatmaps (unique URLs per user across all websites)
 	var heatmapsCount int
 	heatmapQuery := `
-		SELECT COUNT(DISTINCT url) 
+		SELECT COUNT(DISTINCT page_path) 
 		FROM heatmap_points h
-		JOIN websites w ON (h.website_id = w.site_id OR h.website_id = w.id::text)
-		WHERE w.user_id::text = $1
+		JOIN websites w ON (h.website_id::text = w.site_id OR h.website_id = w.id)
+		WHERE w.user_id = $1
 	`
 	err = r.db.QueryRow(ctx, heatmapQuery, userID).Scan(&heatmapsCount)
 	if err != nil {
@@ -213,8 +213,8 @@ func (r *BillingRepository) CountUserResources(ctx context.Context, userID strin
 	replaysQuery := `
 		SELECT COUNT(DISTINCT session_id)
 		FROM session_replays sr
-		JOIN websites w ON sr.website_id = w.site_id
-		WHERE w.user_id::text = $1
+		JOIN websites w ON (sr.website_id = w.site_id OR sr.website_id = w.id::text)
+		WHERE w.user_id = $1
 	`
 	err = r.db.QueryRow(ctx, replaysQuery, userID).Scan(&replaysCount)
 	if err != nil {

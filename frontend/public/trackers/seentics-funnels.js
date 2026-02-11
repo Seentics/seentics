@@ -159,24 +159,38 @@
     });
   };
 
-  // Track funnel event
-  const trackFunnelEvent = async (funnelId, data) => {
-    try {
-      await S.api.send('funnels/track', {
-        funnel_id: funnelId,
-        website_id: S.config.websiteId,
-        visitor_id: S.state.visitorId,
-        session_id: S.state.sessionId,
-        started_at: funnel.currentFunnels.get(funnelId)?.startedAt || new Date().toISOString(),
-        timestamp: new Date().toISOString(),
-        ...data
-      });
-    } catch (error) {
-      if (S.config.debug) {
-        console.error('[Seentics Funnel] Failed to track event:', error);
-      }
-    }
+  // Track funnel event (buffered)
+  const trackFunnelEvent = (funnelId, data) => {
+    funnel.buffer.push({
+      funnel_id: funnelId,
+      website_id: S.config.websiteId,
+      visitor_id: S.state.visitorId,
+      session_id: S.state.sessionId,
+      started_at: funnel.currentFunnels.get(funnelId)?.startedAt || new Date().toISOString(),
+      timestamp: new Date().toISOString(),
+      ...data
+    });
   };
+
+  // Buffer management
+  funnel.buffer = [];
+  funnel.flushInterval = setInterval(async () => {
+      if (funnel.buffer.length === 0) return;
+
+      const batch = [...funnel.buffer];
+      funnel.buffer = [];
+
+      try {
+          await S.api.send('funnels/batch', {
+            website_id: S.config.websiteId,
+            events: batch
+          });
+      } catch (error) {
+          if (S.config.debug) {
+            console.error('[Seentics Funnel] Failed to track batch:', error);
+          }
+      }
+  }, 10000); // 10 seconds
 
   // Setup funnel listeners
   const setupFunnelListeners = () => {

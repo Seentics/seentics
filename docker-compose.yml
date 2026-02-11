@@ -84,6 +84,7 @@ volumes:
   redis-data:
   kafka-data:
 
+
 networks:
   seentics-network:
     driver: bridge

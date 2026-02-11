@@ -1,29 +1,39 @@
 'use client';
 
 import React from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
     User,
     Globe,
     Target,
     Settings,
-    Zap
+    Zap,
+    MousePointer2,
+    Video
 } from 'lucide-react';
 
 import { ProfileSettings } from '@/components/profile-settings';
 import { WebsitesSettingsComponent } from '@/components/settings/WebsitesSettingsComponent';
 import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
 import { ScriptSettingsComponent } from '@/components/settings/ScriptSettingsComponent';
+import { HeatmapSettingsComponent } from '@/components/settings/HeatmapSettingsComponent';
+import { ReplaySettingsComponent } from '@/components/settings/ReplaySettingsComponent';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 
 export default function SettingsPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const websiteId = params?.websiteId as string;
+    const tabParam = searchParams.get('tab');
+    const isValidTab = ['profile', 'websites', 'heatmaps', 'replays', 'scripts'].includes(tabParam || '');
+    const defaultTab = isValidTab ? tabParam! : 'profile';
 
     const tabs = [
         { id: 'profile', label: 'User Profile', icon: User, component: ProfileSettings },
         { id: 'websites', label: 'Websites', icon: Globe, component: WebsitesSettingsComponent },
+        { id: 'heatmaps', label: 'Heatmap', icon: MousePointer2, component: HeatmapSettingsComponent },
+        { id: 'replays', label: 'Replays', icon: Video, component: ReplaySettingsComponent },
         { id: 'scripts', label: 'Feature Scripts', icon: Zap, component: ScriptSettingsComponent },
     ];
 
@@ -34,7 +44,7 @@ export default function SettingsPage() {
                 description="Manage your personal profile and website configurations."
             />
 
-            <Tabs defaultValue="profile" className="w-full space-y-8">
+            <Tabs defaultValue={defaultTab} className="w-full space-y-8">
                 <div className="border-b border-border/40 pb-px">
                     <TabsList className="h-auto dark:bg-gray-800/50 p-2 gap-6 w-full justify-start overflow-x-auto custom-scrollbar no-scrollbar flex-nowrap rounded-md">
                         {tabs.map((tab) => (

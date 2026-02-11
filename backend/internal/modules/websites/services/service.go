@@ -91,13 +91,19 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 	}
 
 	return map[string]interface{}{
-		"site_id":            w.SiteID,
-		"automation_enabled": w.AutomationEnabled,
-		"funnel_enabled":     w.FunnelEnabled,
-		"heatmap_enabled":    w.HeatmapEnabled,
-		"max_heatmaps":       maxHeatmaps,
-		"tracked_urls":       trackedURLs,
-		"goals":              trackerGoals,
+		"site_id":                  w.SiteID,
+		"automation_enabled":       w.AutomationEnabled,
+		"funnel_enabled":           w.FunnelEnabled,
+		"heatmap_enabled":          w.HeatmapEnabled,
+		"heatmap_include_patterns": w.HeatmapIncludePatterns,
+		"heatmap_exclude_patterns": w.HeatmapExcludePatterns,
+		"max_heatmaps":             maxHeatmaps,
+		"tracked_urls":             trackedURLs,
+		"replay_enabled":           w.ReplayEnabled,
+		"replay_sampling_rate":     w.ReplaySamplingRate,
+		"replay_include_patterns":  w.ReplayIncludePatterns,
+		"replay_exclude_patterns":  w.ReplayExcludePatterns,
+		"goals":                    trackerGoals,
 	}, nil
 }
 
@@ -128,18 +134,20 @@ func (s *WebsiteService) CreateWebsite(ctx context.Context, userID uuid.UUID, re
 	trackingID := fmt.Sprintf("ST-%s", generateID(8))
 
 	website := &models.Website{
-		SiteID:            siteID,
-		UserID:            userID,
-		Name:              req.Name,
-		URL:               normalizedURL,
-		TrackingID:        trackingID,
-		IsActive:          true,
-		IsVerified:        false,
-		AutomationEnabled: true,
-		FunnelEnabled:     true,
-		HeatmapEnabled:    true,
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
+		SiteID:             siteID,
+		UserID:             userID,
+		Name:               req.Name,
+		URL:                normalizedURL,
+		TrackingID:         trackingID,
+		IsActive:           true,
+		IsVerified:         false,
+		AutomationEnabled:  true,
+		FunnelEnabled:      true,
+		HeatmapEnabled:     true,
+		ReplayEnabled:      true,
+		ReplaySamplingRate: 1.0,
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
 	}
 
 	// Check plan limits
@@ -264,11 +272,12 @@ func (s *WebsiteService) ValidateOriginDomain(origin string, registeredDomain st
 	return originDomain == siteDomain
 }
 
-func (s *WebsiteService) invalidateCache(ctx context.Context, siteID string) {
-	if s.redis == nil {
+func (s *WebsiteService) invalidateCache(ctx context.Context, w *models.Website) {
+	if s.redis == nil || w == nil {
 		return
 	}
-	s.redis.Del(ctx, fmt.Sprintf("website:site_id:%s", siteID))
+	s.redis.Del(ctx, fmt.Sprintf("website:site_id:%s", w.SiteID))
+	s.redis.Del(ctx, fmt.Sprintf("website:site_id:%s", w.ID.String()))
 }
 
 // UpdateWebsite updates website settings
@@ -310,13 +319,31 @@ func (s *WebsiteService) UpdateWebsite(ctx context.Context, id string, userID uu
 	if req.HeatmapEnabled != nil {
 		original.HeatmapEnabled = *req.HeatmapEnabled
 	}
+	if req.HeatmapIncludePatterns != nil {
+		original.HeatmapIncludePatterns = req.HeatmapIncludePatterns
+	}
+	if req.HeatmapExcludePatterns != nil {
+		original.HeatmapExcludePatterns = req.HeatmapExcludePatterns
+	}
+	if req.ReplayEnabled != nil {
+		original.ReplayEnabled = *req.ReplayEnabled
+	}
+	if req.ReplaySamplingRate != nil {
+		original.ReplaySamplingRate = *req.ReplaySamplingRate
+	}
+	if req.ReplayIncludePatterns != nil {
+		original.ReplayIncludePatterns = req.ReplayIncludePatterns
+	}
+	if req.ReplayExcludePatterns != nil {
+		original.ReplayExcludePatterns = req.ReplayExcludePatterns
+	}
 
-	// 3. Save
+	// 3. Save to database
 	if err := s.repo.Update(ctx, original); err != nil {
 		return nil, err
 	}
 
-	s.invalidateCache(ctx, original.SiteID)
+	s.invalidateCache(ctx, original)
 
 	return original, nil
 }
@@ -332,7 +359,13 @@ func (s *WebsiteService) DeleteWebsite(ctx context.Context, id string, userID uu
 		s.logger.Error().Err(err).Msg("Failed to update billing usage on website deletion")
 	}
 
-	s.invalidateCache(ctx, id) // id might be site_id
+	// Try to get website to invalidate cache properly
+	w, err := s.repo.GetBySiteID(ctx, id)
+	if err == nil {
+		s.invalidateCache(ctx, w)
+	} else {
+		s.redis.Del(ctx, fmt.Sprintf("website:site_id:%s", id))
+	}
 
 	return nil
 }

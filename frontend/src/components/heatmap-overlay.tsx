@@ -5,12 +5,10 @@ import React, { useEffect, useRef } from 'react';
 interface HeatmapOverlayProps {
   points: { x: number, y: number, intensity: number }[];
   type?: 'click' | 'move';
-  width: number; // Total width to render
-  height: number; // Total height to render
-  totalWidth?: number; // Total logical width (for normalization)
-  totalHeight?: number; // Total logical height (for normalization)
-  scrollTop?: number;
-  scrollLeft?: number;
+  width: number;
+  height: number;
+  totalWidth?: number;
+  totalHeight?: number;
   opacity?: number;
 }
 
@@ -21,129 +19,118 @@ export default function HeatmapOverlay({
   height, 
   totalWidth,
   totalHeight,
-  scrollTop = 0, 
-  scrollLeft = 0,
-  opacity = 0.7
+  opacity = 0.6
 }: HeatmapOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Gradient configuration
+  const gradientColors = {
+    0.2: 'blue',
+    0.4: 'cyan',
+    0.6: 'lime',
+    0.8: 'yellow',
+    1.0: 'red'
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || width <= 0 || height <= 0) return;
 
-    const ctx = canvas.getContext('2d', { alpha: true });
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
 
-    // Clear previous frame
+    // Clear canvas
     ctx.clearRect(0, 0, width, height);
 
     if (points.length === 0) return;
 
-    // Use a simpler rendering path for performance
-    const heatCanvas = document.createElement('canvas');
-    heatCanvas.width = width;
-    heatCanvas.height = height;
-    const hctx = heatCanvas.getContext('2d');
-    if (!hctx) return;
-
-    // Heat settings
-    const radius = type === 'click' ? 18 : 30;
+    // 1. Create a grayscale shadow/density map
+    // We use the main canvas for this directly to save memory, then colorize it
     
-    // Create a radial gradient brush once
-    const brush = document.createElement('canvas');
-    brush.width = radius * 2;
-    brush.height = radius * 2;
-    const bctx = brush.getContext('2d');
-    if (bctx) {
-        const grd = bctx.createRadialGradient(radius, radius, 0, radius, radius, radius);
-        grd.addColorStop(0, 'rgba(0,0,0,1)');
-        grd.addColorStop(1, 'rgba(0,0,0,0)');
-        bctx.fillStyle = grd;
-        bctx.fillRect(0, 0, radius * 2, radius * 2);
-    }
-
-    // Draw all points to the heat canvas
+    // Configuration
+    const radius = type === 'click' ? 25 : 40;
+    const blur = 15;
+    
+    // Draw points as radial gradients (shadows)
     points.forEach(point => {
-      // De-normalize from 1000 range to TOTAL page dimensions
-      // If totalWidth is provided, use it for normalization ratio, else assume point.x is relative to width
-      const absoluteX = totalWidth ? (point.x / 1000) * totalWidth : (point.x / 1000) * width;
-      const absoluteY = totalHeight ? (point.y / 1000) * totalHeight : (point.y / 1000) * height;
-      
-      const x = absoluteX - scrollLeft;
-      const y = absoluteY - scrollTop;
+        // Normalize coordinates from 1000-based scale to pixels
+        // If totalWidth is provided (from tracker), use it. Otherwise assume standard 1200 grid?
+        // Actually, x_percent is 0-1000 relative to the ACTUAL page width.
+        // So we need to map 0-1000 -> 0-totalWidth
+        
+        const x = Math.round(totalWidth ? (point.x / 1000) * totalWidth : (point.x / 1000) * width);
+        const y = Math.round(totalHeight ? (point.y / 1000) * totalHeight : (point.y / 1000) * height);
 
-      // Visibility check
-      if (x < -radius || x > width + radius || y < -radius || y > height + radius) return;
-      
-      const intensity = Math.min(1, point.intensity / (type === 'click' ? 10 : 30));
-      hctx.globalAlpha = intensity * 0.4;
-      hctx.drawImage(brush, x - radius, y - radius);
+        if (isNaN(x) || isNaN(y)) return;
+
+        // Draw radial gradient
+        ctx.beginPath();
+        const alpha = Math.min(1, Math.max(0.1, point.intensity / 5)); // Heuristic intensity
+        ctx.globalAlpha = alpha;
+        
+        // Simple circle for performance, or gradient for quality?
+        // Gradient looks much better for heatmaps
+        const grd = ctx.createRadialGradient(x, y, 0, x, y, radius);
+        grd.addColorStop(0, "rgba(0,0,0,1)");
+        grd.addColorStop(1, "rgba(0,0,0,0)");
+        
+        ctx.fillStyle = grd;
+        ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
     });
 
-    // Colorize using a gradient lookup table
-    const gradientCanvas = document.createElement('canvas');
-    gradientCanvas.width = 1;
-    gradientCanvas.height = 256;
-    const gctx = gradientCanvas.getContext('2d');
-    if (gctx) {
-        const grd = gctx.createLinearGradient(0, 0, 0, 256);
-        grd.addColorStop(0, 'rgba(0, 0, 255, 0)');     // Transparent blue
-        grd.addColorStop(0.25, 'rgba(0, 255, 255, 0.5)'); // Cyan
-        grd.addColorStop(0.5, 'rgba(0, 255, 0, 0.6)');    // Green
-        grd.addColorStop(0.75, 'rgba(255, 255, 0, 0.7)'); // Yellow
-        grd.addColorStop(1, 'rgba(255, 0, 0, 0.8)');    // Red
-        gctx.fillStyle = grd;
-        gctx.fillRect(0, 0, 1, 256);
-    }
-    const gradientData = gctx?.getImageData(0, 0, 1, 256).data;
+    // 2. Colorize the heatmap
+    // Get pixel data (grayscale alpha channel effectively)
+    const currentImageData = ctx.getImageData(0, 0, width, height);
+    const data = currentImageData.data;
 
-    // Apply color to the viewport canvas
-    const imgData = hctx.getImageData(0, 0, width, height);
-    const data = imgData.data;
+    // Create a gradient palette (1px by 256px)
+    const paletteCanvas = document.createElement('canvas');
+    paletteCanvas.width = 1;
+    paletteCanvas.height = 256;
+    const paletteCtx = paletteCanvas.getContext('2d');
+    if (paletteCtx) {
+        const grd = paletteCtx.createLinearGradient(0, 0, 0, 256);
+        Object.entries(gradientColors).forEach(([stop, color]) => {
+            grd.addColorStop(parseFloat(stop), color);
+        });
+        paletteCtx.fillStyle = grd;
+        paletteCtx.fillRect(0, 0, 1, 256);
+        
+        const paletteData = paletteCtx.getImageData(0, 0, 1, 256).data;
 
-    if (gradientData) {
+        // Map density (alpha/blackness) to color
         for (let i = 0; i < data.length; i += 4) {
-            const alpha = data[i + 3];
+            const alpha = data[i + 3]; // Alpha channel holds the accumulated density
+            
             if (alpha > 0) {
+                // Map alpha (0-255) to palette index (0-255)
+                // We use the alpha value as the index into our gradient palette
                 const offset = alpha * 4;
-                data[i] = gradientData[offset];
-                data[i + 1] = gradientData[offset + 1];
-                data[i + 2] = gradientData[offset + 2];
-                // Apply global opacity here
-                data[i + 3] = alpha * opacity;
+                
+                data[i] = paletteData[offset];     // R
+                data[i + 1] = paletteData[offset + 1]; // G
+                data[i + 2] = paletteData[offset + 2]; // B
+                // Keep the alpha, or modulate it
+                data[i + 3] = Math.min(255, alpha * 2); // Boost visibility
             }
         }
+
+        ctx.putImageData(currentImageData, 0, 0);
     }
-
-    ctx.putImageData(imgData, 0, 0);
-
-    // Optional: Draw small indicator for high intensity points in click map
-    if (type === 'click') {
-        points.forEach(point => {
-            if (point.intensity < 20) return;
-            const absoluteX = totalWidth ? (point.x / 1000) * totalWidth : (point.x / 1000) * width;
-            const absoluteY = totalHeight ? (point.y / 1000) * totalHeight : (point.y / 1000) * height;
-            const x = absoluteX - scrollLeft;
-            const y = absoluteY - scrollTop;
-            
-            if (x >= 0 && x <= width && y >= 0 && y <= height) {
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.arc(x, y, 4, 0, Math.PI * 2);
-                ctx.stroke();
-            }
-        });
-    }
-
-  }, [points, type, width, height, totalWidth, totalHeight, scrollTop, scrollLeft, opacity]);
+    
+  }, [points, type, width, height, totalWidth, totalHeight]);
 
   return (
-    <canvas 
-      ref={canvasRef} 
-      width={width} 
-      height={height} 
-      className="absolute top-0 left-0 pointer-events-none z-10"
-    />
+    <div 
+      className="absolute top-0 left-0 pointer-events-none z-10 overflow-hidden"
+      style={{ width: `${width}px`, height: `${height}px`, opacity }}
+    >
+        <canvas 
+            ref={canvasRef}
+            width={width}
+            height={height}
+            className="w-full h-full"
+        />
+    </div>
   );
 }

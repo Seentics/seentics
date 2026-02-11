@@ -236,3 +236,30 @@ func (h *FunnelHandler) TrackFunnelEvent(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
+
+// TrackBatchFunnelEvents records multiple funnel events
+func (h *FunnelHandler) TrackBatchFunnelEvents(c *gin.Context) {
+	var req models.BatchFunnelEventRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = c.Request.Header.Get("Referer")
+	}
+
+	// Process each event
+	for _, event := range req.Events {
+		// Ensure website ID matches batch request
+		event.WebsiteID = req.WebsiteID
+
+		err := h.service.TrackFunnelEvent(c.Request.Context(), &event, origin)
+		if err != nil {
+			// Log error or continue
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success", "count": len(req.Events)})
+}

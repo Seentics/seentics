@@ -12,7 +12,7 @@
 
   // Core configuration
   const config = {
-    apiHost: w.location.hostname === 'localhost' 
+    apiHost: (w.location.hostname === 'localhost' || w.location.hostname === '127.0.0.1' || w.location.hostname.endsWith('.local'))
       ? 'http://localhost:3002'
       : 'https://api.seentics.com',
     websiteId: null,
@@ -261,7 +261,7 @@
       } finally {
         state.isProcessing = false;
       }
-    }, 1000),
+    }, 10000),
     
     // Restore failed events from localStorage
     restore: () => {
@@ -316,6 +316,10 @@
       const remoteConfig = await api.get(`tracker/config/${config.websiteId}`);
       if (remoteConfig) {
         config.dynamicConfig = remoteConfig;
+        
+        // Merge remote config into main config
+        Object.assign(config, remoteConfig);
+        
         // Update module toggles based on backend settings
         if (remoteConfig.automation_enabled !== undefined) config.autoLoad.automation = !!remoteConfig.automation_enabled;
         if (remoteConfig.funnel_enabled !== undefined) config.autoLoad.funnels = !!remoteConfig.funnel_enabled;

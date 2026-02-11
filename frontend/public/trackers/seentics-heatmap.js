@@ -27,8 +27,8 @@
     // Heatmap specific state
     const heatmapState = {
       buffer: [],
-      maxBufferSize: 50,
-      flushInterval: 5000, // 5 seconds
+      maxBufferSize: 100,
+      flushInterval: 10000, // 10 seconds
       lastMoveTime: 0,
       moveThreshold: 150, // 150ms between move captures
       lastMoveX: -1,
@@ -172,15 +172,39 @@
         const doc = d.documentElement;
         const body = d.body;
         
-        // Comprehensive height check
-        const scrollHeight = Math.max(
+        // Initial standard check
+        let scrollHeight = Math.max(
           body.scrollHeight, body.offsetHeight, 
           doc.clientHeight, doc.scrollHeight, doc.offsetHeight
         );
-        const scrollWidth = Math.max(
+        
+        let scrollWidth = Math.max(
           body.scrollWidth, body.offsetWidth, 
           doc.clientWidth, doc.scrollWidth, doc.offsetWidth
         );
+
+        // Smart check for fixed-height apps (like dashboards) with internal scrolling
+        // If detected height is close to viewport height, look deeper
+        if (scrollHeight <= w.innerHeight + 100) {
+           try {
+             const allElems = d.querySelectorAll('div, main, section');
+             for (let i = 0; i < allElems.length; i++) {
+                const el = allElems[i];
+                if (el.scrollHeight > scrollHeight) {
+                    const style = w.getComputedStyle(el);
+                    if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && style.display !== 'none') {
+                        scrollHeight = Math.max(scrollHeight, el.scrollHeight);
+                        // If this element is wider, take its width too (often main content is constrained)
+                        if (el.scrollWidth > scrollWidth) {
+                             scrollWidth = el.scrollWidth;
+                        }
+                    }
+                }
+             }
+           } catch (e) {
+             // Ignore permission errors
+           }
+        }
         
         event.source.postMessage({
           type: 'SEENTICS_DIMENSIONS',

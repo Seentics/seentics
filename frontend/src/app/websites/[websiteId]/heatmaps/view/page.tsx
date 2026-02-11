@@ -47,7 +47,7 @@ export default function HeatmapViewPage() {
   const { data: website, isLoading: isLoadingWebsite } = useQuery({
     queryKey: ['website', websiteId],
     queryFn: async () => {
-      const response = await api.get(`/websites/${websiteId}`);
+      const response = await api.get(`/user/websites/${websiteId}`);
       return response.data;
     },
     enabled: !!websiteId && websiteId !== 'demo',
@@ -78,9 +78,7 @@ export default function HeatmapViewPage() {
       const targetUrl = new URL(website.url);
       const isSame = currentOrigin === targetUrl.origin;
       setIsSameOrigin(isSame);
-      console.log('Same-origin check:', { currentOrigin, targetOrigin: targetUrl.origin, isSame });
     } catch (err) {
-      console.error('Error checking origin:', err);
       setIsSameOrigin(false);
     }
   }, [website?.url]);
@@ -114,12 +112,19 @@ export default function HeatmapViewPage() {
   // Listen for messages from the tracker script in the iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      // Log all Seentics messages for debugging
+      if (event.data && typeof event.data === 'object' && event.data.type?.startsWith('SEENTICS_')) {
+          console.log('[HeatmapView] Received message:', event.data);
+      }
+
       if (event.data?.type === 'SEENTICS_DIMENSIONS') {
         const { height, width } = event.data;
         if (height && height > 0) {
-          setDimensions({
-            width: width || 1200,
-            height: height
+          setDimensions(prev => {
+              if (prev.height !== height || prev.width !== width) {
+                  return { width: width || 1200, height: height };
+              }
+              return prev;
           });
           setShowHeightControl(false);
         }
@@ -191,8 +196,20 @@ export default function HeatmapViewPage() {
       }
 
       try {
-        const response = await api.get(`/heatmaps?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}`);
-        setPoints(response.data.points || []);
+        console.log(`[HeatmapView] Fetching points for url=${url} type=${activeType}`);
+        const response = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}`);
+        const rawPoints = response.data.points || [];
+        console.log(`[HeatmapView] Raw points sample:`, rawPoints.slice(0, 1));
+
+        // Map backend x_percent/y_percent to frontend x/y
+        const mappedPoints = rawPoints.map((p: any) => ({
+            ...p,
+            x: p.x_percent ?? p.x,
+            y: p.y_percent ?? p.y
+        }));
+
+        console.log(`[HeatmapView] Mapped points sample:`, mappedPoints.slice(0, 1));
+        setPoints(mappedPoints);
       } catch (err) {
         console.error('Failed to fetch heatmap points:', err);
       } finally {
@@ -410,20 +427,18 @@ export default function HeatmapViewPage() {
                className="bg-white overflow-y-auto overflow-x-hidden rounded-b-xl hide-scrollbar"
                style={{ height: 'calc(100vh - 150px)' }}
             >
-                <div style={{ height: `${dimensions.height}px`, width: '100%', position: 'relative' }}>
+                <div style={{ height: `${Math.max(dimensions.height, 2000)}px`, width: `${dimensions.width}px`, position: 'relative', margin: '0 auto' }}>
                     <HeatmapOverlay 
                         points={points} 
-                        width={deviceWidth} 
-                        height={dimensions.height}
+                        width={dimensions.width} 
+                        height={Math.max(dimensions.height, 2000)}
                         totalWidth={dimensions.width}
-                        totalHeight={dimensions.height}
-                        scrollTop={scrollPos.top}
-                        scrollLeft={scrollPos.left}
+                        totalHeight={Math.max(dimensions.height, 2000)}
                         opacity={opacity[0] / 100}
                         type={activeType}
                     />
                     
-                    {loading && (
+                    {loading ? (
                         <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center gap-4 text-zinc-900 backdrop-blur-sm">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             <div className="flex flex-col items-center">
@@ -431,9 +446,7 @@ export default function HeatmapViewPage() {
                                 <span className="text-[10px] font-medium opacity-50">Calibrating interactive coordinates...</span>
                             </div>
                         </div>
-                    )}
-
-                    {iframeError && (
+                    ) : iframeError ? (
                         <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center gap-4 text-zinc-900">
                             <div className="h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center mb-2">
                                 <Info className="h-8 w-8 text-amber-600" />
@@ -441,14 +454,23 @@ export default function HeatmapViewPage() {
                             <div className="flex flex-col items-center text-center px-4">
                                 <span className="font-black uppercase tracking-widest text-sm">Page Load Restricted</span>
                                 <span className="text-xs text-zinc-600 mt-2 max-w-md">
-                                  This page cannot be displayed in preview mode. The heatmap data is still being collected and can be viewed in the data table.
+                                  This page cannot be displayed in preview mode. The target website might be blocking iframe embeds.
                                 </span>
                                 <Button onClick={() => setIframeError(false)} className="mt-4" size="sm">
                                   Retry
                                 </Button>
                             </div>
                         </div>
-                    )}
+                    ) : !points || points.length === 0 ? (
+                        <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center gap-4 text-zinc-900">
+                            <div className="flex flex-col items-center text-center px-4">
+                                <span className="font-black uppercase tracking-widest text-sm text-zinc-400">No Data Points</span>
+                                <span className="text-[10px] text-zinc-500 mt-1">
+                                  Waiting for user interactions on this URL.
+                                </span>
+                            </div>
+                        </div>
+                    ) : null}
 
                     <iframe 
                         ref={iframeRef}
@@ -457,9 +479,63 @@ export default function HeatmapViewPage() {
                           console.error('Iframe failed to load:', siteUrl);
                           setIframeError(true);
                         }}
-                        onLoad={() => {
+                        onLoad={(e) => {
                           setIframeError(false);
                           console.log('Iframe loaded successfully:', siteUrl);
+                          
+                          const validIframe = e.currentTarget;
+                          
+                          // Optimized: Try direct access for same-origin first (much faster/reliable)
+                          if (isSameOrigin && validIframe.contentWindow) {
+                              try {
+                                  let doc = validIframe.contentWindow.document;
+                                  let maxScrollHeight = 0;
+                                  let maxScrollWidth = 0;
+
+                                  // Deep scan for the actual scrolling container
+                                  // Many apps use a wrapper div for scrolling instead of body
+                                  const allElements = doc.querySelectorAll('*');
+                                  for (let i = 0; i < allElements.length; i++) {
+                                      const el = allElements[i];
+                                      if (el.scrollHeight > maxScrollHeight) {
+                                          maxScrollHeight = el.scrollHeight;
+                                      }
+                                      if (el.scrollWidth > maxScrollWidth) {
+                                          maxScrollWidth = el.scrollWidth;
+                                      }
+                                  }
+
+                                  // Fallback to body/doc if scan failed to find anything larger
+                                  const bodyHeight = Math.max(
+                                      doc.body.scrollHeight, doc.body.offsetHeight, 
+                                      doc.documentElement.clientHeight, doc.documentElement.scrollHeight, doc.documentElement.offsetHeight
+                                  );
+                                  
+                                  const finalHeight = Math.max(maxScrollHeight, bodyHeight);
+                                  const finalWidth = maxScrollWidth || 1200;
+                                  
+                                  console.log('[HeatmapView] Deep scan dimensions:', { finalWidth, finalHeight });
+                                  
+                                  if (finalHeight > 0) {
+                                      setDimensions({ width: finalWidth, height: finalHeight });
+                                      setShowHeightControl(false);
+                                  }
+                              } catch (err) {
+                                  console.warn('[HeatmapView] Direct access failed, falling back to messaging', err);
+                              }
+                          }
+
+                          // Fallback: Message polling
+                          let attempts = 0;
+                          const poller = setInterval(() => {
+                            if (validIframe.contentWindow) {
+                                validIframe.contentWindow.postMessage('SEENTICS_GET_DIMENSIONS', '*');
+                                attempts++;
+                                if (attempts > 10) clearInterval(poller);
+                            } else {
+                                clearInterval(poller);
+                            }
+                          }, 500);
                         }}
                         sandbox={isSameOrigin ? 'allow-same-origin allow-scripts allow-forms' : undefined}
                         referrerPolicy="same-origin"
@@ -471,11 +547,20 @@ export default function HeatmapViewPage() {
 
           {showHeightControl && (
             <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-zinc-900/90 border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col gap-2 w-80 z-[60]">
-               <div className="flex items-center gap-2 mb-2">
-                    <Info className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-bold">Manual Height Calibration</span>
+               <div className="flex items-center justify-between mb-2">
+                   <div className="flex items-center gap-2">
+                        <Info className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-bold">Height Calibration</span>
+                   </div>
+                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                       if (iframeRef.current && iframeRef.current.contentWindow) {
+                           iframeRef.current.contentWindow.postMessage('SEENTICS_GET_DIMENSIONS', '*');
+                       }
+                   }}>
+                       <RefreshCcw className="h-3 w-3" />
+                   </Button>
                </div>
-               <p className="text-[10px] text-zinc-400 mb-2">We couldn't automatically detect the page height. Adjust it manually to align the heatmap correctly.</p>
+               <p className="text-[10px] text-zinc-400 mb-2">Adjust height manually if automatic detection is incomplete.</p>
                <div className="space-y-2">
                  <div className="flex justify-between text-[10px] font-black uppercase text-zinc-500">
                     <span>Height</span>

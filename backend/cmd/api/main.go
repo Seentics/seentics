@@ -14,6 +14,7 @@ import (
 	"analytics-app/internal/shared/kafka"
 	"analytics-app/internal/shared/middleware"
 	"analytics-app/internal/shared/migrations"
+	"analytics-app/internal/shared/storage"
 	"context"
 	"log"
 	"net/http"
@@ -190,14 +191,26 @@ func main() {
 	logsRepo := logsRepoPkg.NewLogsRepository(db)
 	logsService := logsServicePkg.NewLogsService(logsRepo)
 	logsHandler := logsHandlerPkg.NewLogsHandler(logsService)
-	// Replays
-	replayRepo := replayRepoPkg.NewReplayRepository(db)
-	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, billingService)
-	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
+	// S3 Store
+	s3Region := getEnvOrDefault("AWS_REGION", "us-east-1")
+	s3Bucket := getEnvOrDefault("S3_BUCKET_REPLAYS", "seentics-replays")
+	s3Endpoint := getEnvOrDefault("S3_ENDPOINT", "http://minio:9000") // Default to local MinIO
+	s3Access := getEnvOrDefault("AWS_ACCESS_KEY_ID", "minioadmin")
+	s3Secret := getEnvOrDefault("AWS_SECRET_ACCESS_KEY", "minioadmin")
 
-	// Start periodic billing sync (every 5 minutes)
+	s3Store, err := storage.NewS3Store(s3Region, s3Bucket, s3Endpoint, s3Access, s3Secret)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to initialize S3 store")
+	}
+
+	// Reports - Start periodic billing sync (every 5 minutes)
 	billingService.StartPeriodicSync(5 * time.Minute)
 	logger.Info().Msg("Started periodic billing sync worker")
+
+	// Replays
+	replayRepo := replayRepoPkg.NewReplayRepository(db)
+	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, billingService, s3Store)
+	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 
 	// Setup router
 	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, notiHandler, emailHandler, supportHandler, heatmapHandler, logsHandler, replayHandler, logger)
@@ -249,7 +262,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 	}
 
 	router := gin.New()
-	router.Use(middleware.RequestSizeLimitMiddleware(2 * 1024 * 1024)) // 2MB limit
+	router.Use(middleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB limit
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	router.Use(middleware.ClientIPMiddleware())
 	router.Use(middleware.Logger(logger))
@@ -269,8 +282,10 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			path == "/api/v1/webhooks/lemonsqueezy" ||
 			path == "/api/v1/test/webhooks/lemonsqueezy" ||
 			path == "/api/v1/funnels/track" ||
+			path == "/api/v1/funnels/batch" ||
 			path == "/api/v1/funnels/active" ||
 			path == "/api/v1/workflows/execution/action" ||
+			path == "/api/v1/workflows/execution/batch" ||
 			path == "/api/v1/heatmaps/record" ||
 			path == "/api/v1/replays/record" ||
 			strings.HasPrefix(path, "/api/v1/tracker/config/") ||
@@ -351,6 +366,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 
 		v1.GET("/workflows/site/:website_id/active", autoHandler.GetActiveWorkflows)
 		v1.POST("/workflows/execution/action", autoHandler.TrackExecution)
+		v1.POST("/workflows/execution/batch", autoHandler.TrackBatchExecutions) // Batch endpoint
 		v1.POST("/automations/test", autoHandler.TestAutomation)
 
 		funnels := v1.Group("/websites/:website_id/funnels")
@@ -365,6 +381,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 
 		v1.GET("/funnels/active", funnelHandler.GetActiveFunnels)
 		v1.POST("/funnels/track", funnelHandler.TrackFunnelEvent)
+		v1.POST("/funnels/batch", funnelHandler.TrackBatchFunnelEvents) // Batch endpoint
 
 		billing := v1.Group("/user/billing")
 		{
@@ -459,6 +476,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		{
 			replays.POST("/record", replayHandler.RecordReplay)
 			replays.GET("/sessions", replayHandler.ListSessions)
+			replays.GET("/snapshot", replayHandler.GetPageSnapshot)
 			replays.GET("/data/:session_id", replayHandler.GetReplay)
 			replays.DELETE("/sessions/:session_id", replayHandler.DeleteReplay)
 		}

@@ -13,6 +13,8 @@ type ReplayRepository interface {
 	GetChunks(ctx context.Context, websiteID, sessionID string) ([]models.SessionReplayChunk, error)
 	ListSessionsWithMetadata(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error)
 	DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) error
+	GetPageSnapshot(ctx context.Context, websiteID, siteID, url string) (json.RawMessage, error)
+	FindSessionIDForPage(ctx context.Context, websiteID, url string) (string, error)
 }
 
 type replayRepository struct {
@@ -109,4 +111,28 @@ func (r *replayRepository) DeleteSessionReplay(ctx context.Context, websiteID, s
 	query := `DELETE FROM session_replays WHERE website_id = $1 AND session_id = $2`
 	_, err := r.db.Exec(ctx, query, websiteID, sessionID)
 	return err
+}
+
+func (r *replayRepository) GetPageSnapshot(ctx context.Context, websiteID, siteID, url string) (json.RawMessage, error) {
+	// Deprecated: This relies on data being in DB. New implementation uses FindSessionIDForPage + S3.
+	// We keep this for backward compatibility if needed, or we can just replace it.
+	// For S3 migration, we should use FindSessionIDForPage.
+	return nil, nil
+}
+
+func (r *replayRepository) FindSessionIDForPage(ctx context.Context, websiteID, url string) (string, error) {
+	// Find the most recent session that visited this URL
+	query := `
+		SELECT session_id
+		FROM events
+		WHERE website_id = $1 AND page = $2
+		ORDER BY timestamp DESC
+		LIMIT 1
+	`
+	var sessionID string
+	err := r.db.QueryRow(ctx, query, websiteID, url).Scan(&sessionID)
+	if err != nil {
+		return "", err
+	}
+	return sessionID, nil
 }

@@ -6,16 +6,14 @@ import {
   Activity, 
   MousePointer2, 
   MousePointerClick,
-  ChevronRight,
-  Search,
-  ExternalLink,
-  Calendar,
   Filter,
-  Eye,
-  Clock,
+  Trash2,
   ArrowUpRight,
   Zap,
-  Target
+  Target,
+  Search,
+  Sparkles, 
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,17 +33,22 @@ import { useQuery } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Sparkles, Settings as SettingsIcon } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
-const DUMMY_PAGES = [
-  { url: '/', views: 1240, clicks: 8560, avg_scroll: 68, active: true },
-  { url: '/pricing', views: 850, clicks: 3200, avg_scroll: 45, active: true },
-  { url: '/docs', views: 620, clicks: 1200, avg_scroll: 92, active: false },
-  { url: '/blog/performance-optimization', views: 450, clicks: 850, avg_scroll: 78, active: true },
-  { url: '/features', views: 1100, clicks: 4200, avg_scroll: 55, active: true },
-  { url: '/signup', views: 320, clicks: 1100, avg_scroll: 30, active: true }
-];
 
 export default function HeatmapsPage() {
   const { websiteId } = useParams();
@@ -55,7 +58,7 @@ export default function HeatmapsPage() {
   const { data: website } = useQuery({
     queryKey: ['website', websiteId],
     queryFn: async () => {
-      const response = await api.get(`/websites/${websiteId}`);
+      const response = await api.get(`/user/websites/${websiteId}`);
       return response.data;
     },
     enabled: !!websiteId && websiteId !== 'demo',
@@ -69,14 +72,13 @@ export default function HeatmapsPage() {
 
   const isDemo = websiteId === 'demo';
   const isFreePlan = subscription?.plan === 'free';
-  const showDummy = isDemo || isFreePlan;
 
   const isHeatmapDisabled = website && !website.heatmapEnabled;
 
   const fetchPages = async () => {
-    // For demo or free plan, use dummy pages
-    if (showDummy || isHeatmapDisabled) {
-      setPages(DUMMY_PAGES);
+    // For demo websites, we don't have real data
+    if (isDemo) {
+      setPages([]);
       setLoading(false);
       return;
     }
@@ -113,10 +115,10 @@ export default function HeatmapsPage() {
 
   useEffect(() => {
     fetchPages();
-  }, [websiteId, showDummy, isHeatmapDisabled]);
+  }, [websiteId]);
 
   const handleDeletePage = async (url: string) => {
-    if (showDummy) {
+    if (isDemo) {
       setPages(pages.filter(p => p.url !== url));
       return;
     }
@@ -149,9 +151,9 @@ export default function HeatmapsPage() {
       {(isFreePlan || isDemo) && (
         <Alert className="bg-amber-500/10 border-amber-500/20 shadow-sm">
           <Sparkles className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-600 font-bold">Preview Mode</AlertTitle>
+          <AlertTitle className="text-amber-600 font-bold">Premium Feature</AlertTitle>
           <AlertDescription className="text-muted-foreground/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <span>You are viewing <strong>dummy data</strong>. Real heatmap tracking is a premium feature. Upgrade to any paid plan to start recording real sessions across your site.</span>
+            <span>Real heatmap tracking is a premium feature. Upgrade to any paid plan to start recording real sessions across your site.</span>
             <Link href={isDemo ? '/pricing' : `/websites/${websiteId}/billing`}>
               <Button size="sm" variant="outline" className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10 gap-2 font-black uppercase tracking-widest text-[10px]  backdrop-blur-sm">
                 View Plans
@@ -168,7 +170,7 @@ export default function HeatmapsPage() {
           <AlertTitle className="text-rose-600 font-bold">Feature Disabled</AlertTitle>
           <AlertDescription className="text-muted-foreground/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <span>Heatmap script loading is currently disabled for this website in your property settings.</span>
-            <Link href={`/websites/${websiteId}/settings`}>
+            <Link href={`/websites/${websiteId}/settings?tab=heatmaps`}>
               <Button size="sm" variant="outline" className="border-rose-500/30 text-rose-600 hover:bg-rose-500/10 gap-2 font-bold text-[10px] uppercase bg-white/50 backdrop-blur-sm">
                 <SettingsIcon className="h-3.5 w-3.5" />
                 Go to Settings
@@ -184,10 +186,12 @@ export default function HeatmapsPage() {
         icon={MousePointer2}
       >
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="gap-2 h-10 font-bold text-xs uppercase tracking-wider bg-card/50 backdrop-blur-md">
-            <Calendar className="h-4 w-4 text-primary" />
-            Last 30 Days
-          </Button>
+          <Link href={`/websites/${websiteId}/settings?tab=heatmaps`}>
+            <Button variant="outline" className="gap-2 h-10 font-bold text-xs uppercase tracking-wider bg-card/50 backdrop-blur-md">
+              <SettingsIcon className="h-4 w-4 text-primary" />
+              Settings
+            </Button>
+          </Link>
           <Button variant="outline" size="icon" className="h-10 w-10 bg-card/50 backdrop-blur-md">
             <Filter className="h-4 w-4" />
           </Button>
@@ -276,70 +280,88 @@ export default function HeatmapsPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-y border-border/40">
-                    <th className="p-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50">Page Identity</th>
-                    <th className="p-4 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50">Views</th>
-                    <th className="p-4 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50">Total Clicks</th>
-                    <th className="p-4 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50">Scroll Depth</th>
-                    <th className="p-4 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
+            <div className="border rounded-lg overflow-hidden bg-card/30 backdrop-blur-sm border-border/40 shadow-sm">
+              <Table>
+                <TableHeader className="bg-muted/30">
+                  <TableRow className="hover:bg-transparent border-border/40">
+                    <TableHead className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">Page Identity</TableHead>
+                    <TableHead className="py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center whitespace-nowrap">Views</TableHead>
+                    <TableHead className="py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center whitespace-nowrap">Interactions</TableHead>
+                    <TableHead className="py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center whitespace-nowrap">Engagement</TableHead>
+                    <TableHead className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {currentItems.map((page) => (
-                    <tr key={page.url} className="group hover:bg-accent/5 transition-colors">
-                      <td className="p-6">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors">{page.url}</span>
-                          <span className="text-[10px] uppercase font-medium text-muted-foreground opacity-50 mt-0.5">
-                            {page.url === '/' ? 'Root Context' : 'Internal Page'}
+                    <TableRow key={page.url} className="group hover:bg-primary/[0.02] transition-colors border-border/40">
+                      <TableCell className="px-6 py-4">
+                        <div className="flex flex-col gap-0.5 max-w-[400px]">
+                          <span className="font-bold text-sm text-foreground group-hover:text-primary transition-colors truncate" title={page.url}>
+                            {page.url}
                           </span>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[9px] h-4 px-1.5 font-bold uppercase tracking-tighter bg-background/50 border-border/60">
+                              {page.url === '/' ? 'Home' : page.url.split('/').filter(Boolean).pop() || 'Root'}
+                            </Badge>
+                          </div>
                         </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                           <span className="font-black text-xs">{page.views.toLocaleString()}</span>
-                           <div className="h-1.5 w-12 bg-muted rounded-full overflow-hidden">
-                              <div className="h-full bg-blue-500" style={{ width: `${Math.min(100, page.views / 15)}%` }} />
-                           </div>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="font-black text-sm tabular-nums">{page.views.toLocaleString()}</span>
+                          <div className="h-1 w-16 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full" style={{ width: `${Math.min(100, (page.views / 1000) * 100)}%` }} />
+                          </div>
                         </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                           <MousePointerClick className="h-3 w-3 text-primary opacity-50" />
-                           <span className="font-bold text-xs">{page.clicks.toLocaleString()}</span>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <MousePointerClick className="h-3 w-3 text-primary" />
+                            <span className="font-bold text-sm tabular-nums">{page.clicks.toLocaleString()}</span>
+                          </div>
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">Total Clicks</span>
                         </div>
-                      </td>
-                      <td className="p-4">
-                         <div className="flex items-center gap-2">
-                            <Clock className="h-3 w-3 text-amber-500 opacity-50" />
-                            <span className="font-bold text-xs">{page.avg_scroll}%</span>
-                         </div>
-                      </td>
-                      <td className="p-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="h-8 text-[10px] uppercase font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 transition-colors"
-                            onClick={() => handleDeletePage(page.url)}
-                          >
-                            Delete
-                          </Button>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <Target className="h-3 w-3 text-purple-500" />
+                            <span className="font-bold text-sm tabular-nums">{page.avg_scroll}%</span>
+                          </div>
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest opacity-60">Avg. Scroll</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-9 w-9 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-full border border-transparent hover:border-rose-500/20"
+                                  onClick={() => handleDeletePage(page.url)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Delete Data</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+
                           <Link href={`/websites/${websiteId}/heatmaps/view?url=${encodeURIComponent(page.url)}`}>
-                            <Button variant="outline" size="sm" className="gap-2 h-9 rounded dark:bg-gray-800 bg-white hover:bg-primary hover:text-white transition-all group/btn shadow-sm border-border/60">
-                              <span className="font-bold text-[10px] uppercase tracking-widest">Analyze</span>
-                              <ChevronRight className="h-3.5 w-3.5 group-hover/btn:translate-x-1 transition-transform" />
+                            <Button className="h-9 px-5 gap-2 group/btn shadow-md hover:shadow-primary/20 transition-all font-black uppercase text-[10px] tracking-widest">
+                              Analyze
+                              <ArrowUpRight className="h-3.5 w-3.5 group-hover/btn:translate-x-0.5 group-hover/btn:-translate-y-0.5 transition-transform" />
                             </Button>
                           </Link>
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
 
               {totalPages > 1 && (
                 <div className="p-6 border-t border-border/40 flex items-center justify-between bg-muted/5">
