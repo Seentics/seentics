@@ -2,7 +2,7 @@
 
 **Complete Open Source Websites Analytics and Automation Software.**
 
-Seentics is a production-ready, high-performance analytics platform designed for speed, privacy, and scale. Inspired by industry leaders but built for absolute data ownership, Seentics combines behavioral insights with a powerful automation engine to help you grow your business.
+Seentics is a production-ready analytics platform built for speed, privacy, and scale. It combines deep behavioral insights with a powerful automation engine, giving you absolute data ownership.
 
 [![License](https://img.shields.io/badge/license-AGPL%20v3-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.24-00ADD8?logo=go)](https://golang.org)
@@ -13,114 +13,74 @@ Seentics is a production-ready, high-performance analytics platform designed for
 
 ## 🌟 Why Seentics?
 
-- **Complete Ownership**: 100% open-source. Your data, your servers, your rules.
-- **Privacy First**: Fully GDPR/CCPA compliant by design. No cookie banners required for basic tracking.
-- **Hybrid Storage**: PostgreSQL for relational data and ClickHouse for high-performance, large-scale event analytics.
-- **Real-Time Pipeline**: Powered by Kafka and Redis for sub-second ingestion and instant dashboard updates.
-- **Beyond Analytics**: Don't just watch data—act on it with built-in behavioral automations.
+- **Data Ownership**: 100% open-source. Host it yourself and keep your data private.
+- **Privacy Native**: GDPR/CCPA compliant out of the box. No cookie banners needed for basic tracking.
+- **Scale-Ready**: Hybrid storage with PostgreSQL for metadata and ClickHouse for massive event analytics.
+- **Real-Time**: Sub-second event ingestion powered by Kafka and Redis.
+- **Actions, Not Just Data**: Automate UI changes and emails based on real-time visitor behavior.
 
 ---
 
 ## ✨ Core Features
 
-### 📊 Real-Time Analytics
-- **Live Event Stream**: Track visitors, page views, and custom events as they happen.
-- **Deep Insights**: Breakdown by geography, technology, referrers, and UTM parameters.
-- **Hybrid Engine**: Optimized for small sites and massive enterprises alike.
-
-### 🔥 Behavior Tracking
-- **Interactive Heatmaps**: Visual overlays of user clicks, moves, and scrolling patterns.
-- **Session Replays**: Play back user journeys to identify friction points (webcam-free and privacy-protected).
-- **Funnels**: Visualize drop-off rates and optimize conversion paths.
-
-### 🤖 Automation & Engagement
-- **Dynamic Logic**: Trigger UI changes, popups, or emails based on real-time behavior.
-- **No-Code Workflows**: Set up triggers like "Exit Intent" or "Time on Page" in seconds.
-
----
-
-## 🏗️ Architecture
-
-Seentics uses a modern, distributed architecture to ensure reliability and performance under heavy load.
-
-```mermaid
-graph TD
-    User((User)) -->|Traffic| Nginx[Nginx Reverse Proxy]
-    Nginx -->|Admin/Auth| API[Core API Gateway - Go]
-    Nginx -->|Analytics| Collector[Event Ingestor - Go]
-    
-    Collector -->|Stream| Kafka[(Kafka Stream)]
-    Kafka -->|Store| ClickHouse[(ClickHouse - High Perf Events)]
-    
-    API -->|Process| Worker[Task Worker - Go]
-    Worker -->|State| Redis[(Redis Cache)]
-    Worker -->|Metadata| PSQL[(PostgreSQL - Relational)]
-    
-    Replays[Session Replays] -->|Storage| S3[(S3 / MinIO)]
-    API -->|Manage| Web[Next.js Dashboard]
-```
+- **📊 Real-Time Analytics**: Live visitor streams, page views, and custom event tracking.
+- **🔥 Heatmaps**: Visual mapping of user clicks, pointer movement, and scroll depth.
+- **🎥 Session Replays**: High-fidelity session recordings with automatic masking for privacy.
+- **📈 Funnel Analysis**: Multi-step conversion tracking to identify and fix drop-offs.
+- **🤖 Behavioral Automation**: Logic-driven triggers for popups, banners, and interactions.
 
 ---
 
 ## 🛠️ Tech Stack
 
 - **Backend**: Go 1.24+ (Gin, SQLx, Kafka-Go)
-- **Frontend**: Next.js 14, Tailwind CSS, Framer Motion, shadcn/ui
-- **Event Store**: ClickHouse (for high-volume analytics)
-- **Metadata Store**: PostgreSQL 15+
-- **Stream Processing**: Apache Kafka
-- **Cache**: Redis 7
-- **Object Storage**: S3-Compatible (MinIO for local dev)
+- **Frontend**: Next.js 14, Tailwind CSS, shadcn/ui
+- **Analytics Store**: ClickHouse
+- **Relational DB**: PostgreSQL 15+
+- **Stream Engine**: Apache Kafka
+- **Cache Layer**: Redis 7
+- **Storage**: S3-Compatible (MinIO for local development)
 
 ---
 
 ## 🚀 Local Development
 
-Get Seentics running on your machine in under 5 minutes.
+Get started in under 5 minutes:
 
-### 1. Prerequisites
-- [Docker & Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- At least 8GB RAM allocated to Docker
-
-### 2. Setup
+### 1. Setup
 ```bash
 git clone https://github.com/Seentics/seentics.git
 cd seentics
-
-# Copy environment examples
 cp core/.env.example core/.env
 ```
 
-### 3. Launch
+### 2. Launch
 ```bash
 docker-compose up --build
 ```
 
-### 4. Access
+### 3. Access
 - **Dashboard**: [http://localhost:3000](http://localhost:3000)
 - **API**: [http://localhost:3002](http://localhost:3002)
 
 ---
 
-## � Production Deployment
+## 🚢 Production
 
-For production, we provide a dedicated setup in the `deploy/` directory that includes Nginx configuration and automatic SSL.
+A dedicated production setup is available in the `deploy/` directory, featuring Nginx reverse proxying and automated SSL via Let's Encrypt.
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for full instructions on deploying to AWS/DigitalOcean.
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** for the full guide.
 
 ---
 
-## 🤝 Contributing & Community
-
-Seentics is built by the community. Join us!
+## 🤝 Community
 
 - **GitHub**: [Seentics/seentics](https://github.com/Seentics/seentics)
-- Check out our [Roadmap](ROADMAP.md) for upcoming features.
-- Follow [CONTRIBUTING.md](CONTRIBUTING.md) to start coding.
+- **Contribute**: Check out [CONTRIBUTING.md](CONTRIBUTING.md) to get started!
 
 ---
 
 ## 📄 License
-Licensed under AGPL v3.0. See [LICENSE](LICENSE) for details.
+Licensed under AGPL v3.0. See [LICENSE](LICENSE) file.
 
 Built with ❤️ by the Seentics community.
