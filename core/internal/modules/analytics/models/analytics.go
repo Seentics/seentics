@@ -306,6 +306,11 @@ type AnalyticsFilters struct {
 	PagePath    string `json:"page_path"`
 }
 
+func (f *AnalyticsFilters) HasFilters() bool {
+	return f.Country != "" || f.Device != "" || f.Browser != "" || f.OS != "" ||
+		f.UTMSource != "" || f.UTMMedium != "" || f.UTMCampaign != "" || f.PagePath != ""
+}
+
 // ExportRequest - Request for data export
 type ExportRequest struct {
 	WebsiteID string `json:"website_id"`

@@ -16,12 +16,12 @@ import (
 )
 
 type AnalyticsService struct {
-	repo     *repository.MainAnalyticsRepository
+	repo     repository.MainAnalyticsRepository
 	websites *websiteServicePkg.WebsiteService
 	logger   zerolog.Logger
 }
 
-func NewAnalyticsService(repo *repository.MainAnalyticsRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger) *AnalyticsService {
+func NewAnalyticsService(repo repository.MainAnalyticsRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger) *AnalyticsService {
 	return &AnalyticsService{
 		repo:     repo,
 		websites: websites,

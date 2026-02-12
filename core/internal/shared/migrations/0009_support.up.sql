@@ -1,0 +1,52 @@
+CREATE TABLE IF NOT EXISTS support_forms (
+    id TEXT PRIMARY KEY,
+    website_id UUID NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    description TEXT,
+    fields JSONB NOT NULL DEFAULT '[]',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS support_form_submissions (
+    id TEXT PRIMARY KEY,
+    form_id TEXT NOT NULL REFERENCES support_forms(id) ON DELETE CASCADE,
+    data JSONB NOT NULL DEFAULT '{}',
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS support_tickets (
+    id TEXT PRIMARY KEY,
+    website_id UUID NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    subject TEXT NOT NULL,
+    description TEXT,
+    status TEXT DEFAULT 'open',
+    priority TEXT DEFAULT 'medium',
+    source TEXT,
+    metadata JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS support_ticket_replies (
+    id TEXT PRIMARY KEY,
+    ticket_id TEXT NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    message TEXT NOT NULL,
+    is_private BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS support_chat_widgets (
+    id TEXT PRIMARY KEY,
+    website_id UUID NOT NULL REFERENCES websites(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    config JSONB NOT NULL DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

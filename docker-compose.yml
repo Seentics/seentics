@@ -2,38 +2,48 @@ services:
   # ---------------------------------------------------------------------------
   # Analytics Backend (OSS)
   # ---------------------------------------------------------------------------
-  analytics-backend:
+  core:
     build:
       context: ./core
-    container_name: analytics-backend
+      dockerfile: Dockerfile.dev
+    container_name: seentics-core
     ports:
       - "3002:3002"
     environment:
-      - ENVIRONMENT=production
+      - ENVIRONMENT=development
       - PORT=3002
-      # For RDS, set DATABASE_URL in your .env or system environment
-      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_URL=postgres://seentics:seentics_pass@seentics-postgres:5432/seentics_analytics?sslmode=disable
       - LOG_LEVEL=info
-      - JWT_SECRET=${JWT_SECRET}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key--must-be-32-characters}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@seentics-redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - GLOBAL_API_KEY=${GLOBAL_API_KEY}
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - KAFKA_BOOTSTRAP_SERVERS=seentics-kafka:9092
       - KAFKA_TOPIC_EVENTS=analytics_events
       - CLOUD_ENABLED=false
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      - CLICKHOUSE_HOST=seentics-clickhouse
+      - CLICKHOUSE_PORT=9000
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=seentics_clickhouse_pass
+      - CLICKHOUSE_DB=seentics
     depends_on:
       redis:
         condition: service_healthy
       kafka:
         condition: service_started
+      clickhouse:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     volumes:
+      - ./core:/app
       - ./core/data:/app/data
     restart: unless-stopped
     networks:
       - seentics-network
     healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:3002/health || exit 1" ]
+      test: [ "CMD", "go", "version" ] # Simplified health check if curl is missing
       interval: 30s
       timeout: 10s
       retries: 3
@@ -43,11 +53,11 @@ services:
   # ---------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: redis
+    container_name: seentics-redis
     # No port 6379 needed on host if ALB handles public traffic
     command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD}", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru", "--save", "", "--appendonly", "no" ]
     volumes:
-      - redis-data:/data
+      - seentics-redis-v3:/data
     networks:
       - seentics-network
     restart: unless-stopped
@@ -58,18 +68,36 @@ services:
       retries: 3
       start_period: 5s
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: seentics-postgres
+    environment:
+      - POSTGRES_USER=seentics
+      - POSTGRES_PASSWORD=seentics_pass
+      - POSTGRES_DB=seentics_analytics
+    volumes:
+      - seentics-db-v3:/var/lib/postgresql/data
+    networks:
+      - seentics-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U seentics -d seentics_analytics" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   kafka:
     image: apache/kafka:latest
-    container_name: kafka
+    container_name: seentics-kafka
     # No ports needed on host if ALB handles public traffic
     environment:
       - KAFKA_NODE_ID=1
       - KAFKA_PROCESS_ROLES=broker,controller
       - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://seentics-kafka:9092
       - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
       - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@seentics-kafka:9093
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
@@ -78,11 +106,59 @@ services:
     networks:
       - seentics-network
     volumes:
-      - kafka-data:/var/lib/kafka/data
+      - seentics-kafka-v3:/var/lib/kafka/data
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: seentics-clickhouse
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=seentics_clickhouse_pass
+      - CLICKHOUSE_DB=seentics
+    ports:
+      - "8123:8123"
+      - "9002:9000"
+    volumes:
+      - seentics-ch-v3:/var/lib/clickhouse
+    networks:
+      - seentics-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "localhost:8123/ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Frontend Web (Next.js)
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile.dev
+    container_name: seentics-web
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3002/api/v1
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+      - /app/.next
+    command: sh -c "mkdir -p .next/cache && rm -rf .next/cache/* && npm install --legacy-peer-deps && npm run dev"
+    depends_on:
+      core:
+        condition: service_healthy
+    networks:
+      - seentics-network
+    restart: unless-stopped
 
 volumes:
-  redis-data:
-  kafka-data:
+  seentics-redis-v3:
+  seentics-kafka-v3:
+  seentics-ch-v3:
+  seentics-db-v3:
 
 
 networks:

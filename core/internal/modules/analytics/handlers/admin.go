@@ -9,11 +9,11 @@ import (
 )
 
 type AdminHandler struct {
-	eventRepo *repository.EventRepository
+	eventRepo repository.EventRepository
 	logger    zerolog.Logger
 }
 
-func NewAdminHandler(eventRepo *repository.EventRepository, logger zerolog.Logger) *AdminHandler {
+func NewAdminHandler(eventRepo repository.EventRepository, logger zerolog.Logger) *AdminHandler {
 	return &AdminHandler{
 		eventRepo: eventRepo,
 		logger:    logger,

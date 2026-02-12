@@ -24,6 +24,11 @@ type Config struct {
 	PostalAPIKey          string
 	PostalFromEmail       string
 	PostalFromName        string
+	ClickHouseHost        string
+	ClickHousePort        int
+	ClickHouseUser        string
+	ClickHousePassword    string
+	ClickHouseDB          string
 }
 
 func Load() (*Config, error) {
@@ -46,6 +51,11 @@ func Load() (*Config, error) {
 		PostalAPIKey:          getEnvOrDefault("POSTAL_API_KEY", ""),
 		PostalFromEmail:       getEnvOrDefault("POSTAL_FROM_EMAIL", ""),
 		PostalFromName:        getEnvOrDefault("POSTAL_FROM_NAME", "Seentics Support"),
+		ClickHouseHost:        getEnvOrDefault("CLICKHOUSE_HOST", "localhost"),
+		ClickHousePort:        GetEnvAsInt("CLICKHOUSE_PORT", 9000),
+		ClickHouseUser:        getEnvOrDefault("CLICKHOUSE_USER", "default"),
+		ClickHousePassword:    getEnvOrDefault("CLICKHOUSE_PASSWORD", ""),
+		ClickHouseDB:          getEnvOrDefault("CLICKHOUSE_DB", "seentics"),
 	}
 
 	// Validate required fields

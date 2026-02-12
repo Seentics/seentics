@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Play, LayoutDashboard, MousePointer2, ShieldCheck, CheckCircle, Zap, X, Maximize2 } from 'lucide-react';
+import { ArrowRight, Github, LayoutDashboard, MousePointer2, ShieldCheck, CheckCircle, Zap, X, Maximize2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/stores/useAuthStore';
@@ -56,7 +56,7 @@ export default function Hero() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full dark:bg-slate-900/50 backdrop-blur-md border border-slate-800 dark:text-slate-300 text-xs md:text-sm font-bold tracking-tight mb-4 group hover:border-primary/30 transition-colors"
           >
             <ShieldCheck size={16} className="text-primary group-hover:scale-110 transition-transform" />
-            <span>Privacy First & GDPR Compliant</span>
+            <span>Complete Open Source Websites Analytics and Automation Software</span>
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
@@ -98,10 +98,10 @@ export default function Hero() {
                 </Button>
               </Link>
             )}
-            <Link href="/websites/demo" className="w-full sm:w-auto">
+            <Link href="https://github.com/Seentics/seentics" target="_blank" className="w-full sm:w-auto">
               <Button variant="outline" className="h-14 px-10 text-base font-bold rounded-xl active:scale-95 shadow-sm bg-card/50 backdrop-blur-sm border-border hover:bg-accent text-foreground transition-all flex items-center justify-center gap-2 w-full">
-                <Play className="h-4 w-4 fill-primary text-primary" />
-                View Demo
+                <Github className="h-5 w-5" />
+                GitHub
               </Button>
             </Link>
           </motion.div>

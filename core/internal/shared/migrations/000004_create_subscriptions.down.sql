@@ -1,3 +1,0 @@
-DROP TABLE IF EXISTS usage_tracking;
-DROP TABLE IF EXISTS subscriptions;
-DROP TABLE IF EXISTS plans;

@@ -1,0 +1,15 @@
+FROM golang:1.24
+
+WORKDIR /app
+
+# Install Air for hot reloading
+RUN go install github.com/air-verse/air@v1.61.7
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+EXPOSE 3002
+
+CMD ["air", "-c", ".air.toml"]

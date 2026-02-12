@@ -40,21 +40,6 @@ import (
 	websiteRepoPkg "analytics-app/internal/modules/websites/repository"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
 
-	notiHandlerPkg "analytics-app/internal/modules/notifications/handlers"
-	notiRepoPkg "analytics-app/internal/modules/notifications/repository"
-	notiServicePkg "analytics-app/internal/modules/notifications/services"
-
-	emailHandlerPkg "analytics-app/internal/modules/email/handlers"
-	emailServicePkg "analytics-app/internal/modules/email/services"
-
-	supportHandlerPkg "analytics-app/internal/modules/supportdesk/handlers"
-	supportRepoPkg "analytics-app/internal/modules/supportdesk/repository"
-	supportServicePkg "analytics-app/internal/modules/supportdesk/services"
-
-	logsHandlerPkg "analytics-app/internal/modules/serverlogs/handlers"
-	logsRepoPkg "analytics-app/internal/modules/serverlogs/repository"
-	logsServicePkg "analytics-app/internal/modules/serverlogs/services"
-
 	heatmapHandlerPkg "analytics-app/internal/modules/heatmaps/handlers"
 	heatmapRepoPkg "analytics-app/internal/modules/heatmaps/repository"
 	heatmapServicePkg "analytics-app/internal/modules/heatmaps/services"
@@ -91,6 +76,12 @@ func main() {
 	}
 	defer db.Close()
 
+	// Initialize ClickHouse
+	chConn, err := database.ConnectClickHouse(cfg.ClickHouseHost, cfg.ClickHousePort, cfg.ClickHouseUser, cfg.ClickHousePassword, cfg.ClickHouseDB)
+	if err != nil {
+		logger.Error().Err(err).Msg("Failed to connect to ClickHouse, falling back to PostgreSQL for events")
+	}
+
 	// Run database migrations
 	migrator := migrations.NewMigrator(db, logger)
 	if err := migrator.RunMigrations(context.Background()); err != nil {
@@ -123,8 +114,28 @@ func main() {
 	logger.Info().Msg("Connected to Redis")
 
 	// Repositories
-	eventRepo := repository.NewEventRepository(db, logger)
-	analyticsRepo := repository.NewMainAnalyticsRepository(db)
+	var eventRepo repository.EventRepository
+	if chConn != nil {
+		chRepo := repository.NewClickHouseEventRepository(chConn, logger)
+		// Auto-Create ClickHouse Schema
+		if err := chRepo.CreateSchema(ctx); err != nil {
+			logger.Error().Err(err).Msg("Failed to create ClickHouse schema")
+			eventRepo = repository.NewPostgresEventRepository(db, logger)
+		} else {
+			logger.Info().Msg("ClickHouse schema verified/created")
+			eventRepo = chRepo
+		}
+	} else {
+		eventRepo = repository.NewPostgresEventRepository(db, logger)
+	}
+
+	pgAnalyticsRepo := repository.NewPostgresAnalyticsRepository(db)
+	var analyticsRepo repository.MainAnalyticsRepository
+	if chConn != nil {
+		analyticsRepo = repository.NewClickHouseAnalyticsRepository(chConn, pgAnalyticsRepo, logger)
+	} else {
+		analyticsRepo = pgAnalyticsRepo
+	}
 	privacyRepo := privacy.NewPrivacyRepository(db)
 
 	// Auth
@@ -168,29 +179,10 @@ func main() {
 	funnelRepo := funnelRepoPkg.NewFunnelRepository(db)
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, billingService, websiteService)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
-
-	// Notifications
-	notiRepo := notiRepoPkg.NewNotificationRepository(db)
-	notiService := notiServicePkg.NewNotificationService(notiRepo)
-	notiHandler := notiHandlerPkg.NewNotificationHandler(notiService, logger)
-
-	// Email
-	emailService := emailServicePkg.NewEmailService(cfg)
-	emailHandler := emailHandlerPkg.NewEmailHandler(emailService)
-
-	// Support Desk
-	supportRepo := supportRepoPkg.NewSupportDeskRepository(db)
-	supportService := supportServicePkg.NewSupportDeskService(supportRepo, websiteService)
-	supportHandler := supportHandlerPkg.NewSupportDeskHandler(supportService)
-
 	// Heatmaps (Service)
 	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, billingService)
 	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
 
-	// Logs & Metrics
-	logsRepo := logsRepoPkg.NewLogsRepository(db)
-	logsService := logsServicePkg.NewLogsService(logsRepo)
-	logsHandler := logsHandlerPkg.NewLogsHandler(logsService)
 	// S3 Store
 	s3Region := getEnvOrDefault("AWS_REGION", "us-east-1")
 	s3Bucket := getEnvOrDefault("S3_BUCKET_REPLAYS", "seentics-replays")
@@ -213,7 +205,7 @@ func main() {
 	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, notiHandler, emailHandler, supportHandler, heatmapHandler, logsHandler, replayHandler, logger)
+	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, heatmapHandler, replayHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -256,7 +248,7 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, notiHandler *notiHandlerPkg.NotificationHandler, emailHandler *emailHandlerPkg.EmailHandler, supportHandler *supportHandlerPkg.SupportDeskHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, logsHandler *logsHandlerPkg.LogsHandler, replayHandler *replayHandlerPkg.ReplayHandler, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -346,11 +338,11 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		{
 			admin.GET("/analytics/stats", adminHandler.GetAnalyticsStats)
 
-			// Server Monitoring
-			admin.POST("/logs/ingest", logsHandler.IngestLog)
-			admin.GET("/logs", logsHandler.GetLogs)
-			admin.POST("/metrics/ingest", logsHandler.IngestMetric)
-			admin.GET("/metrics", logsHandler.GetMetrics)
+			// Server Monitoring (Commented out until module is restored)
+			// admin.POST("/logs/ingest", logsHandler.IngestLog)
+			// admin.GET("/logs", logsHandler.GetLogs)
+			// admin.POST("/metrics/ingest", logsHandler.IngestMetric)
+			// admin.GET("/metrics", logsHandler.GetMetrics)
 		}
 
 		automations := v1.Group("/websites/:website_id/automations")
@@ -440,29 +432,29 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			websites.DELETE("/:id/members/:user_id", websiteHandler.RemoveMember)
 		}
 
-		notifications := v1.Group("/user/notifications")
-		{
-			notifications.PUT("/:id/read", notiHandler.MarkRead)
-			notifications.PUT("/read-all", notiHandler.MarkAllRead)
-		}
+		// notifications := v1.Group("/user/notifications")
+		// {
+		// 	notifications.PUT("/:id/read", notiHandler.MarkRead)
+		// 	notifications.PUT("/read-all", notiHandler.MarkAllRead)
+		// }
 
-		emails := v1.Group("/emails")
-		{
-			emails.POST("/send", emailHandler.SendEmail)
-		}
+		// emails := v1.Group("/emails")
+		// {
+		// 	emails.POST("/send", emailHandler.SendEmail)
+		// }
 
-		support := v1.Group("/websites/:website_id/support")
-		{
-			support.POST("/forms", supportHandler.CreateForm)
-			support.GET("/forms", supportHandler.ListForms)
-			support.POST("/forms/:form_id/submit", supportHandler.SubmitForm)
-
-			support.POST("/chat", supportHandler.ConfigureChat)
-			support.GET("/chat", supportHandler.GetChatConfig)
-
-			support.POST("/tickets", supportHandler.CreateTicket)
-			support.GET("/tickets", supportHandler.ListTickets)
-		}
+		// 		support := v1.Group("/websites/:website_id/support")
+		// 		{
+		// 			support.POST("/forms", supportHandler.CreateForm)
+		// 			support.GET("/forms", supportHandler.ListForms)
+		// 			support.POST("/forms/:form_id/submit", supportHandler.SubmitForm)
+		//
+		// 			support.POST("/chat", supportHandler.ConfigureChat)
+		// 			support.GET("/chat", supportHandler.GetChatConfig)
+		//
+		// 			support.POST("/tickets", supportHandler.CreateTicket)
+		// 			support.GET("/tickets", supportHandler.ListTickets)
+		// 		}
 
 		heatmaps := v1.Group("/heatmaps")
 		{

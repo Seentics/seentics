@@ -31,7 +31,7 @@ type usageUpdate struct {
 }
 
 type EventService struct {
-	repo     *repository.EventRepository
+	repo     repository.EventRepository
 	db       *pgxpool.Pool
 	logger   zerolog.Logger
 	kafka    *kafka.KafkaService
@@ -53,7 +53,7 @@ type EventService struct {
 	partitionCache sync.Map // cache for verified partitions
 }
 
-func NewEventService(repo *repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, billingSvc *billingServicePkg.BillingService, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger) *EventService {
+func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, billingSvc *billingServicePkg.BillingService, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger) *EventService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	service := &EventService{

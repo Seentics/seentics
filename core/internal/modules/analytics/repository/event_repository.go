@@ -18,7 +18,7 @@ const (
 	BatchTimeout = 30 * time.Second // Keep timeout reasonable for reliability
 )
 
-type EventRepository struct {
+type PostgresEventRepository struct {
 	db                     *pgxpool.Pool
 	logger                 zerolog.Logger
 	customEventsAggregated *CustomEventsAggregatedRepository
@@ -31,8 +31,8 @@ type BatchResult struct {
 	Errors    []error `json:"errors,omitempty"`
 }
 
-func NewEventRepository(db *pgxpool.Pool, logger zerolog.Logger) *EventRepository {
-	return &EventRepository{
+func NewPostgresEventRepository(db *pgxpool.Pool, logger zerolog.Logger) *PostgresEventRepository {
+	return &PostgresEventRepository{
 		db:                     db,
 		logger:                 logger,
 		customEventsAggregated: NewCustomEventsAggregatedRepository(db, logger),
@@ -40,7 +40,7 @@ func NewEventRepository(db *pgxpool.Pool, logger zerolog.Logger) *EventRepositor
 }
 
 // GetTotalEventCount returns the total number of events
-func (r *EventRepository) GetTotalEventCount(ctx context.Context) (int64, error) {
+func (r *PostgresEventRepository) GetTotalEventCount(ctx context.Context) (int64, error) {
 	query := `SELECT COUNT(*) FROM events`
 	var count int64
 	err := r.db.QueryRow(ctx, query).Scan(&count)
@@ -48,7 +48,7 @@ func (r *EventRepository) GetTotalEventCount(ctx context.Context) (int64, error)
 }
 
 // GetEventsToday returns the number of events created today
-func (r *EventRepository) GetEventsToday(ctx context.Context) (int64, error) {
+func (r *PostgresEventRepository) GetEventsToday(ctx context.Context) (int64, error) {
 	query := `SELECT COUNT(*) FROM events WHERE DATE(created_at) = CURRENT_DATE`
 	var count int64
 	err := r.db.QueryRow(ctx, query).Scan(&count)
@@ -56,7 +56,7 @@ func (r *EventRepository) GetEventsToday(ctx context.Context) (int64, error) {
 }
 
 // GetUniqueVisitorsToday returns the number of unique visitors today
-func (r *EventRepository) GetUniqueVisitorsToday(ctx context.Context) (int64, error) {
+func (r *PostgresEventRepository) GetUniqueVisitorsToday(ctx context.Context) (int64, error) {
 	query := `SELECT COUNT(DISTINCT visitor_id) FROM events WHERE DATE(created_at) = CURRENT_DATE`
 	var count int64
 	err := r.db.QueryRow(ctx, query).Scan(&count)
@@ -64,14 +64,14 @@ func (r *EventRepository) GetUniqueVisitorsToday(ctx context.Context) (int64, er
 }
 
 // GetTotalPageviews returns the total number of pageview events
-func (r *EventRepository) GetTotalPageviews(ctx context.Context) (int64, error) {
+func (r *PostgresEventRepository) GetTotalPageviews(ctx context.Context) (int64, error) {
 	query := `SELECT COUNT(*) FROM events WHERE event_type = 'pageview'`
 	var count int64
 	err := r.db.QueryRow(ctx, query).Scan(&count)
 	return count, err
 }
 
-func (r *EventRepository) Create(ctx context.Context, event *models.Event) error {
+func (r *PostgresEventRepository) Create(ctx context.Context, event *models.Event) error {
 	r.prepareEvent(event)
 
 	// Handle custom events with aggregation
@@ -101,7 +101,7 @@ func (r *EventRepository) Create(ctx context.Context, event *models.Event) error
 	return err
 }
 
-func (r *EventRepository) CreateBatch(ctx context.Context, events []models.Event) (*BatchResult, error) {
+func (r *PostgresEventRepository) CreateBatch(ctx context.Context, events []models.Event) (*BatchResult, error) {
 	if len(events) == 0 {
 		return &BatchResult{}, nil
 	}
@@ -191,7 +191,7 @@ func (r *EventRepository) CreateBatch(ctx context.Context, events []models.Event
 	return result, nil
 }
 
-func (r *EventRepository) processChunk(ctx context.Context, events []models.Event) (*BatchResult, error) {
+func (r *PostgresEventRepository) processChunk(ctx context.Context, events []models.Event) (*BatchResult, error) {
 	ctx, cancel := context.WithTimeout(ctx, BatchTimeout)
 	defer cancel()
 
@@ -202,7 +202,7 @@ func (r *EventRepository) processChunk(ctx context.Context, events []models.Even
 	return r.regularBatch(ctx, events)
 }
 
-func (r *EventRepository) copyBatch(ctx context.Context, events []models.Event) (*BatchResult, error) {
+func (r *PostgresEventRepository) copyBatch(ctx context.Context, events []models.Event) (*BatchResult, error) {
 	// Prepare all events
 	for i := range events {
 		r.prepareEvent(&events[i])
@@ -232,7 +232,7 @@ func (r *EventRepository) copyBatch(ctx context.Context, events []models.Event) 
 	return result, nil
 }
 
-func (r *EventRepository) regularBatch(ctx context.Context, events []models.Event) (*BatchResult, error) {
+func (r *PostgresEventRepository) regularBatch(ctx context.Context, events []models.Event) (*BatchResult, error) {
 	batch := &pgx.Batch{}
 	query := `INSERT INTO events (
 		id, website_id, visitor_id, session_id, event_type, page, referrer, user_agent, ip_address,
@@ -264,7 +264,7 @@ func (r *EventRepository) regularBatch(ctx context.Context, events []models.Even
 	return result, nil
 }
 
-func (r *EventRepository) GetByWebsiteID(ctx context.Context, websiteID string, limit, offset int) ([]models.Event, error) {
+func (r *PostgresEventRepository) GetByWebsiteID(ctx context.Context, websiteID string, limit, offset int) ([]models.Event, error) {
 	if websiteID == "" {
 		return nil, fmt.Errorf("website_id required")
 	}
@@ -319,7 +319,7 @@ func (r *EventRepository) GetByWebsiteID(ctx context.Context, websiteID string, 
 	return events, rows.Err()
 }
 
-func (r *EventRepository) HealthCheck(ctx context.Context) error {
+func (r *PostgresEventRepository) HealthCheck(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -329,7 +329,7 @@ func (r *EventRepository) HealthCheck(ctx context.Context) error {
 
 // Helper methods
 
-func (r *EventRepository) prepareEvent(event *models.Event) {
+func (r *PostgresEventRepository) prepareEvent(event *models.Event) {
 	if event.ID == uuid.Nil {
 		event.ID = uuid.New()
 	}
@@ -361,7 +361,7 @@ func (r *EventRepository) prepareEvent(event *models.Event) {
 		}
 	}
 }
-func (r *EventRepository) eventArgs(event *models.Event) []interface{} {
+func (r *PostgresEventRepository) eventArgs(event *models.Event) []interface{} {
 	// Convert properties to JSON
 	var propertiesJSON interface{}
 	if event.Properties != nil {
@@ -385,7 +385,7 @@ func (r *EventRepository) eventArgs(event *models.Event) []interface{} {
 }
 
 // Helper to safely handle string pointers for NULL values
-func (r *EventRepository) stringPtr(ptr *string) interface{} {
+func (r *PostgresEventRepository) stringPtr(ptr *string) interface{} {
 	if ptr == nil || *ptr == "" {
 		return nil
 	}
