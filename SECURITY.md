@@ -109,4 +109,4 @@ We would like to thank all security researchers and community members who respon
 
 ## License
 
-This security policy is licensed under the same terms as the Seentics project (MIT License).
+This security policy is licensed under the same terms as the Seentics project (AGPL v3 License).

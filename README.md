@@ -3,7 +3,7 @@
 **The open-source, high-performance alternative to Google Analytics.**  
 Seentics is a production-ready analytics platform designed for speed, privacy, and scale. Built with a modern distributed architecture, it provides deep behavioral insights without sacrificing data ownership.
 
-[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL%20v3-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go)](https://golang.org)
 [![Next.js](https://img.shields.io/badge/Next.js-15%2B-black?logo=next.js)](https://nextjs.org)
 [![Docker](https://img.shields.io/badge/Docker-Compatible-2496ED?logo=docker)](https://www.docker.com)
@@ -92,7 +92,7 @@ cd seentics-analytics
 
 # Setup environment variables
 cp .env.example .env
-cp frontend/.env.example frontend/.env.local
+cp web/.env.example web/.env.local
 ```
 
 ### 3. Launch Stack
@@ -119,7 +119,7 @@ Seentics is designed to be self-hosted, ensuring you have absolute control over 
 We love contributions! Whether it's adding a new feature, fixing a bug, or improving documentation, please read our [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
 ## 📄 License
-This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
 ---
 

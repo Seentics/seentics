@@ -4,7 +4,7 @@ services:
   # ---------------------------------------------------------------------------
   analytics-backend:
     build:
-      context: ./backend
+      context: ./core
     container_name: analytics-backend
     ports:
       - "3002:3002"
@@ -28,7 +28,7 @@ services:
       kafka:
         condition: service_started
     volumes:
-      - ./backend/data:/app/data
+      - ./core/data:/app/data
     restart: unless-stopped
     networks:
       - seentics-network

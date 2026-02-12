@@ -16,14 +16,14 @@ Thank you for your interest in contributing to the Seentics Analytics engine! Th
 3. Install dependencies:
    ```bash
    # Analytics Backend
-   cd backend && go mod tidy
+   cd core && go mod tidy
    
    # Analytics Frontend
-   cd ../frontend && npm install
+   cd ../web && npm install
    ```
 4. Set up environment variables:
-   - Create `.env` in `backend/` based on `.env.example`
-   - Create `.env.local` in `frontend/` based on `frontend/.env.example`
+   - Create `.env` in `core/` based on `.env.example`
+   - Create `.env.local` in `web/` based on `web/.env.example`
 5. Start infrastructure: `docker compose up -d` (Postgres, Redis, Kafka)
 
 ## 📝 How to Contribute
@@ -53,8 +53,8 @@ Thank you for your interest in contributing to the Seentics Analytics engine! Th
 
 ```
 analytics/
-├── backend/                 # Go Analytics Engine
-├── frontend/                # Next.js Dashboard UI
+├── core/                    # Go Analytics Engine
+├── web/                     # Next.js Dashboard UI
 ├── docker-compose.yml       # Standalone OSS stack
 └── README.md                # Project overview
 ```
