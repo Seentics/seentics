@@ -41,6 +41,11 @@ export const config = {
 
 // Helper functions
 export const getApiUrl = (endpoint: string = '') => {
+  // Use relative path for client-side requests (Next.js rewrites handle proxying)
+  // Use full URL for server-side requests
+  if (typeof window !== 'undefined') {
+    return `/api/${config.apiVersion}${endpoint}`;
+  }
   return `${config.apiBaseUrl}/api/${config.apiVersion}${endpoint}`;
 };
 

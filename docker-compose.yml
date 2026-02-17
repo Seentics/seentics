@@ -27,6 +27,11 @@ services:
       - CLICKHOUSE_USER=default
       - CLICKHOUSE_PASSWORD=seentics_clickhouse_pass
       - CLICKHOUSE_DB=seentics
+      - S3_ENDPOINT=http://minio:9000
+      - S3_BUCKET_REPLAYS=seentics-replays
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=minioadmin
+      - AWS_SECRET_ACCESS_KEY=minioadmin
     depends_on:
       redis:
         condition: service_healthy
@@ -35,6 +40,8 @@ services:
       clickhouse:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      minio:
         condition: service_healthy
     volumes:
       - ./core:/app
@@ -129,6 +136,37 @@ services:
       timeout: 5s
       retries: 3
 
+  minio:
+    image: minio/minio:latest
+    container_name: seentics-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - seentics-minio-v3:/data
+    networks:
+      - seentics-network
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c " /usr/bin/mc alias set myminio http://minio:9000 minioadmin minioadmin; /usr/bin/mc mb --ignore-existing myminio/seentics-replays; /usr/bin/mc anonymous set public myminio/seentics-replays; exit 0; "
+    networks:
+      - seentics-network
+
   # ---------------------------------------------------------------------------
   # Frontend Web (Next.js)
   # ---------------------------------------------------------------------------
@@ -142,6 +180,7 @@ services:
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://localhost:3002/api/v1
+      - API_GATEWAY_URL=http://core:3002
     volumes:
       - ./web:/app
       - /app/node_modules
@@ -159,8 +198,10 @@ volumes:
   seentics-kafka-v3:
   seentics-ch-v3:
   seentics-db-v3:
+  seentics-minio-v3:
 
 
 networks:
   seentics-network:
+    name: seentics-network
     driver: bridge

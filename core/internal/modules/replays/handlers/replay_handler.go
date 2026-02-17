@@ -38,15 +38,23 @@ func (h *ReplayHandler) RecordReplay(c *gin.Context) {
 		return
 	}
 
+	// Extract origin for domain validation and User-Agent for session metadata
+	origin := c.Request.Header.Get("Origin")
+	if origin == "" {
+		origin = c.Request.Header.Get("Referer")
+	}
+	userAgent := c.Request.Header.Get("User-Agent")
+
 	h.logger.Debug().
 		Str("website_id", req.WebsiteID).
 		Str("session_id", req.SessionID).
+		Str("origin", origin).
 		Int("events", len(req.Events)).
 		Int("sequence", req.Sequence).
 		Msg("Recording session replay chunk")
 
-	if err := h.service.RecordReplay(c.Request.Context(), req); err != nil {
-		h.logger.Error().Err(err).Str("website_id", req.WebsiteID).Msg("Failed to record replay chunk")
+	if err := h.service.RecordReplay(c.Request.Context(), req, origin, userAgent); err != nil {
+		h.logger.Error().Err(err).Str("website_id", req.WebsiteID).Str("origin", origin).Msg("Failed to record replay chunk")
 
 		status := http.StatusInternalServerError
 		if err.Error() == "domain mismatch" || err.Error() == "invalid website_id" || err.Error() == "website is inactive" {

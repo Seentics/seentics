@@ -1,15 +1,6 @@
 'use client';
 
-import { 
-  ExternalLink, 
-  LinkIcon, 
-  Mail, 
-  Search, 
-  Share2, 
-  BarChart3, 
-  Globe, 
-  Layers 
-} from 'lucide-react';
+import { Globe, Layers } from 'lucide-react';
 import Image from 'next/image';
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -48,28 +39,28 @@ const getSourceImage = (label: string) => {
 export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChartProps) {
   const [activeTab, setActiveTab] = useState('overview');
 
-  // Helpers to classify categories - matching backend logic
+  // Helpers to classify categories
   const isOrganic = (r: string) => {
     const s = (r || '').toLowerCase();
-    return s.includes('google') || s.includes('bing') || s.includes('yahoo') || 
-           s.includes('duckduckgo') || s.includes('search') || s.includes('baidu') || 
+    return s.includes('google') || s.includes('bing') || s.includes('yahoo') ||
+           s.includes('duckduckgo') || s.includes('search') || s.includes('baidu') ||
            s.includes('yandex');
   };
-  
+
   const isDirect = (r: string) => {
     const s = (r || '').toLowerCase();
-    return s.includes('direct') || s.includes('none') || s.includes('null') || 
+    return s.includes('direct') || s.includes('none') || s.includes('null') ||
            s === '' || s.includes('(not set)');
   };
-  
+
   const isSocial = (r: string) => {
     const s = (r || '').toLowerCase();
-    return s.includes('facebook') || s.includes('twitter') || s.includes('linkedin') || 
-           s.includes('instagram') || s.includes('reddit') || s.includes('tiktok') || 
+    return s.includes('facebook') || s.includes('twitter') || s.includes('linkedin') ||
+           s.includes('instagram') || s.includes('reddit') || s.includes('tiktok') ||
            s.includes('pinterest') || s.includes('youtube') || s.includes('snapchat') ||
            s.includes('whatsapp') || s.includes('telegram');
   };
-  
+
   const isEmail = (r: string) => {
     const s = (r || '').toLowerCase();
     return s.includes('email') || s.includes('mail') || s.includes('newsletter') ||
@@ -95,14 +86,14 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
   const referrers = data?.top_referrers || [];
   const totalVisitors = referrers.reduce((sum, item) => sum + (item.visitors || 0), 0);
 
-  const getSourceData = (type: 'overview' | 'referrers' | 'search' | 'social') => {
+  const getSourceData = (type: 'overview' | 'search' | 'social') => {
     if (type === 'overview') {
       const totals: Record<string, { visitors: number, color: string }> = {
         'Direct': { visitors: 0, color: '#4285F4' },
         'Search': { visitors: 0, color: '#34A853' },
         'Social': { visitors: 0, color: '#EA4335' },
-        'Email': { visitors: 0, color: '#FBBC05' },
         'Referral': { visitors: 0, color: '#8B5CF6' },
+        'Email': { visitors: 0, color: '#FBBC05' },
       };
 
       referrers.forEach(item => {
@@ -125,19 +116,10 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
         }));
     }
 
-    // Filter referrers based on tab type
-    let filtered = referrers;
-    if (type === 'search') {
-      filtered = referrers.filter(r => isOrganic(r.referrer));
-    } else if (type === 'social') {
-      filtered = referrers.filter(r => isSocial(r.referrer));
-    } else if (type === 'referrers') {
-      // Referral tab: exclude direct, search, social, and email
-      filtered = referrers.filter(r => {
-        const ref = r.referrer || '';
-        return !isDirect(ref) && !isOrganic(ref) && !isSocial(ref) && !isEmail(ref);
-      });
-    }
+    // Filter by tab type
+    const filtered = referrers.filter(r =>
+      type === 'search' ? isOrganic(r.referrer) : isSocial(r.referrer)
+    );
 
     const maxVal = Math.max(...filtered.map(r => r.visitors), 1);
     return filtered
@@ -146,23 +128,22 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
       .map(r => ({
         label: r.referrer || 'Direct',
         visitors: r.visitors,
-        color: type === 'search' ? '#34A853' : type === 'social' ? '#EA4335' : type === 'referrers' ? '#8B5CF6' : '#4285F4',
+        color: type === 'search' ? '#34A853' : '#EA4335',
         image: getSourceImage(r.referrer || 'Direct'),
         percentage: (r.visitors / maxVal) * 100
       }));
   };
 
-  const PageList = ({ type }: { type: 'overview' | 'referrers' | 'search' | 'social' }) => {
+  const PageList = ({ type }: { type: 'overview' | 'search' | 'social' }) => {
     const items = getSourceData(type);
 
     if (items.length === 0) {
       const emptyMessages = {
         overview: 'No traffic data available',
-        referrers: 'No referral traffic detected',
         search: 'No search engine traffic',
         social: 'No social media traffic'
       };
-      
+
       return (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
           <Layers className="h-10 w-10 mb-2 opacity-20" />
@@ -223,22 +204,16 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
               <CardTitle className="text-lg font-bold tracking-tight">Traffic Sources</CardTitle>
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Main acquisition channels</p>
            </div>
-           <TabsList className="grid grid-cols-4 h-9 w-full sm:w-[320px] bg-accent/10 p-1 rounded">
-             <TabsTrigger value="overview" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Total</TabsTrigger>
-             <TabsTrigger value="referrers" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Refer</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded">
+             <TabsTrigger value="overview" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">All</TabsTrigger>
              <TabsTrigger value="search" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Search</TabsTrigger>
              <TabsTrigger value="social" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Social</TabsTrigger>
            </TabsList>
         </div>
-        
+
         <TabsContent value="overview" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
           <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
             <PageList type="overview" />
-          </div>
-        </TabsContent>
-        <TabsContent value="referrers" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
-            <PageList type="referrers" />
           </div>
         </TabsContent>
         <TabsContent value="search" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">

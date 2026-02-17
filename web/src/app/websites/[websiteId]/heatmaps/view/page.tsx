@@ -48,7 +48,7 @@ export default function HeatmapViewPage() {
     queryKey: ['website', websiteId],
     queryFn: async () => {
       const response = await api.get(`/user/websites/${websiteId}`);
-      return response.data;
+      return response.data?.data ?? response.data;
     },
     enabled: !!websiteId && websiteId !== 'demo',
   });
@@ -59,7 +59,6 @@ export default function HeatmapViewPage() {
   const [loading, setLoading] = useState(true);
   const [dimensions, setDimensions] = useState({ width: 1200, height: 2000 }); // Default content size
   const [viewSize, setViewSize] = useState({ width: 0, height: 0 }); // Viewport size
-  const [scrollPos, setScrollPos] = useState({ top: 0, left: 0 }); // Current scroll position
   const [showHeightControl, setShowHeightControl] = useState(false);
   const [opacity, setOpacity] = useState([70]);
   const [isSameOrigin, setIsSameOrigin] = useState(false);
@@ -67,43 +66,27 @@ export default function HeatmapViewPage() {
   const mainScrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const lastScrollSent = useRef(0);
+
+  // Normalize a stored website URL to always have a protocol
+  const normalizeUrl = (raw: string) => {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    return 'http://' + trimmed;
+  };
 
   // Detect if the URL is same-origin (dashboard page)
   useEffect(() => {
     if (!website?.url) return;
-    
+
     try {
-      const currentOrigin = window.location.origin;
-      const targetUrl = new URL(website.url);
-      const isSame = currentOrigin === targetUrl.origin;
-      setIsSameOrigin(isSame);
+      const currentHostname = window.location.hostname;
+      const targetUrl = new URL(normalizeUrl(website.url));
+      // Compare by hostname only — stored URLs may omit the port (e.g. "localhost" vs "localhost:3000")
+      setIsSameOrigin(currentHostname === targetUrl.hostname);
     } catch (err) {
       setIsSameOrigin(false);
     }
   }, [website?.url]);
-
-  // Sync scroll from main container to iframe
-  const handleMainScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    const top = target.scrollTop;
-    const left = target.scrollLeft;
-    
-    setScrollPos({ top, left });
-    
-    // Throttle messages to iframe to 60fps
-    const now = Date.now();
-    if (now - lastScrollSent.current > 16) {
-        if (iframeRef.current?.contentWindow && !isDemo) {
-            iframeRef.current.contentWindow.postMessage({
-                type: 'SEENTICS_SET_SCROLL',
-                top,
-                left
-            }, '*');
-        }
-        lastScrollSent.current = now;
-    }
-  };
 
   const isDemo = websiteId === 'demo';
   const isFreePlan = subscription?.plan === 'free';
@@ -118,24 +101,11 @@ export default function HeatmapViewPage() {
       }
 
       if (event.data?.type === 'SEENTICS_DIMENSIONS') {
-        const { height, width } = event.data;
+        const { height } = event.data;
+        // Only update height — width is always deviceWidth (stored URL may lack port)
         if (height && height > 0) {
-          setDimensions(prev => {
-              if (prev.height !== height || prev.width !== width) {
-                  return { width: width || 1200, height: height };
-              }
-              return prev;
-          });
+          setDimensions(prev => prev.height !== height ? { ...prev, height } : prev);
           setShowHeightControl(false);
-        }
-      } else if (event.data?.type === 'SEENTICS_SCROLL') {
-        // This is critical for when the user scrolls the iframe directly
-        const { scrollTop, scrollLeft } = event.data;
-        setScrollPos({ top: scrollTop, left: scrollLeft });
-        
-        // Also sync the dashboard scroller if it's out of sync
-        if (mainScrollRef.current && Math.abs(mainScrollRef.current.scrollTop - scrollTop) > 10) {
-            mainScrollRef.current.scrollTop = scrollTop;
         }
       }
     };
@@ -261,26 +231,27 @@ export default function HeatmapViewPage() {
   // For cross-origin, use the external URL
   const buildIframeUrl = () => {
     if (isDemo) return 'https://seentics.com';
-    
-    if (!website?.url) return '/';
-    
-    const baseUrl = website.url.replace(/\/$/, '');
+
+    if (!website?.url) return '';
+
+    const baseUrl = normalizeUrl(website.url).replace(/\/$/, '');
     const fullPath = url.startsWith('/') ? url : `/${url}`;
     const targetUrl = `${baseUrl}${fullPath}`;
-    
-    // Check if it's same origin
+
+    // Check if it's same host (compare hostname only — stored URLs may omit the port)
     try {
-      const targetOrigin = new URL(targetUrl).origin;
-      const currentOrigin = window.location.origin;
-      
-      if (targetOrigin === currentOrigin) {
-        // Same origin - use direct path to share cookies
+      const targetHostname = new URL(targetUrl).hostname;
+      const currentHostname = window.location.hostname;
+
+      if (targetHostname === currentHostname) {
+        // Same host - use relative path so cookies are shared and port is correct
         return fullPath;
       }
     } catch (err) {
       console.error('Error parsing URL:', err);
+      return '';
     }
-    
+
     return targetUrl;
   };
 
@@ -421,18 +392,17 @@ export default function HeatmapViewPage() {
                </div>
             </div>
 
-            <div 
+            <div
                ref={mainScrollRef}
-               onScroll={handleMainScroll}
                className="bg-white overflow-y-auto overflow-x-hidden rounded-b-xl hide-scrollbar"
                style={{ height: 'calc(100vh - 150px)' }}
             >
-                <div style={{ height: `${Math.max(dimensions.height, 2000)}px`, width: `${dimensions.width}px`, position: 'relative', margin: '0 auto' }}>
-                    <HeatmapOverlay 
-                        points={points} 
-                        width={dimensions.width} 
+                <div style={{ height: `${Math.max(dimensions.height, 2000)}px`, width: `${deviceWidth}px`, position: 'relative' }}>
+                    <HeatmapOverlay
+                        points={points}
+                        width={deviceWidth}
                         height={Math.max(dimensions.height, 2000)}
-                        totalWidth={dimensions.width}
+                        totalWidth={deviceWidth}
                         totalHeight={Math.max(dimensions.height, 2000)}
                         opacity={opacity[0] / 100}
                         type={activeType}
@@ -472,7 +442,7 @@ export default function HeatmapViewPage() {
                         </div>
                     ) : null}
 
-                    <iframe 
+                    {siteUrl && <iframe
                         ref={iframeRef}
                         src={siteUrl}
                         onError={() => {
@@ -485,45 +455,44 @@ export default function HeatmapViewPage() {
                           
                           const validIframe = e.currentTarget;
                           
-                          // Optimized: Try direct access for same-origin first (much faster/reliable)
-                          if (isSameOrigin && validIframe.contentWindow) {
+                          // Try direct same-origin DOM access to measure content height.
+                          // No isSameOrigin guard — we let the try/catch handle cross-origin rejections.
+                          // Only height is measured; width always equals deviceWidth.
+                          const scanHeight = () => {
+                              if (!validIframe.contentWindow) return;
                               try {
-                                  let doc = validIframe.contentWindow.document;
-                                  let maxScrollHeight = 0;
-                                  let maxScrollWidth = 0;
+                                  const doc = validIframe.contentWindow.document;
+                                  const bodyHeight = Math.max(
+                                      doc.body.scrollHeight, doc.body.offsetHeight,
+                                      doc.documentElement.clientHeight, doc.documentElement.scrollHeight, doc.documentElement.offsetHeight
+                                  );
 
-                                  // Deep scan for the actual scrolling container
-                                  // Many apps use a wrapper div for scrolling instead of body
-                                  const allElements = doc.querySelectorAll('*');
-                                  for (let i = 0; i < allElements.length; i++) {
-                                      const el = allElements[i];
-                                      if (el.scrollHeight > maxScrollHeight) {
-                                          maxScrollHeight = el.scrollHeight;
-                                      }
-                                      if (el.scrollWidth > maxScrollWidth) {
-                                          maxScrollWidth = el.scrollWidth;
+                                  // Also check scrollable inner containers (common in dashboard apps)
+                                  let maxInnerHeight = bodyHeight;
+                                  const scrollables = doc.querySelectorAll('div, main, section');
+                                  for (let i = 0; i < scrollables.length; i++) {
+                                      const el = scrollables[i] as Element;
+                                      if (el.scrollHeight > maxInnerHeight) {
+                                          const style = (validIframe.contentWindow as Window).getComputedStyle(el);
+                                          if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && style.display !== 'none') {
+                                              maxInnerHeight = el.scrollHeight;
+                                          }
                                       }
                                   }
 
-                                  // Fallback to body/doc if scan failed to find anything larger
-                                  const bodyHeight = Math.max(
-                                      doc.body.scrollHeight, doc.body.offsetHeight, 
-                                      doc.documentElement.clientHeight, doc.documentElement.scrollHeight, doc.documentElement.offsetHeight
-                                  );
-                                  
-                                  const finalHeight = Math.max(maxScrollHeight, bodyHeight);
-                                  const finalWidth = maxScrollWidth || 1200;
-                                  
-                                  console.log('[HeatmapView] Deep scan dimensions:', { finalWidth, finalHeight });
-                                  
-                                  if (finalHeight > 0) {
-                                      setDimensions({ width: finalWidth, height: finalHeight });
+                                  if (maxInnerHeight > 0) {
+                                      setDimensions(prev => ({ ...prev, height: maxInnerHeight }));
                                       setShowHeightControl(false);
                                   }
                               } catch (err) {
-                                  console.warn('[HeatmapView] Direct access failed, falling back to messaging', err);
+                                  // Cross-origin — fall through to postMessage polling below
                               }
-                          }
+                          };
+
+                          // Scan immediately, then again after Next.js hydration completes
+                          scanHeight();
+                          setTimeout(scanHeight, 1500);
+                          setTimeout(scanHeight, 3000);
 
                           // Fallback: Message polling
                           let attempts = 0;
@@ -540,7 +509,7 @@ export default function HeatmapViewPage() {
                         sandbox={isSameOrigin ? 'allow-same-origin allow-scripts allow-forms' : undefined}
                         referrerPolicy="same-origin"
                         className="w-full h-full border-none pointer-events-none"
-                    />
+                    />}
                 </div>
             </div>
           </div>

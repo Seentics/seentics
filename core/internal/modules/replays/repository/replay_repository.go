@@ -4,15 +4,16 @@ import (
 	"analytics-app/internal/modules/replays/models"
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ReplayRepository interface {
-	SaveChunk(ctx context.Context, websiteID, sessionID string, data json.RawMessage, sequence int) error
+	SaveChunk(ctx context.Context, websiteID, sessionID string, data json.RawMessage, sequence int, meta *models.SessionMeta) error
 	GetChunks(ctx context.Context, websiteID, sessionID string) ([]models.SessionReplayChunk, error)
 	ListSessionsWithMetadata(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error)
-	DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) error
+	DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) ([]string, error)
 	GetPageSnapshot(ctx context.Context, websiteID, siteID, url string) (json.RawMessage, error)
 	FindSessionIDForPage(ctx context.Context, websiteID, url string) (string, error)
 }
@@ -25,10 +26,25 @@ func NewReplayRepository(db *pgxpool.Pool) ReplayRepository {
 	return &replayRepository{db: db}
 }
 
-func (r *replayRepository) SaveChunk(ctx context.Context, websiteID, sessionID string, data json.RawMessage, sequence int) error {
+func (r *replayRepository) SaveChunk(ctx context.Context, websiteID, sessionID string, data json.RawMessage, sequence int, meta *models.SessionMeta) error {
+	if meta != nil {
+		// First chunk — store session metadata alongside the row
+		query := `
+			INSERT INTO session_replays (website_id, session_id, data, sequence, browser, device, os, country, entry_page)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			ON CONFLICT (website_id, session_id, sequence) DO NOTHING
+		`
+		_, err := r.db.Exec(ctx, query,
+			websiteID, sessionID, data, sequence,
+			meta.Browser, meta.Device, meta.OS, meta.Country, meta.EntryPage,
+		)
+		return err
+	}
+
 	query := `
 		INSERT INTO session_replays (website_id, session_id, data, sequence)
 		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (website_id, session_id, sequence) DO NOTHING
 	`
 	_, err := r.db.Exec(ctx, query, websiteID, sessionID, data, sequence)
 	return err
@@ -60,28 +76,27 @@ func (r *replayRepository) GetChunks(ctx context.Context, websiteID, sessionID s
 }
 
 func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error) {
+	// Metadata (browser/device/OS/country/entry_page) is stored on the sequence=0 row.
+	// Self-join avoids querying the analytics events table which lives in ClickHouse.
 	query := `
-		SELECT 
+		SELECT
 			r.session_id,
-			MIN(r.timestamp) as start_time,
-			MAX(r.timestamp) as end_time,
-			EXTRACT(EPOCH FROM (MAX(r.timestamp) - MIN(r.timestamp))) as duration,
-			COUNT(r.id) as chunk_count,
-			COALESCE(e.browser, 'Unknown') as browser,
-			COALESCE(e.device, 'Unknown') as device,
-			COALESCE(e.os, 'Unknown') as os,
-			COALESCE(e.country, 'Unknown') as country,
-			COALESCE(e.page, 'Unknown') as entry_page
+			MIN(r.timestamp)  AS start_time,
+			MAX(r.timestamp)  AS end_time,
+			EXTRACT(EPOCH FROM (MAX(r.timestamp) - MIN(r.timestamp))) AS duration,
+			COUNT(r.id)       AS chunk_count,
+			COALESCE(m.browser,    'Unknown') AS browser,
+			COALESCE(m.device,     'Unknown') AS device,
+			COALESCE(m.os,         'Unknown') AS os,
+			COALESCE(m.country,    'Unknown') AS country,
+			COALESCE(m.entry_page, 'Unknown') AS entry_page
 		FROM session_replays r
-		LEFT JOIN (
-			SELECT DISTINCT ON (session_id) 
-				session_id, browser, device, os, country, page, timestamp
-			FROM events
-			WHERE website_id = $1
-			ORDER BY session_id, timestamp ASC
-		) e ON r.session_id = e.session_id
+		LEFT JOIN session_replays m
+			ON  m.website_id = r.website_id
+			AND m.session_id = r.session_id
+			AND m.sequence   = 0
 		WHERE r.website_id = $1
-		GROUP BY r.session_id, e.browser, e.device, e.os, e.country, e.page
+		GROUP BY r.session_id, m.browser, m.device, m.os, m.country, m.entry_page
 		ORDER BY start_time DESC
 	`
 	rows, err := r.db.Query(ctx, query, websiteID)
@@ -107,25 +122,51 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 	return sessions, nil
 }
 
-func (r *replayRepository) DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) error {
-	query := `DELETE FROM session_replays WHERE website_id = $1 AND session_id = $2`
-	_, err := r.db.Exec(ctx, query, websiteID, sessionID)
-	return err
+// DeleteSessionReplay removes all DB rows and returns the S3 keys that should be deleted.
+func (r *replayRepository) DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) ([]string, error) {
+	// Collect sequence numbers before deleting so we can build S3 keys.
+	seqRows, err := r.db.Query(ctx,
+		`SELECT sequence FROM session_replays WHERE website_id = $1 AND session_id = $2`,
+		websiteID, sessionID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer seqRows.Close()
+
+	var sequences []int
+	for seqRows.Next() {
+		var seq int
+		if err := seqRows.Scan(&seq); err != nil {
+			return nil, err
+		}
+		sequences = append(sequences, seq)
+	}
+
+	if _, err := r.db.Exec(ctx,
+		`DELETE FROM session_replays WHERE website_id = $1 AND session_id = $2`,
+		websiteID, sessionID,
+	); err != nil {
+		return nil, err
+	}
+
+	keys := make([]string, len(sequences))
+	for i, seq := range sequences {
+		keys[i] = fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sessionID, seq)
+	}
+	return keys, nil
 }
 
 func (r *replayRepository) GetPageSnapshot(ctx context.Context, websiteID, siteID, url string) (json.RawMessage, error) {
-	// Deprecated: This relies on data being in DB. New implementation uses FindSessionIDForPage + S3.
-	// We keep this for backward compatibility if needed, or we can just replace it.
-	// For S3 migration, we should use FindSessionIDForPage.
 	return nil, nil
 }
 
 func (r *replayRepository) FindSessionIDForPage(ctx context.Context, websiteID, url string) (string, error) {
-	// Find the most recent session that visited this URL
+	// Look up by entry_page stored on the sequence=0 metadata row.
 	query := `
 		SELECT session_id
-		FROM events
-		WHERE website_id = $1 AND page = $2
+		FROM session_replays
+		WHERE website_id = $1 AND entry_page = $2 AND sequence = 0
 		ORDER BY timestamp DESC
 		LIMIT 1
 	`

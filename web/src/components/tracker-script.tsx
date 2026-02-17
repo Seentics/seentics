@@ -28,19 +28,11 @@ export default function TrackerScript({ testMode, siteId }: TrackerScriptProps =
       window.location.hostname.includes('localhost')
     );
 
-  // Dynamic ID detection for local dev to support testing different sites
-  const getLocalSiteId = () => {
-    if (typeof window === 'undefined') return '62b7d738d65f124e4a7cb2a2';
-    const path = window.location.pathname;
-    const match = path.match(/\/websites\/([a-f0-9-]+)/);
-    return match ? match[1] : '62b7d738d65f124e4a7cb2a2';
-  };
-
   if (isLocalhost) {
     return (
         <Script
           async
-          data-website-id={getLocalSiteId()}
+          data-site-id="9f3cd976-d8d3-4163-b3d6-de503af05ef6"
           src="http://localhost:3000/trackers/seentics-core.js"
           strategy="afterInteractive"
         />

@@ -11,10 +11,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
+	"sync"
+
+	"github.com/mssola/user_agent"
 )
 
 type ReplayService interface {
-	RecordReplay(ctx context.Context, req models.RecordReplayRequest) error
+	RecordReplay(ctx context.Context, req models.RecordReplayRequest, origin, userAgent string) error
 	GetReplay(ctx context.Context, websiteID, sessionID string) ([]models.SessionReplayChunk, error)
 	ListSessions(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error)
 	DeleteReplay(ctx context.Context, websiteID, sessionID string) error
@@ -37,80 +41,150 @@ func NewReplayService(repo repository.ReplayRepository, websites *websiteService
 	}
 }
 
-func (s *replayService) RecordReplay(ctx context.Context, req models.RecordReplayRequest) error {
-	// 1. Canonicalize WebsiteID
-	website, err := s.websites.GetWebsiteByAnyID(ctx, req.WebsiteID)
-	if err == nil {
-		req.WebsiteID = website.SiteID
+// parseUA extracts browser, device type, and OS from a User-Agent string.
+func parseUA(uaStr string) (browser, device, os string) {
+	ua := user_agent.New(uaStr)
 
-		// 1.1 Enforcement: Check limits on new session
-		if req.Sequence == 0 {
-			usage, usageErr := s.billing.GetUserSubscriptionData(ctx, website.UserID.String())
-			if usageErr == nil {
-				if !usage.Usage.Replays.CanCreate {
-					return fmt.Errorf("session recording limit reached (%d/%d sessions). upgrade for more recordings",
-						usage.Usage.Replays.Current, usage.Usage.Replays.Limit)
-				}
+	name, _ := ua.Browser()
+	browser = name
+	if browser == "" {
+		browser = "Unknown"
+	}
+
+	os = ua.OS()
+	if os == "" {
+		os = "Unknown"
+	}
+
+	switch {
+	case ua.Mobile():
+		device = "Mobile"
+	case strings.Contains(uaStr, "iPad") || strings.Contains(strings.ToLower(uaStr), "tablet"):
+		device = "Tablet"
+	default:
+		device = "Desktop"
+	}
+
+	return
+}
+
+func (s *replayService) RecordReplay(ctx context.Context, req models.RecordReplayRequest, origin, userAgent string) error {
+	// 1. Validate website
+	website, err := s.websites.GetWebsiteByAnyID(ctx, req.WebsiteID)
+	if err != nil {
+		return fmt.Errorf("invalid website_id: %s", req.WebsiteID)
+	}
+
+	if !website.IsActive {
+		return fmt.Errorf("website is inactive: %s", req.WebsiteID)
+	}
+
+	// 2. Origin domain validation
+	if !s.websites.ValidateOriginDomain(origin, website.URL) {
+		return fmt.Errorf("domain mismatch: origin=%s, expected=%s", origin, website.URL)
+	}
+
+	// Canonicalize website ID
+	req.WebsiteID = website.SiteID
+
+	// 3. Billing limit check — only on the first chunk to avoid per-chunk overhead
+	if req.Sequence == 0 {
+		usage, usageErr := s.billing.GetUserSubscriptionData(ctx, website.UserID.String())
+		if usageErr == nil {
+			if !usage.Usage.Replays.CanCreate {
+				return fmt.Errorf("session recording limit reached (%d/%d sessions). upgrade for more recordings",
+					usage.Usage.Replays.Current, usage.Usage.Replays.Limit)
 			}
 		}
 	}
 
-	// 2. Upload to S3
+	// 4. Upload events to S3
 	data, err := json.Marshal(req.Events)
 	if err != nil {
 		return err
 	}
 
-	// Key format: replays/{website_id}/{session_id}/{sequence}.json
 	key := fmt.Sprintf("replays/%s/%s/%d.json", req.WebsiteID, req.SessionID, req.Sequence)
 	if err := s.store.Upload(ctx, key, bytes.NewReader(data)); err != nil {
 		return fmt.Errorf("failed to upload to s3: %w", err)
 	}
 
-	// 3. Save reference to DB (empty data)
-	// We need the record in DB for ordering and listing sessions
-	return s.repo.SaveChunk(ctx, req.WebsiteID, req.SessionID, json.RawMessage("[]"), req.Sequence)
+	// 5. Save reference row in DB
+	// For the first chunk, parse the User-Agent and store session metadata.
+	var meta *models.SessionMeta
+	if req.Sequence == 0 {
+		browser, device, osName := parseUA(userAgent)
+		meta = &models.SessionMeta{
+			Browser:   browser,
+			Device:    device,
+			OS:        osName,
+			Country:   "Unknown", // IP geo-lookup not implemented yet
+			EntryPage: req.Page,
+		}
+	}
+
+	return s.repo.SaveChunk(ctx, req.WebsiteID, req.SessionID, json.RawMessage("[]"), req.Sequence, meta)
 }
 
 func (s *replayService) GetReplay(ctx context.Context, websiteID string, sessionID string) ([]models.SessionReplayChunk, error) {
-	// Canonicalize WebsiteID
 	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
 	if err == nil {
 		websiteID = website.SiteID
 	}
 
-	// 1. Get chunks metadata from DB to know sequences
 	chunks, err := s.repo.GetChunks(ctx, websiteID, sessionID)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Fetch data from S3 for each chunk
-	// TODO: Optimize with parallel fetch
-	for i, chunk := range chunks {
-		key := fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sessionID, chunk.Sequence)
-		reader, err := s.store.Download(ctx, key)
-		if err != nil {
-			// Fallback: If S3 fails (or file missing during migration), check if DB has data
-			if len(chunk.Data) > 2 { // "[]" is 2 bytes
-				continue
-			}
-			return nil, fmt.Errorf("failed to fetch chunk %d: %w", chunk.Sequence, err)
-		}
-		defer reader.Close()
+	// Fetch all S3 chunks in parallel
+	type result struct {
+		index int
+		data  json.RawMessage
+		err   error
+	}
 
-		data, err := io.ReadAll(reader)
-		if err != nil {
-			return nil, err
+	results := make([]result, len(chunks))
+	var wg sync.WaitGroup
+
+	for i, chunk := range chunks {
+		wg.Add(1)
+		go func(idx, seq int, dbData json.RawMessage) {
+			defer wg.Done()
+			key := fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sessionID, seq)
+			reader, dlErr := s.store.Download(ctx, key)
+			if dlErr != nil {
+				// Fallback: use data stored in DB if the S3 object is missing (migration period)
+				if len(dbData) > 2 {
+					results[idx] = result{index: idx, data: dbData}
+					return
+				}
+				results[idx] = result{index: idx, err: fmt.Errorf("failed to fetch chunk %d: %w", seq, dlErr)}
+				return
+			}
+			raw, readErr := io.ReadAll(reader)
+			reader.Close()
+			if readErr != nil {
+				results[idx] = result{index: idx, err: readErr}
+				return
+			}
+			results[idx] = result{index: idx, data: json.RawMessage(raw)}
+		}(i, chunk.Sequence, chunk.Data)
+	}
+
+	wg.Wait()
+
+	for _, r := range results {
+		if r.err != nil {
+			return nil, r.err
 		}
-		chunks[i].Data = json.RawMessage(data)
+		chunks[r.index].Data = r.data
 	}
 
 	return chunks, nil
 }
 
 func (s *replayService) ListSessions(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error) {
-	// Canonicalize WebsiteID
 	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
 	if err == nil {
 		websiteID = website.SiteID
@@ -119,30 +193,36 @@ func (s *replayService) ListSessions(ctx context.Context, websiteID string) ([]m
 }
 
 func (s *replayService) DeleteReplay(ctx context.Context, websiteID string, sessionID string) error {
-	// Canonicalize WebsiteID
 	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
 	if err == nil {
 		websiteID = website.SiteID
 	}
-	// TODO: Delete from S3 as well
-	return s.repo.DeleteSessionReplay(ctx, websiteID, sessionID)
+
+	// Repo returns S3 keys to clean up
+	keys, err := s.repo.DeleteSessionReplay(ctx, websiteID, sessionID)
+	if err != nil {
+		return err
+	}
+
+	// Delete S3 objects; non-fatal if individual deletes fail
+	for _, key := range keys {
+		_ = s.store.Delete(ctx, key)
+	}
+
+	return nil
 }
 
 func (s *replayService) GetPageSnapshot(ctx context.Context, websiteID string, url string) (json.RawMessage, error) {
-	// Canonicalize WebsiteID
 	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
 	if err == nil {
 		websiteID = website.SiteID
 	}
 
-	// 1. Find a session that visited this URL
 	sessionID, err := s.repo.FindSessionIDForPage(ctx, websiteID, url)
 	if err != nil {
 		return nil, err
 	}
 
-	// 2. Fetch first chunk (sequence 0) from S3
-	// Usually the first chunk contains the full snapshot
 	key := fmt.Sprintf("replays/%s/%s/0.json", websiteID, sessionID)
 	reader, err := s.store.Download(ctx, key)
 	if err != nil {

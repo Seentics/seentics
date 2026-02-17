@@ -60,6 +60,14 @@ func (s *S3Store) Download(ctx context.Context, key string) (io.ReadCloser, erro
 	return output.Body, nil
 }
 
+func (s *S3Store) Delete(ctx context.Context, key string) error {
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	return err
+}
+
 func (s *S3Store) GetPresignedURL(ctx context.Context, key string, lifetime time.Duration) (string, error) {
 	presignClient := s3.NewPresignClient(s.client)
 	req, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{

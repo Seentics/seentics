@@ -5,13 +5,14 @@ import (
 	"context"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type HeatmapRepository interface {
 	RecordHeatmap(ctx context.Context, websiteID string, points []models.HeatmapPoint) error
 	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time) ([]models.HeatmapPoint, error)
-	GetHeatmapPages(ctx context.Context, websiteID string, siteID string) ([]models.HeatmapPageStat, error)
+	GetHeatmapPages(ctx context.Context, websiteID string) ([]models.HeatmapPageStat, error)
 	CountHeatmapPages(ctx context.Context, websiteID string) (int, error)
 	HeatmapExistsForURL(ctx context.Context, websiteID string, url string) (bool, error)
 	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
@@ -27,23 +28,33 @@ func NewHeatmapRepository(db *pgxpool.Pool) HeatmapRepository {
 }
 
 func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string, points []models.HeatmapPoint) error {
+	if len(points) == 0 {
+		return nil
+	}
+
+	query := `
+		INSERT INTO heatmap_points (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, intensity, last_updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, 1, NOW())
+		ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector)
+		DO UPDATE SET
+			intensity = heatmap_points.intensity + 1,
+			last_updated = NOW()
+	`
+
+	batch := &pgx.Batch{}
 	for _, p := range points {
-		// Default device type if not provided
 		deviceType := p.DeviceType
 		if deviceType == "" {
 			deviceType = "desktop"
 		}
+		batch.Queue(query, websiteID, p.URL, p.Type, deviceType, p.XPercent, p.YPercent, p.Selector)
+	}
 
-		query := `
-			INSERT INTO heatmap_points (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, intensity, last_updated)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, 1, NOW())
-			ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector)
-			DO UPDATE SET 
-				intensity = heatmap_points.intensity + 1,
-				last_updated = NOW()
-		`
-		_, err := r.db.Exec(ctx, query, websiteID, p.URL, p.Type, deviceType, p.XPercent, p.YPercent, p.Selector)
-		if err != nil {
+	br := r.db.SendBatch(ctx, batch)
+	defer br.Close()
+
+	for range points {
+		if _, err := br.Exec(); err != nil {
 			return err
 		}
 	}
@@ -74,18 +85,21 @@ func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string
 	return points, nil
 }
 
-func (r *heatmapRepository) GetHeatmapPages(ctx context.Context, websiteID string, siteID string) ([]models.HeatmapPageStat, error) {
+func (r *heatmapRepository) GetHeatmapPages(ctx context.Context, websiteID string) ([]models.HeatmapPageStat, error) {
+	// Aggregate directly from heatmap_points:
+	// - clicks: sum of intensity for 'click' events
+	// - views: sum of intensity for 'pageview' events (recorded by the tracker on each page load)
 	query := `
-		SELECT 
-			hp.page_path, 
-			SUM(hp.intensity) as total_clicks,
-			(SELECT COUNT(*) FROM events WHERE (website_id::text = $1 OR website_id::text = $2) AND page = hp.page_path AND event_type = 'pageview') as total_views
-		FROM heatmap_points hp
-		WHERE hp.website_id::text = $1 AND hp.event_type = 'click'
-		GROUP BY hp.page_path
+		SELECT
+			page_path,
+			SUM(CASE WHEN event_type = 'click' THEN intensity ELSE 0 END) AS total_clicks,
+			SUM(CASE WHEN event_type = 'pageview' THEN intensity ELSE 0 END) AS total_views
+		FROM heatmap_points
+		WHERE website_id::text = $1
+		GROUP BY page_path
 		ORDER BY total_clicks DESC
 	`
-	rows, err := r.db.Query(ctx, query, websiteID, siteID)
+	rows, err := r.db.Query(ctx, query, websiteID)
 	if err != nil {
 		return nil, err
 	}

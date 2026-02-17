@@ -24,11 +24,18 @@
     const config = core.config;
     const state = core.state;
 
+    // Sampling: replay_sampling_rate is 0.0-1.0 (fraction). Default 1.0 = record all sessions.
+    const samplingRate = config.replay_sampling_rate != null ? config.replay_sampling_rate : 1.0;
+    if (Math.random() > samplingRate) {
+      if (config.debug) console.log('[Seentics Replay] Session skipped by sampling rate');
+      return;
+    }
+
     // Replay specific configuration
     const replayConfig = {
-      rrwebUrl: 'https://cdn.jsdelivr.net/npm/rrweb@latest/dist/rrweb.min.js',
+      rrwebUrl: 'https://cdn.jsdelivr.net/npm/rrweb@2.0.0-alpha.18/dist/rrweb.min.js',
       chunkSize: 1000, // Send every 1000 events
-      flushInterval: 10000 // Every 10 seconds
+      flushInterval: 30000 // Every 30 seconds
     };
 
     // Replay state
@@ -91,7 +98,8 @@
             website_id: config.websiteId,
             session_id: state.sessionId,
             events: events,
-            sequence: sequence
+            sequence: sequence,
+            page: w.location.pathname
         });
       } catch (err) {
         if (config.debug) {
@@ -145,11 +153,26 @@
       // Periodic flush
       setInterval(sendChunk, replayConfig.flushInterval);
 
-      // Flush on page leave
+      // Flush remaining events on page leave using sendBeacon so they survive unload
       w.addEventListener('beforeunload', () => {
-        if (replayState.buffer.length > 0) {
-          sendChunk();
-        }
+        if (replayState.buffer.length === 0) return;
+        const payload = JSON.stringify({
+          website_id: config.websiteId,
+          session_id: state.sessionId,
+          events: replayState.buffer,
+          sequence: replayState.sequence++,
+          page: w.location.pathname
+        });
+        navigator.sendBeacon(
+          `${config.apiHost}/api/v1/replays/record`,
+          new Blob([payload], { type: 'application/json' })
+        );
+        replayState.buffer = [];
+      });
+
+      // Flush when tab becomes hidden
+      d.addEventListener('visibilitychange', () => {
+        if (d.visibilityState === 'hidden') sendChunk(true);
       });
 
       if (config.debug) {

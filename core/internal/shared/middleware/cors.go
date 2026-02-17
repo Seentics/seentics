@@ -1,10 +1,22 @@
 package middleware
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
+
+// isLocalhostOrigin returns true when the origin's host is localhost or 127.0.0.1,
+// regardless of port. Used to allow any local development server port.
+func isLocalhostOrigin(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	return host == "localhost" || host == "127.0.0.1"
+}
 
 // CORSMiddleware handles Cross-Origin Resource Sharing
 func CORSMiddleware(allowedOrigins string) gin.HandlerFunc {
@@ -16,6 +28,10 @@ func CORSMiddleware(allowedOrigins string) gin.HandlerFunc {
 		// Check if the origin is allowed
 		allowThisOrigin := false
 		if allowedOrigins == "*" || allowedOrigins == "" {
+			allowThisOrigin = true
+		} else if origin != "" && isLocalhostOrigin(origin) {
+			// Allow any localhost port in development so tracker scripts work
+			// from test sites running on arbitrary ports (e.g. :5173, :4000, etc.)
 			allowThisOrigin = true
 		} else {
 			for _, o := range origins {

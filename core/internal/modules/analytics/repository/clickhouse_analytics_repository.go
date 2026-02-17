@@ -107,15 +107,19 @@ func (r *ClickHouseAnalyticsRepository) GetDashboardMetrics(ctx context.Context,
 	var metrics models.DashboardMetrics
 	args := append([]interface{}{websiteID, days}, filterParams...)
 
+	var pageViews, totalVisitors, uniqueVisitors, sessions uint64
 	err := r.conn.QueryRow(ctx, query, args...).Scan(
-		&metrics.PageViews, &metrics.TotalVisitors, &metrics.UniqueVisitors, &metrics.Sessions,
+		&pageViews, &totalVisitors, &uniqueVisitors, &sessions,
 		&metrics.BounceRate, &metrics.AvgSessionTime, &metrics.PagesPerSession,
 	)
-
 	if err != nil {
 		r.logger.Error().Err(err).Msg("ClickHouse Dashboard metrics query failed")
 		return nil, err
 	}
+	metrics.PageViews = int(pageViews)
+	metrics.TotalVisitors = int(totalVisitors)
+	metrics.UniqueVisitors = int(uniqueVisitors)
+	metrics.Sessions = int(sessions)
 
 	return &metrics, nil
 }
@@ -155,11 +159,11 @@ func (r *ClickHouseAnalyticsRepository) GetComparisonMetrics(ctx context.Context
 		ORDER BY period ASC`, filterClause)
 
 	type periodResult struct {
-		Period         int
-		PageViews      int
-		TotalVisitors  int
-		UniqueVisitors int
-		Sessions       int
+		Period         uint8
+		PageViews      uint64
+		TotalVisitors  uint64
+		UniqueVisitors uint64
+		Sessions       uint64
 		BounceRate     float64
 		AvgSessionTime float64
 	}
@@ -178,7 +182,7 @@ func (r *ClickHouseAnalyticsRepository) GetComparisonMetrics(ctx context.Context
 		if err := rows.Scan(&r.Period, &r.PageViews, &r.TotalVisitors, &r.UniqueVisitors, &r.Sessions, &r.BounceRate, &r.AvgSessionTime); err != nil {
 			return nil, err
 		}
-		results[r.Period] = r
+		results[int(r.Period)] = r
 	}
 
 	current := results[1]
@@ -222,29 +226,29 @@ func (r *ClickHouseAnalyticsRepository) GetComparisonMetrics(ctx context.Context
 
 	return &models.ComparisonMetrics{
 		CurrentPeriod: models.DashboardMetrics{
-			PageViews:       current.PageViews,
-			TotalVisitors:   current.TotalVisitors,
-			UniqueVisitors:  current.UniqueVisitors,
-			Sessions:        current.Sessions,
+			PageViews:       int(current.PageViews),
+			TotalVisitors:   int(current.TotalVisitors),
+			UniqueVisitors:  int(current.UniqueVisitors),
+			Sessions:        int(current.Sessions),
 			BounceRate:      current.BounceRate,
 			AvgSessionTime:  current.AvgSessionTime,
 			PagesPerSession: currentPagesPerSession,
 		},
 		PreviousPeriod: models.DashboardMetrics{
-			PageViews:       previous.PageViews,
-			TotalVisitors:   previous.TotalVisitors,
-			UniqueVisitors:  previous.UniqueVisitors,
-			Sessions:        previous.Sessions,
+			PageViews:       int(previous.PageViews),
+			TotalVisitors:   int(previous.TotalVisitors),
+			UniqueVisitors:  int(previous.UniqueVisitors),
+			Sessions:        int(previous.Sessions),
 			BounceRate:      previous.BounceRate,
 			AvgSessionTime:  previous.AvgSessionTime,
 			PagesPerSession: previousPagesPerSession,
 		},
-		TotalVisitorChange: calcInt(current.TotalVisitors, previous.TotalVisitors),
-		VisitorChange:      calcInt(current.UniqueVisitors, previous.UniqueVisitors),
-		PageviewChange:     calcInt(current.PageViews, previous.PageViews),
-		SessionChange:      calcInt(current.Sessions, previous.Sessions),
-		BounceChange:       calcFloat(current.BounceRate, previous.BounceRate, previous.Sessions),
-		DurationChange:     calcFloat(current.AvgSessionTime, previous.AvgSessionTime, previous.Sessions),
+		TotalVisitorChange: calcInt(int(current.TotalVisitors), int(previous.TotalVisitors)),
+		VisitorChange:      calcInt(int(current.UniqueVisitors), int(previous.UniqueVisitors)),
+		PageviewChange:     calcInt(int(current.PageViews), int(previous.PageViews)),
+		SessionChange:      calcInt(int(current.Sessions), int(previous.Sessions)),
+		BounceChange:       calcFloat(current.BounceRate, previous.BounceRate, int(previous.Sessions)),
+		DurationChange:     calcFloat(current.AvgSessionTime, previous.AvgSessionTime, int(previous.Sessions)),
 	}, nil
 }
 
@@ -661,9 +665,12 @@ func (r *ClickHouseAnalyticsRepository) GetDailyStats(ctx context.Context, websi
 	var stats []models.DailyStat
 	for rows.Next() {
 		var s models.DailyStat
-		if err := rows.Scan(&s.Date, &s.Views, &s.Unique); err != nil {
+		var views, unique uint64
+		if err := rows.Scan(&s.Date, &views, &unique); err != nil {
 			continue
 		}
+		s.Views = int(views)
+		s.Unique = int(unique)
 		stats = append(stats, s)
 	}
 	return stats, nil
@@ -692,11 +699,14 @@ func (r *ClickHouseAnalyticsRepository) GetHourlyStats(ctx context.Context, webs
 	for rows.Next() {
 		var s models.HourlyStat
 		var hourStr string
-		if err := rows.Scan(&hourStr, &s.Views, &s.Unique); err != nil {
+		var views, unique uint64
+		if err := rows.Scan(&hourStr, &views, &unique); err != nil {
 			continue
 		}
 		s.Hour = hourStr
-		s.HourLabel = hourStr // Simplified
+		s.HourLabel = hourStr
+		s.Views = int(views)
+		s.Unique = int(unique)
 		stats = append(stats, s)
 	}
 	return stats, nil
@@ -831,11 +841,11 @@ func (r *ClickHouseAnalyticsRepository) GetGeolocationBreakdown(ctx context.Cont
 
 func (r *ClickHouseAnalyticsRepository) GetTopCountriesByRange(ctx context.Context, websiteID string, startDate, endDate time.Time, limit int) ([]models.TopItem, error) {
 	query := `
-		SELECT 
+		SELECT
 			COALESCE(country, 'Unknown') as name,
-			count(*) as count
+			count(DISTINCT visitor_id) as count
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= ? AND timestamp <= ?
 		AND event_type = 'pageview'
 		GROUP BY name
@@ -884,12 +894,15 @@ func (r *ClickHouseAnalyticsRepository) GetVisitorInsights(ctx context.Context, 
 			HAVING max(timestamp) >= now() - interval ? day
 		)`
 
+	var newVisitors, returningVisitors uint64
 	err := r.conn.QueryRow(ctx, query, days, days, websiteID, days).Scan(
-		&insights.NewVisitors, &insights.ReturningVisitors, &insights.AverageSessionDuration,
+		&newVisitors, &returningVisitors, &insights.AverageSessionDuration,
 	)
 	if err != nil {
 		r.logger.Warn().Err(err).Msg("Failed to get visitor insights from ClickHouse")
 	}
+	insights.NewVisitors = int(newVisitors)
+	insights.ReturningVisitors = int(returningVisitors)
 
 	total := insights.NewVisitors + insights.ReturningVisitors
 	if total > 0 {

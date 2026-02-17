@@ -234,7 +234,33 @@
           if (S.config.debug) console.error('[Seentics Automation] Failed to send batch', e);
           // Restore failed items? Simplified for now: drop on error to avoid infinite loops
       }
-  }, 10000); // 10 seconds
+  }, 30000); // 30 seconds
+
+  // Flush automation buffer on tab hide / page unload
+  w.addEventListener('beforeunload', () => {
+    if (automation.buffer.length === 0) return;
+    const payload = JSON.stringify({
+      website_id: S.config.websiteId,
+      executions: automation.buffer
+    });
+    navigator.sendBeacon(
+      `${S.config.apiHost}/api/v1/workflows/execution/batch`,
+      new Blob([payload], { type: 'application/json' })
+    );
+    automation.buffer = [];
+  });
+  d.addEventListener('visibilitychange', () => {
+    if (d.visibilityState !== 'hidden' || automation.buffer.length === 0) return;
+    const payload = JSON.stringify({
+      website_id: S.config.websiteId,
+      executions: automation.buffer
+    });
+    navigator.sendBeacon(
+      `${S.config.apiHost}/api/v1/workflows/execution/batch`,
+      new Blob([payload], { type: 'application/json' })
+    );
+    automation.buffer = [];
+  });
 
   // Execute single action
   // Variable replacement system

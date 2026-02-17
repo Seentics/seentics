@@ -106,31 +106,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             description: 'Help & Contact',
             isLocked: isDemo
         },
-        {
-            title: 'Emails',
-            href: '#',
-            icon: Mail,
-            description: 'Email Marketing',
-            badge: 'Upcoming',
-            separator: true,
-            isLocked: isDemo
-        },
-        {
-            title: 'Support Desk',
-            href: '#',
-            icon: MessageSquare,
-            description: 'Help Desk',
-            badge: 'Upcoming',
-            isLocked: isDemo
-        },
-        {
-            title: 'Forms',
-            href: '#',
-            icon: FileText,
-            description: 'Lead Gen Forms',
-            badge: 'Upcoming',
-            isLocked: isDemo
-        }
+   
     ];
 
     const containerClasses = mobile 
@@ -176,15 +152,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
 
                     return (
                         <div key={`${link.title}-${idx}`} className="px-1">
-                            {link.separator && (isSidebarOpen || mobile) && (
-                                <div className="px-3 pt-6 pb-2">
-                                    <div className="h-[1px] bg-sidebar-border/20 mb-3" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40 block pl-1 whitespace-nowrap">Module: Experimental</span>
-                                </div>
-                            )}
-                            {link.separator && (!isSidebarOpen && !mobile) && (
-                                <div className="my-4 h-[1px] bg-sidebar-border/20 mx-2" />
-                            )}
+                          
                             <Link 
                                 href={isDisabled ? '#' : link.href}
                                 onClick={(e) => {
@@ -217,11 +185,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                             {(link as any).isLocked && (
                                                 <Lock size={12} className="text-muted-foreground/60" />
                                             )}
-                                            {link.badge && (
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-black uppercase">
-                                                    {link.badge}
-                                                </span>
-                                            )}
+                                            
                                         </div>
                                     </div>
                                 )}

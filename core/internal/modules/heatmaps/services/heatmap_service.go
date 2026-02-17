@@ -120,11 +120,11 @@ func (s *heatmapService) GetHeatmapData(ctx context.Context, websiteID string, u
 }
 
 func (s *heatmapService) GetHeatmapPages(ctx context.Context, websiteID string, userID string) ([]models.HeatmapPageStat, error) {
-	canonicalID, siteID, err := s.validateOwnership(ctx, websiteID, userID)
+	canonicalID, _, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetHeatmapPages(ctx, canonicalID, siteID)
+	return s.repo.GetHeatmapPages(ctx, canonicalID)
 }
 
 func (s *heatmapService) GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error) {

@@ -16,6 +16,7 @@ import (
 	"analytics-app/internal/shared/migrations"
 	"analytics-app/internal/shared/storage"
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -254,6 +255,19 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 	}
 
 	router := gin.New()
+
+	// EMERGENCY DEBUG LOGGING
+	router.Use(func(c *gin.Context) {
+		fmt.Printf("DEBUG ROUTER: INCOMING REQUEST %s %s\n", c.Request.Method, c.Request.URL.Path)
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Printf("DEBUG ROUTER: PANIC RECOVERED: %v\n", r)
+				c.AbortWithStatus(500)
+			}
+		}()
+		c.Next()
+	})
+
 	router.Use(middleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB limit
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	router.Use(middleware.ClientIPMiddleware())

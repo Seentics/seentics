@@ -15,6 +15,7 @@ const protectedRoutes = [
 const publicRoutes = [
   '/',
   '/signin',
+  '/signup',
   '/forgot-password',
   '/reset-password',
   '/verify-email',
@@ -56,6 +57,11 @@ export function middleware(request: NextRequest) {
 
   // If user is authenticated and trying to access signin, redirect to dashboard
   if (isAuthenticated && pathname === '/signin') {
+    return NextResponse.redirect(new URL('/websites', request.url));
+  }
+
+  // If user is authenticated and trying to access signup, redirect to dashboard
+  if (isAuthenticated && pathname === '/signup') {
     return NextResponse.redirect(new URL('/websites', request.url));
   }
 

@@ -6,6 +6,10 @@
 (function(w, d) {
   'use strict';
 
+  // Never track inside iframes — the heatmap viewer loads the site in an iframe
+  // and the tracker inside that context must not try to record heatmap data.
+  if (w !== w.top) return;
+
   // Wait for Core to be ready
   if (!w.SEENTICS_CORE) {
     const checkCore = setInterval(() => {
@@ -28,7 +32,7 @@
     const heatmapState = {
       buffer: [],
       maxBufferSize: 100,
-      flushInterval: 10000, // 10 seconds
+      flushInterval: 30000, // 30 seconds
       lastMoveTime: 0,
       moveThreshold: 150, // 150ms between move captures
       lastMoveX: -1,
@@ -37,16 +41,17 @@
       gridSize: 10, // Grid size for binning (0-1000 range)
       lastUrl: w.location.href,
       samplingRate: 0.1, // Sample 10% of mousemove events
-      enabled: config.heatmap_enabled
+      // Default to true; if remote config explicitly disables, we respect that
+      enabled: config.heatmap_enabled !== false
     };
 
-    // Check plan limits
+    // Check plan limits (only when a positive limit is set; 0 = unset/unknown, -1 = unlimited)
     const currentPath = w.location.pathname;
     const maxHeatmaps = config.max_heatmaps || 0;
     const trackedUrls = config.tracked_urls || [];
     const isTracked = trackedUrls.includes(currentPath);
 
-    if (heatmapState.enabled && maxHeatmaps !== -1) {
+    if (heatmapState.enabled && maxHeatmaps > 0) {
       if (!isTracked && trackedUrls.length >= maxHeatmaps) {
         heatmapState.enabled = false;
         if (config.debug) {
@@ -56,6 +61,13 @@
     }
 
     if (!heatmapState.enabled) return;
+
+    // Track this page in memory so future navigation checks use the correct count.
+    // trackedUrls comes from remote config (snapshot at init); we keep it updated
+    // as new pages start being tracked so the limit guard stays accurate.
+    if (!trackedUrls.includes(currentPath)) {
+      trackedUrls.push(currentPath);
+    }
 
     /**
      * Normalize and Bin coordinates to 0-1000 range with grid clamping
@@ -117,6 +129,7 @@
      * Add point to buffer
      */
     const addPoint = (type, x, y, selector = '') => {
+      if (!heatmapState.enabled) return;
       heatmapState.buffer.push({
         type: type, // 'click' or 'move'
         x: x,
@@ -234,6 +247,9 @@
       }
     }, { passive: true });
     
+    // Record a pageview point so the pages list shows view counts
+    addPoint('pageview', 0, 0);
+
     // Capture movements with sampling and distance threshold
     d.addEventListener('mousemove', (e) => {
       const now = Date.now();
@@ -265,16 +281,59 @@
 
     // Flush on page leave or interval
     setInterval(flushBuffer, heatmapState.flushInterval);
-    w.addEventListener('beforeunload', flushBuffer);
 
-    // Watch for SPA navigation
-    const observer = new MutationObserver(() => {
-      if (w.location.href !== heatmapState.lastUrl) {
-        heatmapState.lastUrl = w.location.href;
-        flushBuffer();
-      }
+    // Use sendBeacon on unload so the request survives page close
+    w.addEventListener('beforeunload', () => {
+      if (heatmapState.buffer.length === 0) return;
+      const payload = JSON.stringify({
+        website_id: config.websiteId,
+        points: heatmapState.buffer
+      });
+      navigator.sendBeacon(
+        `${config.apiHost}/api/v1/heatmaps/record`,
+        new Blob([payload], { type: 'application/json' })
+      );
+      heatmapState.buffer = [];
     });
-    observer.observe(d.body, { childList: true, subtree: true });
+
+    // Flush when tab becomes hidden (tab switch, mobile background, most SPA navigations)
+    d.addEventListener('visibilitychange', () => {
+      if (d.visibilityState === 'hidden') flushBuffer();
+    });
+
+    // Watch for SPA navigation via History API (cheaper than MutationObserver)
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    const handleNavigation = () => {
+      if (w.location.href !== heatmapState.lastUrl) {
+        flushBuffer(); // flush previous page's data first
+        heatmapState.lastUrl = w.location.href;
+
+        // Re-check limit for the new page
+        if (maxHeatmaps > 0) {
+          const newPath = w.location.pathname;
+          const newIsTracked = trackedUrls.includes(newPath);
+          heatmapState.enabled = newIsTracked || trackedUrls.length < maxHeatmaps;
+          if (!heatmapState.enabled && config.debug) {
+            console.log('[Seentics Heatmap] Limit reached, skipping new page:', newPath);
+          }
+        }
+
+        // Record a pageview for the new page if tracking is enabled
+        if (heatmapState.enabled) {
+          const newPath = w.location.pathname;
+          // Keep trackedUrls up-to-date in memory so the next navigation
+          // limit check sees the correct count (the remote config snapshot is stale).
+          if (!trackedUrls.includes(newPath)) {
+            trackedUrls.push(newPath);
+          }
+          addPoint('pageview', 0, 0);
+        }
+      }
+    };
+    history.pushState = function(...args) { originalPushState.apply(this, args); handleNavigation(); };
+    history.replaceState = function(...args) { originalReplaceState.apply(this, args); handleNavigation(); };
+    w.addEventListener('popstate', handleNavigation);
 
     if (config.debug) {
       console.log('[Seentics Heatmap] Optimized tracker initialized');

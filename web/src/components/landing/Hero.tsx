@@ -56,7 +56,7 @@ export default function Hero() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full dark:bg-slate-900/50 backdrop-blur-md border border-slate-800 dark:text-slate-300 text-xs md:text-sm font-bold tracking-tight mb-4 group hover:border-primary/30 transition-colors"
           >
             <ShieldCheck size={16} className="text-primary group-hover:scale-110 transition-transform" />
-            <span>Complete Open Source Websites Analytics and Automation Software</span>
+            <span>Open Source & Privacy-First Analytics</span>
           </motion.div>
           <motion.h1
             initial={{ opacity: 0, y: 20 }}
@@ -64,8 +64,8 @@ export default function Hero() {
             transition={{ duration: 0.6, delay: 0.1 }}
             className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-foreground mt-4 mb-6 md:mb-8 leading-[1.1]"
           >
-            Analytics that actually <br />
-            <span className="text-primary italic">drives growth.</span>
+            See everything. <br />
+            <span className="text-primary italic">Act automatically.</span>
           </motion.h1>
 
           <motion.p
@@ -74,7 +74,7 @@ export default function Hero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="text-base md:text-xl text-muted-foreground/80 max-w-2xl mx-auto mb-10 md:mb-12 leading-relaxed"
           >
-            Understand visitor behavior with <span className="text-foreground font-semibold">Live Analytics</span>, <span className="text-foreground font-semibold">Heatmaps</span>, <span className="text-foreground font-semibold">Webcam-free Session Recordings</span>, and <span className="text-foreground font-semibold">Funnels</span>. And take<span className="text-foreground font-semibold"> actions</span> automatically with logic-driven popups and emails.
+            Understand visitor behavior with <span className="text-foreground font-semibold">Live Analytics</span>, <span className="text-foreground font-semibold">Heatmaps</span>, <span className="text-foreground font-semibold">Session Recordings</span>, and <span className="text-foreground font-semibold">Funnels</span>. Take action automatically with <span className="text-foreground font-semibold">logic-driven</span> popups and emails.
           </motion.p>
 
           <motion.div

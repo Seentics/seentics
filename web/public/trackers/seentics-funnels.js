@@ -190,7 +190,7 @@
             console.error('[Seentics Funnel] Failed to track batch:', error);
           }
       }
-  }, 10000); // 10 seconds
+  }, 30000); // 30 seconds
 
   // Setup funnel listeners
   const setupFunnelListeners = () => {
@@ -203,7 +203,20 @@
       processFunnelStep('event', data);
     });
 
-    // Track dropoffs on page exit
+    // Track dropoffs and flush buffer on page exit
+    const flushFunnelBuffer = () => {
+      if (funnel.buffer.length === 0) return;
+      const payload = JSON.stringify({
+        website_id: S.config.websiteId,
+        events: funnel.buffer
+      });
+      navigator.sendBeacon(
+        `${S.config.apiHost}/api/v1/funnels/batch`,
+        new Blob([payload], { type: 'application/json' })
+      );
+      funnel.buffer = [];
+    };
+
     w.addEventListener('beforeunload', () => {
       funnel.currentFunnels.forEach((progress, funnelId) => {
         if (progress.currentStep < funnel.activeFunnels.find(f => f.id === funnelId)?.steps.length - 1) {
@@ -214,6 +227,11 @@
           });
         }
       });
+      flushFunnelBuffer();
+    });
+
+    d.addEventListener('visibilitychange', () => {
+      if (d.visibilityState === 'hidden') flushFunnelBuffer();
     });
   };
 

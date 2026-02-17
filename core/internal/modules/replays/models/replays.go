@@ -29,9 +29,19 @@ type ReplaySessionMetadata struct {
 	EntryPage  string    `json:"entry_page"`
 }
 
+// SessionMeta holds browser/device/OS info captured on the first chunk of a session.
+type SessionMeta struct {
+	Browser   string
+	Device    string
+	OS        string
+	Country   string
+	EntryPage string
+}
+
 type RecordReplayRequest struct {
 	WebsiteID string            `json:"website_id"`
 	SessionID string            `json:"session_id"`
 	Events    []json.RawMessage `json:"events"`
 	Sequence  int               `json:"sequence"`
+	Page      string            `json:"page"` // Current page path — stored as entry_page for sequence=0
 }

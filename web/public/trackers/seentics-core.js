@@ -209,7 +209,8 @@
       }
     },
 
-    flush: utils.debounce(async () => {
+    // Core flush implementation — called directly by interval and beforeunload
+    flush: async () => {
       if (state.isProcessing || state.eventQueue.length === 0) return;
 
       state.isProcessing = true;
@@ -219,11 +220,11 @@
       try {
         await api.batch(eventsToSend);
         eventEmitter.emit('queue:flushed', { count: eventsToSend.length });
-        
+
         // Reset retry backoff on success
         state.retryCount = 0;
         state.retryDelay = 1000;
-        
+
         // Clear any persisted failed events on success
         try {
           localStorage.removeItem('seentics_failed_events');
@@ -231,7 +232,7 @@
       } catch (error) {
         // Re-add failed events to queue
         state.eventQueue.unshift(...eventsToSend);
-        
+
         // Persist failed events to localStorage for retry
         try {
           const persistedEvents = JSON.parse(localStorage.getItem('seentics_failed_events') || '[]');
@@ -240,29 +241,29 @@
         } catch (e) {
           if (config.debug) console.warn('[Seentics] Failed to persist events', e);
         }
-        
+
         // Implement exponential backoff
         state.retryCount++;
         state.retryDelay = Math.min(
           state.retryDelay * 2,
           state.maxRetryDelay
         );
-        
+
         if (config.debug) {
           console.warn(`[Seentics] Retry #${state.retryCount}, next attempt in ${state.retryDelay}ms`);
         }
-        
+
         // Schedule retry with exponential backoff
         setTimeout(() => {
           queue.flush();
         }, state.retryDelay);
-        
+
         eventEmitter.emit('queue:error', { error, retryCount: state.retryCount, retryDelay: state.retryDelay });
       } finally {
         state.isProcessing = false;
       }
-    }, 10000),
-    
+    },
+
     // Restore failed events from localStorage
     restore: () => {
       try {
@@ -339,19 +340,32 @@
     // Restore any failed events from localStorage
     queue.restore();
 
-    // Auto-flush queue before page unload
+    // Auto-flush queue before page unload using sendBeacon for reliability
     w.addEventListener('beforeunload', () => {
       if (state.eventQueue.length > 0) {
-        queue.flush();
+        const payload = JSON.stringify({
+          siteId: config.websiteId,
+          domain: w.location.hostname,
+          events: state.eventQueue
+        });
+        navigator.sendBeacon(`${config.apiHost}/api/v1/analytics/batch`, new Blob([payload], { type: 'application/json' }));
+        state.eventQueue = [];
       }
     });
 
-    // Periodic flush
+    // Periodic flush — 30s is sufficient; immediate flushes handle high-value events
     setInterval(() => {
       if (state.eventQueue.length > 0) {
         queue.flush();
       }
-    }, 5000);
+    }, 30000);
+
+    // Flush when the tab is backgrounded (tab switch, mobile suspend, most SPA navigations)
+    d.addEventListener('visibilitychange', () => {
+      if (d.visibilityState === 'hidden' && state.eventQueue.length > 0) {
+        queue.flush();
+      }
+    });
 
     // Activity tracking (passive listeners for better performance)
     ['click', 'scroll', 'mousemove', 'keydown'].forEach(event => {
