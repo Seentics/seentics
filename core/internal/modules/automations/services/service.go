@@ -3,8 +3,6 @@ package services
 import (
 	"analytics-app/internal/modules/automations/models"
 	"analytics-app/internal/modules/automations/repository"
-	billingModels "analytics-app/internal/modules/billing/models"
-	billingServicePkg "analytics-app/internal/modules/billing/services"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"context"
 	"fmt"
@@ -14,14 +12,12 @@ import (
 
 type AutomationService struct {
 	repo     *repository.AutomationRepository
-	billing  *billingServicePkg.BillingService
 	websites *websiteServicePkg.WebsiteService
 }
 
-func NewAutomationService(repo *repository.AutomationRepository, billing *billingServicePkg.BillingService, websites *websiteServicePkg.WebsiteService) *AutomationService {
+func NewAutomationService(repo *repository.AutomationRepository, websites *websiteServicePkg.WebsiteService) *AutomationService {
 	return &AutomationService{
 		repo:     repo,
-		billing:  billing,
 		websites: websites,
 	}
 }
@@ -124,26 +120,10 @@ func (s *AutomationService) CreateAutomation(ctx context.Context, req *models.Cr
 		Conditions:    req.Conditions,
 	}
 
-	// Check plan limits
-	canCreate, err := s.billing.CanCreateResource(ctx, userID, billingModels.ResourceAutomations)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify plan limits: %w", err)
-	}
-	if !canCreate {
-		return nil, fmt.Errorf("automation limit reached for your plan. please upgrade to add more automations")
-	}
-
 	// Save to database
 	err = s.repo.CreateAutomation(ctx, automation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create automation: %w", err)
-	}
-
-	// Track usage in Redis
-	if s.billing != nil {
-		if err := s.billing.IncrementUsageRedis(ctx, userID, billingModels.ResourceAutomations, 1); err != nil {
-			fmt.Printf("Warning: failed to track automation usage: %v\n", err)
-		}
 	}
 
 	// Reload to get complete data
@@ -243,17 +223,6 @@ func (s *AutomationService) TrackExecution(ctx context.Context, exec *models.Aut
 
 	if !w.AutomationEnabled {
 		return fmt.Errorf("automation is disabled for this website")
-	}
-
-	// Check if user still has event quota (executions count as data points/events)
-	if s.billing != nil {
-		can, err := s.billing.CanTrackEvent(ctx, w.UserID.String())
-		if err != nil {
-			return err
-		}
-		if !can {
-			return fmt.Errorf("monthly event limit reached")
-		}
 	}
 
 	return s.repo.CreateExecution(ctx, exec)

@@ -12,6 +12,7 @@ import { Logo } from '@/components/ui/logo';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/lib/api';
+import { isEnterprise } from '@/lib/features';
 
 export default function ContactPage() {
   const { toast } = useToast();
@@ -163,9 +164,9 @@ export default function ContactPage() {
                         <SelectContent>
                           <SelectItem value="general">General Inquiry</SelectItem>
                           <SelectItem value="technical">Technical Support</SelectItem>
-                          <SelectItem value="billing">Billing & Pricing</SelectItem>
+                          {isEnterprise && <SelectItem value="billing">Billing & Pricing</SelectItem>}
                           <SelectItem value="integration">Integration Help</SelectItem>
-                          <SelectItem value="enterprise">Enterprise Sales</SelectItem>
+                          {isEnterprise && <SelectItem value="enterprise">Enterprise Sales</SelectItem>}
                           <SelectItem value="partnership">Partnership</SelectItem>
                           <SelectItem value="bug">Bug Report</SelectItem>
                           <SelectItem value="feature">Feature Request</SelectItem>
@@ -266,14 +267,18 @@ export default function ContactPage() {
                     <ExternalLink className="h-4 w-4" />
                     Documentation
                   </Link>
-                  <Link href="/signup" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
-                    <ExternalLink className="h-4 w-4" />
-                    Start Free Trial
-                  </Link>
-                  <Link href="#pricing" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
-                    <ExternalLink className="h-4 w-4" />
-                    View Pricing
-                  </Link>
+                  {isEnterprise && (
+                    <Link href="/signup" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
+                      <ExternalLink className="h-4 w-4" />
+                      Start Free Trial
+                    </Link>
+                  )}
+                  {isEnterprise && (
+                    <Link href="/pricing" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
+                      <ExternalLink className="h-4 w-4" />
+                      View Pricing
+                    </Link>
+                  )}
                 </CardContent>
               </Card>
 

@@ -1,24 +1,34 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { 
-  Shield, 
-  EyeOff, 
-  Cookie, 
-  Database, 
+import {
+  Shield,
+  EyeOff,
+  Cookie,
+  Database,
   Info,
   Lock,
   FileCheck
 } from 'lucide-react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { isEnterprise } from '@/lib/features';
 
 export default function PrivacySettings() {
   const params = useParams();
   const websiteId = params?.websiteId as string;
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isEnterprise) {
+      router.replace(`/websites/${websiteId}/settings`);
+    }
+  }, [router, websiteId]);
+
+  if (!isEnterprise) return null;
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

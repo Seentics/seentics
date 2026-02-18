@@ -25,12 +25,14 @@ import { InviteMemberModal } from '../websites/modals/InviteMemberModal';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/stores/useAuthStore';
+import { isEnterprise } from '@/lib/features';
 
 interface TeamSettingsComponentProps {
   websiteId: string;
 }
 
 export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps) {
+  if (!isEnterprise) return null;
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();

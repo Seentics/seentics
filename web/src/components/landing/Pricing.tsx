@@ -3,6 +3,7 @@ import { CheckCircle, Zap, Star, Crown, ArrowRight, Sparkles } from 'lucide-reac
 import Link from 'next/link';
 import { useAuth } from '@/stores/useAuthStore';
 import { motion } from 'framer-motion';
+import { isEnterprise } from '@/lib/features';
 
 const plans = [
   {
@@ -84,6 +85,8 @@ const plans = [
 ];
 
 export default function Pricing() {
+  if (!isEnterprise) return null;
+
   const { isAuthenticated, user } = useAuth();
 
   const containerVariants = {

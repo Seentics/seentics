@@ -5,6 +5,7 @@ import { X, AlertTriangle, Crown, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSubscription } from '@/hooks/useSubscription';
 import { UpgradePlanModal } from './UpgradePlanModal';
+import { isEnterprise } from '@/lib/features';
 
 interface LimitReachedTopBarProps {
   limitType?: 'websites' | 'workflows' | 'funnels' | 'monthlyEvents';
@@ -17,6 +18,7 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
   onClose,
   className = ''
 }) => {
+  if (!isEnterprise) return null;
   const { subscription, hasReachedLimit } = useSubscription();
   const [isVisible, setIsVisible] = React.useState(true);
   const [showUpgradeModal, setShowUpgradeModal] = React.useState(false);

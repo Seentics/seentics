@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuth } from '@/stores/useAuthStore';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Check, CreditCard, Loader2, Zap } from 'lucide-react';
+import { isEnterprise } from '@/lib/features';
 
 interface BillingModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface BillingModalProps {
 }
 
 export function BillingModal({ isOpen, onClose }: BillingModalProps) {
+  if (!isEnterprise) return null;
   const { user } = useAuth();
   const { subscription, loading: subscriptionLoading, getUsagePercentage } = useSubscription();
   

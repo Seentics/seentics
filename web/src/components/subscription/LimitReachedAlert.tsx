@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { AlertTriangle, Zap, X } from 'lucide-react';
 import { useSubscription, SubscriptionUsage } from '@/hooks/useSubscription';
 import { UpgradePlanModal } from './UpgradePlanModal';
+import { isEnterprise } from '@/lib/features';
 
 interface LimitReachedAlertProps {
   type: keyof SubscriptionUsage;
@@ -32,6 +33,8 @@ export const LimitReachedAlert: React.FC<LimitReachedAlertProps> = ({
   onDismiss,
   className = ''
 }) => {
+  if (!isEnterprise) return null;
+
   const { subscription, hasReachedLimit } = useSubscription();
   const [showUpgradeModal, setShowUpgradeModal] = React.useState(false);
   const [isDismissed, setIsDismissed] = React.useState(false);

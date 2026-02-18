@@ -1,8 +1,6 @@
 package services
 
 import (
-	billingModels "analytics-app/internal/modules/billing/models"
-	billingServicePkg "analytics-app/internal/modules/billing/services"
 	"analytics-app/internal/modules/funnels/models"
 	"analytics-app/internal/modules/funnels/repository"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
@@ -14,14 +12,12 @@ import (
 
 type FunnelService struct {
 	repo     *repository.FunnelRepository
-	billing  *billingServicePkg.BillingService
 	websites *websiteServicePkg.WebsiteService
 }
 
-func NewFunnelService(repo *repository.FunnelRepository, billing *billingServicePkg.BillingService, websites *websiteServicePkg.WebsiteService) *FunnelService {
+func NewFunnelService(repo *repository.FunnelRepository, websites *websiteServicePkg.WebsiteService) *FunnelService {
 	return &FunnelService{
 		repo:     repo,
-		billing:  billing,
 		websites: websites,
 	}
 }
@@ -105,17 +101,6 @@ func (s *FunnelService) TrackFunnelEvent(ctx context.Context, req *models.TrackF
 		return fmt.Errorf("funnel tracking is disabled for this website")
 	}
 
-	// Funnel events also count towards the event quota
-	if s.billing != nil {
-		can, err := s.billing.CanTrackEvent(ctx, w.UserID.String())
-		if err != nil {
-			return err
-		}
-		if !can {
-			return fmt.Errorf("monthly event limit reached")
-		}
-	}
-
 	// For now, these events are primarily used for real-time calculation in GetFunnelStats
 	// which looks at the main 'events' table. We could record them separately if needed.
 	return nil
@@ -158,25 +143,9 @@ func (s *FunnelService) CreateFunnel(ctx context.Context, req *models.CreateFunn
 		Steps:       req.Steps,
 	}
 
-	// Check plan limits
-	canCreate, err := s.billing.CanCreateResource(ctx, userID, billingModels.ResourceFunnels)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify plan limits: %w", err)
-	}
-	if !canCreate {
-		return nil, fmt.Errorf("funnel limit reached for your plan. please upgrade to add more funnels")
-	}
-
 	err = s.repo.CreateFunnel(ctx, funnel)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create funnel: %w", err)
-	}
-
-	// Track usage in Redis
-	if s.billing != nil {
-		if err := s.billing.IncrementUsageRedis(ctx, userID, billingModels.ResourceFunnels, 1); err != nil {
-			fmt.Printf("Warning: failed to track funnel usage: %v\n", err)
-		}
 	}
 
 	return s.repo.GetFunnelByID(ctx, funnel.ID)

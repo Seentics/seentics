@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CheckCircle, Zap, Crown, Rocket, Star, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,8 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { createCheckout } from '@/lib/billing-api';
 import { toast } from 'sonner';
+import { isEnterprise } from '@/lib/features';
+import { useRouter } from 'next/navigation';
 
 const plans = [
     {
@@ -85,8 +87,17 @@ const plans = [
 ];
 
 export default function PricingPage() {
+    const router = useRouter();
     const [isYearly, setIsYearly] = useState(false);
     const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!isEnterprise) {
+            router.replace('/');
+        }
+    }, [router]);
+
+    if (!isEnterprise) return null;
 
     const handleCheckout = async (planId: string) => {
         try {

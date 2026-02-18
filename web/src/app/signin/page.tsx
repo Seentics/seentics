@@ -23,6 +23,7 @@ import { useState } from 'react';
 import api from '@/lib/api';
 import { useAuth } from '@/stores/useAuthStore';
 import { motion } from 'framer-motion';
+import { isEnterprise } from '@/lib/features';
 
 export default function SignInPage() {
   const [formData, setFormData] = useState({
@@ -194,10 +195,19 @@ export default function SignInPage() {
 
                 <div className="mt-8 pt-8 border-t border-border/50 text-center">
                     <p className="text-sm font-medium text-muted-foreground">
-                        New to Seentics?{' '}
-                        <Link href="/signup" className="text-primary font-black hover:underline uppercase tracking-widest text-xs">
-                            Create Account
-                        </Link>
+                        {isEnterprise ? (
+                            <>New to Seentics?{' '}
+                                <Link href="/signup" className="text-primary font-black hover:underline uppercase tracking-widest text-xs">
+                                    Create Account
+                                </Link>
+                            </>
+                        ) : (
+                            <>First time?{' '}
+                                <Link href="/setup" className="text-primary font-black hover:underline uppercase tracking-widest text-xs">
+                                    Set Up Admin
+                                </Link>
+                            </>
+                        )}
                     </p>
                 </div>
             </motion.div>

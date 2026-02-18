@@ -34,9 +34,18 @@ import { useAuth } from '@/stores/useAuthStore';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrackingCodeModal } from '@/components/websites/tracking-code-modal';
+import { isEnterprise } from '@/lib/features';
 
 function SignUpFlow() {
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isEnterprise) {
+      router.replace('/setup');
+    }
+  }, [router]);
+
+  if (!isEnterprise) return null;
   const searchParams = useSearchParams();
   const stepParam = searchParams.get('step');
   const [step, setStep] = useState(stepParam ? parseInt(stepParam) : 1); 

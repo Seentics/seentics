@@ -232,6 +232,11 @@ func (s *AuthService) GenerateTokens(user *models.User) (*models.TokenDetails, e
 	}, nil
 }
 
+// CountUsers returns the total number of registered users
+func (s *AuthService) CountUsers(ctx context.Context) (int, error) {
+	return s.repo.CountUsers(ctx)
+}
+
 // RefreshToken validates a refresh token and generates new access and refresh tokens
 func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string) (*models.TokenDetails, error) {
 	// Parse and validate the refresh token

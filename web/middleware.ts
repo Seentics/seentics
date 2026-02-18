@@ -16,13 +16,26 @@ const publicRoutes = [
   '/',
   '/signin',
   '/signup',
+  '/setup',
   '/forgot-password',
   '/reset-password',
   '/verify-email',
 ];
 
+const isEnterprise = process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true';
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // OSS mode: redirect enterprise-only public routes
+  if (!isEnterprise) {
+    if (pathname === '/signup' || pathname.startsWith('/signup')) {
+      return NextResponse.redirect(new URL('/setup', request.url));
+    }
+    if (pathname === '/pricing' || pathname.startsWith('/pricing')) {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
+  }
 
   // Check if the path is protected
   const isProtectedRoute = protectedRoutes.some(route =>

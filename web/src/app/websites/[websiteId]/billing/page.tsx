@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { useParams } from 'next/navigation';
+import React, { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { CreditCard, Zap, Check, Shield, BarChart3, Filter, Workflow, Loader2, Map, Video } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -14,10 +14,20 @@ import { UpgradePlanModal } from '@/components/subscription/UpgradePlanModal';
 import { createPortalSession } from '@/lib/billing-api';
 import api from '@/lib/api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { isEnterprise } from '@/lib/features';
 
 export default function AccountBillingSettings() {
     const params = useParams();
     const websiteId = params?.websiteId as string;
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!isEnterprise) {
+            router.replace(`/websites/${websiteId}`);
+        }
+    }, [router, websiteId]);
+
+    if (!isEnterprise) return null;
     const { subscription, loading, error, getUsagePercentage } = useSubscription();
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = React.useState(false);
     const [cancelling, setCancelling] = React.useState(false);

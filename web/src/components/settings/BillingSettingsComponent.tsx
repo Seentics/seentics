@@ -10,8 +10,10 @@ import { UpgradePlanModal } from '@/components/subscription/UpgradePlanModal';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { isEnterprise } from '@/lib/features';
 
 export function BillingSettingsComponent() {
+  if (!isEnterprise) return null;
   const { subscription, getUsagePercentage, refetch } = useSubscription();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = React.useState(false);
   const [cancelling, setCancelling] = React.useState(false);

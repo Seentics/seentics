@@ -13,8 +13,8 @@ type Config struct {
 	Port                  string
 	DatabaseURL           string
 	LogLevel              string
-	KafkaBootstrapServers string
-	KafkaTopicEvents      string
+	NATSUrl            string
+	NATSSubjectEvents  string
 	JWTSecret             string
 	GlobalAPIKey          string
 	DbMaxConns            int
@@ -40,8 +40,8 @@ func Load() (*Config, error) {
 		Port:                  getEnvOrDefault("PORT", "3002"),
 		DatabaseURL:           getEnvOrDefault("DATABASE_URL", ""),
 		LogLevel:              getEnvOrDefault("LOG_LEVEL", "info"),
-		KafkaBootstrapServers: getEnvOrDefault("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092"),
-		KafkaTopicEvents:      getEnvOrDefault("KAFKA_TOPIC_EVENTS", "analytics_events"),
+		NATSUrl:            getEnvOrDefault("NATS_URL", "nats://localhost:4222"),
+		NATSSubjectEvents:  getEnvOrDefault("NATS_SUBJECT_EVENTS", "analytics.events"),
 		JWTSecret:             getEnvOrDefault("JWT_SECRET", ""),
 		GlobalAPIKey:          getEnvOrDefault("GLOBAL_API_KEY", ""),
 		DbMaxConns:            GetEnvAsInt("DB_MAX_CONNS", 100),

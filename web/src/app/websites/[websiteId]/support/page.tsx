@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,10 +10,20 @@ import { toast } from 'sonner';
 import { Mail, Calendar, Loader2, Send, HelpCircle } from 'lucide-react';
 import Script from 'next/script';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { isEnterprise } from '@/lib/features';
 
 export default function SupportPage() {
   const params = useParams();
   const websiteId = params?.websiteId as string;
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isEnterprise) {
+      router.replace(`/websites/${websiteId}`);
+    }
+  }, [router, websiteId]);
+
+  if (!isEnterprise) return null;
 
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({

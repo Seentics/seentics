@@ -3,15 +3,13 @@ package services
 import (
 	"analytics-app/internal/modules/analytics/models"
 	"analytics-app/internal/modules/analytics/repository"
-	"analytics-app/internal/shared/kafka"
+	natsService "analytics-app/internal/shared/nats"
 	"context"
 	"fmt"
 	"sync"
 	"time"
 
 	autoServicePkg "analytics-app/internal/modules/automations/services"
-	billingModels "analytics-app/internal/modules/billing/models"
-	billingServicePkg "analytics-app/internal/modules/billing/services"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"analytics-app/internal/shared/utils"
 
@@ -25,24 +23,17 @@ const (
 	FlushInterval = 5 * time.Second // Increased from 2s to balance latency vs efficiency
 )
 
-type usageUpdate struct {
-	userID string
-	count  int
-}
-
 type EventService struct {
 	repo     repository.EventRepository
 	db       *pgxpool.Pool
 	logger   zerolog.Logger
-	kafka    *kafka.KafkaService
-	billing  *billingServicePkg.BillingService
+	nats     *natsService.NATSService
 	websites *websiteServicePkg.WebsiteService
 	auto     *autoServicePkg.AutomationService // Added for orchestration
 	engine   *autoServicePkg.ExecutionEngine   // Added for execution
 
-	// Simple event channel for async processing (now fed from Kafka)
+	// Simple event channel for async processing (fed from NATS)
 	batchChan chan []models.Event
-	usageChan chan usageUpdate // Channel for async user usage increments
 
 	// Shutdown control
 	ctx            context.Context
@@ -53,51 +44,27 @@ type EventService struct {
 	partitionCache sync.Map // cache for verified partitions
 }
 
-func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, kafkaSvc *kafka.KafkaService, billingSvc *billingServicePkg.BillingService, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger) *EventService {
+func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, natsSvc *natsService.NATSService, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger) *EventService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	service := &EventService{
 		repo:      repo,
 		db:        db,
-		kafka:     kafkaSvc,
-		billing:   billingSvc,
+		nats:      natsSvc,
 		websites:  websiteSvc,
 		auto:      autoSvc,
 		engine:    autoServicePkg.NewExecutionEngine(autoSvc, logger),
 		logger:    logger,
 		batchChan: make(chan []models.Event, 500),
-		usageChan: make(chan usageUpdate, 10000), // Large buffer for usage increments
 		ctx:       ctx,
 		cancel:    cancel,
 	}
 
-	// Start Kafka consumer and internal batch processor
-	service.startKafkaConsumer()
+	// Start NATS consumer and internal batch processor
+	service.startNATSConsumer()
 	service.startBatchProcessor()
-	service.startUsageProcessor()
 
 	return service
-}
-
-func (s *EventService) startUsageProcessor() {
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
-		s.logger.Info().Msg("Starting Usage Increment Processor")
-		for {
-			select {
-			case update := <-s.usageChan:
-				err := s.billing.IncrementUsageRedis(context.Background(), update.userID, billingModels.ResourceMonthlyEvents, update.count)
-				if err != nil {
-					s.logger.Error().Err(err).Str("user_id", update.userID).Msg("Failed to increment usage")
-				}
-			case <-s.ctx.Done():
-				// Drain remaining updates with a timeout
-				s.logger.Info().Msg("Usage processor stopping, draining channel...")
-				return
-			}
-		}
-	}()
 }
 
 // ensurePartitionExists checks if a partition exists for the given date and creates it if needed
@@ -120,7 +87,7 @@ func (s *EventService) ensurePartitionExists(ctx context.Context, targetDate tim
 	var exists bool
 	checkQuery := `
 		SELECT EXISTS (
-			SELECT 1 FROM pg_tables 
+			SELECT 1 FROM pg_tables
 			WHERE tablename = $1 AND schemaname = 'public'
 		)
 	`
@@ -187,12 +154,6 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 		return nil, fmt.Errorf("domain mismatch")
 	}
 
-	// 2. Check billing limits
-	can, err := s.billing.CanTrackEvent(ctx, website.UserID.String())
-	if err != nil || !can {
-		return nil, fmt.Errorf("monthly event limit reached")
-	}
-
 	// Validate and set defaults
 	if event.EventType == "" {
 		event.EventType = "pageview"
@@ -204,18 +165,10 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 	// Enrich event data
 	s.enrichEventData(ctx, event)
 
-	// Produce to Kafka
-	if err := s.kafka.ProduceEvent(ctx, *event); err != nil {
-		s.logger.Error().Err(err).Msg("Failed to produce event to Kafka")
+	// Publish to NATS
+	if err := s.nats.ProduceEvent(ctx, *event); err != nil {
+		s.logger.Error().Err(err).Msg("Failed to publish event to NATS")
 		return nil, fmt.Errorf("failed to process event")
-	}
-
-	// Increment event count via buffered channel to avoid goroutine leaks
-	s.logger.Debug().Str("user_id", website.UserID.String()).Msg("Queueing usage increment")
-	select {
-	case s.usageChan <- usageUpdate{userID: website.UserID.String(), count: 1}:
-	default:
-		s.logger.Warn().Str("user_id", website.UserID.String()).Msg("Usage channel full, dropping increment")
 	}
 
 	return &models.EventResponse{
@@ -263,7 +216,6 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	}
 
 	req.SiteID = website.SiteID
-	userID := website.UserID.String()
 
 	// Process and enrich all events
 	accepted := 0
@@ -280,21 +232,12 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 
 		s.enrichEventData(ctx, &req.Events[i])
 
-		// Produce to Kafka
-		if err := s.kafka.ProduceEvent(ctx, req.Events[i]); err != nil {
-			s.logger.Error().Err(err).Msg("Failed to produce batch event to Kafka")
+		// Publish to NATS
+		if err := s.nats.ProduceEvent(ctx, req.Events[i]); err != nil {
+			s.logger.Error().Err(err).Msg("Failed to publish batch event to NATS")
 			continue
 		}
 		accepted++
-	}
-
-	// Increment usage if we identified the user
-	if userID != "" && accepted > 0 {
-		select {
-		case s.usageChan <- usageUpdate{userID: userID, count: accepted}:
-		default:
-			s.logger.Warn().Str("user_id", userID).Msg("Usage channel full, dropping batch increment")
-		}
 	}
 
 	return &models.BatchEventResponse{
@@ -304,18 +247,18 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	}, nil
 }
 
-// startKafkaConsumer consumes from Kafka and feeds into the batch processor
-func (s *EventService) startKafkaConsumer() {
+// startNATSConsumer consumes from NATS and feeds into the batch processor
+func (s *EventService) startNATSConsumer() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
 
 		eventChan := make(chan models.Event, BatchSize*2)
-		kafkaCtx, kafkaCancel := context.WithCancel(s.ctx)
-		defer kafkaCancel()
+		consumerCtx, consumerCancel := context.WithCancel(s.ctx)
+		defer consumerCancel()
 
-		// Run Kafka consumer in a separate goroutine
-		go s.kafka.ConsumeEvents(kafkaCtx, func(event models.Event) error {
+		// Run NATS consumer in a separate goroutine
+		go s.nats.ConsumeEvents(consumerCtx, func(event models.Event) error {
 			// Trigger automations (async)
 			eventData := map[string]interface{}{
 				"event_type": event.EventType,
@@ -330,8 +273,8 @@ func (s *EventService) startKafkaConsumer() {
 			select {
 			case eventChan <- event:
 				return nil
-			case <-kafkaCtx.Done():
-				return kafkaCtx.Err()
+			case <-consumerCtx.Done():
+				return consumerCtx.Err()
 			}
 		})
 
@@ -421,7 +364,7 @@ func (s *EventService) processBatch(batch []models.Event) {
 		event := &batch[i]
 
 		// Failsafe normalization: ensure website_id is canonical
-		// We do this here too because Kafka messages might have been produced using the old UUID
+		// We do this here too because messages might have been produced using the old UUID
 		// if the producer service hadn't been updated yet or if there's a leak.
 		if len(event.WebsiteID) > 24 { // Likely a UUID
 			if website, err := s.websites.GetWebsiteByAnyID(ctx, event.WebsiteID); err == nil {

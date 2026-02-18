@@ -26,6 +26,7 @@ import { Logo } from '@/components/ui/logo';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/stores/useAuthStore';
 import { useLayoutStore } from '@/stores/useLayoutStore';
+import { isEnterprise } from '@/lib/features';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import {
@@ -43,7 +44,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
 
     const isDemo = websiteId === 'demo';
 
-    const links = [
+    const allLinks = [
         {
             title: 'Overview',
             href: `/websites/${websiteId}`,
@@ -77,20 +78,21 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             description: 'Conversion Journeys',
             isLocked: isDemo
         },
-        
         {
             title: 'Billing',
             href: `/websites/${websiteId}/billing`,
             icon: CreditCard,
             description: 'Plan & Payment',
-            isLocked: isDemo
+            isLocked: isDemo,
+            enterpriseOnly: true
         },
         {
             title: 'Privacy',
             href: `/websites/${websiteId}/privacy`,
             icon: Shield,
             description: 'GDPR & Privacy',
-            isLocked: isDemo
+            isLocked: isDemo,
+            enterpriseOnly: true
         },
         {
             title: 'Settings',
@@ -104,10 +106,14 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             href: `/websites/${websiteId}/support`,
             icon: Headset,
             description: 'Help & Contact',
-            isLocked: isDemo
+            isLocked: isDemo,
+            enterpriseOnly: true
         },
-   
     ];
+
+    const links = isEnterprise
+        ? allLinks
+        : allLinks.filter(link => !link.enterpriseOnly);
 
     const containerClasses = mobile 
         ? "h-full w-full bg-white dark:bg-sidebar/40 flex flex-col"

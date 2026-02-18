@@ -195,3 +195,10 @@ func (r *AuthRepository) UpdatePassword(ctx context.Context, userID, hashedPassw
 	_, err := r.db.Exec(ctx, query, hashedPassword, userID)
 	return err
 }
+
+// CountUsers returns the total number of registered users
+func (r *AuthRepository) CountUsers(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRow(ctx, "SELECT COUNT(*) FROM users").Scan(&count)
+	return count, err
+}

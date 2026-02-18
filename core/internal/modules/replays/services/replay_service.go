@@ -1,7 +1,6 @@
 package services
 
 import (
-	billingServicePkg "analytics-app/internal/modules/billing/services"
 	"analytics-app/internal/modules/replays/models"
 	"analytics-app/internal/modules/replays/repository"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
@@ -28,15 +27,13 @@ type ReplayService interface {
 type replayService struct {
 	repo     repository.ReplayRepository
 	websites *websiteServicePkg.WebsiteService
-	billing  *billingServicePkg.BillingService
 	store    *storage.S3Store
 }
 
-func NewReplayService(repo repository.ReplayRepository, websites *websiteServicePkg.WebsiteService, billing *billingServicePkg.BillingService, store *storage.S3Store) ReplayService {
+func NewReplayService(repo repository.ReplayRepository, websites *websiteServicePkg.WebsiteService, store *storage.S3Store) ReplayService {
 	return &replayService{
 		repo:     repo,
 		websites: websites,
-		billing:  billing,
 		store:    store,
 	}
 }
@@ -87,18 +84,7 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 	// Canonicalize website ID
 	req.WebsiteID = website.SiteID
 
-	// 3. Billing limit check — only on the first chunk to avoid per-chunk overhead
-	if req.Sequence == 0 {
-		usage, usageErr := s.billing.GetUserSubscriptionData(ctx, website.UserID.String())
-		if usageErr == nil {
-			if !usage.Usage.Replays.CanCreate {
-				return fmt.Errorf("session recording limit reached (%d/%d sessions). upgrade for more recordings",
-					usage.Usage.Replays.Current, usage.Usage.Replays.Limit)
-			}
-		}
-	}
-
-	// 4. Upload events to S3
+	// 3. Upload events to S3
 	data, err := json.Marshal(req.Events)
 	if err != nil {
 		return err
@@ -109,7 +95,7 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 		return fmt.Errorf("failed to upload to s3: %w", err)
 	}
 
-	// 5. Save reference row in DB
+	// 4. Save reference row in DB
 	// For the first chunk, parse the User-Agent and store session metadata.
 	var meta *models.SessionMeta
 	if req.Sequence == 0 {

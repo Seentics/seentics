@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus, Trash2, Mail } from 'lucide-react';
+import { isEnterprise } from '@/lib/features';
 
 interface TeamModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface TeamModalProps {
 }
 
 export function TeamModal({ isOpen, onClose }: TeamModalProps) {
+  if (!isEnterprise) return null;
   const members = [
     {
       name: 'Alice Johnson',

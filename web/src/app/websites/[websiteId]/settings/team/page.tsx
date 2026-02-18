@@ -1,26 +1,39 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Plus, 
-  Mail, 
-  Trash2, 
-  UserPlus, 
+import {
+  Plus,
+  Mail,
+  Trash2,
+  UserPlus,
   ShieldCheck,
   MoreVertical,
   Target
 } from 'lucide-react';
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger 
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
+import { useParams, useRouter } from 'next/navigation';
+import { isEnterprise } from '@/lib/features';
 
 export default function TeamSettings() {
+  const params = useParams();
+  const websiteId = params?.websiteId as string;
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isEnterprise) {
+      router.replace(`/websites/${websiteId}/settings`);
+    }
+  }, [router, websiteId]);
+
+  if (!isEnterprise) return null;
   const teamMembers = [
     { name: 'Shohag Miah', email: 'shohag@seentics.com', role: 'Owner', status: 'Active' },
     { name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'Active' },

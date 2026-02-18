@@ -132,6 +132,16 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	})
 }
 
+// SetupStatus checks whether the instance has been set up (has at least one user)
+func (h *AuthHandler) SetupStatus(c *gin.Context) {
+	count, err := h.service.CountUsers(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check setup status"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"setupComplete": count > 0}})
+}
+
 // Helper to bind JSON and handle errors
 func (h *AuthHandler) bindJSON(c *gin.Context, obj interface{}) error {
 	if err := c.ShouldBindJSON(obj); err != nil {

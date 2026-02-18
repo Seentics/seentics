@@ -23,6 +23,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { addMember } from '@/lib/websites-api';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
+import { isEnterprise } from '@/lib/features';
 
 interface InviteMemberModalProps {
   open: boolean;
@@ -31,6 +32,7 @@ interface InviteMemberModalProps {
 }
 
 export function InviteMemberModal({ open, onOpenChange, websiteId }: InviteMemberModalProps) {
+  if (!isEnterprise) return null;
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'admin' | 'viewer'>('viewer');
   const queryClient = useQueryClient();

@@ -1,7 +1,6 @@
 package services
 
 import (
-	billingServicePkg "analytics-app/internal/modules/billing/services"
 	"analytics-app/internal/modules/heatmaps/models"
 	"analytics-app/internal/modules/heatmaps/repository"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
@@ -36,39 +35,9 @@ func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, orig
 		return fmt.Errorf("domain mismatch: origin=%s, expected=%s", origin, w.URL)
 	}
 
-	// 2. Billing Check - Check if user's plan allows heatmaps
-	sub, err := s.billing.GetSubscription(context.Background(), w.UserID.String())
-	if err != nil {
-		return fmt.Errorf("failed to verify subscription: %v", err)
-	}
-
-	// If no subscription found, default to starter (no heatmaps)
-	if sub == nil || sub.Plan == nil {
-		return fmt.Errorf("no active subscription found. please subscribe to a plan to enable heatmaps")
-	}
-
-	plan := sub.Plan
-
-	if plan.MaxHeatmaps == 0 {
-		return fmt.Errorf("heatmaps not available on %s plan. upgrade to growth or higher to enable heatmaps", plan.Name)
-	}
-
-	// 3. Feature Toggle Check - Only check if explicitly disabled (manual override)
+	// 2. Feature Toggle Check - Only check if explicitly disabled (manual override)
 	if !w.HeatmapEnabled {
 		return fmt.Errorf("heatmap recording is manually disabled for this website. enable it in settings")
-	}
-
-	// 4. Check heatmap page limit
-	if plan.MaxHeatmaps > 0 && len(req.Points) > 0 {
-		count, _ := s.repo.CountHeatmapPages(context.Background(), w.ID.String())
-		if count >= plan.MaxHeatmaps {
-			// Check if the URL from the first point already exists
-			url := req.Points[0].URL
-			exists, _ := s.repo.HeatmapExistsForURL(context.Background(), w.ID.String(), url)
-			if !exists {
-				return fmt.Errorf("heatmap limit reached (%d/%d pages). upgrade for more heatmap pages", count, plan.MaxHeatmaps)
-			}
-		}
 	}
 
 	return s.repo.RecordHeatmap(context.Background(), w.ID.String(), req.Points)
@@ -77,14 +46,12 @@ func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, orig
 type heatmapService struct {
 	repo     repository.HeatmapRepository
 	websites *websiteServicePkg.WebsiteService
-	billing  *billingServicePkg.BillingService
 }
 
-func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServicePkg.WebsiteService, billing *billingServicePkg.BillingService) HeatmapService {
+func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServicePkg.WebsiteService) HeatmapService {
 	return &heatmapService{
 		repo:     repo,
 		websites: websites,
-		billing:  billing,
 	}
 }
 

@@ -2,8 +2,6 @@ package services
 
 import (
 	authRepoPkg "analytics-app/internal/modules/auth/repository"
-	billingModels "analytics-app/internal/modules/billing/models"
-	billingServicePkg "analytics-app/internal/modules/billing/services"
 	"analytics-app/internal/modules/websites/models"
 	"analytics-app/internal/modules/websites/repository"
 	"context"
@@ -25,18 +23,16 @@ import (
 type WebsiteService struct {
 	repo        *repository.WebsiteRepository
 	authRepo    *authRepoPkg.AuthRepository
-	billing     *billingServicePkg.BillingService
 	heatmapRepo heatmapRepoPkg.HeatmapRepository
 	redis       *redis.Client
 	env         string
 	logger      zerolog.Logger
 }
 
-func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, billing *billingServicePkg.BillingService, heatmapRepo heatmapRepoPkg.HeatmapRepository, redis *redis.Client, env string, logger zerolog.Logger) *WebsiteService {
+func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, heatmapRepo heatmapRepoPkg.HeatmapRepository, redis *redis.Client, env string, logger zerolog.Logger) *WebsiteService {
 	return &WebsiteService{
 		repo:        repo,
 		authRepo:    authRepo,
-		billing:     billing,
 		heatmapRepo: heatmapRepo,
 		redis:       redis,
 		env:         env,
@@ -73,16 +69,11 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 		}
 	}
 
-	// Fetch heatmap limits and tracked URLs
-	maxHeatmaps := 0
+	// In OSS mode, heatmaps are unlimited — no billing plan check needed
+	maxHeatmaps := -1 // -1 means unlimited
 	trackedURLs := []string{}
 
 	if w.HeatmapEnabled {
-		sub, err := s.billing.GetSubscription(ctx, w.UserID.String())
-		if err == nil && sub != nil && sub.Plan != nil {
-			maxHeatmaps = sub.Plan.MaxHeatmaps
-		}
-
 		// Get already tracked URLs
 		urls, err := s.heatmapRepo.GetTrackedURLs(ctx, w.ID.String())
 		if err == nil {
@@ -150,15 +141,6 @@ func (s *WebsiteService) CreateWebsite(ctx context.Context, userID uuid.UUID, re
 		UpdatedAt:          time.Now(),
 	}
 
-	// Check plan limits
-	canCreate, err := s.billing.CanCreateResource(ctx, userID.String(), billingModels.ResourceWebsites)
-	if err != nil {
-		return nil, fmt.Errorf("failed to verify plan limits: %w", err)
-	}
-	if !canCreate {
-		return nil, fmt.Errorf("website limit reached for your plan. please upgrade to add more websites")
-	}
-
 	if err := s.repo.Create(ctx, website); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to create website")
 		return nil, err
@@ -173,11 +155,6 @@ func (s *WebsiteService) CreateWebsite(ctx context.Context, userID uuid.UUID, re
 	if err := s.repo.AddMember(ctx, member); err != nil {
 		s.logger.Error().Err(err).Msg("Failed to add owner as member")
 		// Continue anyway, as the website is created
-	}
-
-	// Update billing usage
-	if err := s.billing.IncrementUsageRedis(ctx, userID.String(), billingModels.ResourceWebsites, 1); err != nil {
-		s.logger.Error().Err(err).Msg("Failed to update billing usage on website creation")
 	}
 
 	return website, nil
@@ -352,11 +329,6 @@ func (s *WebsiteService) UpdateWebsite(ctx context.Context, id string, userID uu
 func (s *WebsiteService) DeleteWebsite(ctx context.Context, id string, userID uuid.UUID) error {
 	if err := s.repo.Delete(ctx, id, userID); err != nil {
 		return err
-	}
-
-	// Update billing usage (decrement)
-	if err := s.billing.IncrementUsageRedis(ctx, userID.String(), billingModels.ResourceWebsites, -1); err != nil {
-		s.logger.Error().Err(err).Msg("Failed to update billing usage on website deletion")
 	}
 
 	// Try to get website to invalidate cache properly

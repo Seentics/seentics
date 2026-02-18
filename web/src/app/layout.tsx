@@ -97,8 +97,10 @@ export default function RootLayout({
         {/* Global Chat Support */}
         {/* <TawkMessenger /> */}
 
-        {/* Lemon Squeezy Checkout Script */}
-        <Script src="https://assets.lemonsqueezy.com/lemon.js" strategy="lazyOnload" />
+        {/* Lemon Squeezy Checkout Script - Enterprise only */}
+        {process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true' && (
+          <Script src="https://assets.lemonsqueezy.com/lemon.js" strategy="lazyOnload" />
+        )}
       </body>
     </html>
   );

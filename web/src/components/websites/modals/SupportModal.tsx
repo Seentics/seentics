@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Send } from 'lucide-react';
+import { isEnterprise } from '@/lib/features';
 
 interface SupportModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ interface SupportModalProps {
 }
 
 export function SupportModal({ isOpen, onClose }: SupportModalProps) {
+  if (!isEnterprise) return null;
   const [isLoading, setIsLoading] = React.useState(true);
 
   return (

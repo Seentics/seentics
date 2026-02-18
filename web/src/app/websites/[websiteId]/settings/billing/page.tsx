@@ -1,21 +1,34 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { 
-  CreditCard, 
-  Check, 
-  Zap, 
-  TrendingUp, 
-  Clock, 
+import {
+  CreditCard,
+  Check,
+  Zap,
+  TrendingUp,
+  Clock,
   ShieldCheck,
   Package,
   Loader2
 } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useParams, useRouter } from 'next/navigation';
+import { isEnterprise } from '@/lib/features';
 
 export default function BillingSettings() {
+  const params = useParams();
+  const websiteId = params?.websiteId as string;
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isEnterprise) {
+      router.replace(`/websites/${websiteId}/settings`);
+    }
+  }, [router, websiteId]);
+
+  if (!isEnterprise) return null;
   const { subscription, loading, getUsagePercentage } = useSubscription();
 
   if (loading) {

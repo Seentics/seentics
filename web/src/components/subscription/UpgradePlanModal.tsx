@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Zap, Crown, ArrowRight, X, Sparkles } from 'lucide-react';
 import { useAuth } from '@/stores/useAuthStore';
 import api from '@/lib/api';
+import { isEnterprise } from '@/lib/features';
 
 interface UpgradePlanModalProps {
   isOpen: boolean;
@@ -102,6 +103,8 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   currentUsage,
   limit
 }) => {
+  if (!isEnterprise) return null;
+
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = React.useState(false);
 

@@ -5,13 +5,9 @@ import (
 	"analytics-app/internal/modules/analytics/repository"
 	"analytics-app/internal/modules/analytics/repository/privacy"
 	"analytics-app/internal/modules/analytics/services"
-	billingHandlerPkg "analytics-app/internal/modules/billing/handlers"
-	"analytics-app/internal/modules/billing/models"
-	billingRepoPkg "analytics-app/internal/modules/billing/repository"
-	billingServicePkg "analytics-app/internal/modules/billing/services"
 	"analytics-app/internal/shared/config"
 	"analytics-app/internal/shared/database"
-	"analytics-app/internal/shared/kafka"
+	natsService "analytics-app/internal/shared/nats"
 	"analytics-app/internal/shared/middleware"
 	"analytics-app/internal/shared/migrations"
 	"analytics-app/internal/shared/storage"
@@ -144,28 +140,26 @@ func main() {
 	authService := authServicePkg.NewAuthService(authRepo, cfg, logger)
 	authHandler := authHandlerPkg.NewAuthHandler(authService, logger)
 
-	// Billing
-	billingRepo := billingRepoPkg.NewBillingRepository(db)
-	billingService := billingServicePkg.NewBillingService(billingRepo, redisClient)
-	billingHandler := billingHandlerPkg.NewBillingHandler(billingService, logger)
-
 	// Heatmaps (Repository only, for website service)
 	heatmapRepo := heatmapRepoPkg.NewHeatmapRepository(db)
 
 	// Websites
 	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
-	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, billingService, heatmapRepo, redisClient, cfg.Environment, logger)
+	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, heatmapRepo, redisClient, cfg.Environment, logger)
 	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
 
-	// Kafka & Events
-	kafkaService := kafka.NewKafkaService(cfg.KafkaBootstrapServers, cfg.KafkaTopicEvents, logger)
+	// NATS & Events
+	natsSvc, err := natsService.NewNATSService(cfg.NATSUrl, cfg.NATSSubjectEvents, logger)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to connect to NATS")
+	}
 
 	// Automations
 	autoRepo := autoRepoPkg.NewAutomationRepository(db)
-	autoService := autoServicePkg.NewAutomationService(autoRepo, billingService, websiteService)
+	autoService := autoServicePkg.NewAutomationService(autoRepo, websiteService)
 	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
 
-	eventService := services.NewEventService(eventRepo, db, kafkaService, billingService, websiteService, autoService, logger)
+	eventService := services.NewEventService(eventRepo, db, natsSvc, websiteService, autoService, logger)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger)
 	privacyService := services.NewPrivacyService(privacyRepo, websiteService, logger)
 
@@ -178,10 +172,10 @@ func main() {
 
 	// Funnels
 	funnelRepo := funnelRepoPkg.NewFunnelRepository(db)
-	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, billingService, websiteService)
+	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 	// Heatmaps (Service)
-	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, billingService)
+	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService)
 	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
 
 	// S3 Store
@@ -196,17 +190,13 @@ func main() {
 		logger.Fatal().Err(err).Msg("Failed to initialize S3 store")
 	}
 
-	// Reports - Start periodic billing sync (every 5 minutes)
-	billingService.StartPeriodicSync(5 * time.Minute)
-	logger.Info().Msg("Started periodic billing sync worker")
-
 	// Replays
 	replayRepo := replayRepoPkg.NewReplayRepository(db)
-	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, billingService, s3Store)
+	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store)
 	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, billingHandler, authHandler, websiteHandler, billingService, heatmapHandler, replayHandler, logger)
+	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, authHandler, websiteHandler, heatmapHandler, replayHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -236,9 +226,9 @@ func main() {
 		logger.Error().Err(err).Msg("Failed to shutdown event service gracefully")
 	}
 
-	if kafkaService != nil {
-		if err := kafkaService.Close(); err != nil {
-			logger.Error().Err(err).Msg("Failed to close Kafka service")
+	if natsSvc != nil {
+		if err := natsSvc.Close(); err != nil {
+			logger.Error().Err(err).Msg("Failed to close NATS service")
 		}
 	}
 
@@ -249,7 +239,7 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, billingHandler *billingHandlerPkg.BillingHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, billingService *billingServicePkg.BillingService, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -285,8 +275,6 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			strings.HasPrefix(path, "/uploads/") ||
 			path == "/api/v1/analytics/event" ||
 			path == "/api/v1/analytics/batch" ||
-			path == "/api/v1/webhooks/lemonsqueezy" ||
-			path == "/api/v1/test/webhooks/lemonsqueezy" ||
 			path == "/api/v1/funnels/track" ||
 			path == "/api/v1/funnels/batch" ||
 			path == "/api/v1/funnels/active" ||
@@ -351,18 +339,12 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		admin := v1.Group("/admin", middleware.RoleMiddleware("admin"))
 		{
 			admin.GET("/analytics/stats", adminHandler.GetAnalyticsStats)
-
-			// Server Monitoring (Commented out until module is restored)
-			// admin.POST("/logs/ingest", logsHandler.IngestLog)
-			// admin.GET("/logs", logsHandler.GetLogs)
-			// admin.POST("/metrics/ingest", logsHandler.IngestMetric)
-			// admin.GET("/metrics", logsHandler.GetMetrics)
 		}
 
 		automations := v1.Group("/websites/:website_id/automations")
 		{
 			automations.GET("", autoHandler.ListAutomations)
-			automations.POST("", middleware.BillingLimitMiddleware(billingService, models.ResourceAutomations), autoHandler.CreateAutomation)
+			automations.POST("", autoHandler.CreateAutomation)
 			automations.GET("/:automation_id", autoHandler.GetAutomation)
 			automations.PUT("/:automation_id", autoHandler.UpdateAutomation)
 			automations.DELETE("/:automation_id", autoHandler.DeleteAutomation)
@@ -378,7 +360,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		funnels := v1.Group("/websites/:website_id/funnels")
 		{
 			funnels.GET("", funnelHandler.ListFunnels)
-			funnels.POST("", middleware.BillingLimitMiddleware(billingService, models.ResourceFunnels), funnelHandler.CreateFunnel)
+			funnels.POST("", funnelHandler.CreateFunnel)
 			funnels.GET("/:funnel_id", funnelHandler.GetFunnel)
 			funnels.PUT("/:funnel_id", funnelHandler.UpdateFunnel)
 			funnels.DELETE("/:funnel_id", funnelHandler.DeleteFunnel)
@@ -388,19 +370,6 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		v1.GET("/funnels/active", funnelHandler.GetActiveFunnels)
 		v1.POST("/funnels/track", funnelHandler.TrackFunnelEvent)
 		v1.POST("/funnels/batch", funnelHandler.TrackBatchFunnelEvents) // Batch endpoint
-
-		billing := v1.Group("/user/billing")
-		{
-			billing.GET("/usage", billingHandler.GetUsage)
-			billing.POST("/checkout", billingHandler.CreateCheckout)
-			billing.POST("/portal", billingHandler.CreatePortalSession)
-			billing.POST("/cancel", billingHandler.CancelSubscription)
-			billing.POST("/select-free", billingHandler.SelectFreePlan)
-			billing.POST("/simulate-webhook", billingHandler.SimulateWebhook)
-		}
-
-		v1.POST("/webhooks/lemonsqueezy", billingHandler.Webhook)
-		v1.POST("/test/webhooks/lemonsqueezy", billingHandler.Webhook)
 
 		// Public auth endpoints (no authentication required)
 		publicAuth := v1.Group("/auth")
@@ -417,6 +386,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			auth.POST("/register", authHandler.Register)
 			auth.POST("/login", authHandler.Login)
 			auth.POST("/refresh", authHandler.RefreshToken)
+			auth.GET("/setup-status", authHandler.SetupStatus)
 		}
 
 		users := v1.Group("/user/users")
@@ -429,7 +399,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		websites := v1.Group("/user/websites")
 		{
 			websites.GET("", websiteHandler.List)
-			websites.POST("", middleware.BillingLimitMiddleware(billingService, models.ResourceWebsites), websiteHandler.Create)
+			websites.POST("", websiteHandler.Create)
 			websites.GET("/:id", websiteHandler.Get)
 			websites.GET("/by-site-id/:id", websiteHandler.Get)
 			websites.PUT("/:id", websiteHandler.Update)
@@ -445,30 +415,6 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			websites.POST("/:id/members", websiteHandler.AddMember)
 			websites.DELETE("/:id/members/:user_id", websiteHandler.RemoveMember)
 		}
-
-		// notifications := v1.Group("/user/notifications")
-		// {
-		// 	notifications.PUT("/:id/read", notiHandler.MarkRead)
-		// 	notifications.PUT("/read-all", notiHandler.MarkAllRead)
-		// }
-
-		// emails := v1.Group("/emails")
-		// {
-		// 	emails.POST("/send", emailHandler.SendEmail)
-		// }
-
-		// 		support := v1.Group("/websites/:website_id/support")
-		// 		{
-		// 			support.POST("/forms", supportHandler.CreateForm)
-		// 			support.GET("/forms", supportHandler.ListForms)
-		// 			support.POST("/forms/:form_id/submit", supportHandler.SubmitForm)
-		//
-		// 			support.POST("/chat", supportHandler.ConfigureChat)
-		// 			support.GET("/chat", supportHandler.GetChatConfig)
-		//
-		// 			support.POST("/tickets", supportHandler.CreateTicket)
-		// 			support.GET("/tickets", supportHandler.ListTickets)
-		// 		}
 
 		heatmaps := v1.Group("/heatmaps")
 		{
