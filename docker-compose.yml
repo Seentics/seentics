@@ -18,8 +18,8 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD}@seentics-redis:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - GLOBAL_API_KEY=${GLOBAL_API_KEY}
-      - KAFKA_BOOTSTRAP_SERVERS=seentics-kafka:9092
-      - KAFKA_TOPIC_EVENTS=analytics_events
+      - NATS_URL=nats://seentics-nats:4222
+      - NATS_SUBJECT_EVENTS=analytics.events
       - CLOUD_ENABLED=false
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
       - CLICKHOUSE_HOST=seentics-clickhouse
@@ -35,8 +35,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      kafka:
-        condition: service_started
+      nats:
+        condition: service_healthy
       clickhouse:
         condition: service_healthy
       postgres:
@@ -93,27 +93,20 @@ services:
       timeout: 5s
       retries: 5
 
-  kafka:
-    image: apache/kafka:latest
-    container_name: seentics-kafka
-    # No ports needed on host if ALB handles public traffic
-    environment:
-      - KAFKA_NODE_ID=1
-      - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://seentics-kafka:9092
-      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@seentics-kafka:9093
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      - CLUSTER_ID=qtS5p79_R0S_v2vIq2vS_A
+  nats:
+    image: nats:2.10-alpine
+    container_name: seentics-nats
+    command: --jetstream --store_dir /data --max_mem_store 64MB --max_file_store 1GB
     networks:
       - seentics-network
     volumes:
-      - seentics-kafka-v3:/var/lib/kafka/data
+      - seentics-nats-v3:/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   clickhouse:
     image: clickhouse/clickhouse-server:latest
@@ -195,7 +188,7 @@ services:
 
 volumes:
   seentics-redis-v3:
-  seentics-kafka-v3:
+  seentics-nats-v3:
   seentics-ch-v3:
   seentics-db-v3:
   seentics-minio-v3:

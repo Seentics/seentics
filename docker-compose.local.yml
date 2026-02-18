@@ -17,8 +17,8 @@ services:
       - REDIS_URL=redis://:${REDIS_PASSWORD:-seentics_redis_pass}@redis-local:6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:-seentics_redis_pass}
       - GLOBAL_API_KEY=${GLOBAL_API_KEY:-dev_key_123}
-      - KAFKA_BOOTSTRAP_SERVERS=kafka-local:9092
-      - KAFKA_TOPIC_EVENTS=analytics_events
+      - NATS_URL=nats://nats-local:4222
+      - NATS_SUBJECT_EVENTS=analytics.events
       - CLOUD_ENABLED=false
       - S3_ENDPOINT=http://minio-local:9000
       - AWS_ACCESS_KEY_ID=minioadmin
@@ -30,8 +30,8 @@ services:
         condition: service_healthy
       redis-local:
         condition: service_healthy
-      kafka-local:
-        condition: service_started
+      nats-local:
+        condition: service_healthy
     volumes:
       - ./backend/data:/app/data
     restart: unless-stopped
@@ -69,31 +69,23 @@ services:
       timeout: 5s
       retries: 5
 
-  # Kafka with KRaft (Combined Broker and Controller)
-  kafka-local:
-    image: apache/kafka:latest
-    container_name: kafka-local
+  # NATS (lightweight event streaming with JetStream)
+  nats-local:
+    image: nats:2.10-alpine
+    container_name: nats-local
+    command: --jetstream --store_dir /data --max_mem_store 64MB --max_file_store 1GB
     ports:
-      - "9092:9092"
-      - "29092:29092"
-    environment:
-      - KAFKA_NODE_ID=1
-      - KAFKA_PROCESS_ROLES=broker,controller
-      - KAFKA_METADATA_LOG_DIR=/var/lib/kafka/data/kr-metadata-logs
-      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:29092
-      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka-local:9092,EXTERNAL://localhost:29092
-      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-local:9093
-      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
-      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
-      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1
-      - KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=0
-      - CLUSTER_ID=local-seentics-cluster-id
+      - "4222:4222"
+      - "8222:8222"
     networks:
       - seentics-local-network
     volumes:
-      - kafka-local-data:/var/lib/kafka/data
+      - nats-local-data:/data
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   # MinIO for Local S3
   minio-local:
@@ -133,5 +125,5 @@ networks:
 
 volumes:
   postgres-local-data:
-  kafka-local-data:
+  nats-local-data:
   minio-local-data:
