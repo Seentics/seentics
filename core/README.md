@@ -1,290 +1,171 @@
-# Analytics Service
+# Seentics Core
 
-A high-performance analytics microservice built with Go, designed to handle real-time website analytics and user behavior analysis using PostgreSQL.
-
-## Features
-
-- **Real-time Analytics**: Track page views, user sessions, and custom events
-- **Performance Optimized**: Uses PostgreSQL with native partitioning for time-series data optimization
-- **Scalable Architecture**: Built with Go for high performance and low resource usage
-- **RESTful API**: Clean HTTP API for easy integration
-- **Health Monitoring**: Built-in health checks and monitoring endpoints
+The Go backend powering Seentics — handles analytics ingestion, heatmaps, session replays, funnels, automations, and the tracker configuration API.
 
 ## Architecture
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   API Gateway  │───▶│ Analytics API   │───▶│  PostgreSQL     │
-│                │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌─────────────────┐
-                       │   Redis Cache   │
-                       │                 │
-                       └─────────────────┘
+                 ┌──────────────┐
+                 │  Gin Router  │
+                 └──────┬───────┘
+                        │
+       ┌────────────────┼────────────────┐
+       │                │                │
+  ┌────┴────┐    ┌──────┴──────┐   ┌────┴────┐
+  │  Auth   │    │  Analytics  │   │ Tracker │
+  │ Module  │    │   Module    │   │ Config  │
+  └─────────┘    └─────────────┘   └─────────┘
+       │                │                │
+  ┌────┴────┐    ┌──────┴──────┐   ┌────┴────┐
+  │Heatmaps │    │  Funnels    │   │Replays  │
+  │ Module  │    │   Module    │   │ Module  │
+  └─────────┘    └─────────────┘   └─────────┘
+       │                │                │
+       └────────────────┼────────────────┘
+                        │
+    ┌───────────┬───────┼───────┬──────────┐
+    │           │       │       │          │
+ Postgres  ClickHouse  Redis   NATS     MinIO
+(metadata)  (events)  (cache) (stream) (replays)
 ```
 
-## Prerequisites
+Events flow in through the HTTP API, get published to NATS JetStream for async processing, batched, and stored in ClickHouse (with PostgreSQL fallback). Session replay chunks go to S3-compatible storage (MinIO locally).
 
-- Go 1.21+
-- Docker and Docker Compose
-- PostgreSQL 15+
+## Tech Stack
 
-## Quick Start with Docker
+| Component | Technology |
+|-----------|-----------|
+| Language | Go 1.24 |
+| Framework | Gin |
+| Analytics DB | ClickHouse |
+| Metadata DB | PostgreSQL 15 |
+| Streaming | NATS JetStream |
+| Cache | Redis 7 |
+| Object Storage | S3-compatible (MinIO) |
 
-1. **Clone the repository and navigate to the project root:**
-   ```bash
-   cd /path/to/seentics
-   ```
+## Project Structure
 
-2. **Copy the environment file:**
-   ```bash
-   cp env.example .env
-   ```
+```
+core/
+├── cmd/api/
+│   └── main.go              # Entry point, router setup
+├── internal/
+│   ├── modules/
+│   │   ├── analytics/       # Event tracking, dashboards, metrics
+│   │   ├── auth/            # Authentication (JWT, registration, login)
+│   │   ├── automations/     # Behavioral workflow engine
+│   │   ├── funnels/         # Multi-step conversion tracking
+│   │   ├── heatmaps/       # Click, scroll, and pointer tracking
+│   │   ├── replays/         # Session recording and playback
+│   │   └── websites/        # Site management, tracker config, goals
+│   └── shared/
+│       ├── config/          # Environment configuration
+│       ├── database/        # PostgreSQL + ClickHouse connections
+│       ├── middleware/      # Auth, CORS, rate limiting, request logging
+│       ├── migrations/      # Auto-run SQL migrations
+│       ├── nats/            # NATS JetStream producer/consumer
+│       ├── storage/         # S3-compatible object storage
+│       └── utils/           # Geolocation, helpers
+├── Dockerfile               # Production image
+├── Dockerfile.dev           # Dev image with Air hot reload
+└── go.mod
+```
 
-3. **Update the .env file with your configuration:**
-   ```bash
-   # Edit .env file with your database credentials and API keys
-   nano .env
-   ```
+Each module follows the same pattern: `handlers/` → `services/` → `repository/` → `models/`.
 
-4. **Start all services:**
-   ```bash
-   docker-compose up -d
-   ```
-
-5. **Check service status:**
-   ```bash
-   docker-compose ps
-   ```
-
-6. **View logs:**
-   ```bash
-   docker-compose logs -f analytics-service
-   ```
-
-## Manual Setup
-
-### 1. Install Dependencies
+## Quick Start
 
 ```bash
+# From the repo root
+cp core/.env.example core/.env
+docker compose up --build
+```
+
+The backend starts on `:3002`. Migrations run automatically on boot.
+
+## Running Standalone
+
+```bash
+cd core
 go mod download
+cp .env.example .env  # Edit with your DB credentials
+
+# Build and run
+go build -o server ./cmd/api/
+./server
 ```
 
-### 2. Configure Environment Variables
-
-Create a `.env` file in the service directory:
-
-```bash
-ENVIRONMENT=development
-PORT=3002
-DATABASE_URL=postgres://user:pass@localhost:5432/analytics?sslmode=disable
-LOG_LEVEL=info
-JWT_SECRET=your-secret-key
-BATCH_SIZE=1000
-BATCH_TIMEOUT=5s
-WORKER_COUNT=10
-RETENTION_DAYS=30
-MAX_DB_CONNECTIONS=100
-AGGREGATION_INTERVAL=24h
-AGGREGATION_TIME=00:00
-```
-
-### 3. Setup Database
-
-The service uses PostgreSQL. You can run it with Docker:
-
-```bash
-docker run -d --name postgres \
-  -e POSTGRES_USER=user \
-  -e POSTGRES_PASSWORD=pass \
-  -e POSTGRES_DB=analytics \
-  -p 5432:5432 \
-  postgres:15-alpine
-```
-
-### 4. Run Migrations
-
-The service will automatically run migrations on startup, or you can run them manually:
-
-```bash
-# Using the migrate CLI
-migrate -path migrations -database "postgres://user:pass@localhost:5432/analytics?sslmode=disable" up
-```
-
-### 5. Build and Run
-
-```bash
-# Build the service
-go build -o analytics-app .
-
-# Run the service
-./analytics-app
-```
-
-## API Endpoints
-
-### Health Check
-- `GET /health` - Service health status
-
-### Analytics
-- `POST /api/v1/analytics/event` - Track single event
-- `POST /api/v1/analytics/event/batch` - Track batch events
-- `GET /api/v1/analytics/dashboard/:website_id` - Get dashboard metrics
-- `GET /api/v1/analytics/realtime/:website_id` - Get real-time data
-- `GET /api/v1/analytics/top-pages/:website_id` - Get top pages
-- `GET /api/v1/analytics/top-referrers/:website_id` - Get top referrers
-- `GET /api/v1/analytics/top-countries/:website_id` - Get top countries
-- `GET /api/v1/analytics/top-browsers/:website_id` - Get top browsers
-- `GET /api/v1/analytics/top-devices/:website_id` - Get top devices
-- `GET /api/v1/analytics/top-os/:website_id` - Get top operating systems
-- `GET /api/v1/analytics/traffic-summary/:website_id` - Get traffic summary
-- `GET /api/v1/analytics/daily-stats/:website_id` - Get daily statistics
-- `GET /api/v1/analytics/hourly-stats/:website_id` - Get hourly statistics
-- `GET /api/v1/analytics/custom-events/:website_id` - Get custom events
+Prerequisites: PostgreSQL 15+, Redis 7+, NATS 2.10+, ClickHouse (optional, falls back to Postgres).
 
 ## Configuration
 
-### Environment Variables
-
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ENVIRONMENT` | `development` | Environment (development/production) |
-| `PORT` | `3002` | Service port |
-| `DATABASE_URL` | `postgres://...` | PostgreSQL connection string |
-| `LOG_LEVEL` | `info` | Logging level |
-| `JWT_SECRET` | `your-secret-key` | JWT signing secret |
-| `BATCH_SIZE` | `1000` | Event batch size for processing |
-| `BATCH_TIMEOUT` | `5s` | Batch timeout |
-| `WORKER_COUNT` | `10` | Number of worker goroutines |
-| `RETENTION_DAYS` | `30` | Data retention period |
-| `MAX_DB_CONNECTIONS` | `100` | Maximum database connections |
-| `AGGREGATION_INTERVAL` | `24h` | Aggregation interval |
-| `AGGREGATION_TIME` | `00:00` | Aggregation time |
+| `PORT` | `3002` | Server port |
+| `DATABASE_URL` | — | PostgreSQL connection string |
+| `REDIS_URL` | — | Redis connection string |
+| `NATS_URL` | `nats://localhost:4222` | NATS server |
+| `NATS_SUBJECT_EVENTS` | `analytics.events` | NATS subject for events |
+| `JWT_SECRET` | — | JWT signing secret |
+| `CLICKHOUSE_HOST` | `localhost` | ClickHouse host |
+| `CLICKHOUSE_PORT` | `9000` | ClickHouse native port |
+| `CLICKHOUSE_DB` | `seentics` | ClickHouse database name |
+| `S3_ENDPOINT` | `http://minio:9000` | S3-compatible endpoint |
+| `S3_BUCKET_REPLAYS` | `seentics-replays` | Bucket for replay chunks |
+| `CLOUD_ENABLED` | `false` | Accept gateway headers for enterprise mode |
+| `IS_ENTERPRISE` | `false` | Enable enterprise features |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | Allowed CORS origins |
+| `LOG_LEVEL` | `info` | Log level (debug, info, warn, error) |
 
-### Database Configuration
+## API Endpoints
 
-The service is optimized for PostgreSQL with the following features:
+### Public (no auth)
 
-- **Partitioning**: Automatic partitioning by time for better performance
-- **Indexing**: Optimized indexes for time-series queries
-- **Retention**: Automatic data cleanup after 90 days
-- **Continuous Aggregates**: Pre-computed hourly and daily statistics
-- **Connection Pooling**: Optimized connection management
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/v1/analytics/event` | Track single event |
+| `POST` | `/api/v1/analytics/batch` | Track batch events |
+| `POST` | `/api/v1/heatmaps/record` | Record heatmap data |
+| `POST` | `/api/v1/replays/record` | Record replay chunk |
+| `POST` | `/api/v1/funnels/track` | Track funnel event |
+| `GET` | `/api/v1/tracker/config/:site_id` | Get tracker config |
+| `GET` | `/health` | Health check |
+
+### Protected (JWT required)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/analytics/dashboard/:website_id` | Dashboard metrics |
+| `GET` | `/api/v1/analytics/live-visitors/:website_id` | Real-time visitors |
+| `GET` | `/api/v1/analytics/top-pages/:website_id` | Top pages |
+| `GET` | `/api/v1/analytics/top-referrers/:website_id` | Top referrers |
+| `GET` | `/api/v1/analytics/top-countries/:website_id` | Geo breakdown |
+| `CRUD` | `/api/v1/user/websites` | Manage websites |
+| `CRUD` | `/api/v1/websites/:id/automations` | Manage automations |
+| `CRUD` | `/api/v1/websites/:id/funnels` | Manage funnels |
+| `GET` | `/api/v1/heatmaps/data` | Heatmap data |
+| `GET` | `/api/v1/replays/sessions` | Session list |
+| `GET` | `/api/v1/replays/data/:session_id` | Replay playback |
+
+### Auth Modes
+
+**OSS mode** (`CLOUD_ENABLED=false`): Validates JWT Bearer tokens directly.
+
+**Enterprise mode** (`CLOUD_ENABLED=true`): Accepts `X-API-Key` header from the enterprise gateway and reads user context from gateway-injected headers (`X-User-ID`, `X-User-Email`, `X-User-Plan`, `X-User-Role`).
 
 ## Development
 
-### Project Structure
-
-```
-services/analytics/
-├── config/          # Configuration management
-├── database/        # Database connection and migrations
-├── handlers/        # HTTP request handlers
-├── middleware/      # HTTP middleware
-├── migrations/      # Database migrations
-├── models/          # Data models
-├── repository/      # Data access layer
-├── services/        # Business logic
-├── tests/           # Test files
-├── utils/           # Utility functions
-├── Dockerfile       # Docker configuration
-├── go.mod           # Go module file
-├── go.sum           # Go module checksums
-├── main.go          # Application entry point
-└── README.md        # This file
-```
-
-### Running Tests
-
 ```bash
-# Run all tests
+# Run tests
 go test ./...
 
-# Run tests with coverage
-go test -cover ./...
+# Build
+go build ./cmd/api/
 
-# Run specific test
-go test ./handlers -v
-```
-
-### Code Quality
-
-```bash
-# Format code
-go fmt ./...
-
-# Run linter
+# Lint
 golangci-lint run
-
-# Check for security issues
-gosec ./...
 ```
-
-## Monitoring and Health Checks
-
-The service includes built-in health monitoring:
-
-- **Health Endpoint**: `GET /health` returns service status
-- **Database Connectivity**: Checks PostgreSQL connection
-- **Docker Health Check**: Container-level health monitoring
-- **Structured Logging**: JSON-formatted logs with correlation IDs
-
-## Performance Tuning
-
-### Database Optimization
-
-- Connection pooling with configurable limits
-- Prepared statements for repeated queries
-- Indexes on frequently queried columns
-- PostgreSQL partitioning and indexing optimizations
-
-### Application Optimization
-
-- Efficient JSON handling with `json.RawMessage`
-- Goroutine pools for concurrent processing
-- Batch processing for high-volume events
-- Memory-efficient data structures
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Database Connection Failed**
-   - Check PostgreSQL is running
-   - Verify connection string in environment
-   - Ensure network connectivity
-
-2. **Migration Errors**
-   - Check PostgreSQL is accessible
-   - Verify database user permissions
-   - Check migration file syntax
-
-3. **Performance Issues**
-   - Monitor database connection pool usage
-   - Check PostgreSQL partition performance
-   - Review query performance with `EXPLAIN ANALYZE`
-
-### Logs
-
-```bash
-# View service logs
-docker-compose logs -f analytics-service
-
-# View database logs
-docker-compose logs -f postgres
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests for new functionality
-5. Ensure all tests pass
-6. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](../LICENSE) file for details.
+AGPL v3.0 — See [LICENSE](../LICENSE) for details.

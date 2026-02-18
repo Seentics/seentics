@@ -169,6 +169,7 @@ func main() {
 	privacyHandler := handlers.NewPrivacyHandler(privacyService, logger)
 	healthHandler := handlers.NewHealthHandler(db, logger)
 	adminHandler := handlers.NewAdminHandler(eventRepo, logger)
+	internalHandler := handlers.NewInternalHandler(db, logger)
 
 	// Funnels
 	funnelRepo := funnelRepoPkg.NewFunnelRepository(db)
@@ -196,7 +197,7 @@ func main() {
 	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, authHandler, websiteHandler, heatmapHandler, replayHandler, logger)
+	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, authHandler, websiteHandler, heatmapHandler, replayHandler, internalHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -239,7 +240,7 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, internalHandler *handlers.InternalHandler, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -283,7 +284,8 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			path == "/api/v1/heatmaps/record" ||
 			path == "/api/v1/replays/record" ||
 			strings.HasPrefix(path, "/api/v1/tracker/config/") ||
-			strings.HasPrefix(path, "/api/v1/workflows/site/") {
+			strings.HasPrefix(path, "/api/v1/workflows/site/") ||
+			strings.HasPrefix(path, "/api/v1/internal/") {
 			c.Next()
 			return
 		}
@@ -339,6 +341,20 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		admin := v1.Group("/admin", middleware.RoleMiddleware("admin"))
 		{
 			admin.GET("/analytics/stats", adminHandler.GetAnalyticsStats)
+		}
+
+		// Internal endpoints for enterprise gateway (API key protected)
+		internal := v1.Group("/internal", func(c *gin.Context) {
+			expectedKey := os.Getenv("GLOBAL_API_KEY")
+			if expectedKey == "" || c.GetHeader("X-API-Key") != expectedKey {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
+				c.Abort()
+				return
+			}
+			c.Next()
+		})
+		{
+			internal.GET("/user-resource-counts", internalHandler.GetUserResourceCounts)
 		}
 
 		automations := v1.Group("/websites/:website_id/automations")
