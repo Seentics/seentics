@@ -18,6 +18,7 @@ type HeatmapRepository interface {
 	HeatmapExistsForURL(ctx context.Context, websiteID string, url string) (bool, error)
 	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
 	DeleteHeatmapPage(ctx context.Context, websiteID string, url string) error
+	BulkDeleteHeatmapPages(ctx context.Context, websiteID string, urls []string) error
 }
 
 type heatmapRepository struct {
@@ -48,7 +49,8 @@ func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string,
 		if deviceType == "" {
 			deviceType = "desktop"
 		}
-		batch.Queue(query, websiteID, p.URL, p.Type, deviceType, int16(math.Round(p.XPercent)), int16(math.Round(p.YPercent)), p.Selector)
+		// Scale floats by 100 to store as High-Precision INTEGER (0.001% resolution instead of 0.1%)
+		batch.Queue(query, websiteID, p.URL, p.Type, deviceType, int32(math.Round(p.XPercent*100)), int32(math.Round(p.YPercent*100)), p.Selector)
 	}
 
 	br := r.db.SendBatch(ctx, batch)
@@ -81,9 +83,12 @@ func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string
 	var points []models.HeatmapPoint
 	for rows.Next() {
 		var p models.HeatmapPoint
-		if err := rows.Scan(&p.XPercent, &p.YPercent, &p.Intensity, &p.Selector); err != nil {
+		var xInt, yInt int32
+		if err := rows.Scan(&xInt, &yInt, &p.Intensity, &p.Selector); err != nil {
 			return nil, err
 		}
+		p.XPercent = float64(xInt) / 100.0
+		p.YPercent = float64(yInt) / 100.0
 		points = append(points, p)
 	}
 
@@ -160,5 +165,14 @@ func (r *heatmapRepository) GetTrackedURLs(ctx context.Context, websiteID string
 func (r *heatmapRepository) DeleteHeatmapPage(ctx context.Context, websiteID string, url string) error {
 	query := `DELETE FROM heatmap_points WHERE website_id::text = $1 AND page_path = $2`
 	_, err := r.db.Exec(ctx, query, websiteID, url)
+	return err
+}
+
+func (r *heatmapRepository) BulkDeleteHeatmapPages(ctx context.Context, websiteID string, urls []string) error {
+	if len(urls) == 0 {
+		return nil
+	}
+	query := `DELETE FROM heatmap_points WHERE website_id::text = $1 AND page_path = ANY($2)`
+	_, err := r.db.Exec(ctx, query, websiteID, urls)
 	return err
 }

@@ -7,9 +7,9 @@ import (
 	"analytics-app/internal/modules/analytics/services"
 	"analytics-app/internal/shared/config"
 	"analytics-app/internal/shared/database"
-	natsService "analytics-app/internal/shared/nats"
 	"analytics-app/internal/shared/middleware"
 	"analytics-app/internal/shared/migrations"
+	natsService "analytics-app/internal/shared/nats"
 	"analytics-app/internal/shared/storage"
 	"context"
 	"fmt"
@@ -172,7 +172,7 @@ func main() {
 	internalHandler := handlers.NewInternalHandler(db, logger)
 
 	// Funnels
-	funnelRepo := funnelRepoPkg.NewFunnelRepository(db)
+	funnelRepo := funnelRepoPkg.NewFunnelRepository(db, chConn)
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 	// Heatmaps (Service)
@@ -438,6 +438,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			heatmaps.GET("/data", heatmapHandler.GetHeatmapData)
 			heatmaps.GET("/pages", heatmapHandler.GetHeatmapPages)
 			heatmaps.DELETE("/pages", heatmapHandler.DeleteHeatmapPage)
+			heatmaps.DELETE("/bulk-delete", heatmapHandler.BulkDeleteHeatmapPages)
 		}
 
 		replays := v1.Group("/replays")
@@ -447,6 +448,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			replays.GET("/snapshot", replayHandler.GetPageSnapshot)
 			replays.GET("/data/:session_id", replayHandler.GetReplay)
 			replays.DELETE("/sessions/:session_id", replayHandler.DeleteReplay)
+			replays.DELETE("/bulk-delete", replayHandler.BulkDeleteReplays)
 		}
 	}
 

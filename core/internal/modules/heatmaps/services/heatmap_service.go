@@ -17,6 +17,7 @@ type HeatmapService interface {
 	GetHeatmapPages(ctx context.Context, websiteID string, userID string) ([]models.HeatmapPageStat, error)
 	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
 	DeleteHeatmapPage(ctx context.Context, websiteID string, url string, userID string) error
+	BulkDeleteHeatmapPages(ctx context.Context, websiteID string, urls []string, userID string) error
 }
 
 func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, origin string) error {
@@ -106,4 +107,12 @@ func (s *heatmapService) DeleteHeatmapPage(ctx context.Context, websiteID string
 		return err
 	}
 	return s.repo.DeleteHeatmapPage(ctx, canonicalID, url)
+}
+
+func (s *heatmapService) BulkDeleteHeatmapPages(ctx context.Context, websiteID string, urls []string, userID string) error {
+	canonicalID, _, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return err
+	}
+	return s.repo.BulkDeleteHeatmapPages(ctx, canonicalID, urls)
 }

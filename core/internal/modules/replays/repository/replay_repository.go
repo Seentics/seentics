@@ -14,6 +14,7 @@ type ReplayRepository interface {
 	GetChunks(ctx context.Context, websiteID, sessionID string) ([]models.SessionReplayChunk, error)
 	ListSessionsWithMetadata(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error)
 	DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) ([]string, error)
+	BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string) ([]string, error)
 	GetPageSnapshot(ctx context.Context, websiteID, siteID, url string) (json.RawMessage, error)
 	FindSessionIDForPage(ctx context.Context, websiteID, url string) (string, error)
 }
@@ -176,4 +177,37 @@ func (r *replayRepository) FindSessionIDForPage(ctx context.Context, websiteID, 
 		return "", err
 	}
 	return sessionID, nil
+}
+func (r *replayRepository) BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string) ([]string, error) {
+	if len(sessionIDs) == 0 {
+		return nil, nil
+	}
+
+	// 1. Get all sequence numbers for these sessions to build S3 keys
+	query := `SELECT session_id, sequence FROM session_replays WHERE website_id = $1 AND session_id = ANY($2)`
+	rows, err := r.db.Query(ctx, query, websiteID, sessionIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var keys []string
+	for rows.Next() {
+		var sID string
+		var seq int
+		if err := rows.Scan(&sID, &seq); err != nil {
+			return nil, err
+		}
+		// Build Both Gzip and Non-Gzip keys just to be safe
+		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sID, seq))
+		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sID, seq))
+	}
+
+	// 2. Delete from DB
+	deleteQuery := `DELETE FROM session_replays WHERE website_id = $1 AND session_id = ANY($2)`
+	if _, err := r.db.Exec(ctx, deleteQuery, websiteID, sessionIDs); err != nil {
+		return nil, err
+	}
+
+	return keys, nil
 }

@@ -139,3 +139,27 @@ func (h *HeatmapHandler) DeleteHeatmapPage(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
+
+func (h *HeatmapHandler) BulkDeleteHeatmapPages(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req models.BulkDeleteHeatmapRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.logger.Debug().Str("website_id", req.WebsiteID).Int("urls", len(req.URLs)).Msg("Bulk deleting heatmap pages")
+
+	if err := h.service.BulkDeleteHeatmapPages(c.Request.Context(), req.WebsiteID, req.URLs, userID); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to bulk delete heatmap pages")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to bulk delete heatmap pages"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}

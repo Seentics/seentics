@@ -19,8 +19,11 @@ import {
   SortDesc,
   TrendingUp,
   Globe,
-  Eye
+  Eye,
+  CheckSquare,
+  Square
 } from 'lucide-react';
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +87,8 @@ export default function HeatmapsPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
   const isDemo = websiteId === 'demo';
   const isFreePlan = subscription?.plan === 'free';
@@ -113,10 +118,55 @@ export default function HeatmapsPage() {
     try {
       await api.delete(`/heatmaps/pages?website_id=${websiteId}&url=${encodeURIComponent(url)}`);
       setPages(pages.filter(p => p.url !== url));
+      setSelectedUrls(prev => prev.filter(u => u !== url));
     } catch (err) {
       console.error('Failed to delete heatmap page:', err);
       alert('Failed to delete heatmap page data. Please try again.');
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUrls.length === 0) return;
+    if (isDemo) {
+      setPages(pages.filter(p => !selectedUrls.includes(p.url)));
+      setSelectedUrls([]);
+      return;
+    }
+
+    if (!window.confirm(`Delete heatmap data for ${selectedUrls.length} selected pages?`)) return;
+
+    setIsDeletingBulk(true);
+    try {
+      await api.delete('/heatmaps/bulk-delete', {
+        data: {
+          website_id: websiteId,
+          urls: selectedUrls
+        }
+      });
+      setPages(pages.filter(p => !selectedUrls.includes(p.url)));
+      setSelectedUrls([]);
+    } catch (err) {
+      console.error('Failed to bulk delete heatmap pages:', err);
+      alert('Failed to delete selected pages. Please try again.');
+    } finally {
+      setIsDeletingBulk(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUrls.length === currentItems.length) {
+      setSelectedUrls([]);
+    } else {
+      setSelectedUrls(currentItems.map(p => p.url));
+    }
+  };
+
+  const toggleSelectUrl = (url: string) => {
+    setSelectedUrls(prev =>
+      prev.includes(url)
+        ? prev.filter(u => u !== url)
+        : [...prev, url]
+    );
   };
 
   const filteredAndSorted = useMemo(() => {
@@ -257,6 +307,18 @@ export default function HeatmapsPage() {
                   <SelectItem value="50">50 rows</SelectItem>
                 </SelectContent>
               </Select>
+              {selectedUrls.length > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="h-8 gap-2 px-3 text-xs font-medium animate-in zoom-in-95 duration-200"
+                  onClick={handleBulkDelete}
+                  disabled={isDeletingBulk}
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Delete Selected ({selectedUrls.length})
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -293,7 +355,14 @@ export default function HeatmapsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent border-border/40 bg-muted/20">
-                      <TableHead className="px-5 py-3 text-xs font-medium text-muted-foreground">Page</TableHead>
+                      <TableHead className="w-[40px] px-4 py-3">
+                        <Checkbox
+                          checked={currentItems.length > 0 && selectedUrls.length === currentItems.length}
+                          onCheckedChange={toggleSelectAll}
+                          aria-label="Select all"
+                        />
+                      </TableHead>
+                      <TableHead className="px-5 py-3 text-xs font-medium text-muted-foreground text-left">Page</TableHead>
                       <TableHead
                         className="py-3 text-xs font-medium text-muted-foreground text-center cursor-pointer select-none hover:text-foreground transition-colors"
                         onClick={() => handleSortChange('views')}
@@ -324,7 +393,14 @@ export default function HeatmapsPage() {
                   </TableHeader>
                   <TableBody>
                     {currentItems.map((page) => (
-                      <TableRow key={page.url} className="group hover:bg-muted/30 transition-colors border-border/30">
+                      <TableRow key={page.url} className={cn("group hover:bg-muted/30 transition-colors border-border/30", selectedUrls.includes(page.url) && "bg-muted/40")}>
+                        <TableCell className="px-4 py-3.5">
+                          <Checkbox
+                            checked={selectedUrls.includes(page.url)}
+                            onCheckedChange={() => toggleSelectUrl(page.url)}
+                            aria-label={`Select ${page.url}`}
+                          />
+                        </TableCell>
                         <TableCell className="px-5 py-3.5">
                           <Link
                             href={`/websites/${websiteId}/heatmaps/view?url=${encodeURIComponent(page.url)}`}
@@ -376,7 +452,7 @@ export default function HeatmapsPage() {
                           </div>
                         </TableCell>
                         <TableCell className="px-5 py-3.5 text-right">
-                          <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center justify-end gap-1.5  transition-opacity">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>

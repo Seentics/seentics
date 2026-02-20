@@ -72,15 +72,19 @@
      */
     const getDimensions = () => {
       const doc = d.documentElement;
-      const body = d.body;
+      const body = d.body || { scrollHeight: 0, offsetHeight: 0, clientWidth: 0 };
+      const bodyRect = body.getBoundingClientRect ? body.getBoundingClientRect() : { width: doc.clientWidth, left: 0 };
       
       return {
-        // Horizontal: ABSOLUTE viewport-relative basis (clientWidth excludes scrollbars)
-        width: doc.clientWidth || (body ? body.clientWidth : 0) || w.innerWidth,
+        // Horizontal: USE BODY WIDTH as stable layout basis. 
+        // If body is centered (margin: auto), this is the actual content width.
+        width: bodyRect.width || doc.clientWidth || w.innerWidth,
+        // Absolute left offset of body in the document
+        left: bodyRect.left + (w.pageXOffset || doc.scrollLeft),
         // Vertical: Document-relative basis
         height: Math.max(
-          body ? body.scrollHeight : 0, doc.scrollHeight,
-          body ? body.offsetHeight : 0, doc.offsetHeight,
+          body.scrollHeight || 0, doc.scrollHeight,
+          body.offsetHeight || 0, doc.offsetHeight,
           doc.clientHeight
         )
       };
@@ -90,16 +94,42 @@
       const dims = getDimensions();
       const basisWidth = dims.width || 1;
       const basisHeight = dims.height || 1;
+      const deviceType = getDeviceType();
 
-      // X: Percentage of the layout viewport
-      let x = (e.pageX / basisWidth) * 1000;
+      let x = 0;
+      
+      if (deviceType === 'desktop' || deviceType === 'tablet') {
+        // Industry standard heatmap logic for fixed/centered layouts:
+        // Calculate the physical pixel offset from the center of the user's screen.
+        const targetWidth = deviceType === 'desktop' ? 1200 : 768;
+        const currentCenter = dims.left + (basisWidth / 2);
+        const distanceFromCenter = e.pageX - currentCenter;
+        
+        // Map that exact offset to the center of the simulated dashboard iframe viewport
+        const projectedX = (targetWidth / 2) + distanceFromCenter;
+        
+        // Convert to the 0-1000 scale expected by the backend
+        x = (projectedX / targetWidth) * 1000;
+      } else {
+        // Mobile is predominantly fluid (100% width), so raw percentage works best
+        x = ((e.pageX - dims.left) / basisWidth) * 1000;
+      }
+
       // Y: Percentage of the full document height
       let y = (e.pageY / basisHeight) * 1000;
 
       return {
-        x: Math.min(1000, Math.max(0, x)),
+        // Allow x to exceed 0-1000 range if users click wide margins on large monitors
+        x: x,
+        // Keep Y clamped conceptually
         y: Math.min(1000, Math.max(0, y))
       };
+    };
+
+    const normalizePath = (path) => {
+      if (!path) return '/';
+      // Remove trailing slash except for root
+      return path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
     };
 
     /**
@@ -147,7 +177,7 @@
         x: x,
         y: y,
         selector: selector,
-        url: w.location.pathname,
+        url: normalizePath(w.location.pathname),
         device_type: getDeviceType(),
         timestamp: Math.floor(Date.now() / 1000)
       });
@@ -218,7 +248,9 @@
         event.source.postMessage({
           type: 'SEENTICS_DIMENSIONS',
           height: scrollHeight,
-          width: scrollWidth,
+          width: dims.width, // The content width
+          left: dims.left - (w.pageXOffset || d.documentElement.scrollLeft), // Viewport-relative left
+          totalWidth: dims.width,
           url: w.location.href
         }, '*');
       }
@@ -302,13 +334,14 @@
       const originalPushState = history.pushState;
       const originalReplaceState = history.replaceState;
       const handleNavigation = () => {
-        if (w.location.href !== heatmapState.lastUrl) {
+        const currentPath = normalizePath(w.location.pathname);
+        if (currentPath !== normalizePath(new URL(heatmapState.lastUrl).pathname)) {
           flushBuffer(); // flush previous page's data first
           heatmapState.lastUrl = w.location.href;
 
           // Re-check limit for the new page
           if (maxHeatmaps > 0) {
-            const newPath = w.location.pathname;
+            const newPath = normalizePath(w.location.pathname);
             const newIsTracked = trackedUrls.includes(newPath);
             heatmapState.enabled = newIsTracked || trackedUrls.length < maxHeatmaps;
             if (!heatmapState.enabled && config.debug) {
@@ -318,7 +351,7 @@
 
           // Record a pageview for the new page if tracking is enabled
           if (heatmapState.enabled) {
-            const newPath = w.location.pathname;
+            const newPath = normalizePath(w.location.pathname);
             // Keep trackedUrls up-to-date in memory so the next navigation
             // limit check sees the correct count (the remote config snapshot is stale).
             if (!trackedUrls.includes(newPath)) {

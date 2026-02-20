@@ -99,28 +99,37 @@ func (e *ExecutionEngine) shouldExecute(ctx context.Context, automation *models.
 
 	switch frequency {
 	case "once_per_session":
-		// Check if already executed in this session
 		if execution.SessionID == nil {
 			return true
 		}
-		// TODO: Query database to check if executed in this session
-		return true
+		executed, err := e.service.HasExecutedInSession(ctx, automation.ID, *execution.SessionID)
+		if err != nil {
+			e.logger.Error().Err(err).Msg("Failed to check once_per_session execution")
+			return false // Fail safe
+		}
+		return !executed
 
 	case "once_per_visitor":
-		// Check if already executed for this visitor
 		if execution.VisitorID == nil {
 			return true
 		}
-		// TODO: Query database to check if executed for this visitor
-		return true
+		executed, err := e.service.HasExecutedForVisitor(ctx, automation.ID, *execution.VisitorID)
+		if err != nil {
+			e.logger.Error().Err(err).Msg("Failed to check once_per_visitor execution")
+			return false
+		}
+		return !executed
 
 	case "once_per_day":
-		// Check if already executed today for this visitor
 		if execution.VisitorID == nil {
 			return true
 		}
-		// TODO: Query database to check if executed today
-		return true
+		executed, err := e.service.HasExecutedToday(ctx, automation.ID, *execution.VisitorID)
+		if err != nil {
+			e.logger.Error().Err(err).Msg("Failed to check once_per_day execution")
+			return false
+		}
+		return !executed
 
 	case "always":
 		return true

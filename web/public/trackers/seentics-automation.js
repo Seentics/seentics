@@ -64,22 +64,31 @@
 
     // 2. Check Advanced Conditions (Device, Language, Scroll, etc.)
     for (const condition of conditions) {
-      const { type, operator, value } = condition;
+      const type = (condition.conditionType || condition.type || '').toLowerCase();
+      const config = condition.conditionConfig || condition.config || {};
+      const operator = condition.operator || config.operator || 'eq';
+      let expectedValue = condition.value || config.value;
+      
       let actualValue;
 
       switch (type) {
         case 'device':
           actualValue = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ? 'mobile' : 'desktop';
+          // Use device_type from config if value is not set
+          if (!expectedValue) expectedValue = config.device_type;
           break;
         case 'visitor':
           actualValue = S.state.sessionStart === S.state.lastActivity ? 'new' : 'returning';
+          // Use visitor_status from config if value is not set
+          if (!expectedValue) expectedValue = config.visitor_status;
           break;
         case 'language':
           actualValue = navigator.language.substring(0, 2).toLowerCase();
           break;
         case 'url_param':
           const urlParams = new URLSearchParams(window.location.search);
-          actualValue = urlParams.get(condition.param);
+          const paramName = condition.param || config.param || config.param_name;
+          actualValue = urlParams.get(paramName);
           break;
         case 'referrer':
           actualValue = d.referrer;
@@ -95,10 +104,13 @@
             actualValue = 'organic';
           } else if (ref.includes('facebook') || ref.includes('twitter') || ref.includes('linkedin')) {
             actualValue = 'social';
-          } else if (urlParams && (urlParams.get('utm_medium') === 'cpc' || urlParams.get('gclid'))) {
-            actualValue = 'paid';
           } else {
-            actualValue = 'referral';
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('utm_medium') === 'cpc' || urlParams.get('gclid')) {
+              actualValue = 'paid';
+            } else {
+              actualValue = 'referral';
+            }
           }
           break;
         case 'cookie':
@@ -110,13 +122,14 @@
             }
             return null;
           };
-          actualValue = getCookie(condition.cookie_name);
+          const cookieName = condition.cookie_name || config.cookie_name;
+          actualValue = getCookie(cookieName);
           if (operator === 'exists') return actualValue !== null;
           if (operator === 'not_exists') return actualValue === null;
           break;
       }
 
-      if (!evaluateCondition(actualValue, operator, value)) return false;
+      if (!evaluateCondition(actualValue, operator, expectedValue)) return false;
     }
 
     return true;
@@ -205,12 +218,13 @@
 
     // Track execution server-side (buffered)
     automation.buffer.push({
-      automation_id: auto.id,
-      website_id: S.config.websiteId,
-      visitor_id: S.state.visitorId,
-      session_id: S.state.sessionId,
+      automationId: auto.id,
+      websiteId: S.config.websiteId,
+      visitorId: S.state.visitorId,
+      sessionId: S.state.sessionId,
       status: 'success',
-      trigger_data: triggerData
+      executionData: triggerData,
+      executedAt: new Date().toISOString()
     });
   };
 
@@ -223,16 +237,14 @@
       automation.buffer = [];
 
       try {
-          // Use the generic api.send but pointing to the batch endpoint
-          // Note: S.api.send typically wraps fetch. 
-          // If S.api.post exists we could use that. assuming S.api.send is a wrapper for POST
           await S.api.send('workflows/execution/batch', {
               website_id: S.config.websiteId,
               executions: batch
           });
       } catch (e) {
           if (S.config.debug) console.error('[Seentics Automation] Failed to send batch', e);
-          // Restore failed items? Simplified for now: drop on error to avoid infinite loops
+          // Add back to buffer for next flush attempt
+          automation.buffer.unshift(...batch);
       }
   }, 30000); // 30 seconds
 
@@ -541,8 +553,8 @@
     const modal = d.createElement('div');
     modal.className = 'seentics-modal-root';
 
-    const primaryAction = config.primaryAction || 'close';
-    const secondaryAction = config.secondaryAction || 'close';
+    const primaryAction = config.primaryAction || (config.primaryUrl ? 'primary' : 'close');
+    const secondaryAction = config.secondaryAction || (config.secondaryUrl ? 'secondary' : 'close');
 
     const html = config.customHtml || `
       <div class="seentics-modal-overlay">
@@ -607,7 +619,7 @@
     d.body.appendChild(modal);
 
     const handleAction = (action, url) => {
-      if (action === 'redirect' && url) {
+      if ((action === 'redirect' || action === 'primary' || action === 'secondary') && url) {
         window.location.href = url;
       }
       modal.remove();

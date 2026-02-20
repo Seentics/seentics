@@ -45,3 +45,8 @@ type RecordReplayRequest struct {
 	Sequence  int               `json:"sequence"`
 	Page      string            `json:"page"` // Current page path — stored as entry_page for sequence=0
 }
+
+type BulkDeleteReplaysRequest struct {
+	WebsiteID  string   `json:"website_id" binding:"required"`
+	SessionIDs []string `json:"session_ids" binding:"required"`
+}

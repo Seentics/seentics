@@ -229,6 +229,26 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
       }
     }
 
+    // Fallback for LinearBuilder: if no actions/conditions were reached via edges,
+    // collect all them from the nodes array in their visual order.
+    if (actions.length === 0 && conditions.length === 0) {
+      nodes.forEach(n => {
+        if (n.id === triggerNode.id || visited.has(n.id)) return;
+
+        if (n.type === 'actionNode') {
+          actions.push({
+            actionType: n.data.config?.actionType || 'modal',
+            actionConfig: n.data.config || {},
+          });
+        } else if (n.type === 'conditionNode' || n.type === 'advancedConditionNode') {
+          conditions.push({
+            conditionType: n.data.config?.conditionType || 'if',
+            conditionConfig: n.data.config || {},
+          });
+        }
+      });
+    }
+
     // 3. Store graph metadata in triggerConfig for persistence
     const triggerConfig = {
       ...(triggerNode.data.config || {}),
@@ -252,12 +272,12 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
   saveAutomation: async (websiteId, automationId) => {
     try {
       const workflow = get().getLinearizedWorkflow();
-      
+
       // Validate: at least one action is required
       if (!workflow.actions || workflow.actions.length === 0) {
         throw new Error('At least one action is required to save the automation. Please add an action from the sidebar.');
       }
-      
+
       const url = automationId
         ? `/websites/${websiteId}/automations/${automationId}`
         : `/websites/${websiteId}/automations`;
@@ -322,19 +342,19 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
   testAutomation: async (testData) => {
     try {
       const { automation, nodes } = get();
-      
+
       // Validate workflow structure
       const triggerNodes = nodes.filter(n => n.type === 'triggerNode');
       const conditionNodes = nodes.filter(n => n.type === 'conditionNode');
       const actionNodes = nodes.filter(n => n.type === 'actionNode');
-      
+
       if (triggerNodes.length === 0) {
         throw new Error('No trigger node found');
       }
       if (actionNodes.length === 0) {
         throw new Error('No action nodes found');
       }
-      
+
       // Prepare test payload
       const testPayload = {
         automation: {
@@ -360,7 +380,7 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
           timestamp: new Date().toISOString()
         }
       };
-      
+
       // Make API call to test endpoint
       const response = await fetch(`/api/automations/test`, {
         method: 'POST',
@@ -370,11 +390,11 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
         credentials: 'include',
         body: JSON.stringify(testPayload)
       });
-      
+
       if (!response.ok) {
         throw new Error('Test execution failed');
       }
-      
+
       const result = await response.json();
       return result;
     } catch (error) {

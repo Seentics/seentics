@@ -420,6 +420,23 @@
     }
   };
 
+  // Shared track() shim — usable by any module before/without seentics-analytics.js
+  const track = (eventName, properties = {}) => {
+    // Prefer the full analytics tracker if loaded
+    if (w.seentics && w.seentics.analytics && w.seentics.analytics.track) {
+      w.seentics.analytics.track(eventName, properties);
+    } else {
+      // Fallback: queue the event directly through core
+      queue.add({
+        event_type: eventName,
+        page_url: w.location.href,
+        page: w.location.pathname,
+        properties
+      });
+    }
+    eventEmitter.emit('analytics:event', { eventName, properties });
+  };
+
   // Public API
   w.SEENTICS_CORE = {
     version: '2.0',
@@ -432,6 +449,7 @@
     queue,
     page,
     integrity,
+    track,
     on: eventEmitter.on,
     emit: eventEmitter.emit,
     off: eventEmitter.off,

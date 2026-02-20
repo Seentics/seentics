@@ -59,3 +59,8 @@ type HeatmapPageStat struct {
 type HeatmapPagesResponse struct {
 	Pages []HeatmapPageStat `json:"pages"`
 }
+
+type BulkDeleteHeatmapRequest struct {
+	WebsiteID string   `json:"website_id" binding:"required"`
+	URLs      []string `json:"urls" binding:"required"`
+}

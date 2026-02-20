@@ -22,6 +22,7 @@ import {
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 import ReplayPlayer from './ReplayPlayer';
 import api from '@/lib/api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
@@ -71,6 +72,8 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
   const [error, setError] = useState<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
+  const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -185,11 +188,49 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
       setDeleting(sessionId);
       await api.delete(`/replays/sessions/${sessionId}?website_id=${websiteId}`);
       setSessions(sessions.filter(s => s.session_id !== sessionId));
+      setSelectedSessionIds(prev => prev.filter(id => id !== sessionId));
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Failed to delete recording');
     } finally {
       setDeleting(null);
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedSessionIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedSessionIds.length} recordings?`)) return;
+
+    try {
+      setIsDeletingBulk(true);
+      await api.delete('/replays/bulk-delete', {
+        data: {
+          website_id: websiteId,
+          session_ids: selectedSessionIds
+        }
+      });
+      setSessions(sessions.filter(s => !selectedSessionIds.includes(s.session_id)));
+      setSelectedSessionIds([]);
+    } catch (err: any) {
+      alert(err?.response?.data?.error || 'Failed to delete selected recordings');
+    } finally {
+      setIsDeletingBulk(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedSessionIds.length === paginatedSessions.length) {
+      setSelectedSessionIds([]);
+    } else {
+      setSelectedSessionIds(paginatedSessions.map(s => s.session_id));
+    }
+  };
+
+  const toggleSelectSession = (sessionId: string) => {
+    setSelectedSessionIds(prev =>
+      prev.includes(sessionId)
+        ? prev.filter(id => id !== sessionId)
+        : [...prev, sessionId]
+    );
   };
 
   const getDeviceIcon = (device: string) => {
@@ -384,6 +425,19 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
                     <X className="h-3 w-3" /> Clear ({activeFilterCount})
                   </Button>
                 )}
+
+                {selectedSessionIds.length > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="h-8 gap-1.5 px-3 text-xs font-medium animate-in zoom-in-95 duration-200"
+                    onClick={handleBulkDelete}
+                    disabled={isDeletingBulk}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete Selected ({selectedSessionIds.length})
+                  </Button>
+                )}
               </div>
 
               <span className="text-xs text-muted-foreground">
@@ -396,6 +450,13 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border/40 bg-muted/20">
+                  <TableHead className="w-[40px] px-4 py-3">
+                    <Checkbox
+                      checked={paginatedSessions.length > 0 && selectedSessionIds.length === paginatedSessions.length}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all sessions"
+                    />
+                  </TableHead>
                   <TableHead className="px-5 py-3 text-xs font-medium text-muted-foreground">Session</TableHead>
                   <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Platform</TableHead>
                   <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">OS</TableHead>
@@ -437,9 +498,19 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
                   return (
                     <TableRow
                       key={session.session_id}
-                      className="group hover:bg-muted/30 transition-colors cursor-pointer border-border/30"
+                      className={cn(
+                        "group hover:bg-muted/30 transition-colors cursor-pointer border-border/30",
+                        selectedSessionIds.includes(session.session_id) && "bg-muted/40"
+                      )}
                       onClick={() => setSelectedSession(session.session_id)}
                     >
+                      <TableCell className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedSessionIds.includes(session.session_id)}
+                          onCheckedChange={() => toggleSelectSession(session.session_id)}
+                          aria-label={`Select session ${session.session_id}`}
+                        />
+                      </TableCell>
                       <TableCell className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className="h-8 w-8 rounded-lg bg-muted/60 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors">
@@ -496,7 +567,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
                       </TableCell>
 
                       <TableCell className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center justify-end gap-1 transition-opacity">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>

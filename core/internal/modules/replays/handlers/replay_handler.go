@@ -156,6 +156,33 @@ func (h *ReplayHandler) DeleteReplay(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
+func (h *ReplayHandler) BulkDeleteReplays(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req models.BulkDeleteReplaysRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	h.logger.Info().
+		Str("website_id", req.WebsiteID).
+		Int("sessions", len(req.SessionIDs)).
+		Msg("Bulk deleting session replays")
+
+	if err := h.service.BulkDeleteReplays(c.Request.Context(), req.WebsiteID, req.SessionIDs, userID); err != nil {
+		h.logger.Error().Err(err).Msg("Failed to bulk delete session replays")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to bulk delete session replays"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
 // GetPageSnapshot returns rrweb events for the initial state of a URL
 func (h *ReplayHandler) GetPageSnapshot(c *gin.Context) {
 	websiteID := c.Query("website_id")

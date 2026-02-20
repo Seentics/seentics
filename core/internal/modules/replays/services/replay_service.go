@@ -6,6 +6,7 @@ import (
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"analytics-app/internal/shared/storage"
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/mssola/user_agent"
 )
 
@@ -21,6 +23,7 @@ type ReplayService interface {
 	GetReplay(ctx context.Context, websiteID, sessionID string) ([]models.SessionReplayChunk, error)
 	ListSessions(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error)
 	DeleteReplay(ctx context.Context, websiteID, sessionID string) error
+	BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string, userID string) error
 	GetPageSnapshot(ctx context.Context, websiteID, url string) (json.RawMessage, error)
 }
 
@@ -84,14 +87,23 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 	// Canonicalize website ID
 	req.WebsiteID = website.SiteID
 
-	// 3. Upload events to S3
+	// 3. Upload events to S3 with Gzip compression
 	data, err := json.Marshal(req.Events)
 	if err != nil {
 		return err
 	}
 
-	key := fmt.Sprintf("replays/%s/%s/%d.json", req.WebsiteID, req.SessionID, req.Sequence)
-	if err := s.store.Upload(ctx, key, bytes.NewReader(data)); err != nil {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	if _, err := gz.Write(data); err != nil {
+		return fmt.Errorf("failed to compress events: %w", err)
+	}
+	if err := gz.Close(); err != nil {
+		return fmt.Errorf("failed to close gzip writer: %w", err)
+	}
+
+	key := fmt.Sprintf("replays/%s/%s/%d.json.gz", req.WebsiteID, req.SessionID, req.Sequence)
+	if err := s.store.Upload(ctx, key, bytes.NewReader(buf.Bytes())); err != nil {
 		return fmt.Errorf("failed to upload to s3: %w", err)
 	}
 
@@ -137,8 +149,17 @@ func (s *replayService) GetReplay(ctx context.Context, websiteID string, session
 		wg.Add(1)
 		go func(idx, seq int, dbData json.RawMessage) {
 			defer wg.Done()
-			key := fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sessionID, seq)
+
+			// Try gzipped key first
+			key := fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sessionID, seq)
 			reader, dlErr := s.store.Download(ctx, key)
+
+			// Legacy fallback: try non-gzipped key
+			if dlErr != nil {
+				key = fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sessionID, seq)
+				reader, dlErr = s.store.Download(ctx, key)
+			}
+
 			if dlErr != nil {
 				// Fallback: use data stored in DB if the S3 object is missing (migration period)
 				if len(dbData) > 2 {
@@ -148,8 +169,20 @@ func (s *replayService) GetReplay(ctx context.Context, websiteID string, session
 				results[idx] = result{index: idx, err: fmt.Errorf("failed to fetch chunk %d: %w", seq, dlErr)}
 				return
 			}
-			raw, readErr := io.ReadAll(reader)
-			reader.Close()
+			defer reader.Close()
+
+			var finalReader io.Reader = reader
+			if strings.HasSuffix(key, ".gz") {
+				gzr, err := gzip.NewReader(reader)
+				if err != nil {
+					results[idx] = result{index: idx, err: fmt.Errorf("failed to create gzip reader: %w", err)}
+					return
+				}
+				defer gzr.Close()
+				finalReader = gzr
+			}
+
+			raw, readErr := io.ReadAll(finalReader)
 			if readErr != nil {
 				results[idx] = result{index: idx, err: readErr}
 				return
@@ -198,6 +231,37 @@ func (s *replayService) DeleteReplay(ctx context.Context, websiteID string, sess
 	return nil
 }
 
+func (s *replayService) BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string, userID string) error {
+	// 1. Validate ownership
+	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
+	if err != nil {
+		return fmt.Errorf("website not found")
+	}
+
+	// Check user ownership (assuming userID is provided and validated in handler)
+	// Heatmap service has a nice helper, let's see if ReplayService can have one too.
+	// For now, standard check:
+	parsedUserID, _ := uuid.Parse(userID)
+	if website.UserID != parsedUserID {
+		return fmt.Errorf("unauthorized")
+	}
+
+	websiteID = website.SiteID
+
+	// 2. Repo returns all S3 keys for all sessions
+	keys, err := s.repo.BulkDeleteReplays(ctx, websiteID, sessionIDs)
+	if err != nil {
+		return err
+	}
+
+	// 3. Cleanup S3
+	for _, key := range keys {
+		_ = s.store.Delete(ctx, key)
+	}
+
+	return nil
+}
+
 func (s *replayService) GetPageSnapshot(ctx context.Context, websiteID string, url string) (json.RawMessage, error) {
 	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
 	if err == nil {
@@ -209,14 +273,31 @@ func (s *replayService) GetPageSnapshot(ctx context.Context, websiteID string, u
 		return nil, err
 	}
 
-	key := fmt.Sprintf("replays/%s/%s/0.json", websiteID, sessionID)
+	// Try gzipped first for snapshot
+	key := fmt.Sprintf("replays/%s/%s/0.json.gz", websiteID, sessionID)
 	reader, err := s.store.Download(ctx, key)
+	if err != nil {
+		// Fallback to non-gzipped
+		key = fmt.Sprintf("replays/%s/%s/0.json", websiteID, sessionID)
+		reader, err = s.store.Download(ctx, key)
+	}
+
 	if err != nil {
 		return nil, err
 	}
 	defer reader.Close()
 
-	data, err := io.ReadAll(reader)
+	var finalReader io.Reader = reader
+	if strings.HasSuffix(key, ".gz") {
+		gzr, err := gzip.NewReader(reader)
+		if err != nil {
+			return nil, err
+		}
+		defer gzr.Close()
+		finalReader = gzr
+	}
+
+	data, err := io.ReadAll(finalReader)
 	if err != nil {
 		return nil, err
 	}

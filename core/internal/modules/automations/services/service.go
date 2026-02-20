@@ -288,6 +288,21 @@ func (s *AutomationService) TestAutomation(ctx context.Context, automation *mode
 	return result, nil
 }
 
+// HasExecutedInSession checks if an automation has executed in a session
+func (s *AutomationService) HasExecutedInSession(ctx context.Context, automationID, sessionID string) (bool, error) {
+	return s.repo.HasExecutedInSession(ctx, automationID, sessionID)
+}
+
+// HasExecutedForVisitor checks if an automation has ever executed for a visitor
+func (s *AutomationService) HasExecutedForVisitor(ctx context.Context, automationID, visitorID string) (bool, error) {
+	return s.repo.HasExecutedForVisitor(ctx, automationID, visitorID)
+}
+
+// HasExecutedToday checks if an automation executed for a visitor in the last 24 hours
+func (s *AutomationService) HasExecutedToday(ctx context.Context, automationID, visitorID string) (bool, error) {
+	return s.repo.HasExecutedToday(ctx, automationID, visitorID)
+}
+
 // evaluateTestCondition checks if a condition would pass with test data
 func (s *AutomationService) evaluateTestCondition(condition models.AutomationCondition, testData map[string]interface{}) bool {
 	// Simple evaluation for common condition types

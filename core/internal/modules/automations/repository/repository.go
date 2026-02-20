@@ -408,3 +408,36 @@ func (r *AutomationRepository) CreateExecution(ctx context.Context, execution *m
 
 	return nil
 }
+
+// HasExecutedInSession checks if an automation has executed in a session
+func (r *AutomationRepository) HasExecutedInSession(ctx context.Context, automationID, sessionID string) (bool, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM automation_executions WHERE automation_id = $1 AND session_id = $2`
+	err := r.db.QueryRow(ctx, query, automationID, sessionID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// HasExecutedForVisitor checks if an automation has ever executed for a visitor
+func (r *AutomationRepository) HasExecutedForVisitor(ctx context.Context, automationID, visitorID string) (bool, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM automation_executions WHERE automation_id = $1 AND visitor_id = $2`
+	err := r.db.QueryRow(ctx, query, automationID, visitorID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// HasExecutedToday checks if an automation executed for a visitor in the last 24 hours
+func (r *AutomationRepository) HasExecutedToday(ctx context.Context, automationID, visitorID string) (bool, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM automation_executions WHERE automation_id = $1 AND visitor_id = $2 AND executed_at >= NOW() - INTERVAL '24 hours'`
+	err := r.db.QueryRow(ctx, query, automationID, visitorID).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}

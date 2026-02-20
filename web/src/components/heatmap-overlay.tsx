@@ -37,8 +37,13 @@ export default function HeatmapOverlay({
     const canvas = canvasRef.current;
     if (!canvas || width <= 0 || height <= 0) return;
 
+    const dpr = window.devicePixelRatio || 1;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return;
+
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.scale(dpr, dpr);
 
     ctx.clearRect(0, 0, width, height);
     if (points.length === 0) return;
@@ -65,8 +70,8 @@ export default function HeatmapOverlay({
       ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
     });
 
-    // Colorize using gradient palette
-    const currentImageData = ctx.getImageData(0, 0, width, height);
+    // Colorize using gradient palette: use physical pixels, not logical width/height
+    const currentImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = currentImageData.data;
 
     const paletteCanvas = document.createElement('canvas');

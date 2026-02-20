@@ -99,16 +99,27 @@
 
       if (steps.length === 0) return;
 
+      // Sort steps by order to ensure correct sequencing
+      const sortedSteps = [...steps].sort((a, b) => {
+        const aOrder = a.order !== undefined ? a.order : (a.step_order || 0);
+        const bOrder = b.order !== undefined ? b.order : (b.step_order || 0);
+        return aOrder - bOrder;
+      });
+
+      const getOrder = (step) => step.order !== undefined ? step.order : (step.step_order || 0);
+      const minOrder = getOrder(sortedSteps[0]);
+      const maxOrder = getOrder(sortedSteps[sortedSteps.length - 1]);
+
       // Get or initialize funnel progress
       let progress = funnel.currentFunnels.get(funnelId);
-      
+
       if (!progress) {
-        // Check if this is the first step (handle both camelCase and snake_case)
-        const firstStep = steps.find(s => (s.order !== undefined ? s.order : s.step_order) === 0);
+        // Check if this is the first step (the one with the lowest order value)
+        const firstStep = sortedSteps[0];
         if (firstStep && matchesStep(firstStep, eventData)) {
           progress = {
-            currentStep: 0,
-            completedSteps: [0],
+            currentStep: minOrder,
+            completedSteps: [minOrder],
             startedAt: new Date().toISOString()
           };
           funnel.currentFunnels.set(funnelId, progress);
@@ -118,8 +129,8 @@
           trackFunnelEvent(funnelId, {
             event_type: 'start',
             step_name: firstStep.name,
-            current_step: 0,
-            completed_steps: [0]
+            current_step: minOrder,
+            completed_steps: [minOrder]
           });
 
           S.emit('funnel:started', { funnelId, step: firstStep });
@@ -127,23 +138,22 @@
         return;
       }
 
-      // Check for next step
-      const nextStepOrder = progress.currentStep + 1;
-      // Handle both camelCase and snake_case for order property
-      const nextStep = steps.find(s => (s.order !== undefined ? s.order : s.step_order) === nextStepOrder);
+      // Find the next step in sequence (the first step whose order > currentStep)
+      const nextStep = sortedSteps.find(s => getOrder(s) > progress.currentStep);
 
       if (nextStep && matchesStep(nextStep, eventData)) {
-        progress.currentStep = nextStepOrder;
-        progress.completedSteps.push(nextStepOrder);
+        const nextOrder = getOrder(nextStep);
+        progress.currentStep = nextOrder;
+        progress.completedSteps.push(nextOrder);
         saveFunnelProgress();
 
-        // Check if funnel is complete
-        const isComplete = nextStepOrder === steps.length - 1;
+        // Funnel is complete when the last (max order) step is reached
+        const isComplete = nextOrder === maxOrder;
 
         trackFunnelEvent(funnelId, {
           event_type: isComplete ? 'conversion' : 'progress',
           step_name: nextStep.name,
-          current_step: nextStepOrder,
+          current_step: nextOrder,
           completed_steps: progress.completedSteps,
           converted: isComplete
         });
@@ -187,8 +197,10 @@
           });
       } catch (error) {
           if (S.config.debug) {
-            console.error('[Seentics Funnel] Failed to track batch:', error);
+            console.error('[Seentics Funnel] Failed to track batch, re-queuing:', error);
           }
+          // Re-queue failed events for the next flush attempt
+          funnel.buffer.unshift(...batch);
       }
   }, 30000); // 30 seconds
 

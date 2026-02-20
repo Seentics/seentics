@@ -152,7 +152,7 @@ export const LinearBuilder = () => {
                   {nodes.map((node, index) => {
                     const Icon = getIcon(node.type || '', node.data.config?.triggerType || node.data.config?.actionType || node.data.config?.conditionType);
                     const colorClass = getColorClass(node.type || '', node.data.config?.triggerType || node.data.config?.actionType || node.data.config?.conditionType);
-                    const config = nodeTypeConfig[node.type] || { label: 'STEP', dotColor: 'bg-zinc-500', badgeClass: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20' };
+                    const config = (node.type && nodeTypeConfig[node.type]) || { label: 'STEP', dotColor: 'bg-zinc-500', badgeClass: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20' };
 
                     const isCondition = node.type === 'conditionNode';
                     const isAction = node.type === 'actionNode';
@@ -208,7 +208,7 @@ export const LinearBuilder = () => {
                                   group relative flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all
                                   ${snapshot.isDragging
                                     ? 'bg-zinc-800 border border-primary/40 shadow-lg shadow-primary/10'
-                                    : 'bg-white/[0.02] border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04]'
+                                    : 'bg-zinc-900/40 border border-white/[0.06] hover:border-white/[0.12] hover:bg-white/[0.04]'
                                   }
                                 `}
                                 onClick={() => setSelectedNodeId(node.id)}

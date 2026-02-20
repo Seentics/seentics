@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -13,11 +14,13 @@ import (
 
 type FunnelRepository struct {
 	db *pgxpool.Pool
+	ch driver.Conn
 }
 
-func NewFunnelRepository(db *pgxpool.Pool) *FunnelRepository {
+func NewFunnelRepository(db *pgxpool.Pool, ch driver.Conn) *FunnelRepository {
 	return &FunnelRepository{
 		db: db,
+		ch: ch,
 	}
 }
 
@@ -120,11 +123,11 @@ func (r *FunnelRepository) CreateFunnel(ctx context.Context, funnel *models.Funn
 		return fmt.Errorf("failed to insert funnel: %w", err)
 	}
 
-	// Insert steps
-	for i, step := range funnel.Steps {
+	// Insert steps — preserve the user-supplied order values
+	for _, step := range funnel.Steps {
 		step.ID = uuid.New().String()
 		step.FunnelID = funnel.ID
-		step.Order = i
+		// Do NOT override step.Order — use the value from the request
 
 		stepQuery := `
 			INSERT INTO funnel_steps (id, funnel_id, name, step_order, step_type, page_path, event_type, match_type, created_at)
@@ -187,12 +190,12 @@ func (r *FunnelRepository) UpdateFunnel(ctx context.Context, id string, updates 
 			return fmt.Errorf("failed to delete old steps: %w", err)
 		}
 
-		// Insert new steps
+		// Insert new steps — preserve user-supplied order values
 		now := time.Now()
-		for i, step := range *updates.Steps {
+		for _, step := range *updates.Steps {
 			step.ID = uuid.New().String()
 			step.FunnelID = id
-			step.Order = i
+			// Do NOT override step.Order
 
 			stepQuery := `
 				INSERT INTO funnel_steps (id, funnel_id, name, step_order, step_type, page_path, event_type, match_type, created_at)
@@ -270,39 +273,76 @@ func (r *FunnelRepository) GetFunnelStats(ctx context.Context, funnelID string, 
 		var query string
 		var args []interface{}
 
-		if step.StepType == "page_view" {
-			query = `
-				SELECT COUNT(DISTINCT visitor_id) 
-				FROM events 
-				WHERE website_id = $1 
-				AND event_type = 'pageview'
-			`
-			if step.MatchType == "exact" {
-				query += " AND page = $2"
+		if r.ch != nil {
+			if step.StepType == "page_view" {
+				query = `
+					SELECT count(DISTINCT visitor_id) 
+					FROM events 
+					WHERE website_id = ? 
+					AND event_type = 'pageview'
+				`
+				if step.MatchType == "exact" {
+					query += " AND page = ?"
+				} else {
+					query += " AND page LIKE ?"
+				}
+
+				path := step.PagePath
+				if step.MatchType != "exact" {
+					path = "%" + path + "%"
+				}
+				args = []interface{}{websiteID, path}
 			} else {
-				query += " AND page LIKE $2"
+				query = `
+					SELECT count(DISTINCT visitor_id) 
+					FROM events 
+					WHERE website_id = ? 
+					AND event_type = 'custom' 
+					AND page = ?
+				`
+				args = []interface{}{websiteID, step.EventType}
 			}
 
-			path := step.PagePath
-			if step.MatchType != "exact" {
-				path = "%" + path + "%"
+			var countUint64 uint64
+			err := r.ch.QueryRow(ctx, query, args...).Scan(&countUint64)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get count from CH for step %d: %w", i, err)
 			}
-			args = []interface{}{websiteID, path}
+			count = int(countUint64)
 		} else {
-			// Custom event
-			query = `
-				SELECT COUNT(DISTINCT visitor_id) 
-				FROM events 
-				WHERE website_id = $1 
-				AND event_type = 'custom' 
-				AND page = $2
-			`
-			args = []interface{}{websiteID, step.EventType}
-		}
+			if step.StepType == "page_view" {
+				query = `
+					SELECT COUNT(DISTINCT visitor_id) 
+					FROM events 
+					WHERE website_id = $1 
+					AND event_type = 'pageview'
+				`
+				if step.MatchType == "exact" {
+					query += " AND page = $2"
+				} else {
+					query += " AND page LIKE $2"
+				}
 
-		err := r.db.QueryRow(ctx, query, args...).Scan(&count)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get count for step %d: %w", i, err)
+				path := step.PagePath
+				if step.MatchType != "exact" {
+					path = "%" + path + "%"
+				}
+				args = []interface{}{websiteID, path}
+			} else {
+				query = `
+					SELECT COUNT(DISTINCT visitor_id) 
+					FROM events 
+					WHERE website_id = $1 
+					AND event_type = 'custom' 
+					AND page = $2
+				`
+				args = []interface{}{websiteID, step.EventType}
+			}
+
+			err := r.db.QueryRow(ctx, query, args...).Scan(&count)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get count from PG for step %d: %w", i, err)
+			}
 		}
 
 		stats.StepBreakdown[i] = models.StepStats{
