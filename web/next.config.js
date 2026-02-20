@@ -38,7 +38,7 @@ const nextConfig = {
     return [
       {
         source: '/api/v1/:path*',
-        destination: `${process.env.API_GATEWAY_URL || 'http://localhost:3002'}/api/v1/:path*`,
+        destination: `${process.env.API_GATEWAY_URL || 'http://localhost:8080'}/api/v1/:path*`,
         // Ensure this is a pure proxy without header manipulation
       },
     ];

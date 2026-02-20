@@ -20,7 +20,8 @@ import {
   Sparkles,
   Crosshair,
   Eye,
-  EyeOff
+  EyeOff,
+  Edit
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +54,7 @@ export default function HeatmapViewPage() {
   const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [points, setPoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dimensions, setDimensions] = useState({ width: 1200, height: 2000 });
+  const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
   const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
   const [showHeightControl, setShowHeightControl] = useState(false);
   const [opacity, setOpacity] = useState([70]);
@@ -207,17 +208,35 @@ export default function HeatmapViewPage() {
   const buildIframeUrl = () => {
     if (isDemo) return 'https://seentics.com';
     if (!website?.url) return '';
-    const baseUrl = normalizeUrl(website.url).replace(/\/$/, '');
+    
+    let baseUrl = normalizeUrl(website.url).replace(/\/$/, '');
+    const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+    const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
+    
+    // Special handling for local development
+    const isLocalhost = (host: string) => 
+      host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local') || host.includes('localhost');
+
     const fullPath = url.startsWith('/') ? url : `/${url}`;
-    const targetUrl = `${baseUrl}${fullPath}`;
+    
     try {
-      const targetHostname = new URL(targetUrl).hostname;
-      const currentHostname = window.location.hostname;
+      const targetUrl = new URL(baseUrl);
+      const targetHostname = targetUrl.hostname;
+      
+      // If we are on localhost and the target is also some form of localhost but ports/names differ,
+      // fallback to current origin to allow viewing the page in the iframe
+      if (isLocalhost(currentHostname) && isLocalhost(targetHostname) && targetUrl.origin !== currentOrigin) {
+        console.warn(`[HeatmapView] Localhost mismatch detected (${targetUrl.origin} vs ${currentOrigin}). Falling back to current origin for iframe.`);
+        return fullPath;
+      }
+
       if (targetHostname === currentHostname) return fullPath;
-    } catch {
+      
+      return `${baseUrl}${fullPath}`;
+    } catch (err) {
+      console.error('[HeatmapView] Failed to parse website URL:', err);
       return '';
     }
-    return targetUrl;
   };
 
   const siteUrl = buildIframeUrl();
@@ -335,14 +354,14 @@ export default function HeatmapViewPage() {
               className="bg-white overflow-y-auto overflow-x-hidden hide-scrollbar"
               style={{ height: 'calc(100vh - 140px)' }}
             >
-              <div style={{ height: `${Math.max(dimensions.height, 2000)}px`, width: `${deviceWidth}px`, position: 'relative' }}>
+              <div style={{ height: `${dimensions.height}px`, width: `${deviceWidth}px`, position: 'relative' }}>
                 {showOverlay && (
                   <HeatmapOverlay
                     points={points}
                     width={deviceWidth}
-                    height={Math.max(dimensions.height, 2000)}
+                    height={dimensions.height}
                     totalWidth={deviceWidth}
-                    totalHeight={Math.max(dimensions.height, 2000)}
+                    totalHeight={dimensions.height}
                     opacity={opacity[0] / 100}
                     type={activeType}
                   />
@@ -363,12 +382,21 @@ export default function HeatmapViewPage() {
                     </div>
                     <div className="flex flex-col items-center text-center px-4">
                       <span className="text-sm font-medium text-zinc-800">Unable to load page preview</span>
-                      <span className="text-xs text-zinc-500 mt-1 max-w-sm">
-                        The target website may be blocking iframe embeds. The heatmap data is still displayed.
-                      </span>
-                      <Button onClick={() => setIframeError(false)} className="mt-3" size="sm" variant="outline">
-                        Retry
-                      </Button>
+                      <p className="text-xs text-zinc-500 mt-2 max-w-sm">
+                        This usually happens if the target website blocks embedding or if the <strong>Website URL</strong> in your settings doesn't match your current environment.
+                      </p>
+                      <p className="text-[10px] text-zinc-400 mt-1">
+                        Currently registered: <code className="bg-zinc-100 px-1 rounded">{website?.url}</code>
+                      </p>
+                      <div className="flex gap-2 mt-4">
+                        <Button onClick={() => setIframeError(false)} size="sm" variant="outline">
+                          Retry
+                        </Button>
+                        <Button onClick={() => router.push(`/websites/${websiteId}/settings`)} size="sm" variant="secondary" className="gap-1.5">
+                          <Edit className="h-3 w-3" />
+                          Update Settings
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ) : !points || points.length === 0 ? (

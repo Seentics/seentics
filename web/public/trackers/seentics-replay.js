@@ -25,17 +25,23 @@
     const state = core.state;
 
     // Sampling: replay_sampling_rate is 0.0-1.0 (fraction). Default 1.0 = record all sessions.
-    const samplingRate = config.replay_sampling_rate != null ? config.replay_sampling_rate : 1.0;
-    if (Math.random() > samplingRate) {
-      if (config.debug) console.log('[Seentics Replay] Session skipped by sampling rate');
-      return;
+    // FORCE 1.0 for now to guarantee recording during debugging
+    const samplingRate = 1.0; 
+
+    // Detect base path from current script source
+    let basePath = '/trackers/';
+    const script = d.currentScript;
+    if (script && script.src) {
+      basePath = script.src.substring(0, script.src.lastIndexOf('/') + 1);
     }
 
     // Replay specific configuration
     const replayConfig = {
-      rrwebUrl: 'https://cdn.jsdelivr.net/npm/rrweb@2.0.0-alpha.18/dist/rrweb.min.js',
-      chunkSize: 1000, // Send every 1000 events
-      flushInterval: 30000 // Every 30 seconds
+      // Use local version for reliability
+      rrwebUrl: `${basePath}rrweb.min.js`,
+      rrwebFallbackUrl: 'https://cdn.jsdelivr.net/npm/rrweb@2.0.0-alpha.18/dist/rrweb.umd.js',
+      chunkSize: 1000, 
+      flushInterval: 30000 
     };
 
     // Replay state
@@ -49,19 +55,29 @@
     };
 
     /**
-     * Load rrweb dynamically from CDN
+     * Load rrweb dynamically
      */
-    const loadRRWeb = () => {
-      return new Promise((resolve, reject) => {
-        if (w.rrweb) return resolve();
-        
-        const script = d.createElement('script');
-        script.src = replayConfig.rrwebUrl;
-        script.async = true;
-        script.onload = resolve;
-        script.onerror = reject;
-        d.head.appendChild(script);
-      });
+    const loadRRWeb = async () => {
+      if (w.rrweb) return;
+      
+      const tryLoad = (url) => {
+        return new Promise((resolve, reject) => {
+          const script = d.createElement('script');
+          script.src = url;
+          script.async = true;
+          script.onload = resolve;
+          script.onerror = reject;
+          d.head.appendChild(script);
+        });
+      };
+
+      try {
+        if (config.debug) console.log(`[Seentics Replay] Loading local rrweb from ${replayConfig.rrwebUrl}`);
+        await tryLoad(replayConfig.rrwebUrl);
+      } catch (err) {
+        console.warn(`[Seentics Replay] Local rrweb failed, trying CDN...`, err);
+        await tryLoad(replayConfig.rrwebFallbackUrl);
+      }
     };
 
     /**
@@ -126,21 +142,43 @@
     };
 
     try {
+      console.log(`[Seentics Replay] Initializing... (Sampling Rate: ${samplingRate * 100}%)`);
+      
+      // Sampling check
+      if (Math.random() > samplingRate) {
+        console.warn(`[Seentics Replay] Session skipped by sampling rate (${samplingRate * 100}%).`);
+        return;
+      }
+
+      if (config.debug) console.log('[Seentics Replay] Loading rrweb...');
       await loadRRWeb();
       
       if (!w.rrweb) {
-        throw new Error('rrweb failed to load');
+        console.error('[Seentics Replay] rrweb failed to load or define global object');
+        return;
       }
+
+      if (config.debug) console.log('[Seentics Replay] rrweb loaded, starting record');
 
       // Start recording
       replayState.stopFn = w.rrweb.record({
         emit(event) {
           replayState.buffer.push(event);
+          
+          if (config.debug && replayState.buffer.length % 50 === 0) {
+              console.log(`[Seentics Replay] Buffered ${replayState.buffer.length} events`);
+          }
+
+          // Force flush the first few events (full snapshot is usually the first event)
+          if (replayState.sequence === 0 && replayState.buffer.length >= 2) {
+              if (config.debug) console.log('[Seentics Replay] Forcing initial chunk flush');
+              sendChunk(true);
+          }
+
           if (replayState.buffer.length >= replayConfig.chunkSize) {
             sendChunk(true);
           }
         },
-        // Privacy: Mask sensitive fields by default
         maskAllInputs: true,
         maskInputOptions: {
             password: true,
@@ -148,14 +186,25 @@
         }
       });
 
+      if (!replayState.stopFn) {
+        throw new Error('rrweb.record failed to initialize result stopFn');
+      }
+
       replayState.isRecording = true;
+      console.table({
+        '[Seentics Replay] Status': 'Active',
+        'Website ID': config.websiteId,
+        'Session ID': state.sessionId,
+        'API Host': config.apiHost
+      });
 
       // Periodic flush
       setInterval(sendChunk, replayConfig.flushInterval);
 
-      // Flush remaining events on page leave using sendBeacon so they survive unload
+      // Flush remaining events on page leave using sendBeacon
       w.addEventListener('beforeunload', () => {
         if (replayState.buffer.length === 0) return;
+        if (config.debug) console.log('[Seentics Replay] Page leave: flushing buffer');
         const payload = JSON.stringify({
           website_id: config.websiteId,
           session_id: state.sessionId,
@@ -172,16 +221,14 @@
 
       // Flush when tab becomes hidden
       d.addEventListener('visibilitychange', () => {
-        if (d.visibilityState === 'hidden') sendChunk(true);
+        if (d.visibilityState === 'hidden') {
+            if (config.debug) console.log('[Seentics Replay] Visibility hidden: flushing buffer');
+            sendChunk(true);
+        }
       });
 
-      if (config.debug) {
-        console.log('[Seentics Replay] Initialized');
-      }
     } catch (err) {
-      if (config.debug) {
-        console.warn('[Seentics Replay] Failed to initialize:', err);
-      }
+      console.error('[Seentics Replay] Failed to initialize:', err);
     }
   }
 

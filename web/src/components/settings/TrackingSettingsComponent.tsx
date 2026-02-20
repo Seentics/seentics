@@ -17,7 +17,7 @@ const trackingSnippet = `<!-- Seentics Analytics -->
 <script 
   defer 
   data-website-id="${websiteId}" 
-  data-auto-load="analytics,automation,funnels"
+  data-auto-load="analytics,automation,funnels,replay,heatmap"
   src="${origin}/trackers/seentics-core.js"
 ></script>`;
 

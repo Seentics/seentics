@@ -3,7 +3,7 @@
 
 export const config = {
   // API Configuration
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002',
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080',
   apiVersion: 'v1',
 
   // Frontend Configuration

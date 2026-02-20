@@ -13,7 +13,7 @@
   // Core configuration
   const config = {
     apiHost: (w.location.hostname === 'localhost' || w.location.hostname === '127.0.0.1' || w.location.hostname.endsWith('.local'))
-      ? 'http://localhost:3002'
+      ? 'http://localhost:8080'
       : 'https://api.seentics.com',
     websiteId: null,
     debug: false,
@@ -138,6 +138,7 @@
   // API communication
   const api = {
     send: async (endpoint, data) => {
+      if (config.debug) console.log(`[Seentics] API POST: ${config.apiHost}/api/v1/${endpoint}`, data);
       try {
         const response = await fetch(`${config.apiHost}/api/v1/${endpoint}`, {
           method: 'POST',
@@ -314,9 +315,14 @@
 
     // Try fetching remote config for module toggles
     try {
-      const remoteConfig = await api.get(`tracker/config/${config.websiteId}`);
+      if (config.debug) console.log(`[Seentics] Loading remote config from ${config.apiHost}...`);
+      const response = await api.get(`tracker/config/${config.websiteId}`);
+      // Backend returns data wrapped in a "data" property or as direct object
+      const remoteConfig = response && response.data ? response.data : response;
+      
       if (remoteConfig) {
         config.dynamicConfig = remoteConfig;
+        if (config.debug) console.log('[Seentics] Remote config received:', remoteConfig);
         
         // Merge remote config into main config
         Object.assign(config, remoteConfig);
@@ -328,11 +334,11 @@
         if (remoteConfig.replay_enabled !== undefined) config.autoLoad.replay = !!remoteConfig.replay_enabled;
         
         if (config.debug) {
-          console.log('[Seentics] Config loaded:', config.autoLoad);
+          console.log('[Seentics] Modules enabled:', config.autoLoad);
         }
       }
     } catch (err) {
-      if (config.debug) console.warn('[Seentics] Using default config due to error:', err);
+      console.warn('[Seentics] Failed to load remote configuration. This usually happens if the API host is misconfigured or a domain whitelist blocks the request.', err);
     }
 
     session.init();
@@ -440,6 +446,13 @@
     const apiHost = script.getAttribute('data-api-host');
     const autoLoad = script.getAttribute('data-auto-load');
     
+    // Auto-detect API host from script source if not explicitly provided
+    let detectedApiHost = null;
+    try {
+        const scriptUrl = new URL(script.src);
+        detectedApiHost = scriptUrl.origin;
+    } catch (e) {}
+
     // Parse auto-load modules
     if (autoLoad) {
       const modules = autoLoad.split(',').map(m => m.trim());
@@ -453,12 +466,12 @@
     }
     
     if (websiteId) {
-      init({ websiteId, debug, apiHost: apiHost || config.apiHost }).then(() => {
+      init({ websiteId, debug, apiHost: apiHost || detectedApiHost || config.apiHost }).then(() => {
         // Auto-load modules
         const basePath = script.src.substring(0, script.src.lastIndexOf('/') + 1);
         const loadModule = (name) => {
           const moduleScript = d.createElement('script');
-          moduleScript.src = `${basePath}seentics-${name}.js`;
+          moduleScript.src = `${basePath}seentics-${name}.js?t=${Date.now()}`;
           moduleScript.async = true;
           moduleScript.onerror = () => {
             if (config.debug) {
