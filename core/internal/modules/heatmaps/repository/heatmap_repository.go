@@ -3,6 +3,7 @@ package repository
 import (
 	"analytics-app/internal/modules/heatmaps/models"
 	"context"
+	"math"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -11,7 +12,7 @@ import (
 
 type HeatmapRepository interface {
 	RecordHeatmap(ctx context.Context, websiteID string, points []models.HeatmapPoint) error
-	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time) ([]models.HeatmapPoint, error)
+	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, deviceType string, from, to time.Time) ([]models.HeatmapPoint, error)
 	GetHeatmapPages(ctx context.Context, websiteID string) ([]models.HeatmapPageStat, error)
 	CountHeatmapPages(ctx context.Context, websiteID string) (int, error)
 	HeatmapExistsForURL(ctx context.Context, websiteID string, url string) (bool, error)
@@ -47,7 +48,7 @@ func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string,
 		if deviceType == "" {
 			deviceType = "desktop"
 		}
-		batch.Queue(query, websiteID, p.URL, p.Type, deviceType, p.XPercent, p.YPercent, p.Selector)
+		batch.Queue(query, websiteID, p.URL, p.Type, deviceType, int16(math.Round(p.XPercent)), int16(math.Round(p.YPercent)), p.Selector)
 	}
 
 	br := r.db.SendBatch(ctx, batch)
@@ -61,13 +62,17 @@ func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string,
 	return nil
 }
 
-func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time) ([]models.HeatmapPoint, error) {
+func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, deviceType string, from, to time.Time) ([]models.HeatmapPoint, error) {
+	if deviceType == "" || deviceType == "all" {
+		deviceType = "desktop"
+	}
+
 	query := `
 		SELECT x_percent, y_percent, intensity, target_selector 
 		FROM heatmap_points 
-		WHERE website_id::text = $1 AND page_path = $2 AND event_type = $3 AND last_updated BETWEEN $4 AND $5
+		WHERE website_id::text = $1 AND page_path = $2 AND event_type = $3 AND device_type = $4 AND last_updated BETWEEN $5 AND $6
 	`
-	rows, err := r.db.Query(ctx, query, websiteID, url, heatmapType, from, to)
+	rows, err := r.db.Query(ctx, query, websiteID, url, heatmapType, deviceType, from, to)
 	if err != nil {
 		return nil, err
 	}

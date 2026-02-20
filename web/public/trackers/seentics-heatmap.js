@@ -36,8 +36,8 @@
       moveThreshold: 150, // 150ms between move captures
       lastMoveX: -1,
       lastMoveY: -1,
-      minMoveDistance: 5, // Percent units (0-1000 range)
-      gridSize: 10, // Grid size for binning (0-1000 range)
+      minMoveDistance: 1, // 0.1% increments
+      gridSize: 1, // Maximum precision (0.1% grid)
       lastUrl: w.location.href,
       samplingRate: 0.1, // Sample 10% of mousemove events
       // Default to true; if remote config explicitly disables, we respect that
@@ -70,21 +70,35 @@
     /**
      * Normalize and Bin coordinates to 0-1000 range with grid clamping
      */
-    const getNormalizedCoords = (e) => {
+    const getDimensions = () => {
       const doc = d.documentElement;
-      const scrollWidth = Math.max(doc.scrollWidth, doc.offsetWidth, doc.clientWidth);
-      const scrollHeight = Math.max(doc.scrollHeight, doc.offsetHeight, doc.clientHeight);
+      const body = d.body;
+      
+      return {
+        // Horizontal: ABSOLUTE viewport-relative basis (clientWidth excludes scrollbars)
+        width: doc.clientWidth || (body ? body.clientWidth : 0) || w.innerWidth,
+        // Vertical: Document-relative basis
+        height: Math.max(
+          body ? body.scrollHeight : 0, doc.scrollHeight,
+          body ? body.offsetHeight : 0, doc.offsetHeight,
+          doc.clientHeight
+        )
+      };
+    };
 
-      let x = (e.pageX / scrollWidth) * 1000;
-      let y = (e.pageY / scrollHeight) * 1000;
+    const getNormalizedCoords = (e) => {
+      const dims = getDimensions();
+      const basisWidth = dims.width || 1;
+      const basisHeight = dims.height || 1;
 
-      // Apply Binning (Grid Clamping)
-      x = Math.round(x / heatmapState.gridSize) * heatmapState.gridSize;
-      y = Math.round(y / heatmapState.gridSize) * heatmapState.gridSize;
+      // X: Percentage of the layout viewport
+      let x = (e.pageX / basisWidth) * 1000;
+      // Y: Percentage of the full document height
+      let y = (e.pageY / basisHeight) * 1000;
 
       return {
-        x: Math.round(Math.min(1000, Math.max(0, x))),
-        y: Math.round(Math.min(1000, Math.max(0, y)))
+        x: Math.min(1000, Math.max(0, x)),
+        y: Math.min(1000, Math.max(0, y))
       };
     };
 
@@ -180,41 +194,25 @@
     w.addEventListener('message', (event) => {
       // Security: You might want to check event.origin if you know it
       if (event.data === 'SEENTICS_GET_DIMENSIONS') {
-        const doc = d.documentElement;
-        const body = d.body;
-        
-        // Initial standard check
-        let scrollHeight = Math.max(
-          body.scrollHeight, body.offsetHeight, 
-          doc.clientHeight, doc.scrollHeight, doc.offsetHeight
-        );
-        
-        let scrollWidth = Math.max(
-          body.scrollWidth, body.offsetWidth, 
-          doc.clientWidth, doc.scrollWidth, doc.offsetWidth
-        );
+        const dims = getDimensions();
+        let scrollHeight = dims.height;
+        let scrollWidth = dims.width;
 
-        // Smart check for fixed-height apps (like dashboards) with internal scrolling
-        // If detected height is close to viewport height, look deeper
+        // Smart check for fixed-height apps with internal scrolling
         if (scrollHeight <= w.innerHeight + 100) {
            try {
-             const allElems = d.querySelectorAll('div, main, section');
-             for (let i = 0; i < allElems.length; i++) {
-                const el = allElems[i];
-                if (el.scrollHeight > scrollHeight) {
-                    const style = w.getComputedStyle(el);
-                    if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && style.display !== 'none') {
-                        scrollHeight = Math.max(scrollHeight, el.scrollHeight);
-                        // If this element is wider, take its width too (often main content is constrained)
-                        if (el.scrollWidth > scrollWidth) {
-                             scrollWidth = el.scrollWidth;
-                        }
-                    }
-                }
-             }
-           } catch (e) {
-             // Ignore permission errors
-           }
+              const allElems = d.querySelectorAll('div, main, section');
+              for (let i = 0; i < allElems.length; i++) {
+                 const el = allElems[i];
+                 if (el.scrollHeight > scrollHeight && el.scrollHeight < 10000) { // sanity check
+                     const style = w.getComputedStyle(el);
+                     if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && style.display !== 'none') {
+                         scrollHeight = el.scrollHeight;
+                         if (el.scrollWidth > scrollWidth) scrollWidth = el.scrollWidth;
+                     }
+                 }
+              }
+           } catch (e) {}
         }
         
         event.source.postMessage({

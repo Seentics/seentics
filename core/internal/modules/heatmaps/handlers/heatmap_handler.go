@@ -67,6 +67,7 @@ func (h *HeatmapHandler) GetHeatmapData(c *gin.Context) {
 	websiteID := c.Query("website_id")
 	url := c.Query("url")
 	heatmapType := c.DefaultQuery("type", "click")
+	deviceType := c.DefaultQuery("device", "desktop")
 
 	if websiteID == "" || url == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id and url are required"})
@@ -77,9 +78,9 @@ func (h *HeatmapHandler) GetHeatmapData(c *gin.Context) {
 	to := time.Now()
 	from := to.AddDate(0, 0, -30)
 
-	h.logger.Debug().Str("website_id", websiteID).Str("url", url).Str("type", heatmapType).Msg("Fetching heatmap data")
+	h.logger.Debug().Str("website_id", websiteID).Str("url", url).Str("type", heatmapType).Str("device", deviceType).Msg("Fetching heatmap data")
 
-	points, err := h.service.GetHeatmapData(c.Request.Context(), websiteID, url, heatmapType, from, to, userID)
+	points, err := h.service.GetHeatmapData(c.Request.Context(), websiteID, url, heatmapType, deviceType, from, to, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to fetch heatmap data")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch heatmap data"})

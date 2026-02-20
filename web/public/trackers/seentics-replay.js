@@ -40,14 +40,15 @@
       // Use local version for reliability
       rrwebUrl: `${basePath}rrweb.min.js`,
       rrwebFallbackUrl: 'https://cdn.jsdelivr.net/npm/rrweb@2.0.0-alpha.18/dist/rrweb.umd.js',
-      chunkSize: 1000, 
-      flushInterval: 30000 
+      chunkSize: 500, // Smaller chunks for better sync
+      flushInterval: 10000 // 10s flush for better sync
     };
 
-    // Replay state
+    // Replay state - persistent sequence across page loads
+    const initialSequence = parseInt(sessionStorage.getItem('seentics_replay_seq') || '0');
     const replayState = {
       buffer: [],
-      sequence: 0,
+      sequence: initialSequence,
       isRecording: false,
       isSending: false,
       stopFn: null,
@@ -86,26 +87,14 @@
     const sendChunk = async (isManual = false) => {
       // Don't send if empty or already sending
       if (replayState.buffer.length === 0 || replayState.isSending) return;
-      
-      // If it's a periodic flush, check conditions
-      if (!isManual) {
-          const timeSinceFlush = Date.now() - replayState.lastFlush;
-          
-          // Data is too fresh (e.g. sent via chunk limit recently)
-          if (timeSinceFlush < replayConfig.flushInterval / 2) {
-              return;
-          }
-
-          // Buffer is small and we haven't waited long enough (adaptive batching)
-          // If we have < 10 events, wait up to 60s before forcing flush
-          if (replayState.buffer.length < 10 && timeSinceFlush < 60000) {
-              return;
-          }
-      }
 
       replayState.isSending = true;
       const events = [...replayState.buffer];
       const sequence = replayState.sequence++;
+      
+      // Update persistent sequence
+      sessionStorage.setItem('seentics_replay_seq', replayState.sequence.toString());
+      
       replayState.buffer = [];
       replayState.lastFlush = Date.now();
 

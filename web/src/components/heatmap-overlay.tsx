@@ -43,13 +43,13 @@ export default function HeatmapOverlay({
     ctx.clearRect(0, 0, width, height);
     if (points.length === 0) return;
 
-    // Config: click points are tighter, movement is broader
-    const radius = type === 'click' ? 28 : 44;
+    // Config: smaller radius for tighter precision
+    const radius = type === 'click' ? 18 : 34;
 
     // Draw density map as grayscale alpha
     points.forEach(point => {
-      const x = Math.round(totalWidth ? (point.x / 1000) * totalWidth : (point.x / 1000) * width);
-      const y = Math.round(totalHeight ? (point.y / 1000) * totalHeight : (point.y / 1000) * height);
+      const x = totalWidth ? (point.x / 1000) * totalWidth : (point.x / 1000) * width;
+      const y = totalHeight ? (point.y / 1000) * totalHeight : (point.y / 1000) * height;
 
       if (isNaN(x) || isNaN(y)) return;
 

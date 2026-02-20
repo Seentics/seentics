@@ -13,7 +13,7 @@ import (
 
 type HeatmapService interface {
 	RecordHeatmapData(req models.HeatmapRecordRequest, origin string) error
-	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time, userID string) ([]models.HeatmapPoint, error)
+	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, deviceType string, from, to time.Time, userID string) ([]models.HeatmapPoint, error)
 	GetHeatmapPages(ctx context.Context, websiteID string, userID string) ([]models.HeatmapPageStat, error)
 	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
 	DeleteHeatmapPage(ctx context.Context, websiteID string, url string, userID string) error
@@ -78,12 +78,12 @@ func (s *heatmapService) validateOwnership(ctx context.Context, websiteID string
 	return w.ID.String(), w.SiteID, nil
 }
 
-func (s *heatmapService) GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, from, to time.Time, userID string) ([]models.HeatmapPoint, error) {
+func (s *heatmapService) GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, deviceType string, from, to time.Time, userID string) ([]models.HeatmapPoint, error) {
 	canonicalID, _, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetHeatmapData(ctx, canonicalID, url, heatmapType, from, to)
+	return s.repo.GetHeatmapData(ctx, canonicalID, url, heatmapType, deviceType, from, to)
 }
 
 func (s *heatmapService) GetHeatmapPages(ctx context.Context, websiteID string, userID string) ([]models.HeatmapPageStat, error) {

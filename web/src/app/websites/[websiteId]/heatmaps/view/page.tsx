@@ -96,7 +96,9 @@ export default function HeatmapViewPage() {
       if (event.data?.type === 'SEENTICS_DIMENSIONS') {
         const { height } = event.data;
         if (height && height > 0) {
-          setDimensions(prev => prev.height !== height ? { ...prev, height } : prev);
+          // FORCE ALIGN: Use exactly the deviceWidth for horizontal mapping
+          // This ensures that the 100% basis matches the dashboard simulation perfectly.
+          setDimensions({ width: deviceWidth, height });
           setShowHeightControl(false);
         }
       }
@@ -127,6 +129,8 @@ export default function HeatmapViewPage() {
 
   const generateDummyPoints = (type: 'click' | 'move') => {
     const count = type === 'click' ? 100 : 300;
+    // Config: smaller radius for tighter precision
+    const radius = type === 'click' ? 18 : 34;
     const dummyPoints = [];
     for (let i = 0; i < count; i++) {
       const centerX = Math.random() * 900 + 50;
@@ -134,8 +138,8 @@ export default function HeatmapViewPage() {
       const clusterSize = Math.floor(Math.random() * 12) + 2;
       for (let j = 0; j < clusterSize; j++) {
         dummyPoints.push({
-          x: Math.round(centerX + (Math.random() - 0.5) * 60),
-          y: Math.round(centerY + (Math.random() - 0.5) * 60),
+          x: centerX + (Math.random() - 0.5) * 60,
+          y: centerY + (Math.random() - 0.5) * 60,
           intensity: Math.floor(Math.random() * 25) + 5
         });
       }
@@ -152,7 +156,7 @@ export default function HeatmapViewPage() {
         return;
       }
       try {
-        const response = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}`);
+        const response = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}&device=${device}`);
         const rawPoints = response.data.points || [];
         const mappedPoints = rawPoints.map((p: any) => ({
           ...p,
@@ -167,7 +171,7 @@ export default function HeatmapViewPage() {
       }
     };
     fetchPoints();
-  }, [websiteId, url, activeType, showDummy]);
+  }, [websiteId, url, activeType, device, showDummy]);
 
   // Update view size on mount and resize
   useEffect(() => {
@@ -358,9 +362,9 @@ export default function HeatmapViewPage() {
                 {showOverlay && (
                   <HeatmapOverlay
                     points={points}
-                    width={deviceWidth}
+                    width={dimensions.width}
                     height={dimensions.height}
-                    totalWidth={deviceWidth}
+                    totalWidth={dimensions.width}
                     totalHeight={dimensions.height}
                     opacity={opacity[0] / 100}
                     type={activeType}
@@ -438,7 +442,7 @@ export default function HeatmapViewPage() {
                             }
                           }
                           if (maxInnerHeight > 0) {
-                            setDimensions(prev => ({ ...prev, height: maxInnerHeight }));
+                            setDimensions({ width: deviceWidth, height: maxInnerHeight });
                             setShowHeightControl(false);
                           }
                         } catch {

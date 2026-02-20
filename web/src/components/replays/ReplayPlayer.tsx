@@ -69,7 +69,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           events: chunks,
           autoPlay: true,
           width: playerRef.current.offsetWidth || 1024,
-          height: 576,
+          height: 800, // Increased default height
+          UNSAFE_replayCanvas: true // Performance
         },
       });
     }
@@ -114,9 +115,16 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           border: none !important;
           background: #09090b !important;
           border-radius: 0 !important;
+          height: 100% !important;
         }
         .rr-player__frame {
           border-radius: 0 !important;
+          flex: 1 !important;
+        }
+        /* Fix for full-page scaling */
+        .re-player__container {
+          height: auto !important;
+          min-height: 600px !important;
         }
         .rr-controller {
           background: rgba(9, 9, 11, 0.95) !important;
@@ -175,15 +183,15 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
       {/* Player */}
       <Card className="border border-border/60 bg-card overflow-hidden shadow-sm">
-        <div className="bg-zinc-950 aspect-video flex items-center justify-center relative overflow-hidden">
+        <div className="bg-zinc-950 flex items-center justify-center relative overflow-hidden min-h-[600px] max-h-[85vh]">
           {chunks.length === 0 ? (
             <div className="p-12 text-center">
               <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
               <p className="text-xs text-white/15">This session contains no replay data.</p>
             </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <div ref={playerRef} className="w-full h-full" />
+            <div className="w-full h-full flex items-center justify-center overflow-auto">
+              <div ref={playerRef} className="w-full h-full min-h-[600px]" />
             </div>
           )}
         </div>
