@@ -113,7 +113,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
     const containerClasses = mobile
         ? "h-full w-full bg-background flex flex-col"
         : cn(
-            "h-screen fixed top-0 left-0 bg-background border-r border-border/60 flex flex-col hidden lg:flex z-50 transition-all duration-300 ease-in-out",
+            "h-screen fixed top-0 left-0 bg-card border-r border-border/60 flex flex-col hidden lg:flex z-50 transition-all duration-300 ease-in-out",
             isSidebarOpen ? "w-[260px]" : "w-[72px]"
         );
 

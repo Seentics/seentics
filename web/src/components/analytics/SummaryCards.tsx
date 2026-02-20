@@ -226,7 +226,7 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCard
   ];
 
   return (
-    <div className="border border-border/60 bg-card shadow-sm rounded overflow-hidden mb-8">
+    <div className="border border-border/60 bg-card dark:border-none shadow-sm rounded overflow-hidden mb-8">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/40">
         {cards.map((card, index) => (
           <SummaryCard key={index} {...card} />

@@ -48,7 +48,8 @@
   .dark {
     --background: 222 47% 6%; /* Much darker than cards */
     --foreground: 210 20% 98%;
-    --card: 215 27.9% 16.9%; /* gray-800 */
+--card: 222 30% 12%;    /* dark slate */
+
     --card-foreground: 210 20% 98%;
     --popover: 215 27.9% 16.9%;
     --popover-foreground: 210 20% 98%;

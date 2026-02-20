@@ -213,7 +213,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
   if (selectedSession) {
     const session = sessions.find(s => s.session_id === selectedSession);
     return (
-      <div className="space-y-6 animate-in fade-in duration-300">
+      <div className="space-y-6  duration-300">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => setSelectedSession(null)} className="h-8 w-8 hover:bg-muted">
             <ArrowLeft className="h-4 w-4" />
@@ -244,7 +244,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
 
   // ---- Main overview ----
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-500">
+    <div className="space-y-6 pb-12 ">
       {/* Header */}
       <DashboardPageHeader
         title="Session Recordings"
