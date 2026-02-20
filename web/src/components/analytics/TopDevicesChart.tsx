@@ -80,7 +80,7 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
       return (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
           <Layers className="h-10 w-10 mb-2 opacity-20" />
-          <p className="text-[10px] font-bold uppercase tracking-widest">No data available</p>
+          <p className="text-xs font-medium text-muted-foreground">No data available</p>
         </div>
       );
     }
@@ -119,8 +119,8 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{label}</div>
-                  <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-50 truncate">
-                    {type === 'device' ? 'Hardware' : type === 'os' ? 'Software' : 'Resolution'} Insight
+                  <div className="text-xs text-muted-foreground truncate">
+                    {type === 'device' ? 'Hardware' : type === 'os' ? 'Software' : 'Resolution'}
                   </div>
                 </div>
               </div>
@@ -130,7 +130,7 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
                   <div className="font-bold text-base leading-tight tracking-tight">
                     {formatNumber(val)}
                   </div>
-                  <div className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider opacity-50">
+                  <div className="text-xs text-muted-foreground">
                     Visitors
                   </div>
                 </div>
@@ -148,12 +148,12 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
            <div className="space-y-1">
               <CardTitle className="text-lg font-bold tracking-tight">System Insights</CardTitle>
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Devices, OS, & Tech Specs</p>
+              <p className="text-xs text-muted-foreground">Devices, OS & tech specs</p>
            </div>
            <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded shrink-0">
-             <TabsTrigger value="devices" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Devices</TabsTrigger>
-             <TabsTrigger value="os" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">OS</TabsTrigger>
-             <TabsTrigger value="screens" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Screens</TabsTrigger>
+             <TabsTrigger value="devices" className="text-xs font-medium rounded active:bg-background">Devices</TabsTrigger>
+             <TabsTrigger value="os" className="text-xs font-medium rounded active:bg-background">OS</TabsTrigger>
+             <TabsTrigger value="screens" className="text-xs font-medium rounded active:bg-background">Screens</TabsTrigger>
            </TabsList>
         </div>
         

@@ -49,7 +49,7 @@ export default function Layout({ children }: LayoutProps) {
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-[280px] border-r-0">
+            <SheetContent side="left" className="p-0 w-[260px] border-r-0">
               <div className="h-full flex flex-col">
                  {/* Reuse NavSidebar contents for mobile */}
                  <div className="flex-1 overflow-y-auto">
@@ -65,7 +65,7 @@ export default function Layout({ children }: LayoutProps) {
         "flex-1 w-full relative min-w-0 transition-all duration-300 ease-in-out bg-background text-foreground",
         isFullscreenView && "overflow-hidden h-full",
         !isFullscreenView && "pt-16 lg:pt-0", 
-        (!isFullscreenView && isSidebarOpen) ? "lg:ml-[280px]" : (!isFullscreenView ? "lg:ml-[80px]" : "ml-0"),
+        (!isFullscreenView && isSidebarOpen) ? "lg:ml-[260px]" : (!isFullscreenView ? "lg:ml-[72px]" : "ml-0"),
         "px-0" 
       )}>
         {children}

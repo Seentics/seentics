@@ -13,9 +13,6 @@ import {
     Shield,
     ChevronUp,
     Headset,
-    Mail,
-    MessageSquare,
-    FileText,
     ChevronLeft,
     ChevronRight,
     MousePointer2,
@@ -28,13 +25,11 @@ import { useAuth } from '@/stores/useAuthStore';
 import { useLayoutStore } from '@/stores/useLayoutStore';
 import { isEnterprise } from '@/lib/features';
 import { Button } from '@/components/ui/button';
-import { motion } from 'framer-motion';
 import {
     Popover,
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
-import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 
 export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; mobile?: boolean }) {
@@ -115,11 +110,11 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
         ? allLinks
         : allLinks.filter(link => !link.enterpriseOnly);
 
-    const containerClasses = mobile 
-        ? "h-full w-full bg-white dark:bg-sidebar/40 flex flex-col"
+    const containerClasses = mobile
+        ? "h-full w-full bg-background flex flex-col"
         : cn(
-            "h-screen fixed top-0 left-0 bg-white dark:bg-sidebar/40 backdrop-blur-2xl border-r border-sidebar-border/30 flex flex-col hidden lg:flex z-50 transition-all duration-300 ease-in-out",
-            isSidebarOpen ? "w-[280px]" : "w-[80px]"
+            "h-screen fixed top-0 left-0 bg-background border-r border-border/60 flex flex-col hidden lg:flex z-50 transition-all duration-300 ease-in-out",
+            isSidebarOpen ? "w-[260px]" : "w-[72px]"
         );
 
     return (
@@ -172,17 +167,17 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                     mobile && closeMobileMenu();
                                 }}
                                 className={cn(
-                                    "flex items-center gap-3 px-3.5 py-3 rounded group transition-all duration-200 relative",
-                                    isActive 
-                                        ? "bg-primary text-white shadow-xl shadow-primary/20 font-bold" 
-                                        : "hover:bg-sidebar-accent/50 text-muted-foreground font-medium",
+                                    "flex items-center gap-3 px-3.5 py-2.5 rounded-lg group transition-all duration-200 relative",
+                                    isActive
+                                        ? "bg-accent text-primary font-medium"
+                                        : "hover:bg-accent/50 text-muted-foreground font-medium",
                                     (!isSidebarOpen && !mobile) && "justify-center px-0",
                                     isDisabled && "opacity-50 cursor-not-allowed"
                                 )}
                             >
-                                <link.icon size={20} className={cn(
-                                    "shrink-0 transition-transform duration-300",
-                                    isActive ? "text-white" : "text-muted-foreground group-hover:scale-110 group-hover:text-primary"
+                                <link.icon size={18} className={cn(
+                                    "shrink-0 transition-colors",
+                                    isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                                 )} />
                                 {(isSidebarOpen || mobile) && (
                                     <div className="flex flex-col">
@@ -209,37 +204,33 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                     <Popover>
                         <PopoverTrigger asChild>
                             <button className={cn(
-                                "flex items-center gap-3 w-full p-2.5 rounded-xl hover:bg-sidebar-accent/50 transition-all duration-300 group ring-primary/20 hover:ring-2 backdrop-blur-sm",
+                                "flex items-center gap-3 w-full p-2.5 rounded-lg hover:bg-accent/50 transition-colors group",
                                 (!isSidebarOpen && !mobile) && "justify-center p-2"
                             )}>
-                                <Avatar className="h-9 w-9 border-2 border-background shadow-md group-hover:scale-105 transition-transform">
+                                <Avatar className="h-8 w-8 border border-border/60">
                                     <AvatarImage src={user.avatar || undefined} />
-                                    <AvatarFallback className="bg-primary text-primary-foreground font-black text-xs uppercase text-center flex items-center justify-center pt-0.5">
+                                    <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
                                         {user.name?.[0] || user.email?.[0] || 'U'}
                                     </AvatarFallback>
                                 </Avatar>
                                 {(isSidebarOpen || mobile) && (
                                     <div className="flex-1 min-w-0 text-left">
-                                        <p className="text-xs font-black text-foreground truncate uppercase tracking-tight">{user.name || 'User'}</p>
-                                        <p className="text-[10px] text-muted-foreground/60 truncate font-bold uppercase tracking-widest leading-none mt-0.5">Settings</p>
+                                        <p className="text-sm font-medium text-foreground truncate">{user.name || 'User'}</p>
+                                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                                     </div>
                                 )}
-                                {(isSidebarOpen || mobile) && <ChevronUp className="h-4 w-4 text-muted-foreground/20 group-hover:text-primary transition-all duration-300 group-hover:-translate-y-0.5" />}
+                                {(isSidebarOpen || mobile) && <ChevronUp className="h-4 w-4 text-muted-foreground/40 group-hover:text-foreground transition-colors" />}
                             </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-72 p-0 mb-3 rounded-2xl border-border/40 bg-card/95 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.15)]" side={(isSidebarOpen || mobile) ? "top" : "right"} align={(isSidebarOpen || mobile) ? "center" : "end"} sideOffset={12}>
-                             <div className="p-4 bg-muted/20 rounded-t-2xl">
-                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary/60 mb-1">Active Session</p>
-                                <p className="text-sm font-black text-foreground">{user.name || 'Account'}</p>
-                                <p className="text-[10px] text-muted-foreground font-medium truncate opacity-60 mt-0.5">{user.email}</p>
+                        <PopoverContent className="w-64 p-0 mb-3 rounded-lg border-border/60 bg-card shadow-sm" side={(isSidebarOpen || mobile) ? "top" : "right"} align={(isSidebarOpen || mobile) ? "center" : "end"} sideOffset={12}>
+                            <div className="p-3 border-b border-border/40">
+                                <p className="text-sm font-medium text-foreground">{user.name || 'Account'}</p>
+                                <p className="text-xs text-muted-foreground truncate mt-0.5">{user.email}</p>
                             </div>
-                            <Separator className="opacity-10" />
-                            <div className="p-2 space-y-1">
+                            <div className="p-1.5">
                                 <Link href={`/websites/${websiteId}/settings`} onClick={() => mobile && closeMobileMenu()}>
-                                    <Button variant="ghost" size="sm" className="w-full justify-start h-10 text-xs font-bold gap-3 rounded-xl hover:bg-muted group">
-                                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                                            <Settings size={14} />
-                                        </div>
+                                    <Button variant="ghost" size="sm" className="w-full justify-start h-9 text-xs font-medium gap-2.5 rounded-md hover:bg-accent">
+                                        <Settings size={14} className="text-muted-foreground" />
                                         Profile Settings
                                     </Button>
                                 </Link>
@@ -250,11 +241,9 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                         mobile && closeMobileMenu();
                                         logout();
                                     }}
-                                    className="w-full justify-start h-10 text-xs font-bold gap-3 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-xl group"
+                                    className="w-full justify-start h-9 text-xs font-medium gap-2.5 text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-md"
                                 >
-                                    <div className="w-8 h-8 rounded-lg bg-rose-500/10 flex items-center justify-center text-rose-500 group-hover:scale-110 transition-transform">
-                                        <LogOut size={14} />
-                                    </div>
+                                    <LogOut size={14} />
                                     Sign Out
                                 </Button>
                             </div>

@@ -32,11 +32,11 @@ const GrowthIndicator = ({ current, previous, inverse = false }: {
   inverse?: boolean;
 }) => {
   if (previous === 0) {
-    if (current > 0) return <span className="text-emerald-500 text-[10px] font-black uppercase tracking-widest flex items-center bg-emerald-500/10 px-1.5 py-0.5 rounded">New</span>;
-    return <span className="text-muted-foreground/40 text-[10px] uppercase font-bold ml-2">—</span>;
+    if (current > 0) return <span className="text-emerald-500 text-[10px] font-medium flex items-center bg-emerald-500/10 px-1.5 py-0.5 rounded">New</span>;
+    return <span className="text-muted-foreground/40 text-[10px] font-medium ml-2">—</span>;
   }
   if (current === previous) {
-    return <span className="text-muted-foreground/40 text-[10px] uppercase font-bold">0.0%</span>;
+    return <span className="text-muted-foreground/40 text-[10px] font-medium">0.0%</span>;
   }
 
   const growth = ((current - previous) / previous) * 100;
@@ -44,7 +44,7 @@ const GrowthIndicator = ({ current, previous, inverse = false }: {
 
   return (
     <div className={cn(
-        "flex items-center text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded",
+        "flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded",
         isPositive ? 'text-emerald-500 bg-emerald-500/10' : 'text-rose-500 bg-rose-500/10'
     )}>
       {isPositive ? <ArrowUpRight className="h-2.5 w-2.5 mr-0.5" strokeWidth={3} /> : <ArrowDownRight className="h-2.5 w-2.5 mr-0.5" strokeWidth={3} />}
@@ -103,7 +103,7 @@ const SummaryCard = ({
   const content = (
     <>
       <div className="flex items-center justify-between pb-3">
-        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest opacity-50 group-hover:opacity-100 transition-opacity whitespace-nowrap overflow-hidden text-ellipsis">
+        <div className="text-xs font-medium text-muted-foreground group-hover:opacity-100 transition-opacity whitespace-nowrap overflow-hidden text-ellipsis">
           {title}
         </div>
         <div className="h-7 w-7 rounded bg-accent/5 flex items-center justify-center group-hover:bg-primary/5 transition-colors">
@@ -138,11 +138,6 @@ const SummaryCard = ({
         )}
       </div>
 
-      {/* Decorative accent */}
-      <div className={cn(
-        "absolute -bottom-1 -right-1 h-12 w-12 blur-2xl opacity-0 group-hover:opacity-100 transition-all duration-700 rounded-full",
-        title === 'Live Visitors' ? "bg-emerald-500/10" : "bg-primary/5"
-      )} />
     </>
   );
 
@@ -166,7 +161,7 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCard
   
   if (isLoading || !data) {
     return (
-      <div className="bg-card/50 shadow-sm rounded overflow-hidden mb-8 border dark:border-none">
+      <div className="border border-border/60 bg-card shadow-sm rounded overflow-hidden mb-8">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/20">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="p-6">
@@ -231,7 +226,7 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCard
   ];
 
   return (
-    <div className="bg-card/50 shadow-sm shadow-black/5 rounded overflow-hidden mb-8 border dark:border-none">
+    <div className="border border-border/60 bg-card shadow-sm rounded overflow-hidden mb-8">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/40">
         {cards.map((card, index) => (
           <SummaryCard key={index} {...card} />

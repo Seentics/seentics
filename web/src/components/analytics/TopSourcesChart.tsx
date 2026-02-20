@@ -147,7 +147,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
       return (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
           <Layers className="h-10 w-10 mb-2 opacity-20" />
-          <p className="text-[10px] font-bold uppercase tracking-widest">{emptyMessages[type]}</p>
+          <p className="text-xs font-medium text-muted-foreground">{emptyMessages[type]}</p>
         </div>
       );
     }
@@ -174,18 +174,18 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
               </div>
               <div className="min-w-0 flex-1">
                 <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={item.label}>{item.label}</div>
-                <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-60 truncate">
-                   {type === 'overview' ? 'Channel' : 'Platform'} Insight
+                <div className="text-xs text-muted-foreground truncate">
+                   {type === 'overview' ? 'Channel' : 'Platform'}
                 </div>
               </div>
             </div>
 
             <div className="shrink-0 text-right">
               <div className="text-right">
-                <div className="font-black text-base leading-tight">
+                <div className="font-bold text-base leading-tight">
                   {formatNumber(item.visitors)}
                 </div>
-                <div className="text-[9px] text-muted-foreground uppercase font-black tracking-[0.15em] opacity-60">
+                <div className="text-xs text-muted-foreground">
                   Visitors
                 </div>
               </div>
@@ -202,12 +202,12 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
            <div className="space-y-1">
               <CardTitle className="text-lg font-bold tracking-tight">Traffic Sources</CardTitle>
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Main acquisition channels</p>
+              <p className="text-xs text-muted-foreground">Main acquisition channels</p>
            </div>
            <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded">
-             <TabsTrigger value="overview" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">All</TabsTrigger>
-             <TabsTrigger value="search" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Search</TabsTrigger>
-             <TabsTrigger value="social" className="text-[10px] font-bold uppercase tracking-widest rounded active:bg-background">Social</TabsTrigger>
+             <TabsTrigger value="overview" className="text-xs font-medium rounded active:bg-background">All</TabsTrigger>
+             <TabsTrigger value="search" className="text-xs font-medium rounded active:bg-background">Search</TabsTrigger>
+             <TabsTrigger value="social" className="text-xs font-medium rounded active:bg-background">Social</TabsTrigger>
            </TabsList>
         </div>
 

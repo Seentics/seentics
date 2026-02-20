@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Zap, Star, Crown, ArrowRight, Sparkles } from 'lucide-react';
+import { Check, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/stores/useAuthStore';
 import { motion } from 'framer-motion';
@@ -7,158 +7,140 @@ import { isEnterprise } from '@/lib/features';
 
 const plans = [
   {
-    name: "Starter",
-    price: "0",
-    period: "forever",
-    description: "Perfect for exploring our unique analytics power.",
-    icon: Star,
+    name: 'Starter',
+    price: '0',
+    period: 'forever',
+    description: 'For side projects and personal sites.',
     popular: false,
-    color: "text-primary bg-primary/10 border-primary/20",
     features: [
-      "1 Website",
-      "15,000 Monthly Events",
-      "3 Session Recordings",
-      "1 Active Heatmap",
-      "1 Conversion Funnel",
-      "1 Automation Workflow",
-      "30 Days Data Retention",
-      "Community Support"
-    ]
+      '1 Website',
+      '15,000 Monthly Events',
+      '3 Session Recordings',
+      '1 Heatmap',
+      '1 Funnel',
+      '1 Automation',
+      '30 Days Retention',
+    ],
   },
   {
-    name: "Growth",
-    price: "29",
-    period: "month",
-    description: "Scaling fast? Get the deep insights you need.",
-    icon: Zap,
+    name: 'Growth',
+    price: '29',
+    period: 'month',
+    description: 'For growing businesses that need deeper insights.',
     popular: true,
-    color: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
     features: [
-      "5 Websites",
-      "200,000 Monthly Events",
-      "500 Session Recordings",
-      "10 Active Heatmaps",
-      "20 Conversion Funnels",
-      "20 Active Automations",
-      "1 Year Data Retention",
-      "Priority Email Support"
-    ]
+      '5 Websites',
+      '200,000 Monthly Events',
+      '500 Session Recordings',
+      '10 Heatmaps',
+      '20 Funnels',
+      '20 Automations',
+      '1 Year Retention',
+    ],
   },
   {
-    name: "Scale",
-    price: "89",
-    period: "month",
-    description: "Advanced features for scaling agencies and businesses.",
-    icon: Crown,
+    name: 'Scale',
+    price: '89',
+    period: 'month',
+    description: 'For agencies and scaling teams.',
     popular: false,
-    color: "text-violet-500 bg-violet-500/10 border-violet-500/20",
     features: [
-      "15 Websites",
-      "1,000,000 Monthly Events",
-      "2,500 Session Recordings",
-      "50 Active Heatmaps",
-      "100 Active Automations",
-      "100 Conversion Funnels",
-      "2 Years Data Retention",
-      "24/7 Priority Support"
-    ]
+      '15 Websites',
+      '1,000,000 Monthly Events',
+      '2,500 Session Recordings',
+      '50 Heatmaps',
+      '100 Funnels',
+      '100 Automations',
+      '2 Years Retention',
+    ],
   },
   {
-    name: "Pro+",
-    price: "99",
-    period: "month",
-    description: "Elite features for high-traffic enterprises.",
-    icon: Sparkles,
+    name: 'Pro+',
+    price: '99',
+    period: 'month',
+    description: 'For high-traffic enterprises.',
     popular: false,
-    color: "text-amber-500 bg-amber-500/10 border-amber-500/20",
     features: [
-      "Unlimited Websites",
-      "10,000,000 Monthly Events",
-      "Unlimited Everything",
-      "Unlimited Heatmaps",
-      "Custom Data Retention",
-      "White-label Reports",
-      "Dedicated Success Manager",
-      "SSO & Custom Security"
-    ]
-  }
+      'Unlimited Websites',
+      '10,000,000 Monthly Events',
+      'Unlimited Recordings',
+      'Unlimited Heatmaps',
+      'Custom Retention',
+      'White-label Reports',
+      'SSO & Dedicated Support',
+    ],
+  },
 ];
 
 export default function Pricing() {
   if (!isEnterprise) return null;
 
-  const { isAuthenticated, user } = useAuth();
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
-    }
-  };
+  const { isAuthenticated } = useAuth();
 
   return (
-    <section id="pricing" className="py-24 bg-background border-t border-border/40">
+    <section id="pricing" className="py-24 md:py-32 bg-background">
       <div className="container mx-auto px-6">
-        <div className="text-center max-w-3xl mx-auto mb-20">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground mb-6">
-            Simple, honest <br />
-            <span className="text-primary italic">pricing.</span>
-          </h2>
-          <p className="text-lg text-muted-foreground/80 font-medium">
-            Start for free. No credit card required. Upgrade when you need more power.
-          </p>
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <motion.h2
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
+          >
+            Simple, honest pricing
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.05 }}
+            className="text-muted-foreground text-lg"
+          >
+            Start free. Upgrade when you need more. No surprises.
+          </motion.p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto mb-20">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto mb-16">
           {plans.map((plan, index) => (
             <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
+              key={plan.name}
+              initial={{ opacity: 0, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className={`p-6 md:p-8 rounded-2xl border ${plan.popular ? 'border-primary ring-1 ring-primary/20' : 'border-border/60'} bg-card flex flex-col relative`}
+              transition={{ duration: 0.4, delay: index * 0.06 }}
+              className={`rounded-xl border p-6 flex flex-col bg-card ${
+                plan.popular
+                  ? 'border-primary/40 ring-1 ring-primary/20'
+                  : 'border-border/50'
+              }`}
             >
               {plan.popular && (
-                <div className="absolute top-0 right-8 -translate-y-1/2 bg-primary text-primary-foreground text-[10px] font-bold uppercase tracking-widest py-1 px-3 rounded-full">
-                  Popular
-                </div>
+                <span className="text-[11px] font-semibold text-primary mb-3">Most popular</span>
               )}
 
-              <div className="mb-8">
-                <h3 className="text-xl font-bold mb-2 tracking-tight">{plan.name}</h3>
-                <div className="flex items-baseline gap-1 mb-4">
-                  <span className="text-4xl font-bold tracking-tight">${plan.price}</span>
-                  <span className="text-muted-foreground font-medium text-sm pl-0.5">/{plan.period === 'forever' ? 'forever' : 'mo'}</span>
-                </div>
-                <p className="text-sm text-muted-foreground/80 font-medium leading-relaxed">
-                  {plan.description}
-                </p>
+              <h3 className="text-lg font-semibold text-foreground mb-1">{plan.name}</h3>
+              <div className="flex items-baseline gap-0.5 mb-2">
+                <span className="text-3xl font-bold tracking-tight text-foreground">${plan.price}</span>
+                <span className="text-sm text-muted-foreground">
+                  /{plan.period === 'forever' ? 'forever' : 'mo'}
+                </span>
               </div>
+              <p className="text-sm text-muted-foreground mb-6">{plan.description}</p>
 
-              <div className="space-y-4 mb-8 flex-grow">
-                {plan.features.slice(0, 8).map((feature, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <CheckCircle className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                    <span className="text-sm font-medium text-foreground/80 tracking-tight">{feature}</span>
+              <div className="space-y-3 mb-6 flex-grow">
+                {plan.features.map((feature) => (
+                  <div key={feature} className="flex items-center gap-2.5">
+                    <Check className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                    <span className="text-sm text-foreground/80">{feature}</span>
                   </div>
                 ))}
               </div>
 
-              <Link href={isAuthenticated ? "/websites" : "/signup"}>
+              <Link href={isAuthenticated ? '/websites' : '/signup'} className="mt-auto">
                 <Button
-                  variant={plan.popular ? "brand" : "outline"}
-                  className="w-full h-12 rounded-xl font-bold text-sm transition-all"
+                  variant={plan.popular ? 'default' : 'outline'}
+                  className="w-full h-10 text-sm font-medium rounded-lg"
                 >
                   {plan.name === 'Starter' ? 'Get Started' : `Go ${plan.name}`}
                 </Button>
@@ -167,29 +149,24 @@ export default function Pricing() {
           ))}
         </div>
 
-        {/* Sales Trigger */}
-        <div className="max-w-4xl mx-auto p-12 rounded-2xl bg-primary/[0.03] border border-primary/10 text-center relative overflow-hidden group hover:border-primary/20 transition-all duration-500">
-          <div className="relative z-10">
-            <h3 className="text-2xl font-bold mb-4 tracking-tight">Need something bigger?</h3>
-            <p className="text-muted-foreground font-medium mb-8 max-w-xl mx-auto leading-relaxed">
-              Custom infrastructure, unlimited volume, and priority support for high-traffic enterprises.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/contact" className="w-full sm:w-auto">
-                <Button variant="outline" className="h-12 px-8 text-sm font-bold w-full sm:w-auto rounded-xl">
-                  Contact Sales
-                </Button>
-              </Link>
-              <Link href="/signup" className="w-full sm:w-auto">
-                <Button variant="brand" className="h-12 px-8 text-sm font-bold w-full sm:w-auto rounded-xl shadow-lg shadow-primary/20">
-                  Try It Now
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
+        {/* Enterprise CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4 }}
+          className="max-w-2xl mx-auto text-center"
+        >
+          <p className="text-muted-foreground mb-4">
+            Need custom infrastructure, unlimited volume, or priority support?
+          </p>
+          <Link href="/contact">
+            <Button variant="outline" className="h-10 px-6 text-sm font-medium rounded-lg">
+              Contact Sales <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </motion.div>
       </div>
     </section>
   );
 }
-

@@ -1,82 +1,80 @@
 import { motion } from 'framer-motion';
-import { BarChart3, Shield, Zap, Globe, Check, Layers, Database, MoveRight, Workflow, Filter, Play } from 'lucide-react';
+import { BarChart3, Shield, Filter, Play, MousePointer2, Workflow } from 'lucide-react';
 import React from 'react';
 
+const features = [
+  {
+    icon: BarChart3,
+    title: 'Real-time Analytics',
+    description: 'See who is on your site right now. Pageviews, visitors, referrers, and custom events with sub-second latency.',
+  },
+  {
+    icon: MousePointer2,
+    title: 'Heatmaps',
+    description: 'Visualize where users click, scroll, and move. Understand engagement patterns on every page.',
+  },
+  {
+    icon: Play,
+    title: 'Session Recordings',
+    description: 'Watch real user sessions to understand behavior, debug issues, and improve the experience.',
+  },
+  {
+    icon: Filter,
+    title: 'Conversion Funnels',
+    description: 'Build multi-step funnels to identify where users drop off and optimize your conversion path.',
+  },
+  {
+    icon: Workflow,
+    title: 'Automations',
+    description: 'Trigger emails, webhooks, and on-site actions based on user behavior and events.',
+  },
+  {
+    icon: Shield,
+    title: 'Privacy First',
+    description: 'No cookies by default. PII masking built in. Fully GDPR, CCPA, and PECR compliant.',
+  },
+];
+
 export default function Features() {
-  const features = [
-    {
-      icon: BarChart3,
-      title: "Real-time Analytics",
-      description: "See exactly who is on your site right now and what they're doing. No delays, just raw live data.",
-      color: "text-primary bg-primary/10"
-    },
-    {
-      icon: Filter,
-      title: "Advanced Funnels",
-      description: "Visualize customer journeys and identify drop-off points. Optimize your path to conversion.",
-      color: "text-primary bg-primary/10"
-    },
-    {
-      icon: Play,
-      title: "Session Recordings",
-      description: "Watch high-fidelity replays of user sessions. See where they hesitate, where they get stuck, and why they leave.",
-      color: "text-primary bg-primary/10"
-    },
-    {
-      icon: Shield,
-      title: "Privacy Guaranteed",
-      description: "PII masking by default. We never capture passwords or sensitive data. 100% GDPR, CCPA, and PECR compliant.",
-      color: "text-primary bg-primary/10"
-    },
-  ];
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 15 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] }
-    }
-  };
-
   return (
-    <section id="features" className="py-24 bg-background">
+    <section id="features" className="py-24 md:py-32 bg-background">
       <div className="container mx-auto px-6">
-        <div className="text-center max-w-3xl mx-auto mb-20">
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground mb-6">
-            Powerful features. <br />
-            <span className="text-primary italic">Zero-config setup.</span>
-          </h2>
-          <p className="text-lg text-muted-foreground/80 leading-relaxed font-medium">
-            Get comprehensive insights without the technical overhead. Seentics works out of the box with any website.
-          </p>
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <motion.h2
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
+          >
+            Everything you need, nothing you don't
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.05 }}
+            className="text-muted-foreground text-lg"
+          >
+            One platform replaces your entire analytics stack. No integrations, no extra costs.
+          </motion.p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border/50 border border-border/50 rounded-xl overflow-hidden max-w-5xl mx-auto">
           {features.map((feature, index) => (
             <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              key={feature.title}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-              className="p-6 md:p-8 rounded-2xl border border-border/50 bg-card hover:border-primary/20 transition-all duration-300"
+              transition={{ duration: 0.4, delay: index * 0.05 }}
+              className="p-8 bg-background hover:bg-muted/30 transition-colors"
             >
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-6 text-primary">
-                <feature.icon className="h-5 w-5" />
-              </div>
-              <h3 className="text-lg font-bold mb-3 tracking-tight text-foreground">
+              <feature.icon className="h-5 w-5 text-foreground mb-4" />
+              <h3 className="text-sm font-semibold text-foreground mb-2">
                 {feature.title}
               </h3>
-              <p className="text-sm text-muted-foreground/70 leading-relaxed font-medium">
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 {feature.description}
               </p>
             </motion.div>

@@ -28,24 +28,24 @@ export function TrafficOverview({
   const listData = dailyStats?.daily_stats || [];
 
   return (
-    <Card className={cn("col-span-full bg-card/50 shadow-sm shadow-black/5 overflow-hidden h-[500px]", className)}>
+    <Card className={cn("col-span-full border border-border/60 bg-card shadow-sm overflow-hidden h-[500px]", className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7 shrink-0">
         <div className="space-y-1">
           <CardTitle className="text-lg font-bold tracking-tight">Traffic Overview</CardTitle>
-          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Visitor volume over time</p>
+          <p className="text-xs text-muted-foreground">Visitor volume over time</p>
         </div>
         {/* View Tabs */}
         <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-auto">
           <TabsList className="grid w-full grid-cols-3 h-9  p-1 rounded">
-            <TabsTrigger value="chart" className="text-[10px] font-semibold uppercase tracking-wider px-3 gap-1.5 rounded active:bg-background">
+            <TabsTrigger value="chart" className="text-xs font-medium px-3 gap-1.5 rounded active:bg-background">
               <BarChart3 className="h-3.5 w-3.5" />
               Chart
             </TabsTrigger>
-            <TabsTrigger value="list" className="text-[10px] font-semibold uppercase tracking-wider px-3 gap-1.5 rounded active:bg-background">
+            <TabsTrigger value="list" className="text-xs font-medium px-3 gap-1.5 rounded active:bg-background">
               <List className="h-3.5 w-3.5" />
               List
             </TabsTrigger>
-            <TabsTrigger value="hourly" className="text-[10px] font-semibold uppercase tracking-wider px-3 gap-1.5 rounded active:bg-background">
+            <TabsTrigger value="hourly" className="text-xs font-medium px-3 gap-1.5 rounded active:bg-background">
               <Clock className="h-3.5 w-3.5" />
               Hourly
             </TabsTrigger>
@@ -83,25 +83,25 @@ export function TrafficOverview({
                           day: 'numeric',
                         })}
                       </div>
-                      <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest opacity-50">
+                      <div className="text-xs text-muted-foreground">
                          {new Date(stat.date).getFullYear()}
                       </div>
                     </div>
                     <div className="flex items-center gap-8">
                       <div className="text-right">
-                        <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest opacity-50">Views</div>
+                        <div className="text-xs text-muted-foreground">Views</div>
                         <div className="text-base font-bold text-primary">
                           {stat.views?.toLocaleString() || 0}
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest opacity-50">Unique</div>
+                        <div className="text-xs text-muted-foreground">Unique</div>
                         <div className="text-base font-bold text-foreground">
                           {stat.unique?.toLocaleString() || 0}
                         </div>
                       </div>
                       <div className="text-right hidden sm:block">
-                        <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest opacity-50">Bounce</div>
+                        <div className="text-xs text-muted-foreground">Bounce</div>
                         <div className="text-base font-bold">
                           {stat.bounce_rate?.toFixed(1) || 0}%
                         </div>
@@ -114,8 +114,8 @@ export function TrafficOverview({
               <div className="h-full flex items-center justify-center text-muted-foreground bg-accent/5 rounded border border-dashed border-border/60">
                 <div className="text-center">
                   <List className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
-                  <p className="text-sm font-bold uppercase tracking-widest opacity-60">No traffic data</p>
-                  <p className="text-xs text-muted-foreground/60 italic">Waiting for your first visitors...</p>
+                  <p className="text-sm font-medium text-muted-foreground">No traffic data</p>
+                  <p className="text-xs text-muted-foreground/60">Waiting for your first visitors...</p>
                 </div>
               </div>
             )}

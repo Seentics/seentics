@@ -49,7 +49,7 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
           <Users className="h-5 w-5 text-primary" />
           Visitor Behavior
         </h3>
-        <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">User engagement & retention metrics</p>
+        <p className="text-xs text-muted-foreground">User engagement & retention metrics</p>
       </div>
 
       {/* Primary Metrics Grid */}
@@ -60,11 +60,11 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
             <div className="p-1.5 bg-primary/10 rounded">
               <TrendingUp className="h-4 w-4 text-primary" />
             </div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">New Visitors</p>
+            <p className="text-xs font-medium text-muted-foreground">New Visitors</p>
           </div>
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-2xl font-black text-green-600  ">{(data?.new_visitors || 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-green-600">{(data?.new_visitors || 0).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground font-medium mt-0.5">First-time users</p>
             </div>
             <div className="text-right">
@@ -81,11 +81,11 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
             <div className="p-1.5 bg-emerald-500/10 rounded">
               <ArrowRightLeft className="h-4 w-4 text-emerald-500" />
             </div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Returning</p>
+            <p className="text-xs font-medium text-muted-foreground">Returning</p>
           </div>
           <div className="flex items-end justify-between">
             <div>
-              <p className="text-2xl font-black text-foreground">{(data?.returning_visitors || 0).toLocaleString()}</p>
+              <p className="text-2xl font-bold text-foreground">{(data?.returning_visitors || 0).toLocaleString()}</p>
               <p className="text-xs text-muted-foreground font-medium mt-0.5">Loyal users</p>
             </div>
             <div className="text-right">
@@ -105,8 +105,8 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
               <Clock className="h-5 w-5 text-blue-500" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Avg Session Duration</p>
-              <p className="text-xl font-black text-foreground">{formatDuration(data?.avg_session_duration || 0)}</p>
+              <p className="text-xs font-medium text-muted-foreground">Avg Session Duration</p>
+              <p className="text-xl font-bold text-foreground">{formatDuration(data?.avg_session_duration || 0)}</p>
             </div>
           </div>
           <div className="text-xs text-muted-foreground">
@@ -121,7 +121,7 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
         <div className="bg-card rounded-lg p-4 border border-border/40 hover:bg-accent/5 transition-colors">
           <div className="flex items-center gap-2 mb-3">
             <LogIn className="h-4 w-4 text-primary" />
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Top Entry</p>
+            <p className="text-xs font-medium text-muted-foreground">Top Entry</p>
           </div>
           {data?.top_entry_pages && data.top_entry_pages.length > 0 ? (
             <div>
@@ -142,7 +142,7 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
         <div className="bg-card rounded-lg p-4 border border-border/40 hover:bg-accent/5 transition-colors">
           <div className="flex items-center gap-2 mb-3">
             <LogOut className="h-4 w-4 text-orange-500" />
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Top Exit</p>
+            <p className="text-xs font-medium text-muted-foreground">Top Exit</p>
           </div>
           {data?.top_exit_pages && data.top_exit_pages.length > 0 ? (
             <div>

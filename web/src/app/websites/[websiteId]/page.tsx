@@ -542,7 +542,7 @@ export default function WebsiteDashboardPage() {
 
           {/* Pages & Sources */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="bg-card/50">
+            <Card className="border border-border/60 bg-card shadow-sm">
               <CardContent className="p-8">
                 <TopPagesChart
                   data={transformedTopPages}
@@ -553,7 +553,7 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/50 rounded">
+            <Card className="border border-border/60 bg-card shadow-sm">
               <CardContent className="p-8">
                 <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
               </CardContent>
@@ -561,7 +561,7 @@ export default function WebsiteDashboardPage() {
           </div>
 
           {/* Geolocation Map */}
-          <section className="bg-card/50 rounded">
+          <section>
             <GeolocationOverview
               data={finalGeolocationData}
               isLoading={!isDemoMode && geolocationLoading}
@@ -579,18 +579,18 @@ export default function WebsiteDashboardPage() {
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Goal Conversions */}
-            <Card className="rounded bg-card/50">
+            <Card className="border border-border/60 bg-card shadow-sm">
               <CardHeader className="p-8 pb-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
                     <CardTitle className="text-lg font-bold tracking-tight">Goal Conversions</CardTitle>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Behavioral Targets</p>
+                    <p className="text-xs text-muted-foreground">Behavioral targets</p>
                   </div>
-                  <Button 
+                  <Button
                     onClick={() => setShowAddGoalModal(true)}
-                    variant="secondary" 
-                    size="sm" 
-                    className="px-2 py-0 font-bold text-[10px] rounded gap-2 shadow-sm transition-transform active:scale-95"
+                    variant="secondary"
+                    size="sm"
+                    className="px-2 py-0 font-medium text-xs rounded gap-2 shadow-sm transition-transform active:scale-95"
                   >
                     <PlusCircle className="h-4 w-4" />
                     Add Goal
@@ -608,18 +608,18 @@ export default function WebsiteDashboardPage() {
             </Card>
 
             {/* Campaign Intelligence */}
-            <Card className="rounded bg-card/50 overflow-hidden">
+            <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
               <CardHeader className="p-8 pb-6 border-b border-border/40">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="space-y-1 min-w-0 shrink-0">
                     <CardTitle className="text-lg font-bold tracking-tight whitespace-nowrap">Campaign Intelligence</CardTitle>
-                    <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50 whitespace-nowrap">UTM Source & Performance</p>
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">UTM source & performance</p>
                   </div>
                   <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto shrink-0">
-                    <TabsList className="grid w-full grid-cols-3 h-11 bg-muted/20 p-1 rounded">
-                      <TabsTrigger value="sources" className="text-[10px]  font-bold uppercase tracking-wider">Sources</TabsTrigger>
-                      <TabsTrigger value="mediums" className="text-[10px] font-bold uppercase tracking-wider">Mediums</TabsTrigger>
-                      <TabsTrigger value="campaigns" className="text-[10px]  font-bold uppercase tracking-wider">Campaigns</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/10 p-1 rounded">
+                      <TabsTrigger value="sources" className="text-xs font-medium">Sources</TabsTrigger>
+                      <TabsTrigger value="mediums" className="text-xs font-medium">Mediums</TabsTrigger>
+                      <TabsTrigger value="campaigns" className="text-xs font-medium">Campaigns</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
@@ -645,7 +645,7 @@ export default function WebsiteDashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="bg-card/50">
+            <Card className="border border-border/60 bg-card shadow-sm">
               <CardContent className="p-8">
                 <TopDevicesChart
                   data={transformedTopDevices}
@@ -656,7 +656,7 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="bg-card/50">
+            <Card className="border border-border/60 bg-card shadow-sm">
               <CardContent className="p-8">
                 <VisitorInsightsCard 
                   data={finalVisitorInsights?.visitor_insights}

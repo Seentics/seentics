@@ -121,7 +121,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
       return (
         <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
           <FileText className="h-10 w-10 mb-2 opacity-20" />
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">No page data</p>
+          <p className="text-xs font-medium text-muted-foreground/60">No page data</p>
         </div>
       );
     }
@@ -159,7 +159,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
                   <div className="font-bold text-base leading-tight tracking-tight">
                     {formatNumber(val)}
                   </div>
-                  <div className="text-[9px] text-muted-foreground uppercase font-semibold tracking-wider opacity-50">
+                  <div className="text-xs text-muted-foreground">
                     {secondaryMetric || (type === 'top' ? 'Views' : 'Sessions')}
                   </div>
                 </div>
@@ -177,12 +177,12 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
            <div className="space-y-1">
               <CardTitle className="text-lg font-bold tracking-tight">Top Pages</CardTitle>
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Most visited & landing destinations</p>
+              <p className="text-xs text-muted-foreground">Most visited & landing destinations</p>
            </div>
            <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded shrink-0">
-             <TabsTrigger value="top" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Top</TabsTrigger>
-             <TabsTrigger value="entry" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Entry</TabsTrigger>
-             <TabsTrigger value="exit" className="text-[10px] font-semibold uppercase tracking-wider rounded active:bg-background">Exit</TabsTrigger>
+             <TabsTrigger value="top" className="text-xs font-medium rounded active:bg-background">Top</TabsTrigger>
+             <TabsTrigger value="entry" className="text-xs font-medium rounded active:bg-background">Entry</TabsTrigger>
+             <TabsTrigger value="exit" className="text-xs font-medium rounded active:bg-background">Exit</TabsTrigger>
            </TabsList>
         </div>
         

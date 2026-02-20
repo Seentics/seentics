@@ -26,7 +26,7 @@ export function DashboardPageHeader({
       <div className="space-y-1">
         <div className="flex items-center gap-3">
           <h1 className={cn(
-            "text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white transition-all",
+            "text-2xl sm:text-3xl font-bold tracking-tight text-foreground transition-all",
             uppercase ? "uppercase" : "capitalize"
           )}>
             {title}
