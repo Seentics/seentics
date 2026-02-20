@@ -9,7 +9,7 @@ import AutomationWorkflows from '@/components/landing/AutomationWorkflows';
 import ImportExportSection from '@/components/landing/ImportExportSection';
 import VisionSection from '@/components/landing/VisionSection';
 import Features from '@/components/landing/Features';
-import Comparison from '@/components/landing/Comparison';
+
 import Pricing from '@/components/landing/Pricing';
 import { LifetimeDeal } from '@/components/landing/LifetimeDeal';
 import FAQ from '@/components/landing/FAQ';
@@ -17,8 +17,10 @@ import Footer from '@/components/landing/Footer';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/logo';
 import { ArrowRight, BarChart3, Shield, Zap, MousePointer2, Video, Filter, Workflow, Terminal, Github, Server, Database } from 'lucide-react';
+import { FaDiscord } from 'react-icons/fa';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useAuth } from '@/stores/useAuthStore';
 
 const ossFeatures = [
   {
@@ -54,6 +56,8 @@ const ossFeatures = [
 ];
 
 function OSSLanding() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-background relative overflow-x-hidden">
       {/* Background */}
@@ -70,35 +74,58 @@ function OSSLanding() {
             <span className="text-xl font-black tracking-tighter text-foreground">SEENTICS</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/signin">
-              <Button variant="ghost" size="sm" className="font-bold">Sign In</Button>
-            </Link>
-            <Link href="/setup">
-              <Button size="sm" className="font-bold">Get Started</Button>
-            </Link>
+            <a href="https://discord.gg/TYdPvDRA" target="_blank" rel="noopener noreferrer">
+              <Button variant="ghost" size="sm" className="font-medium gap-1.5 text-muted-foreground hover:text-foreground">
+                <FaDiscord size={16} /> Discord
+              </Button>
+            </a>
+            {isAuthenticated ? (
+              <Link href="/websites">
+                <Button size="sm" className="font-bold">Dashboard <ArrowRight size={14} className="ml-1" /></Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/signin">
+                  <Button variant="ghost" size="sm" className="font-bold">Sign In</Button>
+                </Link>
+                <Link href="/setup">
+                  <Button size="sm" className="font-bold">Get Started</Button>
+                </Link>
+              </>
+            )}
           </div>
         </header>
 
         {/* Hero */}
-        <section className="px-6 md:px-12 pt-16 pb-20 max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-widest mb-8">
+        <section className="px-6 md:px-12 pt-20 pb-24 max-w-5xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-bold uppercase tracking-widest mb-10">
             <Server size={14} /> Open Source &middot; Self-Hosted &middot; Free Forever
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight text-foreground leading-[1.1] mb-6">
-            The analytics platform that<br />you can actually own
+          <h1 className="text-4xl md:text-6xl  font-black tracking-tight text-foreground leading-[1.08] mb-8">
+            The open source analytics stack
+            <br />
+            <span className="text-primary">for your business</span>
           </h1>
 
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10">
-            Privacy-focused web analytics with heatmaps, session replays, funnels, and behavioral automations. Deploy on your own infrastructure in minutes.
+          <p className="text-lg md:text-xl text-muted-foreground/80 max-w-2xl mx-auto mb-12 leading-relaxed">
+            Track every visitor with <span className="text-foreground font-semibold">live analytics</span>, <span className="text-foreground font-semibold">heatmaps</span>, <span className="text-foreground font-semibold">session recordings</span>, and <span className="text-foreground font-semibold">funnels</span> — all self-hosted, privacy-friendly, and built for teams that want full control over their data.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
-            <Link href="/setup">
-              <Button size="lg" className="h-14 px-8 text-base font-bold rounded-xl shadow-xl shadow-primary/20">
-                Set Up Instance <ArrowRight size={18} className="ml-2" />
-              </Button>
-            </Link>
+            {isAuthenticated ? (
+              <Link href="/websites">
+                <Button size="lg" className="h-14 px-8 text-base font-bold rounded-xl shadow-xl shadow-primary/20">
+                  Go to Dashboard <ArrowRight size={18} className="ml-2" />
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/setup">
+                <Button size="lg" className="h-14 px-8 text-base font-bold rounded-xl shadow-xl shadow-primary/20">
+                  Set Up Instance <ArrowRight size={18} className="ml-2" />
+                </Button>
+              </Link>
+            )}
             <a href="https://github.com/Seentics/seentics" target="_blank" rel="noopener noreferrer">
               <Button variant="outline" size="lg" className="h-14 px-8 text-base font-bold rounded-xl">
                 <Github size={18} className="mr-2" /> View on GitHub
@@ -206,13 +233,10 @@ export default function LandingPage() {
       <LandingHeader />
       <main>
         <Hero />
-        <div className="relative">
-          <Comparison />
-          <Features />
-          <AutomationWorkflows />
-          <Pricing />
-          <FAQ />
-        </div>
+        <Features />
+        <AutomationWorkflows />
+        <Pricing />
+        <FAQ />
       </main>
       <Footer />
     </div>

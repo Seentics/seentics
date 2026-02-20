@@ -6,28 +6,20 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Save, 
-  User, 
-  Mail, 
-  Camera, 
-  Lock, 
-  Eye, 
-  EyeOff, 
-  CheckCircle,
-  AlertCircle,
-  Loader2
+import {
+  Save,
+  User,
+  Camera,
+  Lock,
+  Eye,
+  EyeOff,
+  Loader2,
+  Shield,
 } from 'lucide-react';
-import { 
-  Tooltip, 
-  TooltipContent, 
-  TooltipProvider, 
-  TooltipTrigger 
-} from '@/components/ui/tooltip';
 import api from '@/lib/api';
 
 export function ProfileSettings() {
@@ -40,7 +32,7 @@ export function ProfileSettings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isAvatarLoading, setIsAvatarLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [profileData, setProfileData] = useState({
     name: user?.name || '',
     email: user?.email || '',
@@ -66,7 +58,7 @@ export function ProfileSettings() {
 
     try {
       const response = await api.put('/user/users/profile', profileData);
-      
+
       if (response.data?.success) {
         setUser(response.data.data.user);
         toast({
@@ -87,7 +79,7 @@ export function ProfileSettings() {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       toast({
         title: "Password Mismatch",
@@ -113,7 +105,7 @@ export function ProfileSettings() {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
       });
-      
+
       if (response.data?.success) {
         toast({
           title: "Password Changed",
@@ -138,8 +130,8 @@ export function ProfileSettings() {
 
   const handleAvatarUpload = async (file: File) => {
     if (!file) return;
-    
-    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+
+    if (file.size > 2 * 1024 * 1024) {
       toast({
         title: "File Too Large",
         description: "Avatar image must be less than 2MB.",
@@ -169,7 +161,7 @@ export function ProfileSettings() {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
+
       if (response.data?.success) {
         setUser(response.data.data.user);
         toast({
@@ -191,39 +183,29 @@ export function ProfileSettings() {
   if (!user) return null;
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-6xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-      
-      {/* Left Column: Avatar & Basic Info */}
-      <div className="lg:col-span-1 space-y-6">
-        <Card className="overflow-hidden border-border/40 shadow-sm transition-all hover:shadow-md">
-          <CardHeader className="pb-0 pt-8 flex flex-col items-center">
+    <div className="space-y-6 max-w-2xl">
+      {/* Avatar & Identity */}
+      <Card className="border border-border/60 bg-card shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-5">
             <div className="relative group">
-              <Avatar className="h-32 w-32 ring-4 ring-primary/10 transition-transform group-hover:scale-[1.02]">
+              <Avatar className="h-20 w-20 ring-2 ring-border/40">
                 <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                <AvatarFallback className="text-3xl font-black bg-primary text-primary-foreground">
+                <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
                   {user.name?.[0]?.toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="icon"
-                      variant="secondary"
-                      className="absolute bottom-0 right-0 h-10 w-10 rounded-full shadow-lg border border-border/40"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isAvatarLoading}
-                    >
-                      {isAvatarLoading ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                      ) : (
-                        <Camera className="h-5 w-5" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Click to update avatar</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <button
+                className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center hover:bg-muted transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isAvatarLoading}
+              >
+                {isAvatarLoading ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Camera className="h-3 w-3 text-muted-foreground" />
+                )}
+              </button>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -235,172 +217,174 @@ export function ProfileSettings() {
                 className="hidden"
               />
             </div>
-            <div className="text-center pt-4 pb-6">
-              <h3 className="text-xl font-black text-foreground uppercase tracking-tight">{user.name}</h3>
-              <p className="text-sm text-muted-foreground font-medium italic opacity-70">{user.email}</p>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-0">
-            <Separator className="opacity-40" />
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Status</span>
-                <Badge variant="outline" className="text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-500 border-emerald-500/20">
+
+            <div className="flex-1 min-w-0 pt-1">
+              <h3 className="text-base font-semibold text-foreground">{user.name}</h3>
+              <p className="text-sm text-muted-foreground">{user.email}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="outline" className="text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
                   {user.isActive ? 'Active' : 'Pending'}
                 </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-60">Identity</span>
-                <span className="text-[11px] font-bold text-foreground">
-                  {oauthProvider ? oauthProvider.name : 'Standard'}
-                </span>
+                {oauthProvider && (
+                  <Badge variant="outline" className="text-[10px] font-medium">
+                    {oauthProvider.name}
+                  </Badge>
+                )}
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      {/* Right Column: Forms */}
-      <div className="lg:col-span-2 space-y-8">
-        {/* Profile Info Form */}
-        <Card className="border-border/40 shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg font-black uppercase tracking-tight">
-              <User className="h-5 w-5 text-primary" />
-              General Information
-            </CardTitle>
-            <CardDescription className="text-sm font-medium">Update your public profile and account email.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleProfileSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest ml-1 opacity-60 text-muted-foreground">Display Name</Label>
+      {/* Profile Form */}
+      <Card className="border border-border/60 bg-card shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
+              <User className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold">General Information</h3>
+              <p className="text-xs text-muted-foreground">Update your display name and email address.</p>
+            </div>
+          </div>
+
+          <form onSubmit={handleProfileSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="name" className="text-xs font-medium text-muted-foreground">Display Name</Label>
+                <Input
+                  id="name"
+                  value={profileData.name}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter your name"
+                  className="h-9 text-sm"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={profileData.email}
+                  onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="Enter email"
+                  disabled={!!oauthProvider}
+                  className="h-9 text-sm disabled:opacity-60"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-1">
+              <Button type="submit" size="sm" disabled={isLoading} className="gap-1.5 text-xs font-medium">
+                {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                Save Changes
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Password */}
+      {!oauthProvider && (
+        <Card className="border border-border/60 bg-card shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="h-8 w-8 rounded-md bg-amber-500/10 flex items-center justify-center">
+                <Shield className="h-4 w-4 text-amber-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold">Security</h3>
+                <p className="text-xs text-muted-foreground">Update your password to keep your account secure.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="current-password" className="text-xs font-medium text-muted-foreground">Current Password</Label>
+                <div className="relative">
                   <Input
-                    id="name"
-                    value={profileData.name}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Enter your name"
-                    className="h-11 font-bold bg-accent/5"
+                    id="current-password"
+                    type={showPassword ? "text" : "password"}
+                    value={passwordData.currentPassword}
+                    onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                    className="h-9 text-sm pr-10"
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest ml-1 opacity-60 text-muted-foreground">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={profileData.email}
-                    onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="Enter email"
-                    disabled={!!oauthProvider}
-                    className="h-11 font-bold bg-accent/5 opacity-80"
-                    required
-                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0.5 top-0.5 h-8 w-8 text-muted-foreground"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </Button>
                 </div>
               </div>
-              <Button type="submit" disabled={isLoading} className="w-full h-12 font-black uppercase tracking-widest gap-2">
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-primary-foreground" /> : <Save className="h-4 w-4" />}
-                Save Profile Changes
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
 
-        {/* Password Form */}
-        {!oauthProvider && (
-          <Card className="border-border/40 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg font-black uppercase tracking-tight">
-                <Lock className="h-5 w-5 text-primary" />
-                Security & Password
-              </CardTitle>
-              <CardDescription className="text-sm font-medium">Ensure your account stays protected with a strong password.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handlePasswordChange} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="current-password text-[10px]" className="text-[10px] font-black uppercase tracking-widest ml-1 opacity-60 text-muted-foreground">Current Password</Label>
+              <Separator className="opacity-40" />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="new-password" className="text-xs font-medium text-muted-foreground">New Password</Label>
                   <div className="relative">
                     <Input
-                      id="current-password"
-                      type={showPassword ? "text" : "password"}
-                      value={passwordData.currentPassword}
-                      onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                      className="h-11 font-bold bg-accent/5"
+                      id="new-password"
+                      type={showNewPassword ? "text" : "password"}
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                      className="h-9 text-sm pr-10"
+                      required
+                      minLength={8}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0.5 top-0.5 h-8 w-8 text-muted-foreground"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                    >
+                      {showNewPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirm-password" className="text-xs font-medium text-muted-foreground">Confirm Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm-password"
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      className="h-9 text-sm pr-10"
                       required
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-1 top-1 h-9 w-9 text-muted-foreground"
-                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-0.5 top-0.5 h-8 w-8 text-muted-foreground"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
                 </div>
+              </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="new-password" className="text-[10px] font-black uppercase tracking-widest ml-1 opacity-60 text-muted-foreground">New Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="new-password"
-                        type={showNewPassword ? "text" : "password"}
-                        value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
-                        className="h-11 font-bold bg-accent/5"
-                        required
-                        minLength={8}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1 h-9 w-9 text-muted-foreground"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
-                      >
-                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirm-password" className="text-[10px] font-black uppercase tracking-widest ml-1 opacity-60 text-muted-foreground">Confirm New Password</Label>
-                    <div className="relative">
-                      <Input
-                        id="confirm-password"
-                        type={showConfirmPassword ? "text" : "password"}
-                        value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                        className="h-11 font-bold bg-accent/5"
-                        required
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-1 top-1 h-9 w-9 text-muted-foreground"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      >
-                        {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                <Button type="submit" disabled={isPasswordLoading} variant="outline" className="w-full h-12 font-black uppercase tracking-widest border-2 hover:bg-accent/5">
-                  {isPasswordLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                  Update Security Credentials
+              <div className="flex justify-end pt-1">
+                <Button type="submit" size="sm" variant="outline" disabled={isPasswordLoading} className="gap-1.5 text-xs font-medium">
+                  {isPasswordLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lock className="h-3.5 w-3.5" />}
+                  Update Password
                 </Button>
-              </form>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
-

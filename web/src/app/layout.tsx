@@ -97,6 +97,15 @@ export default function RootLayout({
         {/* Global Chat Support */}
         {/* <TawkMessenger /> */}
 
+        {/* Seentics Tracker - OSS mode */}
+        {process.env.NEXT_PUBLIC_IS_ENTERPRISE !== 'true' && (
+          <Script
+            src="http://localhost:3000/trackers/seentics-core.js"
+            data-site-id="98931aeb-2134-4a1e-ab02-20bb9dcf848f"
+            strategy="afterInteractive"
+          />
+        )}
+
         {/* Lemon Squeezy Checkout Script - Enterprise only */}
         {process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true' && (
           <Script src="https://assets.lemonsqueezy.com/lemon.js" strategy="lazyOnload" />

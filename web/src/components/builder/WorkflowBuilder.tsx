@@ -78,7 +78,7 @@ export const WorkflowBuilder = ({
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
 
   return (
-    <div className="fixed inset-0 flex flex-col w-full h-full bg-slate-950/95 overflow-hidden z-[50]">
+    <div className="fixed inset-0 flex flex-col w-full h-full bg-zinc-950 overflow-hidden z-[50]">
       <BuilderToolbar 
         websiteId={websiteId} 
         automationId={automationId} 
@@ -93,7 +93,7 @@ export const WorkflowBuilder = ({
         <LinearBuilder />
         
         {/* Sidebar */}
-        <div className="w-[340px] h-full border-l border-slate-800 bg-slate-900/50 backdrop-blur-xl">
+        <div className="w-[320px] h-full border-l border-white/[0.06] bg-zinc-900/80 backdrop-blur-xl">
            <EnhancedBuilderSidebar />
         </div>
 

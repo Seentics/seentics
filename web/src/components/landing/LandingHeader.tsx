@@ -3,6 +3,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
 import { Menu, X, Sparkles, MoveRight, Github, ArrowRight } from 'lucide-react';
+import { FaDiscord } from 'react-icons/fa';
 import Link from 'next/link';
 import { Logo } from '../ui/logo';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -55,6 +56,9 @@ export default function LandingHeader() {
 
         {/* Actions */}
         <div className="flex items-center gap-4">
+          <a href="https://discord.gg/TYdPvDRA" target="_blank" rel="noopener noreferrer" className="hidden sm:flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <FaDiscord size={16} /> Discord
+          </a>
           <div className="hidden sm:flex items-center gap-4">
             {isAuthenticated ? (
               <Link href="/websites">
@@ -114,6 +118,16 @@ export default function LandingHeader() {
                 ))}
               </nav>
               
+              <a
+                href="https://discord.gg/TYdPvDRA"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between py-4 border-b border-border/10 group"
+              >
+                <span className="text-lg font-bold tracking-tight flex items-center gap-2"><FaDiscord size={18} /> Discord</span>
+                <ArrowRight className="h-4 w-4 opacity-40 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+              </a>
+
               <div className="flex flex-col gap-4">
                 {isAuthenticated ? (
                   <Link href="/websites" onClick={() => setMobileOpen(false)}>

@@ -1,18 +1,17 @@
 'use client';
 
 import React, { useEffect, useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, Play, Clock, Laptop, Trash2, Monitor, Smartphone,
   Tablet, ArrowLeft, Settings, ChevronLeft, ChevronRight,
   Search, RefreshCw, PlayCircle, Globe, SortAsc, SortDesc,
-  Filter, X, TrendingUp
+  Filter, X
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import Link from 'next/link';
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -25,6 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import ReplayPlayer from './ReplayPlayer';
 import api from '@/lib/api';
+import { DashboardPageHeader } from '@/components/dashboard-header';
 
 interface ReplaySessionMetadata {
   session_id: string;
@@ -47,7 +47,6 @@ interface ReplaysOverviewProps {
 type SortKey = 'date' | 'duration' | 'chunks';
 type SortDir = 'asc' | 'desc';
 
-// Treat the string "Unknown" returned by COALESCE the same as null/empty
 function val(v: string | undefined | null, fallback = '—'): string {
   if (!v || v === 'Unknown') return fallback;
   return v;
@@ -65,29 +64,6 @@ function formatDuration(seconds: number): string {
   if (s < 60) return `${s}s`;
   return `${Math.floor(s / 60)}m ${s % 60}s`;
 }
-
-const StatsCard = ({ title, value, icon: Icon, description, color = 'primary' }: { title: string; value: string | number; icon: any; description: string; color?: string }) => {
-  const colorClasses: Record<string, string> = {
-    primary: 'text-primary bg-primary/10',
-    green: 'text-green-500 bg-green-500/10',
-    blue: 'text-blue-500 bg-blue-500/10',
-    purple: 'text-purple-500 bg-purple-500/10',
-  };
-  return (
-    <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card dark:bg-gray-800/50 rounded overflow-hidden border border-muted-foreground/5 flex flex-col justify-between">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardDescription className="font-black text-[10px] uppercase tracking-widest text-muted-foreground">{title}</CardDescription>
-          <div className={`p-2 rounded ${colorClasses[color]}`}><Icon className="h-4 w-4" /></div>
-        </div>
-        <CardTitle className="text-2xl font-black text-slate-900 dark:text-white mt-2">{value}</CardTitle>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <p className="text-[11px] font-bold text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
-  );
-};
 
 export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
   const [sessions, setSessions] = useState<ReplaySessionMetadata[]>([]);
@@ -126,21 +102,10 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
 
   useEffect(() => { fetchSessions(); }, [websiteId]);
 
-  // Derived filter options from data
-  const deviceOptions = useMemo(() => {
-    const vals = [...new Set(sessions.map(s => s.device).filter(Boolean))];
-    return vals.sort();
-  }, [sessions]);
-
-  const browserOptions = useMemo(() => {
-    const vals = [...new Set(sessions.map(s => s.browser).filter(Boolean))];
-    return vals.sort();
-  }, [sessions]);
-
-  const osOptions = useMemo(() => {
-    const vals = [...new Set(sessions.map(s => s.os).filter(Boolean))];
-    return vals.sort();
-  }, [sessions]);
+  // Derived filter options
+  const deviceOptions = useMemo(() => [...new Set(sessions.map(s => s.device).filter(Boolean))].sort(), [sessions]);
+  const browserOptions = useMemo(() => [...new Set(sessions.map(s => s.browser).filter(Boolean))].sort(), [sessions]);
+  const osOptions = useMemo(() => [...new Set(sessions.map(s => s.os).filter(Boolean))].sort(), [sessions]);
 
   const activeFilterCount = [
     filterDevice !== 'all',
@@ -159,7 +124,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
   };
 
   const stats = useMemo(() => {
-    if (sessions.length === 0) return { total: 0, avgDuration: '0s', topEnv: 'N/A' };
+    if (sessions.length === 0) return { total: 0, avgDuration: '0s', topEnv: '—' };
     const total = sessions.length;
     const avgSeconds = sessions.reduce((acc, s) => acc + s.duration_seconds, 0) / total;
     const browsers: Record<string, number> = {};
@@ -244,155 +209,148 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
   const SortIcon = ({ col }: { col: SortKey }) =>
     sortBy === col ? (sortDir === 'desc' ? <SortDesc className="h-3 w-3 inline ml-1" /> : <SortAsc className="h-3 w-3 inline ml-1" />) : null;
 
+  // ---- Session player view ----
   if (selectedSession) {
+    const session = sessions.find(s => s.session_id === selectedSession);
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" onClick={() => setSelectedSession(null)} className="group border font-bold px-4 rounded-lg h-9 text-xs">
-            <ArrowLeft className="h-3.5 w-3.5 mr-2 group-hover:-translate-x-0.5 transition-transform" />
-            Back to Overview
+      <div className="space-y-6 animate-in fade-in duration-300">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => setSelectedSession(null)} className="h-8 w-8 hover:bg-muted">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="h-4 w-px bg-border" />
-          <h3 className="font-bold tracking-tight text-lg opacity-90">
-            Replaying Session: <span className="text-primary">{selectedSession.slice(0, 8)}</span>
-          </h3>
+          <div>
+            <h3 className="text-sm font-medium">
+              Session Replay
+              {session && <span className="text-muted-foreground ml-1.5">· {val(session.entry_page, 'Unknown page')}</span>}
+            </h3>
+            <p className="text-xs text-muted-foreground font-mono">{selectedSession.slice(0, 16)}...</p>
+          </div>
         </div>
-        <ReplayPlayer sessionId={selectedSession} websiteId={websiteId} />
+        <ReplayPlayer sessionId={selectedSession} websiteId={websiteId} session={session} />
       </div>
     );
   }
 
+  // ---- Loading state ----
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-32 space-y-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary opacity-40" />
-        <span className="text-lg font-black tracking-widest text-muted-foreground uppercase">Syncing Chrono-Logs...</span>
+      <div className="flex flex-col items-center justify-center p-24 space-y-3">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/40" />
+        <span className="text-sm font-medium text-muted-foreground">Loading session recordings...</span>
       </div>
     );
   }
 
+  // ---- Main overview ----
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-6 pb-12 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-1">
-          <h2 className="text-3xl font-bold tracking-tight">Session Recordings</h2>
-          <p className="text-muted-foreground font-medium tracking-tight text-sm">
-            Watch how users interact with your site to identify points of friction and opportunity.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href={`/websites/${websiteId}/settings?tab=replays`}>
-            <Button variant="outline" className="rounded-lg font-bold px-4 h-10 border border-primary/10 hover:border-primary/30 transition-all bg-primary/5 hover:bg-primary/10 text-primary text-sm">
-              <Settings className="h-4 w-4 mr-2" /> Configure
-            </Button>
-          </Link>
-          <Button variant="outline" className="rounded-lg font-black px-4 h-10 text-primary text-[10px] uppercase tracking-widest" onClick={fetchSessions}>
-            <RefreshCw className={cn("h-3.5 w-3.5 mr-2", loading && "animate-spin")} /> Refresh
+      <DashboardPageHeader
+        title="Session Recordings"
+        description="Watch how users interact with your site to identify friction and opportunity."
+        icon={PlayCircle}
+      >
+        <Link href={`/websites/${websiteId}/settings?tab=replays`}>
+          <Button variant="outline" className="gap-2 h-9 text-xs font-medium">
+            <Settings className="h-3.5 w-3.5" /> Settings
           </Button>
-        </div>
-      </div>
+        </Link>
+        <Button variant="outline" className="gap-2 h-9 text-xs font-medium" onClick={fetchSessions}>
+          <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} /> Refresh
+        </Button>
+      </DashboardPageHeader>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatsCard title="Total Captures" value={stats.total} icon={PlayCircle} description="Stored interactions" color="primary" />
-        <StatsCard title="Average Retention" value={stats.avgDuration} icon={Clock} description="Mean session length" color="blue" />
-        <StatsCard title="Dominant Stack" value={stats.topEnv} icon={Laptop} description="Leading browser" color="purple" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatsCard title="Total Sessions" value={stats.total} icon={PlayCircle} description="Recorded sessions" color="blue" />
+        <StatsCard title="Avg. Duration" value={stats.avgDuration} icon={Clock} description="Mean session length" color="emerald" />
+        <StatsCard title="Top Browser" value={stats.topEnv} icon={Laptop} description="Most common browser" color="violet" />
       </div>
 
-      {/* Sessions Table */}
+      {/* Sessions table */}
       {sessions.length === 0 ? (
-        <Card className="border-2 border-dashed bg-accent/5 rounded-xl overflow-hidden">
-          <CardContent className="flex flex-col items-center justify-center p-20 text-center">
-            <div className="p-6 bg-primary/10 rounded-xl mb-6">
-              <Play className="h-12 w-12 text-primary opacity-60" />
+        <Card className="border border-dashed border-border/60 bg-card">
+          <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="h-16 w-16 bg-muted/50 rounded-full flex items-center justify-center mb-5">
+              <Play className="h-7 w-7 text-muted-foreground/40" />
             </div>
-            <CardTitle className="text-2xl font-bold mb-2 tracking-tight">No Recordings Found</CardTitle>
-            <CardDescription className="max-w-md mx-auto font-medium text-sm leading-relaxed text-muted-foreground/60">
-              No replay sessions have been captured for this website yet. Ensure the tracker is correctly installed and active.
-            </CardDescription>
+            <h3 className="text-base font-semibold">No recordings yet</h3>
+            <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-1.5">
+              No replay sessions have been captured. Ensure the tracker is installed and recording is enabled.
+            </p>
+            <Link href={`/websites/${websiteId}/settings?tab=replays`} className="mt-4">
+              <Button variant="outline" size="sm" className="gap-2 text-xs">
+                <Settings className="h-3.5 w-3.5" /> Configure Recording
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       ) : (
-        <Card className="bg-card/50 border-border/40 overflow-hidden shadow-sm shadow-black/5">
+        <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
           {/* Filter bar */}
-          <CardHeader className="pb-4 border-b border-border/40">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Search */}
-                <div className="relative group flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-focus-within:text-primary" />
+          <CardHeader className="border-b border-border/40 pb-4">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
-                    placeholder="Search page, session ID, browser, OS, country..."
-                    className="pl-10 bg-muted/20 border-border/40 h-9 font-medium text-xs focus-visible:ring-primary/20"
+                    placeholder="Search sessions..."
+                    className="pl-8 bg-muted/30 border-border/50 h-8 text-sm"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
 
-                {/* Device filter */}
                 <Select value={filterDevice} onValueChange={setFilterDevice}>
-                  <SelectTrigger className="w-[140px] h-9 bg-muted/20 border-border/40 font-bold text-[10px] uppercase tracking-wider">
-                    <Monitor className="h-3 w-3 mr-1.5 shrink-0" />
+                  <SelectTrigger className="w-[130px] h-8 text-xs bg-muted/30 border-border/50">
                     <SelectValue placeholder="Device" />
                   </SelectTrigger>
-                  <SelectContent className="bg-card font-bold text-xs uppercase tracking-wider">
+                  <SelectContent>
                     <SelectItem value="all">All Devices</SelectItem>
                     {deviceOptions.map(d => (
-                      <SelectItem key={d} value={d.toLowerCase()}>
-                        <span className="flex items-center gap-2">
-                          {d.toLowerCase().includes('mobile') ? <Smartphone className="h-3 w-3" /> :
-                           d.toLowerCase().includes('tablet') ? <Tablet className="h-3 w-3" /> :
-                           <Monitor className="h-3 w-3" />}
-                          {d}
-                        </span>
-                      </SelectItem>
+                      <SelectItem key={d} value={d.toLowerCase()}>{d}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
 
-                {/* Browser filter */}
                 <Select value={filterBrowser} onValueChange={setFilterBrowser}>
-                  <SelectTrigger className="w-[140px] h-9 bg-muted/20 border-border/40 font-bold text-[10px] uppercase tracking-wider">
+                  <SelectTrigger className="w-[130px] h-8 text-xs bg-muted/30 border-border/50">
                     <SelectValue placeholder="Browser" />
                   </SelectTrigger>
-                  <SelectContent className="bg-card font-bold text-xs uppercase tracking-wider">
+                  <SelectContent>
                     <SelectItem value="all">All Browsers</SelectItem>
                     {browserOptions.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
-                {/* OS filter */}
                 <Select value={filterOS} onValueChange={setFilterOS}>
-                  <SelectTrigger className="w-[140px] h-9 bg-muted/20 border-border/40 font-bold text-[10px] uppercase tracking-wider">
+                  <SelectTrigger className="w-[120px] h-8 text-xs bg-muted/30 border-border/50">
                     <SelectValue placeholder="OS" />
                   </SelectTrigger>
-                  <SelectContent className="bg-card font-bold text-xs uppercase tracking-wider">
+                  <SelectContent>
                     <SelectItem value="all">All OS</SelectItem>
                     {osOptions.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                   </SelectContent>
                 </Select>
 
-                {/* Min duration */}
-                <div className="relative w-[130px]">
-                  <Clock className="absolute left-3 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                <div className="relative w-[110px]">
+                  <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                   <Input
                     type="number"
                     min="0"
-                    placeholder="Min secs"
-                    className="pl-8 h-9 bg-muted/20 border-border/40 font-bold text-xs"
+                    placeholder="Min sec"
+                    className="pl-7 h-8 bg-muted/30 border-border/50 text-xs"
                     value={minDuration}
                     onChange={(e) => setMinDuration(e.target.value)}
                   />
                 </div>
 
-                {/* Sort */}
                 <Select value={sortBy} onValueChange={(v) => handleSortChange(v as SortKey)}>
-                  <SelectTrigger className="w-[150px] h-9 bg-muted/20 border-border/40 font-bold text-[10px] uppercase tracking-wider">
-                    <TrendingUp className="h-3 w-3 mr-1.5 shrink-0" />
+                  <SelectTrigger className="w-[120px] h-8 text-xs bg-muted/30 border-border/50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-card font-bold text-xs uppercase tracking-wider">
+                  <SelectContent>
                     <SelectItem value="date">Date</SelectItem>
                     <SelectItem value="duration">Duration</SelectItem>
                     <SelectItem value="chunks">Steps</SelectItem>
@@ -402,79 +360,74 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="outline" size="icon" className="h-9 w-9 bg-muted/20 border-border/40" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
-                        {sortDir === 'desc' ? <SortDesc className="h-4 w-4" /> : <SortAsc className="h-4 w-4" />}
+                      <Button variant="outline" size="icon" className="h-8 w-8 bg-muted/30 border-border/50" onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}>
+                        {sortDir === 'desc' ? <SortDesc className="h-3.5 w-3.5" /> : <SortAsc className="h-3.5 w-3.5" />}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>{sortDir === 'desc' ? 'Descending' : 'Ascending'}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
 
-                {/* Items per page */}
                 <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
-                  <SelectTrigger className="w-[100px] h-9 bg-muted/20 border-border/40 font-bold text-[10px] uppercase tracking-wider">
+                  <SelectTrigger className="w-[90px] h-8 text-xs bg-muted/30 border-border/50">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-card font-bold text-xs uppercase tracking-wider">
-                    <SelectItem value="10">10 / page</SelectItem>
-                    <SelectItem value="25">25 / page</SelectItem>
-                    <SelectItem value="50">50 / page</SelectItem>
+                  <SelectContent>
+                    <SelectItem value="10">10 rows</SelectItem>
+                    <SelectItem value="25">25 rows</SelectItem>
+                    <SelectItem value="50">50 rows</SelectItem>
                   </SelectContent>
                 </Select>
 
                 {activeFilterCount > 0 && (
-                  <Button variant="ghost" size="sm" className="h-9 gap-1.5 text-xs font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-500/10" onClick={clearFilters}>
-                    <X className="h-3.5 w-3.5" /> Clear filters
-                    <Badge className="ml-0.5 h-4 w-4 p-0 flex items-center justify-center text-[9px] bg-rose-500 text-white rounded-full">{activeFilterCount}</Badge>
+                  <Button variant="ghost" size="sm" className="h-8 gap-1.5 text-xs text-rose-500 hover:text-rose-600 hover:bg-rose-500/10" onClick={clearFilters}>
+                    <X className="h-3 w-3" /> Clear ({activeFilterCount})
                   </Button>
                 )}
               </div>
 
-              {/* Result count */}
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50">
-                  {filteredSessions.length} of {sessions.length} sessions
-                </span>
-              </div>
+              <span className="text-xs text-muted-foreground">
+                {filteredSessions.length} of {sessions.length} sessions
+              </span>
             </div>
           </CardHeader>
 
           <div className="overflow-x-auto">
             <Table>
-              <TableHeader className="bg-muted/30">
-                <TableRow className="hover:bg-transparent border-border/40">
-                  <TableHead className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap">Session</TableHead>
-                  <TableHead className="py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center whitespace-nowrap">Platform</TableHead>
-                  <TableHead className="py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center whitespace-nowrap">OS</TableHead>
-                  <TableHead className="py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center whitespace-nowrap">Location</TableHead>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent border-border/40 bg-muted/20">
+                  <TableHead className="px-5 py-3 text-xs font-medium text-muted-foreground">Session</TableHead>
+                  <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Platform</TableHead>
+                  <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">OS</TableHead>
+                  <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Location</TableHead>
                   <TableHead
-                    className="py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center whitespace-nowrap cursor-pointer select-none"
+                    className="py-3 text-xs font-medium text-muted-foreground text-center cursor-pointer select-none hover:text-foreground transition-colors"
                     onClick={() => handleSortChange('duration')}
                   >
-                    Duration <SortIcon col="duration" />
+                    <span className="inline-flex items-center gap-1">Duration <SortIcon col="duration" /></span>
                   </TableHead>
                   <TableHead
-                    className="py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground text-center whitespace-nowrap cursor-pointer select-none"
+                    className="py-3 text-xs font-medium text-muted-foreground text-center cursor-pointer select-none hover:text-foreground transition-colors"
                     onClick={() => handleSortChange('chunks')}
                   >
-                    Steps <SortIcon col="chunks" />
+                    <span className="inline-flex items-center gap-1">Steps <SortIcon col="chunks" /></span>
                   </TableHead>
                   <TableHead
-                    className="px-6 py-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground whitespace-nowrap cursor-pointer select-none"
+                    className="py-3 text-xs font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors"
                     onClick={() => handleSortChange('date')}
                   >
-                    Captured <SortIcon col="date" />
+                    <span className="inline-flex items-center gap-1">Captured <SortIcon col="date" /></span>
                   </TableHead>
-                  <TableHead className="w-[80px] px-6 py-4" />
+                  <TableHead className="w-[80px] py-3" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedSessions.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-40 text-center">
-                      <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                        <Filter className="h-8 w-8 opacity-20" />
-                        <span className="text-sm font-bold">No sessions match your filters</span>
+                    <TableCell colSpan={8} className="h-32 text-center">
+                      <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                        <Filter className="h-6 w-6 opacity-20" />
+                        <span className="text-sm">No sessions match your filters</span>
                         <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters}>Clear filters</Button>
                       </div>
                     </TableCell>
@@ -484,65 +437,54 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
                   return (
                     <TableRow
                       key={session.session_id}
-                      className="group border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                      className="group hover:bg-muted/30 transition-colors cursor-pointer border-border/30"
                       onClick={() => setSelectedSession(session.session_id)}
                     >
-                      {/* Session identity */}
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 bg-primary/5 rounded-lg group-hover:bg-primary/10 transition-colors shrink-0">
-                            <Play className="h-3.5 w-3.5 text-primary opacity-60" />
+                          <div className="h-8 w-8 rounded-lg bg-muted/60 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors">
+                            <Play className="h-3 w-3 text-muted-foreground group-hover:text-primary transition-colors" />
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-sm truncate max-w-[220px] group-hover:text-primary transition-colors">
-                              {session.entry_page === '/' ? 'Home Page' : val(session.entry_page, 'Unknown page')}
+                            <p className="text-sm font-medium truncate max-w-[240px] group-hover:text-primary transition-colors">
+                              {session.entry_page === '/' ? 'Homepage' : val(session.entry_page, 'Unknown page')}
                             </p>
-                            <p className="text-[10px] font-mono text-muted-foreground opacity-50">
-                              {session.session_id ? session.session_id.slice(0, 12) : ''}…
+                            <p className="text-[10px] font-mono text-muted-foreground/50">
+                              {session.session_id?.slice(0, 12)}...
                             </p>
                           </div>
                         </div>
                       </TableCell>
 
-                      {/* Browser + device */}
-                      <TableCell className="py-4 text-center">
-                        <div className="flex flex-col items-center gap-0.5">
-                          <div className="flex items-center gap-1.5 font-bold text-xs">
-                            <DeviceIcon className="h-3.5 w-3.5 text-muted-foreground/70" />
-                            <span className={val(session.browser) === '—' ? 'text-muted-foreground/40' : ''}>{val(session.browser)}</span>
-                          </div>
-                          <Badge variant="outline" className="text-[9px] font-bold uppercase tracking-tighter">
-                            {val(session.device, 'Desktop')}
-                          </Badge>
+                      <TableCell className="py-3.5 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <DeviceIcon className="h-3.5 w-3.5 text-muted-foreground/60" />
+                          <span className="text-xs font-medium">{val(session.browser)}</span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground/50">{val(session.device, 'Desktop')}</span>
+                      </TableCell>
+
+                      <TableCell className="py-3.5 text-center">
+                        <span className={cn("text-xs", val(session.os) === '—' ? 'text-muted-foreground/30' : '')}>{val(session.os)}</span>
+                      </TableCell>
+
+                      <TableCell className="py-3.5 text-center">
+                        <div className="inline-flex items-center gap-1.5 text-xs">
+                          <Globe className="h-3 w-3 text-muted-foreground/50" />
+                          <span className={val(session.country) === '—' ? 'text-muted-foreground/30' : ''}>{val(session.country)}</span>
                         </div>
                       </TableCell>
 
-                      {/* OS */}
-                      <TableCell className="py-4 text-center">
-                        <span className={`text-xs font-medium ${val(session.os) === '—' ? 'text-muted-foreground/30' : 'text-muted-foreground'}`}>{val(session.os)}</span>
+                      <TableCell className="py-3.5 text-center">
+                        <span className="text-sm font-semibold tabular-nums">{formatDuration(session.duration_seconds)}</span>
                       </TableCell>
 
-                      {/* Country */}
-                      <TableCell className="py-4 text-center">
-                        <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md font-bold text-[10px] uppercase ${val(session.country) === '—' ? 'text-muted-foreground/30' : 'bg-muted'}`}>
-                          <Globe className="h-3 w-3 text-muted-foreground" />
-                          {val(session.country)}
-                        </div>
+                      <TableCell className="py-3.5 text-center">
+                        <span className="text-sm tabular-nums">{session.chunk_count}</span>
                       </TableCell>
 
-                      {/* Duration */}
-                      <TableCell className="py-4 text-center">
-                        <span className="font-bold text-sm tabular-nums">{formatDuration(session.duration_seconds)}</span>
-                      </TableCell>
-
-                      {/* Steps/chunks */}
-                      <TableCell className="py-4 text-center">
-                        <span className="text-sm font-bold tabular-nums">{session.chunk_count}</span>
-                      </TableCell>
-
-                      {/* Captured time */}
-                      <TableCell className="px-6 py-4">
-                        <span className="text-[11px] font-medium text-muted-foreground/80">
+                      <TableCell className="py-3.5">
+                        <span className="text-xs text-muted-foreground">
                           {(() => {
                             try {
                               const date = new Date(session.start_time);
@@ -553,15 +495,14 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
                         </span>
                       </TableCell>
 
-                      {/* Actions */}
-                      <TableCell className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-1">
+                      <TableCell className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
                                   variant="ghost" size="icon"
-                                  className="h-8 w-8 rounded-md hover:bg-destructive/10 hover:text-destructive transition-all"
+                                  className="h-7 w-7 text-muted-foreground hover:text-rose-600 hover:bg-rose-500/10"
                                   onClick={() => handleDelete(session.session_id)}
                                   disabled={deleting === session.session_id}
                                 >
@@ -573,7 +514,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
                               <TooltipContent>Delete recording</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-all group-hover:translate-x-0.5" />
+                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary transition-all group-hover:translate-x-0.5" />
                         </div>
                       </TableCell>
                     </TableRow>
@@ -584,34 +525,34 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
           </div>
 
           {/* Pagination */}
-          <div className="px-6 py-4 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between bg-muted/5 gap-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-60">
+          <div className="px-5 py-3 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
               {filteredSessions.length === 0
                 ? 'No results'
-                : `Showing ${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, filteredSessions.length)} of ${filteredSessions.length} sessions`}
+                : `Showing ${(currentPage - 1) * itemsPerPage + 1}–${Math.min(currentPage * itemsPerPage, filteredSessions.length)} of ${filteredSessions.length}`}
             </p>
             {totalPages > 1 && (
               <div className="flex items-center gap-1">
-                <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
-                  <ChevronLeft className="h-4 w-4" />
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)}>
+                  <ChevronLeft className="h-3.5 w-3.5" />
                 </Button>
                 {paginationRange.map((item, idx) =>
                   item === '...' ? (
-                    <span key={`e-${idx}`} className="h-8 w-8 flex items-center justify-center text-xs text-muted-foreground select-none">…</span>
+                    <span key={`e-${idx}`} className="h-7 w-7 flex items-center justify-center text-xs text-muted-foreground">…</span>
                   ) : (
                     <Button
                       key={item}
                       variant={currentPage === item ? "default" : "outline"}
                       size="icon"
-                      className={cn("h-8 w-8 text-xs font-bold", currentPage === item && "bg-primary text-primary-foreground")}
+                      className={cn("h-7 w-7 text-xs", currentPage === item && "pointer-events-none")}
                       onClick={() => setCurrentPage(item as number)}
                     >
                       {item}
                     </Button>
                   )
                 )}
-                <Button variant="outline" size="icon" className="h-8 w-8" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
-                  <ChevronRight className="h-4 w-4" />
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)}>
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </Button>
               </div>
             )}
@@ -619,5 +560,38 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
         </Card>
       )}
     </div>
+  );
+}
+
+// Stats card matching heatmap page design
+function StatsCard({ title, value, icon: Icon, description, color = 'blue' }: { title: string; value: string | number; icon: any; description: string; color?: string }) {
+  const accentMap: Record<string, string> = {
+    blue: 'bg-blue-500',
+    emerald: 'bg-emerald-500',
+    violet: 'bg-violet-500',
+    amber: 'bg-amber-500',
+  };
+  const iconMap: Record<string, string> = {
+    blue: 'text-blue-500',
+    emerald: 'text-emerald-500',
+    violet: 'text-violet-500',
+    amber: 'text-amber-500',
+  };
+  return (
+    <Card className="relative overflow-hidden border border-border/60 bg-card shadow-sm">
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${accentMap[color]}`} />
+      <CardHeader className="pb-1 pl-5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-muted-foreground">{title}</span>
+          <Icon className={cn("h-4 w-4", iconMap[color])} />
+        </div>
+      </CardHeader>
+      <CardContent className="pl-5 pt-0">
+        <div className="text-2xl font-semibold tracking-tight">
+          {typeof value === 'number' ? value.toLocaleString() : value}
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      </CardContent>
+    </Card>
   );
 }

@@ -2,47 +2,43 @@
 
 import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { 
-    LayoutGrid, 
-    Zap, 
-    MousePointer2, 
-    Clock, 
-    Scroll, 
+import {
+    Zap,
+    Scroll,
     ArrowLeft,
     Gift,
     UserCheck,
-    Mail,
     Bell,
-    Layers,
     Webhook,
     Tag,
-    AlertCircle,
     ChevronRight,
-    Star
+    Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { DashboardPageHeader } from '@/components/dashboard-header';
 
 const templates = [
     {
         id: 'welcome-modal',
         name: 'Welcome Modal',
-        description: 'Engage new visitors immediately with a personalized greeting modal.',
+        description: 'Engage new visitors with a personalized greeting modal.',
         category: 'Lead Gen',
         icon: UserCheck,
         difficulty: 'Easy',
-        colorClass: 'bg-blue-500/10 text-blue-500'
+        color: 'blue',
     },
     {
         id: 'exit-intent-promotion',
         name: 'Exit Intent Discount',
-        description: 'Capture abandoning users with a special offer just before they leave.',
+        description: 'Capture abandoning users with a special offer before they leave.',
         category: 'Sales',
         icon: Gift,
         difficulty: 'Medium',
-        colorClass: 'bg-indigo-500/10 text-indigo-500'
+        color: 'violet',
     },
     {
         id: 'scroll-depth-banner',
@@ -51,7 +47,7 @@ const templates = [
         category: 'Retention',
         icon: Scroll,
         difficulty: 'Easy',
-        colorClass: 'bg-emerald-500/10 text-emerald-500'
+        color: 'emerald',
     },
     {
         id: 'time-on-page-notification',
@@ -60,16 +56,16 @@ const templates = [
         category: 'Support',
         icon: Bell,
         difficulty: 'Easy',
-        colorClass: 'bg-amber-500/10 text-amber-500'
+        color: 'amber',
     },
     {
         id: 'pricing-web-hook',
         name: 'Pricing Lead Sync',
-        description: 'Sync high-intent pricing page visits directly to your CRM via Webhook.',
+        description: 'Sync high-intent pricing page visits directly to your CRM via webhook.',
         category: 'Advanced',
         icon: Webhook,
         difficulty: 'Hard',
-        colorClass: 'bg-primary/10 text-primary'
+        color: 'rose',
     },
     {
         id: 'abandoned-cart-notification',
@@ -78,9 +74,24 @@ const templates = [
         category: 'E-commerce',
         icon: Tag,
         difficulty: 'Medium',
-        colorClass: 'bg-rose-500/10 text-rose-500'
-    }
+        color: 'cyan',
+    },
 ];
+
+const colorMap: Record<string, { bg: string; text: string; icon: string }> = {
+    blue: { bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400', icon: 'text-blue-500' },
+    violet: { bg: 'bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400', icon: 'text-violet-500' },
+    emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', icon: 'text-emerald-500' },
+    amber: { bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', icon: 'text-amber-500' },
+    rose: { bg: 'bg-rose-500/10', text: 'text-rose-600 dark:text-rose-400', icon: 'text-rose-500' },
+    cyan: { bg: 'bg-cyan-500/10', text: 'text-cyan-600 dark:text-cyan-400', icon: 'text-cyan-500' },
+};
+
+const difficultyColors: Record<string, string> = {
+    Easy: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    Medium: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    Hard: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+};
 
 export default function TemplatesPage() {
     const params = useParams();
@@ -92,92 +103,86 @@ export default function TemplatesPage() {
     };
 
     return (
-        <div className="p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-[1400px] mx-auto">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                    <Link 
-                        href={`/websites/${websiteId}/automations`}
-                        className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-primary uppercase tracking-widest transition-colors mb-2 group"
-                    >
-                        <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-                        Back to Automations
+        <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-6 animate-in fade-in duration-500">
+            {/* Back link */}
+            <Link
+                href={`/websites/${websiteId}/automations`}
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to Automations
+            </Link>
+
+            <DashboardPageHeader
+                title="Templates"
+                description="Pre-built behavioral workflows to get started quickly."
+            />
+
+            {/* Template grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {templates.map((template) => {
+                    const colors = colorMap[template.color] || colorMap.blue;
+                    const Icon = template.icon;
+                    return (
+                        <Card
+                            key={template.id}
+                            className="group border border-border/60 bg-card shadow-sm hover:shadow-md transition-all duration-200 flex flex-col"
+                        >
+                            <CardContent className="p-5 flex flex-col flex-1">
+                                <div className="flex items-start justify-between mb-3">
+                                    <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center', colors.bg)}>
+                                        <Icon className={cn('h-5 w-5', colors.icon)} />
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <Badge variant="outline" className={cn('text-[10px] font-medium border', difficultyColors[template.difficulty])}>
+                                            {template.difficulty}
+                                        </Badge>
+                                        <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground">
+                                            {template.category}
+                                        </Badge>
+                                    </div>
+                                </div>
+
+                                <h3 className="text-sm font-semibold mb-1">{template.name}</h3>
+                                <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+                                    {template.description}
+                                </p>
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleSelectTemplate(template.id)}
+                                    className="w-full mt-4 gap-1.5 text-xs font-medium h-8"
+                                >
+                                    Use Template
+                                    <ChevronRight className="h-3 w-3" />
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    );
+                })}
+            </div>
+
+            {/* Custom CTA */}
+            <Card className="border border-border/60 bg-card shadow-sm">
+                <CardContent className="p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <Sparkles className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-semibold">Need something custom?</h3>
+                            <p className="text-xs text-muted-foreground">Build a workflow from scratch with the visual builder.</p>
+                        </div>
+                    </div>
+                    <Link href={`/websites/${websiteId}/automations/builder`}>
+                        <Button size="sm" className="gap-1.5 text-xs font-medium">
+                            <Zap className="h-3.5 w-3.5" />
+                            Start from Scratch
+                        </Button>
                     </Link>
-                    <h1 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3">
-                        <LayoutGrid className="text-primary h-8 w-8" />
-                        Automation Templates
-                    </h1>
-                    <p className="text-muted-foreground font-medium text-lg">
-                        Jumpstart your growth with pre-built behavioral workflows.
-                    </p>
-                </div>
-                <div className="flex gap-3">
-                    <Badge variant="secondary" className="px-4 py-1.5 rounded-full font-bold text-primary bg-primary/5 border-primary/10">
-                        {templates.length} Ready-to-use Templates
-                    </Badge>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {templates.map((template) => (
-                    <Card key={template.id} className="group border shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden flex flex-col">
-                        <CardHeader className="pb-4">
-                            <div className="flex justify-between items-start mb-4">
-                                <div className={`p-3 rounded-xl ${template.colorClass} group-hover:scale-110 transition-transform duration-300`}>
-                                    <template.icon size={28} />
-                                </div>
-                                <Badge variant="outline" className="font-bold text-[10px] uppercase tracking-wider rounded-md border-muted-foreground/20">
-                                    {template.category}
-                                </Badge>
-                            </div>
-                            <CardTitle className="text-xl font-bold group-hover:text-primary transition-colors line-clamp-1">
-                                {template.name}
-                            </CardTitle>
-                            <CardDescription className="text-sm font-medium leading-relaxed line-clamp-2 mt-2">
-                                {template.description}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex-1 pb-4">
-                            <div className="flex items-center gap-4 text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                                <div className="flex items-center gap-1.5">
-                                    <Star size={12} className="text-yellow-500 fill-yellow-500" />
-                                    {template.difficulty}
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                    <Zap size={12} className="text-primary fill-primary" />
-                                    Instant Activate
-                                </div>
-                            </div>
-                        </CardContent>
-                        <CardFooter className="pt-0 pb-6 px-6">
-                            <Button 
-                                onClick={() => handleSelectTemplate(template.id)}
-                                className="w-full h-11 bg-slate-950 hover:bg-primary text-white font-bold rounded gap-2 transition-all group/btn"
-                            >
-                                Use Template
-                                <ChevronRight size={16} className="group-hover/btn:translate-x-1 transition-transform" />
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                ))}
-            </div>
-
-            {/* Empty State / Custom Info */}
-            <div className="bg-primary/5 border border-primary/10 rounded-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="space-y-2 text-center md:text-left">
-                    <h3 className="text-xl font-bold flex items-center justify-center md:justify-start gap-2">
-                        <AlertCircle className="text-primary h-5 w-5" />
-                        Need something unique?
-                    </h3>
-                    <p className="text-muted-foreground font-medium">
-                        You can always start from scratch and build a completely custom workflow.
-                    </p>
-                </div>
-                <Link href={`/websites/${websiteId}/automations/builder`}>
-                    <Button variant="outline" className="h-12 px-8 font-black rounded gap-2 border-2 hover:bg-slate-50 dark:hover:bg-slate-900">
-                        Start from Scratch
-                    </Button>
-                </Link>
-            </div>
+                </CardContent>
+            </Card>
         </div>
     );
 }

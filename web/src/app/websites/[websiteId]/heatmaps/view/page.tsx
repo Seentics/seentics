@@ -2,34 +2,31 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, 
-  MousePointerClick, 
-  MousePointer2, 
+import {
+  ChevronLeft,
+  MousePointerClick,
+  MousePointer2,
   RefreshCcw,
   Monitor,
   Smartphone,
   Tablet,
   Download,
   Share2,
-  Maximize2,
-  ChevronLeft,
-  Settings2,
+  Info,
+  Loader2,
+  Ruler,
+  PanelRightClose,
+  PanelRightOpen,
+  Sparkles,
+  Crosshair,
   Eye,
-  Activity,
-  Zap,
-  CheckCircle2,
-  Layers,
-  Info
+  EyeOff
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import HeatmapOverlay from '@/components/heatmap-overlay';
 import api from '@/lib/api';
 import { useSubscription } from '@/hooks/useSubscription';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Sparkles, Loader2, Ruler } from 'lucide-react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { Slider } from "@/components/ui/slider";
@@ -43,7 +40,6 @@ export default function HeatmapViewPage() {
   const router = useRouter();
   const url = searchParams.get('url') || (websiteId === 'demo' ? 'https://seentics.com' : '/');
 
-  // Fetch website data to get the base URL
   const { data: website, isLoading: isLoadingWebsite } = useQuery({
     queryKey: ['website', websiteId],
     queryFn: async () => {
@@ -52,38 +48,36 @@ export default function HeatmapViewPage() {
     },
     enabled: !!websiteId && websiteId !== 'demo',
   });
-  
+
   const [activeType, setActiveType] = useState<'click' | 'move'>('click');
   const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [points, setPoints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dimensions, setDimensions] = useState({ width: 1200, height: 2000 }); // Default content size
-  const [viewSize, setViewSize] = useState({ width: 0, height: 0 }); // Viewport size
+  const [dimensions, setDimensions] = useState({ width: 1200, height: 2000 });
+  const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
   const [showHeightControl, setShowHeightControl] = useState(false);
   const [opacity, setOpacity] = useState([70]);
   const [isSameOrigin, setIsSameOrigin] = useState(false);
   const [iframeError, setIframeError] = useState(false);
+  const [showPanel, setShowPanel] = useState(true);
+  const [showOverlay, setShowOverlay] = useState(true);
   const mainScrollRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Normalize a stored website URL to always have a protocol
   const normalizeUrl = (raw: string) => {
     const trimmed = raw.trim();
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
     return 'http://' + trimmed;
   };
 
-  // Detect if the URL is same-origin (dashboard page)
   useEffect(() => {
     if (!website?.url) return;
-
     try {
       const currentHostname = window.location.hostname;
       const targetUrl = new URL(normalizeUrl(website.url));
-      // Compare by hostname only — stored URLs may omit the port (e.g. "localhost" vs "localhost:3000")
       setIsSameOrigin(currentHostname === targetUrl.hostname);
-    } catch (err) {
+    } catch {
       setIsSameOrigin(false);
     }
   }, [website?.url]);
@@ -95,21 +89,17 @@ export default function HeatmapViewPage() {
   // Listen for messages from the tracker script in the iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Log all Seentics messages for debugging
       if (event.data && typeof event.data === 'object' && event.data.type?.startsWith('SEENTICS_')) {
-          console.log('[HeatmapView] Received message:', event.data);
+        console.log('[HeatmapView] Received message:', event.data);
       }
-
       if (event.data?.type === 'SEENTICS_DIMENSIONS') {
         const { height } = event.data;
-        // Only update height — width is always deviceWidth (stored URL may lack port)
         if (height && height > 0) {
           setDimensions(prev => prev.height !== height ? { ...prev, height } : prev);
           setShowHeightControl(false);
         }
       }
     };
-
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
   }, []);
@@ -117,21 +107,19 @@ export default function HeatmapViewPage() {
   // Periodically request dimensions from the iframe
   useEffect(() => {
     if (isDemo) {
-        setDimensions({ width: 1200, height: 4000 }); // Reasonable demo height
-        return;
+      setDimensions({ width: 1200, height: 4000 });
+      return;
     }
-
     let attempts = 0;
     const requestDimensions = () => {
       if (iframeRef.current && iframeRef.current.contentWindow) {
         iframeRef.current.contentWindow.postMessage('SEENTICS_GET_DIMENSIONS', '*');
         attempts++;
         if (attempts > 5 && dimensions.height <= 2000) {
-            setShowHeightControl(true);
+          setShowHeightControl(true);
         }
       }
     };
-
     const interval = setInterval(requestDimensions, 3000);
     return () => clearInterval(interval);
   }, [loading, isDemo, dimensions.height]);
@@ -140,18 +128,16 @@ export default function HeatmapViewPage() {
     const count = type === 'click' ? 100 : 300;
     const dummyPoints = [];
     for (let i = 0; i < count; i++) {
-        // Create clusters for more realistic look across the full page height
-        const centerX = Math.random() * 900 + 50;
-        const centerY = Math.random() * 2000 + 100; // Spread across height
-        const clusterSize = Math.floor(Math.random() * 12) + 2;
-        
-        for (let j = 0; j < clusterSize; j++) {
-            dummyPoints.push({
-                x: Math.round(centerX + (Math.random() - 0.5) * 60),
-                y: Math.round(centerY + (Math.random() - 0.5) * 60),
-                intensity: Math.floor(Math.random() * 25) + 5
-            });
-        }
+      const centerX = Math.random() * 900 + 50;
+      const centerY = Math.random() * 2000 + 100;
+      const clusterSize = Math.floor(Math.random() * 12) + 2;
+      for (let j = 0; j < clusterSize; j++) {
+        dummyPoints.push({
+          x: Math.round(centerX + (Math.random() - 0.5) * 60),
+          y: Math.round(centerY + (Math.random() - 0.5) * 60),
+          intensity: Math.floor(Math.random() * 25) + 5
+        });
+      }
     }
     return dummyPoints;
   };
@@ -164,21 +150,14 @@ export default function HeatmapViewPage() {
         setLoading(false);
         return;
       }
-
       try {
-        console.log(`[HeatmapView] Fetching points for url=${url} type=${activeType}`);
         const response = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}`);
         const rawPoints = response.data.points || [];
-        console.log(`[HeatmapView] Raw points sample:`, rawPoints.slice(0, 1));
-
-        // Map backend x_percent/y_percent to frontend x/y
         const mappedPoints = rawPoints.map((p: any) => ({
-            ...p,
-            x: p.x_percent ?? p.x,
-            y: p.y_percent ?? p.y
+          ...p,
+          x: p.x_percent ?? p.x,
+          y: p.y_percent ?? p.y
         }));
-
-        console.log(`[HeatmapView] Mapped points sample:`, mappedPoints.slice(0, 1));
         setPoints(mappedPoints);
       } catch (err) {
         console.error('Failed to fetch heatmap points:', err);
@@ -186,7 +165,6 @@ export default function HeatmapViewPage() {
         setLoading(false);
       }
     };
-
     fetchPoints();
   }, [websiteId, url, activeType, showDummy]);
 
@@ -200,365 +178,485 @@ export default function HeatmapViewPage() {
         });
       }
     };
-
     window.addEventListener('resize', updateSize);
     updateSize();
-    const timer = setTimeout(updateSize, 500); 
+    const timer = setTimeout(updateSize, 500);
     return () => {
       window.removeEventListener('resize', updateSize);
       clearTimeout(timer);
     };
-  }, [device, loading]);
+  }, [device, loading, showPanel]);
 
   const getDeviceWidth = () => {
-      if (device === 'mobile') return 375;
-      if (device === 'tablet') return 768;
-      return 1200; // Desktop
+    if (device === 'mobile') return 375;
+    if (device === 'tablet') return 768;
+    return 1200;
   };
 
   const getDeviceScale = () => {
-      if (viewSize.width === 0) return 1;
-      const targetWidth = getDeviceWidth();
-      if (viewSize.width > targetWidth + 40) return 1;
-      return (viewSize.width - 40) / targetWidth;
+    if (viewSize.width === 0) return 1;
+    const targetWidth = getDeviceWidth();
+    const available = viewSize.width - 80;
+    if (available > targetWidth) return 1;
+    return available / targetWidth;
   };
 
   const deviceWidth = getDeviceWidth();
   const scale = getDeviceScale();
 
-  // Build the URL for the iframe
-  // For same-origin authenticated pages, use the direct URL (will share auth cookies)
-  // For cross-origin, use the external URL
   const buildIframeUrl = () => {
     if (isDemo) return 'https://seentics.com';
-
     if (!website?.url) return '';
-
     const baseUrl = normalizeUrl(website.url).replace(/\/$/, '');
     const fullPath = url.startsWith('/') ? url : `/${url}`;
     const targetUrl = `${baseUrl}${fullPath}`;
-
-    // Check if it's same host (compare hostname only — stored URLs may omit the port)
     try {
       const targetHostname = new URL(targetUrl).hostname;
       const currentHostname = window.location.hostname;
-
-      if (targetHostname === currentHostname) {
-        // Same host - use relative path so cookies are shared and port is correct
-        return fullPath;
-      }
-    } catch (err) {
-      console.error('Error parsing URL:', err);
+      if (targetHostname === currentHostname) return fullPath;
+    } catch {
       return '';
     }
-
     return targetUrl;
   };
 
   const siteUrl = buildIframeUrl();
 
+  const densityLabel = points.length > 500 ? 'High' : points.length > 100 ? 'Medium' : points.length > 0 ? 'Low' : 'None';
+
   return (
     <div className="h-screen flex flex-col bg-zinc-950 text-white overflow-hidden select-none">
-      {/* Premium Navigation Header */}
-      <header className="h-16 border-b border-white/5 bg-zinc-900/50 backdrop-blur-xl flex items-center justify-between px-6 z-50">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()} className="hover:bg-white/10 text-zinc-400 hover:text-white">
-            <ChevronLeft className="h-5 w-5" />
+      {/* Header */}
+      <header className="h-12 border-b border-white/[0.06] bg-zinc-900/80 backdrop-blur-xl flex items-center justify-between px-4 z-50 flex-shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <Button variant="ghost" size="icon" onClick={() => router.back()} className="h-8 w-8 hover:bg-white/10 text-zinc-400 hover:text-white flex-shrink-0">
+            <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="flex flex-col">
-            <h1 className="text-sm font-black tracking-widest uppercase flex items-center gap-2">
-              Heatmap Analysis
-              <Badge variant="outline" className="text-[10px] py-0 h-4 border-primary text-primary font-black uppercase tracking-tighter">Live</Badge>
-            </h1>
-            <span className="text-[10px] font-medium text-zinc-500 truncate max-w-[200px] md:max-w-md">{url}</span>
+          <div className="h-4 w-px bg-white/10" />
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-sm font-medium text-white truncate">Heatmap Analysis</span>
+            <Badge variant="outline" className="text-[9px] py-0 h-4 border-emerald-500/40 text-emerald-400 font-medium flex-shrink-0">
+              {showDummy ? 'Preview' : 'Live'}
+            </Badge>
           </div>
+          <span className="text-xs text-zinc-500 truncate max-w-[160px] md:max-w-sm hidden sm:block">{url}</span>
         </div>
 
-        <div className="hidden md:flex items-center gap-6">
-           <div className="flex gap-2 items-center">
-             <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Overlay Type</span>
-             <Tabs value={activeType} onValueChange={(v: any) => setActiveType(v)} className="bg-black/40 p-1 rounded-lg border border-white/5">
-                <TabsList className="h-8 bg-transparent p-0 gap-1">
-                    <TabsTrigger value="click" className="h-6 px-3 text-[10px] font-bold uppercase rounded data-[state=active]:bg-primary data-[state=active]:text-white">
-                        <MousePointerClick className="h-3 w-3 mr-1.5" /> Click
-                    </TabsTrigger>
-                    <TabsTrigger value="move" className="h-6 px-3 text-[10px] font-bold uppercase rounded data-[state=active]:bg-primary data-[state=active]:text-white">
-                        <MousePointer2 className="h-3 w-3 mr-1.5" /> Move
-                    </TabsTrigger>
-                </TabsList>
-              </Tabs>
-           </div>
-
-           <div className="h-8 w-px bg-white/5" />
-
-           <div className="flex gap-2 items-center">
-             <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest mb-1">Viewport</span>
-             <Tabs value={device} onValueChange={(v: any) => setDevice(v)} className="bg-black/40 p-1 rounded-lg border border-white/5">
-                <TabsList className="h-8 bg-transparent p-0 gap-1">
-                    <TabsTrigger value="desktop" className="h-6 w-8 p-0 rounded data-[state=active]:bg-zinc-800"><Monitor className="h-3.5 w-3.5" /></TabsTrigger>
-                    <TabsTrigger value="tablet" className="h-6 w-8 p-0 rounded data-[state=active]:bg-zinc-800"><Tablet className="h-3.5 w-3.5" /></TabsTrigger>
-                    <TabsTrigger value="mobile" className="h-6 w-8 p-0 rounded data-[state=active]:bg-zinc-800"><Smartphone className="h-3.5 w-3.5" /></TabsTrigger>
-                </TabsList>
-              </Tabs>
-           </div>
+        {/* Center: Device & Type (hidden on small screens, shown in panel) */}
+        <div className="hidden lg:flex items-center gap-1 bg-zinc-800/60 rounded-lg p-0.5 border border-white/[0.06]">
+          <TypeButton active={activeType === 'click'} onClick={() => setActiveType('click')} icon={MousePointerClick} label="Clicks" />
+          <TypeButton active={activeType === 'move'} onClick={() => setActiveType('move')} icon={MousePointer2} label="Movement" />
+          <div className="w-px h-5 bg-white/10 mx-0.5" />
+          <DeviceButton active={device === 'desktop'} onClick={() => setDevice('desktop')} icon={Monitor} label="Desktop" />
+          <DeviceButton active={device === 'tablet'} onClick={() => setDevice('tablet')} icon={Tablet} label="Tablet" />
+          <DeviceButton active={device === 'mobile'} onClick={() => setDevice('mobile')} icon={Smartphone} label="Mobile" />
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden lg:flex flex-col items-end mr-2">
-             <div className="flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">{isFreePlan || isDemo ? "Preview with dummy data" : "Live Mode"}</span>
-             </div>
-             <span className="text-[9px] text-zinc-500 font-bold uppercase">{points.length} samples loaded</span>
-          </div>
-          <Button variant="outline" size="icon" className="h-9 w-9 rounded-lg bg-white/5 border-white/10 hover:bg-white/10"><Share2 className="h-4 w-4" /></Button>
-          <Button variant="outline" size="icon" className="h-9 w-9 rounded-lg bg-white/5 border-white/10 hover:bg-white/10"><Download className="h-4 w-4" /></Button>
+        <div className="flex items-center gap-1.5">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-white/10" onClick={() => setShowOverlay(!showOverlay)}>
+                  {showOverlay ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{showOverlay ? 'Hide overlay' : 'Show overlay'}</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-white/10">
+                  <Share2 className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Share</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-white/10">
+                  <Download className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Export</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <div className="w-px h-5 bg-white/10 mx-0.5" />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-white/10" onClick={() => setShowPanel(!showPanel)}>
+                  {showPanel ? <PanelRightClose className="h-3.5 w-3.5" /> : <PanelRightOpen className="h-3.5 w-3.5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{showPanel ? 'Hide panel' : 'Show panel'}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </header>
 
-      <main className="flex-1 flex overflow-hidden bg-zinc-950 relative">
-        {/* Floating Side Tools */}
-        <div className="absolute left-6 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-40">
-           <TooltipProvider>
-             <div className="bg-zinc-900 shadow-2xl rounded-2xl p-2 border border-white/10 flex flex-col gap-2">
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                         <Button variant="ghost" size="icon" className="h-10 w-10 text-zinc-500 hover:text-white hover:bg-white/5"><Layers className="h-5 w-5" /></Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">Visibility</TooltipContent>
-                </Tooltip>
-                <div className="px-2 py-4">
-                     <div className="h-[100px] flex flex-col items-center gap-2">
-                        <span className="text-[8px] font-black uppercase text-zinc-600 vertical-text origin-center rotate-180">Opacity</span>
-                        <div className="mt-2 h-full py-2">
-                            <Slider 
-                                orientation="vertical" 
-                                value={opacity} 
-                                onValueChange={setOpacity} 
-                                max={100} 
-                                step={5}
-                                className="h-full"
-                            />
-                        </div>
-                     </div>
-                </div>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                         <Button variant="ghost" size="icon" className="h-10 w-10 text-zinc-500 hover:text-white hover:bg-white/5" onClick={() => setShowHeightControl(!showHeightControl)}><Ruler className="h-5 w-5" /></Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">Page Height</TooltipContent>
-                </Tooltip>
-             </div>
-           </TooltipProvider>
-
-           {/* Stats Floating Card */}
-           {/* <div className="bg-primary/10 backdrop-blur-md shadow-2xl rounded-2xl p-4 border border-primary/20 flex flex-col gap-4 mt-4 w-[160px]">
-              <div className="space-y-1">
-                 <span className="text-[9px] font-black uppercase tracking-widest text-primary/80">Interaction Density</span>
-                 <div className="text-xl font-black">Medium</div>
-              </div>
-              <div className="space-y-1">
-                 <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500">Avg. Pos</span>
-                 <div className="text-sm font-bold text-zinc-400">Centered</div>
-              </div>
-              <div className="pt-2 border-t border-white/5">
-                 <div className="flex items-center gap-2 text-[10px] text-primary font-bold">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Verified Data
-                 </div>
-              </div>
-           </div> */}
+      {/* Premium banner */}
+      {(isFreePlan || isDemo) && (
+        <div className="bg-amber-500/10 border-b border-amber-500/20 py-1.5 px-4 flex items-center justify-center gap-3">
+          <Sparkles className="h-3 w-3 text-amber-500" />
+          <span className="text-xs text-amber-400/90">Preview mode — showing simulated data</span>
+          <Link href={isDemo ? '/pricing' : `/websites/${websiteId}/billing`} className="text-xs text-amber-400 underline underline-offset-2 hover:text-amber-300">
+            Upgrade
+          </Link>
         </div>
+      )}
 
-        <div className="flex-1 flex flex-col items-center justify-start overflow-hidden pt-5 pb-20 relative">
-          <div 
-            className="relative shadow-[0_0_100px_rgba(0,0,0,0.5)] transition-all duration-500 ease-out rounded-xl ring-1 ring-white/10"
-            style={{ 
-              width: `${deviceWidth}px`, 
+      {/* Main content area */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Preview area */}
+        <div ref={containerRef} className="flex-1 overflow-hidden flex items-start justify-center pt-6 pb-6 relative">
+          <div
+            className="relative transition-all duration-300 ease-out rounded-xl overflow-hidden"
+            style={{
+              width: `${deviceWidth}px`,
               transform: `scale(${scale})`,
               transformOrigin: 'top center',
+              boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 25px 80px rgba(0,0,0,0.5)',
             }}
           >
-            {/* Mock Web Browser Chrome */}
-            <div className="h-10 bg-zinc-800 rounded-t-xl border-b border-white/5 flex items-center px-4 gap-3 select-none">
-               <div className="flex gap-1.5">
-                  <div className="h-2.5 w-2.5 rounded-full bg-rose-500/30" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-amber-500/30" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-emerald-500/30" />
-               </div>
-               <div className="flex-1 bg-black/40 h-6 rounded-md flex items-center px-3 justify-between">
-                  <span className="text-[10px] text-zinc-500 truncate font-mono">{siteUrl}</span>
-                  <Maximize2 className="h-2.5 w-2.5 text-zinc-600" />
-               </div>
+            {/* Browser chrome */}
+            <div className="h-9 bg-zinc-800/90 border-b border-white/[0.06] flex items-center px-3.5 gap-3 select-none">
+              <div className="flex gap-1.5">
+                <div className="h-2.5 w-2.5 rounded-full bg-zinc-600/60" />
+                <div className="h-2.5 w-2.5 rounded-full bg-zinc-600/60" />
+                <div className="h-2.5 w-2.5 rounded-full bg-zinc-600/60" />
+              </div>
+              <div className="flex-1 bg-zinc-900/80 h-5.5 rounded flex items-center px-3 border border-white/[0.04]">
+                <span className="text-[10px] text-zinc-500 truncate font-mono">{siteUrl}</span>
+              </div>
             </div>
 
+            {/* Content */}
             <div
-               ref={mainScrollRef}
-               className="bg-white overflow-y-auto overflow-x-hidden rounded-b-xl hide-scrollbar"
-               style={{ height: 'calc(100vh - 150px)' }}
+              ref={mainScrollRef}
+              className="bg-white overflow-y-auto overflow-x-hidden hide-scrollbar"
+              style={{ height: 'calc(100vh - 140px)' }}
             >
-                <div style={{ height: `${Math.max(dimensions.height, 2000)}px`, width: `${deviceWidth}px`, position: 'relative' }}>
-                    <HeatmapOverlay
-                        points={points}
-                        width={deviceWidth}
-                        height={Math.max(dimensions.height, 2000)}
-                        totalWidth={deviceWidth}
-                        totalHeight={Math.max(dimensions.height, 2000)}
-                        opacity={opacity[0] / 100}
-                        type={activeType}
-                    />
-                    
-                    {loading ? (
-                        <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center gap-4 text-zinc-900 backdrop-blur-sm">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            <div className="flex flex-col items-center">
-                                <span className="font-black uppercase tracking-widest text-xs">Assembling Map</span>
-                                <span className="text-[10px] font-medium opacity-50">Calibrating interactive coordinates...</span>
-                            </div>
-                        </div>
-                    ) : iframeError ? (
-                        <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center gap-4 text-zinc-900">
-                            <div className="h-16 w-16 rounded-full bg-amber-100 flex items-center justify-center mb-2">
-                                <Info className="h-8 w-8 text-amber-600" />
-                            </div>
-                            <div className="flex flex-col items-center text-center px-4">
-                                <span className="font-black uppercase tracking-widest text-sm">Page Load Restricted</span>
-                                <span className="text-xs text-zinc-600 mt-2 max-w-md">
-                                  This page cannot be displayed in preview mode. The target website might be blocking iframe embeds.
-                                </span>
-                                <Button onClick={() => setIframeError(false)} className="mt-4" size="sm">
-                                  Retry
-                                </Button>
-                            </div>
-                        </div>
-                    ) : !points || points.length === 0 ? (
-                        <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center gap-4 text-zinc-900">
-                            <div className="flex flex-col items-center text-center px-4">
-                                <span className="font-black uppercase tracking-widest text-sm text-zinc-400">No Data Points</span>
-                                <span className="text-[10px] text-zinc-500 mt-1">
-                                  Waiting for user interactions on this URL.
-                                </span>
-                            </div>
-                        </div>
-                    ) : null}
+              <div style={{ height: `${Math.max(dimensions.height, 2000)}px`, width: `${deviceWidth}px`, position: 'relative' }}>
+                {showOverlay && (
+                  <HeatmapOverlay
+                    points={points}
+                    width={deviceWidth}
+                    height={Math.max(dimensions.height, 2000)}
+                    totalWidth={deviceWidth}
+                    totalHeight={Math.max(dimensions.height, 2000)}
+                    opacity={opacity[0] / 100}
+                    type={activeType}
+                  />
+                )}
 
-                    {siteUrl && <iframe
-                        ref={iframeRef}
-                        src={siteUrl}
-                        onError={() => {
-                          console.error('Iframe failed to load:', siteUrl);
-                          setIframeError(true);
-                        }}
-                        onLoad={(e) => {
-                          setIframeError(false);
-                          console.log('Iframe loaded successfully:', siteUrl);
-                          
-                          const validIframe = e.currentTarget;
-                          
-                          // Try direct same-origin DOM access to measure content height.
-                          // No isSameOrigin guard — we let the try/catch handle cross-origin rejections.
-                          // Only height is measured; width always equals deviceWidth.
-                          const scanHeight = () => {
-                              if (!validIframe.contentWindow) return;
-                              try {
-                                  const doc = validIframe.contentWindow.document;
-                                  const bodyHeight = Math.max(
-                                      doc.body.scrollHeight, doc.body.offsetHeight,
-                                      doc.documentElement.clientHeight, doc.documentElement.scrollHeight, doc.documentElement.offsetHeight
-                                  );
+                {loading || isLoadingWebsite ? (
+                  <div className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
+                    <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+                    <div className="flex flex-col items-center">
+                      <span className="text-sm font-medium text-zinc-700">Loading heatmap data</span>
+                      <span className="text-xs text-zinc-400 mt-0.5">Mapping interaction coordinates...</span>
+                    </div>
+                  </div>
+                ) : iframeError ? (
+                  <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-amber-50 flex items-center justify-center">
+                      <Info className="h-5 w-5 text-amber-600" />
+                    </div>
+                    <div className="flex flex-col items-center text-center px-4">
+                      <span className="text-sm font-medium text-zinc-800">Unable to load page preview</span>
+                      <span className="text-xs text-zinc-500 mt-1 max-w-sm">
+                        The target website may be blocking iframe embeds. The heatmap data is still displayed.
+                      </span>
+                      <Button onClick={() => setIframeError(false)} className="mt-3" size="sm" variant="outline">
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                ) : !points || points.length === 0 ? (
+                  <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center gap-2">
+                    <Crosshair className="h-8 w-8 text-zinc-300" />
+                    <span className="text-sm font-medium text-zinc-400">No data points recorded</span>
+                    <span className="text-xs text-zinc-400">Waiting for user interactions on this page.</span>
+                  </div>
+                ) : null}
 
-                                  // Also check scrollable inner containers (common in dashboard apps)
-                                  let maxInnerHeight = bodyHeight;
-                                  const scrollables = doc.querySelectorAll('div, main, section');
-                                  for (let i = 0; i < scrollables.length; i++) {
-                                      const el = scrollables[i] as Element;
-                                      if (el.scrollHeight > maxInnerHeight) {
-                                          const style = (validIframe.contentWindow as Window).getComputedStyle(el);
-                                          if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && style.display !== 'none') {
-                                              maxInnerHeight = el.scrollHeight;
-                                          }
-                                      }
-                                  }
-
-                                  if (maxInnerHeight > 0) {
-                                      setDimensions(prev => ({ ...prev, height: maxInnerHeight }));
-                                      setShowHeightControl(false);
-                                  }
-                              } catch (err) {
-                                  // Cross-origin — fall through to postMessage polling below
+                {siteUrl && (
+                  <iframe
+                    ref={iframeRef}
+                    src={siteUrl}
+                    onError={() => {
+                      console.error('Iframe failed to load:', siteUrl);
+                      setIframeError(true);
+                    }}
+                    onLoad={(e) => {
+                      setIframeError(false);
+                      const validIframe = e.currentTarget;
+                      const scanHeight = () => {
+                        if (!validIframe.contentWindow) return;
+                        try {
+                          const doc = validIframe.contentWindow.document;
+                          const bodyHeight = Math.max(
+                            doc.body.scrollHeight, doc.body.offsetHeight,
+                            doc.documentElement.clientHeight, doc.documentElement.scrollHeight, doc.documentElement.offsetHeight
+                          );
+                          let maxInnerHeight = bodyHeight;
+                          const scrollables = doc.querySelectorAll('div, main, section');
+                          for (let i = 0; i < scrollables.length; i++) {
+                            const el = scrollables[i] as Element;
+                            if (el.scrollHeight > maxInnerHeight) {
+                              const style = (validIframe.contentWindow as Window).getComputedStyle(el);
+                              if ((style.overflowY === 'auto' || style.overflowY === 'scroll') && style.display !== 'none') {
+                                maxInnerHeight = el.scrollHeight;
                               }
-                          };
-
-                          // Scan immediately, then again after Next.js hydration completes
-                          scanHeight();
-                          setTimeout(scanHeight, 1500);
-                          setTimeout(scanHeight, 3000);
-
-                          // Fallback: Message polling
-                          let attempts = 0;
-                          const poller = setInterval(() => {
-                            if (validIframe.contentWindow) {
-                                validIframe.contentWindow.postMessage('SEENTICS_GET_DIMENSIONS', '*');
-                                attempts++;
-                                if (attempts > 10) clearInterval(poller);
-                            } else {
-                                clearInterval(poller);
                             }
-                          }, 500);
-                        }}
-                        sandbox={isSameOrigin ? 'allow-same-origin allow-scripts allow-forms' : undefined}
-                        referrerPolicy="same-origin"
-                        className="w-full h-full border-none pointer-events-none"
-                    />}
-                </div>
+                          }
+                          if (maxInnerHeight > 0) {
+                            setDimensions(prev => ({ ...prev, height: maxInnerHeight }));
+                            setShowHeightControl(false);
+                          }
+                        } catch {
+                          // Cross-origin — fall through to postMessage polling
+                        }
+                      };
+                      scanHeight();
+                      setTimeout(scanHeight, 1500);
+                      setTimeout(scanHeight, 3000);
+                      let attempts = 0;
+                      const poller = setInterval(() => {
+                        if (validIframe.contentWindow) {
+                          validIframe.contentWindow.postMessage('SEENTICS_GET_DIMENSIONS', '*');
+                          attempts++;
+                          if (attempts > 10) clearInterval(poller);
+                        } else {
+                          clearInterval(poller);
+                        }
+                      }, 500);
+                    }}
+                    referrerPolicy="same-origin"
+                    className="absolute inset-0 w-full h-full border-none pointer-events-none"
+                  />
+                )}
+              </div>
             </div>
           </div>
 
+          {/* Height calibration popup */}
           {showHeightControl && (
-            <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-zinc-900/90 border border-white/10 rounded-2xl p-4 shadow-2xl flex flex-col gap-2 w-80 z-[60]">
-               <div className="flex items-center justify-between mb-2">
-                   <div className="flex items-center gap-2">
-                        <Info className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-bold">Height Calibration</span>
-                   </div>
-                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
-                       if (iframeRef.current && iframeRef.current.contentWindow) {
-                           iframeRef.current.contentWindow.postMessage('SEENTICS_GET_DIMENSIONS', '*');
-                       }
-                   }}>
-                       <RefreshCcw className="h-3 w-3" />
-                   </Button>
-               </div>
-               <p className="text-[10px] text-zinc-400 mb-2">Adjust height manually if automatic detection is incomplete.</p>
-               <div className="space-y-2">
-                 <div className="flex justify-between text-[10px] font-black uppercase text-zinc-500">
-                    <span>Height</span>
-                    <span>{dimensions.height}px</span>
-                 </div>
-                 <Slider 
-                    value={[dimensions.height]} 
-                    onValueChange={(v) => setDimensions({ ...dimensions, height: v[0] })}
-                    min={500}
-                    max={10000}
-                    step={100}
-                 />
-               </div>
-               <Button size="sm" className="mt-2 h-7 rounded text-[10px] font-black uppercase" onClick={() => setShowHeightControl(false)}>Dismiss</Button>
+            <div className="fixed bottom-14 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded-xl p-4 shadow-2xl w-72 z-[60]">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Ruler className="h-3.5 w-3.5 text-zinc-400" />
+                  <span className="text-xs font-medium">Height Calibration</span>
+                </div>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-zinc-500 hover:text-white" onClick={() => {
+                  if (iframeRef.current?.contentWindow) {
+                    iframeRef.current.contentWindow.postMessage('SEENTICS_GET_DIMENSIONS', '*');
+                  }
+                }}>
+                  <RefreshCcw className="h-3 w-3" />
+                </Button>
+              </div>
+              <p className="text-[10px] text-zinc-500 mb-3">Auto-detection incomplete. Adjust manually if needed.</p>
+              <div className="space-y-2">
+                <div className="flex justify-between text-[10px] text-zinc-500">
+                  <span>Height</span>
+                  <span className="font-mono">{dimensions.height}px</span>
+                </div>
+                <Slider
+                  value={[dimensions.height]}
+                  onValueChange={(v) => setDimensions({ ...dimensions, height: v[0] })}
+                  min={500}
+                  max={10000}
+                  step={100}
+                />
+              </div>
+              <Button size="sm" variant="outline" className="mt-3 w-full h-7 text-xs border-white/10 text-zinc-300 hover:bg-white/5" onClick={() => setShowHeightControl(false)}>
+                Done
+              </Button>
             </div>
           )}
         </div>
-      </main>
 
-      {/* Top Banner for Demo/Free */}
-      {/* {(isFreePlan || isDemo) && (
-        <div className="bg-amber-500 text-black py-1 px-4 text-center">
-            <p className="text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-4">
-                <Sparkles className="h-3 w-3" />
-                Preview Mode: Visualizing simulated user interactions for this domain
-                <Link href={isDemo ? '/pricing' : `/websites/${websiteId}/billing`} className="underline ml-2">Upgrade for Live Tracking</Link>
-            </p>
+        {/* Right sidebar panel */}
+        {showPanel && (
+          <aside className="w-[260px] border-l border-white/[0.06] bg-zinc-900/50 flex flex-col flex-shrink-0 overflow-y-auto hide-scrollbar">
+            {/* Mobile-only controls (type & device shown here on small screens) */}
+            <div className="lg:hidden p-4 space-y-4 border-b border-white/[0.06]">
+              <PanelSection title="Overlay Type">
+                <div className="flex gap-1.5">
+                  <TypeButton active={activeType === 'click'} onClick={() => setActiveType('click')} icon={MousePointerClick} label="Clicks" />
+                  <TypeButton active={activeType === 'move'} onClick={() => setActiveType('move')} icon={MousePointer2} label="Movement" />
+                </div>
+              </PanelSection>
+              <PanelSection title="Device">
+                <div className="flex gap-1.5">
+                  <DeviceButton active={device === 'desktop'} onClick={() => setDevice('desktop')} icon={Monitor} label="Desktop" />
+                  <DeviceButton active={device === 'tablet'} onClick={() => setDevice('tablet')} icon={Tablet} label="Tablet" />
+                  <DeviceButton active={device === 'mobile'} onClick={() => setDevice('mobile')} icon={Smartphone} label="Mobile" />
+                </div>
+              </PanelSection>
+            </div>
+
+            {/* Opacity */}
+            <div className="p-4 border-b border-white/[0.06]">
+              <PanelSection title="Opacity">
+                <div className="flex items-center gap-3">
+                  <Slider
+                    value={opacity}
+                    onValueChange={setOpacity}
+                    max={100}
+                    step={5}
+                    className="flex-1"
+                  />
+                  <span className="text-xs text-zinc-400 font-mono w-8 text-right">{opacity[0]}%</span>
+                </div>
+              </PanelSection>
+            </div>
+
+            {/* Color scale legend */}
+            <div className="p-4 border-b border-white/[0.06]">
+              <PanelSection title="Color Scale">
+                <div className="space-y-2">
+                  <div className="h-2.5 w-full rounded-full overflow-hidden" style={{
+                    background: 'linear-gradient(to right, rgba(59,130,246,0.8), rgba(34,211,238,0.8), rgba(163,230,53,0.8), rgba(250,204,21,0.8), rgba(239,68,68,0.9))'
+                  }} />
+                  <div className="flex justify-between text-[10px] text-zinc-500">
+                    <span>Low</span>
+                    <span>Medium</span>
+                    <span>High</span>
+                  </div>
+                </div>
+              </PanelSection>
+            </div>
+
+            {/* Statistics */}
+            <div className="p-4 border-b border-white/[0.06]">
+              <PanelSection title="Statistics">
+                <div className="space-y-2.5">
+                  <StatRow label="Data Points" value={points.length.toLocaleString()} />
+                  <StatRow label="Overlay" value={activeType === 'click' ? 'Click map' : 'Movement map'} />
+                  <StatRow label="Density" value={densityLabel} />
+                  <StatRow label="Viewport" value={`${deviceWidth}px`} />
+                  <StatRow label="Page Height" value={`${dimensions.height}px`} />
+                </div>
+              </PanelSection>
+            </div>
+
+            {/* Actions */}
+            <div className="p-4 space-y-2">
+              <PanelSection title="Tools">
+                <div className="space-y-1.5">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start h-8 text-xs text-zinc-400 hover:text-white hover:bg-white/5 gap-2"
+                    onClick={() => setShowOverlay(!showOverlay)}
+                  >
+                    {showOverlay ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    {showOverlay ? 'Hide Overlay' : 'Show Overlay'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start h-8 text-xs text-zinc-400 hover:text-white hover:bg-white/5 gap-2"
+                    onClick={() => setShowHeightControl(!showHeightControl)}
+                  >
+                    <Ruler className="h-3.5 w-3.5" />
+                    Adjust Height
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start h-8 text-xs text-zinc-400 hover:text-white hover:bg-white/5 gap-2"
+                    onClick={() => {
+                      setLoading(true);
+                      setTimeout(() => setLoading(false), 300);
+                    }}
+                  >
+                    <RefreshCcw className="h-3.5 w-3.5" />
+                    Refresh Data
+                  </Button>
+                </div>
+              </PanelSection>
+            </div>
+          </aside>
+        )}
+      </div>
+
+      {/* Status bar */}
+      <footer className="h-7 border-t border-white/[0.06] bg-zinc-900/60 flex items-center px-4 gap-4 text-[10px] text-zinc-500 flex-shrink-0 z-50">
+        <div className="flex items-center gap-1.5">
+          <span className={cn("h-1.5 w-1.5 rounded-full", showDummy ? "bg-amber-500" : "bg-emerald-500 animate-pulse")} />
+          <span>{showDummy ? 'Preview Mode' : 'Live'}</span>
         </div>
-      )} */}
+        <div className="h-3 w-px bg-white/10" />
+        <span>{points.length.toLocaleString()} data points</span>
+        <div className="h-3 w-px bg-white/10" />
+        <span className="capitalize">{device} &middot; {deviceWidth}×{dimensions.height}px</span>
+        <div className="flex-1" />
+        <span className="hidden sm:block">
+          {activeType === 'click' ? 'Click' : 'Movement'} heatmap &middot; {opacity[0]}% opacity
+        </span>
+      </footer>
     </div>
+  );
+}
+
+// --- Sub-components ---
+
+function PanelSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-2.5">
+      <span className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider">{title}</span>
+      {children}
+    </div>
+  );
+}
+
+function StatRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-xs text-zinc-500">{label}</span>
+      <span className="text-xs text-zinc-300 font-medium">{value}</span>
+    </div>
+  );
+}
+
+function TypeButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: any; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all",
+        active
+          ? "bg-white/10 text-white"
+          : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+      )}
+    >
+      <Icon className="h-3 w-3" />
+      {label}
+    </button>
+  );
+}
+
+function DeviceButton({ active, onClick, icon: Icon, label }: { active: boolean; onClick: () => void; icon: any; label: string }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={onClick}
+            className={cn(
+              "flex items-center justify-center h-6 w-7 rounded-md transition-all",
+              active
+                ? "bg-white/10 text-white"
+                : "text-zinc-500 hover:text-zinc-300 hover:bg-white/5"
+            )}
+          >
+            <Icon className="h-3.5 w-3.5" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

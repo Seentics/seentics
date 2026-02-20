@@ -73,7 +73,7 @@ services:
   nats-local:
     image: nats:2.10-alpine
     container_name: nats-local
-    command: --jetstream --store_dir /data --max_mem_store 64MB --max_file_store 1GB
+    command: -c /etc/nats/nats-server.conf
     ports:
       - "4222:4222"
       - "8222:8222"
@@ -81,6 +81,7 @@ services:
       - seentics-local-network
     volumes:
       - nats-local-data:/data
+      - ./nats-server.conf:/etc/nats/nats-server.conf:ro
     healthcheck:
       test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz" ]
       interval: 5s

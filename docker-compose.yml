@@ -96,11 +96,12 @@ services:
   nats:
     image: nats:2.10-alpine
     container_name: seentics-nats
-    command: --jetstream --store_dir /data --max_mem_store 64MB --max_file_store 1GB
+    command: -c /etc/nats/nats-server.conf
     networks:
       - seentics-network
     volumes:
       - seentics-nats-v3:/data
+      - ./nats-server.conf:/etc/nats/nats-server.conf:ro
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz" ]

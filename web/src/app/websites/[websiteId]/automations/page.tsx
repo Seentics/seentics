@@ -7,7 +7,6 @@ import {
     Plus,
     Search,
     ArrowUpRight,
-    ArrowRight,
     Zap,
     Mail,
     Bell,
@@ -25,21 +24,24 @@ import {
     CheckCircle2,
     XCircle,
     Clock,
-    LayoutGrid
+    LayoutGrid,
+    ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuLabel, 
-    DropdownMenuSeparator, 
-    DropdownMenuTrigger 
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow
+} from '@/components/ui/table';
 import { formatNumber } from '@/lib/analytics-api';
 import { useAutomations, useDeleteAutomation, useToggleAutomation } from '@/lib/automations-api';
 import { getWebsiteBySiteId } from '@/lib/websites-api';
@@ -48,6 +50,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from 'next/link';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { cn } from '@/lib/utils';
 
 const actionIcons: Record<string, any> = {
     email: Mail,
@@ -74,7 +77,6 @@ export default function AutomationsPage() {
 
     const isAutomationDisabled = website && !website.automationEnabled;
 
-    // Fetch automations from API
     const { data, isLoading, error, refetch } = useAutomations(websiteId);
     const deleteAutomation = useDeleteAutomation();
     const toggleAutomation = useToggleAutomation();
@@ -85,7 +87,6 @@ export default function AutomationsPage() {
         auto.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Calculate stats from real data
     const totalAutomations = automations.length;
     const activeCount = automations.filter(auto => auto.isActive).length;
     const totalTriggers = automations.reduce((sum, auto) => sum + (auto.stats?.last30Days || 0), 0);
@@ -94,79 +95,55 @@ export default function AutomationsPage() {
 
     const handleDelete = async (automationId: string, name: string) => {
         if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
-
         try {
             await deleteAutomation.mutateAsync({ websiteId, automationId });
-            toast({
-                title: "Automation Deleted",
-                description: `"${name}" has been deleted successfully.`,
-            });
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: "Failed to delete automation. Please try again.",
-                variant: "destructive",
-            });
+            toast({ title: "Deleted", description: `"${name}" has been removed.` });
+        } catch {
+            toast({ title: "Error", description: "Failed to delete automation.", variant: "destructive" });
         }
     };
 
     const handleToggle = async (automationId: string, name: string, currentStatus: boolean) => {
         try {
             await toggleAutomation.mutateAsync({ websiteId, automationId });
-            toast({
-                title: currentStatus ? "Automation Paused" : "Automation Activated",
-                description: `"${name}" is now ${currentStatus ? 'paused' : 'active'}.`,
-            });
-        } catch (error) {
-            toast({
-                title: "Error",
-                description: "Failed to toggle automation. Please try again.",
-                variant: "destructive",
-            });
+            toast({ title: currentStatus ? "Paused" : "Activated", description: `"${name}" is now ${currentStatus ? 'paused' : 'active'}.` });
+        } catch {
+            toast({ title: "Error", description: "Failed to toggle automation.", variant: "destructive" });
         }
     };
 
-    const getActionIcon = (actionType: string) => {
-        const Icon = actionIcons[actionType] || actionIcons.default;
-        return Icon;
-    };
+    const getActionIcon = (actionType: string) => actionIcons[actionType] || actionIcons.default;
 
-    if (isLoading) {
-        return <AutomationsSkeleton />;
-    }
+    if (isLoading) return <AutomationsSkeleton />;
 
     if (error) {
         return (
-            <div className="p-4 sm:p-6 min-h-[60vh] flex flex-col items-center justify-center text-center space-y-4">
-                <div className="w-20 h-20 rounded-full bg-red-50 dark:bg-red-950/20 flex items-center justify-center">
-                    <AlertCircle className="h-10 w-10 text-red-500" />
+            <div className="p-6 md:p-8 min-h-[60vh] flex flex-col items-center justify-center text-center space-y-4 max-w-[1400px] mx-auto">
+                <div className="h-16 w-16 rounded-full bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center">
+                    <AlertCircle className="h-7 w-7 text-rose-500" />
                 </div>
-                <div className="max-w-md space-y-2">
-                    <h2 className="text-2xl font-black text-slate-900 dark:text-white">Something went wrong</h2>
-                    <p className="text-muted-foreground font-medium">
-                        We couldn't load your automations. This might be a temporary connection issue.
-                    </p>
+                <div className="max-w-md space-y-1.5">
+                    <h2 className="text-lg font-semibold">Something went wrong</h2>
+                    <p className="text-sm text-muted-foreground">We couldn't load your automations. This might be a temporary issue.</p>
                 </div>
-                <Button variant="outline" onClick={() => refetch()} className="h-11 px-8 rounded font-bold gap-2">
-                    <Activity className="h-4 w-4" />
-                    Try Again
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 text-xs">
+                    <Activity className="h-3.5 w-3.5" /> Try Again
                 </Button>
             </div>
         );
     }
 
     return (
-        <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-7xl mx-auto">
+        <div className="p-6 md:p-8 space-y-6 animate-in fade-in duration-500 max-w-[1400px] mx-auto">
             {isAutomationDisabled && (
-                <Alert className="bg-amber-500/10 border-amber-500/20">
+                <Alert className="bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20">
                     <Zap className="h-4 w-4 text-amber-600" />
-                    <AlertTitle className="text-amber-600 font-bold">Scripts Disabled</AlertTitle>
-                    <AlertDescription className="text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <span>The automation script is currently disabled for this website. Your workflows will not execute on your site. Update your settings to re-enable them.</span>
+                    <AlertTitle className="text-amber-700 dark:text-amber-500 font-semibold">Scripts Disabled</AlertTitle>
+                    <AlertDescription className="text-amber-600/80 dark:text-muted-foreground/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <span>Automation scripts are disabled for this website. Workflows won't execute until re-enabled.</span>
                         <Link href={`/websites/${websiteId}/settings`}>
-                            <Button size="sm" variant="outline" className="border-amber-500/30 text-amber-600 hover:bg-amber-500/10 gap-2">
-                                <Activity className="h-3.5 w-3.5" />
-                                Go to Settings
+                            <Button size="sm" variant="outline" className="border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-500/10 gap-2 text-xs font-medium">
+                                <Activity className="h-3.5 w-3.5" /> Open Settings
                             </Button>
                         </Link>
                     </AlertDescription>
@@ -175,70 +152,42 @@ export default function AutomationsPage() {
 
             <DashboardPageHeader
                 title="Automations"
-                description="Create powerful automated workflows based on user interactions and events."
+                description="Create automated workflows based on user interactions and events."
+                icon={Workflow}
             >
-
-                <div className="flex items-center gap-3">
-                    <Link href={`/websites/${websiteId}/automations/templates`}>
-                        <Button variant="outline" className="h-12 px-6 font-black rounded gap-2 border-2 hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">
-                            <LayoutGrid className="h-5 w-5" />
-                            Templates
-                        </Button>
-                    </Link>
-                    <Link href={`/websites/${websiteId}/automations/builder`}>
-                        <Button variant="brand" className="h-12 px-6 font-black rounded gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">
-                            <Plus className="h-5 w-5" />
-                            Create Automation
-                        </Button>
-                    </Link>
-                </div>
+                <Link href={`/websites/${websiteId}/automations/templates`}>
+                    <Button variant="outline" className="h-9 gap-2 text-xs font-medium">
+                        <LayoutGrid className="h-3.5 w-3.5" /> Templates
+                    </Button>
+                </Link>
+                <Link href={`/websites/${websiteId}/automations/builder`}>
+                    <Button className="h-9 gap-2 text-xs font-medium">
+                        <Plus className="h-3.5 w-3.5" /> Create Automation
+                    </Button>
+                </Link>
             </DashboardPageHeader>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                <StatsCard 
-                    title="Total Automations" 
-                    value={totalAutomations} 
-                    icon={Database} 
-                    description={`${activeCount} Active, ${pausedCount} Paused`}
-                    color="primary"
-                />
-                <StatsCard 
-                    title="Live Workflows" 
-                    value={activeCount} 
-                    icon={Zap} 
-                    description="Triggering in real-time"
-                    color="green"
-                />
-                <StatsCard 
-                    title="30d Triggers" 
-                    value={totalTriggers} 
-                    icon={Activity} 
-                    description="Total events matched"
-                    color="blue"
-                />
-                <StatsCard 
-                    title="Total Executions" 
-                    value={totalExecutions} 
-                    icon={CheckCircle2} 
-                    description="Actions performed"
-                    color="purple"
-                />
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatsCard title="Total Automations" value={totalAutomations} icon={Database} description={`${activeCount} active, ${pausedCount} paused`} color="blue" />
+                <StatsCard title="Live Workflows" value={activeCount} icon={Zap} description="Currently active" color="emerald" />
+                <StatsCard title="30d Triggers" value={totalTriggers} icon={Activity} description="Events matched" color="violet" />
+                <StatsCard title="Total Executions" value={totalExecutions} icon={CheckCircle2} description="Actions performed" color="amber" />
             </div>
 
-            {/* Content Section */}
-            <Card className="border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card/50 dark:bg-card/50 rounded overflow-hidden dark:border-none backdrop-blur-sm">
-                <CardHeader className="border-b border-muted-foreground/5 bg-muted/20 px-6 py-6">
+            {/* Table */}
+            <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
+                <CardHeader className="border-b border-border/40 pb-4">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <CardTitle className="text-lg font-black">All Automation Workflows</CardTitle>
-                            <CardDescription className="text-xs font-bold uppercase tracking-widest mt-1">Manage and track performance</CardDescription>
+                            <CardTitle className="text-lg font-semibold">Workflows</CardTitle>
+                            <CardDescription className="text-sm mt-0.5">Manage and track automation performance</CardDescription>
                         </div>
-                        <div className="relative w-full md:w-80 group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <Input
-                                placeholder="Search by name..."
-                                className="pl-12 h-11 bg-background border-muted-foreground/10 focus-visible:ring-1 text-sm font-medium rounded transition-all"
+                                placeholder="Search automations..."
+                                className="pl-8 w-full md:w-[260px] h-8 text-sm bg-muted/30 border-border/50"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -247,196 +196,168 @@ export default function AutomationsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {filteredAutomations.length === 0 ? (
-                        <div className="py-24 text-center">
-                            <div className="w-20 h-20 rounded bg-muted/30 flex items-center justify-center mx-auto mb-6">
-                                <Search className="h-10 w-10 text-muted-foreground/30" />
+                        <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+                            <div className="h-16 w-16 bg-muted/50 rounded-full flex items-center justify-center mb-5">
+                                <Workflow className="h-7 w-7 text-muted-foreground/40" />
                             </div>
-                            <h3 className="text-xl font-bold mb-2">No results found</h3>
-                            <p className="text-muted-foreground font-medium max-w-sm mx-auto">
-                                {searchTerm 
-                                    ? `We couldn't find any automations matching "${searchTerm}"`
-                                    : "You haven't created any automations for this website yet."}
+                            <h3 className="text-base font-semibold">
+                                {searchTerm ? 'No matching automations' : 'No automations yet'}
+                            </h3>
+                            <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-1.5">
+                                {searchTerm
+                                    ? `No automations matching "${searchTerm}"`
+                                    : 'Create your first automation to start engaging users automatically.'}
                             </p>
-                            {searchTerm && (
-                                <Button variant="ghost" className="mt-4 font-bold" onClick={() => setSearchTerm('')}>
-                                    Clear Search
-                                </Button>
+                            {searchTerm ? (
+                                <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setSearchTerm('')}>Clear search</Button>
+                            ) : (
+                                <Link href={`/websites/${websiteId}/automations/builder`} className="mt-4">
+                                    <Button size="sm" className="gap-2 text-xs">
+                                        <Plus className="h-3.5 w-3.5" /> Create Automation
+                                    </Button>
+                                </Link>
                             )}
                         </div>
                     ) : (
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-muted-foreground/5">
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Automation</th>
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Triggers (30d)</th>
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Actions</th>
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Avg Rate</th>
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Status</th>
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right"></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-muted-foreground/5">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="hover:bg-transparent border-border/40 bg-muted/20">
+                                        <TableHead className="px-5 py-3 text-xs font-medium text-muted-foreground">Automation</TableHead>
+                                        <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Triggers (30d)</TableHead>
+                                        <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Actions</TableHead>
+                                        <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Success Rate</TableHead>
+                                        <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Status</TableHead>
+                                        <TableHead className="px-5 py-3 w-[60px]" />
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
                                     {filteredAutomations.map((auto) => {
-                                        const ActionIcon = auto.actions && auto.actions.length > 0
+                                        const ActionIcon = auto.actions?.length > 0
                                             ? getActionIcon(auto.actions[0].actionType)
                                             : Zap;
-                                        
                                         const successRate = auto.stats?.successRate || 0;
 
                                         return (
-                                            <tr 
-                                                key={auto.id} 
-                                                className="hover:bg-muted/10 transition-colors group cursor-pointer"
+                                            <TableRow
+                                                key={auto.id}
+                                                className="group hover:bg-muted/30 transition-colors cursor-pointer border-border/30"
                                                 onClick={() => router.push(`/websites/${websiteId}/automations/${auto.id}`)}
                                             >
-                                                <td className="px-6 py-6 min-w-[300px]">
-                                                    <div className="flex items-center gap-4">
-                                                        <div className="w-12 h-12 rounded bg-card dark:bg-card/50 border border-border flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                                                            <ActionIcon className="h-6 w-6 text-primary" />
+                                                <TableCell className="px-5 py-3.5">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-9 w-9 rounded-lg bg-muted/60 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors">
+                                                            <ActionIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                                                         </div>
                                                         <div className="min-w-0">
-                                                            <p className="text-sm font-black text-slate-900 dark:text-white truncate">{auto.name}</p>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                                                    {auto.triggerType.replace('_', ' ')}
-                                                                </span>
-                                                                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
-                                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                                                    Created {new Date(auto.createdAt).toLocaleDateString()}
-                                                                </span>
+                                                            <p className="text-sm font-medium group-hover:text-primary transition-colors truncate max-w-[280px]">{auto.name}</p>
+                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <span className="text-xs text-muted-foreground">{auto.triggerType.replace('_', ' ')}</span>
+                                                                <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/30" />
+                                                                <span className="text-xs text-muted-foreground">{new Date(auto.createdAt).toLocaleDateString()}</span>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-6 text-center font-black text-slate-900 dark:text-white">
-                                                    {formatNumber(auto.stats?.last30Days || 0)}
-                                                </td>
-                                                <td className="px-6 py-6">
-                                                    <div className="flex items-center justify-center -space-x-2">
+                                                </TableCell>
+                                                <TableCell className="py-3.5 text-center">
+                                                    <span className="text-sm font-semibold tabular-nums">{formatNumber(auto.stats?.last30Days || 0)}</span>
+                                                </TableCell>
+                                                <TableCell className="py-3.5">
+                                                    <div className="flex items-center justify-center -space-x-1.5">
                                                         {auto.actions?.map((action, i) => {
                                                             const Icon = getActionIcon(action.actionType);
                                                             return (
-                                                                <div 
-                                                                    key={i} 
-                                                                    className="w-8 h-8 rounded-full border-2 border-card bg-muted flex items-center justify-center shadow-sm"
+                                                                <div
+                                                                    key={i}
+                                                                    className="h-7 w-7 rounded-full border-2 border-card bg-muted flex items-center justify-center"
                                                                     title={action.actionType}
                                                                 >
-                                                                    <Icon className="h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
+                                                                    <Icon className="h-3 w-3 text-muted-foreground" />
                                                                 </div>
                                                             );
                                                         })}
                                                         {(!auto.actions || auto.actions.length === 0) && (
-                                                            <span className="text-[10px] font-bold text-muted-foreground italic">No actions</span>
+                                                            <span className="text-xs text-muted-foreground/50">None</span>
                                                         )}
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-6 min-w-[140px]">
-                                                    <div className="flex flex-col items-center gap-2">
-                                                        <span className={`text-xs font-black ${successRate >= 95 ? 'text-green-500' : successRate >= 80 ? 'text-amber-500' : 'text-red-500'}`}>
+                                                </TableCell>
+                                                <TableCell className="py-3.5">
+                                                    <div className="flex flex-col items-center gap-1.5">
+                                                        <span className={cn("text-xs font-semibold tabular-nums", successRate >= 95 ? 'text-emerald-600 dark:text-emerald-400' : successRate >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400')}>
                                                             {successRate.toFixed(1)}%
                                                         </span>
-                                                        <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                                                        <div className="h-1 w-14 bg-muted rounded-full overflow-hidden">
                                                             <div
-                                                                className={`h-full transition-all duration-1000 ${successRate >= 95 ? 'bg-green-500' : successRate >= 80 ? 'bg-amber-500' : 'bg-red-500'}`}
+                                                                className={cn("h-full rounded-full transition-all", successRate >= 95 ? 'bg-emerald-500/70' : successRate >= 80 ? 'bg-amber-500/70' : 'bg-rose-500/70')}
                                                                 style={{ width: `${successRate}%` }}
                                                             />
                                                         </div>
                                                     </div>
-                                                </td>
-                                                <td className="px-6 py-6 text-center">
-                                                    <Badge
-                                                        variant={auto.isActive ? 'outline' : 'secondary'}
-                                                        className={`rounded font-black text-[10px] px-3 py-1 uppercase tracking-widest border-0 ${auto.isActive ? 'bg-green-500/10 text-green-500' : 'bg-slate-500/10 text-slate-500'
-                                                            }`}
-                                                    >
-                                                        <span className={`w-1.5 h-1.5 rounded-full mr-2 ${auto.isActive ? 'bg-green-500 animate-pulse' : 'bg-slate-500'}`} />
-                                                        {auto.isActive ? 'active' : 'paused'}
-                                                    </Badge>
-                                                </td>
-                                                <td className="px-6 py-6 text-right" onClick={(e) => e.stopPropagation()}>
+                                                </TableCell>
+                                                <TableCell className="py-3.5 text-center">
+                                                    <div className="flex items-center justify-center gap-1.5">
+                                                        <span className={cn("h-1.5 w-1.5 rounded-full", auto.isActive ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/30")} />
+                                                        <span className={cn("text-xs", auto.isActive ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                                                            {auto.isActive ? 'Active' : 'Paused'}
+                                                        </span>
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
                                                     <DropdownMenu>
                                                         <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded hover:bg-muted">
-                                                                <MoreVertical className="h-4 w-4" />
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <MoreVertical className="h-3.5 w-3.5" />
                                                             </Button>
                                                         </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-48 rounded p-2 border-muted-foreground/10 shadow-xl">
-                                                            <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">Actions</DropdownMenuLabel>
+                                                        <DropdownMenuContent align="end" className="w-44">
                                                             <DropdownMenuItem asChild>
-                                                                <Link href={`/websites/${websiteId}/automations/${auto.id}`} className="flex items-center gap-2 px-3 py-2 cursor-pointer font-bold text-sm text-slate-700 dark:text-slate-300">
-                                                                    <Eye className="h-4 w-4" /> View Details
+                                                                <Link href={`/websites/${websiteId}/automations/${auto.id}`} className="gap-2 text-xs">
+                                                                    <Eye className="h-3.5 w-3.5" /> View Details
                                                                 </Link>
                                                             </DropdownMenuItem>
                                                             <DropdownMenuItem asChild>
-                                                                <Link href={`/websites/${websiteId}/automations/builder?id=${auto.id}`} className="flex items-center gap-2 px-3 py-2 cursor-pointer font-bold text-sm text-slate-700 dark:text-slate-300">
-                                                                    <Edit className="h-4 w-4" /> Edit Workflow
+                                                                <Link href={`/websites/${websiteId}/automations/builder?id=${auto.id}`} className="gap-2 text-xs">
+                                                                    <Edit className="h-3.5 w-3.5" /> Edit Workflow
                                                                 </Link>
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuItem 
-                                                                onClick={() => handleToggle(auto.id, auto.name, auto.isActive)}
-                                                                className="flex items-center gap-2 px-3 py-2 cursor-pointer font-bold text-sm text-slate-700 dark:text-slate-300"
-                                                            >
-                                                                {auto.isActive ? (
-                                                                    <>
-                                                                        <PowerOff className="h-4 w-4" /> Pause
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <Power className="h-4 w-4" /> Activate
-                                                                    </>
-                                                                )}
+                                                            <DropdownMenuItem onClick={() => handleToggle(auto.id, auto.name, auto.isActive)} className="gap-2 text-xs">
+                                                                {auto.isActive ? <><PowerOff className="h-3.5 w-3.5" /> Pause</> : <><Power className="h-3.5 w-3.5" /> Activate</>}
                                                             </DropdownMenuItem>
-                                                            <DropdownMenuSeparator className="bg-muted-foreground/5" />
-                                                            <DropdownMenuItem 
-                                                                onClick={() => handleDelete(auto.id, auto.name)}
-                                                                className="flex items-center gap-2 px-3 py-2 cursor-pointer font-bold text-sm text-red-500 focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/30"
-                                                            >
-                                                                <Trash2 className="h-4 w-4" /> Delete
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem onClick={() => handleDelete(auto.id, auto.name)} className="gap-2 text-xs text-rose-600 focus:text-rose-600">
+                                                                <Trash2 className="h-3.5 w-3.5" /> Delete
                                                             </DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
-                                                </td>
-                                            </tr>
+                                                </TableCell>
+                                            </TableRow>
                                         );
                                     })}
-                                </tbody>
-                            </table>
+                                </TableBody>
+                            </Table>
                         </div>
                     )}
                 </CardContent>
             </Card>
-
-            
         </div>
     );
 }
 
-function StatsCard({ title, value, icon: Icon, description, color = 'primary' }: any) {
-    const colorClasses: Record<string, string> = {
-        primary: 'text-primary bg-primary/10',
-        green: 'text-green-500 bg-green-500/10',
-        blue: 'text-blue-500 bg-blue-500/10',
-        purple: 'text-purple-500 bg-purple-500/10',
-    };
-
+function StatsCard({ title, value, icon: Icon, description, color = 'blue' }: any) {
+    const accentMap: Record<string, string> = { blue: 'bg-blue-500', emerald: 'bg-emerald-500', violet: 'bg-violet-500', amber: 'bg-amber-500' };
+    const iconMap: Record<string, string> = { blue: 'text-blue-500', emerald: 'text-emerald-500', violet: 'text-violet-500', amber: 'text-amber-500' };
     return (
-        <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card dark:bg-gray-800/50 rounded overflow-hidden border border-muted-foreground/5 flex flex-col justify-between">
-            <CardHeader className="pb-2">
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-sm">
+            <div className={`absolute left-0 top-0 bottom-0 w-1 ${accentMap[color]}`} />
+            <CardHeader className="pb-1 pl-5">
                 <div className="flex items-center justify-between">
-                    <CardDescription className="font-black text-[10px] uppercase tracking-widest text-muted-foreground">{title}</CardDescription>
-                    <div className={`p-2 rounded ${colorClasses[color]}`}>
-                        <Icon className="h-4 w-4" />
-                    </div>
+                    <span className="text-xs font-medium text-muted-foreground">{title}</span>
+                    <Icon className={cn("h-4 w-4", iconMap[color])} />
                 </div>
-                <CardTitle className="text-2xl font-black text-slate-900 dark:text-white mt-2">
-                    {typeof value === 'number' ? formatNumber(value) : value}
-                </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-                <div className="flex items-center gap-2">
-                    <p className="text-[11px] font-bold text-muted-foreground">{description}</p>
-                </div>
+            <CardContent className="pl-5 pt-0">
+                <div className="text-2xl font-semibold tracking-tight">{typeof value === 'number' ? formatNumber(value) : value}</div>
+                <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
             </CardContent>
         </Card>
     );
@@ -444,56 +365,43 @@ function StatsCard({ title, value, icon: Icon, description, color = 'primary' }:
 
 function AutomationsSkeleton() {
     return (
-        <div className="p-4 sm:p-6 space-y-8 max-w-[1400px] mx-auto">
+        <div className="p-6 md:p-8 space-y-6 max-w-[1400px] mx-auto">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-2">
-                    <Skeleton className="h-10 w-48 rounded" />
-                    <Skeleton className="h-4 w-72 rounded" />
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="h-4 w-72" />
                 </div>
-                <Skeleton className="h-12 w-48 rounded" />
+                <Skeleton className="h-9 w-40" />
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[1, 2, 3, 4].map(i => (
-                    <Card key={i} className="border-none shadow-sm rounded overflow-hidden p-6 space-y-4">
+                    <Card key={i} className="border border-border/60 p-5 space-y-3">
                         <div className="flex items-center justify-between">
                             <Skeleton className="h-3 w-24" />
-                            <Skeleton className="h-8 w-8 rounded" />
+                            <Skeleton className="h-4 w-4" />
                         </div>
-                        <Skeleton className="h-8 w-16" />
+                        <Skeleton className="h-7 w-16" />
                         <Skeleton className="h-3 w-32" />
                     </Card>
                 ))}
             </div>
-
-            <Card className="border-none shadow-sm rounded overflow-hidden">
-                <CardHeader className="border-b border-muted-foreground/5 bg-muted/20 px-6 py-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="space-y-2">
-                            <Skeleton className="h-6 w-32" />
-                            <Skeleton className="h-3 w-48" />
-                        </div>
-                        <Skeleton className="h-11 w-full md:w-80 rounded" />
+            <Card className="border border-border/60">
+                <CardHeader className="border-b border-border/40 pb-4">
+                    <div className="flex justify-between">
+                        <div className="space-y-2"><Skeleton className="h-5 w-32" /><Skeleton className="h-3 w-48" /></div>
+                        <Skeleton className="h-8 w-60" />
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <div className="space-y-0 text-center">
-                        {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="px-6 py-6 border-b border-muted-foreground/5 flex items-center justify-between">
-                                <div className="flex items-center gap-4">
-                                    <Skeleton className="h-12 w-12 rounded" />
-                                    <div className="space-y-2">
-                                        <Skeleton className="h-4 w-40" />
-                                        <Skeleton className="h-3 w-24" />
-                                    </div>
-                                </div>
-                                <Skeleton className="hidden md:block h-6 w-12" />
-                                <Skeleton className="hidden md:block h-8 w-24 rounded-full" />
-                                <Skeleton className="h-4 w-16" />
-                                <Skeleton className="h-9 w-9 rounded" />
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="px-5 py-4 border-b border-border/30 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-9 w-9 rounded-lg" />
+                                <div className="space-y-1.5"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-24" /></div>
                             </div>
-                        ))}
-                    </div>
+                            <Skeleton className="h-4 w-12" />
+                        </div>
+                    ))}
                 </CardContent>
             </Card>
         </div>

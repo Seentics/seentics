@@ -6,12 +6,9 @@ import {
     Filter,
     Plus,
     Search,
-    ArrowRight,
     TrendingUp,
-    BarChart3,
     Users,
     Trash2,
-    Loader2,
     MoreVertical,
     Eye,
     Edit3,
@@ -19,31 +16,37 @@ import {
     Play,
     AlertCircle,
     RefreshCw,
-    Calendar,
-    ChevronRight,
-    Target
+    Target,
+    BarChart3,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuLabel, 
-    DropdownMenuSeparator, 
-    DropdownMenuTrigger 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFunnels, useDeleteFunnel, useUpdateFunnel } from '@/lib/funnels-api';
 import { getWebsiteBySiteId } from '@/lib/websites-api';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { formatNumber } from '@/lib/analytics-api';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import Link from 'next/link';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { cn } from '@/lib/utils';
 
 export default function FunnelsPage() {
     const params = useParams();
@@ -68,9 +71,9 @@ export default function FunnelsPage() {
     const totalFunnels = funnels.length;
     const activeFunnels = funnels.filter(f => f.isActive).length;
     const totalEntries = funnels.reduce((acc, f) => acc + (f.stats?.totalEntries || 0), 0);
-    const avgConversion = funnels.length > 0 
+    const avgConversion = funnels.length > 0
         ? (funnels.reduce((acc, f) => acc + (f.stats?.conversionRate || 0), 0) / funnels.length).toFixed(1)
-        : 0;
+        : '0';
 
     const filteredFunnels = funnels.filter(funnel =>
         funnel.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -82,14 +85,14 @@ export default function FunnelsPage() {
         try {
             await deleteFunnel.mutateAsync({ websiteId, funnelId });
             toast({
-                title: "Funnel Deleted",
+                title: 'Funnel Deleted',
                 description: `"${name}" has been removed successfully.`,
             });
-        } catch (error) {
+        } catch {
             toast({
-                title: "Error",
-                description: "Failed to delete funnel. Please try again.",
-                variant: "destructive",
+                title: 'Error',
+                description: 'Failed to delete funnel. Please try again.',
+                variant: 'destructive',
             });
         }
     };
@@ -99,17 +102,17 @@ export default function FunnelsPage() {
             await updateFunnel.mutateAsync({
                 websiteId,
                 funnelId: funnel.id,
-                data: { isActive: !funnel.isActive }
+                data: { isActive: !funnel.isActive },
             });
             toast({
-                title: funnel.isActive ? "Funnel Paused" : "Funnel Activated",
+                title: funnel.isActive ? 'Funnel Paused' : 'Funnel Activated',
                 description: `"${funnel.name}" has been ${funnel.isActive ? 'paused' : 'activated'}.`,
             });
-        } catch (error) {
+        } catch {
             toast({
-                title: "Error",
-                description: "Failed to update funnel status.",
-                variant: "destructive",
+                title: 'Error',
+                description: 'Failed to update funnel status.',
+                variant: 'destructive',
             });
         }
     };
@@ -118,33 +121,30 @@ export default function FunnelsPage() {
 
     if (error) {
         return (
-            <div className="p-4 sm:p-6 flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                <div className="w-16 h-16 rounded-full bg-red-500/10 flex items-center justify-center text-red-500">
-                    <AlertCircle size={32} />
+            <div className="p-6 md:p-8 max-w-[1400px] mx-auto flex flex-col items-center justify-center min-h-[60vh]">
+                <div className="h-16 w-16 bg-rose-500/10 rounded-full flex items-center justify-center mb-5">
+                    <AlertCircle className="h-7 w-7 text-rose-500/60" />
                 </div>
-                <div className="text-center">
-                    <h3 className="text-xl font-black italic uppercase tracking-tight">Signal Interrupted</h3>
-                    <p className="text-muted-foreground font-medium">We couldn't retrieve your funnel networks.</p>
-                </div>
-                <Button variant="outline" onClick={() => refetch()} className="rounded font-bold gap-2">
-                    <RefreshCw size={16} />
-                    Try Again
+                <h2 className="text-lg font-semibold mb-1.5">Failed to load funnels</h2>
+                <p className="text-sm text-muted-foreground mb-5">Something went wrong while fetching your data.</p>
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 text-xs">
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Retry
                 </Button>
             </div>
         );
     }
 
     return (
-        <div className="p-4 sm:p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-7xl mx-auto">
+        <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-6 animate-in fade-in duration-500">
             {isFunnelDisabled && (
-                <Alert className="bg-indigo-500/10 border-indigo-500/20">
-                    <Target className="h-4 w-4 text-indigo-600" />
-                    <AlertTitle className="text-indigo-600 font-bold">Scripts Disabled</AlertTitle>
-                    <AlertDescription className="text-muted-foreground flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <span>Funnel tracking is currently disabled for this website. You will not see conversion data for your steps. Handle this in your settings.</span>
+                <Alert className="bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20">
+                    <Target className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <AlertTitle className="text-amber-700 dark:text-amber-400 font-medium text-sm">Tracking Disabled</AlertTitle>
+                    <AlertDescription className="text-amber-600/80 dark:text-amber-400/60 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-1">
+                        <span>Funnel tracking is currently disabled. Enable it in settings to collect conversion data.</span>
                         <Link href={`/websites/${websiteId}/settings`}>
-                            <Button size="sm" variant="outline" className="border-indigo-500/30 text-indigo-600 hover:bg-indigo-500/10 gap-2">
-                                <TrendingUp className="h-3.5 w-3.5" />
+                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1.5 border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-400">
                                 Go to Settings
                             </Button>
                         </Link>
@@ -154,61 +154,34 @@ export default function FunnelsPage() {
 
             <DashboardPageHeader
                 title="Conversion Funnels"
-                description="Track multi-step conversion paths and identify exactly where your users drop off."
+                description="Track multi-step conversion paths and identify where users drop off."
             >
                 <Link href={`/websites/${websiteId}/funnels/builder`}>
-                    <Button variant="brand" className="h-12 px-6 font-black rounded gap-2 shadow-xl shadow-primary/20 hover:scale-[1.02] transition-transform">
-                        <Plus className="h-5 w-5" />
+                    <Button size="sm" className="gap-1.5 text-xs font-medium">
+                        <Plus className="h-3.5 w-3.5" />
                         Create Funnel
                     </Button>
                 </Link>
             </DashboardPageHeader>
 
-            {/* Premium Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                <StatsCard 
-                    title="Total Funnel Paths" 
-                    value={totalFunnels} 
-                    icon={Filter} 
-                    description="Global Inventory"
-                    color="primary" 
-                />
-                <StatsCard 
-                    title="Active Networks" 
-                    value={activeFunnels} 
-                    icon={Target} 
-                    description={`${((activeFunnels/totalFunnels)*100 || 0).toFixed(0)}% Operational`} 
-                    color="green" 
-                />
-                <StatsCard 
-                    title="Traffic Entries" 
-                    value={formatNumber(totalEntries)} 
-                    icon={Users} 
-                    description="Last 30 Days" 
-                    color="blue" 
-                />
-                <StatsCard 
-                    title="Avg. Conversion" 
-                    value={`${avgConversion}%`} 
-                    icon={TrendingUp} 
-                    description="Efficiency Score" 
-                    color="purple" 
-                />
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatsCard title="Total Funnels" value={totalFunnels} icon={Filter} description="All funnels" color="blue" />
+                <StatsCard title="Active" value={activeFunnels} icon={Target} description={`${totalFunnels > 0 ? ((activeFunnels / totalFunnels) * 100).toFixed(0) : 0}% operational`} color="emerald" />
+                <StatsCard title="Total Entries" value={formatNumber(totalEntries)} icon={Users} description="Last 30 days" color="violet" />
+                <StatsCard title="Avg. Conversion" value={`${avgConversion}%`} icon={TrendingUp} description="Across all funnels" color="amber" />
             </div>
 
-            {/* Content Section */}
-            <Card className="border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card/50 dark:bg-card/50 rounded overflow-hidden dark:border-none backdrop-blur-sm">
-                <CardHeader className="border-b border-muted-foreground/5 bg-muted/20 px-6 py-6">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <CardTitle className="text-lg font-black">All Funnels</CardTitle>
-                            <CardDescription className="text-xs font-bold uppercase tracking-widest mt-1">Manage and track performance</CardDescription>
-                        </div>
-                        <div className="relative w-full md:w-80 group">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            {/* Table */}
+            <Card className="border border-border/60 bg-card shadow-sm">
+                <CardHeader className="pb-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <CardTitle className="text-base font-semibold">All Funnels</CardTitle>
+                        <div className="relative w-full sm:w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <Input
-                                placeholder="Search by name..."
-                                className="pl-12 h-11 bg-background border-muted-foreground/10 focus-visible:ring-1 text-sm font-medium rounded transition-all"
+                                placeholder="Search funnels..."
+                                className="pl-9 h-8 text-xs"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -217,167 +190,158 @@ export default function FunnelsPage() {
                 </CardHeader>
                 <CardContent className="p-0">
                     {filteredFunnels.length === 0 ? (
-                        <div className="py-24 text-center">
-                            <div className="w-20 h-20 rounded bg-muted/30 flex items-center justify-center mx-auto mb-6">
-                                <Search className="h-10 w-10 text-muted-foreground/30" />
+                        <div className="py-16 text-center">
+                            <div className="h-12 w-12 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Filter className="h-5 w-5 text-muted-foreground/40" />
                             </div>
-                            <h3 className="text-xl font-bold mb-2">No results found</h3>
-                            <p className="text-muted-foreground font-medium max-w-sm mx-auto">
-                                {searchTerm 
-                                    ? `We couldn't find any funnels matching "${searchTerm}"`
-                                    : "You haven't created any funnels for this website yet."}
+                            <h3 className="text-sm font-semibold mb-1">
+                                {searchTerm ? 'No results found' : 'No funnels yet'}
+                            </h3>
+                            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                                {searchTerm
+                                    ? `No funnels matching "${searchTerm}"`
+                                    : 'Create your first funnel to start tracking conversions.'}
                             </p>
+                            {!searchTerm && (
+                                <Link href={`/websites/${websiteId}/funnels/builder`}>
+                                    <Button size="sm" className="mt-4 gap-1.5 text-xs">
+                                        <Plus className="h-3.5 w-3.5" />
+                                        Create Funnel
+                                    </Button>
+                                </Link>
+                            )}
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-muted-foreground/5">
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground">Funnel</th>
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Depth</th>
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">30d Flux</th>
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Success Rate</th>
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground text-center">Status</th>
-                                        <th className="px-6 py-5 text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground text-right"></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-muted-foreground/5">
-                                    {filteredFunnels.map((funnel) => (
-                                        <tr 
-                                            key={funnel.id} 
-                                            className="hover:bg-muted/10 transition-colors group cursor-pointer"
-                                            onClick={() => router.push(`/websites/${websiteId}/funnels/${funnel.id}`)}
-                                        >
-                                            <td className="px-6 py-6 min-w-[300px]">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded bg-card dark:bg-card/50 border border-border flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                                                        <BarChart3 className="h-6 w-6 text-primary" />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="text-sm font-black text-slate-900 dark:text-white truncate">{funnel.name}</p>
-                                                        <div className="flex items-center gap-2 mt-1">
-                                                            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                                                Created {new Date(funnel.createdAt).toLocaleDateString()}
-                                                            </span>
-                                                        </div>
-                                                    </div>
+                        <Table>
+                            <TableHeader>
+                                <TableRow className="hover:bg-transparent">
+                                    <TableHead className="text-xs font-medium">Funnel</TableHead>
+                                    <TableHead className="text-xs font-medium text-center">Steps</TableHead>
+                                    <TableHead className="text-xs font-medium text-center">Entries</TableHead>
+                                    <TableHead className="text-xs font-medium text-center">Conversion</TableHead>
+                                    <TableHead className="text-xs font-medium text-center">Status</TableHead>
+                                    <TableHead className="text-xs font-medium w-10"></TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredFunnels.map((funnel) => (
+                                    <TableRow
+                                        key={funnel.id}
+                                        className="group cursor-pointer"
+                                        onClick={() => router.push(`/websites/${websiteId}/funnels/${funnel.id}`)}
+                                    >
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                                    <BarChart3 className="h-4 w-4 text-primary" />
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-6 text-center font-black text-slate-900 dark:text-white">
-                                                {(funnel.steps || []).length} Nodes
-                                            </td>
-                                            <td className="px-6 py-6 text-center font-black text-slate-900 dark:text-white">
-                                                {formatNumber(funnel.stats?.totalEntries || 0)}
-                                            </td>
-                                            <td className="px-6 py-6 min-w-[140px]">
-                                                <div className="flex flex-col items-center gap-2">
-                                                    <span className={`text-xs font-black text-primary`}>
-                                                        {funnel.stats?.conversionRate || 0}%
-                                                    </span>
-                                                    <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full transition-all duration-1000 bg-primary`}
-                                                            style={{ width: `${funnel.stats?.conversionRate || 0}%` }}
-                                                        />
-                                                    </div>
+                                                <div className="min-w-0">
+                                                    <p className="text-sm font-medium truncate">{funnel.name}</p>
+                                                    <p className="text-[11px] text-muted-foreground">
+                                                        Created {new Date(funnel.createdAt).toLocaleDateString()}
+                                                    </p>
                                                 </div>
-                                            </td>
-                                            <td className="px-6 py-6 text-center">
-                                                <Badge
-                                                    variant={funnel.isActive ? 'outline' : 'secondary'}
-                                                    className={`rounded font-black text-[10px] px-3 py-1 uppercase tracking-widest border-0 ${funnel.isActive ? 'bg-green-500/10 text-green-500' : 'bg-slate-500/10 text-slate-500'
-                                                        }`}
-                                                >
-                                                    <span className={`w-1.5 h-1.5 rounded-full mr-2 ${funnel.isActive ? 'bg-green-500 animate-pulse' : 'bg-slate-500'}`} />
-                                                    {funnel.isActive ? 'active' : 'idle'}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-6 py-6 text-right" onClick={(e) => e.stopPropagation()}>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-9 w-9 rounded hover:bg-muted">
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-48 rounded p-2 border-muted-foreground/10 shadow-xl">
-                                                        <DropdownMenuLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground px-3 mb-1">Actions</DropdownMenuLabel>
-                                                        <DropdownMenuItem 
-                                                            onClick={() => router.push(`/websites/${websiteId}/funnels/${funnel.id}`)}
-                                                            className="flex items-center gap-2 px-3 py-2 cursor-pointer font-bold text-sm text-slate-700 dark:text-slate-300"
-                                                        >
-                                                            <Eye className="h-4 w-4" /> View Details
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem 
-                                                            onClick={() => router.push(`/websites/${websiteId}/funnels/builder?id=${funnel.id}&mode=edit`)}
-                                                            className="flex items-center gap-2 px-3 py-2 cursor-pointer font-bold text-sm text-slate-700 dark:text-slate-300"
-                                                        >
-                                                            <Edit3 className="h-4 w-4" /> Edit Funnel
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem 
-                                                            onClick={() => handleToggleStatus(funnel)}
-                                                            className="flex items-center gap-2 px-3 py-2 cursor-pointer font-bold text-sm text-slate-700 dark:text-slate-300"
-                                                        >
-                                                            {funnel.isActive ? (
-                                                                <>
-                                                                    <Pause className="h-4 w-4" /> Hibernate
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Play className="h-4 w-4" /> Activate
-                                                                </>
-                                                            )}
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuSeparator className="bg-muted-foreground/5" />
-                                                        <DropdownMenuItem 
-                                                            onClick={() => handleDelete(funnel.id, funnel.name)}
-                                                            className="flex items-center gap-2 px-3 py-2 cursor-pointer font-bold text-sm text-red-500 focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-950/30"
-                                                        >
-                                                            <Trash2 className="h-4 w-4" /> Delete
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <span className="text-sm font-medium">{(funnel.steps || []).length}</span>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <span className="text-sm font-medium">{formatNumber(funnel.stats?.totalEntries || 0)}</span>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="flex flex-col items-center gap-1">
+                                                <span className="text-sm font-medium text-primary">
+                                                    {funnel.stats?.conversionRate || 0}%
+                                                </span>
+                                                <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-primary/70 rounded-full transition-all duration-700"
+                                                        style={{ width: `${funnel.stats?.conversionRate || 0}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="inline-flex items-center gap-1.5">
+                                                <span className={cn(
+                                                    'h-1.5 w-1.5 rounded-full',
+                                                    funnel.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/30'
+                                                )} />
+                                                <span className={cn(
+                                                    'text-xs font-medium',
+                                                    funnel.isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
+                                                )}>
+                                                    {funnel.isActive ? 'Active' : 'Paused'}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell onClick={(e) => e.stopPropagation()}>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <MoreVertical className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-44">
+                                                    <DropdownMenuItem
+                                                        onClick={() => router.push(`/websites/${websiteId}/funnels/${funnel.id}`)}
+                                                        className="text-xs gap-2"
+                                                    >
+                                                        <Eye className="h-3.5 w-3.5" /> View Details
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => router.push(`/websites/${websiteId}/funnels/builder?id=${funnel.id}&mode=edit`)}
+                                                        className="text-xs gap-2"
+                                                    >
+                                                        <Edit3 className="h-3.5 w-3.5" /> Edit Funnel
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleToggleStatus(funnel)}
+                                                        className="text-xs gap-2"
+                                                    >
+                                                        {funnel.isActive ? (
+                                                            <><Pause className="h-3.5 w-3.5" /> Pause</>
+                                                        ) : (
+                                                            <><Play className="h-3.5 w-3.5" /> Activate</>
+                                                        )}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        onClick={() => handleDelete(funnel.id, funnel.name)}
+                                                        className="text-xs gap-2 text-rose-600 focus:text-rose-600"
+                                                    >
+                                                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
                     )}
                 </CardContent>
             </Card>
-
-           
         </div>
     );
 }
 
-function StatsCard({ title, value, icon: Icon, description, color = 'primary' }: any) {
-    const colorClasses: Record<string, string> = {
-        primary: 'text-primary bg-primary/10',
-        green: 'text-green-500 bg-green-500/10',
-        blue: 'text-blue-500 bg-blue-500/10',
-        purple: 'text-purple-500 bg-purple-500/10',
-        emerald: 'text-emerald-500 bg-emerald-500/10',
-        orange: 'text-orange-500 bg-orange-500/10',
-    };
-
+function StatsCard({ title, value, icon: Icon, description, color = 'blue' }: { title: string; value: string | number; icon: any; description: string; color?: string }) {
+    const accentMap: Record<string, string> = { blue: 'bg-blue-500', emerald: 'bg-emerald-500', violet: 'bg-violet-500', amber: 'bg-amber-500' };
+    const iconMap: Record<string, string> = { blue: 'text-blue-500', emerald: 'text-emerald-500', violet: 'text-violet-500', amber: 'text-amber-500' };
     return (
-        <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none bg-card dark:bg-gray-800/50 rounded overflow-hidden border border-muted-foreground/5 flex flex-col justify-between">
-            <CardHeader className="pb-2">
+        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-sm">
+            <div className={`absolute left-0 top-0 bottom-0 w-1 ${accentMap[color]}`} />
+            <CardHeader className="pb-1 pl-5">
                 <div className="flex items-center justify-between">
-                    <CardDescription className="font-black text-[10px] uppercase tracking-widest text-muted-foreground">{title}</CardDescription>
-                    <div className={`p-2 rounded ${colorClasses[color]}`}>
-                        <Icon className="h-4 w-4" />
-                    </div>
+                    <span className="text-xs font-medium text-muted-foreground">{title}</span>
+                    <Icon className={cn('h-4 w-4', iconMap[color])} />
                 </div>
-                <CardTitle className="text-2xl font-black text-slate-900 dark:text-white mt-2">
-                    {value}
-                </CardTitle>
             </CardHeader>
-            <CardContent className="pt-0">
-                <div className="flex items-center gap-2">
-                    <p className="text-[11px] font-bold text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis">{description}</p>
-                </div>
+            <CardContent className="pl-5 pt-0">
+                <div className="text-2xl font-semibold tracking-tight">{typeof value === 'number' ? value.toLocaleString() : value}</div>
+                <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
             </CardContent>
         </Card>
     );
@@ -385,26 +349,18 @@ function StatsCard({ title, value, icon: Icon, description, color = 'primary' }:
 
 function FunnelsSkeleton() {
     return (
-        <div className="p-4 sm:p-6 space-y-10 max-w-[1400px] mx-auto">
-            <div className="flex justify-between items-center gap-4">
+        <div className="p-6 md:p-8 max-w-[1400px] mx-auto space-y-6">
+            <div className="flex justify-between items-center">
                 <div className="space-y-2">
-                    <Skeleton className="h-10 w-64 rounded" />
-                    <Skeleton className="h-4 w-96 rounded" />
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="h-4 w-80" />
                 </div>
-                <Skeleton className="h-14 w-48 rounded" />
+                <Skeleton className="h-8 w-32" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[1, 2, 3, 4].map(i => (
-                    <Skeleton key={i} className="h-48 rounded" />
-                ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28" />)}
             </div>
-            <div className="space-y-6">
-                <div className="flex justify-between">
-                    <Skeleton className="h-8 w-48 rounded" />
-                    <Skeleton className="h-12 w-64 rounded" />
-                </div>
-                <Skeleton className="h-[400px] w-full rounded-[2.5rem]" />
-            </div>
+            <Skeleton className="h-64" />
         </div>
     );
 }
