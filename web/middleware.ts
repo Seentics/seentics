@@ -1,28 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Define protected routes
-const protectedRoutes = [
-  '/websites',
-  '/dashboard',
-  '/analytics',
-  '/workflows',
-  '/settings',
-  '/profile',
-];
-
-// Define public routes that don't require authentication
-const publicRoutes = [
-  '/',
-  '/signin',
-  '/signup',
-  '/setup',
-  '/forgot-password',
-  '/reset-password',
-  '/verify-email',
-];
-
 const isEnterprise = process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true';
+
+const publicOnlyRoutes = ['/signin', '/forgot-password', '/reset-password'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -37,49 +18,40 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Check if the path is protected
-  const isProtectedRoute = protectedRoutes.some(route =>
-    pathname.startsWith(route)
-  );
-
-  // Check if the path is public
-  const isPublicRoute = publicRoutes.some(route =>
-    pathname === route || pathname.startsWith(route)
-  );
-
-  // Get auth token from cookies
+  // Try to read auth state from cookie (written by AuthInitializer.tsx)
   const authToken = request.cookies.get('auth-storage')?.value;
-
-  // Parse the auth storage to check if user is authenticated
   let isAuthenticated = false;
+
   if (authToken) {
     try {
-      const authData = JSON.parse(authToken);
-      isAuthenticated = authData.state?.isAuthenticated || false;
-    } catch (error) {
-      console.error('Error parsing auth storage:', error);
+      const decodedToken = decodeURIComponent(authToken);
+      const authData = JSON.parse(decodedToken);
+      isAuthenticated = authData.state?.isAuthenticated === true;
+    } catch {
+      // Invalid cookie — treat as not authenticated
     }
   }
 
-  // If it's a protected route and user is not authenticated, redirect to login
-  if (isProtectedRoute && !isAuthenticated) {
-    const signInUrl = new URL('/signin', request.url);
-    signInUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(signInUrl);
+  // If user is confirmed authenticated and tries to access signin/forgot-password etc., redirect to dashboard
+  if (isAuthenticated) {
+    const isPublicOnlyRoute = publicOnlyRoutes.some(
+      route => pathname === route || pathname.startsWith(route)
+    );
+    if (isPublicOnlyRoute) {
+      return NextResponse.redirect(new URL('/websites', request.url));
+    }
+
+    // Also redirect from bare /signup to /websites (if confirmed authenticated)
+    if (pathname === '/signup' && !request.nextUrl.searchParams.has('step')) {
+      return NextResponse.redirect(new URL('/websites', request.url));
+    }
   }
 
-  // If user is authenticated and trying to access signin, redirect to dashboard
-  if (isAuthenticated && pathname === '/signin') {
-    return NextResponse.redirect(new URL('/websites', request.url));
-  }
+  // NOTE: We do NOT block protected routes server-side because auth is stored in
+  // localStorage (Zustand persist), which is not accessible in middleware.
+  // Client-side auth guards (api.ts interceptors, page-level redirects) handle
+  // unauthorized access to protected pages.
 
-  // If user is authenticated and trying to access bare /signup (no step param), redirect to dashboard
-  // Allow /signup?step=2 through so users can complete onboarding after registration
-  if (isAuthenticated && pathname === '/signup' && !request.nextUrl.searchParams.has('step')) {
-    return NextResponse.redirect(new URL('/websites', request.url));
-  }
-
-  // Continue with the request
   return NextResponse.next();
 }
 
@@ -92,7 +64,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - trackers (public tracker JS files)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|public|trackers).*)',
   ],
-}; 
+};

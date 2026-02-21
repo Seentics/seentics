@@ -19,10 +19,23 @@ function getStoredTokens() {
   }
 }
 
+/**
+ * Returns true only if Zustand has finished re-hydrating from localStorage.
+ * During SSR or the brief window before hydration, this will be false.
+ */
+function isAuthHydrated(): boolean {
+  if (typeof window === 'undefined') return false;
+  // If localStorage has a stored session, treat it as hydrated
+  return !!localStorage.getItem('auth-storage');
+}
+
 // Helper function to logout user and clear auth state
 function performLogout() {
   // Clear localStorage
   localStorage.removeItem('auth-storage');
+
+  // Clear the auth-storage cookie that AuthInitializer sets for middleware
+  document.cookie = 'auth-storage=; path=/; max-age=0; samesite=lax';
 
   // Redirect to signin with expired message
   if (typeof window !== 'undefined') {
@@ -84,6 +97,11 @@ api.interceptors.response.use(
 
     // Handle 401 Unauthorized - attempt token refresh (skip for demo requests)
     if (error.response?.status === 401 && !originalRequest._retry && !isDemoRequest) {
+      // Don't logout if auth hasn't loaded yet (prevents redirect loops on initial page load)
+      if (!isAuthHydrated()) {
+        return Promise.reject(error);
+      }
+
       if (isRefreshing) {
         // Queue this request while refresh is in progress
         return new Promise((resolve, reject) => {
@@ -151,7 +169,8 @@ api.interceptors.response.use(
     }
 
     // Handle other 401 errors (invalid token, etc.) - but not for demo requests
-    if (error.response?.status === 401 && !isDemoRequest) {
+    // Only perform logout if auth is actually hydrated (avoid loops on initial page load)
+    if (error.response?.status === 401 && !isDemoRequest && isAuthHydrated()) {
       console.error('Unauthorized access - logging out user');
       performLogout();
       return Promise.reject(error);
