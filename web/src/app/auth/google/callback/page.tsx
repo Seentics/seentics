@@ -36,8 +36,8 @@ function GoogleAuthCallback() {
           if (data.data?.tokens && data.data?.user) {
             setAuth({
               user: data.data.user,
-              access_token: data.data.tokens.accessToken,
-              refresh_token: data.data.tokens.refreshToken,
+              access_token: data.data.tokens.access_token,
+              refresh_token: data.data.tokens.refresh_token,
               rememberMe: true
             });
 
@@ -48,15 +48,15 @@ function GoogleAuthCallback() {
 
             router.push('/websites');
           } else if (response.status === 307 || response.status === 302) {
-             // If the backend returned a redirect (which it shouldn't if called via API, 
-             // but just in case it was a direct hit that the proxy handled)
-             // We'll follow it or handle the tokens from the URL if they are there.
-             const url = new URL(response.headers.location, window.location.origin);
-             const accessToken = url.searchParams.get('accessToken');
-             const refreshToken = url.searchParams.get('refreshToken');
-             if (accessToken && refreshToken) {
-                 window.location.href = `/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}`;
-             }
+            // If the backend returned a redirect (which it shouldn't if called via API, 
+            // but just in case it was a direct hit that the proxy handled)
+            // We'll follow it or handle the tokens from the URL if they are there.
+            const url = new URL(response.headers.location, window.location.origin);
+            const accessToken = url.searchParams.get('access_token') || url.searchParams.get('accessToken');
+            const refreshToken = url.searchParams.get('refresh_token') || url.searchParams.get('refreshToken');
+            if (accessToken && refreshToken) {
+              window.location.href = `/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`;
+            }
           }
         } catch (error: any) {
           console.error('Google OAuth exchange error:', error);
@@ -72,12 +72,12 @@ function GoogleAuthCallback() {
       exchangeCode();
     } else {
       // If no code, maybe it's the backend redirecting us with tokens already?
-      const accessToken = searchParams.get('accessToken');
-      const refreshToken = searchParams.get('refreshToken');
+      const accessToken = searchParams.get('access_token') || searchParams.get('accessToken');
+      const refreshToken = searchParams.get('refresh_token') || searchParams.get('refreshToken');
       if (accessToken && refreshToken) {
-          router.push(`/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}`);
+        router.push(`/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`);
       } else {
-          router.push('/signin');
+        router.push('/signin');
       }
     }
   }, [searchParams, setAuth, router, toast]);
@@ -95,9 +95,9 @@ function GoogleAuthCallback() {
 export default function page() {
   return (
     <Suspense fallback={
-        <div className="min-h-screen flex flex-col items-center justify-center">
-            <Loader2 className="animate-spin h-10 w-10 text-primary" />
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+      </div>
     }>
       <GoogleAuthCallback />
     </Suspense>

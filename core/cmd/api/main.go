@@ -170,6 +170,9 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(db, logger)
 	adminHandler := handlers.NewAdminHandler(eventRepo, logger)
 	internalHandler := handlers.NewInternalHandler(db, logger)
+	if chConn != nil {
+		internalHandler.SetClickHouse(chConn)
+	}
 
 	// Funnels
 	funnelRepo := funnelRepoPkg.NewFunnelRepository(db, chConn)

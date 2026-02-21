@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
+	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
@@ -12,11 +14,17 @@ import (
 // These endpoints are protected by API key (not JWT).
 type InternalHandler struct {
 	db     *pgxpool.Pool
+	ch     driver.Conn
 	logger zerolog.Logger
 }
 
 func NewInternalHandler(db *pgxpool.Pool, logger zerolog.Logger) *InternalHandler {
 	return &InternalHandler{db: db, logger: logger}
+}
+
+// SetClickHouse adds a ClickHouse connection to the handler
+func (h *InternalHandler) SetClickHouse(ch driver.Conn) {
+	h.ch = ch
 }
 
 // GetUserResourceCounts returns the current count of each resource type for a user.
@@ -31,72 +39,97 @@ func (h *InternalHandler) GetUserResourceCounts(c *gin.Context) {
 	ctx := c.Request.Context()
 	counts := make(map[string]int)
 
-	// Websites
-	var websiteCount int
-	if err := h.db.QueryRow(ctx, "SELECT COUNT(*) FROM websites WHERE user_id::text = $1", userID).Scan(&websiteCount); err != nil {
-		h.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to count websites")
+	// Fetch all website IDs and SiteIDs for this user first
+	type websiteInfo struct {
+		ID     string
+		SiteID string
 	}
-	counts["websites"] = websiteCount
+	var websites []websiteInfo
+	rows, err := h.db.Query(ctx, "SELECT id::text, site_id FROM websites WHERE user_id::text = $1", userID)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var w websiteInfo
+			if err := rows.Scan(&w.ID, &w.SiteID); err == nil {
+				websites = append(websites, w)
+			}
+		}
+	}
+	counts["websites"] = len(websites)
+
+	if len(websites) == 0 {
+		counts["funnels"] = 0
+		counts["automations"] = 0
+		counts["heatmaps"] = 0
+		counts["replays"] = 0
+		counts["monthly_events"] = 0
+		c.JSON(http.StatusOK, gin.H{"data": counts})
+		return
+	}
+
+	var siteIDs []string
+	var uuidStrings []string
+	for _, w := range websites {
+		siteIDs = append(siteIDs, w.SiteID)
+		uuidStrings = append(uuidStrings, w.ID)
+	}
 
 	// Funnels
 	var funnelCount int
-	if err := h.db.QueryRow(ctx, "SELECT COUNT(*) FROM funnels WHERE user_id = $1", userID).Scan(&funnelCount); err != nil {
+	if err := h.db.QueryRow(ctx, "SELECT COUNT(*) FROM funnels WHERE user_id::text = $1", userID).Scan(&funnelCount); err != nil {
 		h.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to count funnels")
 	}
 	counts["funnels"] = funnelCount
 
 	// Automations
 	var automationCount int
-	if err := h.db.QueryRow(ctx, "SELECT COUNT(*) FROM automations WHERE user_id = $1", userID).Scan(&automationCount); err != nil {
+	if err := h.db.QueryRow(ctx, "SELECT COUNT(*) FROM automations WHERE user_id::text = $1", userID).Scan(&automationCount); err != nil {
 		h.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to count automations")
 	}
 	counts["automations"] = automationCount
 
-	// Heatmap pages (distinct pages with heatmap data)
+	// Heatmap pages
 	var heatmapCount int
-	heatmapQuery := `
-		SELECT COUNT(DISTINCT page_path)
-		FROM heatmap_points h
-		JOIN websites w ON (h.website_id::text = w.site_id OR h.website_id = w.id::text)
-		WHERE w.user_id::text = $1
-	`
-	if err := h.db.QueryRow(ctx, heatmapQuery, userID).Scan(&heatmapCount); err != nil {
+	if err := h.db.QueryRow(ctx, "SELECT COUNT(DISTINCT page_path) FROM heatmap_points WHERE website_id::text = ANY($1)", uuidStrings).Scan(&heatmapCount); err != nil {
 		h.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to count heatmaps")
 	}
 	counts["heatmaps"] = heatmapCount
 
 	// Replay sessions
 	var replayCount int
-	replayQuery := `
-		SELECT COUNT(DISTINCT session_id)
-		FROM session_replays sr
-		JOIN websites w ON (sr.website_id = w.site_id OR sr.website_id = w.id::text)
-		WHERE w.user_id::text = $1
-	`
-	if err := h.db.QueryRow(ctx, replayQuery, userID).Scan(&replayCount); err != nil {
+	if err := h.db.QueryRow(ctx, "SELECT COUNT(DISTINCT session_id) FROM session_replays WHERE website_id = ANY($1) OR website_id = ANY($2)", siteIDs, uuidStrings).Scan(&replayCount); err != nil {
 		h.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to count replays")
 	}
 	counts["replays"] = replayCount
 
-	// Monthly events (current billing period)
+	// Monthly events
 	var monthlyEvents int
-	eventsQuery := `
-		SELECT COALESCE(SUM(count_sum), 0) FROM (
-			SELECT COUNT(*) as count_sum
-			FROM events e
-			JOIN websites w ON (e.website_id = w.site_id OR e.website_id = w.id::text)
-			WHERE w.user_id::text = $1
-			AND e.timestamp >= date_trunc('month', now())
-			UNION ALL
-			SELECT COALESCE(SUM(c.count), 0) as count_sum
-			FROM custom_events_aggregated c
-			JOIN websites w ON (c.website_id = w.site_id OR c.website_id = w.id::text)
-			WHERE w.user_id::text = $1
-			AND c.last_seen >= date_trunc('month', now())
-		) AS combined
-	`
-	if err := h.db.QueryRow(ctx, eventsQuery, userID).Scan(&monthlyEvents); err != nil {
-		h.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to count monthly events")
+	startOfMonth := time.Now().UTC().AddDate(0, 0, -time.Now().Day()+1)
+	startOfMonth = time.Date(startOfMonth.Year(), startOfMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
+
+	if h.ch != nil {
+		var chCount uint64
+		err := h.ch.QueryRow(ctx, "SELECT count() FROM events WHERE website_id IN (?) AND timestamp >= ?", siteIDs, startOfMonth).Scan(&chCount)
+		if err == nil {
+			monthlyEvents = int(chCount)
+		}
+
+		var customCount uint64
+		err = h.ch.QueryRow(ctx, "SELECT COALESCE(sum(count), 0) FROM custom_events_aggregated WHERE website_id IN (?) AND last_seen >= ?", siteIDs, startOfMonth).Scan(&customCount)
+		if err == nil {
+			monthlyEvents += int(customCount)
+		}
+	} else {
+		err := h.db.QueryRow(ctx, `
+			SELECT COALESCE(SUM(count_sum), 0) FROM (
+				SELECT COUNT(*) as count_sum FROM events WHERE website_id = ANY($1) AND timestamp >= $2
+				UNION ALL
+				SELECT COALESCE(SUM(count), 0) as count_sum FROM custom_events_aggregated WHERE website_id = ANY($1) AND last_seen >= $2
+			) AS combined
+		`, siteIDs, startOfMonth).Scan(&monthlyEvents)
+		if err != nil {
+			h.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to count monthly events from Postgres")
+		}
 	}
 	counts["monthly_events"] = monthlyEvents
 

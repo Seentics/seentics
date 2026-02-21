@@ -98,11 +98,12 @@ export default function RootLayout({
         {/* <TawkMessenger /> */}
 
         {/* Localhost Testing Tracker */}
-        <Script
-          src="http://localhost:3000/trackers/seentics-core.js"
-          data-site-id="a69f3900-6203-4f79-a0ce-164f0b9ee762"
+        {/* <Script
+          src="http://localhost:3000/trackers/seentics-core.min.js"
+          data-website-id="8a9a0f057175fc7f98d09293"
+          data-auto-load="analytics,automation,funnels,replay,heatmap"
           strategy="afterInteractive"
-        />
+        /> */}
 
         {/* Lemon Squeezy Checkout Script - Enterprise only */}
         {process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true' && (

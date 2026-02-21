@@ -80,8 +80,8 @@ export default function SignInPage() {
             if (data.data?.tokens && data.data?.user) {
                 setAuth({
                     user: data.data.user,
-                    access_token: data.data.tokens.accessToken,
-                    refresh_token: data.data.tokens.refreshToken,
+                    access_token: data.data.tokens.access_token,
+                    refresh_token: data.data.tokens.refresh_token,
                     rememberMe: false
                 });
             }

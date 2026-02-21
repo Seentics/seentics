@@ -14,15 +14,15 @@ function AuthCallback() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const accessToken = searchParams.get('accessToken');
-    const refreshToken = searchParams.get('refreshToken');
+    const accessToken = searchParams.get('access_token') || searchParams.get('accessToken');
+    const refreshToken = searchParams.get('refresh_token') || searchParams.get('refreshToken');
 
     if (accessToken && refreshToken) {
       // Set tokens in auth store
       // We also need user details, so we'll fetch them from the /user/auth/me or similar endpoint
       // based on the existing implementation, normally tokens are returned with user info.
       // For Google OAuth, we'll fetch profile after setting tokens.
-      
+
       const finalizeAuth = async () => {
         try {
           // Set initial auth state with tokens
@@ -36,21 +36,21 @@ function AuthCallback() {
           // Fetch current user details
           const response = await api.get('/user/auth/me');
           if (response.data?.data?.user) {
-             setAuth({
-                user: response.data.data.user,
-                access_token: accessToken,
-                refresh_token: refreshToken,
-                rememberMe: true
-              });
+            setAuth({
+              user: response.data.data.user,
+              access_token: accessToken,
+              refresh_token: refreshToken,
+              rememberMe: true
+            });
 
-              toast({
-                title: "Welcome!",
-                description: "Successfully signed in with Google.",
-              });
+            toast({
+              title: "Welcome!",
+              description: "Successfully signed in with Google.",
+            });
 
-              router.push('/websites');
+            router.push('/websites');
           } else {
-              throw new Error("Failed to fetch user profile");
+            throw new Error("Failed to fetch user profile");
           }
         } catch (error: any) {
           console.error('OAuth callback error:', error);
@@ -82,9 +82,9 @@ function AuthCallback() {
 export default function AuthCallbackPage() {
   return (
     <Suspense fallback={
-        <div className="min-h-screen flex flex-col items-center justify-center">
-            <Loader2 className="animate-spin h-10 w-10 text-primary" />
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+      </div>
     }>
       <AuthCallback />
     </Suspense>

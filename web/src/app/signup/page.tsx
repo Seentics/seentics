@@ -148,8 +148,8 @@ function SignUpFlow() {
             if (authData?.tokens && authData?.user) {
                 setAuth({
                     user: authData.user,
-                    access_token: authData.tokens.accessToken,
-                    refresh_token: authData.tokens.refreshToken,
+                    access_token: authData.tokens.access_token,
+                    refresh_token: authData.tokens.refresh_token,
                     rememberMe: false
                 });
             }

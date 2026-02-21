@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"analytics-app/internal/shared/config"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,47 +10,45 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// RateLimitMiddleware enforces rate limits for OSS mode
-func RateLimitMiddleware(redisClient *redis.Client) gin.HandlerFunc {
+// RateLimitMiddleware enforces rate limits for the core service.
+// It uses Redis for distributed rate limiting across multiple instances.
+func RateLimitMiddleware(redisClient redis.Cmdable) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Skip rate limiting in Cloud Mode as Gateway handles it
-		if config.CloudEnabled() {
-			c.Next()
-			return
-		}
-
 		path := c.Request.URL.Path
 		clientIP := c.ClientIP()
 
 		// Default limits
-		limit := 100
+		limit := 200
 		window := time.Minute
-		keyPrefix := "rl:general"
+		keyPrefix := "rl:api"
 		identifier := clientIP
 
 		// Granular Rate Limiting Logic
 		switch {
-		case path == "/api/v1/analytics/event" || path == "/api/v1/analytics/batch" || path == "/api/v1/heatmaps/record" || path == "/api/v1/replays/record":
-			// Ingestion Endpoints (High throughput) - ALWAYS use IP for ingestion
-			limit = 5000
+		case strings.HasPrefix(path, "/api/v1/internal/"):
+			// Internal API (Gateway to Core) - High limit but protected
+			limit = 2000
+			keyPrefix = "rl:internal"
+			identifier = clientIP // Could also use a specific identifier if needed
+		case path == "/api/v1/analytics/event" || path == "/api/v1/analytics/batch" || path == "/api/v1/heatmaps/record" || path == "/api/v1/replays/record" || path == "/api/v1/funnels/track" || path == "/api/v1/funnels/batch":
+			// Ingestion Endpoints (High throughput)
+			limit = 10000
 			keyPrefix = "rl:ingest"
 			identifier = clientIP
-		case path == "/api/v1/user/auth/login" || path == "/api/v1/user/auth/register":
+		case strings.Contains(path, "/auth/login") || strings.Contains(path, "/auth/register"):
 			// Auth Endpoints (Security sensitive)
-			limit = 10
+			limit = 20
 			keyPrefix = "rl:auth"
 			identifier = clientIP
 		case strings.HasPrefix(path, "/api/v1/admin/"):
 			// Admin Endpoints
-			limit = 50
+			limit = 100
 			keyPrefix = "rl:admin"
 			if userID, exists := c.Get("user_id"); exists {
 				identifier = userID.(string)
 			}
 		default:
-			// Dashboard/API access
-			limit = 200
-			keyPrefix = "rl:api"
+			// General Dashboard/API access
 			if userID, exists := c.Get("user_id"); exists {
 				identifier = userID.(string)
 			}
