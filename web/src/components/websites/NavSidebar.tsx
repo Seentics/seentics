@@ -192,7 +192,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                         ? "bg-accent text-primary font-medium"
                                         : "hover:bg-accent/50 text-muted-foreground font-medium",
                                     (!isSidebarOpen && !mobile) && "justify-center px-0",
-                                    isDisabled && "opacity-50 cursor-not-allowed"
+                                    isDisabled && " cursor-not-allowed"
                                 )}
                             >
                                 <link.icon size={18} className={cn(
@@ -203,9 +203,9 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                     <div className="flex flex-col">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm tracking-tight">{link.title}</span>
-                                            {(link as any).isLocked && (
+                                            {/* {(link as any).isLocked && (
                                                 <Lock size={12} className="text-muted-foreground/60" />
-                                            )}
+                                            )} */}
                                             
                                         </div>
                                     </div>

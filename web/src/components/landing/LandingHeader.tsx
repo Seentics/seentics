@@ -21,7 +21,6 @@ export default function LandingHeader() {
 
   const navLinks = [
     { name: 'Features', href: '#features' },
-    { name: 'Automations', href: '#automations' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'FAQ', href: '#faq' },
   ];
