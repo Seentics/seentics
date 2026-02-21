@@ -23,7 +23,7 @@ function getStoredTokens() {
 function performLogout() {
   // Clear localStorage
   localStorage.removeItem('auth-storage');
-  
+
   // Redirect to signin with expired message
   if (typeof window !== 'undefined') {
     window.location.href = '/signin?expired=true';
@@ -77,10 +77,10 @@ api.interceptors.response.use(
 
     // Check if this is a demo request - don't redirect on 401 for demo
     const requestUrl = originalRequest.url || '';
-    const isDemoRequest = requestUrl.includes('/demo') || 
-                          requestUrl.includes('website_id=demo') ||
-                          requestUrl.includes('websiteId=demo') ||
-                          requestUrl.match(/\/demo[/?]/) !== null; // Match /demo at end or with query/path
+    const isDemoRequest = requestUrl.includes('/demo') ||
+      requestUrl.includes('website_id=demo') ||
+      requestUrl.includes('websiteId=demo') ||
+      requestUrl.match(/\/demo[/?]/) !== null; // Match /demo at end or with query/path
 
     // Handle 401 Unauthorized - attempt token refresh (skip for demo requests)
     if (error.response?.status === 401 && !originalRequest._retry && !isDemoRequest) {
@@ -113,7 +113,7 @@ api.interceptors.response.use(
       try {
         // Attempt to refresh the token
         const response = await axios.post(
-          `${getApiUrl()}/api/v1/auth/refresh`,
+          `${getApiUrl()}/auth/refresh`,
           { refresh_token },
           { headers: { 'Content-Type': 'application/json' } }
         );
@@ -133,7 +133,7 @@ api.interceptors.response.use(
 
         // Update the original request with new token
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        
+
         isRefreshing = false;
         processQueue();
 

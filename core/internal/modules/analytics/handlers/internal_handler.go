@@ -102,3 +102,53 @@ func (h *InternalHandler) GetUserResourceCounts(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": counts})
 }
+
+// UpsertUser synchronization endpoint for the enterprise gateway.
+// This ensures that the user exists in the core analytics DB so that
+// foreign key constraints (e.g. on websites table) are satisfied.
+func (h *InternalHandler) UpsertUser(c *gin.Context) {
+	var req struct {
+		ID    string `json:"id" binding:"required"`
+		Email string `json:"email" binding:"required"`
+		Name  string `json:"name"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Explicitly include password_hash=NULL so the INSERT works even if
+	// migration 0016 (nullable password) hasn't been applied yet and the
+	// column still has a NOT NULL constraint with no DEFAULT.
+	query := `
+		INSERT INTO users (id, email, name, password_hash, role, created_at, updated_at)
+		VALUES ($1, $2, $3, NULL, 'user', now(), now())
+		ON CONFLICT (id) DO UPDATE
+		SET email = EXCLUDED.email, name = EXCLUDED.name, updated_at = now()
+	`
+
+	_, err := h.db.Exec(ctx, query, req.ID, req.Email, req.Name)
+	if err != nil {
+		// The INSERT may fail due to a UNIQUE constraint on email (user exists
+		// with the same email but a different id, e.g. created in OSS mode).
+		// Fall back to updating the existing row to adopt the gateway's user id.
+		h.logger.Warn().Err(err).Str("id", req.ID).Str("email", req.Email).
+			Msg("Primary upsert failed, trying email-based update")
+
+		fallbackQuery := `
+			UPDATE users SET id = $1, name = $2, updated_at = now()
+			WHERE email = $3
+		`
+		if _, fallbackErr := h.db.Exec(ctx, fallbackQuery, req.ID, req.Name, req.Email); fallbackErr != nil {
+			h.logger.Error().Err(fallbackErr).Str("id", req.ID).Str("email", req.Email).
+				Msg("Failed to upsert user for sync (both attempts failed)")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to sync user"})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "user synced successfully"})
+}

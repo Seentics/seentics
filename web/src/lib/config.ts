@@ -41,12 +41,17 @@ export const config = {
 
 // Helper functions
 export const getApiUrl = (endpoint: string = '') => {
-  // Use relative path for client-side requests (Next.js rewrites handle proxying)
-  // Use full URL for server-side requests
   if (typeof window !== 'undefined') {
     return `/api/${config.apiVersion}${endpoint}`;
   }
-  return `${config.apiBaseUrl}/api/${config.apiVersion}${endpoint}`;
+
+  // Prevent double /api/v1 if config.apiBaseUrl already includes it
+  let apiBase = config.apiBaseUrl.replace(/\/$/, ''); // Remove trailing slash
+  const base = apiBase.endsWith(`/api/${config.apiVersion}`)
+    ? apiBase
+    : `${apiBase}/api/${config.apiVersion}`;
+
+  return `${base}${endpoint}`;
 };
 
 export const getFullUrl = (path: string = '') => {

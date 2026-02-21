@@ -37,9 +37,12 @@ const nextConfig = {
   async rewrites() {
     return [
       {
+        source: '//auth/google/callback',
+        destination: '/auth/google/callback',
+      },
+      {
         source: '/api/v1/:path*',
         destination: `${process.env.API_GATEWAY_URL || 'http://localhost:8080'}/api/v1/:path*`,
-        // Ensure this is a pure proxy without header manipulation
       },
     ];
   },

@@ -25,33 +25,22 @@ export default function Hero() {
     <section className="relative pt-32 pb-16 md:pt-44 md:pb-24 bg-background">
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-3xl mx-auto text-center">
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="text-sm text-muted-foreground font-medium mb-6"
-          >
-            Self-hosted &middot; Privacy-first &middot; Open source
-          </motion.p>
-
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.1] mb-6"
+            className="text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.3] mb-6"
           >
-            Analytics that respects
-            <br />
-            your users
+            Privacy-First <span className="text-primary">Analytics</span> for the Modern <span className="">Web</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-lg text-muted-foreground max-w-xl mx-auto mb-10 leading-relaxed"
+            className="text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed"
           >
-            Live analytics, heatmaps, session recordings, and funnels — all in one platform. No cookies, fully GDPR compliant, and you own every byte of data.
+            Live analytics, heatmaps, session recordings, funnels, and automation workflows — <span className="font-semibold text-foreground">all in one platform</span>. No cookies, <span className="font-semibold text-foreground">fully GDPR compliant</span>, and you <span className="font-semibold text-foreground">own every byte of data</span>.
           </motion.p>
 
           <motion.div

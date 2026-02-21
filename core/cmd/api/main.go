@@ -355,6 +355,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 		})
 		{
 			internal.GET("/user-resource-counts", internalHandler.GetUserResourceCounts)
+			internal.POST("/user/sync", internalHandler.UpsertUser)
 		}
 
 		automations := v1.Group("/websites/:website_id/automations")

@@ -32,25 +32,25 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
 
   const plans = [
     {
-      name: 'Free',
+      name: 'Starter',
       price: '$0',
-      description: 'For personal projects',
-      features: ['3 Websites', '10k Events/mo', '1 Year Retention', 'Community Support'],
-      current: currentPlan === 'free',
+      description: 'Perfect for side projects',
+      features: ['1 Website', '5k Events/mo', '100 Recordings', '3 Heatmaps', '2 Funnels'],
+      current: currentPlan === 'starter',
     },
     {
-      name: 'Pro',
-      price: '$19',
+      name: 'Growth',
+      price: '$15',
       description: 'For growing businesses',
-      features: ['Unlimited Websites', '1M Events/mo', 'Unlimited Retention', 'Priority Support', 'No Branding'],
-      current: currentPlan === 'pro_plus',
+      features: ['5 Websites', '100k Events/mo', '5k Recordings', '20 Heatmaps', '10 Funnels'],
+      current: currentPlan === 'growth',
     },
     {
-        name: 'Enterprise',
-        price: 'Custom',
-        description: 'For large organizations',
-        features: ['Unlimited Everything', 'SLA', 'Dedicated Account Manager', 'SSO', 'Custom Contracts'],
-        current: false, // Enterprise plan doesn't exist in current plan types
+      name: 'Scale',
+      price: '$39',
+      description: 'For scaling teams',
+      features: ['20 Websites', '1M Events/mo', '50k Recordings', 'Unlimited Heatmaps', '50 Funnels'],
+      current: currentPlan === 'scale',
     }
   ];
 
