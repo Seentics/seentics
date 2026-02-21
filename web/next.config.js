@@ -37,7 +37,7 @@ const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '//auth/google/callback',
+        source: '/auth/google/callback',
         destination: '/auth/google/callback',
       },
       {

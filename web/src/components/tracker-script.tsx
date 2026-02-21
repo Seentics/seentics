@@ -49,6 +49,7 @@ export default function TrackerScript({ testMode, siteId }: TrackerScriptProps =
       id="seentics-analytics"
       src="https://www.seentics.com/trackers/seentics-core.min.js"
       data-website-id="2324e420-987e-4f63-b9ff-f27101bfb1c4"
+      data-api-host="https://api.seentics.com"
       data-auto-load="analytics,automation,funnels,heatmap,replay"
       strategy="afterInteractive"
     />

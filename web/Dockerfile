@@ -32,6 +32,10 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_IS_ENTERPRISE=false
 ENV NEXT_PUBLIC_IS_ENTERPRISE=$NEXT_PUBLIC_IS_ENTERPRISE
 
+# Gateway URL for Next.js rewrites (baked at build time)
+ARG API_GATEWAY_URL=http://gateway:8080
+ENV API_GATEWAY_URL=$API_GATEWAY_URL
+
 RUN NODE_OPTIONS="--max_old_space_size=2048" npm run build
 
 # Production image, copy all the files and run next
