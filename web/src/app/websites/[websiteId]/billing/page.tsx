@@ -65,10 +65,18 @@ export default function AccountBillingSettings() {
 
     const normalizedPlan = (subscription?.plan || 'Starter').toLowerCase();
     const isActive = subscription?.isActive;
+    const isCustomPlan = subscription?.isCustomPlan;
+
+    // Get price: use priceMonthly from API for custom plans, otherwise map from plan name
+    const planPrice = isCustomPlan && subscription?.priceMonthly
+        ? subscription.priceMonthly
+        : (normalizedPlan.includes('starter') || normalizedPlan.includes('free')) ? 0 :
+          normalizedPlan.includes('growth') ? 15 :
+          normalizedPlan.includes('scale') ? 39 : 99;
 
     return (
         <div className="max-w-[1440px] mx-auto p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <DashboardPageHeader 
+            <DashboardPageHeader
                 title="Billing & Subscription"
                 description="Manage your subscription, usage limits, and billing details."
             />
@@ -82,26 +90,24 @@ export default function AccountBillingSettings() {
                         </div>
                         <div className="relative z-10">
                             <Badge className="mb-6 bg-primary text-white border-none font-black text-[10px] uppercase tracking-[0.2em] px-4 h-7 rounded-full">
-                                Active: {subscription?.plan || 'Starter'} Plan
+                                Active: {isCustomPlan ? 'Custom' : (subscription?.plan || 'Starter')} Plan
                             </Badge>
                             <div className="flex flex-col md:flex-row md:items-end gap-2 mb-8">
                                 <h2 className="text-5xl font-black tracking-tight">
-                                    {(normalizedPlan.includes('starter') || normalizedPlan.includes('free')) ? '0' : 
-                                     normalizedPlan.includes('growth') ? '15' : 
-                                     normalizedPlan.includes('scale') ? '39' : '149'}
+                                    ${planPrice}
                                 </h2>
                                 <span className="text-lg font-bold text-muted-foreground mb-1">/ month</span>
                             </div>
 
                             <div className="flex flex-wrap gap-3">
-                                <Button 
+                                <Button
                                     onClick={() => setIsUpgradeModalOpen(true)}
                                     className="h-12 px-8 font-black rounded shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90"
                                 >
                                     Change Plan
                                 </Button>
-                                <Button 
-                                    variant="outline" 
+                                <Button
+                                    variant="outline"
                                     className="h-12 px-8 font-black rounded border-2 hover:bg-muted/50"
                                     onClick={handleManagePayments}
                                 >
@@ -158,7 +164,7 @@ export default function AccountBillingSettings() {
                                     current: subscription?.usage?.replays?.current || 0,
                                     limit: subscription?.usage?.replays?.limit || 3
                                 },
-                            ].map((resource) => {
+                            ].filter(resource => resource.limit !== 0).map((resource) => {
                                 const percentage = getUsagePercentage(resource.key as any);
                                 const Icon = resource.icon;
                                 const isUnlimited = resource.limit === -1;
@@ -191,7 +197,7 @@ export default function AccountBillingSettings() {
                     {/* Plan Features Card */}
                     <div className="dark:bg-gray-800/50 p-8 rounded border border-white/5 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[50px] rounded-full -mr-16 -mt-16" />
-                        <h4 className="text-white text-lg font-black mb-6 relative z-10 uppercase tracking-tight">Included in {subscription?.plan || 'Starter'}</h4>
+                        <h4 className="text-white text-lg font-black mb-6 relative z-10 uppercase tracking-tight">Included in {isCustomPlan ? 'Custom' : (subscription?.plan || 'Starter')}</h4>
                         <ul className="space-y-4 relative z-10">
                             {(subscription?.features || [
                                 'Basic analytics dashboard',

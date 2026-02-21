@@ -6,6 +6,7 @@ export { UsageDashboard } from './UsageDashboard';
 export { LimitReachedAlert } from './LimitReachedAlert';
 export { LimitReachedTopBar } from './LimitReachedTopBar';
 export { useUpgradePrompt } from './useUpgradePrompt';
+export { PlanBuilder } from './PlanBuilder';
 
 // Re-export types
 export type { 

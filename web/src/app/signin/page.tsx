@@ -129,7 +129,7 @@ export default function SignInPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="bg-card rounded-xl p-8 shadow-2xl shadow-indigo-500/10 border border-border/50"
+                className="bg-card rounded-xl p-8 shadow-2xl shadow-primary/10 border border-border/50"
             >
                 <form onSubmit={handleEmailSignIn} className="space-y-6">
                     {error && (

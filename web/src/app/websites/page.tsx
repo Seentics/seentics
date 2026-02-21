@@ -40,7 +40,7 @@ export default function WebsitesPage() {
   useEffect(() => {
     const redirectToWebsite = async () => {
       if (!user) {
-        router.push('/login');
+        router.push('/signin');
         return;
       }
 

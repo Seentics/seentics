@@ -73,8 +73,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/websites', request.url));
   }
 
-  // If user is authenticated and trying to access signup, redirect to dashboard
-  if (isAuthenticated && pathname === '/signup') {
+  // If user is authenticated and trying to access bare /signup (no step param), redirect to dashboard
+  // Allow /signup?step=2 through so users can complete onboarding after registration
+  if (isAuthenticated && pathname === '/signup' && !request.nextUrl.searchParams.has('step')) {
     return NextResponse.redirect(new URL('/websites', request.url));
   }
 

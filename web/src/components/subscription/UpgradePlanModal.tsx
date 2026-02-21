@@ -21,37 +21,37 @@ interface UpgradePlanModalProps {
 const planDetails = {
   growth: {
     name: 'Growth',
-    price: '$29',
+    price: '$15',
     period: 'per month',
     icon: Zap,
     color: 'blue',
     features: [
       "5 Websites",
-      "200,000 Monthly Events",
-      "500 Session Recordings",
-      "10 Active Heatmaps",
-      "20 Conversion Funnels",
-      "20 Active Automations",
+      "100,000 Monthly Events",
+      "5,000 Session Recordings",
+      "20 Active Heatmaps",
+      "10 Conversion Funnels",
+      "10 Active Automations",
       "1 Year Data Retention",
-      "Priority Email Support"
+      "Email Support"
     ],
     buttonText: 'Upgrade to Growth'
   },
   scale: {
     name: 'Scale',
-    price: '$89',
+    price: '$39',
     period: 'per month',
     icon: Crown,
     color: 'purple',
     features: [
-      "15 Websites",
+      "20 Websites",
       "1,000,000 Monthly Events",
-      "2,500 Session Recordings",
-      "50 Active Heatmaps",
-      "100 Active Automations",
-      "100 Conversion Funnels",
+      "50,000 Session Recordings",
+      "Unlimited Heatmaps",
+      "50 Conversion Funnels",
+      "50 Active Automations",
       "2 Years Data Retention",
-      "24/7 Priority Support"
+      "Priority Support"
     ],
     buttonText: 'Upgrade to Scale'
   },
@@ -62,13 +62,14 @@ const planDetails = {
     icon: Sparkles,
     color: 'amber',
     features: [
-      "50 Websites",
-      "10,000,000 Monthly Events",
-      "Unlimited Everything",
+      "Unlimited Websites",
+      "Unlimited Monthly Events",
+      "Unlimited Session Recordings",
+      "Unlimited Heatmaps",
+      "Unlimited Funnels",
+      "Unlimited Automations",
       "Custom Data Retention",
-      "White-label Reports",
-      "Dedicated Success Manager",
-      "SSO & Custom Security"
+      "Dedicated Support"
     ],
     buttonText: 'Upgrade to Pro+'
   }
@@ -145,6 +146,12 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
         // Ensure embed parameter is present for the overlay
         if (!checkoutUrl.includes('embed=1')) {
           checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
+        }
+
+        // Add success URL so users return to the app after payment
+        const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
+        if (!checkoutUrl.includes('checkout[success_url]')) {
+          checkoutUrl += `&checkout[success_url]=${successUrl}`;
         }
 
         console.log('[DEBUG] Final Opening URL:', checkoutUrl);

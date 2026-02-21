@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from '@/stores/useAuthStore';
 import { useLayoutStore } from '@/stores/useLayoutStore';
 import { isEnterprise } from '@/lib/features';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Button } from '@/components/ui/button';
 import {
     Popover,
@@ -38,6 +39,15 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
     const { isSidebarOpen, toggleSidebar, closeMobileMenu } = useLayoutStore();
 
     const isDemo = websiteId === 'demo';
+    const { subscription } = isEnterprise ? useSubscription() : { subscription: null };
+
+    // Map nav items to subscription usage keys for limit-based hiding
+    const featureLimitMap: Record<string, string> = {
+        'Heatmaps': 'heatmaps',
+        'Session Replay': 'replays',
+        'Automations': 'workflows',
+        'Funnels': 'funnels',
+    };
 
     const allLinks = [
         {
@@ -106,9 +116,19 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
         },
     ];
 
-    const links = isEnterprise
-        ? allLinks
-        : allLinks.filter(link => !link.enterpriseOnly);
+    const links = allLinks.filter(link => {
+        // OSS mode: hide enterprise-only items
+        if (!isEnterprise && link.enterpriseOnly) return false;
+        // Enterprise mode: hide features where subscription limit is 0
+        if (isEnterprise && subscription) {
+            const usageKey = featureLimitMap[link.title];
+            if (usageKey) {
+                const usage = subscription.usage[usageKey as keyof typeof subscription.usage];
+                if (usage && usage.limit === 0) return false;
+            }
+        }
+        return true;
+    });
 
     const containerClasses = mobile
         ? "h-full w-full bg-background flex flex-col"
