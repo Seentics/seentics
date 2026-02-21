@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="web/public/logo.png" alt="Seentics" width="80" />
+  <img src="logo.svg" alt="Seentics" width="80" />
 </p>
 
 <h1 align="center">Seentics</h1>
