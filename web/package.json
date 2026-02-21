@@ -21,7 +21,8 @@
   "homepage": "https://github.com/yourusername/analytics-platform#readme",
   "scripts": {
     "dev": " next dev",
-    "build": "next build",
+    "build": "npm run minify:trackers && next build",
+    "minify:trackers": "node scripts/minify-trackers.js",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
@@ -100,6 +101,7 @@
     "patch-package": "^8.0.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "terser": "^5.46.0",
     "typescript": "^5"
   }
 }

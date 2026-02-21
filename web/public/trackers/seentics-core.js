@@ -1,505 +1,288 @@
 /**
- * Seentics Core Tracker
+ * Seentics Core Tracker v2.0
  * Shared foundation for analytics, automation, and funnel tracking
- * Version: 2.0
  */
-
 (function(w, d) {
   'use strict';
-
-  // Prevent multiple initializations
   if (w.SEENTICS_CORE) return;
 
-  // Core configuration
-  const config = {
+  var config = {
     apiHost: (w.location.hostname === 'localhost' || w.location.hostname === '127.0.0.1' || w.location.hostname.endsWith('.local'))
       ? 'http://localhost:8080'
       : 'https://api.seentics.com',
     websiteId: null,
     debug: false,
-    autoLoad: {
-      analytics: true,
-      automation: true,
-      funnels: true,
-      heatmap: true,
-      replay: true
-    }
+    autoLoad: { analytics: true, automation: true, funnels: true, heatmap: true, replay: true }
   };
 
-  // Shared state
-  const state = {
-    visitorId: null,
-    sessionId: null,
-    pageViewId: null,
-    sessionStart: null,
-    lastActivity: Date.now(),
-    eventQueue: [],
-    isProcessing: false,
-    retryCount: 0,
-    retryDelay: 1000, // Initial delay: 1 second
-    maxRetryDelay: 60000 // Max delay: 60 seconds
+  var state = {
+    visitorId: null, sessionId: null, pageViewId: null, sessionStart: null,
+    lastActivity: Date.now(), eventQueue: [], isProcessing: false,
+    retryCount: 0, retryDelay: 1000, maxRetryDelay: 60000
   };
 
-  // Event emitter for inter-module communication
-  const events = {};
-  const eventEmitter = {
-    on: (event, callback) => {
-      if (!events[event]) events[event] = [];
-      events[event].push(callback);
-    },
-    emit: (event, data) => {
-      if (events[event]) {
-        events[event].forEach(cb => cb(data));
-      }
-    },
-    off: (event, callback) => {
-      if (events[event]) {
-        events[event] = events[event].filter(cb => cb !== callback);
-      }
-    }
+  // Event emitter
+  var events = {};
+  var on = function(e, cb) { (events[e] = events[e] || []).push(cb); };
+  var emit = function(e, data) { (events[e] || []).forEach(function(cb) { cb(data); }); };
+  var off = function(e, cb) { if (events[e]) events[e] = events[e].filter(function(c) { return c !== cb; }); };
+
+  var dbg = function() {
+    if (config.debug) console.log.apply(console, ['[Seentics]'].concat(Array.prototype.slice.call(arguments)));
   };
 
-  // Utility functions
-  const utils = {
-    generateId: () => {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
+  // Utilities
+  var utils = {
+    generateId: function() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
       });
     },
-
-    getCookie: (name) => {
-      const value = `; ${d.cookie}`;
-      const parts = value.split(`; ${name}=`);
+    getCookie: function(name) {
+      var v = '; ' + d.cookie, parts = v.split('; ' + name + '=');
       if (parts.length === 2) return parts.pop().split(';').shift();
       return null;
     },
-
-    setCookie: (name, value, days) => {
-      const expires = new Date(Date.now() + days * 864e5).toUTCString();
-      d.cookie = `${name}=${value}; expires=${expires}; path=/; SameSite=Lax`;
+    setCookie: function(name, value, days) {
+      d.cookie = name + '=' + value + '; expires=' + new Date(Date.now() + days * 864e5).toUTCString() + '; path=/; SameSite=Lax';
     },
-
-    getSessionCookie: (name) => {
-      return sessionStorage.getItem(name);
-    },
-
-    setSessionCookie: (name, value) => {
-      sessionStorage.setItem(name, value);
-    },
-
-    debounce: (func, wait) => {
-      let timeout;
-      return function executedFunction(...args) {
-        const later = () => {
-          clearTimeout(timeout);
-          func(...args);
-        };
+    getSessionCookie: function(name) { return sessionStorage.getItem(name); },
+    setSessionCookie: function(name, value) { sessionStorage.setItem(name, value); },
+    debounce: function(func, wait) {
+      var timeout;
+      return function() {
+        var args = arguments, ctx = this;
         clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+        timeout = setTimeout(function() { func.apply(ctx, args); }, wait);
       };
     }
   };
 
   // Session management
-  const session = {
-    init: () => {
-      // Visitor ID (persistent)
+  var session = {
+    init: function() {
       state.visitorId = utils.getCookie('seentics_vid');
       if (!state.visitorId) {
         state.visitorId = utils.generateId();
         utils.setCookie('seentics_vid', state.visitorId, 365);
       }
-
-      // Session ID (30 min timeout)
       state.sessionId = utils.getSessionCookie('seentics_sid');
-      const lastActivity = utils.getSessionCookie('seentics_last_activity');
-      const now = Date.now();
-
-      if (!state.sessionId || !lastActivity || (now - parseInt(lastActivity)) > 1800000) {
+      var lastAct = utils.getSessionCookie('seentics_last_activity');
+      var now = Date.now();
+      if (!state.sessionId || !lastAct || (now - parseInt(lastAct)) > 1800000) {
         state.sessionId = utils.generateId();
         state.sessionStart = now;
         utils.setSessionCookie('seentics_sid', state.sessionId);
-        eventEmitter.emit('session:start', { sessionId: state.sessionId });
+        emit('session:start', { sessionId: state.sessionId });
       }
-
       utils.setSessionCookie('seentics_last_activity', now.toString());
       state.lastActivity = now;
     },
-
-    updateActivity: () => {
-      const now = Date.now();
+    updateActivity: function() {
+      var now = Date.now();
       state.lastActivity = now;
       utils.setSessionCookie('seentics_last_activity', now.toString());
     }
   };
 
-  // API communication
-  const api = {
-    send: async (endpoint, data) => {
-      if (config.debug) console.log(`[Seentics] API POST: ${config.apiHost}/api/v1/${endpoint}`, data);
-      try {
-        const response = await fetch(`${config.apiHost}/api/v1/${endpoint}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data)
-        });
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-
-        return await response.json();
-      } catch (error) {
-        if (config.debug) {
-          console.error('[Seentics] API error:', error);
-        }
-        throw error;
-      }
+  // API
+  var api = {
+    send: function(endpoint, data) {
+      dbg('POST', endpoint);
+      return fetch(config.apiHost + '/api/v1/' + endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      }).then(function(r) {
+        if (!r.ok) throw new Error('API error: ' + r.status);
+        return r.json();
+      });
     },
-
-    get: async (endpoint, params = {}) => {
-      try {
-        const url = new URL(`${config.apiHost}/api/v1/${endpoint}`);
-        Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
-        
-        const response = await fetch(url.toString(), {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-
-        return await response.json();
-      } catch (error) {
-        if (config.debug) {
-          console.error('[Seentics] API error:', error);
-        }
-        throw error;
-      }
+    get: function(endpoint, params) {
+      var url = new URL(config.apiHost + '/api/v1/' + endpoint);
+      if (params) Object.keys(params).forEach(function(k) { url.searchParams.append(k, params[k]); });
+      return fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      }).then(function(r) {
+        if (!r.ok) throw new Error('API error: ' + r.status);
+        return r.json();
+      });
     },
-
-    batch: async (events) => {
+    batch: function(evts) {
       return api.send('analytics/batch', {
         siteId: config.websiteId,
         domain: w.location.hostname,
-        events
+        events: evts
       });
     }
   };
 
-  // Queue management
-  const queue = {
-    add: (event) => {
-      state.eventQueue.push({
-        ...event,
+  // Queue
+  var queue = {
+    add: function(event) {
+      state.eventQueue.push(Object.assign({
         visitor_id: state.visitorId,
         session_id: state.sessionId,
         timestamp: new Date().toISOString()
-      });
-
-      if (state.eventQueue.length >= 10) {
-        queue.flush();
-      }
+      }, event));
+      if (state.eventQueue.length >= 10) queue.flush();
     },
-
-    // Core flush implementation — called directly by interval and beforeunload
-    flush: async () => {
-      if (state.isProcessing || state.eventQueue.length === 0) return;
-
+    flush: function() {
+      if (state.isProcessing || state.eventQueue.length === 0) return Promise.resolve();
       state.isProcessing = true;
-      const eventsToSend = [...state.eventQueue];
+      var batch = state.eventQueue.slice();
       state.eventQueue = [];
-
-      try {
-        await api.batch(eventsToSend);
-        eventEmitter.emit('queue:flushed', { count: eventsToSend.length });
-
-        // Reset retry backoff on success
+      return api.batch(batch).then(function() {
+        emit('queue:flushed', { count: batch.length });
         state.retryCount = 0;
         state.retryDelay = 1000;
-
-        // Clear any persisted failed events on success
+        try { localStorage.removeItem('seentics_failed_events'); } catch(e) {}
+      }).catch(function(error) {
+        state.eventQueue = batch.concat(state.eventQueue);
         try {
-          localStorage.removeItem('seentics_failed_events');
-        } catch (e) {}
-      } catch (error) {
-        // Re-add failed events to queue
-        state.eventQueue.unshift(...eventsToSend);
-
-        // Persist failed events to localStorage for retry
-        try {
-          const persistedEvents = JSON.parse(localStorage.getItem('seentics_failed_events') || '[]');
-          const combined = [...persistedEvents, ...eventsToSend].slice(-100); // Keep last 100
-          localStorage.setItem('seentics_failed_events', JSON.stringify(combined));
-        } catch (e) {
-          if (config.debug) console.warn('[Seentics] Failed to persist events', e);
-        }
-
-        // Implement exponential backoff
+          var p = JSON.parse(localStorage.getItem('seentics_failed_events') || '[]');
+          localStorage.setItem('seentics_failed_events', JSON.stringify(p.concat(batch).slice(-100)));
+        } catch(e) {}
         state.retryCount++;
-        state.retryDelay = Math.min(
-          state.retryDelay * 2,
-          state.maxRetryDelay
-        );
-
-        if (config.debug) {
-          console.warn(`[Seentics] Retry #${state.retryCount}, next attempt in ${state.retryDelay}ms`);
-        }
-
-        // Schedule retry with exponential backoff
-        setTimeout(() => {
-          queue.flush();
-        }, state.retryDelay);
-
-        eventEmitter.emit('queue:error', { error, retryCount: state.retryCount, retryDelay: state.retryDelay });
-      } finally {
+        state.retryDelay = Math.min(state.retryDelay * 2, state.maxRetryDelay);
+        dbg('Retry #' + state.retryCount + ', next in ' + state.retryDelay + 'ms');
+        setTimeout(queue.flush, state.retryDelay);
+        emit('queue:error', { error: error, retryCount: state.retryCount });
+      }).finally(function() {
         state.isProcessing = false;
-      }
+      });
     },
-
-    // Restore failed events from localStorage
-    restore: () => {
+    restore: function() {
       try {
-        const persistedEvents = JSON.parse(localStorage.getItem('seentics_failed_events') || '[]');
-        if (persistedEvents.length > 0) {
-          state.eventQueue.unshift(...persistedEvents);
-          if (config.debug) {
-            console.log(`[Seentics] Restored ${persistedEvents.length} failed events`);
-          }
+        var p = JSON.parse(localStorage.getItem('seentics_failed_events') || '[]');
+        if (p.length > 0) {
+          state.eventQueue = p.concat(state.eventQueue);
+          dbg('Restored', p.length, 'failed events');
         }
-      } catch (e) {
-        if (config.debug) console.warn('[Seentics] Failed to restore events', e);
-      }
+      } catch(e) {}
     }
   };
 
-  // Page tracking
-  const page = {
-    getCurrentPage: () => ({
-      url: w.location.href,
-      path: w.location.pathname,
-      title: d.title,
-      referrer: d.referrer,
-      screen: {
-        width: w.screen.width,
-        height: w.screen.height
-      },
-      viewport: {
-        width: w.innerWidth,
-        height: w.innerHeight
-      }
-    })
-  };
-
-  // State flags
-  const flags = {
-    isReady: false
-  };
-
-  // Initialize core
-  const init = async (options = {}) => {
-    Object.assign(config, options);
-    
-    if (!config.websiteId) {
-      console.error('[Seentics] Website ID is required');
-      return;
-    }
-
-    // Try fetching remote config for module toggles
-    try {
-      if (config.debug) console.log(`[Seentics] Loading remote config from ${config.apiHost}...`);
-      const response = await api.get(`tracker/config/${config.websiteId}`);
-      // Backend returns data wrapped in a "data" property or as direct object
-      const remoteConfig = response && response.data ? response.data : response;
-      
-      if (remoteConfig) {
-        config.dynamicConfig = remoteConfig;
-        if (config.debug) console.log('[Seentics] Remote config received:', remoteConfig);
-        
-        // Merge remote config into main config
-        Object.assign(config, remoteConfig);
-        
-        // Update module toggles based on backend settings
-        if (remoteConfig.automation_enabled !== undefined) config.autoLoad.automation = !!remoteConfig.automation_enabled;
-        if (remoteConfig.funnel_enabled !== undefined) config.autoLoad.funnels = !!remoteConfig.funnel_enabled;
-        if (remoteConfig.heatmap_enabled !== undefined) config.autoLoad.heatmap = !!remoteConfig.heatmap_enabled;
-        if (remoteConfig.replay_enabled !== undefined) config.autoLoad.replay = !!remoteConfig.replay_enabled;
-        
-        if (config.debug) {
-          console.log('[Seentics] Modules enabled:', config.autoLoad);
-        }
-      }
-    } catch (err) {
-      console.warn('[Seentics] Failed to load remote configuration. This usually happens if the API host is misconfigured or a domain whitelist blocks the request.', err);
-    }
-
-    session.init();
-
-    // Restore any failed events from localStorage
-    queue.restore();
-
-    // Auto-flush queue before page unload using sendBeacon for reliability
-    w.addEventListener('beforeunload', () => {
-      if (state.eventQueue.length > 0) {
-        const payload = JSON.stringify({
-          siteId: config.websiteId,
-          domain: w.location.hostname,
-          events: state.eventQueue
-        });
-        navigator.sendBeacon(`${config.apiHost}/api/v1/analytics/batch`, new Blob([payload], { type: 'application/json' }));
-        state.eventQueue = [];
-      }
-    });
-
-    // Periodic flush — 30s is sufficient; immediate flushes handle high-value events
-    setInterval(() => {
-      if (state.eventQueue.length > 0) {
-        queue.flush();
-      }
-    }, 30000);
-
-    // Flush when the tab is backgrounded (tab switch, mobile suspend, most SPA navigations)
-    d.addEventListener('visibilitychange', () => {
-      if (d.visibilityState === 'hidden' && state.eventQueue.length > 0) {
-        queue.flush();
-      }
-    });
-
-    // Activity tracking (passive listeners for better performance)
-    ['click', 'scroll', 'mousemove', 'keydown'].forEach(event => {
-      d.addEventListener(event, utils.debounce(session.updateActivity, 1000), { passive: true });
-    });
-
-    flags.isReady = true;
-    eventEmitter.emit('core:ready', { config, state });
-  };
-
-  // Script integrity verification
-  const integrity = {
-    verify: async (scriptUrl, expectedHash) => {
-      try {
-        const response = await fetch(scriptUrl);
-        const scriptContent = await response.text();
-        
-        // Calculate SHA-256 hash
-        const msgBuffer = new TextEncoder().encode(scriptContent);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        
-        if (expectedHash && hashHex !== expectedHash) {
-          console.error('[Seentics] Script integrity check failed!');
-          return false;
-        }
-        
-        if (config.debug) {
-          console.log(`[Seentics] Script integrity verified: ${scriptUrl}`);
-        }
-        return true;
-      } catch (error) {
-        if (config.debug) {
-          console.warn('[Seentics] Integrity check failed:', error);
-        }
-        return false;
-      }
-    },
-    
-    // Generate CSP nonce for inline scripts
-    generateNonce: () => {
-      const array = new Uint8Array(16);
-      crypto.getRandomValues(array);
-      return btoa(String.fromCharCode(...array));
+  // Page info
+  var page = {
+    getCurrentPage: function() {
+      return {
+        url: w.location.href, path: w.location.pathname,
+        title: d.title, referrer: d.referrer,
+        screen: { width: w.screen.width, height: w.screen.height },
+        viewport: { width: w.innerWidth, height: w.innerHeight }
+      };
     }
   };
 
-  // Shared track() shim — usable by any module before/without seentics-analytics.js
-  const track = (eventName, properties = {}) => {
-    // Prefer the full analytics tracker if loaded
+  var flags = { isReady: false };
+
+  // Shared track() shim
+  var track = function(eventName, properties) {
     if (w.seentics && w.seentics.analytics && w.seentics.analytics.track) {
-      w.seentics.analytics.track(eventName, properties);
+      w.seentics.analytics.track(eventName, properties || {});
     } else {
-      // Fallback: queue the event directly through core
       queue.add({
         event_type: eventName,
         page_url: w.location.href,
         page: w.location.pathname,
-        properties
+        properties: properties || {}
       });
     }
-    eventEmitter.emit('analytics:event', { eventName, properties });
+    emit('analytics:event', { eventName: eventName, properties: properties || {} });
+  };
+
+  // Initialize
+  var init = function(options) {
+    Object.assign(config, options || {});
+    if (!config.websiteId) { console.error('[Seentics] Website ID is required'); return Promise.resolve(); }
+
+    return (function() {
+      dbg('Loading remote config...');
+      return api.get('tracker/config/' + config.websiteId).then(function(response) {
+        var rc = response && response.data ? response.data : response;
+        if (rc) {
+          config.dynamicConfig = rc;
+          Object.assign(config, rc);
+          if (rc.automation_enabled !== undefined) config.autoLoad.automation = !!rc.automation_enabled;
+          if (rc.funnel_enabled !== undefined) config.autoLoad.funnels = !!rc.funnel_enabled;
+          if (rc.heatmap_enabled !== undefined) config.autoLoad.heatmap = !!rc.heatmap_enabled;
+          if (rc.replay_enabled !== undefined) config.autoLoad.replay = !!rc.replay_enabled;
+          dbg('Modules:', config.autoLoad);
+        }
+      }).catch(function(err) {
+        console.warn('[Seentics] Failed to load remote config.', err);
+      });
+    })().then(function() {
+      session.init();
+      queue.restore();
+
+      w.addEventListener('beforeunload', function() {
+        if (state.eventQueue.length > 0) {
+          navigator.sendBeacon(
+            config.apiHost + '/api/v1/analytics/batch',
+            new Blob([JSON.stringify({ siteId: config.websiteId, domain: w.location.hostname, events: state.eventQueue })], { type: 'application/json' })
+          );
+          state.eventQueue = [];
+        }
+      });
+
+      setInterval(function() { if (state.eventQueue.length > 0) queue.flush(); }, 30000);
+
+      d.addEventListener('visibilitychange', function() {
+        if (d.visibilityState === 'hidden' && state.eventQueue.length > 0) queue.flush();
+      });
+
+      ['click', 'scroll', 'mousemove', 'keydown'].forEach(function(evt) {
+        d.addEventListener(evt, utils.debounce(session.updateActivity, 1000), { passive: true });
+      });
+
+      flags.isReady = true;
+      emit('core:ready', { config: config, state: state });
+    });
   };
 
   // Public API
   w.SEENTICS_CORE = {
-    version: '2.0',
-    init,
-    config,
-    state,
-    utils,
-    session,
-    api,
-    queue,
-    page,
-    integrity,
-    track,
-    on: eventEmitter.on,
-    emit: eventEmitter.emit,
-    off: eventEmitter.off,
-    isReady: () => flags.isReady
+    version: '2.0', init: init, config: config, state: state,
+    utils: utils, session: session, api: api, queue: queue, page: page,
+    track: track, on: on, emit: emit, off: off,
+    isReady: function() { return flags.isReady; }
   };
 
-  // Auto-init if data-website-id is present
-  const script = d.currentScript;
+  // Auto-init from script tag
+  var script = d.currentScript;
   if (script) {
-    const websiteId = script.getAttribute('data-website-id') || script.getAttribute('data-site-id');
-    const debug = script.getAttribute('data-debug') === 'true';
-    const apiHost = script.getAttribute('data-api-host');
-    const autoLoad = script.getAttribute('data-auto-load');
-    
-    // Auto-detect API host from script source if not explicitly provided
-    let detectedApiHost = null;
-    try {
-        const scriptUrl = new URL(script.src);
-        detectedApiHost = scriptUrl.origin;
-    } catch (e) {}
+    var websiteId = script.getAttribute('data-website-id') || script.getAttribute('data-site-id');
+    var debug = script.getAttribute('data-debug') === 'true';
+    var apiHost = script.getAttribute('data-api-host');
+    var autoLoad = script.getAttribute('data-auto-load');
 
-    // Parse auto-load modules
+    var detectedHost = null;
+    try { detectedHost = new URL(script.src).origin; } catch(e) {}
+
     if (autoLoad) {
-      const modules = autoLoad.split(',').map(m => m.trim());
+      var modules = autoLoad.split(',').map(function(m) { return m.trim(); });
       config.autoLoad = {
-        analytics: modules.includes('analytics'),
-        automation: modules.includes('automation'),
-        funnels: modules.includes('funnels'),
-        heatmap: modules.includes('heatmap'),
+        analytics: modules.includes('analytics'), automation: modules.includes('automation'),
+        funnels: modules.includes('funnels'), heatmap: modules.includes('heatmap'),
         replay: modules.includes('replay')
       };
     }
-    
+
     if (websiteId) {
-      init({ websiteId, debug, apiHost: apiHost || detectedApiHost || config.apiHost }).then(() => {
-        // Auto-load modules
-        const basePath = script.src.substring(0, script.src.lastIndexOf('/') + 1);
-        const loadModule = (name) => {
-          const moduleScript = d.createElement('script');
-          moduleScript.src = `${basePath}seentics-${name}.js?t=${Date.now()}`;
-          moduleScript.async = true;
-          moduleScript.onerror = () => {
-            if (config.debug) {
-              console.warn(`[Seentics] Failed to load ${name} module`);
-            }
-          };
-          d.head.appendChild(moduleScript);
+      init({ websiteId: websiteId, debug: debug, apiHost: apiHost || detectedHost || config.apiHost }).then(function() {
+        var basePath = script.src.substring(0, script.src.lastIndexOf('/') + 1);
+        var useMin = script.src.includes('.min.js');
+        var loadModule = function(name) {
+          var s = d.createElement('script');
+          s.src = basePath + 'seentics-' + name + (useMin ? '.min.js' : '.js') + '?t=' + Date.now();
+          s.async = true;
+          s.onerror = function() { dbg('Failed to load', name); };
+          d.head.appendChild(s);
         };
-        
-        // Load enabled modules
         if (config.autoLoad.analytics) loadModule('analytics');
         if (config.autoLoad.automation) loadModule('automation');
         if (config.autoLoad.funnels) loadModule('funnels');
@@ -508,6 +291,4 @@
       });
     }
   }
-
 })(window, document);
-

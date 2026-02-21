@@ -3,280 +3,176 @@
  * Handles funnel step tracking and conversion monitoring
  * Requires: seentics-core.js
  */
-
 (function(w, d) {
   'use strict';
+  var S = w.SEENTICS_CORE;
+  if (!S) { console.error('[Seentics Funnel] Core not loaded.'); return; }
 
-  const S = w.SEENTICS_CORE;
-  if (!S) {
-    console.error('[Seentics Funnel] Core not loaded. Include seentics-core.js first.');
-    return;
-  }
-
-  // Funnel state
-  const funnel = {
-    activeFunnels: [],
-    currentFunnels: new Map(), // funnelId -> { currentStep, completedSteps, startedAt }
-    initialized: false
+  var funnel = {
+    activeFunnels: [], currentFunnels: new Map(),
+    initialized: false, buffer: []
   };
 
-  // Load active funnels
-  const loadFunnels = async () => {
-    try {
-      const response = await S.api.get('funnels/active', {
-        website_id: S.config.websiteId
+  var loadFunnels = function() {
+    return S.api.get('funnels/active', { website_id: S.config.websiteId }).then(function(r) {
+      funnel.activeFunnels = r.funnels || [];
+      // Pre-sort steps once to avoid sorting on every event
+      funnel.activeFunnels.forEach(function(f) {
+        if (f.steps) {
+          f.steps.sort(function(a, b) {
+            return (a.order !== undefined ? a.order : (a.step_order || 0)) -
+                   (b.order !== undefined ? b.order : (b.step_order || 0));
+          });
+        }
       });
-      funnel.activeFunnels = response.funnels || [];
       S.emit('funnel:loaded', { count: funnel.activeFunnels.length });
-      
-      // Restore funnel progress from session
-      const stored = sessionStorage.getItem('seentics_funnel_progress');
+
+      var stored = sessionStorage.getItem('seentics_funnel_progress');
       if (stored) {
-        const progress = JSON.parse(stored);
-        Object.entries(progress).forEach(([id, data]) => {
-          funnel.currentFunnels.set(id, data);
+        var progress = JSON.parse(stored);
+        Object.entries(progress).forEach(function(entry) {
+          funnel.currentFunnels.set(entry[0], entry[1]);
         });
       }
-    } catch (error) {
-      if (S.config.debug) {
-        console.error('[Seentics Funnel] Failed to load funnels:', error);
-      }
-    }
-  };
-
-  // Save funnel progress
-  const saveFunnelProgress = () => {
-    const progress = {};
-    funnel.currentFunnels.forEach((data, id) => {
-      progress[id] = data;
+    }).catch(function(e) {
+      if (S.config.debug) console.error('[Seentics Funnel] Load failed:', e);
     });
-    sessionStorage.setItem('seentics_funnel_progress', JSON.stringify(progress));
   };
 
-  // Check if step matches current page/event
-  const matchesStep = (step, eventData) => {
-    // Handle both camelCase and snake_case
-    const stepType = (step.stepType || step.step_type || '').toLowerCase();
-    const matchType = step.matchType || step.match_type || 'exact';
-    
-    // Normalize step type checking (handle page_view vs pageView)
-    if (stepType === 'page_view' || stepType === 'pageview') {
-      const currentPath = w.location.pathname;
-      const targetPath = step.pagePath || step.page_path;
+  var saveFunnelProgress = function() {
+    var p = {};
+    funnel.currentFunnels.forEach(function(data, id) { p[id] = data; });
+    sessionStorage.setItem('seentics_funnel_progress', JSON.stringify(p));
+  };
 
-      switch (matchType) {
-        case 'exact':
-          return currentPath === targetPath;
-        case 'contains':
-          return currentPath.includes(targetPath);
-        case 'starts_with':
-        case 'startswith':
-          return currentPath.startsWith(targetPath);
-        case 'regex':
-          try {
-            return new RegExp(targetPath).test(currentPath);
-          } catch (e) {
-            return false;
-          }
-        default:
-          return currentPath === targetPath;
+  var getOrder = function(step) { return step.order !== undefined ? step.order : (step.step_order || 0); };
+
+  var matchesStep = function(step, eventData) {
+    var type = (step.stepType || step.step_type || '').toLowerCase();
+    var match = step.matchType || step.match_type || 'exact';
+
+    if (type === 'page_view' || type === 'pageview') {
+      var cp = w.location.pathname;
+      var tp = step.pagePath || step.page_path;
+      switch (match) {
+        case 'contains': return cp.includes(tp);
+        case 'starts_with': case 'startswith': return cp.startsWith(tp);
+        case 'regex': try { return new RegExp(tp).test(cp); } catch(e) { return false; }
+        default: return cp === tp;
       }
     }
-
-    if (stepType === 'event') {
-      const targetEventType = step.eventType || step.event_type;
-      return eventData.eventName === targetEventType;
-    }
-
+    if (type === 'event') return eventData.eventName === (step.eventType || step.event_type);
     return false;
   };
 
-  // Process funnel step
-  const processFunnelStep = (eventType, eventData = {}) => {
-    funnel.activeFunnels.forEach(funnelDef => {
-      const funnelId = funnelDef.id;
-      const steps = funnelDef.steps || [];
+  var trackFunnelEvent = function(funnelId, data) {
+    funnel.buffer.push(Object.assign({
+      funnel_id: funnelId, website_id: S.config.websiteId,
+      visitor_id: S.state.visitorId, session_id: S.state.sessionId,
+      started_at: (funnel.currentFunnels.get(funnelId) || {}).startedAt || new Date().toISOString(),
+      timestamp: new Date().toISOString()
+    }, data));
+  };
 
+  var processFunnelStep = function(eventType, eventData) {
+    eventData = eventData || {};
+    funnel.activeFunnels.forEach(function(def) {
+      var fid = def.id, steps = def.steps || [];
       if (steps.length === 0) return;
 
-      // Sort steps by order to ensure correct sequencing
-      const sortedSteps = [...steps].sort((a, b) => {
-        const aOrder = a.order !== undefined ? a.order : (a.step_order || 0);
-        const bOrder = b.order !== undefined ? b.order : (b.step_order || 0);
-        return aOrder - bOrder;
-      });
-
-      const getOrder = (step) => step.order !== undefined ? step.order : (step.step_order || 0);
-      const minOrder = getOrder(sortedSteps[0]);
-      const maxOrder = getOrder(sortedSteps[sortedSteps.length - 1]);
-
-      // Get or initialize funnel progress
-      let progress = funnel.currentFunnels.get(funnelId);
+      var minOrder = getOrder(steps[0]);
+      var maxOrder = getOrder(steps[steps.length - 1]);
+      var progress = funnel.currentFunnels.get(fid);
 
       if (!progress) {
-        // Check if this is the first step (the one with the lowest order value)
-        const firstStep = sortedSteps[0];
-        if (firstStep && matchesStep(firstStep, eventData)) {
-          progress = {
-            currentStep: minOrder,
-            completedSteps: [minOrder],
-            startedAt: new Date().toISOString()
-          };
-          funnel.currentFunnels.set(funnelId, progress);
+        if (matchesStep(steps[0], eventData)) {
+          progress = { currentStep: minOrder, completedSteps: [minOrder], startedAt: new Date().toISOString() };
+          funnel.currentFunnels.set(fid, progress);
           saveFunnelProgress();
-
-          // Track funnel start
-          trackFunnelEvent(funnelId, {
-            event_type: 'start',
-            step_name: firstStep.name,
-            current_step: minOrder,
-            completed_steps: [minOrder]
-          });
-
-          S.emit('funnel:started', { funnelId, step: firstStep });
+          trackFunnelEvent(fid, { event_type: 'start', step_name: steps[0].name, current_step: minOrder, completed_steps: [minOrder] });
+          S.emit('funnel:started', { funnelId: fid, step: steps[0] });
         }
         return;
       }
 
-      // Find the next step in sequence (the first step whose order > currentStep)
-      const nextStep = sortedSteps.find(s => getOrder(s) > progress.currentStep);
+      var next = null;
+      for (var i = 0; i < steps.length; i++) {
+        if (getOrder(steps[i]) > progress.currentStep) { next = steps[i]; break; }
+      }
 
-      if (nextStep && matchesStep(nextStep, eventData)) {
-        const nextOrder = getOrder(nextStep);
+      if (next && matchesStep(next, eventData)) {
+        var nextOrder = getOrder(next);
         progress.currentStep = nextOrder;
         progress.completedSteps.push(nextOrder);
         saveFunnelProgress();
+        var complete = nextOrder === maxOrder;
 
-        // Funnel is complete when the last (max order) step is reached
-        const isComplete = nextOrder === maxOrder;
-
-        trackFunnelEvent(funnelId, {
-          event_type: isComplete ? 'conversion' : 'progress',
-          step_name: nextStep.name,
-          current_step: nextOrder,
-          completed_steps: progress.completedSteps,
-          converted: isComplete
+        trackFunnelEvent(fid, {
+          event_type: complete ? 'conversion' : 'progress',
+          step_name: next.name, current_step: nextOrder,
+          completed_steps: progress.completedSteps, converted: complete
         });
 
-        if (isComplete) {
-          S.emit('funnel:completed', { funnelId, steps: progress.completedSteps });
-          funnel.currentFunnels.delete(funnelId);
+        if (complete) {
+          S.emit('funnel:completed', { funnelId: fid, steps: progress.completedSteps });
+          funnel.currentFunnels.delete(fid);
           saveFunnelProgress();
         } else {
-          S.emit('funnel:progress', { funnelId, step: nextStep, progress });
+          S.emit('funnel:progress', { funnelId: fid, step: next, progress: progress });
         }
       }
     });
   };
 
-  // Track funnel event (buffered)
-  const trackFunnelEvent = (funnelId, data) => {
-    funnel.buffer.push({
-      funnel_id: funnelId,
-      website_id: S.config.websiteId,
-      visitor_id: S.state.visitorId,
-      session_id: S.state.sessionId,
-      started_at: funnel.currentFunnels.get(funnelId)?.startedAt || new Date().toISOString(),
-      timestamp: new Date().toISOString(),
-      ...data
+  // Buffer flush
+  setInterval(function() {
+    if (funnel.buffer.length === 0) return;
+    var batch = funnel.buffer.slice();
+    funnel.buffer = [];
+    S.api.send('funnels/batch', { website_id: S.config.websiteId, events: batch }).catch(function() {
+      funnel.buffer = batch.concat(funnel.buffer);
     });
+  }, 30000);
+
+  var flushBeacon = function() {
+    if (funnel.buffer.length === 0) return;
+    navigator.sendBeacon(S.config.apiHost + '/api/v1/funnels/batch',
+      new Blob([JSON.stringify({ website_id: S.config.websiteId, events: funnel.buffer })], { type: 'application/json' }));
+    funnel.buffer = [];
   };
 
-  // Buffer management
-  funnel.buffer = [];
-  funnel.flushInterval = setInterval(async () => {
-      if (funnel.buffer.length === 0) return;
+  var setupListeners = function() {
+    S.on('analytics:pageview', function(data) { processFunnelStep('pageview', data); });
+    S.on('analytics:event', function(data) { processFunnelStep('event', data); });
 
-      const batch = [...funnel.buffer];
-      funnel.buffer = [];
-
-      try {
-          await S.api.send('funnels/batch', {
-            website_id: S.config.websiteId,
-            events: batch
-          });
-      } catch (error) {
-          if (S.config.debug) {
-            console.error('[Seentics Funnel] Failed to track batch, re-queuing:', error);
-          }
-          // Re-queue failed events for the next flush attempt
-          funnel.buffer.unshift(...batch);
-      }
-  }, 30000); // 30 seconds
-
-  // Setup funnel listeners
-  const setupFunnelListeners = () => {
-    // Listen to analytics events
-    S.on('analytics:pageview', (data) => {
-      processFunnelStep('pageview', data);
-    });
-
-    S.on('analytics:event', (data) => {
-      processFunnelStep('event', data);
-    });
-
-    // Track dropoffs and flush buffer on page exit
-    const flushFunnelBuffer = () => {
-      if (funnel.buffer.length === 0) return;
-      const payload = JSON.stringify({
-        website_id: S.config.websiteId,
-        events: funnel.buffer
-      });
-      navigator.sendBeacon(
-        `${S.config.apiHost}/api/v1/funnels/batch`,
-        new Blob([payload], { type: 'application/json' })
-      );
-      funnel.buffer = [];
-    };
-
-    w.addEventListener('beforeunload', () => {
-      funnel.currentFunnels.forEach((progress, funnelId) => {
-        if (progress.currentStep < funnel.activeFunnels.find(f => f.id === funnelId)?.steps.length - 1) {
-          trackFunnelEvent(funnelId, {
-            event_type: 'dropoff',
-            current_step: progress.currentStep,
-            completed_steps: progress.completedSteps
-          });
+    w.addEventListener('beforeunload', function() {
+      funnel.currentFunnels.forEach(function(progress, fid) {
+        var def = funnel.activeFunnels.find(function(f) { return f.id === fid; });
+        if (def && progress.currentStep < (def.steps || []).length - 1) {
+          trackFunnelEvent(fid, { event_type: 'dropoff', current_step: progress.currentStep, completed_steps: progress.completedSteps });
         }
       });
-      flushFunnelBuffer();
+      flushBeacon();
     });
-
-    d.addEventListener('visibilitychange', () => {
-      if (d.visibilityState === 'hidden') flushFunnelBuffer();
-    });
+    d.addEventListener('visibilitychange', function() { if (d.visibilityState === 'hidden') flushBeacon(); });
   };
 
-  // Initialize
-  const init = async () => {
-    // Prevent double init
+  var init = function() {
     if (funnel.initialized) return;
     funnel.initialized = true;
-
-    await loadFunnels();
-    setupFunnelListeners();
+    loadFunnels().then(setupListeners);
   };
 
-  // Listen for core ready or init if already ready
-  if (S.isReady && S.isReady()) {
-    init();
-  } else {
-    S.on('core:ready', init);
-  }
+  if (S.isReady && S.isReady()) init();
+  else S.on('core:ready', init);
 
-  // Public API
   w.seentics = w.seentics || {};
   w.seentics.funnel = {
-    getProgress: (funnelId) => funnel.currentFunnels.get(funnelId),
-    getAllProgress: () => Object.fromEntries(funnel.currentFunnels),
-    reset: (funnelId) => {
-      if (funnelId) {
-        funnel.currentFunnels.delete(funnelId);
-      } else {
-        funnel.currentFunnels.clear();
-      }
+    getProgress: function(id) { return funnel.currentFunnels.get(id); },
+    getAllProgress: function() { return Object.fromEntries(funnel.currentFunnels); },
+    reset: function(id) {
+      if (id) funnel.currentFunnels.delete(id); else funnel.currentFunnels.clear();
       saveFunnelProgress();
     }
   };
-
 })(window, document);
