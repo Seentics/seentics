@@ -71,7 +71,7 @@ func (r *ClickHouseAnalyticsRepository) buildFilterClause(filters models.Analyti
 }
 
 // GetDashboardMetrics returns the main dashboard metrics for a website from ClickHouse
-func (r *ClickHouseAnalyticsRepository) GetDashboardMetrics(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters) (*models.DashboardMetrics, error) {
+func (r *ClickHouseAnalyticsRepository) GetDashboardMetrics(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters) (*models.DashboardMetrics, error) {
 	filterClause, filterParams := r.buildFilterClause(filters)
 
 	query := fmt.Sprintf(`
@@ -125,7 +125,7 @@ func (r *ClickHouseAnalyticsRepository) GetDashboardMetrics(ctx context.Context,
 }
 
 // GetComparisonMetrics returns comparison metrics from ClickHouse
-func (r *ClickHouseAnalyticsRepository) GetComparisonMetrics(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters) (*models.ComparisonMetrics, error) {
+func (r *ClickHouseAnalyticsRepository) GetComparisonMetrics(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters) (*models.ComparisonMetrics, error) {
 	filterClause, filterParams := r.buildFilterClause(filters)
 
 	query := fmt.Sprintf(`
@@ -327,7 +327,7 @@ func (r *ClickHouseAnalyticsRepository) GetUTMAnalytics(ctx context.Context, web
 }
 
 // GetTopPages returns top pages from ClickHouse
-func (r *ClickHouseAnalyticsRepository) GetTopPages(ctx context.Context, websiteID string, days int, limit int) ([]models.PageStat, error) {
+func (r *ClickHouseAnalyticsRepository) GetTopPages(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.PageStat, error) {
 	query := `
 		SELECT 
 			page,
@@ -365,8 +365,8 @@ func (r *ClickHouseAnalyticsRepository) GetTopPages(ctx context.Context, website
 	return pages, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopPagesWithTimeBucket(ctx context.Context, websiteID string, days int, limit int) ([]models.PageStat, error) {
-	return r.GetTopPages(ctx, websiteID, days, limit)
+func (r *ClickHouseAnalyticsRepository) GetTopPagesWithTimeBucket(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.PageStat, error) {
+	return r.GetTopPages(ctx, websiteID, days, timezone, limit)
 }
 
 func (r *ClickHouseAnalyticsRepository) GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int) (map[string]interface{}, error) {
@@ -402,7 +402,7 @@ func (r *ClickHouseAnalyticsRepository) GetPageUTMBreakdown(ctx context.Context,
 	return map[string]interface{}{"sources": sources}, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopReferrers(ctx context.Context, websiteID string, days int, limit int) ([]models.ReferrerStat, error) {
+func (r *ClickHouseAnalyticsRepository) GetTopReferrers(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.ReferrerStat, error) {
 	query := `
 		SELECT 
 			COALESCE(referrer, 'direct') as referrer,
@@ -436,7 +436,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopReferrers(ctx context.Context, web
 	return referrers, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopSources(ctx context.Context, websiteID string, days int, limit int) ([]models.SourceStat, error) {
+func (r *ClickHouseAnalyticsRepository) GetTopSources(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.SourceStat, error) {
 	query := `
 		SELECT 
 			COALESCE(utm_source, 'direct') as source,
@@ -470,7 +470,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopSources(ctx context.Context, websi
 	return sources, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopCountries(ctx context.Context, websiteID string, days int, limit int) ([]models.CountryStat, error) {
+func (r *ClickHouseAnalyticsRepository) GetTopCountries(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.CountryStat, error) {
 	query := `
 		SELECT 
 			COALESCE(country, 'Unknown') as country,
@@ -504,7 +504,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopCountries(ctx context.Context, web
 	return stats, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopBrowsers(ctx context.Context, websiteID string, days int, limit int) ([]models.BrowserStat, error) {
+func (r *ClickHouseAnalyticsRepository) GetTopBrowsers(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.BrowserStat, error) {
 	query := `
 		SELECT 
 			COALESCE(browser, 'Unknown') as browser,
@@ -538,7 +538,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopBrowsers(ctx context.Context, webs
 	return stats, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopDevices(ctx context.Context, websiteID string, days int, limit int) ([]models.DeviceStat, error) {
+func (r *ClickHouseAnalyticsRepository) GetTopDevices(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.DeviceStat, error) {
 	query := `
 		SELECT 
 			COALESCE(device, 'Unknown') as device,
@@ -572,7 +572,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopDevices(ctx context.Context, websi
 	return stats, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopOS(ctx context.Context, websiteID string, days int, limit int) ([]models.OSStat, error) {
+func (r *ClickHouseAnalyticsRepository) GetTopOS(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.OSStat, error) {
 	query := `
 		SELECT 
 			COALESCE(os, 'Unknown') as os,
@@ -606,7 +606,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopOS(ctx context.Context, websiteID 
 	return stats, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTrafficSummary(ctx context.Context, websiteID string, days int) (*models.TrafficSummary, error) {
+func (r *ClickHouseAnalyticsRepository) GetTrafficSummary(ctx context.Context, websiteID string, days int, timezone string) (*models.TrafficSummary, error) {
 	// Direct implementation in ClickHouse
 	query := `
 		SELECT 
@@ -871,7 +871,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopCountriesByRange(ctx context.Conte
 	return items, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetVisitorInsights(ctx context.Context, websiteID string, days int) (*models.VisitorInsights, error) {
+func (r *ClickHouseAnalyticsRepository) GetVisitorInsights(ctx context.Context, websiteID string, days int, timezone string) (*models.VisitorInsights, error) {
 	insights := &models.VisitorInsights{
 		WebsiteID: websiteID,
 		DateRange: days,
@@ -984,7 +984,7 @@ func (r *ClickHouseAnalyticsRepository) GetVisitorInsights(ctx context.Context, 
 	return insights, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetActivityTrends(ctx context.Context, websiteID string) (*models.ActivityTrendsResponse, error) {
+func (r *ClickHouseAnalyticsRepository) GetActivityTrends(ctx context.Context, websiteID string, timezone string) (*models.ActivityTrendsResponse, error) {
 	query := `
 		SELECT 
 			toStartOfHour(timestamp) as time_bucket,

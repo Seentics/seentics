@@ -374,9 +374,8 @@ export default function WebsiteDashboardPage() {
     transformedCustomEvents.unique_events = transformedCustomEvents.top_events.length;
   }
 
-  // Define manual goals if no goals are returned from API
-  const finalGoalStats = (goalStats?.goals || []).length > 0 ? goalStats.goals : (transformedCustomEvents.top_events as any[])
-    .filter(e => !['pageview', 'page_view', 'page_visible', 'page_hidden', 'exit_intent'].includes(e.event_type));
+  // Only show user-defined goals, no fallback to auto-tracked events
+  const finalGoalStats = goalStats?.goals || [];
 
 
   const handleModalOpen = (type: string) => {

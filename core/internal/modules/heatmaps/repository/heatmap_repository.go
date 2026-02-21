@@ -70,9 +70,11 @@ func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string
 	}
 
 	query := `
-		SELECT x_percent, y_percent, intensity, target_selector 
-		FROM heatmap_points 
-		WHERE website_id::text = $1 AND page_path = $2 AND event_type = $3 AND device_type = $4 AND last_updated BETWEEN $5 AND $6
+		SELECT x_percent, y_percent, intensity, target_selector
+		FROM heatmap_points
+		WHERE website_id = $1 AND page_path = $2 AND event_type = $3 AND device_type = $4 AND last_updated BETWEEN $5 AND $6
+		ORDER BY intensity DESC
+		LIMIT 5000
 	`
 	rows, err := r.db.Query(ctx, query, websiteID, url, heatmapType, deviceType, from, to)
 	if err != nil {
@@ -105,7 +107,7 @@ func (r *heatmapRepository) GetHeatmapPages(ctx context.Context, websiteID strin
 			SUM(CASE WHEN event_type = 'click' THEN intensity ELSE 0 END) AS total_clicks,
 			SUM(CASE WHEN event_type = 'pageview' THEN intensity ELSE 0 END) AS total_views
 		FROM heatmap_points
-		WHERE website_id::text = $1
+		WHERE website_id = $1
 		GROUP BY page_path
 		ORDER BY total_clicks DESC
 	`
@@ -129,21 +131,21 @@ func (r *heatmapRepository) GetHeatmapPages(ctx context.Context, websiteID strin
 }
 
 func (r *heatmapRepository) CountHeatmapPages(ctx context.Context, websiteID string) (int, error) {
-	query := `SELECT COUNT(DISTINCT page_path) FROM heatmap_points WHERE website_id::text = $1`
+	query := `SELECT COUNT(DISTINCT page_path) FROM heatmap_points WHERE website_id = $1`
 	var count int
 	err := r.db.QueryRow(ctx, query, websiteID).Scan(&count)
 	return count, err
 }
 
 func (r *heatmapRepository) HeatmapExistsForURL(ctx context.Context, websiteID string, url string) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM heatmap_points WHERE website_id::text = $1 AND page_path = $2 LIMIT 1)`
+	query := `SELECT EXISTS(SELECT 1 FROM heatmap_points WHERE website_id = $1 AND page_path = $2 LIMIT 1)`
 	var exists bool
 	err := r.db.QueryRow(ctx, query, websiteID, url).Scan(&exists)
 	return exists, err
 }
 
 func (r *heatmapRepository) GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error) {
-	query := `SELECT DISTINCT page_path FROM heatmap_points WHERE website_id::text = $1`
+	query := `SELECT DISTINCT page_path FROM heatmap_points WHERE website_id = $1`
 	rows, err := r.db.Query(ctx, query, websiteID)
 	if err != nil {
 		return nil, err
@@ -163,7 +165,7 @@ func (r *heatmapRepository) GetTrackedURLs(ctx context.Context, websiteID string
 }
 
 func (r *heatmapRepository) DeleteHeatmapPage(ctx context.Context, websiteID string, url string) error {
-	query := `DELETE FROM heatmap_points WHERE website_id::text = $1 AND page_path = $2`
+	query := `DELETE FROM heatmap_points WHERE website_id = $1 AND page_path = $2`
 	_, err := r.db.Exec(ctx, query, websiteID, url)
 	return err
 }
@@ -172,7 +174,7 @@ func (r *heatmapRepository) BulkDeleteHeatmapPages(ctx context.Context, websiteI
 	if len(urls) == 0 {
 		return nil
 	}
-	query := `DELETE FROM heatmap_points WHERE website_id::text = $1 AND page_path = ANY($2)`
+	query := `DELETE FROM heatmap_points WHERE website_id = $1 AND page_path = ANY($2)`
 	_, err := r.db.Exec(ctx, query, websiteID, urls)
 	return err
 }

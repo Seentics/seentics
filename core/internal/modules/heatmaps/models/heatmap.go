@@ -10,8 +10,8 @@ type HeatmapPoint struct {
 	URL        string    `json:"url" db:"page_path"`           // Frontend uses "url", DB uses "page_path"
 	Type       string    `json:"type" db:"event_type"`         // Frontend uses "type", DB uses "event_type"
 	DeviceType string    `json:"device_type" db:"device_type"` // 'desktop', 'tablet', 'mobile'
-	XPercent   float64   `json:"x_percent" db:"x_percent"`     // X coordinate (0-1000 range)
-	YPercent   float64   `json:"y_percent" db:"y_percent"`     // Y coordinate (0-1000 range)
+	XPercent   float64   `json:"x_percent" db:"x_percent"`     // X coordinate (0-1000 normalized range)
+	YPercent   float64   `json:"y_percent" db:"y_percent"`     // Y coordinate (absolute pixels from page top)
 	Selector   string    `json:"selector" db:"target_selector"`
 	X          float64   `json:"x" db:"x"` // Alias for frontend compatibility
 	Y          float64   `json:"y" db:"y"` // Alias for frontend compatibility

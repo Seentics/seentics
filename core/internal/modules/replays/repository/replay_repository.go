@@ -12,7 +12,7 @@ import (
 type ReplayRepository interface {
 	SaveChunk(ctx context.Context, websiteID, sessionID string, data json.RawMessage, sequence int, meta *models.SessionMeta) error
 	GetChunks(ctx context.Context, websiteID, sessionID string) ([]models.SessionReplayChunk, error)
-	ListSessionsWithMetadata(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error)
+	ListSessionsWithMetadata(ctx context.Context, websiteID string, limit, offset int) ([]models.ReplaySessionMetadata, error)
 	DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) ([]string, error)
 	BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string) ([]string, error)
 	GetPageSnapshot(ctx context.Context, websiteID, siteID, url string) (json.RawMessage, error)
@@ -76,7 +76,10 @@ func (r *replayRepository) GetChunks(ctx context.Context, websiteID, sessionID s
 	return chunks, nil
 }
 
-func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error) {
+func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, websiteID string, limit, offset int) ([]models.ReplaySessionMetadata, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
 	// Metadata (browser/device/OS/country/entry_page) is stored on the sequence=0 row.
 	// Self-join avoids querying the analytics events table which lives in ClickHouse.
 	query := `
@@ -99,8 +102,9 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 		WHERE r.website_id = $1
 		GROUP BY r.session_id, m.browser, m.device, m.os, m.country, m.entry_page
 		ORDER BY start_time DESC
+		LIMIT $2 OFFSET $3
 	`
-	rows, err := r.db.Query(ctx, query, websiteID)
+	rows, err := r.db.Query(ctx, query, websiteID, limit, offset)
 	if err != nil {
 		return nil, err
 	}

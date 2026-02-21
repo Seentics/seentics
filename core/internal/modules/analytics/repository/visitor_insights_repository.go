@@ -16,18 +16,17 @@ func NewVisitorInsightsAnalytics(db *pgxpool.Pool) *VisitorInsightsAnalytics {
 	return &VisitorInsightsAnalytics{db: db}
 }
 
-func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websiteID string, days int) (*models.VisitorInsights, error) {
-	// Lookback period start date
-	startDate := time.Now().AddDate(0, 0, -days)
+func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websiteID string, days int, timezone string) (*models.VisitorInsights, error) {
+	timezone = validateTimezone(timezone)
 
-	// Query to calculate New vs Returning visitors
-	// - New Visitor: First seen in the selected range
-	// - Returning Visitor: Seen before the start of the selected range AND seen in range
-
-	// Note: This logic might need adjustment based on how `first_seen` is stored.
-	// Assuming raw events doesn't store visitor profile, so we deduce from history.
-	// For optimization, a `visitors` table tracking `first_seen` would be better.
-	// Here we use a query that acts on the events table directly.
+	// Compute the timezone-aware start date in Go so we can use it as a parameter
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		loc = time.UTC
+	}
+	now := time.Now().In(loc)
+	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+	startDate := startOfToday.AddDate(0, 0, -(days - 1)).UTC()
 
 	query := `
 		WITH period_visitors AS (
@@ -36,12 +35,12 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 			WHERE website_id = $1 AND timestamp >= $2
 		),
 		visitor_history AS (
-			SELECT 
+			SELECT
 				pv.visitor_id,
 				EXISTS (
-					SELECT 1 FROM events e2 
-					WHERE e2.website_id = $1 
-					AND e2.visitor_id = pv.visitor_id 
+					SELECT 1 FROM events e2
+					WHERE e2.website_id = $1
+					AND e2.visitor_id = pv.visitor_id
 					AND e2.timestamp < $2
 					LIMIT 1
 				) as is_returning
@@ -54,14 +53,14 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 			FROM visitor_history
 		),
 		session_stats AS (
-			SELECT 
+			SELECT
 				AVG(session_duration) as avg_duration
 			FROM (
-				SELECT 
+				SELECT
 					session_id,
-					CASE 
-						WHEN COUNT(*) > 1 THEN 
-							LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 14400)
+					CASE
+						WHEN COUNT(*) > 1 THEN
+							LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 1800)
 						ELSE 30
 					END as session_duration
 				FROM events
@@ -69,7 +68,7 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 				GROUP BY session_id
 			) s
 		)
-		SELECT 
+		SELECT
 			COALESCE(new_visitors, 0),
 			COALESCE(returning_visitors, 0),
 			COALESCE(avg_duration, 0)
@@ -80,15 +79,13 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 	insights.WebsiteID = websiteID
 	insights.DateRange = days
 
-	err := r.db.QueryRow(ctx, query, websiteID, startDate).Scan(
+	err = r.db.QueryRow(ctx, query, websiteID, startDate).Scan(
 		&insights.NewVisitors,
 		&insights.ReturningVisitors,
 		&insights.AverageSessionDuration,
 	)
 
 	if err != nil {
-		// Log error but generally return zeroed struct if query fails
-		// (e.g., table doesn't exist or logic error)
 		return &models.VisitorInsights{WebsiteID: websiteID, DateRange: days}, nil
 	}
 
@@ -101,7 +98,7 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 	// Fetch Top Entry Pages
 	entryQuery := `
 		WITH session_pages AS (
-			SELECT 
+			SELECT
 				session_id,
 				page,
 				ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp ASC) as visit_order,
@@ -109,11 +106,11 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 			FROM events
 			WHERE website_id = $1 AND timestamp >= $2 AND event_type = 'pageview'
 		)
-		SELECT 
+		SELECT
 			page,
 			COUNT(*) as sessions,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE total_pages = 1) * 100.0) / NULLIF(COUNT(*), 0), 
+				(COUNT(*) FILTER (WHERE total_pages = 1) * 100.0) / NULLIF(COUNT(*), 0),
 				0
 			) as bounce_rate
 		FROM session_pages
@@ -136,7 +133,7 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 	// Fetch Top Exit Pages
 	exitQuery := `
 		WITH session_stats AS (
-			SELECT 
+			SELECT
 				session_id,
 				page,
 				ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY timestamp DESC) as visit_order_desc
@@ -155,7 +152,7 @@ func (r *VisitorInsightsAnalytics) GetVisitorInsights(ctx context.Context, websi
 			WHERE website_id = $1 AND timestamp >= $2 AND event_type = 'pageview'
 			GROUP BY page
 		)
-		SELECT 
+		SELECT
 			ec.page,
 			ec.exit_sessions,
 			(ec.exit_sessions * 100.0 / NULLIF(tsp.total_sessions, 0)) as exit_rate

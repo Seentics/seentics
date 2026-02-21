@@ -53,8 +53,10 @@ export default function HeatmapOverlay({
 
     // Draw density map as grayscale alpha
     points.forEach(point => {
+      // X is normalized 0-1000 (percentage of body width) — scale to canvas width
       const x = totalWidth ? (point.x / 1000) * totalWidth : (point.x / 1000) * width;
-      const y = totalHeight ? (point.y / 1000) * totalHeight : (point.y / 1000) * height;
+      // Y is absolute pixels from the tracker (e.pageY) — use directly as-is
+      const y = point.y;
 
       if (isNaN(x) || isNaN(y)) return;
 

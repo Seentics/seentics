@@ -4,6 +4,8 @@ import (
 	"analytics-app/internal/modules/replays/models"
 	"analytics-app/internal/modules/replays/services"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -57,7 +59,8 @@ func (h *ReplayHandler) RecordReplay(c *gin.Context) {
 		h.logger.Error().Err(err).Str("website_id", req.WebsiteID).Str("origin", origin).Msg("Failed to record replay chunk")
 
 		status := http.StatusInternalServerError
-		if err.Error() == "domain mismatch" || err.Error() == "invalid website_id" || err.Error() == "website is inactive" {
+		errMsg := err.Error()
+		if strings.HasPrefix(errMsg, "domain mismatch") || strings.HasPrefix(errMsg, "invalid website_id") || strings.HasPrefix(errMsg, "website is inactive") {
 			status = http.StatusForbidden
 		}
 
@@ -89,7 +92,7 @@ func (h *ReplayHandler) GetReplay(c *gin.Context) {
 		Str("session_id", sessionID).
 		Msg("Fetching session replay")
 
-	chunks, err := h.service.GetReplay(c.Request.Context(), websiteID, sessionID)
+	chunks, err := h.service.GetReplay(c.Request.Context(), websiteID, sessionID, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to fetch session replay")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch session replay"})
@@ -114,9 +117,12 @@ func (h *ReplayHandler) ListSessions(c *gin.Context) {
 		return
 	}
 
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
 	h.logger.Debug().Str("website_id", websiteID).Msg("Listing recorded sessions")
 
-	sessions, err := h.service.ListSessions(c.Request.Context(), websiteID)
+	sessions, err := h.service.ListSessions(c.Request.Context(), websiteID, userID, limit, offset)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to list recorded sessions")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list sessions"})
@@ -147,7 +153,7 @@ func (h *ReplayHandler) DeleteReplay(c *gin.Context) {
 		Str("session_id", sessionID).
 		Msg("Deleting session replay")
 
-	if err := h.service.DeleteReplay(c.Request.Context(), websiteID, sessionID); err != nil {
+	if err := h.service.DeleteReplay(c.Request.Context(), websiteID, sessionID, userID); err != nil {
 		h.logger.Error().Err(err).Msg("Failed to delete session replay")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete session replay"})
 		return

@@ -31,6 +31,14 @@ func (h *AnalyticsHandler) getUserID(c *gin.Context) string {
 	return userID.(string)
 }
 
+func (h *AnalyticsHandler) parseTimezone(c *gin.Context) string {
+	tz := c.DefaultQuery("timezone", "UTC")
+	if tz == "" {
+		return "UTC"
+	}
+	return tz
+}
+
 func (h *AnalyticsHandler) handleError(c *gin.Context, err error, msg string) {
 	h.logger.Error().Err(err).Msg(msg)
 
@@ -65,9 +73,10 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 		}
 	}
 
+	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
 
-	data, err := h.service.GetDashboard(c.Request.Context(), websiteID, days, filters, userID)
+	data, err := h.service.GetDashboard(c.Request.Context(), websiteID, days, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get dashboard data")
 		return
@@ -103,7 +112,9 @@ func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
 		}
 	}
 
-	pages, err := h.service.GetTopPages(c.Request.Context(), websiteID, days, limit, userID)
+	timezone := h.parseTimezone(c)
+
+	pages, err := h.service.GetTopPages(c.Request.Context(), websiteID, days, limit, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top pages")
 		return
@@ -179,7 +190,9 @@ func (h *AnalyticsHandler) GetTopReferrers(c *gin.Context) {
 		}
 	}
 
-	referrers, err := h.service.GetTopReferrers(c.Request.Context(), websiteID, days, limit, userID)
+	timezone := h.parseTimezone(c)
+
+	referrers, err := h.service.GetTopReferrers(c.Request.Context(), websiteID, days, limit, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top referrers")
 		return
@@ -219,7 +232,9 @@ func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
 		}
 	}
 
-	sources, err := h.service.GetTopSources(c.Request.Context(), websiteID, days, limit, userID)
+	timezone := h.parseTimezone(c)
+
+	sources, err := h.service.GetTopSources(c.Request.Context(), websiteID, days, limit, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top sources")
 		return
@@ -259,7 +274,9 @@ func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
 		}
 	}
 
-	countries, err := h.service.GetTopCountries(c.Request.Context(), websiteID, days, limit, userID)
+	timezone := h.parseTimezone(c)
+
+	countries, err := h.service.GetTopCountries(c.Request.Context(), websiteID, days, limit, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top countries")
 		return
@@ -339,7 +356,9 @@ func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
 		}
 	}
 
-	browsers, err := h.service.GetTopBrowsers(c.Request.Context(), websiteID, days, limit, userID)
+	timezone := h.parseTimezone(c)
+
+	browsers, err := h.service.GetTopBrowsers(c.Request.Context(), websiteID, days, limit, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top browsers")
 		return
@@ -379,7 +398,9 @@ func (h *AnalyticsHandler) GetTopDevices(c *gin.Context) {
 		}
 	}
 
-	devices, err := h.service.GetTopDevices(c.Request.Context(), websiteID, days, limit, userID)
+	timezone := h.parseTimezone(c)
+
+	devices, err := h.service.GetTopDevices(c.Request.Context(), websiteID, days, limit, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top devices")
 		return
@@ -419,7 +440,9 @@ func (h *AnalyticsHandler) GetTopOS(c *gin.Context) {
 		}
 	}
 
-	osList, err := h.service.GetTopOS(c.Request.Context(), websiteID, days, limit, userID)
+	timezone := h.parseTimezone(c)
+
+	osList, err := h.service.GetTopOS(c.Request.Context(), websiteID, days, limit, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top OS")
 		return
@@ -452,7 +475,9 @@ func (h *AnalyticsHandler) GetTrafficSummary(c *gin.Context) {
 		}
 	}
 
-	summary, err := h.service.GetTrafficSummary(c.Request.Context(), websiteID, days, userID)
+	timezone := h.parseTimezone(c)
+
+	summary, err := h.service.GetTrafficSummary(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get traffic summary")
 		return
@@ -481,8 +506,7 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 		}
 	}
 
-	// Get timezone from query parameter, default to UTC
-	timezone := c.DefaultQuery("timezone", "UTC")
+	timezone := h.parseTimezone(c)
 
 	stats, err := h.service.GetDailyStats(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
@@ -511,14 +535,7 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 		return
 	}
 
-	// Get timezone from query parameter, default to UTC
-	timezone := c.Query("timezone")
-	if timezone == "" {
-		timezone = "UTC"
-	}
-
-	// Debug logging
-	fmt.Printf("DEBUG Handler: timezone=%s\n", timezone)
+	timezone := h.parseTimezone(c)
 
 	// Always fetch last 24 hours for hourly stats
 	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, 1, timezone, userID)
@@ -678,7 +695,9 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 		}
 	}
 
-	breakdown, err := h.service.GetGeolocationBreakdown(c.Request.Context(), websiteID, days, userID)
+	timezone := h.parseTimezone(c)
+
+	breakdown, err := h.service.GetGeolocationBreakdown(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get geolocation breakdown")
 		return
@@ -738,7 +757,9 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 		}
 	}
 
-	insights, err := h.service.GetVisitorInsights(c.Request.Context(), websiteID, days, userID)
+	timezone := h.parseTimezone(c)
+
+	insights, err := h.service.GetVisitorInsights(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get visitor insights")
 		return
@@ -863,7 +884,9 @@ func (h *AnalyticsHandler) GetActivityTrends(c *gin.Context) {
 		return
 	}
 
-	data, err := h.service.GetActivityTrends(c.Request.Context(), websiteID, userID)
+	timezone := h.parseTimezone(c)
+
+	data, err := h.service.GetActivityTrends(c.Request.Context(), websiteID, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get activity trends")
 		return

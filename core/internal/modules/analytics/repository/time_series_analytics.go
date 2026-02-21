@@ -19,18 +19,16 @@ func NewTimeSeriesAnalytics(db *pgxpool.Pool) *TimeSeriesAnalytics {
 
 // GetDailyStats returns daily statistics for a website
 func (ts *TimeSeriesAnalytics) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.DailyStat, error) {
-	if timezone == "" {
-		timezone = "UTC"
-	}
+	timezone = validateTimezone(timezone)
 
 	query := `
-		SELECT 
+		SELECT
 			DATE(timestamp AT TIME ZONE $3)::text as date,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = $1 
-		AND timestamp >= NOW() - INTERVAL '1 day' * $2
+		WHERE website_id = $1
+		AND timestamp >= ` + tzStartSQL + `
 		AND event_type = 'pageview'
 		GROUP BY date
 		ORDER BY date DESC
@@ -54,7 +52,6 @@ func (ts *TimeSeriesAnalytics) GetDailyStats(ctx context.Context, websiteID stri
 		stats = append(stats, stat)
 	}
 
-	// Check for any iteration errors
 	if err = rows.Err(); err != nil {
 		return nil, fmt.Errorf("rows iteration failed: %w", err)
 	}
@@ -64,19 +61,17 @@ func (ts *TimeSeriesAnalytics) GetDailyStats(ctx context.Context, websiteID stri
 
 // GetHourlyStats returns hourly statistics for a website
 func (ts *TimeSeriesAnalytics) GetHourlyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.HourlyStat, error) {
-	if timezone == "" {
-		timezone = "UTC"
-	}
+	timezone = validateTimezone(timezone)
 
 	query := `
-		SELECT 
+		SELECT
 			EXTRACT(HOUR FROM timestamp AT TIME ZONE $3)::integer as hour,
 			DATE_TRUNC('hour', timestamp AT TIME ZONE $3) as local_timestamp,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = $1 
-		AND timestamp >= NOW() - INTERVAL '1 day' * $2
+		WHERE website_id = $1
+		AND timestamp >= ` + tzStartSQL + `
 		AND event_type = 'pageview'
 		GROUP BY local_timestamp, hour
 		ORDER BY local_timestamp ASC
@@ -87,12 +82,6 @@ func (ts *TimeSeriesAnalytics) GetHourlyStats(ctx context.Context, websiteID str
 		return nil, err
 	}
 	defer rows.Close()
-
-	// Load timezone - we keep it for validation but use SQL for conversion
-	_, err = time.LoadLocation(timezone)
-	if err != nil {
-		timezone = "UTC"
-	}
 
 	var stats []models.HourlyStat
 	for rows.Next() {
@@ -106,7 +95,6 @@ func (ts *TimeSeriesAnalytics) GetHourlyStats(ctx context.Context, websiteID str
 
 		stat.Timestamp = timestamp
 		stat.Unique = uniqueVisitors
-		// stat.Hour is already set by rows.Scan since it's a string in the model
 		stat.HourLabel = timestamp.Format("15:04")
 		stats = append(stats, stat)
 	}

@@ -4,6 +4,19 @@ import api from './api'; // Your existing axios instance
 import { getDemoData } from './demo-data';
 
 // =============================================================================
+// TIMEZONE UTILITY
+// =============================================================================
+
+/** Returns the user's IANA timezone (e.g. "Asia/Dhaka", "America/New_York") */
+const getUserTimezone = (): string => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return 'UTC';
+  }
+};
+
+// =============================================================================
 // TYPES & INTERFACES
 // =============================================================================
 
@@ -393,11 +406,11 @@ export const useDashboardData = (websiteId: string, days: number = 7, filters: A
         return demo.dashboardData;
       }
       
-      const params = new URLSearchParams({ days: days.toString() });
+      const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value);
       });
-      
+
       const response = await api.get(`/analytics/dashboard/${websiteId}?${params.toString()}`);
       return response.data;
     },
@@ -428,7 +441,7 @@ export const getTopPages = async (websiteId: string, days: number = 7): Promise<
   if (websiteId === 'demo') {
     return getDemoData().topPages as any;
   }
-  const response = await api.get(`/analytics/top-pages/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/top-pages/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 
@@ -437,7 +450,7 @@ export const getTopReferrers = async (websiteId: string, days: number = 7): Prom
   if (websiteId === 'demo') {
     return getDemoData().topReferrers as any;
   }
-  const response = await api.get(`/analytics/top-referrers/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/top-referrers/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 
@@ -446,7 +459,7 @@ export const getTopCountries = async (websiteId: string, days: number = 7): Prom
   if (websiteId === 'demo') {
     return getDemoData().topCountries as any;
   }
-  const response = await api.get(`/analytics/top-countries/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/top-countries/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 
@@ -455,7 +468,7 @@ export const getTopBrowsers = async (websiteId: string, days: number = 7): Promi
   if (websiteId === 'demo') {
     return getDemoData().topBrowsers as any;
   }
-  const response = await api.get(`/analytics/top-browsers/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/top-browsers/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 
@@ -464,7 +477,7 @@ export const getTopDevices = async (websiteId: string, days: number = 7): Promis
   if (websiteId === 'demo') {
     return getDemoData().topDevices as any;
   }
-  const response = await api.get(`/analytics/top-devices/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/top-devices/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 
@@ -473,7 +486,7 @@ export const getTopOS = async (websiteId: string, days: number = 7): Promise<Get
   if (websiteId === 'demo') {
     return getDemoData().topOS as any;
   }
-  const response = await api.get(`/analytics/top-os/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/top-os/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 
@@ -488,7 +501,7 @@ export const getTopResolutions = async (websiteId: string, days: number = 7, lim
         { name: '414x896', count: 1500, percentage: 15.0 }
     ]};
   }
-  const response = await api.get(`/analytics/top-resolutions/${websiteId}?days=${days}&limit=${limit}`);
+  const response = await api.get(`/analytics/top-resolutions/${websiteId}?days=${days}&limit=${limit}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 
@@ -537,7 +550,7 @@ export const getTrafficSummary = async (websiteId: string, days: number = 7): Pr
       }
     };
   }
-  const response = await api.get(`/analytics/traffic-summary/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/traffic-summary/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   const data = response.data;
 
   // Backend returns { website_id, date_range, summary }
@@ -561,7 +574,7 @@ export const getHourlyStats = async (websiteId: string, days: number = 7): Promi
   if (websiteId === 'demo') {
     return getDemoData().hourlyStats as any;
   }
-  const response = await api.get(`/analytics/hourly-stats/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/hourly-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
 
   // Convert UTC timestamps to local time
   if (response.data.hourly_stats) {
@@ -584,7 +597,7 @@ export const getHourlyStats = async (websiteId: string, days: number = 7): Promi
 
 // Activity Trends
 export const getActivityTrends = async (websiteId: string): Promise<GetActivityTrendsResponse> => {
-  const response = await api.get(`/analytics/activity-trends/${websiteId}`);
+  const response = await api.get(`/analytics/activity-trends/${websiteId}?timezone=${getUserTimezone()}`);
   return response.data;
 };
 
@@ -593,7 +606,7 @@ export const getDailyStats = async (websiteId: string, days: number = 30): Promi
   if (websiteId === 'demo') {
     return getDemoData().dailyStats as any;
   }
-  const response = await api.get(`/analytics/daily-stats/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/daily-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 
@@ -603,7 +616,7 @@ export const getCustomEventsStats = async (websiteId: string, days: number = 7):
     return getDemoData().customEvents as any;
   }
   // Call backend via gateway to get custom events + UTM performance
-  const response = await api.get(`/analytics/custom-events/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/custom-events/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 }
 
@@ -618,7 +631,7 @@ export const getUserRetention = async (websiteId: string, days: number = 7): Pro
   if (websiteId === 'demo') {
     return getDemoData().retentionData as any;
   }
-  const response = await api.get(`/analytics/user-retention/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/user-retention/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   const data = response.data;
 
   // Backend returns { website_id, date_range, retention }
@@ -639,7 +652,7 @@ export const getVisitorInsights = async (websiteId: string, days: number = 7): P
   if (websiteId === 'demo') {
     return getDemoData().visitorInsights as any;
   }
-  const response = await api.get(`/analytics/visitor-insights/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/visitor-insights/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 
@@ -816,7 +829,7 @@ export const useGoalStats = (websiteId: string, days: number = 30) => {
         const demo = getDemoData();
         return { goals: demo.customEvents?.top_events || [] };
       }
-      const response = await api.get(`/analytics/goals-stats/${websiteId}?days=${days}`);
+      const response = await api.get(`/analytics/goals-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
       return response.data;
     },
     enabled: !!websiteId,
@@ -1385,7 +1398,7 @@ export interface GeolocationData {
 
 // API Functions
 export const getGeolocationBreakdown = async (websiteId: string, days: number = 7): Promise<GeolocationData> => {
-  const response = await api.get(`/analytics/geolocation-breakdown/${websiteId}?days=${days}`);
+  const response = await api.get(`/analytics/geolocation-breakdown/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 

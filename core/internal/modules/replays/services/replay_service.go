@@ -20,9 +20,9 @@ import (
 
 type ReplayService interface {
 	RecordReplay(ctx context.Context, req models.RecordReplayRequest, origin, userAgent string) error
-	GetReplay(ctx context.Context, websiteID, sessionID string) ([]models.SessionReplayChunk, error)
-	ListSessions(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error)
-	DeleteReplay(ctx context.Context, websiteID, sessionID string) error
+	GetReplay(ctx context.Context, websiteID, sessionID, userID string) ([]models.SessionReplayChunk, error)
+	ListSessions(ctx context.Context, websiteID, userID string, limit, offset int) ([]models.ReplaySessionMetadata, error)
+	DeleteReplay(ctx context.Context, websiteID, sessionID, userID string) error
 	BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string, userID string) error
 	GetPageSnapshot(ctx context.Context, websiteID, url string) (json.RawMessage, error)
 }
@@ -66,6 +66,23 @@ func parseUA(uaStr string) (browser, device, os string) {
 	}
 
 	return
+}
+
+// validateOwnership resolves the website and checks that userID is the owner.
+// Returns the canonical SiteID on success.
+func (s *replayService) validateOwnership(ctx context.Context, websiteID, userID string) (string, error) {
+	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
+	if err != nil {
+		return "", fmt.Errorf("website not found")
+	}
+	parsedUserID, err := uuid.Parse(userID)
+	if err != nil {
+		return "", fmt.Errorf("unauthorized")
+	}
+	if website.UserID != parsedUserID {
+		return "", fmt.Errorf("unauthorized")
+	}
+	return website.SiteID, nil
 }
 
 func (s *replayService) RecordReplay(ctx context.Context, req models.RecordReplayRequest, origin, userAgent string) error {
@@ -124,11 +141,12 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 	return s.repo.SaveChunk(ctx, req.WebsiteID, req.SessionID, json.RawMessage("[]"), req.Sequence, meta)
 }
 
-func (s *replayService) GetReplay(ctx context.Context, websiteID string, sessionID string) ([]models.SessionReplayChunk, error) {
-	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
-	if err == nil {
-		websiteID = website.SiteID
+func (s *replayService) GetReplay(ctx context.Context, websiteID string, sessionID string, userID string) ([]models.SessionReplayChunk, error) {
+	siteID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
 	}
+	websiteID = siteID
 
 	chunks, err := s.repo.GetChunks(ctx, websiteID, sessionID)
 	if err != nil {
@@ -203,63 +221,61 @@ func (s *replayService) GetReplay(ctx context.Context, websiteID string, session
 	return chunks, nil
 }
 
-func (s *replayService) ListSessions(ctx context.Context, websiteID string) ([]models.ReplaySessionMetadata, error) {
-	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
-	if err == nil {
-		websiteID = website.SiteID
+func (s *replayService) ListSessions(ctx context.Context, websiteID, userID string, limit, offset int) ([]models.ReplaySessionMetadata, error) {
+	siteID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
 	}
-	return s.repo.ListSessionsWithMetadata(ctx, websiteID)
+	return s.repo.ListSessionsWithMetadata(ctx, siteID, limit, offset)
 }
 
-func (s *replayService) DeleteReplay(ctx context.Context, websiteID string, sessionID string) error {
-	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
-	if err == nil {
-		websiteID = website.SiteID
-	}
-
-	// Repo returns S3 keys to clean up
-	keys, err := s.repo.DeleteSessionReplay(ctx, websiteID, sessionID)
+func (s *replayService) DeleteReplay(ctx context.Context, websiteID string, sessionID string, userID string) error {
+	siteID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return err
 	}
 
-	// Delete S3 objects; non-fatal if individual deletes fail
-	for _, key := range keys {
-		_ = s.store.Delete(ctx, key)
+	// Repo returns S3 keys to clean up
+	keys, err := s.repo.DeleteSessionReplay(ctx, siteID, sessionID)
+	if err != nil {
+		return err
 	}
+
+	// Delete S3 objects in parallel; non-fatal if individual deletes fail
+	s.deleteS3KeysParallel(ctx, keys)
 
 	return nil
 }
 
 func (s *replayService) BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string, userID string) error {
-	// 1. Validate ownership
-	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
-	if err != nil {
-		return fmt.Errorf("website not found")
-	}
-
-	// Check user ownership (assuming userID is provided and validated in handler)
-	// Heatmap service has a nice helper, let's see if ReplayService can have one too.
-	// For now, standard check:
-	parsedUserID, _ := uuid.Parse(userID)
-	if website.UserID != parsedUserID {
-		return fmt.Errorf("unauthorized")
-	}
-
-	websiteID = website.SiteID
-
-	// 2. Repo returns all S3 keys for all sessions
-	keys, err := s.repo.BulkDeleteReplays(ctx, websiteID, sessionIDs)
+	siteID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return err
 	}
 
-	// 3. Cleanup S3
-	for _, key := range keys {
-		_ = s.store.Delete(ctx, key)
+	keys, err := s.repo.BulkDeleteReplays(ctx, siteID, sessionIDs)
+	if err != nil {
+		return err
 	}
 
+	s.deleteS3KeysParallel(ctx, keys)
 	return nil
+}
+
+// deleteS3KeysParallel deletes S3 objects concurrently. Failures are non-fatal.
+func (s *replayService) deleteS3KeysParallel(ctx context.Context, keys []string) {
+	if len(keys) == 0 {
+		return
+	}
+	var wg sync.WaitGroup
+	for _, key := range keys {
+		wg.Add(1)
+		go func(k string) {
+			defer wg.Done()
+			_ = s.store.Delete(ctx, k)
+		}(key)
+	}
+	wg.Wait()
 }
 
 func (s *replayService) GetPageSnapshot(ctx context.Context, websiteID string, url string) (json.RawMessage, error) {

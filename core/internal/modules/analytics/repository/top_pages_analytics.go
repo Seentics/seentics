@@ -23,23 +23,18 @@ func (tp *TopPagesAnalytics) normalizePage(page string) string {
 		return "/"
 	}
 
-	// Remove trailing slash and normalize
 	normalized := strings.TrimRight(strings.TrimSpace(page), "/")
 	if normalized == "" {
 		return "/"
 	}
 
-	// Extract base path without query parameters
 	if idx := strings.Index(normalized, "?"); idx != -1 {
 		normalized = normalized[:idx]
 	}
 
-	// If it's a full URL, extract just the path
 	if strings.HasPrefix(normalized, "http://") || strings.HasPrefix(normalized, "https://") {
-		// Find the third slash (after protocol and domain)
 		parts := strings.Split(normalized, "/")
 		if len(parts) >= 4 {
-			// Reconstruct path starting from the third slash
 			path := "/" + strings.Join(parts[3:], "/")
 			normalized = path
 		} else {
@@ -47,12 +42,10 @@ func (tp *TopPagesAnalytics) normalizePage(page string) string {
 		}
 	}
 
-	// Ensure it starts with /
 	if !strings.HasPrefix(normalized, "/") {
 		normalized = "/" + normalized
 	}
 
-	// Remove trailing slash again after processing
 	normalized = strings.TrimRight(normalized, "/")
 	if normalized == "" {
 		return "/"
@@ -62,21 +55,23 @@ func (tp *TopPagesAnalytics) normalizePage(page string) string {
 }
 
 // GetTopPages returns the top pages for a website with analytics
-func (tp *TopPagesAnalytics) GetTopPages(ctx context.Context, websiteID string, days int, limit int) ([]models.PageStat, error) {
-	query := `
+func (tp *TopPagesAnalytics) GetTopPages(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.PageStat, error) {
+	timezone = validateTimezone(timezone)
+
+	query := fmt.Sprintf(`
 		WITH session_pages AS (
-			SELECT 
+			SELECT
 				session_id,
 				COUNT(*) as page_count,
 				MIN(timestamp) as first_page_time
 			FROM events
-			WHERE website_id = $1 
-			AND timestamp >= NOW() - INTERVAL '1 day' * $2 
+			WHERE website_id = $1
+			AND timestamp >= %s
 			AND event_type = 'pageview'
 			GROUP BY session_id
 		),
 		page_stats AS (
-			SELECT 
+			SELECT
 				e.page,
 				e.visitor_id,
 				e.session_id,
@@ -86,29 +81,29 @@ func (tp *TopPagesAnalytics) GetTopPages(ctx context.Context, websiteID string, 
 				sp.first_page_time
 			FROM events e
 			INNER JOIN session_pages sp ON e.session_id = sp.session_id
-			WHERE e.website_id = $1 
-			AND e.timestamp >= NOW() - INTERVAL '1 day' * $2 
+			WHERE e.website_id = $1
+			AND e.timestamp >= %s
 			AND e.event_type = 'pageview'
 		)
-		SELECT 
+		SELECT
 			page,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE page_count = 1) * 100.0) / 
+				(COUNT(*) FILTER (WHERE page_count = 1) * 100.0) /
 				NULLIF(COUNT(DISTINCT session_id), 0), 0
 			) as bounce_rate,
 			COALESCE(AVG(time_on_page), 0) as avg_time,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE timestamp = first_page_time) * 100.0) / 
+				(COUNT(*) FILTER (WHERE timestamp = first_page_time) * 100.0) /
 				NULLIF(COUNT(DISTINCT session_id), 0), 0
 			) as entry_rate
 		FROM page_stats
 		GROUP BY page
 		ORDER BY views DESC
-		LIMIT $3`
+		LIMIT $4`, tzStartSQL, tzStartSQL)
 
-	rows, err := tp.db.Query(ctx, query, websiteID, days, limit)
+	rows, err := tp.db.Query(ctx, query, websiteID, days, timezone, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -129,13 +124,9 @@ func (tp *TopPagesAnalytics) GetTopPages(ctx context.Context, websiteID string, 
 			continue
 		}
 
-		// Normalize the page path
 		page.Page = tp.normalizePage(rawPage)
-
-		// Set the Unique field from the scanned value
 		page.Unique = uniqueVisitors
 
-		// Cap bounce rate at 100%
 		if bounceRate != nil && *bounceRate > 100.0 {
 			*bounceRate = 100.0
 		}
@@ -144,12 +135,9 @@ func (tp *TopPagesAnalytics) GetTopPages(ctx context.Context, websiteID string, 
 		page.AvgTime = avgTime
 		page.EntryRate = entryRate
 
-		// Deduplicate by normalized page path
 		if existing, exists := pageMap[page.Page]; exists {
-			// Merge data if duplicate found
 			existing.Views += page.Views
 			existing.Unique += page.Unique
-			// Recalculate averages
 			if existing.AvgTime != nil && page.AvgTime != nil {
 				*existing.AvgTime = (*existing.AvgTime + *page.AvgTime) / 2
 			}
@@ -160,21 +148,13 @@ func (tp *TopPagesAnalytics) GetTopPages(ctx context.Context, websiteID string, 
 				*existing.EntryRate = (*existing.EntryRate + *page.EntryRate) / 2
 			}
 		} else {
-			// Create a new copy to avoid pointer issues
 			newPage := page
 			pageMap[page.Page] = &newPage
 		}
 	}
 
-	// Convert map back to slice
 	for _, page := range pageMap {
 		pages = append(pages, *page)
-	}
-
-	// Debug: Print what we're returning
-	fmt.Printf("DEBUG: Returning %d pages after deduplication\n", len(pages))
-	for _, page := range pages {
-		fmt.Printf("DEBUG: %s - Views: %d, Unique: %d\n", page.Page, page.Views, page.Unique)
 	}
 
 	return pages, nil
@@ -183,19 +163,19 @@ func (tp *TopPagesAnalytics) GetTopPages(ctx context.Context, websiteID string, 
 // GetPageUTMBreakdown returns UTM parameter breakdown for a specific page
 func (tp *TopPagesAnalytics) GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int) (map[string]interface{}, error) {
 	query := `
-		SELECT 
+		SELECT
 			COALESCE(utm_source, 'direct') as source,
 			COALESCE(utm_medium, 'none') as medium,
 			COALESCE(utm_campaign, 'none') as campaign,
 			COUNT(*) as visits,
 			COUNT(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = $1 
+		WHERE website_id = $1
 		AND (
-			CASE 
-				WHEN $2 LIKE '%?%' THEN 
+			CASE
+				WHEN $2 LIKE '%?%' THEN
 					page LIKE $2 || '%'
-				ELSE 
+				ELSE
 					page = $2 OR page LIKE $2 || '?%'
 				END
 		)
@@ -228,7 +208,6 @@ func (tp *TopPagesAnalytics) GetPageUTMBreakdown(ctx context.Context, websiteID,
 			continue
 		}
 
-		// Aggregate sources
 		if sourceData, exists := sourceMap[source]; exists {
 			sourceData["visits"] = sourceData["visits"].(int) + visits
 			sourceData["unique_visitors"] = sourceData["unique_visitors"].(int) + uniqueVisitors
@@ -240,7 +219,6 @@ func (tp *TopPagesAnalytics) GetPageUTMBreakdown(ctx context.Context, websiteID,
 			}
 		}
 
-		// Aggregate mediums
 		if mediumData, exists := mediumMap[medium]; exists {
 			mediumData["visits"] = mediumData["visits"].(int) + visits
 			mediumData["unique_visitors"] = mediumData["unique_visitors"].(int) + uniqueVisitors
@@ -252,7 +230,6 @@ func (tp *TopPagesAnalytics) GetPageUTMBreakdown(ctx context.Context, websiteID,
 			}
 		}
 
-		// Aggregate campaigns
 		if campaignData, exists := campaignMap[campaign]; exists {
 			campaignData["visits"] = campaignData["visits"].(int) + visits
 			campaignData["unique_visitors"] = campaignData["unique_visitors"].(int) + uniqueVisitors
@@ -265,7 +242,6 @@ func (tp *TopPagesAnalytics) GetPageUTMBreakdown(ctx context.Context, websiteID,
 		}
 	}
 
-	// Convert maps to arrays
 	for _, data := range sourceMap {
 		breakdown["sources"] = append(breakdown["sources"].([]map[string]interface{}), data)
 	}
@@ -280,48 +256,50 @@ func (tp *TopPagesAnalytics) GetPageUTMBreakdown(ctx context.Context, websiteID,
 }
 
 // GetTopPagesWithTimeBucket returns top pages with time-bucket aggregation for better performance
-func (tp *TopPagesAnalytics) GetTopPagesWithTimeBucket(ctx context.Context, websiteID string, days int, limit int) ([]models.PageStat, error) {
-	query := `
+func (tp *TopPagesAnalytics) GetTopPagesWithTimeBucket(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.PageStat, error) {
+	timezone = validateTimezone(timezone)
+
+	query := fmt.Sprintf(`
 		WITH session_stats AS (
-			SELECT 
+			SELECT
 				session_id,
 				COUNT(*) as page_count
 			FROM events
-			WHERE website_id = $1 
-			AND timestamp >= time_bucket('1 day', NOW()) - INTERVAL '1 day' * $2
+			WHERE website_id = $1
+			AND timestamp >= %s
 			AND event_type = 'pageview'
 			GROUP BY session_id
 		)
-		SELECT 
+		SELECT
 			e.page as page,
 			COUNT(*) as views,
 			COUNT(DISTINCT e.visitor_id) as unique_visitors,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE s.page_count = 1) * 100.0) / 
+				(COUNT(*) FILTER (WHERE s.page_count = 1) * 100.0) /
 				NULLIF(COUNT(DISTINCT e.session_id), 0), 0
 			) as bounce_rate,
 			COALESCE(AVG(e.time_on_page), 0) as avg_time,
 			COALESCE(
 				(COUNT(*) FILTER (WHERE e.page = (
-					SELECT e2.page 
-					FROM events e2 
-					WHERE e2.session_id = e.session_id 
-					AND e2.event_type = 'pageview' 
-					ORDER BY e2.timestamp ASC 
+					SELECT e2.page
+					FROM events e2
+					WHERE e2.session_id = e.session_id
+					AND e2.event_type = 'pageview'
+					ORDER BY e2.timestamp ASC
 					LIMIT 1
 				)) * 100.0) / NULLIF(COUNT(DISTINCT e.session_id), 0), 0
 			) as entry_rate
 		FROM events e
 		LEFT JOIN session_stats s ON e.session_id = s.session_id
-		WHERE e.website_id = $1 
-		AND e.timestamp >= time_bucket('1 day', NOW()) - INTERVAL '1 day' * $2
+		WHERE e.website_id = $1
+		AND e.timestamp >= %s
 		AND e.event_type = 'pageview'
 		AND e.page IS NOT NULL
 		GROUP BY e.page
 		ORDER BY views DESC
-		LIMIT $3`
+		LIMIT $4`, tzStartSQL, tzStartSQL)
 
-	rows, err := tp.db.Query(ctx, query, websiteID, days, limit)
+	rows, err := tp.db.Query(ctx, query, websiteID, days, timezone, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -342,13 +320,9 @@ func (tp *TopPagesAnalytics) GetTopPagesWithTimeBucket(ctx context.Context, webs
 			continue
 		}
 
-		// Normalize the page path
 		page.Page = tp.normalizePage(rawPage)
-
-		// Set the Unique field from the scanned value
 		page.Unique = uniqueVisitors
 
-		// Cap bounce rate at 100%
 		if bounceRate != nil && *bounceRate > 100.0 {
 			*bounceRate = 100.0
 		}
@@ -357,12 +331,9 @@ func (tp *TopPagesAnalytics) GetTopPagesWithTimeBucket(ctx context.Context, webs
 		page.AvgTime = avgTime
 		page.ExitRate = exitRate
 
-		// Deduplicate by normalized page path
 		if existing, exists := pageMap[page.Page]; exists {
-			// Merge data if duplicate found
 			existing.Views += page.Views
 			existing.Unique += page.Unique
-			// Recalculate averages
 			if existing.AvgTime != nil && page.AvgTime != nil {
 				*existing.AvgTime = (*existing.AvgTime + *page.AvgTime) / 2
 			}
@@ -373,13 +344,11 @@ func (tp *TopPagesAnalytics) GetTopPagesWithTimeBucket(ctx context.Context, webs
 				*existing.ExitRate = (*existing.ExitRate + *page.ExitRate) / 2
 			}
 		} else {
-			// Create a new copy to avoid pointer issues
 			newPage := page
 			pageMap[page.Page] = &newPage
 		}
 	}
 
-	// Convert map back to slice
 	for _, page := range pageMap {
 		pages = append(pages, *page)
 	}

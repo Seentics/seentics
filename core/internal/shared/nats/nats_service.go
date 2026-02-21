@@ -83,8 +83,8 @@ func (n *NATSService) ProduceEvent(ctx context.Context, event models.Event) erro
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	// Async publish for performance (fire-and-forget like Kafka async mode)
-	_, err = n.js.PublishAsync(n.subject, payload)
+	// Synchronous publish to ensure JetStream acknowledges receipt
+	_, err = n.js.Publish(n.subject, payload)
 	if err != nil {
 		n.logger.Error().Err(err).Msg("Failed to publish NATS message")
 		return err

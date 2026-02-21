@@ -4,6 +4,7 @@ import (
 	"analytics-app/internal/modules/analytics/models"
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -16,10 +17,22 @@ func NewDashboardAnalytics(db *pgxpool.Pool) *DashboardAnalytics {
 	return &DashboardAnalytics{db: db}
 }
 
+// validateTimezone returns a safe timezone string, defaulting to UTC
+func validateTimezone(tz string) string {
+	if tz == "" {
+		return "UTC"
+	}
+	_, err := time.LoadLocation(tz)
+	if err != nil {
+		return "UTC"
+	}
+	return tz
+}
+
 func (da *DashboardAnalytics) buildFilterClause(filters models.AnalyticsFilters) (string, []interface{}) {
 	clause := ""
 	params := []interface{}{}
-	paramIdx := 3 // Starting from $3 since $1 is website_id and $2 is days
+	paramIdx := 4 // Starting from $4 since $1=website_id, $2=days, $3=timezone
 
 	if filters.Country != "" {
 		clause += fmt.Sprintf(" AND country = $%d", paramIdx)
@@ -65,46 +78,50 @@ func (da *DashboardAnalytics) buildFilterClause(filters models.AnalyticsFilters)
 	return clause, params
 }
 
+// tzStartSQL returns the SQL expression for timezone-aware calendar day start.
+// It computes: midnight of (days-1) days ago in the user's timezone, converted back to UTC.
+// $2 = days, $3 = timezone IANA string
+const tzStartSQL = `(DATE_TRUNC('day', NOW() AT TIME ZONE $3) - INTERVAL '1 day' * ($2 - 1)) AT TIME ZONE $3`
+
 // GetDashboardMetrics returns the main dashboard metrics for a website
-func (da *DashboardAnalytics) GetDashboardMetrics(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters) (*models.DashboardMetrics, error) {
+func (da *DashboardAnalytics) GetDashboardMetrics(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters) (*models.DashboardMetrics, error) {
+	timezone = validateTimezone(timezone)
 	filterClause, filterParams := da.buildFilterClause(filters)
 
 	query := fmt.Sprintf(`
 		WITH session_stats AS (
-			SELECT 
+			SELECT
 				session_id,
 				MAX(visitor_id) as visitor_id,
 				COUNT(*) as page_count,
-				CASE 
-					WHEN COUNT(*) > 1 THEN 
-						-- Cap session duration at 30 minutes (1800 seconds) for realistic analytics
+				CASE
+					WHEN COUNT(*) > 1 THEN
 						LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 1800)
-					ELSE 
-						-- For single-page sessions, use time_on_page if available, otherwise 30 seconds
+					ELSE
 						COALESCE(MAX(time_on_page), 30)
 				END as session_duration
 			FROM events
-			WHERE website_id = $1 
-			AND timestamp >= NOW() - INTERVAL '1 day' * $2
+			WHERE website_id = $1
+			AND timestamp >= %s
 			AND event_type = 'pageview'
 			%s
 			GROUP BY session_id
 		)
-		SELECT 
+		SELECT
 			COALESCE(SUM(page_count), 0) as page_views,
 			COUNT(*) as total_visitors,
 			COUNT(DISTINCT visitor_id) as unique_visitors,
 			COUNT(*) as sessions,
 			COALESCE(
-				(COUNT(*) FILTER (WHERE page_count = 1) * 100.0) / 
+				(COUNT(*) FILTER (WHERE page_count = 1) * 100.0) /
 				NULLIF(COUNT(*), 0), 0
 			) as bounce_rate,
 			COALESCE(AVG(session_duration), 0) as avg_session_time,
 			COALESCE(SUM(page_count) * 1.0 / NULLIF(COUNT(*), 0), 0) as pages_per_session
-		FROM session_stats`, filterClause)
+		FROM session_stats`, tzStartSQL, filterClause)
 
 	var metrics models.DashboardMetrics
-	allParams := append([]interface{}{websiteID, days}, filterParams...)
+	allParams := append([]interface{}{websiteID, days, timezone}, filterParams...)
 	err := da.db.QueryRow(ctx, query, allParams...).Scan(
 		&metrics.PageViews, &metrics.TotalVisitors, &metrics.UniqueVisitors, &metrics.Sessions,
 		&metrics.BounceRate, &metrics.AvgSessionTime, &metrics.PagesPerSession,
@@ -114,7 +131,6 @@ func (da *DashboardAnalytics) GetDashboardMetrics(ctx context.Context, websiteID
 		return nil, err
 	}
 
-	// Ensure bounce rate is reasonable (0-100%)
 	if metrics.BounceRate > 100.0 {
 		metrics.BounceRate = 100.0
 	}
@@ -126,34 +142,34 @@ func (da *DashboardAnalytics) GetDashboardMetrics(ctx context.Context, websiteID
 }
 
 // GetComparisonMetrics returns comparison metrics between current and previous periods
-func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteID string, days int, filters models.AnalyticsFilters) (*models.ComparisonMetrics, error) {
+func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters) (*models.ComparisonMetrics, error) {
+	timezone = validateTimezone(timezone)
 	filterClause, filterParams := da.buildFilterClause(filters)
 
-	// Combine current and previous period queries into one for performance
 	combinedQuery := fmt.Sprintf(`
 		WITH period_stats AS (
-			SELECT 
-				CASE 
-					WHEN timestamp >= NOW() - INTERVAL '1 day' * $2 THEN 1 -- current
-					ELSE 2 -- previous
+			SELECT
+				CASE
+					WHEN timestamp >= %s THEN 1
+					ELSE 2
 				END as period,
 				session_id,
 				MAX(visitor_id) as visitor_id,
 				COUNT(*) as page_count,
-				CASE 
-					WHEN COUNT(*) > 1 THEN 
+				CASE
+					WHEN COUNT(*) > 1 THEN
 						LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 1800)
-					ELSE 
+					ELSE
 						COALESCE(MAX(time_on_page), 30)
 				END as session_duration
 			FROM events
-			WHERE website_id = $1 
-			AND timestamp >= NOW() - INTERVAL '1 day' * ($2 * 2)
+			WHERE website_id = $1
+			AND timestamp >= (DATE_TRUNC('day', NOW() AT TIME ZONE $3) - INTERVAL '1 day' * ($2 * 2 - 1)) AT TIME ZONE $3
 			AND event_type = 'pageview'
 			%s
 			GROUP BY 1, 2
 		)
-		SELECT 
+		SELECT
 			period,
 			COALESCE(SUM(page_count), 0) as page_views,
 			COUNT(*) as total_visitors,
@@ -163,7 +179,7 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 			COALESCE(AVG(session_duration), 0) as avg_session_time
 		FROM period_stats
 		GROUP BY period
-		ORDER BY period ASC`, filterClause)
+		ORDER BY period ASC`, tzStartSQL, filterClause)
 
 	type periodResult struct {
 		Period         int
@@ -176,7 +192,7 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 	}
 
 	results := make(map[int]periodResult)
-	allParams := append([]interface{}{websiteID, days}, filterParams...)
+	allParams := append([]interface{}{websiteID, days, timezone}, filterParams...)
 
 	rows, err := da.db.Query(ctx, combinedQuery, allParams...)
 	if err != nil {
@@ -195,7 +211,6 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 	current := results[1]
 	previous := results[2]
 
-	// Calculate percentage changes with clamping and N/A handling
 	clamp := func(v float64) float64 {
 		if v > 1000 {
 			return 1000
@@ -223,7 +238,6 @@ func (da *DashboardAnalytics) GetComparisonMetrics(ctx context.Context, websiteI
 		return &c
 	}
 
-	// Calculate pages per session for both periods
 	currentPagesPerSession := 0.0
 	if current.Sessions > 0 {
 		currentPagesPerSession = float64(current.PageViews) / float64(current.Sessions)

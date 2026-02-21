@@ -50,39 +50,31 @@ func (r *CustomEventsAggregatedRepository) UpsertCustomEvent(ctx context.Context
 	now := time.Now()
 	oneHourAgo := now.Add(-time.Hour)
 
-	// OPTIMIZATION: Try UPDATE first (most common case for high volume)
-	// This avoids a SELECT round-trip
-	updateQuery := `
-		UPDATE custom_events_aggregated 
-		SET count = count + $4, last_seen = $5, updated_at = $5,
-			sample_properties = CASE 
-				WHEN last_seen < $5 THEN $6
-				ELSE sample_properties
-			END
-		WHERE website_id = $1 AND event_signature = $2 
-		AND last_seen >= $3
-		RETURNING id
-	`
-
-	var id string
-	err := r.db.QueryRow(ctx, updateQuery, event.WebsiteID, signature, oneHourAgo, increment, now, propertiesJSON).Scan(&id)
-
-	if err == nil {
-		// Update successful
-		return nil
-	}
-
-	// If UPDATE failed (no rows), then INSERT
-	// Note: In high concurrency, a race condition could still cause duplicates here
-	// without a UNIQUE constraint, but this reduces the window significantly compared to Read-then-Write.
-	insertQuery := `
+	// Atomic upsert using CTE to avoid race conditions:
+	// 1. Try UPDATE first (most common case for high volume)
+	// 2. If no rows updated, INSERT (only when UPDATE found nothing)
+	// The CTE ensures atomicity within a single statement.
+	query := `
+		WITH updated AS (
+			UPDATE custom_events_aggregated
+			SET count = count + $4, last_seen = $5, updated_at = $5,
+				sample_properties = CASE
+					WHEN last_seen < $5 THEN $6
+					ELSE sample_properties
+				END
+			WHERE website_id = $1 AND event_signature = $2
+			AND last_seen >= $3
+			RETURNING id
+		)
 		INSERT INTO custom_events_aggregated (
-			website_id, event_type, event_signature, count, sample_properties, 
+			website_id, event_type, event_signature, count, sample_properties,
 			first_seen, last_seen, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $6, $6, $6)
+		)
+		SELECT $1, $7, $2, $4, $6, $5, $5, $5, $5
+		WHERE NOT EXISTS (SELECT 1 FROM updated)
 	`
 
-	_, err = r.db.Exec(ctx, insertQuery, event.WebsiteID, event.EventType, signature, increment, propertiesJSON, now)
+	_, err := r.db.Exec(ctx, query, event.WebsiteID, signature, oneHourAgo, increment, now, propertiesJSON, event.EventType)
 	if err != nil {
 		r.logger.Error().Err(err).
 			Str("website_id", event.WebsiteID).
@@ -91,12 +83,6 @@ func (r *CustomEventsAggregatedRepository) UpsertCustomEvent(ctx context.Context
 			Msg("Failed to upsert custom event aggregation")
 		return err
 	}
-
-	r.logger.Debug().
-		Str("website_id", event.WebsiteID).
-		Str("event_type", event.EventType).
-		Int("increment", increment).
-		Msg("Custom event aggregated successfully")
 
 	return nil
 }
