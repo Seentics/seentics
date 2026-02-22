@@ -223,31 +223,31 @@ export default function WebsiteDashboardPage() {
   // In demo mode, we skip API calls and use static demo data
   const demoData = isDemoMode ? getDemoData() : null;
 
+  // ── PRIORITY: above-the-fold data (SummaryCards + TrafficOverview) ──
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange, advancedFilters);
-  const { data: topPages, isLoading: pagesLoading, error: pagesError } = useTopPages(websiteId, dateRange, advancedFilters);
-  const { data: topReferrers, isLoading: referrersLoading, error: referrersError } = useTopReferrers(websiteId, dateRange, advancedFilters);
-  const { data: topCountries, isLoading: countriesLoading, error: countriesError } = useTopCountries(websiteId, dateRange, advancedFilters);
-  const { data: topBrowsers, isLoading: browsersLoading, error: browsersError } = useTopBrowsers(websiteId, dateRange, advancedFilters);
-  const { data: topDevices, isLoading: devicesLoading, error: devicesError } = useTopDevices(websiteId, dateRange, advancedFilters);
-  const { data: topOS, isLoading: osLoading, error: osError } = useTopOS(websiteId, dateRange, advancedFilters);
-  const { data: topResolutions, isLoading: resolutionsLoading } = useTopResolutions(websiteId, dateRange);
   const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange, advancedFilters);
-  const { data: goalStats, isLoading: goalStatsLoading } = useGoalStats(websiteId, dateRange);
-
-  const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(websiteId, dateRange);
   const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, dateRange, advancedFilters);
-  const { data: geolocationData, isLoading: geolocationLoading, error: geolocationError } = useGeolocationBreakdown(websiteId, dateRange);
   const { data: visitorInsights, isLoading: visitorInsightsLoading } = useVisitorInsights(websiteId, dateRange);
 
+  // ── DEFERRED: below-the-fold data (loads after primary data arrives) ──
+  // Pass empty websiteId to disable hooks until dashboard data is ready
+  const deferredId = (isDemoMode || !!dashboardData) ? websiteId : '';
 
-  // Fetch activity trends data
-  const { data: activityTrends, isLoading: trendsLoading, error: trendsError } = useActivityTrends(websiteId);
-
-  // Fetch retention data
-  const { data: retentionData, isLoading: retentionLoading } = useUserRetention(websiteId, dateRange);
+  const { data: topPages, isLoading: pagesLoading, error: pagesError } = useTopPages(deferredId, dateRange, advancedFilters);
+  const { data: topReferrers, isLoading: referrersLoading, error: referrersError } = useTopReferrers(deferredId, dateRange, advancedFilters);
+  const { data: topCountries, isLoading: countriesLoading, error: countriesError } = useTopCountries(deferredId, dateRange, advancedFilters);
+  const { data: topBrowsers, isLoading: browsersLoading, error: browsersError } = useTopBrowsers(deferredId, dateRange, advancedFilters);
+  const { data: topDevices, isLoading: devicesLoading, error: devicesError } = useTopDevices(deferredId, dateRange, advancedFilters);
+  const { data: topOS, isLoading: osLoading, error: osError } = useTopOS(deferredId, dateRange, advancedFilters);
+  const { data: topResolutions, isLoading: resolutionsLoading } = useTopResolutions(deferredId, dateRange);
+  const { data: geolocationData, isLoading: geolocationLoading, error: geolocationError } = useGeolocationBreakdown(deferredId, dateRange);
+  const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(deferredId, dateRange);
+  const { data: goalStats, isLoading: goalStatsLoading } = useGoalStats(deferredId, dateRange);
+  const { data: activityTrends, isLoading: trendsLoading, error: trendsError } = useActivityTrends(deferredId);
+  const { data: retentionData, isLoading: retentionLoading } = useUserRetention(deferredId, dateRange);
 
   // Previous period data for comparison overlay
-  const { data: previousDailyStats } = usePreviousPeriodDailyStats(websiteId, dateRange, showComparison);
+  const { data: previousDailyStats } = usePreviousPeriodDailyStats(deferredId, dateRange, showComparison);
 
   // Use demo data when in demo mode, otherwise use API data
   const finalDashboardData = isDemoMode ? demoData?.dashboardData : dashboardData;
