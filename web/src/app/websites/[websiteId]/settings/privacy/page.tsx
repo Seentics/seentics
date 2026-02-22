@@ -1,21 +1,18 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { useParams, useRouter } from 'next/navigation';
+import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import {
   Shield,
   EyeOff,
   Cookie,
-  Database,
   Info,
-  Lock,
-  FileCheck
 } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
 import { isEnterprise } from '@/lib/features';
+import { DashboardPageHeader } from '@/components/dashboard-header';
+import { cn } from '@/lib/utils';
 
 export default function PrivacySettings() {
   const params = useParams();
@@ -30,93 +27,87 @@ export default function PrivacySettings() {
 
   if (!isEnterprise) return null;
 
+  const toggles = [
+    {
+      id: 'ip-anonymization',
+      title: 'IP Anonymization',
+      description: 'Automatically mask the last octet of visitor IP addresses before storage. Recommended for GDPR compliance.',
+      icon: EyeOff,
+      color: 'text-blue-500',
+      bgColor: 'bg-blue-500/10',
+      defaultChecked: true,
+    },
+    {
+      id: 'cookie-less',
+      title: 'Cookie-less Mode',
+      description: 'Track unique visitors without using persistent cookies. Eliminates the need for cookie consent banners in most jurisdictions.',
+      icon: Cookie,
+      color: 'text-indigo-500',
+      bgColor: 'bg-indigo-500/10',
+      defaultChecked: true,
+    },
+  ];
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Privacy & GDPR</h1>
-          <p className="text-muted-foreground text-sm">Configure data protection and compliance settings.</p>
+    <div className="p-4 sm:p-8 space-y-8 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
+      <DashboardPageHeader
+        title="Privacy & GDPR"
+        description="Configure data protection and compliance settings."
+      >
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+          <Shield className="h-3 w-3 text-emerald-600" />
+          <span className="text-[10px] font-medium text-emerald-600">GDPR Compliant</span>
         </div>
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded bg-emerald-500/10 border border-emerald-500/20">
-           <Shield className="h-4 w-4 text-emerald-600" />
-           <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">GDPR Compliant</span>
-        </div>
-      </div>
+      </DashboardPageHeader>
 
-      <div className="space-y-6">
-        {/* IP Anonymization */}
-        <div className="flex items-start justify-between p-4 rounded border bg-muted/5 group transition-all hover:bg-muted/10">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center border shrink-0">
-              <EyeOff className="h-5 w-5 text-primary" />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="ip-anonymization" className="text-sm font-bold">IP Anonymization</Label>
-              <p className="text-xs text-muted-foreground leading-relaxed max-w-md">
-                Automatically mask the last octet of visitor IP addresses before they are stored. Recommended for GDPR compliance.
-              </p>
-            </div>
-          </div>
-          <Switch id="ip-anonymization" defaultChecked className="mt-1" />
-        </div>
-
-        {/* Cookie-less Tracking */}
-        <div className="flex items-start justify-between p-4 rounded border bg-muted/5 group transition-all hover:bg-muted/10">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded bg-indigo-500/10 flex items-center justify-center border shrink-0">
-              <Cookie className="h-5 w-5 text-indigo-600" />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="cookie-less" className="text-sm font-bold">Cookie-less Mode</Label>
-              <p className="text-xs text-muted-foreground leading-relaxed max-w-md">
-                Track unique visitors without using persistent cookies. This eliminates the need for cookie consent banners in most jurisdictions.
-              </p>
-            </div>
-          </div>
-          <Switch id="cookie-less" defaultChecked className="mt-1" />
-        </div>
-
-        {/* Data Retention */}
-        <div className="p-6 border rounded bg-muted/5 space-y-4">
-           <div className="flex items-center gap-3">
-              <Database className="h-5 w-5 text-muted-foreground" />
-              <h2 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Data Retention</h2>
-           </div>
-           
-           <div className="grid sm:grid-cols-2 gap-4">
-             <div className="p-4 rounded bg-background border shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Retention Period</p>
-                <div className="flex items-center justify-between">
-                   <p className="text-sm font-bold">12 Months</p>
-                   <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold h-6">CHANGE</Button>
+      {/* Toggles */}
+      <div className="space-y-3">
+        {toggles.map((item) => (
+          <Card key={item.id} className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0", item.bgColor)}>
+                  <item.icon className={cn("h-4 w-4", item.color)} />
                 </div>
-             </div>
-             <div className="p-4 rounded bg-background border shadow-sm">
-                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-1">Cleanup Interval</p>
-                <p className="text-sm font-bold">Standard (Weekly)</p>
-             </div>
-           </div>
-        </div>
+                <div>
+                  <p className="text-sm font-medium">{item.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 max-w-md">{item.description}</p>
+                </div>
+              </div>
+              <Switch id={item.id} defaultChecked={item.defaultChecked} />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-        <div className="flex gap-4 p-4 rounded bg-indigo-500/5 border border-indigo-500/10">
-           <Info className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
-           <div className="space-y-1">
-              <p className="text-sm font-bold">Privacy First by Default</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Seentics is designed to be privacy-friendly out of the box. We never track personally identifiable information (PII) of your visitors without explicit configuration.
-              </p>
-           </div>
+      {/* Data Retention */}
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold">Data Retention</h3>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">Retention Period</p>
+              <p className="text-sm font-medium">Based on your plan</p>
+            </CardContent>
+          </Card>
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground mb-1">Cleanup Schedule</p>
+              <p className="text-sm font-medium">Automatic (Weekly)</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      <div className="flex items-center gap-4 pt-4">
-         <Button className="h-10 px-8 font-bold rounded shadow-lg shadow-primary/10">
-           Apply Privacy Settings
-         </Button>
-         <Button variant="ghost" className="h-10 px-4 font-bold rounded gap-2 text-muted-foreground">
-           <FileCheck className="h-4 w-4" />
-           Privacy Policy Generator
-         </Button>
+      {/* Info */}
+      <div className="bg-muted/30 border border-border/40 rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Info className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium">Privacy First</span>
+        </div>
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          Seentics is privacy-friendly by default. We never track personally identifiable information (PII) of your visitors without explicit configuration.
+        </p>
       </div>
     </div>
   );

@@ -125,7 +125,7 @@ export const UsageCard: React.FC<UsageCardProps> = ({
               <span className={getStatusColor()}>
                 {percentage.toFixed(0)}% used
               </span>
-              {subscription.plan !== 'pro_plus' && (
+              {subscription.plan !== 'enterprise' && (
                 <Button
                   variant="ghost"
                   size="sm"

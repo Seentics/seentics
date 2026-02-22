@@ -40,48 +40,54 @@ export const hasFeature = (feature: string): boolean => {
   return FEATURES[feature] === true;
 };
 
-// Usage limits for display based on plan (must match DB: 001_initial_schema.sql)
+// Usage limits for display based on plan (must match DB: 0002_billing.up.sql)
 export const LIMITS = {
   starter: {
     websites: '1',
-    events: '5K',
-    workflows: '2',
-    funnels: '2',
+    events: '10K',
+    workflows: '1',
+    funnels: '1',
     heatmaps: '3',
     replays: '100',
-    teamMembers: '1',
-    dataRetention: '30 days',
+    recordingRetention: '30 days',
+    analyticsRetention: '30 days',
+    support: 'Community',
   },
   growth: {
-    websites: '5',
-    events: '100K',
+    websites: '3',
+    events: '200K',
     workflows: '10',
     funnels: '10',
-    heatmaps: '20',
-    replays: '5,000',
-    teamMembers: '3',
-    dataRetention: '1 year',
-  },
-  scale: {
-    websites: '20',
-    events: '1M',
-    workflows: '50',
-    funnels: '50',
     heatmaps: 'Unlimited',
-    replays: '50,000',
-    teamMembers: '10',
-    dataRetention: '2 years',
+    replays: '10,000',
+    recordingRetention: '3 months',
+    analyticsRetention: '2 years',
+    support: 'Email',
   },
-  pro_plus: {
-    websites: 'Unlimited',
-    events: 'Unlimited',
+  pro: {
+    websites: '15',
+    events: '2M',
     workflows: 'Unlimited',
     funnels: 'Unlimited',
     heatmaps: 'Unlimited',
-    replays: 'Unlimited',
-    teamMembers: 'Unlimited',
-    dataRetention: 'Custom',
-  }
+    replays: '50,000',
+    recordingRetention: '3 months',
+    analyticsRetention: '5 years',
+    support: 'Priority',
+  },
+  enterprise: {
+    websites: '100',
+    events: '15M',
+    workflows: 'Unlimited',
+    funnels: 'Unlimited',
+    heatmaps: 'Unlimited',
+    replays: '200,000',
+    recordingRetention: '3 months',
+    analyticsRetention: '7 years',
+    support: 'Dedicated',
+    whiteLabel: true,
+    clientManagement: true,
+  },
 };
 
 // Get current limits based on plan

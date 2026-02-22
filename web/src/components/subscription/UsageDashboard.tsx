@@ -73,27 +73,21 @@ export const UsageDashboard: React.FC = () => {
     );
   }
 
-  const planColors = {
-    free: 'text-slate-600 dark:text-slate-400',
+  const planColors: Record<string, string> = {
     starter: 'text-blue-600 dark:text-blue-400',
-    growth: 'text-purple-600 dark:text-purple-400',
-    scale: 'text-yellow-600 dark:text-yellow-400',
-    pro_plus: 'text-yellow-600 dark:text-yellow-400',
-    standard: 'text-blue-600 dark:text-blue-400',
-    pro: 'text-purple-600 dark:text-purple-400'
+    growth: 'text-indigo-600 dark:text-indigo-400',
+    pro: 'text-purple-600 dark:text-purple-400',
+    enterprise: 'text-amber-600 dark:text-amber-400',
   };
 
-  const planIcons = {
-    free: BarChart3,
+  const planIcons: Record<string, React.ElementType> = {
     starter: Zap,
     growth: Zap,
-    scale: Crown,
-    pro_plus: Crown,
-    standard: Zap,
-    pro: Crown
+    pro: Crown,
+    enterprise: Crown,
   };
 
-  const PlanIcon = planIcons[subscription.plan];
+  const PlanIcon = planIcons[subscription.plan] || Zap;
 
   return (
     <div className="space-y-6">
@@ -105,7 +99,7 @@ export const UsageDashboard: React.FC = () => {
               <PlanIcon className={`h-5 w-5 ${planColors[subscription.plan]}`} />
               <span className="capitalize">{subscription.plan} Plan</span>
             </div>
-            {subscription.plan !== 'pro_plus' && (
+            {subscription.plan !== 'enterprise' && (
               <Button
                 variant="outline"
                 size="sm"
@@ -119,9 +113,10 @@ export const UsageDashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            {subscription.plan === 'free' && 'Perfect for getting started with basic features'}
-            {(subscription.plan === 'starter' || subscription.plan === 'growth') && 'Great for growing businesses with advanced features'}
-            {(subscription.plan === 'scale' || subscription.plan === 'pro_plus') && 'Enterprise-grade features for scaling teams'}
+            {subscription.plan === 'starter' && 'Perfect for getting started with basic features'}
+            {subscription.plan === 'growth' && 'For growing businesses with advanced features'}
+            {subscription.plan === 'pro' && 'For scaling teams with priority support'}
+            {subscription.plan === 'enterprise' && 'Full-featured plan for agencies and large teams'}
           </p>
         </CardContent>
       </Card>

@@ -2,18 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Save, Play, Percent, Info, Plus, X, PlayCircle } from 'lucide-react';
+import { Loader2, Save, Info } from 'lucide-react';
 import { toast } from 'sonner';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { 
-  getWebsiteBySiteId, 
-  updateWebsite, 
-  Website 
+import {
+  getWebsiteBySiteId,
+  updateWebsite,
+  Website
 } from '@/lib/websites-api';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { cn } from "@/lib/utils";
@@ -25,7 +25,7 @@ interface ReplaySettingsComponentProps {
 export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentProps) {
   const queryClient = useQueryClient();
   const [enabled, setEnabled] = useState(true);
-  const [samplingRate, setSamplingRate] = useState(100); // 0-100 percentage
+  const [samplingRate, setSamplingRate] = useState(100);
   const [includePatterns, setIncludePatterns] = useState('');
   const [excludePatterns, setExcludePatterns] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -68,80 +68,74 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
 
   const handleSave = () => {
     setIsSaving(true);
-    updateMutation.mutate({ 
-      enabled, 
-      rate: samplingRate, 
-      include: includePatterns, 
-      exclude: excludePatterns 
+    updateMutation.mutate({
+      enabled,
+      rate: samplingRate,
+      include: includePatterns,
+      exclude: excludePatterns
     });
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary/40" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      <Card className="border-border/40 bg-card/50 backdrop-blur-sm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-xl font-bold">Session Replay Configuration</CardTitle>
-              <CardDescription>Control how user sessions are recorded and reconstructed.</CardDescription>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <Card className="border border-border/60 bg-card shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-sm font-semibold">Session Replay Configuration</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Control how user sessions are recorded and reconstructed.</p>
             </div>
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="replay-toggle" 
-                checked={enabled} 
+            <div className="flex items-center gap-2">
+              <Switch
+                id="replay-toggle"
+                checked={enabled}
                 onCheckedChange={setEnabled}
               />
-              <Label htmlFor="replay-toggle" className="font-bold text-xs uppercase tracking-wider">
+              <Label htmlFor="replay-toggle" className="text-xs font-medium text-muted-foreground">
                 {enabled ? 'Enabled' : 'Disabled'}
               </Label>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
+
           {!enabled && (
-            <Alert className="bg-amber-500/10 border-amber-500/20 shadow-sm">
+            <Alert className="bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 mb-5">
               <Info className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-amber-600 font-bold">Recordings Paused</AlertTitle>
-              <AlertDescription className="text-muted-foreground/80">
+              <AlertTitle className="text-amber-700 dark:text-amber-400 font-medium text-sm">Recordings Paused</AlertTitle>
+              <AlertDescription className="text-amber-600/80 dark:text-muted-foreground/80 text-xs">
                 Session recording is currently disabled. No new interaction data will be collected until enabled.
               </AlertDescription>
             </Alert>
           )}
 
-          <div className={cn("space-y-6 pt-2 transition-opacity duration-300", !enabled && "opacity-50 pointer-events-none")}>
-            <div className="space-y-4">
+          <div className={cn("space-y-5 transition-opacity duration-300", !enabled && "opacity-50 pointer-events-none")}>
+            {/* Sampling Rate */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm font-bold">Sampling Rate</Label>
-                    <div className="px-1.5 py-0.5 rounded-md bg-primary/10 text-primary text-[10px] font-black uppercase">
-                      Recommended
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground font-medium">Percentage of sessions to record.</p>
+                <div>
+                  <Label className="text-xs font-medium text-muted-foreground">Sampling Rate</Label>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Percentage of sessions to record.</p>
                 </div>
-                <div className="flex items-center gap-1 font-black text-xl text-primary font-mono tracking-tighter">
-                  {samplingRate}<span className="text-xs opacity-50 ml-0.5">%</span>
-                </div>
+                <span className="text-lg font-semibold tabular-nums text-primary">
+                  {samplingRate}<span className="text-xs text-muted-foreground ml-0.5">%</span>
+                </span>
               </div>
-              
-              <div className="px-2 py-4">
-                <Slider 
-                  value={[samplingRate]} 
+
+              <div className="px-1">
+                <Slider
+                  value={[samplingRate]}
                   onValueChange={(vals) => setSamplingRate(vals[0])}
-                  max={100} 
+                  max={100}
                   step={1}
-                  className="[&_[role=slider]]:h-4 [&_[role=slider]]:w-4 [&_[role=slider]]:border-primary [&_[role=slider]]:bg-background"
                 />
-                <div className="flex justify-between mt-3 px-1 text-[10px] font-bold text-muted-foreground/50 uppercase tracking-widest">
+                <div className="flex justify-between mt-2 text-[10px] text-muted-foreground/50">
                   <span>Conservative</span>
                   <span>Moderate</span>
                   <span>Full Capture</span>
@@ -149,62 +143,62 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
               </div>
             </div>
 
-            <Alert className="bg-blue-500/5 border-blue-500/10 py-3">
-              <Info className="h-4 w-4 text-blue-500/70" />
-              <AlertDescription className="text-[11px] font-medium leading-relaxed text-blue-500/70 uppercase tracking-tight">
-                High sampling rates provide more data but may consume your plan's session recording limits faster.
-              </AlertDescription>
-            </Alert>
+            <p className="text-[11px] text-muted-foreground bg-muted/30 rounded-md px-3 py-2">
+              High sampling rates provide more data but may consume your plan's session recording limits faster.
+            </p>
 
-            <div className="space-y-6 pt-6 border-t border-border/40">
-              <div className="grid gap-2">
-                <Label htmlFor="include-patterns" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            {/* URL Patterns */}
+            <div className="space-y-4 pt-4 border-t border-border/40">
+              <div className="space-y-1.5">
+                <Label htmlFor="include-patterns" className="text-xs font-medium text-muted-foreground">
                   Include Patterns
                 </Label>
                 <Textarea
                   id="include-patterns"
                   placeholder="e.g. /products/*, /pricing"
-                  className="min-h-[100px] bg-muted/20 border-border/40 font-mono text-sm"
+                  className="min-h-[80px] text-sm bg-muted/20 border-border/50"
                   value={includePatterns}
                   onChange={(e) => setIncludePatterns(e.target.value)}
                 />
-                <p className="text-[10px] text-muted-foreground italic">
-                  Enter URL patterns to specifically record. Leave empty to track all pages (default). One pattern per line. Use * as a wildcard.
+                <p className="text-[11px] text-muted-foreground">
+                  Enter URL patterns to specifically record. Leave empty to track all pages. One pattern per line.
                 </p>
               </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="exclude-patterns" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              <div className="space-y-1.5">
+                <Label htmlFor="exclude-patterns" className="text-xs font-medium text-muted-foreground">
                   Exclude Patterns
                 </Label>
                 <Textarea
                   id="exclude-patterns"
                   placeholder="e.g. /admin/*, /checkout/success"
-                  className="min-h-[100px] bg-muted/20 border-border/40 font-mono text-sm"
+                  className="min-h-[80px] text-sm bg-muted/20 border-border/50"
                   value={excludePatterns}
                   onChange={(e) => setExcludePatterns(e.target.value)}
                 />
-                <p className="text-[10px] text-muted-foreground italic">
-                  Enter URL patterns to exclude from recording. Useful for sensitive pages. One pattern per line.
+                <p className="text-[11px] text-muted-foreground">
+                  Enter URL patterns to exclude from recording. Useful for sensitive pages.
                 </p>
               </div>
             </div>
           </div>
+
+          <div className="flex justify-end pt-4 mt-4 border-t border-border/40">
+            <Button
+              onClick={handleSave}
+              size="sm"
+              disabled={isSaving || !website}
+              className="gap-1.5 text-xs font-medium"
+            >
+              {isSaving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+              Save Changes
+            </Button>
+          </div>
         </CardContent>
-        <CardFooter className="pt-4 border-t border-border/40 flex justify-end">
-          <Button 
-            onClick={handleSave} 
-            disabled={isSaving || !website}
-            className="px-8 font-bold gap-2"
-          >
-            {isSaving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Save Configuration
-          </Button>
-        </CardFooter>
       </Card>
     </div>
   );

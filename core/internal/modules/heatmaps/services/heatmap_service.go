@@ -16,6 +16,7 @@ type HeatmapService interface {
 	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, deviceType string, from, to time.Time, userID string) ([]models.HeatmapPoint, error)
 	GetHeatmapPages(ctx context.Context, websiteID string, userID string) ([]models.HeatmapPageStat, error)
 	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
+	GetTopElements(ctx context.Context, websiteID string, url string, eventType string, from, to time.Time, userID string) ([]models.TopElement, error)
 	DeleteHeatmapPage(ctx context.Context, websiteID string, url string, userID string) error
 	BulkDeleteHeatmapPages(ctx context.Context, websiteID string, urls []string, userID string) error
 }
@@ -99,6 +100,14 @@ func (s *heatmapService) GetTrackedURLs(ctx context.Context, websiteID string) (
 	// Note: We don't use validateOwnership here because this is called by the internal WebsiteService
 	// for the tracker config, which already has the website object.
 	return s.repo.GetTrackedURLs(ctx, websiteID)
+}
+
+func (s *heatmapService) GetTopElements(ctx context.Context, websiteID string, url string, eventType string, from, to time.Time, userID string) ([]models.TopElement, error) {
+	canonicalID, _, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetTopElements(ctx, canonicalID, url, eventType, from, to)
 }
 
 func (s *heatmapService) DeleteHeatmapPage(ctx context.Context, websiteID string, url string, userID string) error {

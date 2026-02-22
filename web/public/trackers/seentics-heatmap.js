@@ -157,6 +157,34 @@
     if (!isIframe) {
       addPoint('pageview', 0, 0);
 
+      // === SCROLL DEPTH TRACKING ===
+      var scrollState = {
+        maxDepth: 0, sentBands: {}, lastScrollTime: 0
+      };
+      var recordScrollBands = function() {
+        var scrollTop = w.pageYOffset || d.documentElement.scrollTop;
+        var viewportHeight = w.innerHeight;
+        var dims = getDimensions();
+        var docHeight = dims.height || 1;
+        var bottomDepth = Math.min(1000, Math.round(((scrollTop + viewportHeight) / docHeight) * 1000));
+        if (bottomDepth <= scrollState.maxDepth) return;
+        scrollState.maxDepth = bottomDepth;
+        for (var band = 0; band <= bottomDepth; band += 50) {
+          if (!scrollState.sentBands[band]) {
+            scrollState.sentBands[band] = true;
+            addPoint('scroll', 500, band);
+          }
+        }
+      };
+      w.addEventListener('scroll', function() {
+        var now = Date.now();
+        if (now - scrollState.lastScrollTime < 2000) return;
+        scrollState.lastScrollTime = now;
+        recordScrollBands();
+      }, { passive: true });
+      setTimeout(recordScrollBands, 1000);
+
+      // === MOUSE MOVEMENT ===
       d.addEventListener('mousemove', function(e) {
         var now = Date.now();
         if (now - hs.lastMoveTime < hs.moveThreshold) return;
@@ -170,14 +198,67 @@
         addPoint('move', coords.x, coords.y);
       }, { passive: true });
 
+      // === CLICK TRACKING with RAGE + DEAD CLICK DETECTION ===
+      var clickHistory = [];
       d.addEventListener('click', function(e) {
         var coords = getNormalizedCoords(e);
-        addPoint('click', coords.x, coords.y, getSelector(e.target));
+        var selector = getSelector(e.target);
+        var now = Date.now();
+
+        // Record normal click
+        addPoint('click', coords.x, coords.y, selector);
+
+        // --- Rage click detection: 3+ clicks within 1s on same element ---
+        clickHistory.push({ time: now, selector: selector, x: coords.x, y: coords.y });
+        var recentClicks = [];
+        for (var i = 0; i < clickHistory.length; i++) {
+          if (now - clickHistory[i].time < 1000) recentClicks.push(clickHistory[i]);
+        }
+        clickHistory = recentClicks;
+        var sameCount = 0;
+        for (var j = 0; j < recentClicks.length; j++) {
+          if (recentClicks[j].selector === selector) sameCount++;
+        }
+        if (sameCount >= 3) {
+          addPoint('rage_click', coords.x, coords.y, selector);
+          clickHistory = [];
+        }
+
+        // --- Dead click detection: click on interactive element with no effect ---
+        var el = e.target;
+        var tag = el.tagName ? el.tagName.toLowerCase() : '';
+        var isInteractive = tag === 'a' || tag === 'button' || tag === 'input' || tag === 'select';
+        if (!isInteractive && el.getAttribute) {
+          isInteractive = el.getAttribute('role') === 'button' || !!el.getAttribute('onclick');
+        }
+        if (!isInteractive) {
+          var parent = el.parentElement;
+          for (var k = 0; k < 3 && parent; k++) {
+            var ptag = parent.tagName ? parent.tagName.toLowerCase() : '';
+            if (ptag === 'a' || ptag === 'button' || (parent.getAttribute && parent.getAttribute('role') === 'button')) {
+              isInteractive = true; break;
+            }
+            parent = parent.parentElement;
+          }
+        }
+        if (isInteractive) {
+          var urlBefore = w.location.href;
+          var domChanged = false;
+          var obs = new MutationObserver(function() { domChanged = true; });
+          try { obs.observe(d.body, { childList: true, subtree: true, attributes: true }); } catch(ex) {}
+          setTimeout(function() {
+            obs.disconnect();
+            if (!domChanged && w.location.href === urlBefore) {
+              addPoint('dead_click', coords.x, coords.y, selector);
+            }
+          }, 1000);
+        }
       });
 
       setInterval(flushBuffer, hs.flushInterval);
 
       w.addEventListener('beforeunload', function() {
+        recordScrollBands(); // Capture final scroll depth
         if (hs.buffer.length === 0) return;
         navigator.sendBeacon(config.apiHost + '/api/v1/heatmaps/record',
           new Blob([JSON.stringify({ website_id: config.websiteId, points: hs.buffer })], { type: 'application/json' }));

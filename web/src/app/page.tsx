@@ -103,13 +103,13 @@ function OSSLanding() {
           </div>
 
           <h1 className="text-4xl md:text-6xl  font-black tracking-tight text-foreground leading-[1.08] mb-8">
-            The open source analytics stack
+            The Open-Source Alternative to{' '}
             <br />
-            <span className="text-primary">for your business</span>
+            <span className="text-primary">Hotjar + Google Analytics</span>
           </h1>
 
           <p className="text-lg md:text-xl text-muted-foreground/80 max-w-2xl mx-auto mb-12 leading-relaxed">
-            Track every visitor with <span className="text-foreground font-semibold">live analytics</span>, <span className="text-foreground font-semibold">heatmaps</span>, <span className="text-foreground font-semibold">session recordings</span>, and <span className="text-foreground font-semibold">funnels</span> — all self-hosted, privacy-friendly, and built for teams that want full control over their data.
+            Track visitors, watch session replays, analyze funnels, and automate actions — all from your own infrastructure.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">

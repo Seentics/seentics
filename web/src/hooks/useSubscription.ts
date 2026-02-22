@@ -21,7 +21,7 @@ export interface SubscriptionUsage {
 
 export interface SubscriptionData {
   id: string;
-  plan: 'free' | 'starter' | 'growth' | 'scale' | 'pro_plus' | 'Custom';
+  plan: 'starter' | 'growth' | 'pro' | 'enterprise';
   status: string;
   usage: SubscriptionUsage;
   features: string[];
@@ -57,15 +57,15 @@ export const useSubscription = (): UseSubscriptionReturn => {
     if (typeof window !== 'undefined' && (window.location.pathname.includes('/websites/demo') || !isAuthenticated)) {
       setSubscription({
         id: 'demo-user',
-        plan: 'scale',
+        plan: 'pro',
         status: 'active',
         usage: {
-          websites: { current: 1, limit: 10, canCreate: true },
-          workflows: { current: 3, limit: 100, canCreate: true },
-          funnels: { current: 2, limit: 50, canCreate: true },
-          heatmaps: { current: 1, limit: 20, canCreate: true },
-          replays: { current: 4, limit: 500, canCreate: true },
-          monthlyEvents: { current: 45000, limit: 1000000, canCreate: true }
+          websites: { current: 1, limit: 15, canCreate: true },
+          workflows: { current: 3, limit: -1, canCreate: true },
+          funnels: { current: 2, limit: -1, canCreate: true },
+          heatmaps: { current: 1, limit: -1, canCreate: true },
+          replays: { current: 4, limit: 50000, canCreate: true },
+          monthlyEvents: { current: 45000, limit: 2000000, canCreate: true }
         },
         features: ['all'],
         isActive: true,

@@ -6,13 +6,11 @@ import {
     Workflow,
     Plus,
     Search,
-    ArrowUpRight,
     Zap,
     Mail,
     Bell,
     Globe,
     Database,
-    Loader2,
     Trash2,
     Power,
     PowerOff,
@@ -22,15 +20,11 @@ import {
     AlertCircle,
     Activity,
     CheckCircle2,
-    XCircle,
-    Clock,
     LayoutGrid,
-    ChevronRight
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -39,9 +33,6 @@ import {
     DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Table, TableBody, TableCell, TableHead, TableHeader, TableRow
-} from '@/components/ui/table';
 import { formatNumber } from '@/lib/analytics-api';
 import { useAutomations, useDeleteAutomation, useToggleAutomation } from '@/lib/automations-api';
 import { getWebsiteBySiteId } from '@/lib/websites-api';
@@ -177,167 +168,175 @@ export default function AutomationsPage() {
 
             {/* Table */}
             <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
-                <CardHeader className="border-b border-border/40 pb-4">
+                {/* Toolbar */}
+                <div className="px-5 py-4 border-b border-border/40">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                         <div>
-                            <CardTitle className="text-lg font-semibold">Workflows</CardTitle>
-                            <CardDescription className="text-sm mt-0.5">Manage and track automation performance</CardDescription>
+                            <h3 className="text-base font-semibold text-foreground">Workflows</h3>
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                                {filteredAutomations.length} {filteredAutomations.length === 1 ? 'workflow' : 'workflows'}
+                                {searchTerm && ` matching "${searchTerm}"`}
+                            </p>
                         </div>
                         <div className="relative">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <Input
                                 placeholder="Search automations..."
-                                className="pl-8 w-full md:w-[260px] h-8 text-sm bg-muted/30 border-border/50"
+                                className="pl-8 w-full md:w-[240px] h-8 text-sm bg-muted/30 border-border/50 focus-visible:ring-1 focus-visible:ring-primary/30"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
                         </div>
                     </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    {filteredAutomations.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-                            <div className="h-16 w-16 bg-muted/50 rounded-full flex items-center justify-center mb-5">
-                                <Workflow className="h-7 w-7 text-muted-foreground/40" />
-                            </div>
-                            <h3 className="text-base font-semibold">
-                                {searchTerm ? 'No matching automations' : 'No automations yet'}
-                            </h3>
-                            <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-1.5">
-                                {searchTerm
-                                    ? `No automations matching "${searchTerm}"`
-                                    : 'Create your first automation to start engaging users automatically.'}
-                            </p>
-                            {searchTerm ? (
-                                <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setSearchTerm('')}>Clear search</Button>
-                            ) : (
-                                <Link href={`/websites/${websiteId}/automations/builder`} className="mt-4">
-                                    <Button size="sm" className="gap-2 text-xs">
-                                        <Plus className="h-3.5 w-3.5" /> Create Automation
-                                    </Button>
-                                </Link>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="hover:bg-transparent border-border/40 bg-muted/20">
-                                        <TableHead className="px-5 py-3 text-xs font-medium text-muted-foreground">Automation</TableHead>
-                                        <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Triggers (30d)</TableHead>
-                                        <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Actions</TableHead>
-                                        <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Success Rate</TableHead>
-                                        <TableHead className="py-3 text-xs font-medium text-muted-foreground text-center">Status</TableHead>
-                                        <TableHead className="px-5 py-3 w-[60px]" />
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {filteredAutomations.map((auto) => {
-                                        const ActionIcon = auto.actions?.length > 0
-                                            ? getActionIcon(auto.actions[0].actionType)
-                                            : Zap;
-                                        const successRate = auto.stats?.successRate || 0;
+                </div>
 
-                                        return (
-                                            <TableRow
-                                                key={auto.id}
-                                                className="group hover:bg-muted/30 transition-colors cursor-pointer border-border/30"
+                {filteredAutomations.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+                        <div className="h-14 w-14 bg-muted/40 rounded-2xl flex items-center justify-center mb-4">
+                            <Workflow className="h-6 w-6 text-muted-foreground/40" />
+                        </div>
+                        <h3 className="text-sm font-semibold">
+                            {searchTerm ? 'No matching automations' : 'No automations yet'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-1">
+                            {searchTerm
+                                ? `No automations matching "${searchTerm}"`
+                                : 'Create your first automation to start engaging users automatically.'}
+                        </p>
+                        {searchTerm ? (
+                            <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setSearchTerm('')}>Clear search</Button>
+                        ) : (
+                            <Link href={`/websites/${websiteId}/automations/builder`} className="mt-4">
+                                <Button size="sm" className="gap-2 text-xs">
+                                    <Plus className="h-3.5 w-3.5" /> Create Automation
+                                </Button>
+                            </Link>
+                        )}
+                    </div>
+                ) : (
+                    <>
+                        {/* Column headers */}
+                        <div className="grid grid-cols-[1fr_90px_80px_100px_80px_110px] items-center px-5 py-2.5 border-b border-border/30 bg-muted/10 text-xs font-medium text-muted-foreground">
+                            <div className="pl-1">Automation</div>
+                            <div className="text-center">Triggers</div>
+                            <div className="text-center">Actions</div>
+                            <div className="text-center">Success</div>
+                            <div className="text-center">Status</div>
+                            <div />
+                        </div>
+
+                        {/* Rows */}
+                        <div className="divide-y divide-border/20">
+                            {filteredAutomations.map((auto) => {
+                                const ActionIcon = auto.actions?.length > 0
+                                    ? getActionIcon(auto.actions[0].actionType)
+                                    : Zap;
+                                const successRate = auto.stats?.successRate || 0;
+
+                                return (
+                                    <div
+                                        key={auto.id}
+                                        className="group grid grid-cols-[1fr_90px_80px_100px_80px_110px] items-center px-5 py-3 transition-colors cursor-pointer hover:bg-muted/20"
+                                        onClick={() => router.push(`/websites/${websiteId}/automations/${auto.id}`)}
+                                    >
+                                        {/* Automation info */}
+                                        <div className="flex items-center gap-3 min-w-0 pl-1">
+                                            <div className="h-9 w-9 rounded-lg bg-muted/60 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors">
+                                                <ActionIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                            </div>
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">{auto.name}</p>
+                                                <div className="flex items-center gap-1.5 mt-0.5">
+                                                    <span className="text-xs text-muted-foreground/60">{auto.triggerType.replace('_', ' ')}</span>
+                                                    <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/30" />
+                                                    <span className="text-xs text-muted-foreground/60">{new Date(auto.createdAt).toLocaleDateString()}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Triggers */}
+                                        <div className="text-center">
+                                            <span className="text-sm font-semibold tabular-nums">{formatNumber(auto.stats?.last30Days || 0)}</span>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center justify-center -space-x-1.5">
+                                            {auto.actions?.map((action, i) => {
+                                                const Icon = getActionIcon(action.actionType);
+                                                return (
+                                                    <div
+                                                        key={i}
+                                                        className="h-7 w-7 rounded-full border-2 border-card bg-muted flex items-center justify-center"
+                                                        title={action.actionType}
+                                                    >
+                                                        <Icon className="h-3 w-3 text-muted-foreground" />
+                                                    </div>
+                                                );
+                                            })}
+                                            {(!auto.actions || auto.actions.length === 0) && (
+                                                <span className="text-xs text-muted-foreground/50">None</span>
+                                            )}
+                                        </div>
+
+                                        {/* Success Rate */}
+                                        <div className="flex flex-col items-center gap-1">
+                                            <span className={cn("text-xs font-semibold tabular-nums", successRate >= 95 ? 'text-emerald-600 dark:text-emerald-400' : successRate >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400')}>
+                                                {successRate.toFixed(1)}%
+                                            </span>
+                                            <div className="h-1 w-12 bg-muted/60 rounded-full overflow-hidden">
+                                                <div
+                                                    className={cn("h-full rounded-full transition-all", successRate >= 95 ? 'bg-emerald-500/70' : successRate >= 80 ? 'bg-amber-500/70' : 'bg-rose-500/70')}
+                                                    style={{ width: `${successRate}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Status */}
+                                        <div className="flex items-center justify-center gap-1.5">
+                                            <span className={cn("h-1.5 w-1.5 rounded-full", auto.isActive ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/30")} />
+                                            <span className={cn("text-xs font-medium", auto.isActive ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+                                                {auto.isActive ? 'Active' : 'Paused'}
+                                            </span>
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-all">
+                                                        <MoreVertical className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end" className="w-44">
+                                                    <DropdownMenuItem asChild>
+                                                        <Link href={`/websites/${websiteId}/automations/builder?id=${auto.id}`} className="gap-2 text-xs">
+                                                            <Edit className="h-3.5 w-3.5" /> Edit Workflow
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleToggle(auto.id, auto.name, auto.isActive)} className="gap-2 text-xs">
+                                                        {auto.isActive ? <><PowerOff className="h-3.5 w-3.5" /> Pause</> : <><Power className="h-3.5 w-3.5" /> Activate</>}
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem onClick={() => handleDelete(auto.id, auto.name)} className="gap-2 text-xs text-rose-600 focus:text-rose-600">
+                                                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-7 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
                                                 onClick={() => router.push(`/websites/${websiteId}/automations/${auto.id}`)}
                                             >
-                                                <TableCell className="px-5 py-3.5">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="h-9 w-9 rounded-lg bg-muted/60 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors">
-                                                            <ActionIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                                                        </div>
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-medium group-hover:text-primary transition-colors truncate max-w-[280px]">{auto.name}</p>
-                                                            <div className="flex items-center gap-1.5 mt-0.5">
-                                                                <span className="text-xs text-muted-foreground">{auto.triggerType.replace('_', ' ')}</span>
-                                                                <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/30" />
-                                                                <span className="text-xs text-muted-foreground">{new Date(auto.createdAt).toLocaleDateString()}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-3.5 text-center">
-                                                    <span className="text-sm font-semibold tabular-nums">{formatNumber(auto.stats?.last30Days || 0)}</span>
-                                                </TableCell>
-                                                <TableCell className="py-3.5">
-                                                    <div className="flex items-center justify-center -space-x-1.5">
-                                                        {auto.actions?.map((action, i) => {
-                                                            const Icon = getActionIcon(action.actionType);
-                                                            return (
-                                                                <div
-                                                                    key={i}
-                                                                    className="h-7 w-7 rounded-full border-2 border-card bg-muted flex items-center justify-center"
-                                                                    title={action.actionType}
-                                                                >
-                                                                    <Icon className="h-3 w-3 text-muted-foreground" />
-                                                                </div>
-                                                            );
-                                                        })}
-                                                        {(!auto.actions || auto.actions.length === 0) && (
-                                                            <span className="text-xs text-muted-foreground/50">None</span>
-                                                        )}
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-3.5">
-                                                    <div className="flex flex-col items-center gap-1.5">
-                                                        <span className={cn("text-xs font-semibold tabular-nums", successRate >= 95 ? 'text-emerald-600 dark:text-emerald-400' : successRate >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400')}>
-                                                            {successRate.toFixed(1)}%
-                                                        </span>
-                                                        <div className="h-1 w-14 bg-muted rounded-full overflow-hidden">
-                                                            <div
-                                                                className={cn("h-full rounded-full transition-all", successRate >= 95 ? 'bg-emerald-500/70' : successRate >= 80 ? 'bg-amber-500/70' : 'bg-rose-500/70')}
-                                                                style={{ width: `${successRate}%` }}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-3.5 text-center">
-                                                    <div className="flex items-center justify-center gap-1.5">
-                                                        <span className={cn("h-1.5 w-1.5 rounded-full", auto.isActive ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/30")} />
-                                                        <span className={cn("text-xs", auto.isActive ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
-                                                            {auto.isActive ? 'Active' : 'Paused'}
-                                                        </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="px-4 py-3.5" onClick={(e) => e.stopPropagation()}>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <MoreVertical className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end" className="w-44">
-                                                            <DropdownMenuItem asChild>
-                                                                <Link href={`/websites/${websiteId}/automations/${auto.id}`} className="gap-2 text-xs">
-                                                                    <Eye className="h-3.5 w-3.5" /> View Details
-                                                                </Link>
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem asChild>
-                                                                <Link href={`/websites/${websiteId}/automations/builder?id=${auto.id}`} className="gap-2 text-xs">
-                                                                    <Edit className="h-3.5 w-3.5" /> Edit Workflow
-                                                                </Link>
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuItem onClick={() => handleToggle(auto.id, auto.name, auto.isActive)} className="gap-2 text-xs">
-                                                                {auto.isActive ? <><PowerOff className="h-3.5 w-3.5" /> Pause</> : <><Power className="h-3.5 w-3.5" /> Activate</>}
-                                                            </DropdownMenuItem>
-                                                            <DropdownMenuSeparator />
-                                                            <DropdownMenuItem onClick={() => handleDelete(auto.id, auto.name)} className="gap-2 text-xs text-rose-600 focus:text-rose-600">
-                                                                <Trash2 className="h-3.5 w-3.5" /> Delete
-                                                            </DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
+                                                <Eye className="h-3.5 w-3.5" /> View
+                                            </Button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
-                    )}
-                </CardContent>
+                    </>
+                )}
             </Card>
         </div>
     );
@@ -374,35 +373,21 @@ function AutomationsSkeleton() {
                 <Skeleton className="h-9 w-40" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[1, 2, 3, 4].map(i => (
-                    <Card key={i} className="border border-border/60 p-5 space-y-3">
-                        <div className="flex items-center justify-between">
-                            <Skeleton className="h-3 w-24" />
-                            <Skeleton className="h-4 w-4" />
-                        </div>
-                        <Skeleton className="h-7 w-16" />
-                        <Skeleton className="h-3 w-32" />
-                    </Card>
-                ))}
+                {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28" />)}
             </div>
             <Card className="border border-border/60">
-                <CardHeader className="border-b border-border/40 pb-4">
-                    <div className="flex justify-between">
-                        <div className="space-y-2"><Skeleton className="h-5 w-32" /><Skeleton className="h-3 w-48" /></div>
-                        <Skeleton className="h-8 w-60" />
-                    </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    {[1, 2, 3, 4].map(i => (
-                        <div key={i} className="px-5 py-4 border-b border-border/30 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <Skeleton className="h-9 w-9 rounded-lg" />
-                                <div className="space-y-1.5"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-24" /></div>
-                            </div>
-                            <Skeleton className="h-4 w-12" />
+                <div className="px-5 py-4 border-b border-border/40">
+                    <Skeleton className="h-5 w-32" />
+                </div>
+                {[1, 2, 3, 4].map(i => (
+                    <div key={i} className="px-5 py-4 border-b border-border/20 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <Skeleton className="h-9 w-9 rounded-lg" />
+                            <div className="space-y-1.5"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-24" /></div>
                         </div>
-                    ))}
-                </CardContent>
+                        <Skeleton className="h-4 w-12" />
+                    </div>
+                ))}
             </Card>
         </div>
     );

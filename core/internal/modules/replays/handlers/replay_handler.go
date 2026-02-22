@@ -47,6 +47,18 @@ func (h *ReplayHandler) RecordReplay(c *gin.Context) {
 	}
 	userAgent := c.Request.Header.Get("User-Agent")
 
+	// Extract country from CDN/proxy headers, fall back to client IP
+	country := c.Request.Header.Get("CF-IPCountry")
+	if country == "" {
+		country = c.Request.Header.Get("X-Vercel-IP-Country")
+	}
+	if country == "" {
+		country = c.Request.Header.Get("X-Country-Code")
+	}
+	if country == "" {
+		country = c.ClientIP()
+	}
+
 	h.logger.Debug().
 		Str("website_id", req.WebsiteID).
 		Str("session_id", req.SessionID).
@@ -55,7 +67,7 @@ func (h *ReplayHandler) RecordReplay(c *gin.Context) {
 		Int("sequence", req.Sequence).
 		Msg("Recording session replay chunk")
 
-	if err := h.service.RecordReplay(c.Request.Context(), req, origin, userAgent); err != nil {
+	if err := h.service.RecordReplay(c.Request.Context(), req, origin, userAgent, country); err != nil {
 		h.logger.Error().Err(err).Str("website_id", req.WebsiteID).Str("origin", origin).Msg("Failed to record replay chunk")
 
 		status := http.StatusInternalServerError

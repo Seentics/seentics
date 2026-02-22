@@ -2,8 +2,10 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Copy, Check, Info, Lightbulb } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { DashboardPageHeader } from '@/components/dashboard-header';
 
 export default function TrackingSettings() {
   const params = useParams();
@@ -11,9 +13,9 @@ export default function TrackingSettings() {
   const [copied, setCopied] = React.useState(false);
 
   const trackingSnippet = `<!-- Seentics Analytics -->
-<script 
-  defer 
-  data-website-id="${websiteId}" 
+<script
+  defer
+  data-website-id="${websiteId}"
   src="https://app.seentics.com/script.js"
 ></script>`;
 
@@ -24,54 +26,71 @@ export default function TrackingSettings() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Tracking Setup</h1>
-        <p className="text-muted-foreground text-sm">Install this snippet on your website to start collecting data.</p>
-      </div>
+    <div className="p-4 sm:p-8 space-y-8 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
+      <DashboardPageHeader
+        title="Tracking Setup"
+        description="Install the snippet on your website to start collecting analytics data."
+      />
 
       <div className="space-y-6">
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
-          <div className="relative bg-muted/30 p-6 rounded border border-border/50">
+        {/* Tracking Snippet */}
+        <Card className="border border-border/60 bg-card shadow-sm">
+          <CardContent className="p-5">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Main Tracking Snippet</span>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 px-3 text-[10px] font-bold gap-2 hover:bg-background"
+              <h3 className="text-sm font-semibold">Main Tracking Snippet</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs font-medium"
                 onClick={handleCopy}
               >
                 {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                {copied ? 'COPIED!' : 'COPY CODE'}
+                {copied ? 'Copied' : 'Copy Code'}
               </Button>
             </div>
-            <pre className="text-[13px] font-mono text-foreground overflow-x-auto leading-relaxed selection:bg-primary/20">
-              <code>{trackingSnippet}</code>
-            </pre>
-          </div>
-        </div>
+            <div className="bg-muted/30 border border-border/50 rounded-lg p-4 overflow-x-auto">
+              <pre className="text-sm font-mono text-foreground leading-relaxed">
+                <code>{trackingSnippet}</code>
+              </pre>
+            </div>
+          </CardContent>
+        </Card>
 
-        <div className="grid gap-6">
-           <div className="flex gap-4 p-4 rounded bg-primary/5 border border-primary/10">
-              <Lightbulb className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                 <p className="text-sm font-bold">Installation Tip</p>
-                 <p className="text-xs text-muted-foreground leading-relaxed">
-                   Paste this code into the <code className="bg-primary/10 px-1 rounded text-primary">{'<head>'}</code> of your website. It's lightweight and won't affect your page load speed.
-                 </p>
+        {/* Tips */}
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <Lightbulb className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium mb-1">Installation</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Paste this code into the <code className="bg-muted px-1 rounded text-foreground">{'<head>'}</code> of your website. It&apos;s lightweight and won&apos;t affect page load speed.
+                  </p>
+                </div>
               </div>
-           </div>
+            </CardContent>
+          </Card>
 
-           <div className="flex gap-4 p-4 rounded bg-muted/30 border border-border">
-              <Info className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                 <p className="text-sm font-bold">Verifying Installation</p>
-                 <p className="text-xs text-muted-foreground leading-relaxed">
-                   Once installed, visit your website. Your visit should appear in the <span className="font-bold underline cursor-pointer" onClick={() => window.location.href=`/websites/${websiteId}`}>Real-time dashboard</span> within seconds.
-                 </p>
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                  <Info className="h-4 w-4 text-emerald-500" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-medium mb-1">Verification</h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Once installed, visit your website. Your visit should appear in the{' '}
+                    <a href={`/websites/${websiteId}`} className="text-primary hover:underline">real-time dashboard</a>{' '}
+                    within seconds.
+                  </p>
+                </div>
               </div>
-           </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

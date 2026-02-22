@@ -66,7 +66,7 @@ export function BillingSettingsComponent() {
                 </div>
               </div>
               <div className="flex items-baseline gap-2 mb-8">
-                <h3 className="text-5xl font-black tracking-tight">${normalizedPlan.includes('starter') ? '0' : normalizedPlan.includes('growth') ? '15' : normalizedPlan.includes('scale') ? '39' : '99'}</h3>
+                <h3 className="text-5xl font-black tracking-tight">${normalizedPlan.includes('starter') ? '0' : normalizedPlan.includes('growth') ? '29' : normalizedPlan.includes('pro') ? '79' : normalizedPlan.includes('enterprise') ? '249' : '0'}</h3>
                 <span className="text-lg font-bold text-muted-foreground">/ month</span>
               </div>
 

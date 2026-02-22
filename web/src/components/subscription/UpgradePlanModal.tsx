@@ -3,16 +3,16 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle, Zap, Crown, ArrowRight, X, Sparkles } from 'lucide-react';
 import { useAuth } from '@/stores/useAuthStore';
 import api from '@/lib/api';
 import { isEnterprise } from '@/lib/features';
+import { cn } from '@/lib/utils';
 
 interface UpgradePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentPlan: 'free' | 'starter' | 'growth' | 'scale' | 'pro_plus';
+  currentPlan: 'starter' | 'growth' | 'pro' | 'enterprise';
   limitType: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'replays' | 'monthlyEvents';
   currentUsage: number;
   limit: number;
@@ -21,63 +21,67 @@ interface UpgradePlanModalProps {
 const planDetails = {
   growth: {
     name: 'Growth',
-    price: '$15',
-    period: 'per month',
+    price: '$29',
+    period: '/mo',
     icon: Zap,
-    color: 'blue',
+    color: 'indigo',
     features: [
-      "5 Websites",
-      "100,000 Monthly Events",
-      "5,000 Session Recordings",
-      "20 Active Heatmaps",
-      "10 Conversion Funnels",
-      "10 Active Automations",
-      "1 Year Data Retention",
+      "3 Websites",
+      "200,000 Monthly Events",
+      "10,000 Session Recordings",
+      "Unlimited Heatmaps",
+      "10 Funnels",
+      "10 Automations",
+      "3 Month Recording Retention",
+      "2 Year Analytics Retention",
       "Email Support"
     ],
     buttonText: 'Upgrade to Growth'
   },
-  scale: {
-    name: 'Scale',
-    price: '$39',
-    period: 'per month',
+  pro: {
+    name: 'Pro',
+    price: '$79',
+    period: '/mo',
     icon: Crown,
     color: 'purple',
     features: [
-      "20 Websites",
-      "1,000,000 Monthly Events",
+      "15 Websites",
+      "2,000,000 Monthly Events",
       "50,000 Session Recordings",
-      "Unlimited Heatmaps",
-      "50 Conversion Funnels",
-      "50 Active Automations",
-      "2 Years Data Retention",
-      "Priority Support"
-    ],
-    buttonText: 'Upgrade to Scale'
-  },
-  pro_plus: {
-    name: 'Pro+',
-    price: '$99',
-    period: 'per month',
-    icon: Sparkles,
-    color: 'amber',
-    features: [
-      "Unlimited Websites",
-      "Unlimited Monthly Events",
-      "Unlimited Session Recordings",
       "Unlimited Heatmaps",
       "Unlimited Funnels",
       "Unlimited Automations",
-      "Custom Data Retention",
+      "3 Month Recording Retention",
+      "5 Year Analytics Retention",
+      "Priority Support"
+    ],
+    buttonText: 'Upgrade to Pro'
+  },
+  enterprise: {
+    name: 'Enterprise',
+    price: '$249',
+    period: '/mo',
+    icon: Sparkles,
+    color: 'amber',
+    features: [
+      "100 Websites",
+      "15,000,000 Monthly Events",
+      "200,000 Session Recordings",
+      "Unlimited Heatmaps",
+      "Unlimited Funnels",
+      "Unlimited Automations",
+      "7 Year Analytics Retention",
+      "White Label Solution",
+      "Client Management",
       "Dedicated Support"
     ],
-    buttonText: 'Upgrade to Pro+'
+    buttonText: 'Upgrade to Enterprise'
   }
 };
 
-const limitMessages = {
+const limitMessages: Record<string, string> = {
   websites: 'You\'ve reached your website limit',
-  workflows: 'You\'ve reached your workflow limit',
+  workflows: 'You\'ve reached your automation limit',
   funnels: 'You\'ve reached your funnel limit',
   heatmaps: 'You\'ve reached your heatmap limit',
   replays: 'You\'ve reached your session recording limit',
@@ -110,16 +114,14 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
-    // Initialize Lemon Squeezy if script is loaded
     if (window.createLemonSqueezy) {
       window.createLemonSqueezy();
     }
   }, [isOpen]);
 
-  // We show all major upgrade plans: Growth, Scale, Pro+
-  const upgradePlans = ['growth', 'scale', 'pro_plus'] as const;
+  const upgradePlans = ['growth', 'pro', 'enterprise'] as const;
 
-  const handleUpgrade = async (plan: 'growth' | 'scale' | 'pro_plus') => {
+  const handleUpgrade = async (plan: 'growth' | 'pro' | 'enterprise') => {
     if (!isAuthenticated) {
       window.location.href = '/signin';
       return;
@@ -127,44 +129,33 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
 
     try {
       setLoading(true);
-      
+
       const response = await api.post('/user/billing/checkout', { plan });
-      
+
       if (response.data.success && response.data.data.checkoutUrl) {
         let checkoutUrl = response.data.data.checkoutUrl;
-        
-        // Debug log to see what the backend returned
-        console.log('[DEBUG] Backend checkoutUrl:', checkoutUrl);
 
-        // Force test=1 if on localhost
         if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
           if (!checkoutUrl.includes('test=1')) {
             checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
           }
         }
 
-        // Ensure embed parameter is present for the overlay
         if (!checkoutUrl.includes('embed=1')) {
           checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
         }
 
-        // Add success URL so users return to the app after payment
         const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
         if (!checkoutUrl.includes('checkout[success_url]')) {
           checkoutUrl += `&checkout[success_url]=${successUrl}`;
         }
 
-        console.log('[DEBUG] Final Opening URL:', checkoutUrl);
-
-        // Use Lemon Squeezy overlay if available
         if (window.LemonSqueezy) {
-          onClose(); // Close modal first
-          // Small delay to ensure Dialog has fully cleaned up focus traps/body locking
+          onClose();
           setTimeout(() => {
             window.LemonSqueezy?.Url.Open(checkoutUrl);
           }, 100);
         } else {
-          // Fallback to direct redirect
           window.location.href = checkoutUrl;
         }
       } else {
@@ -178,9 +169,15 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
     }
   };
 
+  const colorMap: Record<string, { bg: string; hover: string; check: string }> = {
+    indigo: { bg: 'bg-indigo-500', hover: 'hover:bg-indigo-600', check: 'text-indigo-500' },
+    purple: { bg: 'bg-purple-500', hover: 'hover:bg-purple-600', check: 'text-purple-500' },
+    amber: { bg: 'bg-amber-500', hover: 'hover:bg-amber-600', check: 'text-amber-500' },
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto w-[95vw]">
+      <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto w-[95vw]">
         <DialogHeader className="relative">
           <Button
             variant="ghost"
@@ -190,116 +187,88 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
           >
             <X className="h-4 w-4" />
           </Button>
-          <DialogTitle className="text-3xl font-black text-center mb-2 uppercase tracking-tight">
+          <DialogTitle className="text-xl font-semibold text-center mb-2">
             Upgrade Your Plan
           </DialogTitle>
           <div className="text-center">
-            <p className="text-xl text-red-600 dark:text-red-400 font-black mb-1 uppercase tracking-tight">
+            <p className="text-sm text-red-500 font-medium mb-1">
               {limitMessages[limitType]}
             </p>
-            <p className="text-slate-600 dark:text-slate-400 font-medium">
-              You're using <span className="font-bold text-slate-900 dark:text-white">{currentUsage} of {limit}</span> {limitType}. Upgrade to continue growing your business.
+            <p className="text-xs text-muted-foreground">
+              You're using <span className="font-medium text-foreground">{currentUsage} of {limit}</span> {limitType}. Upgrade to continue growing.
             </p>
           </div>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
           {upgradePlans.map((planKey) => {
             const plan = planDetails[planKey];
             const PlanIcon = plan.icon;
             const isRecommended = planKey === 'growth';
-            const isCurrent = currentPlan.toLowerCase() === planKey;
+            const isCurrent = currentPlan === planKey;
+            const colors = colorMap[plan.color];
 
             return (
               <div key={planKey} className="relative">
                 {isRecommended && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10">
-                    <div className="bg-blue-600 text-white px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider shadow-lg">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                    <span className={cn("text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full text-white", colors.bg)}>
                       Recommended
-                    </div>
+                    </span>
                   </div>
                 )}
-                
-                <Card className={`h-full border-2 ${
-                  isCurrent ? 'border-primary/20 bg-primary/5' : 
-                  isRecommended ? 'border-blue-600 shadow-xl shadow-blue-500/10' : 'border-border/50'
-                } hover:shadow-2xl transition-all duration-500 group overflow-hidden`}>
-                  <CardHeader className="text-center pb-6">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 transition-transform group-hover:scale-110 duration-500 ${
-                      plan.color === 'blue' ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 
-                      plan.color === 'purple' ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20' : 
-                      'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
-                    }`}>
-                      <PlanIcon className="h-7 w-7" />
+
+                <div className={cn(
+                  "h-full flex flex-col rounded-xl border bg-card p-6 transition-all duration-300",
+                  isCurrent ? 'border-primary/20 bg-primary/5' :
+                  isRecommended ? 'border-2 border-indigo-500 shadow-md' : 'border-border/60'
+                )}>
+                  <div className="text-center mb-5">
+                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-3", `${colors.bg}/10`)}>
+                      <PlanIcon className={cn("h-5 w-5", colors.check)} />
                     </div>
-                    
-                    <CardTitle className="text-2xl font-black mb-1">
-                      {plan.name}
-                    </CardTitle>
-                    
+                    <h3 className="text-lg font-semibold mb-1">{plan.name}</h3>
                     <div className="flex items-baseline justify-center gap-1">
-                      <span className="text-4xl font-black tracking-tighter">
-                        {plan.price}
-                      </span>
-                      <span className="text-slate-500 dark:text-slate-400 text-sm font-bold">
-                        {plan.period}
-                      </span>
+                      <span className="text-3xl font-bold tracking-tight">{plan.price}</span>
+                      <span className="text-sm text-muted-foreground">{plan.period}</span>
                     </div>
-                  </CardHeader>
-                  
-                  <CardContent className="space-y-8">
-                    <ul className="space-y-4">
-                      {plan.features.map((feature, index) => (
-                        <li key={index} className="flex items-start gap-3">
-                          <CheckCircle className={`h-4 w-4 flex-shrink-0 mt-0.5 ${
-                             plan.color === 'blue' ? 'text-blue-600' : 
-                             plan.color === 'purple' ? 'text-purple-600' : 'text-amber-500'
-                          }`} />
-                          <span className="text-slate-600 dark:text-slate-400 text-[13px] font-bold leading-tight">
-                            {feature}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    
-                    <Button
-                      onClick={() => handleUpgrade(planKey)}
-                      disabled={loading || isCurrent}
-                      className={`w-full py-6 font-black uppercase tracking-widest text-[11px] rounded-xl transition-all ${
-                        isCurrent 
-                          ? 'bg-slate-200 text-slate-500 cursor-not-allowed' :
-                        plan.color === 'blue'
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20'
-                          : plan.color === 'purple'
-                          ? 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-600/20'
-                          : 'bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20'
-                      }`}
-                    >
-                      {loading ? (
-                        'Processing...'
-                      ) : isCurrent ? (
-                        'Current Plan'
-                      ) : (
-                        <>
-                          {plan.buttonText}
-                          <ArrowRight className="ml-2 h-3 w-3" />
-                        </>
-                      )}
-                    </Button>
-                  </CardContent>
-                </Card>
+                  </div>
+
+                  <ul className="space-y-2.5 flex-1 mb-6">
+                    {plan.features.map((feature, index) => (
+                      <li key={index} className="flex items-start gap-2">
+                        <CheckCircle className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", colors.check)} />
+                        <span className="text-xs text-muted-foreground leading-tight">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    onClick={() => handleUpgrade(planKey)}
+                    disabled={loading || isCurrent}
+                    className={cn(
+                      "w-full gap-1.5 text-xs font-medium",
+                      !isCurrent && `${colors.bg} ${colors.hover} text-white shadow-md`
+                    )}
+                    variant={isCurrent ? "outline" : "default"}
+                  >
+                    {loading ? 'Processing...' : isCurrent ? 'Current Plan' : (
+                      <>{plan.buttonText} <ArrowRight className="h-3.5 w-3.5" /></>
+                    )}
+                  </Button>
+                </div>
               </div>
             );
           })}
         </div>
 
-        <div className="mt-8 pt-6 border-t border-border/50 text-center">
-          <p className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] flex items-center justify-center gap-4 flex-wrap">
-            <span>✓ Cancel anytime</span>
-            <span className="opacity-20">•</span>
-            <span>✓ 30-day money back guarantee</span>
-            <span className="opacity-20">•</span>
-            <span>✓ Instant upgrade</span>
+        <div className="mt-6 pt-4 border-t border-border/50 text-center">
+          <p className="text-xs text-muted-foreground flex items-center justify-center gap-4 flex-wrap">
+            <span>Cancel anytime</span>
+            <span className="opacity-30">|</span>
+            <span>30-day money back guarantee</span>
+            <span className="opacity-30">|</span>
+            <span>Instant upgrade</span>
           </p>
         </div>
       </DialogContent>

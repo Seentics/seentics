@@ -441,6 +441,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 			heatmaps.POST("/record", heatmapHandler.RecordHeatmap)
 			heatmaps.GET("/data", heatmapHandler.GetHeatmapData)
 			heatmaps.GET("/pages", heatmapHandler.GetHeatmapPages)
+			heatmaps.GET("/top-elements", heatmapHandler.GetTopElements)
 			heatmaps.DELETE("/pages", heatmapHandler.DeleteHeatmapPage)
 			heatmaps.DELETE("/bulk-delete", heatmapHandler.BulkDeleteHeatmapPages)
 		}

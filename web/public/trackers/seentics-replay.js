@@ -24,7 +24,7 @@
     var script = d.currentScript;
     if (script && script.src) basePath = script.src.substring(0, script.src.lastIndexOf('/') + 1);
 
-    var chunkSize = 500, flushInterval = 10000;
+    var chunkSize = 500, flushInterval = 10000, maxDuration = 30 * 60 * 1000; // 30 minutes
     var rrwebUrl = basePath + 'rrweb.min.js';
     var rrwebFallback = 'https://cdn.jsdelivr.net/npm/rrweb@2.0.0-alpha.18/dist/rrweb.umd.js';
 
@@ -86,8 +86,18 @@
 
       if (!rs.stopFn) return;
       rs.isRecording = true;
+      rs.startTime = Date.now();
 
-      setInterval(sendChunk, flushInterval);
+      var flushTimer = setInterval(sendChunk, flushInterval);
+
+      // Stop recording after 30 minutes
+      rs.maxTimer = setTimeout(function() {
+        clearInterval(flushTimer);
+        sendChunk().then(function() {
+          if (rs.stopFn) { rs.stopFn(); rs.stopFn = null; }
+          rs.isRecording = false;
+        });
+      }, maxDuration);
 
       w.addEventListener('beforeunload', function() {
         if (rs.buffer.length === 0) return;

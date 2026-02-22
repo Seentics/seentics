@@ -57,15 +57,15 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
     }
   };
 
-  const limitMessages = {
+  const limitMessages: Record<string, { title: string; description: string; icon: React.ReactNode }> = {
     websites: {
       title: 'Website limit reached',
       description: 'You\'ve reached your website limit. Upgrade to create more websites.',
       icon: <AlertTriangle className="h-4 w-4" />
     },
     workflows: {
-      title: 'Workflow limit reached', 
-      description: 'You\'ve reached your workflow limit. Upgrade to create more workflows.',
+      title: 'Automation limit reached',
+      description: 'You\'ve reached your automation limit. Upgrade to create more automations.',
       icon: <AlertTriangle className="h-4 w-4" />
     },
     funnels: {
@@ -80,13 +80,18 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
     },
     heatmaps: {
       title: 'Heatmap limit reached',
-      description: 'You\'ve reached your heatmap limit. Upgrade to record more sessions.',
+      description: 'You\'ve reached your heatmap limit. Upgrade to track more pages.',
+      icon: <AlertTriangle className="h-4 w-4" />
+    },
+    replays: {
+      title: 'Recording limit reached',
+      description: 'You\'ve reached your session recording limit. Upgrade for more recordings.',
       icon: <AlertTriangle className="h-4 w-4" />
     }
   };
 
   const message = limitMessages[reachedLimit];
-  const PlanIcon = subscription.plan === 'pro_plus' ? Crown : Zap;
+  const PlanIcon = subscription.plan === 'enterprise' ? Crown : Zap;
 
   return (
     <>
@@ -108,7 +113,7 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
             </div>
             
             <div className="flex items-center space-x-2">
-              {subscription.plan !== 'pro_plus' && (
+              {subscription.plan !== 'enterprise' && (
                 <Button
                   size="sm"
                   onClick={handleUpgrade}

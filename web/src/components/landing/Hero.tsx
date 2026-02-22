@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Github, X } from 'lucide-react';
+import { ArrowRight, Github, X, Shield, Code2 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/stores/useAuthStore';
@@ -24,14 +24,31 @@ export default function Hero() {
   return (
     <section className="relative pt-32 pb-16 md:pt-44 md:pb-24 bg-background">
       <div className="container mx-auto px-6 relative z-10">
-        <div className="max-w-3xl mx-auto text-center">
+        <div className="max-w-4xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="flex items-center justify-center gap-3 mb-6"
+          >
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary">
+              <Code2 className="h-3 w-3" />
+              Open Source
+            </span>
+            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <Shield className="h-3 w-3" />
+              Privacy First
+            </span>
+          </motion.div>
+
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.3] mb-6"
+            className="text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.3] md:leading-[1.2] mb-6"
           >
-            Privacy-First <span className="text-primary">Analytics</span> for the Modern <span className="">Web</span>
+            All-in-One{' '}
+            <span className="text-primary">Website Analytics</span> Platform
           </motion.h1>
 
           <motion.p
@@ -40,7 +57,7 @@ export default function Hero() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed"
           >
-            Live analytics, heatmaps, session recordings, funnels, and automation workflows — <span className="font-semibold text-foreground">all in one platform</span>. No cookies, <span className="font-semibold text-foreground">fully GDPR compliant</span>, and you <span className="font-semibold text-foreground">own every byte of data</span>.
+            Analytics, heatmaps, session replays, funnels, and automations — everything you need to understand your users, in one place.
           </motion.p>
 
           <motion.div

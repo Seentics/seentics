@@ -17,12 +17,13 @@ interface LimitReachedAlertProps {
   className?: string;
 }
 
-const defaultMessages = {
+const defaultMessages: Record<string, string> = {
   websites: 'You\'ve reached your website limit. Upgrade to add more websites.',
-  workflows: 'You\'ve reached your workflow limit. Upgrade to create more automation workflows.',
+  workflows: 'You\'ve reached your automation limit. Upgrade to create more automations.',
   funnels: 'You\'ve reached your funnel limit. Upgrade to build more conversion funnels.',
   monthlyEvents: 'You\'ve reached your monthly events limit. Upgrade to track more events.',
-  heatmaps: 'You\'ve reached your heatmap limit. Upgrade to record more heatmap sessions.'
+  heatmaps: 'You\'ve reached your heatmap limit. Upgrade to track more pages.',
+  replays: 'You\'ve reached your session recording limit. Upgrade for more recordings.'
 };
 
 export const LimitReachedAlert: React.FC<LimitReachedAlertProps> = ({
@@ -67,7 +68,7 @@ export const LimitReachedAlert: React.FC<LimitReachedAlertProps> = ({
           </div>
           
           <div className="flex items-center gap-2 ml-4">
-            {showUpgradeButton && subscription.plan !== 'pro_plus' && (
+            {showUpgradeButton && subscription.plan !== 'enterprise' && (
               <Button
                 size="sm"
                 onClick={() => setShowUpgradeModal(true)}

@@ -26,7 +26,7 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
   const { user } = useAuth();
   const { subscription, loading: subscriptionLoading, getUsagePercentage } = useSubscription();
   
-  const currentPlan = subscription?.plan || 'free';
+  const currentPlan = subscription?.plan || 'starter';
   const usage = subscription?.usage?.monthlyEvents?.current || 0;
   const percentage = getUsagePercentage('monthlyEvents');
 
@@ -34,29 +34,36 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
     {
       name: 'Starter',
       price: '$0',
-      description: 'Perfect for side projects',
-      features: ['1 Website', '5k Events/mo', '100 Recordings', '3 Heatmaps', '2 Funnels'],
+      description: 'For side projects',
+      features: ['1 Website', '10K Events/mo', '100 Recordings', '3 Heatmaps', '1 Funnel', '1 Automation'],
       current: currentPlan === 'starter',
     },
     {
       name: 'Growth',
-      price: '$15',
+      price: '$29',
       description: 'For growing businesses',
-      features: ['5 Websites', '100k Events/mo', '5k Recordings', '20 Heatmaps', '10 Funnels'],
+      features: ['3 Websites', '200K Events/mo', '10K Recordings', 'Unlimited Heatmaps', '10 Funnels', '10 Automations'],
       current: currentPlan === 'growth',
     },
     {
-      name: 'Scale',
-      price: '$39',
+      name: 'Pro',
+      price: '$79',
       description: 'For scaling teams',
-      features: ['20 Websites', '1M Events/mo', '50k Recordings', 'Unlimited Heatmaps', '50 Funnels'],
-      current: currentPlan === 'scale',
+      features: ['15 Websites', '2M Events/mo', '50K Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels'],
+      current: currentPlan === 'pro',
+    },
+    {
+      name: 'Enterprise',
+      price: '$249',
+      description: 'For agencies & large teams',
+      features: ['100 Websites', '15M Events/mo', '200K Recordings', 'White Label', 'Dedicated Support'],
+      current: currentPlan === 'enterprise',
     }
   ];
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[1000px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Billing & Subscription</DialogTitle>
           <DialogDescription>
@@ -125,7 +132,7 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
 
                 {/* PLANS TAB */}
                 <TabsContent value="plans" className="space-y-4 py-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {plans.map((plan) => (
                             <Card key={plan.name} className={`flex flex-col ${plan.current ? 'border-primary ring-1 ring-primary' : ''}`}>
                                 <CardHeader>

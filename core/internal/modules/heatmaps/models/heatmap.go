@@ -64,3 +64,8 @@ type BulkDeleteHeatmapRequest struct {
 	WebsiteID string   `json:"website_id" binding:"required"`
 	URLs      []string `json:"urls" binding:"required"`
 }
+
+type TopElement struct {
+	Selector string `json:"selector"`
+	Clicks   int    `json:"clicks"`
+}

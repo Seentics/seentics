@@ -74,9 +74,20 @@ func (h *HeatmapHandler) GetHeatmapData(c *gin.Context) {
 		return
 	}
 
-	// Default to last 30 days
+	// Default to last 30 days, allow query param override
 	to := time.Now()
 	from := to.AddDate(0, 0, -30)
+
+	if fromStr := c.Query("from"); fromStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, fromStr); err == nil {
+			from = parsed
+		}
+	}
+	if toStr := c.Query("to"); toStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, toStr); err == nil {
+			to = parsed
+		}
+	}
 
 	h.logger.Debug().Str("website_id", websiteID).Str("url", url).Str("type", heatmapType).Str("device", deviceType).Msg("Fetching heatmap data")
 
@@ -138,6 +149,47 @@ func (h *HeatmapHandler) DeleteHeatmapPage(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
+}
+
+// GetTopElements returns top clicked elements by selector for a page
+func (h *HeatmapHandler) GetTopElements(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Query("website_id")
+	url := c.Query("url")
+	eventType := c.DefaultQuery("type", "click")
+
+	if websiteID == "" || url == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id and url are required"})
+		return
+	}
+
+	to := time.Now()
+	from := to.AddDate(0, 0, -30)
+
+	if fromStr := c.Query("from"); fromStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, fromStr); err == nil {
+			from = parsed
+		}
+	}
+	if toStr := c.Query("to"); toStr != "" {
+		if parsed, err := time.Parse(time.RFC3339, toStr); err == nil {
+			to = parsed
+		}
+	}
+
+	elements, err := h.service.GetTopElements(c.Request.Context(), websiteID, url, eventType, from, to, userID)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to fetch top elements")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch top elements"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"elements": elements})
 }
 
 func (h *HeatmapHandler) BulkDeleteHeatmapPages(c *gin.Context) {

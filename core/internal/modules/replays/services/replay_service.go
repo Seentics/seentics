@@ -19,7 +19,7 @@ import (
 )
 
 type ReplayService interface {
-	RecordReplay(ctx context.Context, req models.RecordReplayRequest, origin, userAgent string) error
+	RecordReplay(ctx context.Context, req models.RecordReplayRequest, origin, userAgent, country string) error
 	GetReplay(ctx context.Context, websiteID, sessionID, userID string) ([]models.SessionReplayChunk, error)
 	ListSessions(ctx context.Context, websiteID, userID string, limit, offset int) ([]models.ReplaySessionMetadata, error)
 	DeleteReplay(ctx context.Context, websiteID, sessionID, userID string) error
@@ -85,7 +85,7 @@ func (s *replayService) validateOwnership(ctx context.Context, websiteID, userID
 	return website.SiteID, nil
 }
 
-func (s *replayService) RecordReplay(ctx context.Context, req models.RecordReplayRequest, origin, userAgent string) error {
+func (s *replayService) RecordReplay(ctx context.Context, req models.RecordReplayRequest, origin, userAgent, country string) error {
 	// 1. Validate website
 	website, err := s.websites.GetWebsiteByAnyID(ctx, req.WebsiteID)
 	if err != nil {
@@ -133,7 +133,7 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 			Browser:   browser,
 			Device:    device,
 			OS:        osName,
-			Country:   "Unknown", // IP geo-lookup not implemented yet
+			Country:   country,
 			EntryPage: req.Page,
 		}
 	}

@@ -3,18 +3,82 @@
 import React, { useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Zap, Check, Shield, BarChart3, Filter, Workflow, Loader2, Map, Video } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CreditCard, Zap, Check, BarChart3, Filter, Workflow, Loader2, Map, Video, Globe, ExternalLink } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { useSubscription } from '@/hooks/useSubscription';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import { UpgradePlanModal } from '@/components/subscription/UpgradePlanModal';
-import { createPortalSession } from '@/lib/billing-api';
 import api from '@/lib/api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { isEnterprise } from '@/lib/features';
+import { cn } from '@/lib/utils';
+
+const planPriceMap: Record<string, number> = {
+    starter: 0,
+    growth: 29,
+    pro: 79,
+    enterprise: 249,
+};
+
+const planDescriptions: Record<string, string> = {
+    starter: 'For side projects and personal sites',
+    growth: 'For growing businesses',
+    pro: 'For scaling teams with priority support',
+    enterprise: 'For agencies and large teams',
+};
+
+const planFeatures: Record<string, string[]> = {
+    starter: [
+        'Analytics Dashboard',
+        '10K Monthly Events',
+        '1 Website',
+        '1 Funnel',
+        '1 Automation',
+        '3 Heatmaps',
+        '100 Session Recordings',
+        '30 Day Data Retention',
+        'Community Support',
+    ],
+    growth: [
+        'Analytics Dashboard',
+        '200K Monthly Events',
+        '3 Websites',
+        '10 Funnels',
+        '10 Automations',
+        'Unlimited Heatmaps',
+        '10,000 Session Recordings',
+        '2 Year Analytics Retention',
+        '3 Month Recording Retention',
+        'Email Support',
+    ],
+    pro: [
+        'Analytics Dashboard',
+        '2M Monthly Events',
+        '15 Websites',
+        'Unlimited Funnels',
+        'Unlimited Automations',
+        'Unlimited Heatmaps',
+        '50,000 Session Recordings',
+        '5 Year Analytics Retention',
+        '3 Month Recording Retention',
+        'Priority Support',
+    ],
+    enterprise: [
+        'Analytics Dashboard',
+        '15M Monthly Events',
+        '100 Websites',
+        'Unlimited Funnels',
+        'Unlimited Automations',
+        'Unlimited Heatmaps',
+        '200,000 Session Recordings',
+        '7 Year Analytics Retention',
+        '3 Month Recording Retention',
+        'White Labeling',
+        'Client Management',
+        'Dedicated Support',
+    ],
+};
 
 export default function AccountBillingSettings() {
     const params = useParams();
@@ -28,11 +92,11 @@ export default function AccountBillingSettings() {
     }, [router, websiteId]);
 
     if (!isEnterprise) return null;
-    const { subscription, loading, error, getUsagePercentage } = useSubscription();
+    const { subscription, loading, getUsagePercentage } = useSubscription();
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = React.useState(false);
     const [cancelling, setCancelling] = React.useState(false);
 
-    const handleManagePayments = async () => {
+    const handleManagePayments = () => {
         window.open('https://seentics.lemonsqueezy.com/billing', '_blank');
     };
 
@@ -48,7 +112,7 @@ export default function AccountBillingSettings() {
                 window.open(response.data.data.url, '_blank');
                 toast.info('Please complete the cancellation in the billing portal.');
             }
-        } catch (error) {
+        } catch {
             toast.error('Failed to initiate cancellation. Please try again.');
         } finally {
             setCancelling(false);
@@ -58,134 +122,127 @@ export default function AccountBillingSettings() {
     if (loading) {
         return (
             <div className="p-4 sm:p-6 flex items-center justify-center min-h-[400px]">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
             </div>
         );
     }
 
-    const normalizedPlan = (subscription?.plan || 'Starter').toLowerCase();
-    const isActive = subscription?.isActive;
-    const isCustomPlan = subscription?.isCustomPlan;
-
-    // Get price: use priceMonthly from API for custom plans, otherwise map from plan name
-    const planPrice = isCustomPlan && subscription?.priceMonthly
+    const currentPlan = subscription?.plan || 'starter';
+    const planPrice = subscription?.isCustomPlan && subscription?.priceMonthly
         ? subscription.priceMonthly
-        : (normalizedPlan.includes('starter') || normalizedPlan.includes('free')) ? 0 :
-          normalizedPlan.includes('growth') ? 15 :
-          normalizedPlan.includes('scale') ? 39 : 99;
+        : planPriceMap[currentPlan] ?? 0;
+    const isStarter = currentPlan === 'starter';
+
+    const usageItems = [
+        { name: 'Monthly Events', key: 'monthlyEvents', icon: BarChart3, current: subscription?.usage?.monthlyEvents?.current || 0, limit: subscription?.usage?.monthlyEvents?.limit || 10000 },
+        { name: 'Websites', key: 'websites', icon: Globe, current: subscription?.usage?.websites?.current || 0, limit: subscription?.usage?.websites?.limit || 1 },
+        { name: 'Funnels', key: 'funnels', icon: Filter, current: subscription?.usage?.funnels?.current || 0, limit: subscription?.usage?.funnels?.limit || 1 },
+        { name: 'Automations', key: 'workflows', icon: Workflow, current: subscription?.usage?.workflows?.current || 0, limit: subscription?.usage?.workflows?.limit || 1 },
+        { name: 'Heatmaps', key: 'heatmaps', icon: Map, current: subscription?.usage?.heatmaps?.current || 0, limit: subscription?.usage?.heatmaps?.limit || 3 },
+        { name: 'Session Recordings', key: 'replays', icon: Video, current: subscription?.usage?.replays?.current || 0, limit: subscription?.usage?.replays?.limit || 100 },
+    ];
+
+    const formatNumber = (n: number) => {
+        if (n >= 1_000_000) { const v = n / 1_000_000; return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}M`; }
+        if (n >= 1_000) { const v = n / 1_000; return `${v % 1 === 0 ? v.toFixed(0) : v.toFixed(1)}K`; }
+        return n.toString();
+    };
 
     return (
-        <div className="max-w-[1440px] mx-auto p-4 sm:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="max-w-[1440px] mx-auto p-4 sm:p-8 space-y-8 animate-in fade-in duration-500">
             <DashboardPageHeader
                 title="Billing & Subscription"
                 description="Manage your subscription, usage limits, and billing details."
             />
 
-            <div className="grid lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    {/* Current Plan Card */}
-                    <div className="p-8 rounded bg-card/50 border border-border dark:border-none relative overflow-hidden group shadow-2xl shadow-primary/5">
-                        <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
-                            <Zap className="h-32 w-32 text-primary" />
-                        </div>
-                        <div className="relative z-10">
-                            <Badge className="mb-6 bg-primary text-white border-none font-black text-[10px] uppercase tracking-[0.2em] px-4 h-7 rounded-full">
-                                Active: {isCustomPlan ? 'Custom' : (subscription?.plan || 'Starter')} Plan
-                            </Badge>
-                            <div className="flex flex-col md:flex-row md:items-end gap-2 mb-8">
-                                <h2 className="text-5xl font-black tracking-tight">
-                                    ${planPrice}
-                                </h2>
-                                <span className="text-lg font-bold text-muted-foreground mb-1">/ month</span>
+            <div className="grid lg:grid-cols-3 gap-6">
+                {/* Left column */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* Current Plan */}
+                    <Card className="border border-border/60 bg-card shadow-sm">
+                        <CardContent className="p-6">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-xs font-medium text-muted-foreground">Current Plan</span>
+                                        <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+                                            Active
+                                        </span>
+                                    </div>
+                                    <div className="flex items-baseline gap-2">
+                                        <h2 className="text-3xl font-bold tracking-tight">${planPrice}</h2>
+                                        <span className="text-sm text-muted-foreground">/month</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1 capitalize">{currentPlan} Plan — {planDescriptions[currentPlan] || ''}</p>
+                                </div>
                             </div>
 
-                            <div className="flex flex-wrap gap-3">
+                            <div className="flex flex-wrap gap-2">
                                 <Button
+                                    size="sm"
                                     onClick={() => setIsUpgradeModalOpen(true)}
-                                    className="h-12 px-8 font-black rounded shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90"
+                                    className="gap-1.5 text-xs font-medium"
                                 >
-                                    Change Plan
+                                    <Zap className="h-3.5 w-3.5" />
+                                    {isStarter ? 'Upgrade Plan' : 'Change Plan'}
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="h-12 px-8 font-black rounded border-2 hover:bg-muted/50"
+                                    size="sm"
                                     onClick={handleManagePayments}
+                                    className="gap-1.5 text-xs font-medium"
                                 >
+                                    <CreditCard className="h-3.5 w-3.5" />
                                     Manage Payments
                                 </Button>
+                                {!isStarter && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={handleCancel}
+                                        disabled={cancelling}
+                                        className="text-xs font-medium text-muted-foreground hover:text-red-500"
+                                    >
+                                        {cancelling ? 'Processing...' : 'Cancel Subscription'}
+                                    </Button>
+                                )}
                             </div>
-                        </div>
-                    </div>
+                        </CardContent>
+                    </Card>
 
-                    {/* Usage Limits Section */}
-                    <div className="space-y-6">
-                        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-muted-foreground px-1">Usage Tracker</h3>
-                        <div className="grid md:grid-cols-2 gap-4">
-                            {[
-                                {
-                                    name: 'Monthly Events',
-                                    key: 'monthlyEvents',
-                                    icon: BarChart3,
-                                    current: subscription?.usage?.monthlyEvents?.current || 0,
-                                    limit: subscription?.usage?.monthlyEvents?.limit || 5000
-                                },
-                                {
-                                    name: 'Websites',
-                                    key: 'websites',
-                                    icon: Shield,
-                                    current: subscription?.usage?.websites?.current || 0,
-                                    limit: subscription?.usage?.websites?.limit || 1
-                                },
-                                {
-                                    name: 'Funnels',
-                                    key: 'funnels',
-                                    icon: Filter,
-                                    current: subscription?.usage?.funnels?.current || 0,
-                                    limit: subscription?.usage?.funnels?.limit || 1
-                                },
-                                {
-                                    name: 'Automations',
-                                    key: 'workflows',
-                                    icon: Workflow,
-                                    current: subscription?.usage?.workflows?.current || 0,
-                                    limit: subscription?.usage?.workflows?.limit || 1
-                                },
-                                {
-                                    name: 'Heatmaps',
-                                    key: 'heatmaps',
-                                    icon: Map,
-                                    current: subscription?.usage?.heatmaps?.current || 0,
-                                    limit: subscription?.usage?.heatmaps?.limit || 1
-                                },
-                                {
-                                    name: 'Session Recordings',
-                                    key: 'replays',
-                                    icon: Video,
-                                    current: subscription?.usage?.replays?.current || 0,
-                                    limit: subscription?.usage?.replays?.limit || 3
-                                },
-                            ].filter(resource => resource.limit !== 0).map((resource) => {
+                    {/* Usage */}
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-semibold">Usage</h3>
+                        <div className="grid md:grid-cols-2 gap-3">
+                            {usageItems.filter(r => r.limit !== 0).map((resource) => {
                                 const percentage = getUsagePercentage(resource.key as any);
                                 const Icon = resource.icon;
                                 const isUnlimited = resource.limit === -1;
+                                const isNear = percentage >= 80 && !isUnlimited;
+                                const isAt = percentage >= 100 && !isUnlimited;
 
                                 return (
-                                    <Card key={resource.name} className="border-muted-foreground/10 dark:bg-gray-800/50 backdrop-blur-sm rounded p-6 hover:shadow-lg transition-shadow">
-                                        <div className="flex items-center gap-3 mb-4">
-                                            <div className="p-2.5 rounded bg-primary/10 text-primary">
-                                                <Icon size={18} />
+                                    <Card key={resource.name} className="border border-border/60 bg-card shadow-sm">
+                                        <CardContent className="p-4">
+                                            <div className="flex items-center gap-2.5 mb-3">
+                                                <div className="h-8 w-8 rounded-lg bg-primary/5 flex items-center justify-center">
+                                                    <Icon className="h-4 w-4 text-primary" />
+                                                </div>
+                                                <span className="text-sm font-medium">{resource.name}</span>
                                             </div>
-                                            <span className="font-black text-sm">{resource.name}</span>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <div className="flex justify-between items-end">
-                                                <span className="text-2xl font-black">{resource.current.toLocaleString()}</span>
-                                                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-                                                    OF {isUnlimited ? '∞' : resource.limit.toLocaleString()}
-                                                </span>
+                                            <div className="space-y-2">
+                                                <div className="flex justify-between items-baseline">
+                                                    <span className="text-lg font-semibold">{formatNumber(resource.current)}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        of {isUnlimited ? 'Unlimited' : formatNumber(resource.limit)}
+                                                    </span>
+                                                </div>
+                                                <Progress
+                                                    value={isUnlimited ? 0 : Math.min(percentage, 100)}
+                                                    className={cn("h-1.5", isAt ? '[&>div]:bg-red-500' : isNear ? '[&>div]:bg-amber-500' : '')}
+                                                />
                                             </div>
-                                            <Progress value={isUnlimited ? 0 : percentage} className="h-2 rounded-full bg-muted/20" />
-                                        </div>
+                                        </CardContent>
                                     </Card>
                                 );
                             })}
@@ -193,48 +250,59 @@ export default function AccountBillingSettings() {
                     </div>
                 </div>
 
-                <div className="space-y-8">
-                    {/* Plan Features Card */}
-                    <div className="dark:bg-gray-800/50 p-8 rounded border border-white/5 relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-[50px] rounded-full -mr-16 -mt-16" />
-                        <h4 className="text-white text-lg font-black mb-6 relative z-10 uppercase tracking-tight">Included in {isCustomPlan ? 'Custom' : (subscription?.plan || 'Starter')}</h4>
-                        <ul className="space-y-4 relative z-10">
-                            {(subscription?.features || [
-                                'Basic analytics dashboard',
-                                'Community support',
-                                'Standard data retention'
-                            ]).map((f, i) => (
-                                <li key={i} className="flex items-start gap-3 text-xs font-bold text-slate-400">
-                                    <div className="w-5 h-5 rounded bg-emerald-500/20 flex items-center justify-center shrink-0 mt-0.5">
-                                        <Check className="h-3 w-3 text-emerald-500" />
-                                    </div>
-                                    <span className="leading-relaxed">{f}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                {/* Right column */}
+                <div className="space-y-6">
+                    {/* Included Features */}
+                    <Card className="border border-border/60 bg-card shadow-sm">
+                        <CardContent className="p-5">
+                            <h4 className="text-sm font-semibold mb-4">
+                                Included in <span className="capitalize">{subscription?.isCustomPlan ? 'Custom' : currentPlan}</span>
+                            </h4>
+                            <ul className="space-y-3">
+                                {(planFeatures[currentPlan] || planFeatures.starter).map((feature, i) => (
+                                    <li key={i} className="flex items-start gap-2.5 text-xs text-muted-foreground">
+                                        <div className="h-4 w-4 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                                            <Check className="h-2.5 w-2.5 text-emerald-500" />
+                                        </div>
+                                        <span className="leading-relaxed">{feature}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </CardContent>
+                    </Card>
 
-                    {/* Support & Billing Info */}
-                    <div className="p-8 rounded border border-muted-foreground/10 bg-muted/5 space-y-6">
-                        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Invoices & Receipts</h4>
-                        <p className="text-xs font-medium text-muted-foreground leading-relaxed">
-                            Need a custom invoice or have questions about your billing?
-                            Contact our support team at <span className="text-primary font-black">billing@seentics.com</span>
-                        </p>
-                        <Button variant="ghost" className="w-full justify-start px-0 text-primary font-black text-xs hover:bg-transparent hover:underline">
-                            Request Billing Support
-                        </Button>
-                    </div>
+                    {/* Support */}
+                    <Card className="border border-border/60 bg-card shadow-sm">
+                        <CardContent className="p-5 space-y-4">
+                            <h4 className="text-sm font-semibold">Billing Support</h4>
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                                Need a custom invoice or have questions about your billing?
+                            </p>
+                            <div className="p-3 rounded-lg bg-muted/30 border border-border/40">
+                                <p className="text-xs text-muted-foreground mb-0.5">Contact</p>
+                                <p className="text-sm font-medium text-primary">billing@seentics.com</p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full gap-1.5 text-xs font-medium"
+                                onClick={handleManagePayments}
+                            >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                View Invoices
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
 
-            <UpgradePlanModal 
+            <UpgradePlanModal
                 isOpen={isUpgradeModalOpen}
                 onClose={() => setIsUpgradeModalOpen(false)}
-                currentPlan={normalizedPlan as any}
+                currentPlan={currentPlan as any}
                 limitType="monthlyEvents"
                 currentUsage={subscription?.usage?.monthlyEvents?.current || 0}
-                limit={subscription?.usage?.monthlyEvents?.limit || 5000}
+                limit={subscription?.usage?.monthlyEvents?.limit || 10000}
             />
         </div>
     );

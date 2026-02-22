@@ -37,29 +37,47 @@ export default function BillingDocs() {
                         <thead>
                             <tr className="bg-muted/50 border-b">
                                 <th className="p-4 text-left font-semibold">Resource</th>
-                                <th className="p-4 text-center font-semibold">Starter</th>
-                                <th className="p-4 text-center font-semibold text-primary">Scale</th>
-                                <th className="p-4 text-center font-semibold">Enterprise</th>
+                                <th className="p-4 text-center font-semibold">Starter ($0)</th>
+                                <th className="p-4 text-center font-semibold">Growth ($29)</th>
+                                <th className="p-4 text-center font-semibold text-primary">Pro ($79)</th>
+                                <th className="p-4 text-center font-semibold">Enterprise ($249)</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr className="border-b">
-                                <td className="p-4 font-medium italic">Monthly Events</td>
-                                <td className="p-4 text-center text-muted-foreground">10k</td>
-                                <td className="p-4 text-center font-bold text-primary italic">500k</td>
+                                <td className="p-4 font-medium">Monthly Events</td>
+                                <td className="p-4 text-center text-muted-foreground">10K</td>
+                                <td className="p-4 text-center text-muted-foreground">200K</td>
+                                <td className="p-4 text-center font-bold text-primary">2M</td>
+                                <td className="p-4 text-center text-muted-foreground">15M</td>
+                            </tr>
+                            <tr className="border-b">
+                                <td className="p-4 font-medium">Session Recordings</td>
+                                <td className="p-4 text-center text-muted-foreground">100</td>
+                                <td className="p-4 text-center text-muted-foreground">10K</td>
+                                <td className="p-4 text-center font-bold text-primary">50K</td>
+                                <td className="p-4 text-center text-muted-foreground">200K</td>
+                            </tr>
+                            <tr className="border-b">
+                                <td className="p-4 font-medium">Funnels</td>
+                                <td className="p-4 text-center text-muted-foreground">1</td>
+                                <td className="p-4 text-center text-muted-foreground">10</td>
+                                <td className="p-4 text-center font-bold text-primary">Unlimited</td>
                                 <td className="p-4 text-center text-muted-foreground">Unlimited</td>
                             </tr>
                             <tr className="border-b">
-                                <td className="p-4 font-medium italic">Active Funnels</td>
-                                <td className="p-4 text-center text-muted-foreground">3</td>
-                                <td className="p-4 text-center font-bold text-primary italic">25</td>
-                                <td className="p-4 text-center text-muted-foreground">Custom</td>
+                                <td className="p-4 font-medium">Analytics Retention</td>
+                                <td className="p-4 text-center text-muted-foreground">30 Days</td>
+                                <td className="p-4 text-center text-muted-foreground">2 Years</td>
+                                <td className="p-4 text-center font-bold text-primary">5 Years</td>
+                                <td className="p-4 text-center text-muted-foreground">7 Years</td>
                             </tr>
                             <tr>
-                                <td className="p-4 font-medium italic">Data Retention</td>
+                                <td className="p-4 font-medium">Recording Retention</td>
                                 <td className="p-4 text-center text-muted-foreground">30 Days</td>
-                                <td className="p-4 text-center font-bold text-primary italic">1 Year</td>
-                                <td className="p-4 text-center text-muted-foreground">Permanent</td>
+                                <td className="p-4 text-center text-muted-foreground">3 Months</td>
+                                <td className="p-4 text-center font-bold text-primary">3 Months</td>
+                                <td className="p-4 text-center text-muted-foreground">3 Months</td>
                             </tr>
                         </tbody>
                     </table>
@@ -71,7 +89,7 @@ export default function BillingDocs() {
                     <h3 className="text-2xl font-bold">Managing Subscriptions</h3>
                     <p className="text-muted-foreground">
                         Update payment methods, download invoices, and upgrade tiers instantly through
-                        our Paddle-powered secure checkout.
+                        our secure checkout powered by Lemon Squeezy.
                     </p>
                 </div>
                 <Link href="/pricing" className="px-8 py-3 bg-primary text-primary-foreground rounded font-bold hover:scale-105 transition active:scale-95 shadow-xl shadow-primary/20 shrink-0">

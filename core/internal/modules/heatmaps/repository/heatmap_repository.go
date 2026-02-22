@@ -19,6 +19,7 @@ type HeatmapRepository interface {
 	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
 	DeleteHeatmapPage(ctx context.Context, websiteID string, url string) error
 	BulkDeleteHeatmapPages(ctx context.Context, websiteID string, urls []string) error
+	GetTopElements(ctx context.Context, websiteID string, url string, eventType string, from, to time.Time) ([]models.TopElement, error)
 }
 
 type heatmapRepository struct {
@@ -177,4 +178,31 @@ func (r *heatmapRepository) BulkDeleteHeatmapPages(ctx context.Context, websiteI
 	query := `DELETE FROM heatmap_points WHERE website_id = $1 AND page_path = ANY($2)`
 	_, err := r.db.Exec(ctx, query, websiteID, urls)
 	return err
+}
+
+func (r *heatmapRepository) GetTopElements(ctx context.Context, websiteID string, url string, eventType string, from, to time.Time) ([]models.TopElement, error) {
+	query := `
+		SELECT target_selector, SUM(intensity) as total_clicks
+		FROM heatmap_points
+		WHERE website_id = $1 AND page_path = $2 AND event_type = $3
+			AND target_selector != '' AND last_updated BETWEEN $4 AND $5
+		GROUP BY target_selector
+		ORDER BY total_clicks DESC
+		LIMIT 20
+	`
+	rows, err := r.db.Query(ctx, query, websiteID, url, eventType, from, to)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var elements []models.TopElement
+	for rows.Next() {
+		var e models.TopElement
+		if err := rows.Scan(&e.Selector, &e.Clicks); err != nil {
+			return nil, err
+		}
+		elements = append(elements, e)
+	}
+	return elements, nil
 }

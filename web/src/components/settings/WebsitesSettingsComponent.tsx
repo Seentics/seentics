@@ -2,14 +2,6 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getWebsites, deleteWebsite, Website } from '@/lib/websites-api';
@@ -20,7 +12,6 @@ import { TrackingSettingsComponent } from './TrackingSettingsComponent';
 import { cn } from '@/lib/utils';
 import { Loader2, Trash2, Edit, ExternalLink, Globe, Plus, Code } from 'lucide-react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 
 export function WebsitesSettingsComponent() {
@@ -30,14 +21,12 @@ export function WebsitesSettingsComponent() {
   const [editingWebsite, setEditingWebsite] = useState<Website | null>(null);
   const [trackingWebsite, setTrackingWebsite] = useState<Website | null>(null);
 
-  // Fetch websites
   const { data: websites = [], isLoading } = useQuery({
     queryKey: ['websites', user?.id],
     queryFn: getWebsites,
     enabled: !!user,
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async (websiteId: string) => {
         if (!user?.id) throw new Error("User ID required");
@@ -59,24 +48,25 @@ export function WebsitesSettingsComponent() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Manage Websites</h2>
-          <p className="text-muted-foreground text-sm">View and manage all your tracked properties.</p>
+          <h3 className="text-sm font-semibold">Manage Websites</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">View and manage all your tracked properties.</p>
         </div>
-        <Button 
+        <Button
           onClick={() => setIsAddModalOpen(true)}
-          className="h-10 px-5 font-bold rounded gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
+          size="sm"
+          className="gap-1.5 text-xs font-medium"
         >
-          <Plus className="h-4 w-4" />
-          Add New Property
+          <Plus className="h-3.5 w-3.5" />
+          Add Property
         </Button>
       </div>
 
-      <AddWebsiteModal 
-        open={isAddModalOpen} 
-        onOpenChange={setIsAddModalOpen} 
+      <AddWebsiteModal
+        open={isAddModalOpen}
+        onOpenChange={setIsAddModalOpen}
         onSuccess={() => queryClient.invalidateQueries({ queryKey: ['websites'] })}
       />
 
@@ -92,87 +82,102 @@ export function WebsitesSettingsComponent() {
         </DialogContent>
       </Dialog>
 
-      <div className="border rounded overflow-hidden bg-card/50 backdrop-blur-sm border-border/50 shadow-sm">
+      <div className="border border-border/60 rounded-lg overflow-hidden bg-card shadow-sm">
         {isLoading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
           </div>
         ) : websites.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            No websites found. Add your first property to get started.
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="h-12 w-12 bg-muted/40 rounded-2xl flex items-center justify-center mb-3">
+              <Globe className="h-5 w-5 text-muted-foreground/40" />
+            </div>
+            <p className="text-sm text-muted-foreground">No websites found. Add your first property to get started.</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow className="hover:bg-transparent border-border/50">
-                <TableHead className="px-6 h-14 text-[10px] font-black uppercase tracking-widest">Property Name</TableHead>
-                <TableHead className="h-14 text-[10px] font-black uppercase tracking-widest">Public URL</TableHead>
-                <TableHead className="h-14 text-[10px] font-black uppercase tracking-widest">Connected</TableHead>
-                <TableHead className="h-14 text-[10px] font-black uppercase tracking-widest">Status</TableHead>
-                <TableHead className="text-right px-6 h-14 text-[10px] font-black uppercase tracking-widest">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <>
+            {/* Column headers */}
+            <div className="grid grid-cols-[1fr_140px_100px_80px_100px] items-center px-5 py-2.5 border-b border-border/30 bg-muted/10 text-xs font-medium text-muted-foreground">
+              <div className="pl-1">Property</div>
+              <div>URL</div>
+              <div>Connected</div>
+              <div className="text-center">Status</div>
+              <div />
+            </div>
+
+            {/* Rows */}
+            <div className="divide-y divide-border/20">
               {websites.map((website: Website) => (
-                <TableRow key={website.id} className="border-border/40 hover:bg-muted/30 transition-colors">
-                  <TableCell className="px-6 py-4 font-bold text-sm">
-                    <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded bg-primary/10 flex items-center justify-center border border-primary/20">
-                            <Globe className="h-4 w-4 text-primary" />
-                        </div>
-                        {website.name}
+                <div key={website.id} className="group grid grid-cols-[1fr_140px_100px_80px_100px] items-center px-5 py-3 transition-colors hover:bg-muted/20">
+                  {/* Property */}
+                  <div className="flex items-center gap-3 min-w-0 pl-1">
+                    <div className="h-8 w-8 rounded-lg bg-primary/5 flex items-center justify-center flex-shrink-0">
+                      <Globe className="h-4 w-4 text-primary" />
                     </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <a href={website.url} target="_blank" rel="noopener noreferrer" className="flex items-center hover:text-primary transition-colors text-muted-foreground text-[13px] font-medium group">
-                        {website.url.replace(/^https?:\/\//, '')}
-                        <ExternalLink className="ml-1.5 h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <span className="text-sm font-medium truncate">{website.name}</span>
+                  </div>
+
+                  {/* URL */}
+                  <div className="min-w-0">
+                    <a href={website.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors truncate group/link">
+                      {website.url.replace(/^https?:\/\//, '')}
+                      <ExternalLink className="h-2.5 w-2.5 flex-shrink-0 opacity-0 group-hover/link:opacity-100 transition-opacity" />
                     </a>
-                  </TableCell>
-                  <TableCell className="py-4 text-muted-foreground text-[13px] font-medium">
-                    {format(new Date(website.createdAt), 'MMM d, yyyy')}
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <Badge variant={website.isActive ? "default" : "secondary"} className={cn(
-                        "h-5 text-[9px] font-black uppercase tracking-widest px-2 border-none",
-                        website.isActive ? "bg-emerald-500/10 text-emerald-600" : ""
+                  </div>
+
+                  {/* Connected */}
+                  <div>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(website.createdAt), 'MMM d, yyyy')}
+                    </span>
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span className={cn(
+                      'h-1.5 w-1.5 rounded-full',
+                      website.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+                    )} />
+                    <span className={cn(
+                      'text-xs font-medium',
+                      website.isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'
                     )}>
                       {website.isActive ? 'Active' : 'Halted'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right px-6 py-4">
-                    <div className="flex justify-end gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-9 w-9 rounded hover:bg-muted" 
-                        onClick={() => setEditingWebsite(website)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-9 w-9 rounded text-blue-500 hover:text-blue-600 hover:bg-blue-500/10" 
-                        onClick={() => setTrackingWebsite(website)}
-                        title="Get Tracking Code"
-                      >
-                        <Code className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-9 w-9 rounded text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
-                        onClick={() => handleDelete(website.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-end gap-0.5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={() => setEditingWebsite(website)}
+                    >
+                      <Edit className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-blue-500/60 hover:text-blue-600 hover:bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={() => setTrackingWebsite(website)}
+                      title="Get Tracking Code"
+                    >
+                      <Code className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-muted-foreground/50 hover:text-rose-500 hover:bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-all"
+                      onClick={() => handleDelete(website.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          </>
         )}
       </div>
     </div>

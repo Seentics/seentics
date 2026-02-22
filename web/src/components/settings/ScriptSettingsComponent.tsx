@@ -5,10 +5,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getWebsiteBySiteId, updateWebsite } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { toast } from 'sonner';
-import { Loader2, Zap, Target, MousePointer2 } from 'lucide-react';
+import { Loader2, Zap, Target, MousePointer2, Info } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
   const { user } = useAuth();
@@ -21,9 +21,9 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { 
-      automationEnabled?: boolean; 
-      funnelEnabled?: boolean; 
+    mutationFn: async (data: {
+      automationEnabled?: boolean;
+      funnelEnabled?: boolean;
       heatmapEnabled?: boolean;
     }) => {
       if (!user?.id) throw new Error("User ID required");
@@ -41,7 +41,7 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
       </div>
     );
   }
@@ -80,45 +80,43 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
   ];
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div>
-        <h2 className="text-xl font-bold tracking-tight">Script Management</h2>
-        <p className="text-muted-foreground text-sm">Control which scripts are active on your website. Disabling unused features improves page load performance.</p>
+        <h3 className="text-sm font-semibold">Script Management</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">Control which scripts are active on your website. Disabling unused features improves page load performance.</p>
       </div>
 
-      <div className="grid gap-4">
+      <div className="space-y-3">
         {toggles.map((item) => (
-          <Card key={item.id} className="border-border/50 bg-card/30 overflow-hidden group hover:border-primary/20 transition-all duration-300">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 p-6">
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl ${item.bgColor} flex items-center justify-center border border-white/5 dark:border-white/10 group-hover:scale-110 transition-transform duration-500`}>
-                  <item.icon className={`h-6 w-6 ${item.color}`} />
+          <Card key={item.id} className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0", item.bgColor)}>
+                  <item.icon className={cn("h-4 w-4", item.color)} />
                 </div>
-                <div className="space-y-1">
-                  <CardTitle className="text-base font-bold">{item.title}</CardTitle>
-                  <CardDescription className="text-xs">{item.description}</CardDescription>
+                <div>
+                  <p className="text-sm font-medium">{item.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Switch 
-                  id={item.id} 
-                  checked={item.enabled} 
-                  onCheckedChange={item.onToggle}
-                  disabled={updateMutation.isPending}
-                />
-              </div>
-            </CardHeader>
+              <Switch
+                id={item.id}
+                checked={item.enabled}
+                onCheckedChange={item.onToggle}
+                disabled={updateMutation.isPending}
+              />
+            </CardContent>
           </Card>
         ))}
       </div>
 
-      <div className="bg-primary/5 border border-primary/10 rounded-xl p-6 mt-8">
-        <div className="flex items-center gap-3 mb-2">
-          <Loader2 className="h-4 w-4 text-primary" />
-          <h4 className="text-sm font-bold">Dynamic Loading</h4>
+      <div className="bg-muted/30 border border-border/40 rounded-lg p-4">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Info className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs font-medium">Dynamic Loading</span>
         </div>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          The main Seentics core script will automatically handle loading only the parts you've enabled here. 
+        <p className="text-[11px] text-muted-foreground leading-relaxed">
+          The main Seentics core script will automatically handle loading only the parts you've enabled here.
           Changes are reflected immediately across all your traffic without requiring script re-installation.
         </p>
       </div>

@@ -182,7 +182,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       `}</style>
 
       {/* Player */}
-      <Card className="border border-border/60 bg-card overflow-hidden shadow-sm">
+      <Card className="border border-border bg-card overflow-hidden shadow-sm ">
         <div className="bg-zinc-950 flex items-center justify-center relative overflow-hidden min-h-[600px] max-h-[85vh]">
           {chunks.length === 0 ? (
             <div className="p-12 text-center">

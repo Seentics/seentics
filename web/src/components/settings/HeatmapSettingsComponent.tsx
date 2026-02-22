@@ -5,7 +5,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { updateWebsite, getWebsiteBySiteId } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -20,7 +20,7 @@ interface HeatmapSettingsProps {
 export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  
+
   const { data: website, isLoading } = useQuery({
     queryKey: ['website', websiteId],
     queryFn: () => getWebsiteBySiteId(websiteId),
@@ -61,120 +61,120 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground/40" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <Card className="border-border/40 bg-card/50 backdrop-blur-sm">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <CardTitle className="text-xl font-bold">Heatmap Configuration</CardTitle>
-              <CardDescription>Control how heatmaps are recorded on your website.</CardDescription>
+      <Card className="border border-border/60 bg-card shadow-sm">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h3 className="text-sm font-semibold">Heatmap Configuration</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Control how heatmaps are recorded on your website.</p>
             </div>
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="heatmap-toggle" 
-                checked={heatmapEnabled} 
+            <div className="flex items-center gap-2">
+              <Switch
+                id="heatmap-toggle"
+                checked={heatmapEnabled}
                 onCheckedChange={setHeatmapEnabled}
               />
-              <Label htmlFor="heatmap-toggle" className="font-bold text-xs uppercase tracking-wider">
+              <Label htmlFor="heatmap-toggle" className="text-xs font-medium text-muted-foreground">
                 {heatmapEnabled ? 'Enabled' : 'Disabled'}
               </Label>
             </div>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
+
           {!heatmapEnabled && (
-            <Alert className="bg-amber-500/10 border-amber-500/20">
+            <Alert className="bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20 mb-5">
               <Info className="h-4 w-4 text-amber-600" />
-              <AlertTitle className="text-amber-600 font-bold">Heatmaps Paused</AlertTitle>
-              <AlertDescription className="text-muted-foreground/80">
+              <AlertTitle className="text-amber-700 dark:text-amber-400 font-medium text-sm">Heatmaps Paused</AlertTitle>
+              <AlertDescription className="text-amber-600/80 dark:text-muted-foreground/80 text-xs">
                 Heatmap recording is currently disabled. No new interaction data will be collected until enabled.
               </AlertDescription>
             </Alert>
           )}
 
           <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="include-patterns" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            <div className="space-y-1.5">
+              <Label htmlFor="include-patterns" className="text-xs font-medium text-muted-foreground">
                 Include Patterns
               </Label>
               <Textarea
                 id="include-patterns"
                 placeholder="e.g. /products/*, /pricing"
-                className="min-h-[100px] bg-muted/20 border-border/40 font-mono text-sm"
+                className="min-h-[80px] text-sm bg-muted/20 border-border/50"
                 value={includePatterns}
                 onChange={(e) => setIncludePatterns(e.target.value)}
               />
-              <p className="text-[10px] text-muted-foreground italic">
-                Enter URL patterns to specifically include. Leave empty to track all pages (default). One pattern per line. Use * as a wildcard.
+              <p className="text-[11px] text-muted-foreground">
+                Enter URL patterns to specifically include. Leave empty to track all pages. One pattern per line.
               </p>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="exclude-patterns" className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            <div className="space-y-1.5">
+              <Label htmlFor="exclude-patterns" className="text-xs font-medium text-muted-foreground">
                 Exclude Patterns
               </Label>
               <Textarea
                 id="exclude-patterns"
                 placeholder="e.g. /admin/*, /checkout/success"
-                className="min-h-[100px] bg-muted/20 border-border/40 font-mono text-sm"
+                className="min-h-[80px] text-sm bg-muted/20 border-border/50"
                 value={excludePatterns}
                 onChange={(e) => setExcludePatterns(e.target.value)}
               />
-              <p className="text-[10px] text-muted-foreground italic">
-                Enter URL patterns to exclude from heatmap recording. Useful for sensitive pages. One pattern per line.
+              <p className="text-[11px] text-muted-foreground">
+                Enter URL patterns to exclude from heatmap recording. Useful for sensitive pages.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center justify-end pt-4 border-t border-border/40">
-            <Button 
-              onClick={handleSave} 
+          <div className="flex justify-end pt-4 mt-4 border-t border-border/40">
+            <Button
+              onClick={handleSave}
+              size="sm"
               disabled={updateMutation.isPending}
-              className="px-8 font-bold gap-2"
+              className="gap-1.5 text-xs font-medium"
             >
               {updateMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
-                <Save className="h-4 w-4" />
+                <Save className="h-3.5 w-3.5" />
               )}
-              Save Configuration
+              Save Changes
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border-border/40 bg-card/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              Pattern Examples
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-[11px] space-y-2 text-muted-foreground font-medium">
-            <p><code className="bg-muted px-1 rounded text-primary">/products/*</code> matches all product pages</p>
-            <p><code className="bg-muted px-1 rounded text-primary">/blog/post-title</code> matches an exact page</p>
-            <p><code className="bg-muted px-1 rounded text-primary">*/search?q=*</code> matches search pages with any query</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="border border-border/60 bg-card shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-xs font-semibold">Pattern Examples</span>
+            </div>
+            <div className="space-y-1.5 text-[11px] text-muted-foreground">
+              <p><code className="bg-muted px-1 rounded text-foreground">/products/*</code> matches all product pages</p>
+              <p><code className="bg-muted px-1 rounded text-foreground">/blog/post-title</code> matches an exact page</p>
+              <p><code className="bg-muted px-1 rounded text-foreground">*/search?q=*</code> matches search pages</p>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/40 bg-card/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-bold flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-rose-500" />
-              Exclusion Tips
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-[11px] space-y-2 text-muted-foreground font-medium">
-            <p>Exclude <code className="bg-muted px-1 rounded text-primary">/admin/*</code> to avoid tracking internal tools</p>
-            <p>Exclude <code className="bg-muted px-1 rounded text-primary">/login</code> and <code className="bg-muted px-1 rounded text-primary">/signup</code> for privacy</p>
-            <p>Exclude <code className="bg-muted px-1 rounded text-primary">/settings/*</code> for sensitive user data</p>
+        <Card className="border border-border/60 bg-card shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <XCircle className="h-3.5 w-3.5 text-rose-500" />
+              <span className="text-xs font-semibold">Exclusion Tips</span>
+            </div>
+            <div className="space-y-1.5 text-[11px] text-muted-foreground">
+              <p>Exclude <code className="bg-muted px-1 rounded text-foreground">/admin/*</code> to avoid tracking internal tools</p>
+              <p>Exclude <code className="bg-muted px-1 rounded text-foreground">/login</code> and <code className="bg-muted px-1 rounded text-foreground">/signup</code> for privacy</p>
+              <p>Exclude <code className="bg-muted px-1 rounded text-foreground">/settings/*</code> for sensitive user data</p>
+            </div>
           </CardContent>
         </Card>
       </div>
