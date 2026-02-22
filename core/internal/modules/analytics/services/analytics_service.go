@@ -141,12 +141,12 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 	}, nil
 }
 
-func (s *AnalyticsService) GetTopPages(ctx context.Context, websiteID string, days, limit int, timezone string, userID string) ([]models.PageStat, error) {
+func (s *AnalyticsService) GetTopPages(ctx context.Context, websiteID string, days, limit int, timezone string, filters models.AnalyticsFilters, userID string) ([]models.PageStat, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetTopPages(ctx, canonicalID, days, timezone, limit)
+	return s.repo.GetTopPages(ctx, canonicalID, days, timezone, limit, filters)
 }
 
 func (s *AnalyticsService) GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int, userID string) (map[string]interface{}, error) {
@@ -157,44 +157,44 @@ func (s *AnalyticsService) GetPageUTMBreakdown(ctx context.Context, websiteID, p
 	return s.repo.GetPageUTMBreakdown(ctx, canonicalID, pagePath, days)
 }
 
-func (s *AnalyticsService) GetTopReferrers(ctx context.Context, websiteID string, days, limit int, timezone string, userID string) ([]models.ReferrerStat, error) {
+func (s *AnalyticsService) GetTopReferrers(ctx context.Context, websiteID string, days, limit int, timezone string, filters models.AnalyticsFilters, userID string) ([]models.ReferrerStat, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetTopReferrers(ctx, canonicalID, days, timezone, limit)
+	return s.repo.GetTopReferrers(ctx, canonicalID, days, timezone, limit, filters)
 }
 
-func (s *AnalyticsService) GetTopSources(ctx context.Context, websiteID string, days, limit int, timezone string, userID string) ([]models.SourceStat, error) {
+func (s *AnalyticsService) GetTopSources(ctx context.Context, websiteID string, days, limit int, timezone string, filters models.AnalyticsFilters, userID string) ([]models.SourceStat, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetTopSources(ctx, canonicalID, days, timezone, limit)
+	return s.repo.GetTopSources(ctx, canonicalID, days, timezone, limit, filters)
 }
 
-func (s *AnalyticsService) GetTopCountries(ctx context.Context, websiteID string, days, limit int, timezone string, userID string) ([]models.CountryStat, error) {
+func (s *AnalyticsService) GetTopCountries(ctx context.Context, websiteID string, days, limit int, timezone string, filters models.AnalyticsFilters, userID string) ([]models.CountryStat, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetTopCountries(ctx, canonicalID, days, timezone, limit)
+	return s.repo.GetTopCountries(ctx, canonicalID, days, timezone, limit, filters)
 }
 
-func (s *AnalyticsService) GetTopBrowsers(ctx context.Context, websiteID string, days, limit int, timezone string, userID string) ([]models.BrowserStat, error) {
+func (s *AnalyticsService) GetTopBrowsers(ctx context.Context, websiteID string, days, limit int, timezone string, filters models.AnalyticsFilters, userID string) ([]models.BrowserStat, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetTopBrowsers(ctx, canonicalID, days, timezone, limit)
+	return s.repo.GetTopBrowsers(ctx, canonicalID, days, timezone, limit, filters)
 }
 
-func (s *AnalyticsService) GetTopDevices(ctx context.Context, websiteID string, days, limit int, timezone string, userID string) ([]models.DeviceStat, error) {
+func (s *AnalyticsService) GetTopDevices(ctx context.Context, websiteID string, days, limit int, timezone string, filters models.AnalyticsFilters, userID string) ([]models.DeviceStat, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetTopDevices(ctx, canonicalID, days, timezone, limit)
+	return s.repo.GetTopDevices(ctx, canonicalID, days, timezone, limit, filters)
 }
 
 func (s *AnalyticsService) GetTopResolutions(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.TopItem, error) {
@@ -205,12 +205,12 @@ func (s *AnalyticsService) GetTopResolutions(ctx context.Context, websiteID stri
 	return s.repo.GetTopResolutions(ctx, canonicalID, days, limit)
 }
 
-func (s *AnalyticsService) GetTopOS(ctx context.Context, websiteID string, days, limit int, timezone string, userID string) ([]models.OSStat, error) {
+func (s *AnalyticsService) GetTopOS(ctx context.Context, websiteID string, days, limit int, timezone string, filters models.AnalyticsFilters, userID string) ([]models.OSStat, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetTopOS(ctx, canonicalID, days, timezone, limit)
+	return s.repo.GetTopOS(ctx, canonicalID, days, timezone, limit, filters)
 }
 
 func (s *AnalyticsService) GetTrafficSummary(ctx context.Context, websiteID string, days int, timezone string, userID string) (*models.TrafficSummary, error) {
@@ -221,7 +221,7 @@ func (s *AnalyticsService) GetTrafficSummary(ctx context.Context, websiteID stri
 	return s.repo.GetTrafficSummary(ctx, canonicalID, days, timezone)
 }
 
-func (s *AnalyticsService) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string, userID string) ([]models.DailyStat, error) {
+func (s *AnalyticsService) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters, userID string) ([]models.DailyStat, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
@@ -229,15 +229,15 @@ func (s *AnalyticsService) GetDailyStats(ctx context.Context, websiteID string, 
 	if days <= 0 {
 		days = 30
 	}
-	return s.repo.GetDailyStats(ctx, canonicalID, days, timezone)
+	return s.repo.GetDailyStats(ctx, canonicalID, days, timezone, filters)
 }
 
-func (s *AnalyticsService) GetHourlyStats(ctx context.Context, websiteID string, days int, timezone string, userID string) ([]models.HourlyStat, error) {
+func (s *AnalyticsService) GetHourlyStats(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters, userID string) ([]models.HourlyStat, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	return s.repo.GetHourlyStats(ctx, canonicalID, days, timezone)
+	return s.repo.GetHourlyStats(ctx, canonicalID, days, timezone, filters)
 }
 
 func (s *AnalyticsService) GetCustomEvents(ctx context.Context, websiteID string, days int, userID string) ([]models.CustomEventStat, error) {
@@ -340,8 +340,8 @@ func (s *AnalyticsService) ExportWebsiteData(ctx context.Context, websiteID stri
 		return nil, err
 	}
 
-	pages, _ := s.repo.GetTopPages(ctx, websiteID, days, "UTC", 100)
-	sources, _ := s.repo.GetTopSources(ctx, websiteID, days, "UTC", 100)
+	pages, _ := s.repo.GetTopPages(ctx, websiteID, days, "UTC", 100, models.AnalyticsFilters{})
+	sources, _ := s.repo.GetTopSources(ctx, websiteID, days, "UTC", 100, models.AnalyticsFilters{})
 
 	exportData := struct {
 		WebsiteID  string                   `json:"website_id"`

@@ -8,14 +8,15 @@ import { TopPagesChart } from '@/components/analytics/TopPagesChart';
 import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { TrafficOverview } from '@/components/analytics/TrafficOverview';
 import { UTMPerformanceChart } from '@/components/analytics/UTMPerformanceChart';
-import { VisitorInsightsCard } from '@/components/analytics/VisitorInsightsCard';
+import { RetentionCohortChart } from '@/components/analytics/RetentionCohortChart';
+import { FrustrationSignals } from '@/components/analytics/FrustrationSignals';
+import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-// Imports removed
 
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -35,24 +36,21 @@ import {
   useUserRetention,
   useVisitorInsights,
   useGoalStats,
+  usePreviousPeriodDailyStats,
 } from '@/lib/analytics-api';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { format } from 'date-fns';
 import { getDemoData, getDemoWebsite } from '@/lib/demo-data';
 import Link from 'next/link';
-import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRight, ArrowDownRight, Clock, Eye, Users, TrendingDown, ChevronRight, Target } from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
+import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRight, ArrowDownRight, Clock, Eye, Users, TrendingDown, ChevronRight, Target, X } from 'lucide-react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import React, { useCallback, useEffect, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
 import { EventsDetails } from '@/components/analytics/EventsDetails';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
-import { LandingExitAnalysis } from '@/components/analytics/LandingExitAnalysis';
-import { FunnelInsightsCard } from '@/components/analytics/FunnelInsightsCard';
-import { DataImportExportModal } from '@/components/analytics/DataImportExportModal';
-import { AutomationInsightTable } from '@/components/analytics/AutomationSynergyChart';
 import { FilterModal } from '@/components/analytics/FilterModal';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { DashboardPageHeader } from '@/components/dashboard-header';
@@ -78,6 +76,77 @@ export default function WebsiteDashboardPage() {
   const [isCustomRange, setIsCustomRange] = useState<boolean>(false);
   const [utmTab, setUtmTab] = useState<'sources' | 'mediums' | 'campaigns' | 'terms' | 'content'>('sources');
   const [advancedFilters, setAdvancedFilters] = useState<any>({});
+
+  // Comparison & Annotations state
+  const [showComparison, setShowComparison] = useState(false);
+  const [annotations, setAnnotations] = useState<EventAnnotation[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(`annotations-${websiteId}`);
+      return stored ? JSON.parse(stored, (key, value) => key === 'date' ? new Date(value) : value) : [];
+    } catch { return []; }
+  });
+
+  // Persist annotations to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined' && websiteId) {
+      localStorage.setItem(`annotations-${websiteId}`, JSON.stringify(annotations));
+    }
+  }, [annotations, websiteId]);
+
+  const handleAddAnnotation = useCallback((annotation: Omit<EventAnnotation, 'id'>) => {
+    setAnnotations(prev => [...prev, { ...annotation, id: crypto.randomUUID() }]);
+  }, []);
+
+  const handleDeleteAnnotation = useCallback((id: string) => {
+    setAnnotations(prev => prev.filter(a => a.id !== id));
+  }, []);
+
+  // Click-to-filter handler
+  const handleDashboardFilter = useCallback((filter: Record<string, string>) => {
+    setAdvancedFilters((prev: any) => ({ ...prev, ...filter }));
+  }, []);
+
+  const removeFilter = useCallback((key: string) => {
+    setAdvancedFilters((prev: any) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  }, []);
+
+  // URL-based filter state
+  const searchParams = useSearchParams();
+
+  // Initialize filters from URL on mount
+  useEffect(() => {
+    const urlDays = searchParams.get('days');
+    if (urlDays) setDateRange(parseInt(urlDays));
+
+    const filterKeys = ['country', 'device', 'browser', 'os', 'utm_source', 'utm_medium', 'utm_campaign', 'page_path'];
+    const urlFilters: Record<string, string> = {};
+    filterKeys.forEach(key => {
+      const val = searchParams.get(key);
+      if (val) urlFilters[key] = val;
+    });
+    if (Object.keys(urlFilters).length > 0) {
+      setAdvancedFilters((prev: any) => ({ ...prev, ...urlFilters }));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sync filters to URL
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams();
+    if (dateRange !== 7) params.set('days', dateRange.toString());
+    Object.entries(advancedFilters).forEach(([key, value]) => {
+      if (value) params.set(key, String(value));
+    });
+    const qs = params.toString();
+    const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }, [dateRange, advancedFilters]);
 
   // Check if we're in demo mode
   const isDemoMode = websiteId === 'demo';
@@ -155,18 +224,18 @@ export default function WebsiteDashboardPage() {
   const demoData = isDemoMode ? getDemoData() : null;
 
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange, advancedFilters);
-  const { data: topPages, isLoading: pagesLoading, error: pagesError } = useTopPages(websiteId, dateRange);
-  const { data: topReferrers, isLoading: referrersLoading, error: referrersError } = useTopReferrers(websiteId, dateRange);
-  const { data: topCountries, isLoading: countriesLoading, error: countriesError } = useTopCountries(websiteId, dateRange);
-  const { data: topBrowsers, isLoading: browsersLoading, error: browsersError } = useTopBrowsers(websiteId, dateRange);
-  const { data: topDevices, isLoading: devicesLoading, error: devicesError } = useTopDevices(websiteId, dateRange);
-  const { data: topOS, isLoading: osLoading, error: osError } = useTopOS(websiteId, dateRange);
+  const { data: topPages, isLoading: pagesLoading, error: pagesError } = useTopPages(websiteId, dateRange, advancedFilters);
+  const { data: topReferrers, isLoading: referrersLoading, error: referrersError } = useTopReferrers(websiteId, dateRange, advancedFilters);
+  const { data: topCountries, isLoading: countriesLoading, error: countriesError } = useTopCountries(websiteId, dateRange, advancedFilters);
+  const { data: topBrowsers, isLoading: browsersLoading, error: browsersError } = useTopBrowsers(websiteId, dateRange, advancedFilters);
+  const { data: topDevices, isLoading: devicesLoading, error: devicesError } = useTopDevices(websiteId, dateRange, advancedFilters);
+  const { data: topOS, isLoading: osLoading, error: osError } = useTopOS(websiteId, dateRange, advancedFilters);
   const { data: topResolutions, isLoading: resolutionsLoading } = useTopResolutions(websiteId, dateRange);
-  const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange);
+  const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange, advancedFilters);
   const { data: goalStats, isLoading: goalStatsLoading } = useGoalStats(websiteId, dateRange);
 
   const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(websiteId, dateRange);
-  const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, dateRange);
+  const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, dateRange, advancedFilters);
   const { data: geolocationData, isLoading: geolocationLoading, error: geolocationError } = useGeolocationBreakdown(websiteId, dateRange);
   const { data: visitorInsights, isLoading: visitorInsightsLoading } = useVisitorInsights(websiteId, dateRange);
 
@@ -176,6 +245,9 @@ export default function WebsiteDashboardPage() {
 
   // Fetch retention data
   const { data: retentionData, isLoading: retentionLoading } = useUserRetention(websiteId, dateRange);
+
+  // Previous period data for comparison overlay
+  const { data: previousDailyStats } = usePreviousPeriodDailyStats(websiteId, dateRange, showComparison);
 
   // Use demo data when in demo mode, otherwise use API data
   const finalDashboardData = isDemoMode ? demoData?.dashboardData : dashboardData;
@@ -199,6 +271,7 @@ export default function WebsiteDashboardPage() {
   const finalCustomEvents = isDemoMode ? demoData?.customEvents : customEvents;
   const finalActivityTrends = isDemoMode ? demoData?.activityTrends : activityTrends;
   const finalRetentionData = isDemoMode ? demoData?.retentionData : retentionData;
+  const finalPreviousDailyStats = isDemoMode ? demoData?.dailyStats : previousDailyStats;
 
   // Transform API data to match demo component expectations
   const transformedTopPages = finalTopPages ? {
@@ -516,16 +589,48 @@ export default function WebsiteDashboardPage() {
               bounce_rate: 0,
               comparison: {}
             }}
+            dailyStats={finalDailyStats}
+            visitorInsights={finalVisitorInsights}
           />
         </div>
 
+
+        {/* Active Filter Pills */}
+        {Object.keys(advancedFilters).length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground">Active filters:</span>
+            {Object.entries(advancedFilters).map(([key, value]) => (
+              <button
+                key={key}
+                onClick={() => removeFilter(key)}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+              >
+                <span className="text-muted-foreground">{key}:</span>
+                <span>{String(value)}</span>
+                <X className="h-3 w-3" />
+              </button>
+            ))}
+            <button
+              onClick={() => setAdvancedFilters({})}
+              className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors underline"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
 
         {/* Traffic Overview */}
         <section className="">
           <TrafficOverview
             dailyStats={finalDailyStats}
             hourlyStats={finalHourlyStats}
+            previousDailyStats={finalPreviousDailyStats}
             isLoading={!isDemoMode && (dashboardLoading || dailyLoading)}
+            showComparison={showComparison}
+            onComparisonToggle={setShowComparison}
+            annotations={annotations}
+            onAddAnnotation={handleAddAnnotation}
+            onDeleteAnnotation={handleDeleteAnnotation}
           />
         </section>
 
@@ -548,24 +653,53 @@ export default function WebsiteDashboardPage() {
                   entryPages={finalVisitorInsights?.visitor_insights?.top_entry_pages}
                   exitPages={finalVisitorInsights?.visitor_insights?.top_exit_pages}
                   isLoading={pagesLoading || visitorInsightsLoading}
+                  onFilter={handleDashboardFilter}
                 />
               </CardContent>
             </Card>
 
             <Card className="border border-border/60 bg-card shadow-sm">
               <CardContent className="p-8">
-                <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
+                <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} onFilter={handleDashboardFilter} />
               </CardContent>
             </Card>
           </div>
 
-          {/* Geolocation Map */}
-          <section>
-            <GeolocationOverview
-              data={finalGeolocationData}
-              isLoading={!isDemoMode && geolocationLoading}
+          {/* Geolocation Map — full width */}
+          <GeolocationOverview
+            data={finalGeolocationData}
+            isLoading={!isDemoMode && geolocationLoading}
+            onFilter={handleDashboardFilter}
+          />
+
+          {/* Devices + Frustration Signals — 2-col grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card className="border border-border/60 bg-card shadow-sm">
+              <CardContent className="p-8">
+                <TopDevicesChart
+                  data={transformedTopDevices}
+                  osData={transformedTopOS}
+                  screenData={transformedTopResolutions}
+                  browserData={transformedTopBrowsers}
+                  isLoading={devicesLoading || osLoading || resolutionsLoading || browsersLoading}
+                  onFilter={handleDashboardFilter}
+                />
+              </CardContent>
+            </Card>
+
+            <FrustrationSignals
+              customEvents={transformedCustomEvents}
+              websiteId={websiteId}
+              isLoading={!isDemoMode && customEventsLoading}
             />
-          </section>
+          </div>
+
+          {/* Retention Cohort */}
+          <RetentionCohortChart
+            data={finalRetentionData}
+            isLoading={!isDemoMode && retentionLoading}
+            totalVisitors={finalRetentionData?.total_visitors || finalDashboardData?.total_visitors || 0}
+          />
         </div>
 
  {/* CONVERSION & MARKETING INTELLIGENCE */}
@@ -634,48 +768,6 @@ export default function WebsiteDashboardPage() {
             </Card>
           </div>
         </div>
-
-        {/* SYSTEM & BEHAVIOR */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <LayoutDashboard className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">System & Behavior</h2>
-            <div className="h-px bg-border flex-1 ml-4" />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-8">
-                <TopDevicesChart
-                  data={transformedTopDevices}
-                  osData={transformedTopOS}
-                  screenData={transformedTopResolutions}
-                  isLoading={devicesLoading || osLoading || resolutionsLoading}
-                />
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-8">
-                <VisitorInsightsCard 
-                  data={finalVisitorInsights?.visitor_insights}
-                  isLoading={!isDemoMode && visitorInsightsLoading}
-                />
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-
-        {/* Workflow & Funnel Intelligence */}
-        {/* <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <AutomationInsightTable
-              data={finalDailyStats}
-              isLoading={dailyLoading}
-            />
-            <FunnelInsightsCard
-              isLoading={dailyLoading}
-            />
-        </div> */}
 
         {/* Detailed Data Modal */}
         {selectedModal && (

@@ -24,7 +24,9 @@ interface TopDevicesChartProps {
   data?: any; // { top_devices: [] }
   osData?: any; // { top_os: [] }
   screenData?: any; // Optional screen data
+  browserData?: any; // { top_browsers: [] }
   isLoading?: boolean;
+  onFilter?: (filter: Record<string, string>) => void;
 }
 
 const getSystemImage = (label: string, type: 'device' | 'os' | 'screen') => {
@@ -48,7 +50,17 @@ const getSystemImage = (label: string, type: 'device' | 'os' | 'screen') => {
   return '/images/monitor.png';
 };
 
-export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevicesChartProps) {
+const getBrowserImage = (browser: string) => {
+  const lower = browser.toLowerCase();
+  if (lower.includes('chrome')) return '/images/chrome.png';
+  if (lower.includes('firefox')) return '/images/firefox.png';
+  if (lower.includes('safari')) return '/images/safari.png';
+  if (lower.includes('edge')) return '/images/explorer.png';
+  if (lower.includes('opera')) return '/images/opera.png';
+  return '/images/planet-earth.png';
+};
+
+export function TopDevicesChart({ data, osData, screenData, browserData, isLoading, onFilter }: TopDevicesChartProps) {
   const [activeTab, setActiveTab] = useState('devices');
 
   if (isLoading) {
@@ -67,13 +79,16 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
     );
   }
 
-  const PageList = ({ items, type }: { items: any[], type: 'device' | 'os' | 'screen' }) => {
+  const PageList = ({ items, type }: { items: any[], type: 'device' | 'os' | 'screen' | 'browser' }) => {
     // If we have screenData from props, use it
     let displayItems = items;
     
     // Support the wrapper object format if provided
     if (type === 'screen' && items && (items as any).top_resolutions) {
       displayItems = (items as any).top_resolutions;
+    }
+    if (type === 'browser' && items && (items as any).top_browsers) {
+      displayItems = (items as any).top_browsers;
     }
 
     if (!displayItems || displayItems.length === 0) {
@@ -95,11 +110,18 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
       <div className="space-y-0 mt-4">
         {sortedItems.map((item, index) => {
           const val = item.visitors || item.views || item.value || item.count || 0;
-          const label = item.device || item.os || item.name || 'Unknown';
-          const img = getSystemImage(label, type);
+          const label = item.device || item.os || item.browser || item.name || 'Unknown';
+          const img = type === 'browser' ? getBrowserImage(label) : getSystemImage(label, type);
+
+          const handleClick = () => {
+            if (!onFilter) return;
+            if (type === 'device') onFilter({ device: label });
+            else if (type === 'os') onFilter({ os: label });
+            else if (type === 'browser') onFilter({ browser: label });
+          };
 
           return (
-            <div key={index} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
+            <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={handleClick}>
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                   <Image
@@ -120,7 +142,7 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{label}</div>
                   <div className="text-xs text-muted-foreground truncate">
-                    {type === 'device' ? 'Hardware' : type === 'os' ? 'Software' : 'Resolution'}
+                    {type === 'device' ? 'Hardware' : type === 'os' ? 'Software' : type === 'browser' ? 'Browser' : 'Resolution'}
                   </div>
                 </div>
               </div>
@@ -150,9 +172,10 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
               <CardTitle className="text-lg font-bold tracking-tight">System Insights</CardTitle>
               <p className="text-xs text-muted-foreground">Devices, OS & tech specs</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded shrink-0">
+           <TabsList className="grid grid-cols-4 h-9 w-full sm:w-[320px] bg-accent/10 p-1 rounded shrink-0">
              <TabsTrigger value="devices" className="text-xs font-medium rounded active:bg-background">Devices</TabsTrigger>
              <TabsTrigger value="os" className="text-xs font-medium rounded active:bg-background">OS</TabsTrigger>
+             <TabsTrigger value="browsers" className="text-xs font-medium rounded active:bg-background">Browsers</TabsTrigger>
              <TabsTrigger value="screens" className="text-xs font-medium rounded active:bg-background">Screens</TabsTrigger>
            </TabsList>
         </div>
@@ -165,6 +188,11 @@ export function TopDevicesChart({ data, osData, screenData, isLoading }: TopDevi
         <TabsContent value="os" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
           <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
             <PageList items={osData?.top_os || []} type="os" />
+          </div>
+        </TabsContent>
+        <TabsContent value="browsers" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+            <PageList items={browserData} type="browser" />
           </div>
         </TabsContent>
         <TabsContent value="screens" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">

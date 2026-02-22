@@ -2,18 +2,17 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDuration, formatNumber, formatPercentage, useLiveVisitors } from '@/lib/analytics-api';
-import { 
-  ArrowDownRight, 
-  ArrowUpRight, 
-  ChevronRight, 
-  Clock, 
-  Eye, 
-  Minus, 
-  TrendingDown, 
-  Users, 
-  Zap,
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronRight,
+  Clock,
+  Eye,
+  TrendingDown,
+  Users,
   Activity,
-  Radio
+  Radio,
+  UserCheck,
 } from 'lucide-react';
 import React from 'react';
 import { cn } from '@/lib/utils';
@@ -24,7 +23,36 @@ interface SummaryCardsProps {
   websiteId?: string;
   isDemo?: boolean;
   isLoading?: boolean;
+  dailyStats?: any; // For sparklines
+  visitorInsights?: any; // For new vs returning
 }
+
+// Tiny sparkline component using raw SVG
+const Sparkline = ({ data, color = '#325cb6', height = 24 }: { data: number[]; color?: string; height?: number }) => {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const width = 80;
+  const points = data.map((val, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((val - min) / range) * (height - 4) - 2;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width={width} height={height} className="opacity-40 group-hover:opacity-70 transition-opacity">
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+};
 
 const GrowthIndicator = ({ current, previous, inverse = false }: {
   current: number;
@@ -63,6 +91,9 @@ const SummaryCard = ({
   inverse = false,
   subtitle,
   href,
+  sparklineData,
+  sparklineColor,
+  customContent,
 }: {
   title: string;
   value: number;
@@ -73,6 +104,9 @@ const SummaryCard = ({
   inverse?: boolean;
   subtitle?: string;
   href?: string;
+  sparklineData?: number[];
+  sparklineColor?: string;
+  customContent?: React.ReactNode;
 }) => {
   const formatValue = (val: number) => {
     switch (format) {
@@ -113,31 +147,33 @@ const SummaryCard = ({
           )} />
         </div>
       </div>
-      
-      <div className="flex items-end justify-between gap-2">
-        <div className="space-y-0 relative z-10 min-w-0 flex-1">
-          <div className={cn(
-            "text-2xl font-bold tracking-tight text-foreground/80 group-hover:text-primary transition-all duration-300 whitespace-nowrap",
-            title === 'Live Visitors' && "text-emerald-500 group-hover:text-emerald-400"
-          )}>
-            {formatValue(value)}
+
+      {customContent ? customContent : (
+        <div className="flex items-end justify-between gap-2">
+          <div className="space-y-0 relative z-10 min-w-0 flex-1">
+            <div className={cn(
+              "text-2xl font-bold tracking-tight text-foreground/80 group-hover:text-primary transition-all duration-300 whitespace-nowrap",
+              title === 'Live Visitors' && "text-emerald-500 group-hover:text-emerald-400"
+            )}>
+              {formatValue(value)}
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              {previousValue !== undefined && (
+                <div className="inline-block p-0">
+                  <GrowthIndicator current={value} previous={previousValue} inverse={inverse} />
+                </div>
+              )}
+              {sparklineData && sparklineData.length > 1 && (
+                <Sparkline data={sparklineData} color={sparklineColor} />
+              )}
+            </div>
           </div>
-          {/* {subtitle && (
-            <div className="text-[9px] text-muted-foreground font-medium uppercase tracking-wider opacity-40 mt-1 whitespace-nowrap">{subtitle}</div>
-          )} */}
-        {previousValue !== undefined && (
-          <div className="mt-2 inline-block p-0">
-            <GrowthIndicator current={value} previous={previousValue} inverse={inverse} />
-          </div>
-        )}
+
+          {href && (
+             <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-all group-hover:translate-x-1 flex-shrink-0" />
+          )}
         </div>
-        
-
-        {href && (
-           <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-all group-hover:translate-x-1 flex-shrink-0" />
-        )}
-      </div>
-
+      )}
     </>
   );
 
@@ -156,14 +192,14 @@ const SummaryCard = ({
   );
 };
 
-export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCardsProps) {
+export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, visitorInsights }: SummaryCardsProps) {
   const { data: liveVisitors, isLoading: liveLoading } = useLiveVisitors(websiteId || '');
-  
+
   if (isLoading || !data) {
     return (
       <div className="border border-border/60 bg-card shadow-sm rounded overflow-hidden mb-8">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/20">
-          {[...Array(6)].map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 divide-x divide-border/20">
+          {[...Array(7)].map((_, i) => (
             <div key={i} className="p-6">
               <Skeleton className="h-4 w-20 mb-4" />
               <div className="space-y-2">
@@ -176,6 +212,21 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCard
       </div>
     );
   }
+
+  // Extract sparkline data from daily stats
+  const stats = (dailyStats?.daily_stats || []).sort((a: any, b: any) =>
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+  const viewsSpark = stats.map((s: any) => s.views || 0);
+  const uniqueSpark = stats.map((s: any) => s.unique || 0);
+  const bounceSpark = stats.map((s: any) => s.bounce_rate || 0);
+
+  // Visitor insights for new vs returning
+  const insights = visitorInsights?.visitor_insights;
+  const newVisitors = insights?.new_visitors || 0;
+  const returningVisitors = insights?.returning_visitors || 0;
+  const totalForRatio = newVisitors + returningVisitors || 1;
+  const newPct = Math.round((newVisitors / totalForRatio) * 100);
 
   const cards = [
     {
@@ -191,6 +242,8 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCard
       previousValue: data.comparison?.previous_period?.total_visitors,
       icon: Users,
       format: 'number' as const,
+      sparklineData: viewsSpark,
+      sparklineColor: '#325cb6',
     },
     {
       title: 'Unique Visitors',
@@ -198,7 +251,8 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCard
       previousValue: data.comparison?.previous_period?.unique_visitors,
       icon: Activity,
       format: 'number' as const,
-      subtitle: 'Distinct visitors',
+      sparklineData: uniqueSpark,
+      sparklineColor: '#10b981',
     },
     {
       title: 'Page Views',
@@ -206,6 +260,8 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCard
       previousValue: data.comparison?.previous_period?.page_views,
       icon: Eye,
       format: 'number' as const,
+      sparklineData: viewsSpark,
+      sparklineColor: '#325cb6',
     },
     {
       title: 'Session Duration',
@@ -222,15 +278,43 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading }: SummaryCard
       icon: TrendingDown,
       format: 'percentage' as const,
       inverse: true,
+      sparklineData: bounceSpark,
+      sparklineColor: '#ef4444',
     },
   ];
 
   return (
     <div className="border border-border/60 bg-card dark:border-none shadow-sm rounded overflow-hidden mb-8">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/40">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 divide-x divide-border/40">
         {cards.map((card, index) => (
           <SummaryCard key={index} {...card} />
         ))}
+        {/* New vs Returning Card */}
+        <SummaryCard
+          title="New vs Returning"
+          value={newVisitors}
+          icon={UserCheck}
+          format="number"
+          customContent={
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-1">
+                <span className="text-lg font-bold tracking-tight text-blue-500">{formatNumber(newVisitors)}</span>
+                <span className="text-[10px] text-muted-foreground">/</span>
+                <span className="text-lg font-bold tracking-tight text-emerald-500">{formatNumber(returningVisitors)}</span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-emerald-500/20 overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                  style={{ width: `${newPct}%` }}
+                />
+              </div>
+              <div className="flex justify-between text-[9px] text-muted-foreground">
+                <span>New {newPct}%</span>
+                <span>Returning {100 - newPct}%</span>
+              </div>
+            </div>
+          }
+        />
       </div>
     </div>
   );

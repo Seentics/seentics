@@ -22,7 +22,7 @@ const planPrices: Record<string, number> = {
   starter: 0,
   growth: 29,
   pro: 79,
-  enterprise: 249,
+  enterprise: 399,
 };
 
 const planFeatures: Record<string, string[]> = {

@@ -42,9 +42,10 @@ interface GeolocationOverviewProps {
     data?: GeolocationData;
     isLoading?: boolean;
     className?: string;
+    onFilter?: (filter: Record<string, string>) => void;
 }
 
-export function GeolocationOverview({ data, isLoading = false, className = '' }: GeolocationOverviewProps) {
+export function GeolocationOverview({ data, isLoading = false, className = '', onFilter }: GeolocationOverviewProps) {
     const [geoTab, setGeoTab] = useState<string>('map');
 
     const displayData = data;
@@ -110,7 +111,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '' }:
                     {geoTab === 'countries' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
                             {displayData?.countries?.slice(0, 14).map((country, index) => (
-                                <div key={country.name} className="flex items-center justify-between py-3 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1">
+                                <div key={country.name} className={cn("flex items-center justify-between py-3 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ country: country.name })}>
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border/40">

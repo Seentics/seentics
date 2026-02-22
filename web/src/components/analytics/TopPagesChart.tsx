@@ -37,6 +37,7 @@ interface TopPagesChartProps {
   isLoading: boolean;
   onViewMore?: () => void;
   showHeader?: boolean;
+  onFilter?: (filter: Record<string, string>) => void;
 }
 
 const getPageIcon = (page: string) => {
@@ -87,13 +88,14 @@ const truncatePath = (path: string, maxLength: number = 30) => {
   return path.substring(0, maxLength / 2) + '...' + path.substring(path.length - maxLength / 2);
 };
 
-export const TopPagesChart: React.FC<TopPagesChartProps> = ({ 
-  data, 
-  entryPages = [], 
-  exitPages = [], 
-  isLoading, 
-  onViewMore, 
-  showHeader = false 
+export const TopPagesChart: React.FC<TopPagesChartProps> = ({
+  data,
+  entryPages = [],
+  exitPages = [],
+  isLoading,
+  onViewMore,
+  showHeader = false,
+  onFilter,
 }) => {
   const [activeTab, setActiveTab] = useState('top');
 
@@ -139,7 +141,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
           const secondaryMetric = type === 'top' ? null : item.bounce_rate !== undefined ? `${item.bounce_rate}% bounce` : item.exit_rate !== undefined ? `${item.exit_rate}% exit` : null;
 
           return (
-            <div key={index} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
+            <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ page_path: path })}>
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className="flex-shrink-0 p-2 bg-accent/10 rounded group-hover:bg-primary/10 transition-colors">
                   {getPageIcon(item.page)}

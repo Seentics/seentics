@@ -54,7 +54,7 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
     },
     {
       name: 'Enterprise',
-      price: '$249',
+      price: '$399',
       description: 'For agencies & large teams',
       features: ['100 Websites', '15M Events/mo', '200K Recordings', 'White Label', 'Dedicated Support'],
       current: currentPlan === 'enterprise',

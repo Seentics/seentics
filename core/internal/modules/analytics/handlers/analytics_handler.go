@@ -39,6 +39,39 @@ func (h *AnalyticsHandler) parseTimezone(c *gin.Context) string {
 	return tz
 }
 
+func (h *AnalyticsHandler) parseDays(c *gin.Context, defaultDays int) int {
+	days := defaultDays
+	if d := c.Query("days"); d != "" {
+		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
+			days = parsedDays
+		}
+	}
+	return days
+}
+
+func (h *AnalyticsHandler) parseLimit(c *gin.Context, defaultLimit int) int {
+	limit := defaultLimit
+	if l := c.Query("limit"); l != "" {
+		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+		}
+	}
+	return limit
+}
+
+func (h *AnalyticsHandler) parseFilters(c *gin.Context) models.AnalyticsFilters {
+	return models.AnalyticsFilters{
+		Country:     c.Query("country"),
+		Device:      c.Query("device"),
+		Browser:     c.Query("browser"),
+		OS:          c.Query("os"),
+		UTMSource:   c.Query("utm_source"),
+		UTMMedium:   c.Query("utm_medium"),
+		UTMCampaign: c.Query("utm_campaign"),
+		PagePath:    c.Query("page_path"),
+	}
+}
+
 func (h *AnalyticsHandler) handleError(c *gin.Context, err error, msg string) {
 	h.logger.Error().Err(err).Msg(msg)
 
@@ -66,13 +99,7 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
+	days := h.parseDays(c, 7)
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
 
@@ -98,23 +125,12 @@ func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
-	limit := 10
-	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
+	days := h.parseDays(c, 7)
+	limit := h.parseLimit(c, 10)
 	timezone := h.parseTimezone(c)
+	filters := h.parseFilters(c)
 
-	pages, err := h.service.GetTopPages(c.Request.Context(), websiteID, days, limit, timezone, userID)
+	pages, err := h.service.GetTopPages(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top pages")
 		return
@@ -122,7 +138,6 @@ func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
-		"date_range": fmt.Sprintf("%d days", days),
 		"top_pages":  pages,
 	})
 }
@@ -146,14 +161,8 @@ func (h *AnalyticsHandler) GetPageUTMBreakdown(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
+	days := h.parseDays(c, 7)
 
-	// Get page UTM breakdown from repository
 	breakdown, err := h.service.GetPageUTMBreakdown(c.Request.Context(), websiteID, pagePath, days, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get page UTM breakdown")
@@ -176,23 +185,12 @@ func (h *AnalyticsHandler) GetTopReferrers(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
-	limit := 10
-	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
+	days := h.parseDays(c, 7)
+	limit := h.parseLimit(c, 10)
 	timezone := h.parseTimezone(c)
+	filters := h.parseFilters(c)
 
-	referrers, err := h.service.GetTopReferrers(c.Request.Context(), websiteID, days, limit, timezone, userID)
+	referrers, err := h.service.GetTopReferrers(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top referrers")
 		return
@@ -200,7 +198,6 @@ func (h *AnalyticsHandler) GetTopReferrers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":    websiteID,
-		"date_range":    fmt.Sprintf("%d days", days),
 		"top_referrers": referrers,
 	})
 }
@@ -218,23 +215,12 @@ func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
-	limit := 10
-	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
+	days := h.parseDays(c, 7)
+	limit := h.parseLimit(c, 10)
 	timezone := h.parseTimezone(c)
+	filters := h.parseFilters(c)
 
-	sources, err := h.service.GetTopSources(c.Request.Context(), websiteID, days, limit, timezone, userID)
+	sources, err := h.service.GetTopSources(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top sources")
 		return
@@ -242,7 +228,6 @@ func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":  websiteID,
-		"date_range":  fmt.Sprintf("%d days", days),
 		"top_sources": sources,
 	})
 }
@@ -260,23 +245,12 @@ func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
-	limit := 10
-	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
+	days := h.parseDays(c, 7)
+	limit := h.parseLimit(c, 10)
 	timezone := h.parseTimezone(c)
+	filters := h.parseFilters(c)
 
-	countries, err := h.service.GetTopCountries(c.Request.Context(), websiteID, days, limit, timezone, userID)
+	countries, err := h.service.GetTopCountries(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top countries")
 		return
@@ -284,7 +258,6 @@ func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":    websiteID,
-		"date_range":    fmt.Sprintf("%d days", days),
 		"top_countries": countries,
 	})
 }
@@ -302,19 +275,8 @@ func (h *AnalyticsHandler) GetTopResolutions(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
-	limit := 10
-	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
+	days := h.parseDays(c, 7)
+	limit := h.parseLimit(c, 10)
 
 	resolutions, err := h.service.GetTopResolutions(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
@@ -324,7 +286,6 @@ func (h *AnalyticsHandler) GetTopResolutions(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":      websiteID,
-		"date_range":      fmt.Sprintf("%d days", days),
 		"top_resolutions": resolutions,
 	})
 }
@@ -342,23 +303,12 @@ func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
-	limit := 10
-	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
+	days := h.parseDays(c, 7)
+	limit := h.parseLimit(c, 10)
 	timezone := h.parseTimezone(c)
+	filters := h.parseFilters(c)
 
-	browsers, err := h.service.GetTopBrowsers(c.Request.Context(), websiteID, days, limit, timezone, userID)
+	browsers, err := h.service.GetTopBrowsers(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top browsers")
 		return
@@ -366,7 +316,6 @@ func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":   websiteID,
-		"date_range":   fmt.Sprintf("%d days", days),
 		"top_browsers": browsers,
 	})
 }
@@ -384,23 +333,12 @@ func (h *AnalyticsHandler) GetTopDevices(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
-	limit := 10
-	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
+	days := h.parseDays(c, 7)
+	limit := h.parseLimit(c, 10)
 	timezone := h.parseTimezone(c)
+	filters := h.parseFilters(c)
 
-	devices, err := h.service.GetTopDevices(c.Request.Context(), websiteID, days, limit, timezone, userID)
+	devices, err := h.service.GetTopDevices(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top devices")
 		return
@@ -408,7 +346,6 @@ func (h *AnalyticsHandler) GetTopDevices(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":  websiteID,
-		"date_range":  fmt.Sprintf("%d days", days),
 		"top_devices": devices,
 	})
 }
@@ -426,23 +363,12 @@ func (h *AnalyticsHandler) GetTopOS(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
-	limit := 10
-	if l := c.Query("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
+	days := h.parseDays(c, 7)
+	limit := h.parseLimit(c, 10)
 	timezone := h.parseTimezone(c)
+	filters := h.parseFilters(c)
 
-	osList, err := h.service.GetTopOS(c.Request.Context(), websiteID, days, limit, timezone, userID)
+	osList, err := h.service.GetTopOS(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top OS")
 		return
@@ -450,7 +376,6 @@ func (h *AnalyticsHandler) GetTopOS(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
-		"date_range": fmt.Sprintf("%d days", days),
 		"top_os":     osList,
 	})
 }
@@ -468,13 +393,7 @@ func (h *AnalyticsHandler) GetTrafficSummary(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
+	days := h.parseDays(c, 7)
 	timezone := h.parseTimezone(c)
 
 	summary, err := h.service.GetTrafficSummary(c.Request.Context(), websiteID, days, timezone, userID)
@@ -499,16 +418,11 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 		return
 	}
 
-	days := 30
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
+	days := h.parseDays(c, 30)
 	timezone := h.parseTimezone(c)
+	filters := h.parseFilters(c)
 
-	stats, err := h.service.GetDailyStats(c.Request.Context(), websiteID, days, timezone, userID)
+	stats, err := h.service.GetDailyStats(c.Request.Context(), websiteID, days, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get daily stats")
 		return
@@ -516,7 +430,6 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":  websiteID,
-		"date_range":  fmt.Sprintf("%d days", days),
 		"daily_stats": stats,
 		"timezone":    timezone,
 	})
@@ -536,9 +449,9 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 	}
 
 	timezone := h.parseTimezone(c)
+	filters := h.parseFilters(c)
 
-	// Always fetch last 24 hours for hourly stats
-	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, 1, timezone, userID)
+	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, 1, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get hourly stats")
 		return
@@ -546,7 +459,6 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":   websiteID,
-		"date_range":   "24 hours",
 		"timezone":     timezone,
 		"hourly_stats": stats,
 	})
@@ -565,21 +477,13 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
+	days := h.parseDays(c, 7)
 
-	// Get custom events data from repository
 	customEvents, err := h.service.GetCustomEvents(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to get custom events")
-		// Return empty data in the format the frontend expects
 		c.JSON(http.StatusOK, gin.H{
 			"website_id":    websiteID,
-			"date_range":    fmt.Sprintf("%d days", days),
 			"top_events":    []interface{}{},
 			"timeseries":    []interface{}{},
 			"total_events":  0,
@@ -588,30 +492,23 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 		return
 	}
 
-	// Calculate totals from custom events data
 	totalEvents := 0
 	uniqueEvents := 0
 	for _, event := range customEvents {
 		totalEvents += event.Count
-		// For now, assume each event type represents a unique event
 		uniqueEvents++
 	}
 
-	// Get UTM performance data for this website
 	utmData, _ := h.service.GetUTMAnalytics(c.Request.Context(), websiteID, days, userID)
 
-	// Transform the data to match frontend expectations
-	response := gin.H{
+	c.JSON(http.StatusOK, gin.H{
 		"website_id":      websiteID,
-		"date_range":      fmt.Sprintf("%d days", days),
 		"top_events":      customEvents,
-		"timeseries":      []interface{}{}, // TODO: Add timeseries data
+		"timeseries":      []interface{}{},
 		"total_events":    totalEvents,
 		"unique_events":   uniqueEvents,
 		"utm_performance": utmData,
-	}
-
-	c.JSON(http.StatusOK, response)
+	})
 }
 
 func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
@@ -627,12 +524,7 @@ func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
+	days := h.parseDays(c, 7)
 
 	stats, err := h.service.GetGoalStats(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
@@ -642,12 +534,10 @@ func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
-		"date_range": fmt.Sprintf("%d days", days),
 		"goals":      stats,
 	})
 }
 
-// GetLiveVisitors returns the number of currently active visitors
 func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -670,11 +560,9 @@ func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":    websiteID,
 		"live_visitors": liveVisitors,
-		"timestamp":     "now",
 	})
 }
 
-// GetGeolocationBreakdown returns comprehensive geolocation analytics
 func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -688,13 +576,7 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
+	days := h.parseDays(c, 7)
 	timezone := h.parseTimezone(c)
 
 	breakdown, err := h.service.GetGeolocationBreakdown(c.Request.Context(), websiteID, days, timezone, userID)
@@ -706,7 +588,6 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 	c.JSON(http.StatusOK, breakdown)
 }
 
-// GetUserRetention returns user retention cohort data
 func (h *AnalyticsHandler) GetUserRetention(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -720,12 +601,7 @@ func (h *AnalyticsHandler) GetUserRetention(c *gin.Context) {
 		return
 	}
 
-	days := 30 // Default to 30 days for retention
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
+	days := h.parseDays(c, 30)
 
 	retention, err := h.service.GetUserRetention(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
@@ -736,7 +612,6 @@ func (h *AnalyticsHandler) GetUserRetention(c *gin.Context) {
 	c.JSON(http.StatusOK, retention)
 }
 
-// GetVisitorInsights returns visitor insights (new vs returning)
 func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -750,13 +625,7 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
+	days := h.parseDays(c, 7)
 	timezone := h.parseTimezone(c)
 
 	insights, err := h.service.GetVisitorInsights(c.Request.Context(), websiteID, days, timezone, userID)
@@ -767,22 +636,8 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":       websiteID,
-		"date_range":       fmt.Sprintf("%d days", days),
 		"visitor_insights": insights,
 	})
-}
-
-func (h *AnalyticsHandler) parseFilters(c *gin.Context) models.AnalyticsFilters {
-	return models.AnalyticsFilters{
-		Country:     c.Query("country"),
-		Device:      c.Query("device"),
-		Browser:     c.Query("browser"),
-		OS:          c.Query("os"),
-		UTMSource:   c.Query("utm_source"),
-		UTMMedium:   c.Query("utm_medium"),
-		UTMCampaign: c.Query("utm_campaign"),
-		PagePath:    c.Query("page_path"),
-	}
 }
 
 func (h *AnalyticsHandler) ExportAnalytics(c *gin.Context) {
@@ -798,13 +653,7 @@ func (h *AnalyticsHandler) ExportAnalytics(c *gin.Context) {
 		return
 	}
 
-	days := 7
-	if d := c.Query("days"); d != "" {
-		if parsedDays, err := strconv.Atoi(d); err == nil && parsedDays > 0 {
-			days = parsedDays
-		}
-	}
-
+	days := h.parseDays(c, 7)
 	format := c.DefaultQuery("format", "json")
 
 	data, err := h.service.ExportWebsiteData(c.Request.Context(), websiteID, days, format, userID)
@@ -851,7 +700,6 @@ func (h *AnalyticsHandler) ImportAnalytics(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// Read file content
 	data := make([]byte, fileHeader.Size)
 	_, err = file.Read(data)
 	if err != nil {

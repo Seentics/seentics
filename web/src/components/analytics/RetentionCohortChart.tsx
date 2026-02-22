@@ -18,12 +18,13 @@ interface CohortRow {
 interface RetentionCohortChartProps {
   data?: any;
   isLoading?: boolean;
+  totalVisitors?: number;
 }
 
-export function RetentionCohortChart({ data, isLoading }: RetentionCohortChartProps) {
+export function RetentionCohortChart({ data, isLoading, totalVisitors }: RetentionCohortChartProps) {
   if (isLoading) {
     return (
-      <Card className="bg-card border shadow-sm dark:bg-gray-800 rounded h-full">
+      <Card className="border border-border/60 bg-card shadow-sm">
         <CardHeader>
           <div className="h-5 w-40 bg-muted rounded animate-pulse" />
         </CardHeader>
@@ -34,11 +35,17 @@ export function RetentionCohortChart({ data, isLoading }: RetentionCohortChartPr
     );
   }
 
-  // Fallback to demo structure if cohorts aren't present
+  // Transform flat backend data {day_1, day_7, day_30} into cohort rows
+  const cohortSize = totalVisitors || data?.total_visitors || 0;
   const cohorts: CohortRow[] = data?.cohorts || [
-    { week: 'Cohort', size: 0, retention: [100, data?.day_1 || 0, data?.day_7 || 0, data?.day_30 || 0] }
+    {
+      week: `Last ${data?.date_range || 7}d`,
+      size: cohortSize,
+      retention: [100, data?.day_1 || 0, data?.day_7 || 0, data?.day_30 || 0],
+    }
   ];
 
+  const retentionLabels = ['Entry', 'Day 1', 'Day 7', 'Day 30'];
   const maxWeeks = Math.max(...cohorts.map(c => c.retention.length));
 
   const getIntensityClass = (value: number) => {
@@ -52,11 +59,11 @@ export function RetentionCohortChart({ data, isLoading }: RetentionCohortChartPr
   };
 
   return (
-    <Card className="bg-card border shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none dark:bg-gray-800 rounded overflow-hidden">
+    <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="text-base font-medium">User Retention</CardTitle>
+          <div className="space-y-1">
+            <CardTitle className="text-base font-bold tracking-tight">User Retention</CardTitle>
             <p className="text-xs text-muted-foreground">Percentage of users who return over time</p>
           </div>
           <div className="flex gap-2">
@@ -80,12 +87,12 @@ export function RetentionCohortChart({ data, isLoading }: RetentionCohortChartPr
                 <th className="p-2 text-center w-20">Size</th>
                 {Array.from({ length: maxWeeks }).map((_, i) => (
                   <th key={i} className="p-2 text-center w-16">
-                    {i === 0 ? 'Entry' : `Wk ${i}`}
+                    {retentionLabels[i] || `Day ${i}`}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y dark:divide-gray-700">
+            <tbody className="divide-y divide-border/40">
               {cohorts.map((cohort, idx) => (
                 <tr key={idx} className="hover:bg-muted/20 transition-colors">
                   <td className="p-2 text-xs font-semibold whitespace-nowrap">{cohort.week}</td>

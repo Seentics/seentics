@@ -59,7 +59,7 @@ const planDetails = {
   },
   enterprise: {
     name: 'Enterprise',
-    price: '$249',
+    price: '$399',
     period: '/mo',
     icon: Sparkles,
     color: 'amber',

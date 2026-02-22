@@ -85,7 +85,7 @@ const PLANS = [
   {
     id: 'enterprise' as const,
     name: 'Enterprise',
-    price: 249,
+    price: 399,
     description: 'For agencies and large teams',
     icon: Sparkles,
     color: 'text-amber-500',

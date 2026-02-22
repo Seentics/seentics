@@ -76,28 +76,28 @@ func (r *ClickHouseAnalyticsRepository) GetDashboardMetrics(ctx context.Context,
 
 	query := fmt.Sprintf(`
 		WITH session_stats AS (
-			SELECT 
+			SELECT
 				session_id,
 				any(visitor_id) as visitor_id,
 				count(*) as page_count,
-				if(count(*) > 1, 
+				if(count(*) > 1,
 					least(dateDiff('second', min(timestamp), max(timestamp)), 1800),
 					any(time_on_page)
 				) as session_duration
 			FROM events
-			WHERE website_id = ? 
+			WHERE website_id = ?
 			AND timestamp >= now() - interval ? day
 			AND event_type = 'pageview'
 			%s
 			GROUP BY session_id
 		)
-		SELECT 
+		SELECT
 			COALESCE(SUM(page_count), 0) as page_views,
-			COUNT(DISTINCT session_id) as total_visitors, -- seentics uses total_visitors for sessions
+			COUNT(DISTINCT session_id) as total_visitors,
 			COUNT(DISTINCT visitor_id) as unique_visitors,
 			COUNT(DISTINCT session_id) as sessions,
 			COALESCE(
-				(countIf(page_count = 1) * 100.0) / 
+				(countIf(page_count = 1) * 100.0) /
 				NULLIF(COUNT(*), 0), 0
 			) as bounce_rate,
 			COALESCE(AVG(session_duration), 0) as avg_session_time,
@@ -130,23 +130,23 @@ func (r *ClickHouseAnalyticsRepository) GetComparisonMetrics(ctx context.Context
 
 	query := fmt.Sprintf(`
 		WITH period_stats AS (
-			SELECT 
+			SELECT
 				if(timestamp >= now() - interval ? day, 1, 2) as period,
 				session_id,
 				any(visitor_id) as visitor_id,
 				count(*) as page_count,
-				if(count(*) > 1, 
+				if(count(*) > 1,
 					least(dateDiff('second', min(timestamp), max(timestamp)), 1800),
 					any(time_on_page)
 				) as session_duration
 			FROM events
-			WHERE website_id = ? 
+			WHERE website_id = ?
 			AND timestamp >= now() - interval ? day
 			AND event_type = 'pageview'
 			%s
 			GROUP BY period, session_id
 		)
-		SELECT 
+		SELECT
 			period,
 			COALESCE(SUM(page_count), 0) as page_views,
 			COUNT(DISTINCT session_id) as total_visitors,
@@ -255,14 +255,14 @@ func (r *ClickHouseAnalyticsRepository) GetComparisonMetrics(ctx context.Context
 // GetUTMAnalytics returns UTM metrics from ClickHouse
 func (r *ClickHouseAnalyticsRepository) GetUTMAnalytics(ctx context.Context, websiteID string, days int) (map[string]interface{}, error) {
 	query := `
-		SELECT 
+		SELECT
 			COALESCE(utm_source, 'direct') as source,
 			COALESCE(utm_medium, 'none') as medium,
 			COALESCE(utm_campaign, 'none') as campaign,
 			COUNT(*) as visits,
 			COUNT(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
 		GROUP BY utm_source, utm_medium, utm_campaign
@@ -326,23 +326,29 @@ func (r *ClickHouseAnalyticsRepository) GetUTMAnalytics(ctx context.Context, web
 	return breakdown, nil
 }
 
-// GetTopPages returns top pages from ClickHouse
-func (r *ClickHouseAnalyticsRepository) GetTopPages(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.PageStat, error) {
-	query := `
-		SELECT 
+// GetTopPages returns top pages from ClickHouse with filter support
+func (r *ClickHouseAnalyticsRepository) GetTopPages(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.PageStat, error) {
+	filterClause, filterParams := r.buildFilterClause(filters)
+
+	query := fmt.Sprintf(`
+		SELECT
 			page,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors,
 			COALESCE(avg(time_on_page), 0) as avg_time
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
+		%s
 		GROUP BY page
 		ORDER BY views DESC
-		LIMIT ?`
+		LIMIT ?`, filterClause)
 
-	rows, err := r.conn.Query(ctx, query, websiteID, days, limit)
+	args := append([]interface{}{websiteID, days}, filterParams...)
+	args = append(args, limit)
+
+	rows, err := r.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -366,17 +372,16 @@ func (r *ClickHouseAnalyticsRepository) GetTopPages(ctx context.Context, website
 }
 
 func (r *ClickHouseAnalyticsRepository) GetTopPagesWithTimeBucket(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.PageStat, error) {
-	return r.GetTopPages(ctx, websiteID, days, timezone, limit)
+	return r.GetTopPages(ctx, websiteID, days, timezone, limit, models.AnalyticsFilters{})
 }
 
 func (r *ClickHouseAnalyticsRepository) GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int) (map[string]interface{}, error) {
-	// Simplified version of UTM breakdown for a specific page
 	query := `
-		SELECT 
+		SELECT
 			COALESCE(utm_source, 'direct') as source,
 			COUNT(*) as visits
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND page = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
@@ -402,21 +407,28 @@ func (r *ClickHouseAnalyticsRepository) GetPageUTMBreakdown(ctx context.Context,
 	return map[string]interface{}{"sources": sources}, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopReferrers(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.ReferrerStat, error) {
-	query := `
-		SELECT 
+// GetTopReferrers with filter support
+func (r *ClickHouseAnalyticsRepository) GetTopReferrers(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.ReferrerStat, error) {
+	filterClause, filterParams := r.buildFilterClause(filters)
+
+	query := fmt.Sprintf(`
+		SELECT
 			COALESCE(referrer, 'direct') as referrer,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
+		%s
 		GROUP BY referrer
 		ORDER BY views DESC
-		LIMIT ?`
+		LIMIT ?`, filterClause)
 
-	rows, err := r.conn.Query(ctx, query, websiteID, days, limit)
+	args := append([]interface{}{websiteID, days}, filterParams...)
+	args = append(args, limit)
+
+	rows, err := r.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -436,21 +448,28 @@ func (r *ClickHouseAnalyticsRepository) GetTopReferrers(ctx context.Context, web
 	return referrers, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopSources(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.SourceStat, error) {
-	query := `
-		SELECT 
+// GetTopSources with filter support
+func (r *ClickHouseAnalyticsRepository) GetTopSources(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.SourceStat, error) {
+	filterClause, filterParams := r.buildFilterClause(filters)
+
+	query := fmt.Sprintf(`
+		SELECT
 			COALESCE(utm_source, 'direct') as source,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
+		%s
 		GROUP BY source
 		ORDER BY views DESC
-		LIMIT ?`
+		LIMIT ?`, filterClause)
 
-	rows, err := r.conn.Query(ctx, query, websiteID, days, limit)
+	args := append([]interface{}{websiteID, days}, filterParams...)
+	args = append(args, limit)
+
+	rows, err := r.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -470,21 +489,28 @@ func (r *ClickHouseAnalyticsRepository) GetTopSources(ctx context.Context, websi
 	return sources, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopCountries(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.CountryStat, error) {
-	query := `
-		SELECT 
+// GetTopCountries with filter support
+func (r *ClickHouseAnalyticsRepository) GetTopCountries(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.CountryStat, error) {
+	filterClause, filterParams := r.buildFilterClause(filters)
+
+	query := fmt.Sprintf(`
+		SELECT
 			COALESCE(country, 'Unknown') as country,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
+		%s
 		GROUP BY country
 		ORDER BY views DESC
-		LIMIT ?`
+		LIMIT ?`, filterClause)
 
-	rows, err := r.conn.Query(ctx, query, websiteID, days, limit)
+	args := append([]interface{}{websiteID, days}, filterParams...)
+	args = append(args, limit)
+
+	rows, err := r.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -504,21 +530,28 @@ func (r *ClickHouseAnalyticsRepository) GetTopCountries(ctx context.Context, web
 	return stats, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopBrowsers(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.BrowserStat, error) {
-	query := `
-		SELECT 
+// GetTopBrowsers with filter support
+func (r *ClickHouseAnalyticsRepository) GetTopBrowsers(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.BrowserStat, error) {
+	filterClause, filterParams := r.buildFilterClause(filters)
+
+	query := fmt.Sprintf(`
+		SELECT
 			COALESCE(browser, 'Unknown') as browser,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
+		%s
 		GROUP BY browser
 		ORDER BY views DESC
-		LIMIT ?`
+		LIMIT ?`, filterClause)
 
-	rows, err := r.conn.Query(ctx, query, websiteID, days, limit)
+	args := append([]interface{}{websiteID, days}, filterParams...)
+	args = append(args, limit)
+
+	rows, err := r.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -538,21 +571,28 @@ func (r *ClickHouseAnalyticsRepository) GetTopBrowsers(ctx context.Context, webs
 	return stats, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopDevices(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.DeviceStat, error) {
-	query := `
-		SELECT 
+// GetTopDevices with filter support
+func (r *ClickHouseAnalyticsRepository) GetTopDevices(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.DeviceStat, error) {
+	filterClause, filterParams := r.buildFilterClause(filters)
+
+	query := fmt.Sprintf(`
+		SELECT
 			COALESCE(device, 'Unknown') as device,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
+		%s
 		GROUP BY device
 		ORDER BY views DESC
-		LIMIT ?`
+		LIMIT ?`, filterClause)
 
-	rows, err := r.conn.Query(ctx, query, websiteID, days, limit)
+	args := append([]interface{}{websiteID, days}, filterParams...)
+	args = append(args, limit)
+
+	rows, err := r.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -572,21 +612,28 @@ func (r *ClickHouseAnalyticsRepository) GetTopDevices(ctx context.Context, websi
 	return stats, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetTopOS(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.OSStat, error) {
-	query := `
-		SELECT 
+// GetTopOS with filter support
+func (r *ClickHouseAnalyticsRepository) GetTopOS(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.OSStat, error) {
+	filterClause, filterParams := r.buildFilterClause(filters)
+
+	query := fmt.Sprintf(`
+		SELECT
 			COALESCE(os, 'Unknown') as os,
 			COUNT(*) as views,
 			COUNT(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
+		%s
 		GROUP BY os
 		ORDER BY views DESC
-		LIMIT ?`
+		LIMIT ?`, filterClause)
 
-	rows, err := r.conn.Query(ctx, query, websiteID, days, limit)
+	args := append([]interface{}{websiteID, days}, filterParams...)
+	args = append(args, limit)
+
+	rows, err := r.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -607,9 +654,8 @@ func (r *ClickHouseAnalyticsRepository) GetTopOS(ctx context.Context, websiteID 
 }
 
 func (r *ClickHouseAnalyticsRepository) GetTrafficSummary(ctx context.Context, websiteID string, days int, timezone string) (*models.TrafficSummary, error) {
-	// Direct implementation in ClickHouse
 	query := `
-		SELECT 
+		SELECT
 			count(*) as total_page_views,
 			count(DISTINCT visitor_id) as total_visitors,
 			count(DISTINCT visitor_id) as unique_visitors,
@@ -618,13 +664,13 @@ func (r *ClickHouseAnalyticsRepository) GetTrafficSummary(ctx context.Context, w
 			avg(session_duration) as avg_session_time,
 			(count(*) / count(DISTINCT session_id)) as pages_per_session
 		FROM (
-			SELECT 
+			SELECT
 				session_id,
 				visitor_id,
 				count(*) as page_count,
 				max(timestamp) - min(timestamp) as session_duration
 			FROM events
-			WHERE website_id = ? 
+			WHERE website_id = ?
 			AND timestamp >= now() - interval ? day
 			AND event_type = 'pageview'
 			GROUP BY session_id, visitor_id
@@ -643,20 +689,26 @@ func (r *ClickHouseAnalyticsRepository) GetTrafficSummary(ctx context.Context, w
 	return &summary, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.DailyStat, error) {
-	query := `
-		SELECT 
-			formatDateTime(toStartOfDay(timestamp, ?), '%Y-%m-%d') as date,
+// GetDailyStats with filter support
+func (r *ClickHouseAnalyticsRepository) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters) ([]models.DailyStat, error) {
+	filterClause, filterParams := r.buildFilterClause(filters)
+
+	query := fmt.Sprintf(`
+		SELECT
+			formatDateTime(toStartOfDay(timestamp, ?), '%%Y-%%m-%%d') as date,
 			count(*) as views,
 			count(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
+		%s
 		GROUP BY date
-		ORDER BY date ASC`
+		ORDER BY date ASC`, filterClause)
 
-	rows, err := r.conn.Query(ctx, query, timezone, websiteID, days)
+	args := append([]interface{}{timezone, websiteID, days}, filterParams...)
+
+	rows, err := r.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -676,20 +728,26 @@ func (r *ClickHouseAnalyticsRepository) GetDailyStats(ctx context.Context, websi
 	return stats, nil
 }
 
-func (r *ClickHouseAnalyticsRepository) GetHourlyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.HourlyStat, error) {
-	query := `
-		SELECT 
-			formatDateTime(toStartOfHour(timestamp, ?), '%Y-%m-%d %H:00:00') as hour,
+// GetHourlyStats with filter support
+func (r *ClickHouseAnalyticsRepository) GetHourlyStats(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters) ([]models.HourlyStat, error) {
+	filterClause, filterParams := r.buildFilterClause(filters)
+
+	query := fmt.Sprintf(`
+		SELECT
+			formatDateTime(toStartOfHour(timestamp, ?), '%%Y-%%m-%%d %%H:00:00') as hour,
 			count(*) as views,
 			count(DISTINCT visitor_id) as unique_visitors
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
+		%s
 		GROUP BY hour
-		ORDER BY hour ASC`
+		ORDER BY hour ASC`, filterClause)
 
-	rows, err := r.conn.Query(ctx, query, timezone, websiteID, days)
+	args := append([]interface{}{timezone, websiteID, days}, filterParams...)
+
+	rows, err := r.conn.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -714,12 +772,12 @@ func (r *ClickHouseAnalyticsRepository) GetHourlyStats(ctx context.Context, webs
 
 func (r *ClickHouseAnalyticsRepository) GetCustomEventStats(ctx context.Context, websiteID string, days int) ([]models.CustomEventStat, error) {
 	query := `
-		SELECT 
+		SELECT
 			event_type,
 			count(*) as count,
 			count(DISTINCT visitor_id) as unique_users
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
 		AND event_type != 'pageview'
 		GROUP BY event_type
@@ -748,7 +806,7 @@ func (r *ClickHouseAnalyticsRepository) GetLiveVisitors(ctx context.Context, web
 	query := `
 		SELECT count(DISTINCT visitor_id)
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval 5 minute
 		AND event_type = 'pageview'`
 
@@ -759,11 +817,11 @@ func (r *ClickHouseAnalyticsRepository) GetLiveVisitors(ctx context.Context, web
 
 func (r *ClickHouseAnalyticsRepository) GetTopContinents(ctx context.Context, websiteID string, startDate, endDate time.Time, limit int) ([]models.TopItem, error) {
 	query := `
-		SELECT 
+		SELECT
 			COALESCE(continent, 'Unknown') as name,
 			count(*) as count
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= ? AND timestamp <= ?
 		AND event_type = 'pageview'
 		GROUP BY name
@@ -791,11 +849,11 @@ func (r *ClickHouseAnalyticsRepository) GetTopContinents(ctx context.Context, we
 
 func (r *ClickHouseAnalyticsRepository) GetTopRegions(ctx context.Context, websiteID string, startDate, endDate time.Time, limit int) ([]models.TopItem, error) {
 	query := `
-		SELECT 
+		SELECT
 			COALESCE(region, 'Unknown') as name,
 			count(*) as count
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= ? AND timestamp <= ?
 		AND event_type = 'pageview'
 		GROUP BY name
@@ -822,7 +880,6 @@ func (r *ClickHouseAnalyticsRepository) GetTopRegions(ctx context.Context, websi
 }
 
 func (r *ClickHouseAnalyticsRepository) GetGeolocationBreakdown(ctx context.Context, websiteID string, startDate, endDate time.Time) (*models.GeolocationBreakdown, error) {
-	// Porting the specific breakdown logic
 	g := &models.GeolocationBreakdown{}
 
 	var err error
@@ -877,15 +934,14 @@ func (r *ClickHouseAnalyticsRepository) GetVisitorInsights(ctx context.Context, 
 		DateRange: days,
 	}
 
-	// 1. New vs Returning and Avg Duration
 	query := `
 		SELECT
 			countIf(min_timestamp >= now() - interval ? day) as new_visitors,
 			countIf(min_timestamp < now() - interval ? day) as returning_visitors,
 			avg(avg_duration) as avg_duration
 		FROM (
-			SELECT 
-				visitor_id, 
+			SELECT
+				visitor_id,
 				min(timestamp) as min_timestamp,
 				max(timestamp) - min(timestamp) as avg_duration
 			FROM events
@@ -910,14 +966,13 @@ func (r *ClickHouseAnalyticsRepository) GetVisitorInsights(ctx context.Context, 
 		insights.ReturningVisitorPercentage = float64(insights.ReturningVisitors) / float64(total) * 100
 	}
 
-	// 2. Top Entry Pages
 	entryQuery := `
-		SELECT 
+		SELECT
 			page,
 			count(*) as sessions,
 			(countIf(page_count = 1) * 100.0) / count(*) as bounce_rate
 		FROM (
-			SELECT 
+			SELECT
 				session_id,
 				argMin(page, timestamp) as page,
 				count(*) as page_count
@@ -942,14 +997,13 @@ func (r *ClickHouseAnalyticsRepository) GetVisitorInsights(ctx context.Context, 
 		}
 	}
 
-	// 3. Top Exit Pages
 	exitQuery := `
-		SELECT 
+		SELECT
 			page,
 			count(*) as exit_sessions,
 			(count(*) * 100.0 / any(total_page_sessions)) as exit_rate
 		FROM (
-			SELECT 
+			SELECT
 				session_id,
 				argMax(page, timestamp) as page
 			FROM events
@@ -986,14 +1040,14 @@ func (r *ClickHouseAnalyticsRepository) GetVisitorInsights(ctx context.Context, 
 
 func (r *ClickHouseAnalyticsRepository) GetActivityTrends(ctx context.Context, websiteID string, timezone string) (*models.ActivityTrendsResponse, error) {
 	query := `
-		SELECT 
+		SELECT
 			toStartOfHour(timestamp) as time_bucket,
 			count(DISTINCT visitor_id) as visitors,
 			count(*) as page_views,
 			countIf(event_type = 'session_start') as sessions,
 			formatDateTime(toStartOfHour(timestamp), '%H:%M') as label
 		FROM events
-		WHERE website_id = ? 
+		WHERE website_id = ?
 		AND timestamp >= now() - interval 24 hour
 		GROUP BY time_bucket
 		ORDER BY time_bucket ASC`
@@ -1027,7 +1081,19 @@ func (r *ClickHouseAnalyticsRepository) GetActivityTrends(ctx context.Context, w
 	}, nil
 }
 
+// GetUserRetention with total_visitors count
 func (r *ClickHouseAnalyticsRepository) GetUserRetention(ctx context.Context, websiteID string) (*models.RetentionData, error) {
+	// Get total visitors for cohort size
+	countQuery := `
+		SELECT count(DISTINCT visitor_id)
+		FROM events
+		WHERE website_id = ?
+		AND timestamp >= now() - interval 30 day
+		AND event_type = 'pageview'`
+
+	var totalVisitors uint64
+	r.conn.QueryRow(ctx, countQuery, websiteID).Scan(&totalVisitors)
+
 	// Using ClickHouse retention function for Day 1, 7, 30
 	query := `
 		SELECT
@@ -1049,15 +1115,15 @@ func (r *ClickHouseAnalyticsRepository) GetUserRetention(ctx context.Context, we
 	var d1, d7, d30 []uint8
 	err := r.conn.QueryRow(ctx, query, websiteID).Scan(&d1, &d7, &d30)
 	if err != nil {
-		return &models.RetentionData{WebsiteID: websiteID, DateRange: 30}, nil
+		return &models.RetentionData{WebsiteID: websiteID, DateRange: 30, TotalVisitors: int(totalVisitors)}, nil
 	}
 
 	data := &models.RetentionData{
-		WebsiteID: websiteID,
-		DateRange: 30,
+		WebsiteID:     websiteID,
+		DateRange:     30,
+		TotalVisitors: int(totalVisitors),
 	}
 
-	// Calculate percentages
 	if len(d1) >= 2 && d1[0] > 0 {
 		data.Day1 = float64(d1[1]) / float64(d1[0]) * 100
 	}
@@ -1076,6 +1142,5 @@ func (r *ClickHouseAnalyticsRepository) GetGoalStats(ctx context.Context, websit
 }
 
 func (r *ClickHouseAnalyticsRepository) GetTopResolutions(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error) {
-	// Resolutions usually come from screen properties
 	return r.pg.GetTopResolutions(ctx, websiteID, days, limit)
 }

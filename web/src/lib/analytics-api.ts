@@ -302,6 +302,7 @@ export interface TrafficSummary {
 export interface RetentionData {
   website_id: string;
   date_range: string;
+  total_visitors: number;
   day_1: number;
   day_7: number;
   day_30: number;
@@ -437,56 +438,68 @@ export const usePublicDashboardData = (publicId: string, days: number = 7) => {
 
 
 // Top Pages
-export const getTopPages = async (websiteId: string, days: number = 7): Promise<GetTopPagesResponse> => {
+export const getTopPages = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopPagesResponse> => {
   if (websiteId === 'demo') {
     return getDemoData().topPages as any;
   }
-  const response = await api.get(`/analytics/top-pages/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
+  const response = await api.get(`/analytics/top-pages/${websiteId}?${params.toString()}`);
   return response.data;
 };
 
 // Top Referrers
-export const getTopReferrers = async (websiteId: string, days: number = 7): Promise<GetTopReferrersResponse> => {
+export const getTopReferrers = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopReferrersResponse> => {
   if (websiteId === 'demo') {
     return getDemoData().topReferrers as any;
   }
-  const response = await api.get(`/analytics/top-referrers/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
+  const response = await api.get(`/analytics/top-referrers/${websiteId}?${params.toString()}`);
   return response.data;
 };
 
 // Top Countries
-export const getTopCountries = async (websiteId: string, days: number = 7): Promise<GetTopCountriesResponse> => {
+export const getTopCountries = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopCountriesResponse> => {
   if (websiteId === 'demo') {
     return getDemoData().topCountries as any;
   }
-  const response = await api.get(`/analytics/top-countries/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
+  const response = await api.get(`/analytics/top-countries/${websiteId}?${params.toString()}`);
   return response.data;
 };
 
 // Top Browsers
-export const getTopBrowsers = async (websiteId: string, days: number = 7): Promise<GetTopBrowsersResponse> => {
+export const getTopBrowsers = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopBrowsersResponse> => {
   if (websiteId === 'demo') {
     return getDemoData().topBrowsers as any;
   }
-  const response = await api.get(`/analytics/top-browsers/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
+  const response = await api.get(`/analytics/top-browsers/${websiteId}?${params.toString()}`);
   return response.data;
 };
 
 // Top Devices
-export const getTopDevices = async (websiteId: string, days: number = 7): Promise<GetTopDevicesResponse> => {
+export const getTopDevices = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopDevicesResponse> => {
   if (websiteId === 'demo') {
     return getDemoData().topDevices as any;
   }
-  const response = await api.get(`/analytics/top-devices/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
+  const response = await api.get(`/analytics/top-devices/${websiteId}?${params.toString()}`);
   return response.data;
 };
 
 // Top OS
-export const getTopOS = async (websiteId: string, days: number = 7): Promise<GetTopOSResponse> => {
+export const getTopOS = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopOSResponse> => {
   if (websiteId === 'demo') {
     return getDemoData().topOS as any;
   }
-  const response = await api.get(`/analytics/top-os/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
+  const response = await api.get(`/analytics/top-os/${websiteId}?${params.toString()}`);
   return response.data;
 };
 
@@ -570,11 +583,13 @@ export const getTrafficSummary = async (websiteId: string, days: number = 7): Pr
 
 
 // Hourly Stats
-export const getHourlyStats = async (websiteId: string, days: number = 7): Promise<GetHourlyStatsResponse> => {
+export const getHourlyStats = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetHourlyStatsResponse> => {
   if (websiteId === 'demo') {
     return getDemoData().hourlyStats as any;
   }
-  const response = await api.get(`/analytics/hourly-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
+  const response = await api.get(`/analytics/hourly-stats/${websiteId}?${params.toString()}`);
 
   // Convert UTC timestamps to local time
   if (response.data.hourly_stats) {
@@ -602,11 +617,13 @@ export const getActivityTrends = async (websiteId: string): Promise<GetActivityT
 };
 
 // Daily Stats
-export const getDailyStats = async (websiteId: string, days: number = 30): Promise<GetDailyStatsResponse> => {
+export const getDailyStats = async (websiteId: string, days: number = 30, filters: AnalyticsFilters = {}): Promise<GetDailyStatsResponse> => {
   if (websiteId === 'demo') {
     return getDemoData().dailyStats as any;
   }
-  const response = await api.get(`/analytics/daily-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
+  const response = await api.get(`/analytics/daily-stats/${websiteId}?${params.toString()}`);
   return response.data;
 };
 
@@ -664,19 +681,17 @@ export const getVisitorInsights = async (websiteId: string, days: number = 7): P
 export const analyticsKeys = {
   all: ['analytics'] as const,
   dashboard: (websiteId: string, days: number) => [...analyticsKeys.all, 'dashboard', websiteId, days] as const,
-
-  // anomalies: (websiteId: string, days: number, metric: string) => [...analyticsKeys.all, 'anomalies', websiteId, days, metric] as const, // REMOVED: Backend doesn't support this endpoint for MVP
-  topPages: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-pages', websiteId, days] as const,
-  topReferrers: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-referrers', websiteId, days] as const,
-  topCountries: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-countries', websiteId, days] as const,
-  topBrowsers: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-browsers', websiteId, days] as const,
-  topDevices: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-devices', websiteId, days] as const,
-  topOS: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-os', websiteId, days] as const,
+  topPages: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-pages', websiteId, days, filters] as const,
+  topReferrers: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-referrers', websiteId, days, filters] as const,
+  topCountries: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-countries', websiteId, days, filters] as const,
+  topBrowsers: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-browsers', websiteId, days, filters] as const,
+  topDevices: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-devices', websiteId, days, filters] as const,
+  topOS: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-os', websiteId, days, filters] as const,
   liveVisitors: (websiteId: string) => [...analyticsKeys.all, 'live-visitors', websiteId] as const,
   trafficSummary: (websiteId: string, days: number) => [...analyticsKeys.all, 'traffic-summary', websiteId, days] as const,
-  hourlyStats: (websiteId: string, days: number) => [...analyticsKeys.all, 'hourly-stats', websiteId, days] as const,
+  hourlyStats: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'hourly-stats', websiteId, days, filters] as const,
   activityTrends: (websiteId: string) => [...analyticsKeys.all, 'activity-trends', websiteId] as const,
-  dailyStats: (websiteId: string, days: number) => [...analyticsKeys.all, 'daily-stats', websiteId, days] as const,
+  dailyStats: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'daily-stats', websiteId, days, filters] as const,
   goalStats: (websiteId: string, days: number) => [...analyticsKeys.all, 'goal-stats', websiteId, days] as const,
   customEvents: (websiteId: string, days: number) => [...analyticsKeys.all, 'custom-events', websiteId, days] as const,
   userRetention: (websiteId: string, days: number) => [...analyticsKeys.all, 'user-retention', websiteId, days] as const,
@@ -684,60 +699,60 @@ export const analyticsKeys = {
 };
 
 // Top Pages Hook
-export const useTopPages = (websiteId: string, days: number = 7) => {
+export const useTopPages = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopPagesResponse>({
-    queryKey: analyticsKeys.topPages(websiteId, days),
-    queryFn: () => getTopPages(websiteId, days),
+    queryKey: analyticsKeys.topPages(websiteId, days, filters),
+    queryFn: () => getTopPages(websiteId, days, filters),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top Referrers Hook
-export const useTopReferrers = (websiteId: string, days: number = 7) => {
+export const useTopReferrers = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopReferrersResponse>({
-    queryKey: analyticsKeys.topReferrers(websiteId, days),
-    queryFn: () => getTopReferrers(websiteId, days),
+    queryKey: analyticsKeys.topReferrers(websiteId, days, filters),
+    queryFn: () => getTopReferrers(websiteId, days, filters),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top Countries Hook
-export const useTopCountries = (websiteId: string, days: number = 7) => {
+export const useTopCountries = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopCountriesResponse>({
-    queryKey: analyticsKeys.topCountries(websiteId, days),
-    queryFn: () => getTopCountries(websiteId, days),
+    queryKey: analyticsKeys.topCountries(websiteId, days, filters),
+    queryFn: () => getTopCountries(websiteId, days, filters),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top Browsers Hook
-export const useTopBrowsers = (websiteId: string, days: number = 7) => {
+export const useTopBrowsers = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopBrowsersResponse>({
-    queryKey: analyticsKeys.topBrowsers(websiteId, days),
-    queryFn: () => getTopBrowsers(websiteId, days),
+    queryKey: analyticsKeys.topBrowsers(websiteId, days, filters),
+    queryFn: () => getTopBrowsers(websiteId, days, filters),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top Devices Hook
-export const useTopDevices = (websiteId: string, days: number = 7) => {
+export const useTopDevices = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopDevicesResponse>({
-    queryKey: analyticsKeys.topDevices(websiteId, days),
-    queryFn: () => getTopDevices(websiteId, days),
+    queryKey: analyticsKeys.topDevices(websiteId, days, filters),
+    queryFn: () => getTopDevices(websiteId, days, filters),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
   });
 };
 
 // Top OS Hook
-export const useTopOS = (websiteId: string, days: number = 7) => {
+export const useTopOS = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
   return useQuery<GetTopOSResponse>({
-    queryKey: analyticsKeys.topOS(websiteId, days),
-    queryFn: () => getTopOS(websiteId, days),
+    queryKey: analyticsKeys.topOS(websiteId, days, filters),
+    queryFn: () => getTopOS(websiteId, days, filters),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
   });
@@ -777,10 +792,10 @@ export const useTrafficSummary = (websiteId: string, days: number = 7) => {
 
 
 // Hourly Stats Hook
-export const useHourlyStats = (websiteId: string, days: number = 1) => {
+export const useHourlyStats = (websiteId: string, days: number = 1, filters: AnalyticsFilters = {}) => {
   return useQuery<GetHourlyStatsResponse>({
-    queryKey: analyticsKeys.hourlyStats(websiteId, days),
-    queryFn: () => getHourlyStats(websiteId, days),
+    queryKey: analyticsKeys.hourlyStats(websiteId, days, filters),
+    queryFn: () => getHourlyStats(websiteId, days, filters),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
   });
@@ -798,10 +813,10 @@ export const useActivityTrends = (websiteId: string) => {
 };
 
 // Daily Stats Hook
-export const useDailyStats = (websiteId: string, days: number = 30) => {
+export const useDailyStats = (websiteId: string, days: number = 30, filters: AnalyticsFilters = {}) => {
   return useQuery<GetDailyStatsResponse>({
-    queryKey: analyticsKeys.dailyStats(websiteId, days),
-    queryFn: () => getDailyStats(websiteId, days),
+    queryKey: analyticsKeys.dailyStats(websiteId, days, filters),
+    queryFn: () => getDailyStats(websiteId, days, filters),
     enabled: !!websiteId,
     staleTime: 10 * 60 * 1000, // 10 minutes for daily stats
   });
@@ -1410,6 +1425,42 @@ export const useGeolocationBreakdown = (websiteId: string, days: number = 7) => 
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
+  });
+};
+
+// Previous Period Daily Stats Hook — fetches 2× the date range and returns the older half
+export const usePreviousPeriodDailyStats = (websiteId: string, days: number = 7, enabled: boolean = true) => {
+  return useQuery<GetDailyStatsResponse>({
+    queryKey: [...analyticsKeys.all, 'previous-daily-stats', websiteId, days],
+    queryFn: async () => {
+      if (websiteId === 'demo') {
+        const demo = getDemoData().dailyStats as any;
+        const stats = (demo?.daily_stats || []).sort(
+          (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
+        return {
+          ...demo,
+          daily_stats: stats.map((s: any) => ({
+            ...s,
+            views: Math.max(0, Math.round(s.views * (0.7 + Math.random() * 0.4))),
+            unique: Math.max(0, Math.round(s.unique * (0.7 + Math.random() * 0.4))),
+          })),
+        };
+      }
+      const response = await api.get(
+        `/analytics/daily-stats/${websiteId}?days=${days * 2}&timezone=${getUserTimezone()}`
+      );
+      const allStats = (response.data?.daily_stats || []).sort(
+        (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      const previousStats = allStats.slice(0, Math.max(allStats.length - days, 0));
+      return {
+        ...response.data,
+        daily_stats: previousStats,
+      };
+    },
+    enabled: !!websiteId && enabled,
+    staleTime: 10 * 60 * 1000,
   });
 };
 

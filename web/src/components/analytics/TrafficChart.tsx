@@ -10,8 +10,10 @@ import {
   ResponsiveContainer,
   AreaChart,
   Area,
+  ReferenceLine,
 } from 'recharts';
 import { formatNumber } from '@/lib/analytics-api';
+import type { EventAnnotation } from './EventAnnotations';
 
 interface TrafficChartProps {
   data: any;
@@ -19,10 +21,15 @@ interface TrafficChartProps {
   showHeader?: boolean;
   title?: string;
   subtitle?: string;
+  previousData?: any;
+  showComparison?: boolean;
+  annotations?: EventAnnotation[];
 }
 
 const primaryChartColor = '#325cb6ff'; // blue-500
 const secondaryChartColor = '#10b981'; // emerald-500
+const prevPrimaryColor = '#93a5cf'; // muted blue for previous period
+const prevSecondaryColor = '#6ee7b7'; // muted green for previous period
 
 const commonTooltipProps = {
   contentStyle: {
@@ -37,12 +44,15 @@ const commonTooltipProps = {
   cursor: { fill: 'hsl(var(--muted) / 0.1)' }
 };
 
-export const TrafficChart: React.FC<TrafficChartProps> = ({ 
-  data, 
+export const TrafficChart: React.FC<TrafficChartProps> = ({
+  data,
   isLoading,
   showHeader = false,
   title = 'Traffic Overview',
-  subtitle = 'Page views and unique visitors over time'
+  subtitle = 'Page views and unique visitors over time',
+  previousData,
+  showComparison = false,
+  annotations = [],
 }) => {
   if (isLoading) {
     return (
@@ -57,9 +67,20 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
   }
 
   // Sort data chronologically (oldest to newest) for proper chart display
-  const chartData = (data?.daily_stats || []).sort((a: any, b: any) => 
+  const chartData = (data?.daily_stats || []).sort((a: any, b: any) =>
     new Date(a.date).getTime() - new Date(b.date).getTime()
   );
+
+  // Merge previous period data by index alignment (day 1 vs day 1)
+  const prevStats = (previousData?.daily_stats || [])
+    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(-chartData.length); // Ensure same length as current period
+
+  const mergedData = chartData.map((item: any, index: number) => ({
+    ...item,
+    prevViews: prevStats[index]?.views ?? undefined,
+    prevUnique: prevStats[index]?.unique ?? undefined,
+  }));
 
   if (chartData.length === 0) {
     return (
@@ -76,6 +97,13 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
       </div>
     );
   }
+
+  // Find annotation dates that match chart dates
+  const chartDateStrings = new Set(chartData.map((d: any) => new Date(d.date).toISOString().split('T')[0]));
+  const matchingAnnotations = annotations.filter(a => {
+    const aDate = new Date(a.date).toISOString().split('T')[0];
+    return chartDateStrings.has(aDate);
+  });
 
   return (
     <div className="h-full flex flex-col">
@@ -95,12 +123,18 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
             <div className="w-3 h-3 rounded-full bg-emerald-500" />
             <span className="text-muted-foreground">Unique Visitors</span>
           </div>
+          {showComparison && prevStats.length > 0 && (
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-0.5 border-t-2 border-dashed border-muted-foreground/40" />
+              <span className="text-muted-foreground">Previous Period</span>
+            </div>
+          )}
         </div>
       </div>
-      
+
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
+          <AreaChart data={mergedData} margin={{ top: 16, right: 24, left: 8, bottom: 8 }}>
           <defs>
             <linearGradient id="mainViews" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={primaryChartColor} stopOpacity={0.2}/>
@@ -111,9 +145,9 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
               <stop offset="95%" stopColor={secondaryChartColor} stopOpacity={0.02}/>
             </linearGradient>
           </defs>
-          <CartesianGrid 
-            strokeDasharray="3 3" 
-            stroke="hsl(var(--border))" 
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="hsl(var(--border))"
             vertical={false}
             opacity={0.2}
           />
@@ -123,9 +157,9 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
             fontSize={11}
             tickLine={false}
             axisLine={false}
-            tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { 
-              month: 'short', 
-              day: 'numeric' 
+            tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric'
             })}
           />
           <YAxis
@@ -135,18 +169,72 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
             axisLine={false}
             tickFormatter={(value) => formatNumber(value)}
           />
-          <Tooltip 
-            {...commonTooltipProps} 
+          <Tooltip
+            {...commonTooltipProps}
             labelFormatter={(date) => new Date(date).toLocaleDateString('en-US', {
               weekday: 'long',
               month: 'long',
               day: 'numeric'
             })}
             formatter={(value: any, name: string) => {
-              const label = name === 'pageViews' ? 'Page Views' : 'Unique Visitors';
-              return [formatNumber(value), label];
+              if (value === undefined) return [null, null];
+              const labelMap: Record<string, string> = {
+                pageViews: 'Page Views',
+                uniqueVisitors: 'Unique Visitors',
+                prevPageViews: 'Prev. Page Views',
+                prevUniqueVisitors: 'Prev. Unique Visitors',
+              };
+              return [formatNumber(value), labelMap[name] || name];
             }}
           />
+
+          {/* Annotation reference lines */}
+          {matchingAnnotations.map((annotation) => (
+            <ReferenceLine
+              key={annotation.id}
+              x={new Date(annotation.date).toISOString().split('T')[0]}
+              stroke={annotation.color || '#8b5cf6'}
+              strokeDasharray="3 3"
+              strokeWidth={2}
+              label={{
+                value: annotation.title,
+                position: 'top',
+                fill: annotation.color || '#8b5cf6',
+                fontSize: 10,
+                fontWeight: 600,
+              }}
+            />
+          ))}
+
+          {/* Previous period comparison (dashed, behind current) */}
+          {showComparison && prevStats.length > 0 && (
+            <>
+              <Area
+                type="monotone"
+                dataKey="prevViews"
+                stroke={prevPrimaryColor}
+                strokeWidth={1.5}
+                strokeDasharray="5 5"
+                fillOpacity={0}
+                fill="none"
+                name="prevPageViews"
+                connectNulls={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="prevUnique"
+                stroke={prevSecondaryColor}
+                strokeWidth={1.5}
+                strokeDasharray="5 5"
+                fillOpacity={0}
+                fill="none"
+                name="prevUniqueVisitors"
+                connectNulls={false}
+              />
+            </>
+          )}
+
+          {/* Current period (solid, on top) */}
           <Area
             type="monotone"
             dataKey="views"
@@ -170,4 +258,4 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
       </div>
     </div>
   );
-}; 
+};

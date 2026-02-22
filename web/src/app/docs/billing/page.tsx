@@ -40,7 +40,7 @@ export default function BillingDocs() {
                                 <th className="p-4 text-center font-semibold">Starter ($0)</th>
                                 <th className="p-4 text-center font-semibold">Growth ($29)</th>
                                 <th className="p-4 text-center font-semibold text-primary">Pro ($79)</th>
-                                <th className="p-4 text-center font-semibold">Enterprise ($249)</th>
+                                <th className="p-4 text-center font-semibold">Enterprise ($399)</th>
                             </tr>
                         </thead>
                         <tbody>

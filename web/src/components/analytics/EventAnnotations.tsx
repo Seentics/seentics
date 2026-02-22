@@ -71,9 +71,9 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
     <div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2 h-10 font-bold text-xs uppercase tracking-wider">
-            <Tag className="h-4 w-4" />
-            Add Event
+          <Button variant="outline" size="sm" className="gap-1.5 h-8 px-3 font-medium text-[11px]">
+            <Tag className="h-3.5 w-3.5" />
+            Annotate
           </Button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[500px]">

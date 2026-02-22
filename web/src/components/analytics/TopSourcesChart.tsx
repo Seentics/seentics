@@ -20,6 +20,7 @@ interface TopSourcesChartProps {
   };
   isLoading?: boolean;
   onViewMore?: () => void;
+  onFilter?: (filter: Record<string, string>) => void;
 }
 
 const getSourceImage = (label: string) => {
@@ -36,7 +37,7 @@ const getSourceImage = (label: string) => {
   return '/images/planet-earth.png';
 };
 
-export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChartProps) {
+export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSourcesChartProps) {
   const [activeTab, setActiveTab] = useState('overview');
 
   // Helpers to classify categories
@@ -155,7 +156,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore }: TopSourcesChart
     return (
       <div className="space-y-0 mt-4">
         {items.map((item, index) => (
-          <div key={index} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
+          <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ utm_source: item.label })}>
             <div className="flex items-center space-x-4 flex-1 min-w-0">
               <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                 <Image

@@ -65,8 +65,8 @@ func (r *PostgresAnalyticsRepository) GetUTMAnalytics(ctx context.Context, websi
 	return r.dashboard.GetUTMAnalytics(ctx, websiteID, days)
 }
 
-// Top Pages Analytics Methods
-func (r *PostgresAnalyticsRepository) GetTopPages(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.PageStat, error) {
+// Top Pages Analytics Methods - filters ignored at Postgres level (ClickHouse handles them)
+func (r *PostgresAnalyticsRepository) GetTopPages(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.PageStat, error) {
 	return r.topPages.GetTopPages(ctx, websiteID, days, timezone, limit)
 }
 
@@ -79,32 +79,32 @@ func (r *PostgresAnalyticsRepository) GetPageUTMBreakdown(ctx context.Context, w
 }
 
 // Top Referrers Analytics Methods
-func (r *PostgresAnalyticsRepository) GetTopReferrers(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.ReferrerStat, error) {
+func (r *PostgresAnalyticsRepository) GetTopReferrers(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.ReferrerStat, error) {
 	return r.topReferrers.GetTopReferrers(ctx, websiteID, days, timezone, limit)
 }
 
 // Top Sources Analytics Methods
-func (r *PostgresAnalyticsRepository) GetTopSources(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.SourceStat, error) {
+func (r *PostgresAnalyticsRepository) GetTopSources(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.SourceStat, error) {
 	return r.topSources.GetTopSources(ctx, websiteID, days, timezone, limit)
 }
 
 // Top Countries Analytics Methods
-func (r *PostgresAnalyticsRepository) GetTopCountries(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.CountryStat, error) {
+func (r *PostgresAnalyticsRepository) GetTopCountries(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.CountryStat, error) {
 	return r.topCountries.GetTopCountries(ctx, websiteID, days, timezone, limit)
 }
 
 // Top Browsers Analytics Methods
-func (r *PostgresAnalyticsRepository) GetTopBrowsers(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.BrowserStat, error) {
+func (r *PostgresAnalyticsRepository) GetTopBrowsers(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.BrowserStat, error) {
 	return r.topBrowsers.GetTopBrowsers(ctx, websiteID, days, timezone, limit)
 }
 
 // Top Devices Analytics Methods
-func (r *PostgresAnalyticsRepository) GetTopDevices(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.DeviceStat, error) {
+func (r *PostgresAnalyticsRepository) GetTopDevices(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.DeviceStat, error) {
 	return r.topDevices.GetTopDevices(ctx, websiteID, days, timezone, limit)
 }
 
 // Top OS Analytics Methods
-func (r *PostgresAnalyticsRepository) GetTopOS(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.OSStat, error) {
+func (r *PostgresAnalyticsRepository) GetTopOS(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.OSStat, error) {
 	return r.topOS.GetTopOS(ctx, websiteID, days, timezone, limit)
 }
 
@@ -114,11 +114,11 @@ func (r *PostgresAnalyticsRepository) GetTrafficSummary(ctx context.Context, web
 }
 
 // Time Series Analytics Methods
-func (r *PostgresAnalyticsRepository) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.DailyStat, error) {
+func (r *PostgresAnalyticsRepository) GetDailyStats(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters) ([]models.DailyStat, error) {
 	return r.timeSeries.GetDailyStats(ctx, websiteID, days, timezone)
 }
 
-func (r *PostgresAnalyticsRepository) GetHourlyStats(ctx context.Context, websiteID string, days int, timezone string) ([]models.HourlyStat, error) {
+func (r *PostgresAnalyticsRepository) GetHourlyStats(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters) ([]models.HourlyStat, error) {
 	return r.timeSeries.GetHourlyStats(ctx, websiteID, days, timezone)
 }
 
@@ -177,7 +177,7 @@ func (r *PostgresAnalyticsRepository) GetGoalStats(ctx context.Context, websiteI
 	return r.goals.GetGoalStats(ctx, websiteID, days)
 }
 
-// Top Devices Analytics Methods
+// Top Resolutions Analytics Methods
 func (r *PostgresAnalyticsRepository) GetTopResolutions(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error) {
 	return r.topResolutions.GetTopResolutions(ctx, websiteID, days, limit)
 }
