@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -15,7 +14,7 @@ import (
 
 	heatmapRepoPkg "analytics-app/internal/modules/heatmaps/repository"
 
-	"github.com/go-redis/redis/v8"
+	cachegrid "github.com/skshohagmiah/cachegrid"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
@@ -24,17 +23,17 @@ type WebsiteService struct {
 	repo        *repository.WebsiteRepository
 	authRepo    *authRepoPkg.AuthRepository
 	heatmapRepo heatmapRepoPkg.HeatmapRepository
-	redis       *redis.Client
+	cache       *cachegrid.Cache
 	env         string
 	logger      zerolog.Logger
 }
 
-func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, heatmapRepo heatmapRepoPkg.HeatmapRepository, redis *redis.Client, env string, logger zerolog.Logger) *WebsiteService {
+func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, heatmapRepo heatmapRepoPkg.HeatmapRepository, cache *cachegrid.Cache, env string, logger zerolog.Logger) *WebsiteService {
 	return &WebsiteService{
 		repo:        repo,
 		authRepo:    authRepo,
 		heatmapRepo: heatmapRepo,
-		redis:       redis,
+		cache:       cache,
 		env:         env,
 		logger:      logger,
 	}
@@ -165,16 +164,14 @@ func (s *WebsiteService) ListUserWebsites(ctx context.Context, userID uuid.UUID)
 	return s.repo.ListByUserID(ctx, userID)
 }
 
-// GetWebsiteBySiteID returns details for a specific site, using Redis cache
+// GetWebsiteBySiteID returns details for a specific site, using cache
 func (s *WebsiteService) GetWebsiteBySiteID(ctx context.Context, siteID string) (*models.Website, error) {
 	cacheKey := fmt.Sprintf("website:site_id:%s", siteID)
 
-	if s.redis != nil {
-		if val, err := s.redis.Get(ctx, cacheKey).Result(); err == nil {
-			var w models.Website
-			if err := json.Unmarshal([]byte(val), &w); err == nil {
-				return &w, nil
-			}
+	if s.cache != nil {
+		var w models.Website
+		if s.cache.Get(cacheKey, &w) {
+			return &w, nil
 		}
 	}
 
@@ -183,11 +180,9 @@ func (s *WebsiteService) GetWebsiteBySiteID(ctx context.Context, siteID string) 
 		return nil, err
 	}
 
-	if s.redis != nil {
-		data, _ := json.Marshal(w)
-		// Cache under both shorthand SiteID and internal UUID for faster lookups
-		s.redis.Set(ctx, fmt.Sprintf("website:site_id:%s", w.SiteID), data, 1*time.Hour)
-		s.redis.Set(ctx, fmt.Sprintf("website:site_id:%s", w.ID.String()), data, 1*time.Hour)
+	if s.cache != nil {
+		s.cache.Set(fmt.Sprintf("website:site_id:%s", w.SiteID), w, 1*time.Hour)
+		s.cache.Set(fmt.Sprintf("website:site_id:%s", w.ID.String()), w, 1*time.Hour)
 	}
 
 	return w, nil
@@ -250,11 +245,11 @@ func (s *WebsiteService) ValidateOriginDomain(origin string, registeredDomain st
 }
 
 func (s *WebsiteService) invalidateCache(ctx context.Context, w *models.Website) {
-	if s.redis == nil || w == nil {
+	if s.cache == nil || w == nil {
 		return
 	}
-	s.redis.Del(ctx, fmt.Sprintf("website:site_id:%s", w.SiteID))
-	s.redis.Del(ctx, fmt.Sprintf("website:site_id:%s", w.ID.String()))
+	s.cache.Delete(fmt.Sprintf("website:site_id:%s", w.SiteID))
+	s.cache.Delete(fmt.Sprintf("website:site_id:%s", w.ID.String()))
 }
 
 // UpdateWebsite updates website settings
@@ -335,8 +330,8 @@ func (s *WebsiteService) DeleteWebsite(ctx context.Context, id string, userID uu
 	w, err := s.repo.GetBySiteID(ctx, id)
 	if err == nil {
 		s.invalidateCache(ctx, w)
-	} else {
-		s.redis.Del(ctx, fmt.Sprintf("website:site_id:%s", id))
+	} else if s.cache != nil {
+		s.cache.Delete(fmt.Sprintf("website:site_id:%s", id))
 	}
 
 	return nil

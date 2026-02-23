@@ -7,18 +7,18 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
+	cachegrid "github.com/skshohagmiah/cachegrid"
 )
 
 // RateLimitMiddleware enforces rate limits for the core service.
-// It uses Redis for distributed rate limiting across multiple instances.
-func RateLimitMiddleware(redisClient redis.Cmdable) gin.HandlerFunc {
+// It uses CacheGrid for rate limiting across the service.
+func RateLimitMiddleware(cache *cachegrid.Cache) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 		clientIP := c.ClientIP()
 
 		// Default limits
-		limit := 200
+		limit := int64(200)
 		window := time.Minute
 		keyPrefix := "rl:api"
 		identifier := clientIP
@@ -55,21 +55,14 @@ func RateLimitMiddleware(redisClient redis.Cmdable) gin.HandlerFunc {
 		}
 
 		key := fmt.Sprintf("%s:%s", keyPrefix, identifier)
-		ctx := c.Request.Context()
 
-		count, err := redisClient.Incr(ctx, key).Result()
-		if err != nil {
-			// Fail open on Redis errors to avoid blocking the service
-			c.Next()
-			return
-		}
+		allowed, state := cache.RateLimit(key, cachegrid.RateLimitOptions{
+			Limit:  limit,
+			Window: window,
+		})
 
-		if count == 1 {
-			redisClient.Expire(ctx, key, window)
-		}
-
-		if count > int64(limit) {
-			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", limit))
+		if !allowed {
+			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", state.Limit))
 			c.Header("X-RateLimit-Remaining", "0")
 			c.Header("Retry-After", "60")
 

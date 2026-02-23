@@ -44,9 +44,11 @@ import (
 	replayRepoPkg "analytics-app/internal/modules/replays/repository"
 	replayServicePkg "analytics-app/internal/modules/replays/services"
 
+	"analytics-app/internal/shared/utils"
+
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"github.com/rs/zerolog"
+	cachegrid "github.com/skshohagmiah/cachegrid"
 )
 
 func getEnvOrDefault(key, defaultValue string) string {
@@ -93,22 +95,18 @@ func main() {
 		logger.Info().Msg("Automatic partitions setup completed")
 	}
 
-	// Initialize Redis client
-	redisURL := getEnvOrDefault("REDIS_URL", "redis://:seentics_redis_pass@redis:6379")
-	opt, err := redis.ParseURL(redisURL)
+	// Initialize CacheGrid (in-process cache for rate limiting, website caching, geolocation)
+	cache, err := cachegrid.NewMemory()
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to parse Redis URL")
+		logger.Fatal().Err(err).Msg("Failed to initialize cache")
 	}
+	defer cache.Shutdown()
+	logger.Info().Msg("CacheGrid initialized")
 
-	redisClient := redis.NewClient(opt)
+	// Initialize global geolocation service with cache
+	utils.InitGlobalGeolocationService(cache)
 
-	// Test Redis connection
 	ctx := context.Background()
-	_, err = redisClient.Ping(ctx).Result()
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to connect to Redis")
-	}
-	logger.Info().Msg("Connected to Redis")
 
 	// Repositories
 	var eventRepo repository.EventRepository
@@ -145,7 +143,7 @@ func main() {
 
 	// Websites
 	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
-	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, heatmapRepo, redisClient, cfg.Environment, logger)
+	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, heatmapRepo, cache, cfg.Environment, logger)
 	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
 
 	// NATS & Events
@@ -200,7 +198,7 @@ func main() {
 	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 
 	// Setup router
-	router := setupRouter(cfg, redisClient, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, authHandler, websiteHandler, heatmapHandler, replayHandler, internalHandler, logger)
+	router := setupRouter(cfg, cache, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, authHandler, websiteHandler, heatmapHandler, replayHandler, internalHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -243,7 +241,7 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, internalHandler *handlers.InternalHandler, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, cache *cachegrid.Cache, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, internalHandler *handlers.InternalHandler, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -296,7 +294,7 @@ func setupRouter(cfg *config.Config, redisClient *redis.Client, eventService *se
 	})
 
 	// Apply Rate Limiting AFTER Auth so it can identify users by ID
-	router.Use(middleware.RateLimitMiddleware(redisClient))
+	router.Use(middleware.RateLimitMiddleware(cache))
 
 	router.GET("/health", healthHandler.HealthCheck)
 	v1 := router.Group("/api/v1")

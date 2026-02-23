@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"strings" // Added
+	"strings"
 
-	"github.com/go-redis/redis/v8"
+	cachegrid "github.com/skshohagmiah/cachegrid"
 	"github.com/oschwald/geoip2-golang"
 	"github.com/rs/zerolog"
 )
@@ -43,8 +43,8 @@ type cacheEntry struct {
 
 // GeolocationService provides IP geolocation with multiple backends
 type GeolocationService struct {
-	redisClient *redis.Client
-	maxmindDB   *geoip2.Reader
+	cache     *cachegrid.Cache
+	maxmindDB *geoip2.Reader
 
 	// Fallback in-memory cache
 	memCache   map[string]cacheEntry
@@ -74,32 +74,16 @@ func GetClientIP(ctx context.Context) string {
 	return ""
 }
 
-// NewGeolocationService creates a new geolocation service with Redis and MaxMind support
-func NewGeolocationService() *GeolocationService {
+// NewGeolocationService creates a new geolocation service with CacheGrid and MaxMind support
+func NewGeolocationService(cache *cachegrid.Cache) *GeolocationService {
 	// Simple console logger as default if no global one is set
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("service", "geolocation").Logger()
 
 	service := &GeolocationService{
+		cache:    cache,
 		memCache: make(map[string]cacheEntry),
 		cacheTTL: 24 * time.Hour,
 		logger:   logger,
-	}
-
-	// Initialize Redis client if available
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL != "" {
-		opt, err := redis.ParseURL(redisURL)
-		if err == nil {
-			service.redisClient = redis.NewClient(opt)
-			// Test connection with shorter timeout
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-			defer cancel()
-			if err := service.redisClient.Ping(ctx).Err(); err != nil {
-				// Redis not available, close client and fallback to memory cache
-				service.redisClient.Close()
-				service.redisClient = nil
-			}
-		}
 	}
 
 	// Initialize MaxMind database if available
@@ -116,10 +100,18 @@ func NewGeolocationService() *GeolocationService {
 	return service
 }
 
+// InitGlobalGeolocationService initializes the global singleton with a cache instance
+func InitGlobalGeolocationService(cache *cachegrid.Cache) {
+	serviceOnce.Do(func() {
+		globalGeoService = NewGeolocationService(cache)
+	})
+}
+
 // GetGlobalGeolocationService returns the singleton geolocation service
 func GetGlobalGeolocationService() *GeolocationService {
 	serviceOnce.Do(func() {
-		globalGeoService = NewGeolocationService()
+		// Fallback: create without cache if not initialized via InitGlobalGeolocationService
+		globalGeoService = NewGeolocationService(nil)
 	})
 	return globalGeoService
 }
@@ -157,8 +149,8 @@ func (g *GeolocationService) GetLocation(ip string) LocationInfo {
 		}
 	}
 
-	// Try Redis cache first
-	if location := g.getFromRedisCache(ip); location != nil {
+	// Try cache first
+	if location := g.getFromCache(ip); location != nil {
 		return *location
 	}
 
@@ -179,7 +171,7 @@ func (g *GeolocationService) GetLocation(ip string) LocationInfo {
 	return location
 }
 
-// getFromRedisCache retrieves location from Redis cache
+// getFromCache retrieves location from CacheGrid cache
 func (g *GeolocationService) getDevLocation() *LocationInfo {
 	devLocationOnce.Do(func() {
 		// Use a short timeout for the external lookup
@@ -221,26 +213,18 @@ func (g *GeolocationService) getDevLocation() *LocationInfo {
 	return devLocation
 }
 
-func (g *GeolocationService) getFromRedisCache(ip string) *LocationInfo {
-	if g.redisClient == nil {
+func (g *GeolocationService) getFromCache(ip string) *LocationInfo {
+	if g.cache == nil {
 		return nil
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
 
 	cacheKey := "geo:" + ip
-	data, err := g.redisClient.Get(ctx, cacheKey).Result()
-	if err != nil {
-		return nil
-	}
-
 	var location LocationInfo
-	if err := json.Unmarshal([]byte(data), &location); err != nil {
-		return nil
+	if g.cache.Get(cacheKey, &location) {
+		return &location
 	}
 
-	return &location
+	return nil
 }
 
 // getFromMaxMind retrieves location from MaxMind database
@@ -335,16 +319,10 @@ func (g *GeolocationService) getFromFreeAPI(ip string) LocationInfo {
 
 // setInCache stores location in available caches
 func (g *GeolocationService) setInCache(ip string, location LocationInfo) {
-	// Set in Redis cache
-	if g.redisClient != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-
+	// Set in CacheGrid cache
+	if g.cache != nil {
 		cacheKey := "geo:" + ip
-		data, err := json.Marshal(location)
-		if err == nil {
-			g.redisClient.Set(ctx, cacheKey, data, g.cacheTTL)
-		}
+		g.cache.Set(cacheKey, location, g.cacheTTL)
 	}
 
 	// Set in memory cache as fallback
@@ -358,9 +336,6 @@ func (g *GeolocationService) setInCache(ip string, location LocationInfo) {
 
 // Close closes the geolocation service resources
 func (g *GeolocationService) Close() error {
-	if g.redisClient != nil {
-		g.redisClient.Close()
-	}
 	if g.maxmindDB != nil {
 		return g.maxmindDB.Close()
 	}

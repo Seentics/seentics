@@ -25,8 +25,8 @@ The Go backend powering Seentics — handles analytics ingestion, heatmaps, sess
                         │
     ┌───────────┬───────┼───────┬──────────┐
     │           │       │       │          │
- Postgres  ClickHouse  Redis   NATS     MinIO
-(metadata)  (events)  (cache) (stream) (replays)
+ Postgres  ClickHouse CacheGrid NATS     MinIO
+(metadata)  (events)  (cache)  (stream) (replays)
 ```
 
 Events flow in through the HTTP API, get published to NATS JetStream for async processing, batched, and stored in ClickHouse (with PostgreSQL fallback). Session replay chunks go to S3-compatible storage (MinIO locally).
@@ -40,7 +40,7 @@ Events flow in through the HTTP API, get published to NATS JetStream for async p
 | Analytics DB | ClickHouse |
 | Metadata DB | PostgreSQL 15 |
 | Streaming | NATS JetStream |
-| Cache | Redis 7 |
+| Cache & Rate Limiting | [CacheGrid](https://github.com/skshohagmiah/cachegrid) — embedded, high-performance Go cache with built-in rate limiting, distributed locks, and LRU eviction. No external process needed. |
 | Object Storage | S3-compatible (MinIO) |
 
 ## Project Structure
@@ -95,7 +95,7 @@ go build -o server ./cmd/api/
 ./server
 ```
 
-Prerequisites: PostgreSQL 15+, Redis 7+, NATS 2.10+, ClickHouse (optional, falls back to Postgres).
+Prerequisites: PostgreSQL 15+, NATS 2.10+, ClickHouse (optional, falls back to Postgres). CacheGrid is embedded — no external cache server required.
 
 ## Configuration
 
@@ -103,7 +103,6 @@ Prerequisites: PostgreSQL 15+, Redis 7+, NATS 2.10+, ClickHouse (optional, falls
 |----------|---------|-------------|
 | `PORT` | `3002` | Server port |
 | `DATABASE_URL` | — | PostgreSQL connection string |
-| `REDIS_URL` | — | Redis connection string |
 | `NATS_URL` | `nats://localhost:4222` | NATS server |
 | `NATS_SUBJECT_EVENTS` | `analytics.events` | NATS subject for events |
 | `JWT_SECRET` | — | JWT signing secret |
