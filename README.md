@@ -78,8 +78,8 @@ Open [localhost:3000](http://localhost:3000) — create your first site and star
                     |
     +-----------+---+---+---------+-------+
     |           |       |         |       |
- Postgres  ClickHouse  Redis    NATS   MinIO
- (metadata) (events)  (cache) (stream) (replays)
+ Postgres  ClickHouse  CacheGrid  NATS   MinIO
+ (metadata) (events)   (cache)  (stream) (replays)
 ```
 
 **Single binary backend** — the Go service handles auth, events, heatmaps, replays, funnels, automations, and the tracker config API. Events flow through NATS for async processing, get batched, and land in ClickHouse (with PostgreSQL fallback).
@@ -93,7 +93,7 @@ Open [localhost:3000](http://localhost:3000) — create your first site and star
 | Analytics DB | ClickHouse |
 | Metadata DB | PostgreSQL 15 |
 | Streaming | NATS JetStream |
-| Cache | Redis 7 |
+| Cache & Rate Limiting | [CacheGrid](https://github.com/skshohagmiah/cachegrid) — embedded, high-performance Go cache with built-in rate limiting, distributed locks, and LRU eviction. No external process needed. |
 | Object Storage | S3-compatible (MinIO for local) |
 | Container | Docker Compose |
 
@@ -127,7 +127,6 @@ Copy `core/.env.example` to `core/.env` and adjust as needed:
 |----------|---------|-------------|
 | `PORT` | `3002` | Backend API port |
 | `DATABASE_URL` | — | PostgreSQL connection string |
-| `REDIS_URL` | — | Redis connection string |
 | `NATS_URL` | `nats://localhost:4222` | NATS server URL |
 | `JWT_SECRET` | — | Secret for JWT signing (min 32 chars in prod) |
 | `CLICKHOUSE_HOST` | `localhost` | ClickHouse host |
