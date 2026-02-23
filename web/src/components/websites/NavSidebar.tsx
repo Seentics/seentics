@@ -114,11 +114,20 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             isLocked: isDemo,
             enterpriseOnly: true
         },
+        {
+            title: 'Admin',
+            href: `/admin`,
+            icon: Lock,
+            description: 'Internal Management',
+            enterpriseOnly: true,
+            adminOnly: true
+        },
     ];
 
     const links = allLinks.filter(link => {
-        // OSS mode: hide enterprise-only items
         if (!isEnterprise && link.enterpriseOnly) return false;
+        // Admin only items: hide if user is not admin
+        if ((link as any).adminOnly && user?.role !== 'admin') return false;
         // Enterprise mode: hide features where subscription limit is 0
         if (isEnterprise && subscription) {
             const usageKey = featureLimitMap[link.title];
@@ -141,7 +150,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
         <aside className={containerClasses}>
             {/* Toggle Button - Only on Desktop */}
             {!mobile && (
-                <button 
+                <button
                     onClick={toggleSidebar}
                     className="absolute -right-3 top-20 bg-background border border-sidebar-border/50 rounded-full p-1.5 hover:bg-accent transition-colors z-[60] shadow-sm"
                 >
@@ -154,7 +163,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             )}
 
             <div className={cn(
-                "p-8 pb-8 transition-all duration-300", 
+                "p-8 pb-8 transition-all duration-300",
                 (!isSidebarOpen && !mobile) && "p-4 flex justify-center",
                 mobile && "p-6"
             )}>
@@ -173,8 +182,8 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
 
                     return (
                         <div key={`${link.title}-${idx}`} className="px-1">
-                          
-                            <Link 
+
+                            <Link
                                 href={isDisabled ? '#' : link.href}
                                 onClick={(e) => {
                                     if (isDisabled) {
@@ -206,7 +215,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                             {/* {(link as any).isLocked && (
                                                 <Lock size={12} className="text-muted-foreground/60" />
                                             )} */}
-                                            
+
                                         </div>
                                     </div>
                                 )}

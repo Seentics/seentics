@@ -3,6 +3,7 @@ package handlers
 import (
 	"analytics-app/internal/modules/replays/models"
 	"analytics-app/internal/modules/replays/services"
+	"analytics-app/internal/shared/utils"
 	"net/http"
 	"strconv"
 	"strings"
@@ -55,13 +56,23 @@ func (h *ReplayHandler) RecordReplay(c *gin.Context) {
 	if country == "" {
 		country = c.Request.Header.Get("X-Country-Code")
 	}
-	if country == "" {
-		country = c.ClientIP()
+
+	// If still empty or looks like an IP, use geolocation service
+	clientIP := c.ClientIP()
+	if country == "" || strings.Contains(country, ".") || strings.Contains(country, ":") {
+		loc := utils.GetLocationFromIP(clientIP)
+		if loc.Country != "Unknown" && loc.Country != "" {
+			country = loc.Country
+		} else if country == "" {
+			country = "Unknown"
+		}
 	}
 
 	h.logger.Debug().
 		Str("website_id", req.WebsiteID).
 		Str("session_id", req.SessionID).
+		Str("country", country).
+		Str("ip", clientIP).
 		Str("origin", origin).
 		Int("events", len(req.Events)).
 		Int("sequence", req.Sequence).

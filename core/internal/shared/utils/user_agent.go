@@ -82,32 +82,38 @@ func normalizeBrowserName(browser string) string {
 	case strings.Contains(browser, "ie") || strings.Contains(browser, "internet explorer"):
 		return "Internet Explorer"
 	default:
+		if len(browser) > 0 {
+			return strings.ToUpper(browser[:1]) + browser[1:]
+		}
 		return "Unknown"
 	}
 }
 
 // normalizeOSName normalizes OS names for consistency
 func normalizeOSName(os string) string {
-	os = strings.ToLower(os)
+	osLower := strings.ToLower(os)
 
 	switch {
-	case strings.Contains(os, "windows"):
+	case strings.Contains(osLower, "windows"):
 		return "Windows"
-	case strings.Contains(os, "mac") || strings.Contains(os, "darwin"):
+	case strings.Contains(osLower, "mac") || strings.Contains(osLower, "darwin"):
 		return "macOS"
-	case strings.Contains(os, "linux"):
+	case strings.Contains(osLower, "linux"):
 		return "Linux"
-	case strings.Contains(os, "android"):
+	case strings.Contains(osLower, "android"):
 		return "Android"
-	case strings.Contains(os, "ios"):
+	case strings.Contains(osLower, "ios"):
 		return "iOS"
-	case strings.Contains(os, "ubuntu"):
+	case strings.Contains(osLower, "ubuntu"):
 		return "Ubuntu"
-	case strings.Contains(os, "centos"):
+	case strings.Contains(osLower, "centos"):
 		return "CentOS"
-	case strings.Contains(os, "debian"):
+	case strings.Contains(osLower, "debian"):
 		return "Debian"
 	default:
+		if len(os) > 0 {
+			return strings.ToUpper(os[:1]) + os[1:]
+		}
 		return "Unknown"
 	}
 }

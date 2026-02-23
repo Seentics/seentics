@@ -85,3 +85,8 @@ type BatchFunnelEventRequest struct {
 	WebsiteID string                    `json:"website_id" binding:"required"`
 	Events    []TrackFunnelEventRequest `json:"events" binding:"required"`
 }
+
+// BatchDeleteRequest represents a request to delete multiple funnels
+type BatchDeleteRequest struct {
+	FunnelIDs []string `json:"funnelIds" binding:"required"`
+}

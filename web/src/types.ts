@@ -1,30 +1,32 @@
 export type User = {
-    email: string
-    name: string
-    avatar: string | null
-    isEmailVerified: boolean
-    isActive: boolean
-    loginCount: number
-    _id: string
-    id: string
-    lastLoginAt: string
-    createdAt: string
-    updatedAt: string
-    // OAuth fields
-    googleId?: string
-    githubId?: string
-    // Helper methods
-    isOAuthUser?: () => boolean
-    getOAuthProvider?: () => string
-  }
-  
-  export type AuthState = {
+  email: string
+  name: string
+  avatar: string | null
+  isEmailVerified: boolean
+  isActive: boolean
+  loginCount: number
+  _id: string
+  id: string
+  lastLoginAt: string
+  createdAt: string
+  updatedAt: string
+  role?: string
+  // OAuth fields
+  googleId?: string
+  githubId?: string
+  // Helper methods
+  isOAuthUser?: () => boolean
+  getOAuthProvider?: () => string
+}
+
+export type AuthState = {
   user: User | null
   access_token: string | null
   refresh_token: string | null
   isAuthenticated: boolean
   rememberMe: boolean
   isLoading: boolean
+  isAdminVerified: boolean
   setAuth: (data: {
     user: User
     access_token: string
@@ -40,5 +42,5 @@ export type User = {
   resetAuth: () => void
   isTokenExpired: () => boolean
   getTokenExpiration: () => Date | null
+  setAdminVerified: (verified: boolean) => void
 }
-  

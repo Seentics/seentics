@@ -47,14 +47,20 @@ func (s *AutomationService) validateOwnership(ctx context.Context, websiteID str
 
 // ListAutomations retrieves all automations for a website with stats
 func (s *AutomationService) ListAutomations(ctx context.Context, websiteID string, userID string) ([]models.Automation, error) {
+	automations, _, err := s.ListAutomationsPaginated(ctx, websiteID, userID, 0, 0)
+	return automations, err
+}
+
+// ListAutomationsPaginated retrieves automations with pagination and stats
+func (s *AutomationService) ListAutomationsPaginated(ctx context.Context, websiteID string, userID string, limit, offset int) ([]models.Automation, int, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	automations, err := s.repo.ListAutomations(ctx, canonicalID)
+	automations, total, err := s.repo.ListAutomationsPaginated(ctx, canonicalID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list automations: %w", err)
+		return nil, 0, fmt.Errorf("failed to list automations: %w", err)
 	}
 
 	// Batch load stats for all automations in one query
@@ -73,7 +79,7 @@ func (s *AutomationService) ListAutomations(ctx context.Context, websiteID strin
 		}
 	}
 
-	return automations, nil
+	return automations, total, nil
 }
 
 // GetAutomation retrieves a single automation by ID
@@ -164,6 +170,26 @@ func (s *AutomationService) DeleteAutomation(ctx context.Context, id string, use
 	}
 
 	return s.repo.DeleteAutomation(ctx, id)
+}
+
+// DeleteAutomations removes multiple automations at once
+func (s *AutomationService) DeleteAutomations(ctx context.Context, ids []string, userID string) error {
+	// For each ID, check ownership (or at least check if user can access them)
+	// For simplicity, we'll verify each one exists for this user.
+	// In a real optimized system, we could do this in a single query.
+	validIDs := []string{}
+	for _, id := range ids {
+		_, err := s.GetAutomation(ctx, id, userID)
+		if err == nil {
+			validIDs = append(validIDs, id)
+		}
+	}
+
+	if len(validIDs) == 0 {
+		return nil
+	}
+
+	return s.repo.DeleteAutomations(ctx, validIDs)
 }
 
 // ToggleAutomation toggles the active status of an automation

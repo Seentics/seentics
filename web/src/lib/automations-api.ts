@@ -50,8 +50,15 @@ export interface CreateAutomationRequest {
     conditions?: AutomationCondition[];
 }
 
+export interface AutomationsResponse {
+    automations: Automation[];
+    total: number;
+    limit: number;
+    offset: number;
+}
+
 // API Functions
-async function fetchAutomations(websiteId: string): Promise<{ automations: Automation[]; total: number }> {
+async function fetchAutomations(websiteId: string, limit: number = 10, offset: number = 0): Promise<AutomationsResponse> {
     if (websiteId === 'demo') {
         return {
             automations: [
@@ -71,10 +78,14 @@ async function fetchAutomations(websiteId: string): Promise<{ automations: Autom
                     ]
                 }
             ],
-            total: 1
+            total: 1,
+            limit,
+            offset
         };
     }
-    const response = await api.get(`/websites/${websiteId}/automations`);
+    const response = await api.get(`/websites/${websiteId}/automations`, {
+        params: { limit, offset }
+    });
     return response.data;
 }
 
@@ -92,6 +103,12 @@ async function deleteAutomation(websiteId: string, automationId: string): Promis
     await api.delete(`/websites/${websiteId}/automations/${automationId}`);
 }
 
+async function bulkDeleteAutomations(websiteId: string, automationIds: string[]): Promise<void> {
+    await api.delete(`/websites/${websiteId}/automations/bulk-delete`, {
+        data: { automationIds }
+    });
+}
+
 async function toggleAutomation(websiteId: string, automationId: string): Promise<Automation> {
     const response = await api.post(`/websites/${websiteId}/automations/${automationId}/toggle`);
     return response.data;
@@ -103,10 +120,10 @@ async function getAutomationStats(websiteId: string, automationId: string): Prom
 }
 
 // React Query Hooks
-export function useAutomations(websiteId: string) {
+export function useAutomations(websiteId: string, limit: number = 10, offset: number = 0) {
     return useQuery({
-        queryKey: ['automations', websiteId],
-        queryFn: () => fetchAutomations(websiteId),
+        queryKey: ['automations', websiteId, limit, offset],
+        queryFn: () => fetchAutomations(websiteId, limit, offset),
         enabled: !!websiteId,
     });
 }
@@ -141,6 +158,18 @@ export function useDeleteAutomation() {
     return useMutation({
         mutationFn: ({ websiteId, automationId }: { websiteId: string; automationId: string }) =>
             deleteAutomation(websiteId, automationId),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['automations', variables.websiteId] });
+        },
+    });
+}
+
+export function useBulkDeleteAutomations() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ websiteId, automationIds }: { websiteId: string; automationIds: string[] }) =>
+            bulkDeleteAutomations(websiteId, automationIds),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: ['automations', variables.websiteId] });
         },

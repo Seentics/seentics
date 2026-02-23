@@ -176,10 +176,10 @@ export default function HeatmapsPage() {
     const dir = sortDir === 'asc' ? 1 : -1;
     result = [...result].sort((a, b) => {
       switch (sortBy) {
-        case 'views':   return (a.views - b.views) * dir;
-        case 'clicks':  return (a.clicks - b.clicks) * dir;
-        case 'scroll':  return (a.avg_scroll - b.avg_scroll) * dir;
-        default:        return 0;
+        case 'views': return (a.views - b.views) * dir;
+        case 'clicks': return (a.clicks - b.clicks) * dir;
+        case 'scroll': return (a.avg_scroll - b.avg_scroll) * dir;
+        default: return 0;
       }
     });
     return result;
@@ -247,15 +247,10 @@ export default function HeatmapsPage() {
       </DashboardPageHeader>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatsCard title="Total Pages" value={pages.length} icon={Activity} description="Pages with data" color="blue" />
         <StatsCard title="Live Tracking" value={pages.filter(p => p.active).length} icon={Zap} description="Currently recording" color="emerald" />
         <StatsCard title="Total Clicks" value={pages.reduce((acc, p) => acc + p.clicks, 0)} icon={MousePointerClick} description="Last 30 days" color="violet" />
-        <StatsCard
-          title="Avg. Scroll Depth"
-          value={pages.length > 0 ? `${Math.round(pages.reduce((acc, p) => acc + p.avg_scroll, 0) / pages.length)}%` : '—'}
-          icon={Target} description="Across all pages" color="amber"
-        />
       </div>
 
       {/* Table */}
@@ -288,7 +283,6 @@ export default function HeatmapsPage() {
                   <SelectItem value="recent">Recent</SelectItem>
                   <SelectItem value="views">Views</SelectItem>
                   <SelectItem value="clicks">Clicks</SelectItem>
-                  <SelectItem value="scroll">Scroll Depth</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={String(itemsPerPage)} onValueChange={(v) => setItemsPerPage(Number(v))}>
@@ -346,7 +340,7 @@ export default function HeatmapsPage() {
         ) : (
           <>
             {/* Column headers */}
-            <div className="grid grid-cols-[40px_1fr_100px_100px_100px_110px] items-center px-5 py-2.5 border-b border-border/30 bg-muted/10 text-xs font-medium text-muted-foreground">
+            <div className="grid grid-cols-[40px_1fr_120px_120px_110px] items-center px-5 py-2.5 border-b border-border/30 bg-muted/10 text-xs font-medium text-muted-foreground">
               <div className="flex items-center justify-center">
                 <Checkbox
                   checked={currentItems.length > 0 && selectedUrls.length === currentItems.length}
@@ -367,12 +361,6 @@ export default function HeatmapsPage() {
               >
                 Clicks {sortBy === 'clicks' && (sortDir === 'desc' ? '\u2193' : '\u2191')}
               </div>
-              <div
-                className="text-center cursor-pointer select-none hover:text-foreground transition-colors"
-                onClick={() => handleSortChange('scroll')}
-              >
-                Scroll {sortBy === 'scroll' && (sortDir === 'desc' ? '\u2193' : '\u2191')}
-              </div>
               <div />
             </div>
 
@@ -382,7 +370,7 @@ export default function HeatmapsPage() {
                 <div
                   key={page.url}
                   className={cn(
-                    "group grid grid-cols-[40px_1fr_100px_100px_100px_110px] items-center px-5 py-3 transition-colors hover:bg-muted/20",
+                    "group grid grid-cols-[40px_1fr_120px_120px_110px] items-center px-5 py-3 transition-colors hover:bg-muted/20",
                     selectedUrls.includes(page.url) && "bg-primary/[0.03]"
                   )}
                 >
@@ -439,20 +427,6 @@ export default function HeatmapsPage() {
                     </div>
                   </div>
 
-                  {/* Scroll Depth */}
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="text-sm font-semibold tabular-nums text-foreground">{page.avg_scroll}%</span>
-                    <div className="h-1 w-12 bg-muted/60 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${page.avg_scroll}%`,
-                          backgroundColor: page.avg_scroll >= 70 ? 'rgb(34 197 94 / 0.6)' : page.avg_scroll >= 40 ? 'rgb(245 158 11 / 0.6)' : 'rgb(239 68 68 / 0.6)',
-                        }}
-                      />
-                    </div>
-                  </div>
-
                   {/* Action */}
                   <div className="flex items-center justify-end gap-1">
                     <TooltipProvider>
@@ -472,10 +446,10 @@ export default function HeatmapsPage() {
                     <Link href={`/websites/${websiteId}/heatmaps/view?url=${encodeURIComponent(page.url)}`}>
                       <Button
                         size="sm"
-                        variant="ghost"
-                        className="h-7 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        variant="secondary"
+                        className="h-7 gap-1.5 px-2.5 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary transition-all shadow-sm border border-primary/10"
                       >
-                        <Eye className="h-3.5 w-3.5" /> View
+                        <Eye className="h-3.5 w-3.5 fill-current" /> View
                       </Button>
                     </Link>
                   </div>

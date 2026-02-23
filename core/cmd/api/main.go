@@ -342,12 +342,14 @@ func setupRouter(cfg *config.Config, cache *cachegrid.Cache, eventService *servi
 		{
 			internal.GET("/user-resource-counts", internalHandler.GetUserResourceCounts)
 			internal.POST("/user/sync", internalHandler.UpsertUser)
+			internal.GET("/system/stats", internalHandler.GetSystemStats)
 		}
 
 		automations := v1.Group("/websites/:website_id/automations")
 		{
 			automations.GET("", autoHandler.ListAutomations)
 			automations.POST("", autoHandler.CreateAutomation)
+			automations.DELETE("/bulk-delete", autoHandler.DeleteAutomations)
 			automations.GET("/:automation_id", autoHandler.GetAutomation)
 			automations.PUT("/:automation_id", autoHandler.UpdateAutomation)
 			automations.DELETE("/:automation_id", autoHandler.DeleteAutomation)
@@ -364,6 +366,7 @@ func setupRouter(cfg *config.Config, cache *cachegrid.Cache, eventService *servi
 		{
 			funnels.GET("", funnelHandler.ListFunnels)
 			funnels.POST("", funnelHandler.CreateFunnel)
+			funnels.DELETE("/bulk-delete", funnelHandler.DeleteFunnels)
 			funnels.GET("/:funnel_id", funnelHandler.GetFunnel)
 			funnels.PUT("/:funnel_id", funnelHandler.UpdateFunnel)
 			funnels.DELETE("/:funnel_id", funnelHandler.DeleteFunnel)

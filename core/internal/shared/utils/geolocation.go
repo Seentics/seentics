@@ -13,9 +13,9 @@ import (
 
 	"strings"
 
-	cachegrid "github.com/skshohagmiah/cachegrid"
 	"github.com/oschwald/geoip2-golang"
 	"github.com/rs/zerolog"
+	cachegrid "github.com/skshohagmiah/cachegrid"
 )
 
 var (

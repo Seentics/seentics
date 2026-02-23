@@ -47,17 +47,23 @@ func (s *FunnelService) validateOwnership(ctx context.Context, websiteID string,
 
 // ListFunnels retrieves all funnels for a website with enriched stats
 func (s *FunnelService) ListFunnels(ctx context.Context, websiteID string, userID string) ([]models.Funnel, error) {
+	funnels, _, err := s.ListFunnelsPaginated(ctx, websiteID, userID, 0, 0)
+	return funnels, err
+}
+
+// ListFunnelsPaginated retrieves funnels with pagination and enriched stats
+func (s *FunnelService) ListFunnelsPaginated(ctx context.Context, websiteID string, userID string, limit, offset int) ([]models.Funnel, int, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	funnels, err := s.repo.ListFunnels(ctx, canonicalID)
+	funnels, total, err := s.repo.ListFunnelsPaginated(ctx, canonicalID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list funnels: %w", err)
+		return nil, 0, fmt.Errorf("failed to list funnels: %w", err)
 	}
 
-	// Enrich with stats (pass websiteID directly to avoid re-fetching)
+	// Enrich with stats
 	for i := range funnels {
 		stats, err := s.repo.GetFunnelStats(ctx, funnels[i].ID, funnels[i].WebsiteID)
 		if err == nil {
@@ -65,7 +71,7 @@ func (s *FunnelService) ListFunnels(ctx context.Context, websiteID string, userI
 		}
 	}
 
-	return funnels, nil
+	return funnels, total, nil
 }
 
 // GetActiveFunnels retrieves all active funnels for a website (Public version)
@@ -176,6 +182,23 @@ func (s *FunnelService) DeleteFunnel(ctx context.Context, id string, userID stri
 	}
 
 	return s.repo.DeleteFunnel(ctx, id)
+}
+
+// DeleteFunnels removes multiple funnels at once
+func (s *FunnelService) DeleteFunnels(ctx context.Context, ids []string, userID string) error {
+	validIDs := []string{}
+	for _, id := range ids {
+		_, err := s.GetFunnel(ctx, id, userID)
+		if err == nil {
+			validIDs = append(validIDs, id)
+		}
+	}
+
+	if len(validIDs) == 0 {
+		return nil
+	}
+
+	return s.repo.DeleteFunnels(ctx, validIDs)
 }
 
 // GetFunnelStats aggregated funnel performance stats

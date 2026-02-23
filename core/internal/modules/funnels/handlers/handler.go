@@ -3,6 +3,7 @@ package handlers
 import (
 	"analytics-app/internal/modules/funnels/models"
 	"analytics-app/internal/modules/funnels/services"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -41,8 +42,17 @@ func (h *FunnelHandler) ListFunnels(c *gin.Context) {
 	}
 
 	websiteID := c.Param("website_id")
+	limit := 10
+	offset := 0
 
-	funnels, err := h.service.ListFunnels(c.Request.Context(), websiteID, userID)
+	if l := c.Query("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+	if o := c.Query("offset"); o != "" {
+		fmt.Sscanf(o, "%d", &offset)
+	}
+
+	funnels, total, err := h.service.ListFunnelsPaginated(c.Request.Context(), websiteID, userID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -50,7 +60,9 @@ func (h *FunnelHandler) ListFunnels(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"funnels": funnels,
-		"total":   len(funnels),
+		"total":   total,
+		"limit":   limit,
+		"offset":  offset,
 	})
 }
 
@@ -164,6 +176,36 @@ func (h *FunnelHandler) DeleteFunnel(c *gin.Context) {
 
 	if err := h.service.DeleteFunnel(c.Request.Context(), funnelID, userID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// DeleteFunnels godoc
+// @Summary Delete multiple funnels
+// @Tags funnels
+// @Accept json
+// @Produce json
+// @Param website_id path string true "Website ID"
+// @Param req body models.BatchDeleteRequest true "Funnel IDs to delete"
+// @Success 204
+// @Router /api/websites/{website_id}/funnels/bulk-delete [delete]
+func (h *FunnelHandler) DeleteFunnels(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req models.BatchDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.DeleteFunnels(c.Request.Context(), req.FunnelIDs, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 

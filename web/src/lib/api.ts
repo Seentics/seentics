@@ -168,9 +168,10 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle other 401 errors (invalid token, etc.) - but not for demo requests
-    // Only perform logout if auth is actually hydrated (avoid loops on initial page load)
-    if (error.response?.status === 401 && !isDemoRequest && isAuthHydrated()) {
+    // Handle other 401 errors - but not for demo or secret verification
+    const isSecretVerify = requestUrl.includes('/verify-secrets');
+
+    if (error.response?.status === 401 && !isDemoRequest && !isSecretVerify && isAuthHydrated()) {
       console.error('Unauthorized access - logging out user');
       performLogout();
       return Promise.reject(error);

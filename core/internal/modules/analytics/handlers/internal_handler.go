@@ -185,3 +185,63 @@ func (h *InternalHandler) UpsertUser(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "user synced successfully"})
 }
+
+// GetSystemStats returns global platform statistics across all users.
+// Used by the Enterprise Admin Dashboard for system-wide monitoring.
+func (h *InternalHandler) GetSystemStats(c *gin.Context) {
+	ctx := c.Request.Context()
+	stats := make(map[string]interface{})
+
+	// 1. Total Counts (Postgres)
+	var heatmapCount int
+	if err := h.db.QueryRow(ctx, "SELECT COUNT(*) FROM heatmap_points").Scan(&heatmapCount); err != nil {
+		h.logger.Warn().Err(err).Msg("Failed to count total heatmaps")
+	}
+	stats["total_heatmaps"] = heatmapCount
+
+	var replayCount int
+	if err := h.db.QueryRow(ctx, "SELECT COUNT(*) FROM session_replays").Scan(&replayCount); err != nil {
+		h.logger.Warn().Err(err).Msg("Failed to count total replays")
+	}
+	stats["total_replays"] = replayCount
+
+	var websiteCount int
+	if err := h.db.QueryRow(ctx, "SELECT COUNT(*) FROM websites").Scan(&websiteCount); err != nil {
+		h.logger.Warn().Err(err).Msg("Failed to count total websites")
+	}
+	stats["total_websites"] = websiteCount
+
+	// 2. ClickHouse Counts (Events)
+	if h.ch != nil {
+		var totalEvents uint64
+		if err := h.ch.QueryRow(ctx, "SELECT count() FROM events").Scan(&totalEvents); err != nil {
+			h.logger.Warn().Err(err).Msg("Failed to count total ClickHouse events")
+		}
+		stats["total_events"] = totalEvents
+
+		var customEvents uint64
+		if err := h.ch.QueryRow(ctx, "SELECT COALESCE(sum(count), 0) FROM custom_events_aggregated").Scan(&customEvents); err != nil {
+			h.logger.Warn().Err(err).Msg("Failed to count total custom events")
+		}
+		stats["total_custom_events"] = customEvents
+	}
+
+	// 3. DB Sizes (Postgres)
+	var pgSize string
+	if err := h.db.QueryRow(ctx, "SELECT pg_size_pretty(pg_database_size(current_database()))").Scan(&pgSize); err != nil {
+		h.logger.Warn().Err(err).Msg("Failed to get PG database size")
+	}
+	stats["postgres_size"] = pgSize
+
+	// 4. ClickHouse Size
+	if h.ch != nil {
+		var chSize uint64
+		if err := h.ch.QueryRow(ctx, "SELECT sum(bytes_on_disk) FROM system.parts WHERE active").Scan(&chSize); err != nil {
+			h.logger.Warn().Err(err).Msg("Failed to get ClickHouse size")
+		}
+		// Convert to pretty string manually if needed or just return bytes
+		stats["clickhouse_size_bytes"] = chSize
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": stats})
+}

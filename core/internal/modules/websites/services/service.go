@@ -14,9 +14,9 @@ import (
 
 	heatmapRepoPkg "analytics-app/internal/modules/heatmaps/repository"
 
-	cachegrid "github.com/skshohagmiah/cachegrid"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
+	cachegrid "github.com/skshohagmiah/cachegrid"
 )
 
 type WebsiteService struct {

@@ -80,27 +80,22 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
-	// Metadata (browser/device/OS/country/entry_page) is stored on the sequence=0 row.
-	// Self-join avoids querying the analytics events table which lives in ClickHouse.
+	// Aggregating metadata directly from existing rows ensures we get data even if sequence 0 is missing.
 	query := `
 		SELECT
-			r.session_id,
-			MIN(r.timestamp)  AS start_time,
-			MAX(r.timestamp)  AS end_time,
-			EXTRACT(EPOCH FROM (MAX(r.timestamp) - MIN(r.timestamp))) AS duration,
-			COUNT(r.id)       AS chunk_count,
-			COALESCE(m.browser,    'Unknown') AS browser,
-			COALESCE(m.device,     'Unknown') AS device,
-			COALESCE(m.os,         'Unknown') AS os,
-			COALESCE(m.country,    'Unknown') AS country,
-			COALESCE(m.entry_page, 'Unknown') AS entry_page
-		FROM session_replays r
-		LEFT JOIN session_replays m
-			ON  m.website_id = r.website_id
-			AND m.session_id = r.session_id
-			AND m.sequence   = 0
-		WHERE r.website_id = $1
-		GROUP BY r.session_id, m.browser, m.device, m.os, m.country, m.entry_page
+			session_id,
+			MIN(timestamp)  AS start_time,
+			MAX(timestamp)  AS end_time,
+			EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))) AS duration,
+			COUNT(id)       AS chunk_count,
+			COALESCE(MAX(browser)    FILTER (WHERE browser != '' AND browser != 'Unknown'), 'Unknown') AS browser,
+			COALESCE(MAX(device)     FILTER (WHERE device  != '' AND device  != 'Unknown'), 'Unknown') AS device,
+			COALESCE(MAX(os)         FILTER (WHERE os      != '' AND os      != 'Unknown'), 'Unknown') AS os,
+			COALESCE(MAX(country)    FILTER (WHERE country != '' AND country != 'Unknown'), 'Unknown') AS country,
+			COALESCE(MAX(entry_page) FILTER (WHERE entry_page != '' AND entry_page != 'Unknown'), 'Unknown') AS entry_page
+		FROM session_replays
+		WHERE website_id = $1
+		GROUP BY session_id
 		ORDER BY start_time DESC
 		LIMIT $2 OFFSET $3
 	`

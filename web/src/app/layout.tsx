@@ -14,6 +14,7 @@ import { LimitReachedTopBar } from '@/components/subscription';
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import Script from 'next/script';
 import LemonSqueezyScript from '@/components/lemon-squeezy-script';
+import SupportWidget from '@/components/SupportWidget';
 
 // Temporarily disable custom fonts for build
 // const fontBody = Inter({
@@ -80,6 +81,9 @@ export default function RootLayout({
               <div className="relative z-10">
                 {children}
               </div>
+
+              {/* Floating Support Widget - Enterprise Only */}
+              <SupportWidget />
             </div>
           </QueryProvider>
           <Toaster />
@@ -98,13 +102,13 @@ export default function RootLayout({
         {/* Global Chat Support */}
         {/* <TawkMessenger /> */}
 
-        {/* Localhost Testing Tracker */}
-        {/* <Script
+        {/* Seentics Analytics Local Tracking */}
+        <Script
           src="http://localhost:3000/trackers/seentics-core.min.js"
-          data-website-id="8a9a0f057175fc7f98d09293"
+          data-website-id="12d359a0cab0f9b703e0be95"
           data-auto-load="analytics,automation,funnels,replay,heatmap"
           strategy="afterInteractive"
-        /> */}
+        />
 
         {/* Lemon Squeezy Checkout Script - Enterprise only */}
         {process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true' && <LemonSqueezyScript />}

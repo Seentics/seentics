@@ -12,6 +12,9 @@ export const useAuth = create<AuthState>()(
       isAuthenticated: false,
       rememberMe: false,
       isLoading: true, // Start with loading true until persisted state loads
+      isAdminVerified: false,
+
+      setAdminVerified: (isAdminVerified: boolean) => set({ isAdminVerified }),
 
       setAuth: ({ user, access_token, refresh_token, rememberMe = false }) =>
         set(() => ({
@@ -62,6 +65,7 @@ export const useAuth = create<AuthState>()(
           isAuthenticated: false,
           rememberMe: false,
           isLoading: false,
+          isAdminVerified: false,
         })),
 
       resetAuth: () =>
@@ -73,13 +77,14 @@ export const useAuth = create<AuthState>()(
           isAuthenticated: false,
           rememberMe: false,
           isLoading: false,
+          isAdminVerified: false,
         })),
 
       // Check if token is expired
       isTokenExpired: () => {
         const { access_token } = get();
         if (!access_token) return true;
-        
+
         try {
           const payload = JSON.parse(atob(access_token.split('.')[1]));
           return payload.exp * 1000 < Date.now();
@@ -92,7 +97,7 @@ export const useAuth = create<AuthState>()(
       getTokenExpiration: () => {
         const { access_token } = get();
         if (!access_token) return null;
-        
+
         try {
           const payload = JSON.parse(atob(access_token.split('.')[1]));
           return new Date(payload.exp * 1000);

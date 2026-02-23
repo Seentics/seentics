@@ -153,7 +153,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
     result = [...result].sort((a, b) => {
       switch (sortBy) {
         case 'duration': return (a.duration_seconds - b.duration_seconds) * dir;
-        case 'chunks':   return (a.chunk_count - b.chunk_count) * dir;
+        case 'chunks': return (a.chunk_count - b.chunk_count) * dir;
         case 'date':
         default:
           return (new Date(a.start_time).getTime() - new Date(b.start_time).getTime()) * dir;
@@ -501,12 +501,12 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
                         </Tooltip>
                       </TooltipProvider>
                       <Button
-                        variant="ghost"
+                        variant="secondary"
                         size="sm"
-                        className="h-7 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        className="h-7 gap-1.5 px-2.5 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary transition-all shadow-sm border border-primary/10"
                         onClick={() => setSelectedSession(session.session_id)}
                       >
-                        <Play className="h-3 w-3" /> Play
+                        <Play className="h-3 w-3 fill-current" /> Play
                       </Button>
                     </div>
                   </div>

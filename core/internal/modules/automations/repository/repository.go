@@ -23,15 +23,29 @@ func NewAutomationRepository(db *pgxpool.Pool) *AutomationRepository {
 
 // ListAutomations retrieves all automations for a website
 func (r *AutomationRepository) ListAutomations(ctx context.Context, websiteID string) ([]models.Automation, error) {
-	return r.listAutomationsInternal(ctx, websiteID, false)
+	return r.listAutomationsInternal(ctx, websiteID, false, 0, 0)
+}
+
+// ListAutomationsPaginated retrieves automations with pagination and total count
+func (r *AutomationRepository) ListAutomationsPaginated(ctx context.Context, websiteID string, limit, offset int) ([]models.Automation, int, error) {
+	// Get total count first
+	var total int
+	countQuery := `SELECT COUNT(*) FROM automations WHERE website_id = $1`
+	err := r.db.QueryRow(ctx, countQuery, websiteID).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count automations: %w", err)
+	}
+
+	automations, err := r.listAutomationsInternal(ctx, websiteID, false, limit, offset)
+	return automations, total, err
 }
 
 // GetActiveAutomations retrieves only active automations for a website
 func (r *AutomationRepository) GetActiveAutomations(ctx context.Context, websiteID string) ([]models.Automation, error) {
-	return r.listAutomationsInternal(ctx, websiteID, true)
+	return r.listAutomationsInternal(ctx, websiteID, true, 0, 0)
 }
 
-func (r *AutomationRepository) listAutomationsInternal(ctx context.Context, websiteID string, onlyActive bool) ([]models.Automation, error) {
+func (r *AutomationRepository) listAutomationsInternal(ctx context.Context, websiteID string, onlyActive bool, limit, offset int) ([]models.Automation, error) {
 	query := `
 		SELECT id, website_id, user_id, name, description, trigger_type,
 		       trigger_config, is_active, created_at, updated_at
@@ -43,7 +57,17 @@ func (r *AutomationRepository) listAutomationsInternal(ctx context.Context, webs
 	}
 	query += " ORDER BY created_at DESC"
 
-	rows, err := r.db.Query(ctx, query, websiteID)
+	args := []interface{}{websiteID}
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", len(args)+1)
+		args = append(args, limit)
+	}
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET $%d", len(args)+1)
+		args = append(args, offset)
+	}
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query automations: %w", err)
 	}
@@ -321,13 +345,24 @@ func (r *AutomationRepository) UpdateAutomation(ctx context.Context, id string, 
 // DeleteAutomation deletes an automation and all related data
 func (r *AutomationRepository) DeleteAutomation(ctx context.Context, id string) error {
 	query := `DELETE FROM automations WHERE id = $1`
-	result, err := r.db.Exec(ctx, query, id)
+	_, err := r.db.Exec(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("failed to delete automation: %w", err)
 	}
 
-	if result.RowsAffected() == 0 {
-		return fmt.Errorf("automation not found")
+	return nil
+}
+
+// DeleteAutomations removes multiple automations at once
+func (r *AutomationRepository) DeleteAutomations(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	query := `DELETE FROM automations WHERE id = ANY($1)`
+	_, err := r.db.Exec(ctx, query, ids)
+	if err != nil {
+		return fmt.Errorf("failed to delete automations: %w", err)
 	}
 
 	return nil

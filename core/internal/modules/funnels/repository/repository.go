@@ -27,15 +27,29 @@ func NewFunnelRepository(db *pgxpool.Pool, ch driver.Conn) *FunnelRepository {
 
 // ListFunnels retrieves all funnels for a website
 func (r *FunnelRepository) ListFunnels(ctx context.Context, websiteID string) ([]models.Funnel, error) {
-	return r.listFunnelsInternal(ctx, websiteID, false)
+	return r.listFunnelsInternal(ctx, websiteID, false, 0, 0)
+}
+
+// ListFunnelsPaginated retrieves funnels with pagination and total count
+func (r *FunnelRepository) ListFunnelsPaginated(ctx context.Context, websiteID string, limit, offset int) ([]models.Funnel, int, error) {
+	// Get total count first
+	var total int
+	countQuery := `SELECT COUNT(*) FROM funnels WHERE website_id = $1`
+	err := r.db.QueryRow(ctx, countQuery, websiteID).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count funnels: %w", err)
+	}
+
+	funnels, err := r.listFunnelsInternal(ctx, websiteID, false, limit, offset)
+	return funnels, total, err
 }
 
 // GetActiveFunnels retrieves only active funnels for a website
 func (r *FunnelRepository) GetActiveFunnels(ctx context.Context, websiteID string) ([]models.Funnel, error) {
-	return r.listFunnelsInternal(ctx, websiteID, true)
+	return r.listFunnelsInternal(ctx, websiteID, true, 0, 0)
 }
 
-func (r *FunnelRepository) listFunnelsInternal(ctx context.Context, websiteID string, onlyActive bool) ([]models.Funnel, error) {
+func (r *FunnelRepository) listFunnelsInternal(ctx context.Context, websiteID string, onlyActive bool, limit, offset int) ([]models.Funnel, error) {
 	query := `
 		SELECT id, website_id, user_id, name, description, is_active, created_at, updated_at
 		FROM funnels
@@ -46,7 +60,17 @@ func (r *FunnelRepository) listFunnelsInternal(ctx context.Context, websiteID st
 	}
 	query += " ORDER BY created_at DESC"
 
-	rows, err := r.db.Query(ctx, query, websiteID)
+	args := []interface{}{websiteID}
+	if limit > 0 {
+		query += fmt.Sprintf(" LIMIT $%d", len(args)+1)
+		args = append(args, limit)
+	}
+	if offset > 0 {
+		query += fmt.Sprintf(" OFFSET $%d", len(args)+1)
+		args = append(args, offset)
+	}
+
+	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query funnels: %w", err)
 	}
@@ -244,6 +268,21 @@ func (r *FunnelRepository) DeleteFunnel(ctx context.Context, id string) error {
 	query := `DELETE FROM funnels WHERE id = $1`
 	_, err := r.db.Exec(ctx, query, id)
 	return err
+}
+
+// DeleteFunnels removes multiple funnels at once
+func (r *FunnelRepository) DeleteFunnels(ctx context.Context, ids []string) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	query := `DELETE FROM funnels WHERE id = ANY($1)`
+	_, err := r.db.Exec(ctx, query, ids)
+	if err != nil {
+		return fmt.Errorf("failed to delete funnels: %w", err)
+	}
+
+	return nil
 }
 
 // GetStepsByFunnelID retrieves steps for a funnel

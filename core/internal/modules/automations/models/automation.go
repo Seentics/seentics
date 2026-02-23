@@ -129,6 +129,11 @@ type UpdateAutomationRequest struct {
 	Conditions    *[]AutomationCondition `json:"conditions"`
 }
 
+// BatchDeleteRequest represents a request to delete multiple automations
+type BatchDeleteRequest struct {
+	AutomationIDs []string `json:"automationIds" binding:"required"`
+}
+
 // Test automation models
 type TestAutomationResult struct {
 	Success    bool                  `json:"success"`

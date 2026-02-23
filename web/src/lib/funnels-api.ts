@@ -62,18 +62,22 @@ export interface UpdateFunnelRequest {
 export interface ListFunnelsResponse {
     funnels: Funnel[];
     total: number;
+    limit?: number;
+    offset?: number;
 }
 
 // =============================================================================
 // API FUNCTIONS
 // =============================================================================
 
-export const listFunnels = async (websiteId: string): Promise<ListFunnelsResponse> => {
+export const listFunnels = async (websiteId: string, limit: number = 10, offset: number = 0): Promise<ListFunnelsResponse> => {
     if (websiteId === 'demo') {
         const demoFunnels = getDemoData().funnels as any;
         return { funnels: demoFunnels, total: demoFunnels.length };
     }
-    const response = await api.get(`/websites/${websiteId}/funnels`);
+    const response = await api.get(`/websites/${websiteId}/funnels`, {
+        params: { limit, offset }
+    });
     return response.data;
 };
 
@@ -106,6 +110,12 @@ export const deleteFunnel = async (websiteId: string, funnelId: string): Promise
     await api.delete(`/websites/${websiteId}/funnels/${funnelId}`);
 };
 
+export const bulkDeleteFunnels = async (websiteId: string, funnelIds: string[]): Promise<void> => {
+    await api.delete(`/websites/${websiteId}/funnels/bulk-delete`, {
+        data: { funnelIds }
+    });
+};
+
 export const getFunnelStats = async (websiteId: string, funnelId: string): Promise<FunnelStats> => {
     const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}/stats`);
     return response.data;
@@ -118,7 +128,7 @@ export const getFunnelStats = async (websiteId: string, funnelId: string): Promi
 export const funnelKeys = {
     all: ['funnels'] as const,
     lists: () => [...funnelKeys.all, 'list'] as const,
-    list: (websiteId: string) => [...funnelKeys.lists(), websiteId] as const,
+    list: (websiteId: string, limit?: number, offset?: number) => [...funnelKeys.lists(), websiteId, limit, offset] as const,
     details: () => [...funnelKeys.all, 'detail'] as const,
     detail: (websiteId: string, funnelId: string) => [...funnelKeys.details(), websiteId, funnelId] as const,
     stats: (websiteId: string, funnelId: string) => [...funnelKeys.all, 'stats', websiteId, funnelId] as const,
@@ -128,10 +138,10 @@ export const funnelKeys = {
 // REACT QUERY HOOKS
 // =============================================================================
 
-export const useFunnels = (websiteId: string) => {
+export const useFunnels = (websiteId: string, limit: number = 10, offset: number = 0) => {
     return useQuery<ListFunnelsResponse>({
-        queryKey: funnelKeys.list(websiteId),
-        queryFn: () => listFunnels(websiteId),
+        queryKey: funnelKeys.list(websiteId, limit, offset),
+        queryFn: () => listFunnels(websiteId, limit, offset),
         enabled: !!websiteId,
         staleTime: 5 * 60 * 1000,
     });
@@ -166,7 +176,7 @@ export const useCreateFunnel = () => {
         mutationFn: ({ websiteId, data }) => createFunnel(websiteId, data),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({
-                queryKey: funnelKeys.list(variables.websiteId),
+                queryKey: funnelKeys.lists(),
             });
         },
     });
@@ -183,7 +193,7 @@ export const useUpdateFunnel = () => {
         mutationFn: ({ websiteId, funnelId, data }) => updateFunnel(websiteId, funnelId, data),
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({
-                queryKey: funnelKeys.list(variables.websiteId),
+                queryKey: funnelKeys.lists(),
             });
             queryClient.invalidateQueries({
                 queryKey: funnelKeys.detail(variables.websiteId, variables.funnelId),
@@ -199,7 +209,20 @@ export const useDeleteFunnel = () => {
         mutationFn: ({ websiteId, funnelId }) => deleteFunnel(websiteId, funnelId),
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({
-                queryKey: funnelKeys.list(variables.websiteId),
+                queryKey: funnelKeys.lists(),
+            });
+        },
+    });
+};
+
+export const useBulkDeleteFunnels = () => {
+    const queryClient = useQueryClient();
+
+    return useMutation<void, Error, { websiteId: string; funnelIds: string[] }>({
+        mutationFn: ({ websiteId, funnelIds }) => bulkDeleteFunnels(websiteId, funnelIds),
+        onSuccess: (_, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: funnelKeys.lists(),
             });
         },
     });

@@ -3,6 +3,7 @@ package handlers
 import (
 	"analytics-app/internal/modules/automations/models"
 	"analytics-app/internal/modules/automations/services"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -31,7 +32,9 @@ func (h *AutomationHandler) getUserID(c *gin.Context) string {
 // @Tags automations
 // @Produce json
 // @Param website_id path string true "Website ID"
-// @Success 200 {array} models.Automation
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Success 200 {object} map[string]interface{}
 // @Router /api/websites/{website_id}/automations [get]
 func (h *AutomationHandler) ListAutomations(c *gin.Context) {
 	userID := h.getUserID(c)
@@ -41,8 +44,17 @@ func (h *AutomationHandler) ListAutomations(c *gin.Context) {
 	}
 
 	websiteID := c.Param("website_id")
+	limit := 10 // default
+	offset := 0 // default
 
-	automations, err := h.service.ListAutomations(c.Request.Context(), websiteID, userID)
+	if l := c.Query("limit"); l != "" {
+		fmt.Sscanf(l, "%d", &limit)
+	}
+	if o := c.Query("offset"); o != "" {
+		fmt.Sscanf(o, "%d", &offset)
+	}
+
+	automations, total, err := h.service.ListAutomationsPaginated(c.Request.Context(), websiteID, userID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -50,7 +62,9 @@ func (h *AutomationHandler) ListAutomations(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"automations": automations,
-		"total":       len(automations),
+		"total":       total,
+		"limit":       limit,
+		"offset":      offset,
 	})
 }
 
@@ -165,6 +179,36 @@ func (h *AutomationHandler) DeleteAutomation(c *gin.Context) {
 
 	if err := h.service.DeleteAutomation(c.Request.Context(), automationID, userID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}
+
+// DeleteAutomations godoc
+// @Summary Delete multiple automations
+// @Tags automations
+// @Accept json
+// @Produce json
+// @Param website_id path string true "Website ID"
+// @Param req body models.BatchDeleteRequest true "Automation IDs to delete"
+// @Success 204
+// @Router /api/websites/{website_id}/automations/bulk-delete [delete]
+func (h *AutomationHandler) DeleteAutomations(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req models.BatchDeleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.DeleteAutomations(c.Request.Context(), req.AutomationIDs, userID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -288,17 +332,13 @@ func (h *AutomationHandler) TrackBatchExecutions(c *gin.Context) {
 	}
 
 	// Process each execution
-	// In a real optimized scenario, we would use a batch insert in the service/repo
-	// For now, we iterate and call the service for each
 	for _, exec := range req.Executions {
 		// Ensure website ID matches batch request
 		exec.WebsiteID = req.WebsiteID
 
 		err := h.service.TrackExecution(c.Request.Context(), &exec, origin)
 		if err != nil {
-			// Log error but continue processing others?
-			// Or fail fast? For analytics, usually best to try to save what we can.
-			// Here we continue but could log individual failures.
+			// Log error but continue
 		}
 	}
 

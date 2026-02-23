@@ -39,12 +39,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
-type HeatmapType = 'click' | 'move' | 'scroll' | 'rage_click' | 'dead_click';
+type HeatmapType = 'click' | 'move' | 'rage_click' | 'dead_click';
 
 const TYPE_LABELS: Record<HeatmapType, string> = {
   click: 'Click map',
   move: 'Movement map',
-  scroll: 'Scroll depth',
   rage_click: 'Rage clicks',
   dead_click: 'Dead clicks',
 };
@@ -170,14 +169,6 @@ export default function HeatmapViewPage() {
   }, [loading, isDemo, dimensions.height]);
 
   const generateDummyPoints = (type: HeatmapType) => {
-    if (type === 'scroll') {
-      const pts = [];
-      for (let band = 0; band <= 1000; band += 50) {
-        const dropoff = Math.max(1, Math.round(100 * Math.exp(-band / 400)));
-        pts.push({ x: 500, y: band, intensity: dropoff });
-      }
-      return pts;
-    }
     const count = type === 'click' ? 100 : type === 'move' ? 300 : 40;
     const dummyPoints = [];
     for (let i = 0; i < count; i++) {
@@ -224,7 +215,7 @@ export default function HeatmapViewPage() {
       } catch (err) {
         console.error('Failed to fetch heatmap points:', err);
       } finally {
-        setLoading(false);
+        setLoading(true);
       }
     };
     fetchPoints();
@@ -306,21 +297,21 @@ export default function HeatmapViewPage() {
   const buildIframeUrl = () => {
     if (isDemo) return 'https://seentics.com';
     if (!website?.url) return '';
-    
+
     let baseUrl = normalizeUrl(website.url).replace(/\/$/, '');
     const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
     const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    
+
     // Special handling for local development
-    const isLocalhost = (host: string) => 
+    const isLocalhost = (host: string) =>
       host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local') || host.includes('localhost');
 
     const fullPath = url.startsWith('/') ? url : `/${url}`;
-    
+
     try {
       const targetUrl = new URL(baseUrl);
       const targetHostname = targetUrl.hostname;
-      
+
       // If we are on localhost and the target is also some form of localhost but ports/names differ,
       // fallback to current origin to allow viewing the page in the iframe
       if (isLocalhost(currentHostname) && isLocalhost(targetHostname) && targetUrl.origin !== currentOrigin) {
@@ -329,7 +320,7 @@ export default function HeatmapViewPage() {
       }
 
       if (targetHostname === currentHostname) return fullPath;
-      
+
       return `${baseUrl}${fullPath}`;
     } catch (err) {
       console.error('[HeatmapView] Failed to parse website URL:', err);
@@ -363,7 +354,6 @@ export default function HeatmapViewPage() {
         <div className="hidden lg:flex items-center gap-1 bg-zinc-800/60 rounded-lg p-0.5 border border-white/[0.06]">
           <TypeButton active={activeType === 'click'} onClick={() => setActiveType('click')} icon={MousePointerClick} label="Clicks" />
           <TypeButton active={activeType === 'move'} onClick={() => setActiveType('move')} icon={MousePointer2} label="Movement" />
-          <TypeButton active={activeType === 'scroll'} onClick={() => setActiveType('scroll')} icon={ArrowDownUp} label="Scroll" />
           <TypeButton active={activeType === 'rage_click'} onClick={() => setActiveType('rage_click')} icon={Flame} label="Rage" />
           <TypeButton active={activeType === 'dead_click'} onClick={() => setActiveType('dead_click')} icon={MousePointerBan} label="Dead" />
           <div className="w-px h-5 bg-white/10 mx-0.5" />
@@ -674,7 +664,6 @@ export default function HeatmapViewPage() {
                 <div className="flex flex-wrap gap-1.5">
                   <TypeButton active={activeType === 'click'} onClick={() => setActiveType('click')} icon={MousePointerClick} label="Clicks" />
                   <TypeButton active={activeType === 'move'} onClick={() => setActiveType('move')} icon={MousePointer2} label="Movement" />
-                  <TypeButton active={activeType === 'scroll'} onClick={() => setActiveType('scroll')} icon={ArrowDownUp} label="Scroll" />
                   <TypeButton active={activeType === 'rage_click'} onClick={() => setActiveType('rage_click')} icon={Flame} label="Rage" />
                   <TypeButton active={activeType === 'dead_click'} onClick={() => setActiveType('dead_click')} icon={MousePointerBan} label="Dead" />
                 </div>
@@ -789,20 +778,14 @@ export default function HeatmapViewPage() {
               <PanelSection title="Color Scale">
                 <div className="space-y-2">
                   <div className="h-2.5 w-full rounded-full overflow-hidden" style={{
-                    background: activeType === 'scroll'
-                      ? 'linear-gradient(to right, rgba(239,68,68,0.9), rgba(250,204,21,0.8), rgba(163,230,53,0.8), rgba(59,130,246,0.8))'
-                      : activeType === 'rage_click'
+                    background: activeType === 'rage_click'
                       ? 'linear-gradient(to right, rgba(251,191,36,0.8), rgba(249,115,22,0.8), rgba(239,68,68,0.9), rgba(220,38,38,0.9))'
                       : activeType === 'dead_click'
-                      ? 'linear-gradient(to right, rgba(148,163,184,0.6), rgba(100,116,139,0.7), rgba(71,85,105,0.8), rgba(51,65,85,0.9))'
-                      : 'linear-gradient(to right, rgba(59,130,246,0.8), rgba(34,211,238,0.8), rgba(163,230,53,0.8), rgba(250,204,21,0.8), rgba(239,68,68,0.9))'
+                        ? 'linear-gradient(to right, rgba(148,163,184,0.6), rgba(100,116,139,0.7), rgba(71,85,105,0.8), rgba(51,65,85,0.9))'
+                        : 'linear-gradient(to right, rgba(59,130,246,0.8), rgba(34,211,238,0.8), rgba(163,230,53,0.8), rgba(250,204,21,0.8), rgba(239,68,68,0.9))'
                   }} />
                   <div className="flex justify-between text-[10px] text-zinc-500">
-                    {activeType === 'scroll' ? (
-                      <><span>Most viewed</span><span>Least viewed</span></>
-                    ) : (
-                      <><span>Low</span><span>Medium</span><span>High</span></>
-                    )}
+                    <><span>Low</span><span>Medium</span><span>High</span></>
                   </div>
                 </div>
               </PanelSection>

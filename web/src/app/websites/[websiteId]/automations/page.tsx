@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import {
     Workflow,
@@ -12,6 +12,14 @@ import {
     Globe,
     Database,
     Trash2,
+    CheckCircle2,
+    LayoutGrid,
+    ExternalLink,
+    EyeOff,
+    MessageSquare,
+    Megaphone,
+    Code,
+    Terminal,
     Power,
     PowerOff,
     MoreVertical,
@@ -19,8 +27,10 @@ import {
     Edit,
     AlertCircle,
     Activity,
-    CheckCircle2,
-    LayoutGrid,
+    ChevronLeft,
+    ChevronRight,
+    CheckSquare,
+    Square,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +44,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber } from '@/lib/analytics-api';
-import { useAutomations, useDeleteAutomation, useToggleAutomation } from '@/lib/automations-api';
+import { useAutomations, useDeleteAutomation, useToggleAutomation, useBulkDeleteAutomations } from '@/lib/automations-api';
 import { getWebsiteBySiteId } from '@/lib/websites-api';
 import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -42,12 +52,19 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Link from 'next/link';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { cn } from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const actionIcons: Record<string, any> = {
     email: Mail,
     webhook: Globe,
     slack: Bell,
     discord: Bell,
+    notification: Bell,
+    script: Code,
+    banner: Megaphone,
+    modal: MessageSquare,
+    redirect: ExternalLink,
+    hide_element: EyeOff,
     custom: Zap,
     default: Database,
 };
@@ -59,6 +76,9 @@ export default function AutomationsPage() {
     const { toast } = useToast();
 
     const [searchTerm, setSearchTerm] = useState('');
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
     const { data: website } = useQuery({
         queryKey: ['website', websiteId],
@@ -68,29 +88,62 @@ export default function AutomationsPage() {
 
     const isAutomationDisabled = website && !website.automationEnabled;
 
-    const { data, isLoading, error, refetch } = useAutomations(websiteId);
+    const { data, isLoading, error, refetch } = useAutomations(websiteId, pageSize, (page - 1) * pageSize);
     const deleteAutomation = useDeleteAutomation();
+    const bulkDeleteAutomations = useBulkDeleteAutomations();
     const toggleAutomation = useToggleAutomation();
 
     const automations = data?.automations || [];
+    const totalCount = data?.total || 0;
 
-    const filteredAutomations = automations.filter(auto =>
-        auto.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredAutomations = useMemo(() => {
+        if (!searchTerm) return automations;
+        return automations.filter(auto =>
+            auto.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [automations, searchTerm]);
 
-    const totalAutomations = automations.length;
-    const activeCount = automations.filter(auto => auto.isActive).length;
-    const totalTriggers = automations.reduce((sum, auto) => sum + (auto.stats?.last30Days || 0), 0);
-    const totalExecutions = automations.reduce((sum, auto) => sum + (auto.stats?.totalExecutions || 0), 0);
-    const pausedCount = totalAutomations - activeCount;
+    const activeCount = useMemo(() => automations.filter(auto => auto.isActive).length, [automations]);
+    const totalTriggers = useMemo(() => automations.reduce((sum, auto) => sum + (auto.stats?.last30Days || 0), 0), [automations]);
+    const totalExecutions = useMemo(() => automations.reduce((sum, auto) => sum + (auto.stats?.totalExecutions || 0), 0), [automations]);
+
+    const totalPages = Math.ceil(totalCount / pageSize);
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(filteredAutomations.map(a => a.id));
+        } else {
+            setSelectedIds([]);
+        }
+    };
+
+    const handleSelectOne = (id: string, checked: boolean) => {
+        if (checked) {
+            setSelectedIds(prev => [...prev, id]);
+        } else {
+            setSelectedIds(prev => prev.filter(i => i !== id));
+        }
+    };
 
     const handleDelete = async (automationId: string, name: string) => {
         if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
         try {
             await deleteAutomation.mutateAsync({ websiteId, automationId });
             toast({ title: "Deleted", description: `"${name}" has been removed.` });
+            setSelectedIds(prev => prev.filter(id => id !== automationId));
         } catch {
             toast({ title: "Error", description: "Failed to delete automation.", variant: "destructive" });
+        }
+    };
+
+    const handleBulkDelete = async () => {
+        if (!confirm(`Are you sure you want to delete ${selectedIds.length} automations?`)) return;
+        try {
+            await bulkDeleteAutomations.mutateAsync({ websiteId, automationIds: selectedIds });
+            toast({ title: "Bulk Deleted", description: `${selectedIds.length} automations have been removed.` });
+            setSelectedIds([]);
+        } catch {
+            toast({ title: "Error", description: "Failed to delete automations.", variant: "destructive" });
         }
     };
 
@@ -147,12 +200,12 @@ export default function AutomationsPage() {
                 icon={Workflow}
             >
                 <Link href={`/websites/${websiteId}/automations/templates`}>
-                    <Button variant="outline" className="h-9 gap-2 text-xs font-medium">
+                    <Button variant="outline" className="h-9 gap-2 text-xs font-medium text-muted-foreground hover:text-foreground">
                         <LayoutGrid className="h-3.5 w-3.5" /> Templates
                     </Button>
                 </Link>
                 <Link href={`/websites/${websiteId}/automations/builder`}>
-                    <Button className="h-9 gap-2 text-xs font-medium">
+                    <Button className="h-9 gap-2 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-md transition-all">
                         <Plus className="h-3.5 w-3.5" /> Create Automation
                     </Button>
                 </Link>
@@ -160,29 +213,53 @@ export default function AutomationsPage() {
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatsCard title="Total Automations" value={totalAutomations} icon={Database} description={`${activeCount} active, ${pausedCount} paused`} color="blue" />
-                <StatsCard title="Live Workflows" value={activeCount} icon={Zap} description="Currently active" color="emerald" />
-                <StatsCard title="30d Triggers" value={totalTriggers} icon={Activity} description="Events matched" color="violet" />
-                <StatsCard title="Total Executions" value={totalExecutions} icon={CheckCircle2} description="Actions performed" color="amber" />
+                <StatsCard title="Total Automations" value={totalCount} icon={Database} description={`${activeCount} active currently`} color="blue" />
+                <StatsCard title="Live Workflows" value={activeCount} icon={Zap} description="Executing in real-time" color="emerald" />
+                <StatsCard title="30d Triggers" value={totalTriggers} icon={Activity} description="Matching events" color="violet" />
+                <StatsCard title="Total Executions" value={totalExecutions} icon={CheckCircle2} description="Successful actions" color="amber" />
             </div>
 
             {/* Table */}
-            <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
+            <Card className="border border-border/60 bg-card shadow-sm overflow-hidden flex flex-col">
                 {/* Toolbar */}
-                <div className="px-5 py-4 border-b border-border/40">
+                <div className="px-5 py-4 border-b border-border/40 bg-muted/5">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <h3 className="text-base font-semibold text-foreground">Workflows</h3>
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                                {filteredAutomations.length} {filteredAutomations.length === 1 ? 'workflow' : 'workflows'}
-                                {searchTerm && ` matching "${searchTerm}"`}
-                            </p>
+                        <div className="flex items-center gap-4">
+                            <div>
+                                <h3 className="text-base font-semibold text-foreground">Automations</h3>
+                                <p className="text-sm text-muted-foreground mt-0.5">
+                                    {totalCount} total workflows
+                                </p>
+                            </div>
+
+                            {selectedIds.length > 0 && (
+                                <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-200">
+                                    <div className="h-8 w-px bg-border/60 mx-1" />
+                                    <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">{selectedIds.length} selected</span>
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        className="h-8 gap-2 text-xs shadow-sm"
+                                        onClick={handleBulkDelete}
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" /> Delete Selected
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-xs text-muted-foreground"
+                                        onClick={() => setSelectedIds([])}
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                         <div className="relative">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <Input
                                 placeholder="Search automations..."
-                                className="pl-8 w-full md:w-[240px] h-8 text-sm bg-muted/30 border-border/50 focus-visible:ring-1 focus-visible:ring-primary/30"
+                                className="pl-8 w-full md:w-[240px] h-9 text-sm bg-background border-border/50 focus-visible:ring-1 focus-visible:ring-primary/30"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -191,7 +268,7 @@ export default function AutomationsPage() {
                 </div>
 
                 {filteredAutomations.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+                    <div className="flex flex-col items-center justify-center py-20 text-center px-4 bg-muted/5">
                         <div className="h-14 w-14 bg-muted/40 rounded-2xl flex items-center justify-center mb-4">
                             <Workflow className="h-6 w-6 text-muted-foreground/40" />
                         </div>
@@ -216,13 +293,19 @@ export default function AutomationsPage() {
                 ) : (
                     <>
                         {/* Column headers */}
-                        <div className="grid grid-cols-[1fr_90px_80px_100px_80px_110px] items-center px-5 py-2.5 border-b border-border/30 bg-muted/10 text-xs font-medium text-muted-foreground">
-                            <div className="pl-1">Automation</div>
+                        <div className="grid grid-cols-[40px_1fr_110px_110px_110px_100px_120px] items-center px-5 py-2.5 border-b border-border/30 bg-muted/20 text-xs font-medium text-muted-foreground">
+                            <div className="flex items-center justify-center">
+                                <Checkbox
+                                    checked={selectedIds.length === filteredAutomations.length && filteredAutomations.length > 0}
+                                    onCheckedChange={handleSelectAll}
+                                />
+                            </div>
+                            <div className="pl-2 text-left">Automation</div>
                             <div className="text-center">Triggers</div>
                             <div className="text-center">Actions</div>
                             <div className="text-center">Success</div>
                             <div className="text-center">Status</div>
-                            <div />
+                            <div className="text-right pr-4">Action</div>
                         </div>
 
                         {/* Rows */}
@@ -232,108 +315,210 @@ export default function AutomationsPage() {
                                     ? getActionIcon(auto.actions[0].actionType)
                                     : Zap;
                                 const successRate = auto.stats?.successRate || 0;
+                                const isSelected = selectedIds.includes(auto.id);
 
                                 return (
                                     <div
                                         key={auto.id}
-                                        className="group grid grid-cols-[1fr_90px_80px_100px_80px_110px] items-center px-5 py-3 transition-colors cursor-pointer hover:bg-muted/20"
+                                        className={cn(
+                                            "group grid grid-cols-[40px_1fr_110px_110px_110px_100px_120px] items-center px-5 py-3 transition-colors cursor-pointer",
+                                            isSelected ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/30",
+                                            !auto.isActive && !isSelected && "bg-muted/5 opacity-80"
+                                        )}
                                         onClick={() => router.push(`/websites/${websiteId}/automations/${auto.id}`)}
                                     >
+                                        <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+                                            <Checkbox
+                                                checked={isSelected}
+                                                onCheckedChange={(checked) => handleSelectOne(auto.id, !!checked)}
+                                            />
+                                        </div>
+
                                         {/* Automation info */}
-                                        <div className="flex items-center gap-3 min-w-0 pl-1">
-                                            <div className="h-9 w-9 rounded-lg bg-muted/60 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors">
-                                                <ActionIcon className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                        <div className="flex items-center gap-3 min-w-0 pl-2">
+                                            <div className={cn(
+                                                "h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all shadow-sm",
+                                                auto.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                                            )}>
+                                                <ActionIcon className="h-4 w-4" />
                                             </div>
                                             <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">{auto.name}</p>
+                                                <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{auto.name}</p>
                                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                                    <span className="text-xs text-muted-foreground/60">{auto.triggerType.replace('_', ' ')}</span>
+                                                    <span className="text-[10px] text-muted-foreground/70 uppercase tracking-widest font-bold">{auto.triggerType.replace('_', ' ')}</span>
                                                     <span className="h-0.5 w-0.5 rounded-full bg-muted-foreground/30" />
-                                                    <span className="text-xs text-muted-foreground/60">{new Date(auto.createdAt).toLocaleDateString()}</span>
+                                                    <span className="text-[10px] text-muted-foreground/60">{new Date(auto.createdAt).toLocaleDateString()}</span>
                                                 </div>
                                             </div>
                                         </div>
 
                                         {/* Triggers */}
                                         <div className="text-center">
-                                            <span className="text-sm font-semibold tabular-nums">{formatNumber(auto.stats?.last30Days || 0)}</span>
+                                            <span className="text-sm font-bold tabular-nums text-foreground">{formatNumber(auto.stats?.last30Days || 0)}</span>
                                         </div>
 
                                         {/* Actions */}
                                         <div className="flex items-center justify-center -space-x-1.5">
-                                            {auto.actions?.map((action, i) => {
-                                                const Icon = getActionIcon(action.actionType);
-                                                return (
-                                                    <div
-                                                        key={i}
-                                                        className="h-7 w-7 rounded-full border-2 border-card bg-muted flex items-center justify-center"
-                                                        title={action.actionType}
-                                                    >
-                                                        <Icon className="h-3 w-3 text-muted-foreground" />
-                                                    </div>
-                                                );
-                                            })}
-                                            {(!auto.actions || auto.actions.length === 0) && (
-                                                <span className="text-xs text-muted-foreground/50">None</span>
+                                            {auto.actions && auto.actions.length > 0 ? (
+                                                auto.actions.slice(0, 3).map((action, i) => {
+                                                    const Icon = getActionIcon(action.actionType);
+                                                    return (
+                                                        <div
+                                                            key={i}
+                                                            className="h-7 w-7 rounded-full border-2 border-background bg-secondary flex items-center justify-center shadow-md transition-transform group-hover:scale-110"
+                                                            title={action.actionType}
+                                                            style={{ zIndex: 10 - i }}
+                                                        >
+                                                            <Icon className="h-3 w-3 text-secondary-foreground" />
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <span className="text-[10px] font-medium text-muted-foreground/40 bg-muted/50 px-1.5 py-0.5 rounded">None</span>
+                                            )}
+                                            {auto.actions && auto.actions.length > 3 && (
+                                                <div className="h-7 w-7 rounded-full border-2 border-background bg-primary/10 flex items-center justify-center text-[9px] font-bold text-primary z-0 shadow-sm">
+                                                    +{auto.actions.length - 3}
+                                                </div>
                                             )}
                                         </div>
 
                                         {/* Success Rate */}
-                                        <div className="flex flex-col items-center gap-1">
-                                            <span className={cn("text-xs font-semibold tabular-nums", successRate >= 95 ? 'text-emerald-600 dark:text-emerald-400' : successRate >= 80 ? 'text-amber-600 dark:text-amber-400' : 'text-rose-600 dark:text-rose-400')}>
+                                        <div className="flex flex-col items-center gap-1.5">
+                                            <span className={cn("text-xs font-bold tabular-nums px-1.5 py-0.5 rounded-full",
+                                                successRate >= 95 ? 'bg-emerald-500/10 text-emerald-600' :
+                                                    successRate >= 80 ? 'bg-amber-500/10 text-amber-600' :
+                                                        'bg-rose-500/10 text-rose-600'
+                                            )}>
                                                 {successRate.toFixed(1)}%
                                             </span>
                                             <div className="h-1 w-12 bg-muted/60 rounded-full overflow-hidden">
                                                 <div
-                                                    className={cn("h-full rounded-full transition-all", successRate >= 95 ? 'bg-emerald-500/70' : successRate >= 80 ? 'bg-amber-500/70' : 'bg-rose-500/70')}
+                                                    className={cn("h-full rounded-full transition-all duration-700",
+                                                        successRate >= 95 ? 'bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]' :
+                                                            successRate >= 80 ? 'bg-amber-500' : 'bg-rose-500'
+                                                    )}
                                                     style={{ width: `${successRate}%` }}
                                                 />
                                             </div>
                                         </div>
 
                                         {/* Status */}
-                                        <div className="flex items-center justify-center gap-1.5">
-                                            <span className={cn("h-1.5 w-1.5 rounded-full", auto.isActive ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/30")} />
-                                            <span className={cn("text-xs font-medium", auto.isActive ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
-                                                {auto.isActive ? 'Active' : 'Paused'}
+                                        <div className="flex items-center justify-center gap-2">
+                                            <div className={cn(
+                                                "h-2 w-2 rounded-full",
+                                                auto.isActive
+                                                    ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse"
+                                                    : "bg-muted-foreground/40"
+                                            )} />
+                                            <span className={cn(
+                                                "text-xs font-bold",
+                                                auto.isActive ? "text-emerald-500" : "text-muted-foreground/60"
+                                            )}>
+                                                {auto.isActive ? 'ACTIVE' : 'PAUSED'}
                                             </span>
                                         </div>
 
-                                        {/* Actions */}
-                                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                                        {/* Actions 버튼 */}
+                                        <div className="flex items-center justify-end gap-1 px-4" onClick={(e) => e.stopPropagation()}>
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-all">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-all hover:bg-muted border border-transparent hover:border-border/50 shadow-sm">
                                                         <MoreVertical className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-44">
-                                                    <DropdownMenuItem asChild>
-                                                        <Link href={`/websites/${websiteId}/automations/builder?id=${auto.id}`} className="gap-2 text-xs">
-                                                            <Edit className="h-3.5 w-3.5" /> Edit Workflow
+                                                <DropdownMenuContent align="end" className="w-52 bg-card/98 backdrop-blur-xl border-border/40 shadow-2xl p-1">
+                                                    <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-primary/5 transition-colors">
+                                                        <Link href={`/websites/${websiteId}/automations/builder?id=${auto.id}`} className="flex items-center gap-3 w-full py-2.5 px-3">
+                                                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                                                <Edit className="h-4 w-4 text-blue-500" />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-semibold">Edit Workflow</span>
+                                                                <span className="text-[10px] text-muted-foreground leading-tight">Change logic or triggers</span>
+                                                            </div>
                                                         </Link>
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuItem onClick={() => handleToggle(auto.id, auto.name, auto.isActive)} className="gap-2 text-xs">
-                                                        {auto.isActive ? <><PowerOff className="h-3.5 w-3.5" /> Pause</> : <><Power className="h-3.5 w-3.5" /> Activate</>}
+                                                    <DropdownMenuItem onClick={() => handleToggle(auto.id, auto.name, auto.isActive)} className="cursor-pointer rounded-md focus:bg-emerald-500/5 transition-colors">
+                                                        <div className="flex items-center gap-3 w-full py-2.5 px-3">
+                                                            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", auto.isActive ? "bg-amber-500/10" : "bg-emerald-500/10")}>
+                                                                {auto.isActive ? <PowerOff className="h-4 w-4 text-amber-500" /> : <Power className="h-4 w-4 text-emerald-500" />}
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-semibold">{auto.isActive ? "Pause Flow" : "Start Flow"}</span>
+                                                                <span className="text-[10px] text-muted-foreground leading-tight">{auto.isActive ? "Stop executions" : "Resume instant automation"}</span>
+                                                            </div>
+                                                        </div>
                                                     </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem onClick={() => handleDelete(auto.id, auto.name)} className="gap-2 text-xs text-rose-600 focus:text-rose-600">
-                                                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                                                    <DropdownMenuSeparator className="my-1 bg-border/40" />
+                                                    <DropdownMenuItem onClick={() => handleDelete(auto.id, auto.name)} className="cursor-pointer rounded-md focus:bg-rose-500/10 text-rose-500 transition-colors">
+                                                        <div className="flex items-center gap-3 w-full py-2.5 px-3">
+                                                            <div className="h-8 w-8 rounded-lg bg-rose-500/10 flex items-center justify-center">
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </div>
+                                                            <div className="flex flex-col">
+                                                                <span className="text-xs font-semibold">Delete Workflow</span>
+                                                                <span className="text-[10px] text-rose-500/70 leading-tight">Remove all data permanently</span>
+                                                            </div>
+                                                        </div>
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
+
                                             <Button
-                                                variant="ghost"
                                                 size="sm"
-                                                className="h-7 gap-1.5 px-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10"
+                                                variant="secondary"
+                                                className="h-7 gap-1.5 px-2.5 text-[11px] font-bold bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary transition-all shadow-sm border border-primary/20 backdrop-blur-sm"
                                                 onClick={() => router.push(`/websites/${websiteId}/automations/${auto.id}`)}
                                             >
-                                                <Eye className="h-3.5 w-3.5" /> View
+                                                <Eye className="h-3.5 w-3.5 fill-current" /> VIEW
                                             </Button>
                                         </div>
                                     </div>
                                 );
                             })}
+                        </div>
+
+                        {/* Pagination */}
+                        <div className="px-5 py-3 border-t border-border/40 bg-muted/5 flex items-center justify-between">
+                            <div className="text-xs text-muted-foreground font-medium">
+                                Showing <span className="text-foreground">{(page - 1) * pageSize + 1}</span> to <span className="text-foreground">{Math.min(page * pageSize, totalCount)}</span> of <span className="text-foreground font-bold">{totalCount}</span> automations
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => setPage(prev => Math.max(1, prev - 1))}
+                                    disabled={page === 1}
+                                >
+                                    <ChevronLeft className="h-4 w-4" />
+                                </Button>
+
+                                <div className="flex items-center gap-1">
+                                    {[...Array(totalPages)].map((_, i) => (
+                                        <Button
+                                            key={i + 1}
+                                            variant={page === i + 1 ? "secondary" : "ghost"}
+                                            size="sm"
+                                            className={cn("h-8 w-8 p-0 text-xs font-bold", page === i + 1 ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground")}
+                                            onClick={() => setPage(i + 1)}
+                                        >
+                                            {i + 1}
+                                        </Button>
+                                    )).slice(Math.max(0, page - 3), Math.min(totalPages, page + 2))}
+                                </div>
+
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                                    disabled={page === totalPages}
+                                >
+                                    <ChevronRight className="h-4 w-4" />
+                                </Button>
+                            </div>
                         </div>
                     </>
                 )}

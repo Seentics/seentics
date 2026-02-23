@@ -5,6 +5,7 @@ import (
 	"analytics-app/internal/modules/replays/repository"
 	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"analytics-app/internal/shared/storage"
+	"analytics-app/internal/shared/utils"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -15,7 +16,6 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
-	"github.com/mssola/user_agent"
 )
 
 type ReplayService interface {
@@ -43,29 +43,8 @@ func NewReplayService(repo repository.ReplayRepository, websites *websiteService
 
 // parseUA extracts browser, device type, and OS from a User-Agent string.
 func parseUA(uaStr string) (browser, device, os string) {
-	ua := user_agent.New(uaStr)
-
-	name, _ := ua.Browser()
-	browser = name
-	if browser == "" {
-		browser = "Unknown"
-	}
-
-	os = ua.OS()
-	if os == "" {
-		os = "Unknown"
-	}
-
-	switch {
-	case ua.Mobile():
-		device = "Mobile"
-	case strings.Contains(uaStr, "iPad") || strings.Contains(strings.ToLower(uaStr), "tablet"):
-		device = "Tablet"
-	default:
-		device = "Desktop"
-	}
-
-	return
+	uaInfo := utils.ParseUserAgent(uaStr)
+	return uaInfo.Browser, uaInfo.Device, uaInfo.OS
 }
 
 // validateOwnership resolves the website and checks that userID is the owner.
@@ -125,17 +104,14 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 	}
 
 	// 4. Save reference row in DB
-	// For the first chunk, parse the User-Agent and store session metadata.
-	var meta *models.SessionMeta
-	if req.Sequence == 0 {
-		browser, device, osName := parseUA(userAgent)
-		meta = &models.SessionMeta{
-			Browser:   browser,
-			Device:    device,
-			OS:        osName,
-			Country:   country,
-			EntryPage: req.Page,
-		}
+	// We capture metadata on every chunk to ensure it's available even if sequence 0 is missing.
+	browser, device, osName := parseUA(userAgent)
+	meta := &models.SessionMeta{
+		Browser:   browser,
+		Device:    device,
+		OS:        osName,
+		Country:   country,
+		EntryPage: req.Page,
 	}
 
 	return s.repo.SaveChunk(ctx, req.WebsiteID, req.SessionID, json.RawMessage("[]"), req.Sequence, meta)
