@@ -75,10 +75,10 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize ClickHouse
+	// Initialize ClickHouse (required for all analytics)
 	chConn, err := database.ConnectClickHouse(cfg.ClickHouseHost, cfg.ClickHousePort, cfg.ClickHouseUser, cfg.ClickHousePassword, cfg.ClickHouseDB)
 	if err != nil {
-		logger.Error().Err(err).Msg("Failed to connect to ClickHouse, falling back to PostgreSQL for events")
+		logger.Fatal().Err(err).Msg("Failed to connect to ClickHouse — ClickHouse is required for analytics")
 	}
 
 	// Run database migrations
@@ -108,29 +108,16 @@ func main() {
 
 	ctx := context.Background()
 
-	// Repositories
-	var eventRepo repository.EventRepository
-	if chConn != nil {
-		chRepo := repository.NewClickHouseEventRepository(chConn, logger)
-		// Auto-Create ClickHouse Schema
-		if err := chRepo.CreateSchema(ctx); err != nil {
-			logger.Error().Err(err).Msg("Failed to create ClickHouse schema")
-			eventRepo = repository.NewPostgresEventRepository(db, logger)
-		} else {
-			logger.Info().Msg("ClickHouse schema verified/created")
-			eventRepo = chRepo
-		}
-	} else {
-		eventRepo = repository.NewPostgresEventRepository(db, logger)
+	// Repositories — ClickHouse for all analytics, PostgreSQL for metadata only
+	chRepo := repository.NewClickHouseEventRepository(chConn, logger)
+	if err := chRepo.CreateSchema(ctx); err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create ClickHouse schema")
 	}
+	logger.Info().Msg("ClickHouse schema verified/created")
+	var eventRepo repository.EventRepository = chRepo
 
-	pgAnalyticsRepo := repository.NewPostgresAnalyticsRepository(db)
-	var analyticsRepo repository.MainAnalyticsRepository
-	if chConn != nil {
-		analyticsRepo = repository.NewClickHouseAnalyticsRepository(chConn, pgAnalyticsRepo, logger)
-	} else {
-		analyticsRepo = pgAnalyticsRepo
-	}
+	pgAnalyticsRepo := repository.NewPostgresAnalyticsRepository(db) // used only for goals/resolutions metadata
+	var analyticsRepo repository.MainAnalyticsRepository = repository.NewClickHouseAnalyticsRepository(chConn, pgAnalyticsRepo, logger)
 	privacyRepo := privacy.NewPrivacyRepository(db)
 
 	// Auth
@@ -168,9 +155,7 @@ func main() {
 	healthHandler := handlers.NewHealthHandler(db, logger)
 	adminHandler := handlers.NewAdminHandler(eventRepo, logger)
 	internalHandler := handlers.NewInternalHandler(db, logger)
-	if chConn != nil {
-		internalHandler.SetClickHouse(chConn)
-	}
+	internalHandler.SetClickHouse(chConn)
 
 	// Funnels
 	funnelRepo := funnelRepoPkg.NewFunnelRepository(db, chConn)

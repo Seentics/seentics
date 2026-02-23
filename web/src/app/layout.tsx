@@ -13,6 +13,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { LimitReachedTopBar } from '@/components/subscription';
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import Script from 'next/script';
+import LemonSqueezyScript from '@/components/lemon-squeezy-script';
 
 // Temporarily disable custom fonts for build
 // const fontBody = Inter({
@@ -106,9 +107,7 @@ export default function RootLayout({
         /> */}
 
         {/* Lemon Squeezy Checkout Script - Enterprise only */}
-        {process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true' && (
-          <Script src="https://assets.lemonsqueezy.com/lemon.js" strategy="lazyOnload" />
-        )}
+        {process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true' && <LemonSqueezyScript />}
       </body>
     </html>
   );

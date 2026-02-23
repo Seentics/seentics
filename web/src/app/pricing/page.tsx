@@ -17,6 +17,19 @@ export default function PricingPage() {
         }
     }, [router]);
 
+    // Initialize Lemon Squeezy SDK for modal checkout (in case layout onLoad hasn't fired yet)
+    useEffect(() => {
+        const init = () => {
+            if (window.createLemonSqueezy) {
+                window.createLemonSqueezy();
+            }
+        };
+        init();
+        // Retry after a short delay in case script is still loading
+        const timer = setTimeout(init, 2000);
+        return () => clearTimeout(timer);
+    }, []);
+
     if (!isEnterprise) return null;
 
     const handleSubscribe = async (selection: PlanSelection) => {
@@ -38,7 +51,22 @@ export default function PricingPage() {
                         checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
                     }
                 }
-                window.location.href = checkoutUrl;
+
+                // Add embed param and success URL for modal checkout
+                if (!checkoutUrl.includes('embed=1')) {
+                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
+                }
+                const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
+                if (!checkoutUrl.includes('checkout[success_url]')) {
+                    checkoutUrl += `&checkout[success_url]=${successUrl}`;
+                }
+
+                // Open as modal if LS SDK is loaded, otherwise redirect
+                if (window.LemonSqueezy) {
+                    window.LemonSqueezy.Url.Open(checkoutUrl);
+                } else {
+                    window.location.href = checkoutUrl;
+                }
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to create checkout. Please try again.');

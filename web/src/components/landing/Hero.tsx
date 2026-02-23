@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -47,17 +49,17 @@ export default function Hero() {
             transition={{ duration: 0.5, delay: 0.05 }}
             className="text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.3] md:leading-[1.2] mb-6"
           >
-            All-in-One{' '}
-            <span className="text-primary">Website Analytics</span> Platform
+            Know Your Users.{' '}
+            <span className="text-primary">Grow Faster.</span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed"
+            className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            Analytics, heatmaps, session replays, funnels, and automations — everything you need to understand your users, in one place.
+            See exactly where visitors click, scroll, and drop off. Then automate what happens next. Analytics, heatmaps, session replays, funnels — one tool.
           </motion.p>
 
           <motion.div

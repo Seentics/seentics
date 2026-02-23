@@ -259,3 +259,11 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;  /* Chrome, Safari, Opera */
 }
+
+/* Lemon Squeezy Checkout Overlay — wider modal */
+.lemonsqueezy-overlay iframe {
+  max-width: 580px !important;
+  width: 95vw !important;
+  max-height: 90vh !important;
+  border-radius: 12px !important;
+}

@@ -57,9 +57,9 @@ func (s *FunnelService) ListFunnels(ctx context.Context, websiteID string, userI
 		return nil, fmt.Errorf("failed to list funnels: %w", err)
 	}
 
-	// Enrich with stats
+	// Enrich with stats (pass websiteID directly to avoid re-fetching)
 	for i := range funnels {
-		stats, err := s.GetFunnelStats(ctx, funnels[i].ID)
+		stats, err := s.repo.GetFunnelStats(ctx, funnels[i].ID, funnels[i].WebsiteID)
 		if err == nil {
 			funnels[i].Stats = stats
 		}

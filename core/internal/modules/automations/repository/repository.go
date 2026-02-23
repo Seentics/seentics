@@ -33,7 +33,7 @@ func (r *AutomationRepository) GetActiveAutomations(ctx context.Context, website
 
 func (r *AutomationRepository) listAutomationsInternal(ctx context.Context, websiteID string, onlyActive bool) ([]models.Automation, error) {
 	query := `
-		SELECT id, website_id, user_id, name, description, trigger_type, 
+		SELECT id, website_id, user_id, name, description, trigger_type,
 		       trigger_config, is_active, created_at, updated_at
 		FROM automations
 		WHERE website_id = $1
@@ -50,6 +50,9 @@ func (r *AutomationRepository) listAutomationsInternal(ctx context.Context, webs
 	defer rows.Close()
 
 	var automations []models.Automation
+	var autoIDs []string
+	autoIndex := make(map[string]int)
+
 	for rows.Next() {
 		var a models.Automation
 		err := rows.Scan(
@@ -60,11 +63,52 @@ func (r *AutomationRepository) listAutomationsInternal(ctx context.Context, webs
 			return nil, fmt.Errorf("failed to scan automation: %w", err)
 		}
 
-		// Load actions and conditions
-		a.Actions, _ = r.GetActionsByAutomationID(ctx, a.ID)
-		a.Conditions, _ = r.GetConditionsByAutomationID(ctx, a.ID)
-
+		autoIndex[a.ID] = len(automations)
+		autoIDs = append(autoIDs, a.ID)
 		automations = append(automations, a)
+	}
+
+	if len(autoIDs) == 0 {
+		return automations, nil
+	}
+
+	// Batch load all actions in one query (fixes N+1)
+	actionQuery := `
+		SELECT id, automation_id, action_type, action_config, order_index, created_at, updated_at
+		FROM automation_actions
+		WHERE automation_id = ANY($1)
+		ORDER BY automation_id, order_index ASC
+	`
+	actionRows, err := r.db.Query(ctx, actionQuery, autoIDs)
+	if err == nil {
+		defer actionRows.Close()
+		for actionRows.Next() {
+			var action models.AutomationAction
+			if err := actionRows.Scan(&action.ID, &action.AutomationID, &action.ActionType, &action.ActionConfig, &action.OrderIndex, &action.CreatedAt, &action.UpdatedAt); err == nil {
+				if idx, ok := autoIndex[action.AutomationID]; ok {
+					automations[idx].Actions = append(automations[idx].Actions, action)
+				}
+			}
+		}
+	}
+
+	// Batch load all conditions in one query (fixes N+1)
+	conditionQuery := `
+		SELECT id, automation_id, condition_type, condition_config, created_at
+		FROM automation_conditions
+		WHERE automation_id = ANY($1)
+	`
+	conditionRows, err := r.db.Query(ctx, conditionQuery, autoIDs)
+	if err == nil {
+		defer conditionRows.Close()
+		for conditionRows.Next() {
+			var cond models.AutomationCondition
+			if err := conditionRows.Scan(&cond.ID, &cond.AutomationID, &cond.ConditionType, &cond.ConditionConfig, &cond.CreatedAt); err == nil {
+				if idx, ok := autoIndex[cond.AutomationID]; ok {
+					automations[idx].Conditions = append(automations[idx].Conditions, cond)
+				}
+			}
+		}
 	}
 
 	return automations, nil
@@ -348,6 +392,48 @@ func (r *AutomationRepository) GetConditionsByAutomationID(ctx context.Context, 
 	}
 
 	return conditions, nil
+}
+
+// GetBatchAutomationStats retrieves statistics for multiple automations in one query
+func (r *AutomationRepository) GetBatchAutomationStats(ctx context.Context, automationIDs []string) (map[string]*models.AutomationStats, error) {
+	query := `
+		SELECT
+			automation_id,
+			COUNT(*) as total_executions,
+			SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) as success_count,
+			SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failure_count,
+			SUM(CASE WHEN executed_at >= NOW() - INTERVAL '30 days' THEN 1 ELSE 0 END) as last_30_days
+		FROM automation_executions
+		WHERE automation_id = ANY($1)
+		GROUP BY automation_id
+	`
+
+	rows, err := r.db.Query(ctx, query, automationIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get batch stats: %w", err)
+	}
+	defer rows.Close()
+
+	result := make(map[string]*models.AutomationStats)
+	for rows.Next() {
+		var autoID string
+		var totalExecutions, successCount, failureCount, last30Days int
+		if err := rows.Scan(&autoID, &totalExecutions, &successCount, &failureCount, &last30Days); err != nil {
+			continue
+		}
+		stats := &models.AutomationStats{
+			TotalExecutions: totalExecutions,
+			SuccessCount:    successCount,
+			FailureCount:    failureCount,
+			Last30Days:      last30Days,
+		}
+		if totalExecutions > 0 {
+			stats.SuccessRate = float64(successCount) / float64(totalExecutions) * 100
+		}
+		result[autoID] = stats
+	}
+
+	return result, nil
 }
 
 // GetAutomationStats retrieves statistics for an automation

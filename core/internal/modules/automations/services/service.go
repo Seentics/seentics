@@ -57,11 +57,19 @@ func (s *AutomationService) ListAutomations(ctx context.Context, websiteID strin
 		return nil, fmt.Errorf("failed to list automations: %w", err)
 	}
 
-	// Load stats for each automation
-	for i := range automations {
-		stats, err := s.repo.GetAutomationStats(ctx, automations[i].ID)
+	// Batch load stats for all automations in one query
+	if len(automations) > 0 {
+		autoIDs := make([]string, len(automations))
+		for i := range automations {
+			autoIDs[i] = automations[i].ID
+		}
+		statsMap, err := s.repo.GetBatchAutomationStats(ctx, autoIDs)
 		if err == nil {
-			automations[i].Stats = stats
+			for i := range automations {
+				if stats, ok := statsMap[automations[i].ID]; ok {
+					automations[i].Stats = stats
+				}
+			}
 		}
 	}
 

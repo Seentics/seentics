@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'framer-motion';
 import { ArrowRightLeft, Download, Upload, Database, FileSpreadsheet, FileJson, CheckCircle2 } from 'lucide-react';
 import React from 'react';

@@ -7,13 +7,20 @@ import { isEnterprise } from '@/lib/features';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Pricing() {
   if (!isEnterprise) return null;
 
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
+
+  // Initialize Lemon Squeezy SDK for modal checkout
+  useEffect(() => {
+    if (window.createLemonSqueezy) {
+      window.createLemonSqueezy();
+    }
+  }, []);
 
   const handleSubscribe = async (selection: PlanSelection) => {
     if (!isAuthenticated) {
@@ -33,7 +40,26 @@ export default function Pricing() {
       });
 
       if (response.data.success && response.data.data.checkoutUrl) {
-        window.location.href = response.data.data.checkoutUrl;
+        let checkoutUrl = response.data.data.checkoutUrl;
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          if (!checkoutUrl.includes('test=1')) {
+            checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
+          }
+        }
+
+        if (!checkoutUrl.includes('embed=1')) {
+          checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
+        }
+        const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
+        if (!checkoutUrl.includes('checkout[success_url]')) {
+          checkoutUrl += `&checkout[success_url]=${successUrl}`;
+        }
+
+        if (window.LemonSqueezy) {
+          window.LemonSqueezy.Url.Open(checkoutUrl);
+        } else {
+          window.location.href = checkoutUrl;
+        }
       }
     } catch {
       toast.error('Failed to initialize checkout. Please try again.');

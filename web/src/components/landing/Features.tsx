@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'framer-motion';
 import { BarChart3, Shield, Filter, Play, MousePointer2, Workflow } from 'lucide-react';
 import React from 'react';

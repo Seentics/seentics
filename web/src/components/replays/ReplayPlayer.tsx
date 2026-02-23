@@ -1,11 +1,15 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import rrwebPlayer from 'rrweb-player';
 import 'rrweb-player/dist/style.css';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Monitor, Globe, Clock, Shield, Smartphone, Tablet, RefreshCw } from 'lucide-react';
+import {
+  Loader2, Monitor, Globe, Clock, Shield, Smartphone, Tablet,
+  RefreshCw, Play, Pause, SkipBack, SkipForward, Maximize, Minimize,
+  FastForward
+} from 'lucide-react';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +29,13 @@ interface ReplayPlayerProps {
   } | null;
 }
 
+function formatTime(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 function formatDuration(seconds: number): string {
   const s = Math.round(seconds);
   if (s < 60) return `${s}s`;
@@ -36,12 +47,27 @@ function val(v: string | undefined | null, fallback = '—'): string {
   return v;
 }
 
+const SPEED_OPTIONS = [1, 2, 4, 8];
+
 export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const playerInstanceRef = useRef<rrwebPlayer | null>(null);
+  const animFrameRef = useRef<number>(0);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chunks, setChunks] = useState<any[]>([]);
 
+  // Playback state
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [totalTime, setTotalTime] = useState(0);
+  const [speed, setSpeed] = useState(1);
+  const [skipInactive, setSkipInactive] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Fetch replay data
   useEffect(() => {
     const fetchReplayData = async () => {
       try {
@@ -56,25 +82,127 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         setLoading(false);
       }
     };
-
     fetchReplayData();
   }, [sessionId, websiteId]);
 
+  // Initialize player
   useEffect(() => {
     if (!loading && chunks.length > 0 && playerRef.current) {
       playerRef.current.innerHTML = '';
-      new rrwebPlayer({
+
+      const player = new rrwebPlayer({
         target: playerRef.current,
         props: {
           events: chunks,
           autoPlay: true,
+          speed: 1,
           width: playerRef.current.offsetWidth || 1024,
-          height: 800, // Increased default height
-          UNSAFE_replayCanvas: true // Performance
+          height: 700,
+          showController: false,
+          UNSAFE_replayCanvas: true,
         },
       });
+
+      playerInstanceRef.current = player;
+
+      // Get total duration
+      try {
+        const meta = player.getMetaData();
+        setTotalTime(meta.totalTime);
+      } catch {}
+
+      // Set initial state
+      setIsPlaying(true);
+      setSpeed(1);
+      setSkipInactive(true);
+
+      // Poll current time via requestAnimationFrame
+      const updateTime = () => {
+        try {
+          const replayer = player.getReplayer();
+          if (replayer) {
+            const timer = (replayer as any).timer;
+            if (timer && typeof timer.timeOffset === 'number') {
+              setCurrentTime(timer.timeOffset);
+            }
+          }
+        } catch {}
+        animFrameRef.current = requestAnimationFrame(updateTime);
+      };
+      animFrameRef.current = requestAnimationFrame(updateTime);
+
+      return () => {
+        cancelAnimationFrame(animFrameRef.current);
+        playerInstanceRef.current = null;
+      };
     }
   }, [loading, chunks]);
+
+  // Fullscreen change listener
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Controls
+  const handleTogglePlay = useCallback(() => {
+    const player = playerInstanceRef.current;
+    if (!player) return;
+    player.toggle();
+    setIsPlaying(prev => !prev);
+  }, []);
+
+  const handleSetSpeed = useCallback((newSpeed: number) => {
+    const player = playerInstanceRef.current;
+    if (!player) return;
+    player.setSpeed(newSpeed);
+    setSpeed(newSpeed);
+  }, []);
+
+  const handleSkipForward = useCallback(() => {
+    const player = playerInstanceRef.current;
+    if (!player) return;
+    const newTime = Math.min(currentTime + 10000, totalTime);
+    player.goto(newTime, isPlaying);
+    setCurrentTime(newTime);
+  }, [currentTime, totalTime, isPlaying]);
+
+  const handleSkipBack = useCallback(() => {
+    const player = playerInstanceRef.current;
+    if (!player) return;
+    const newTime = Math.max(currentTime - 10000, 0);
+    player.goto(newTime, isPlaying);
+    setCurrentTime(newTime);
+  }, [currentTime, isPlaying]);
+
+  const handleToggleSkipInactive = useCallback(() => {
+    const player = playerInstanceRef.current;
+    if (!player) return;
+    player.toggleSkipInactive();
+    setSkipInactive(prev => !prev);
+  }, []);
+
+  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const player = playerInstanceRef.current;
+    if (!player || totalTime === 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTime = Math.floor(ratio * totalTime);
+    player.goto(newTime, isPlaying);
+    setCurrentTime(newTime);
+  }, [totalTime, isPlaying]);
+
+  const handleToggleFullscreen = useCallback(() => {
+    if (!containerRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      containerRef.current.requestFullscreen();
+    }
+  }, []);
 
   const getDeviceIcon = () => {
     if (!session?.device) return Monitor;
@@ -85,6 +213,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   };
 
   const DeviceIcon = getDeviceIcon();
+  const progress = totalTime > 0 ? (currentTime / totalTime) * 100 : 0;
 
   if (loading) {
     return (
@@ -121,69 +250,15 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           border-radius: 0 !important;
           flex: 1 !important;
         }
-        /* Fix for full-page scaling */
-        .re-player__container {
-          height: auto !important;
-          min-height: 600px !important;
-        }
         .rr-controller {
-          background: rgba(9, 9, 11, 0.95) !important;
-          backdrop-filter: blur(12px) !important;
-          border-top: 1px solid rgba(255, 255, 255, 0.06) !important;
-          padding: 10px 16px !important;
-          height: auto !important;
-        }
-        .rr-timeline {
-          height: 4px !important;
-          background: rgba(255, 255, 255, 0.08) !important;
-          border-radius: 2px !important;
-          margin-bottom: 10px !important;
-        }
-        .rr-progress {
-          background: #3b82f6 !important;
-          border-radius: 2px !important;
-        }
-        .rr-progress__handler {
-          width: 12px !important;
-          height: 12px !important;
-          border: 2px solid #3b82f6 !important;
-          background: #fff !important;
-        }
-        .rr-controller__btns {
-          display: flex !important;
-          align-items: center !important;
-          gap: 8px !important;
-        }
-        .rr-controller__btns button {
-          width: 28px !important;
-          height: 28px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          border-radius: 6px !important;
-          transition: background 0.15s !important;
-          background: rgba(255, 255, 255, 0.04) !important;
-        }
-        .rr-controller__btns button:hover {
-          background: rgba(255, 255, 255, 0.1) !important;
-        }
-        .rr-controller__btns svg {
-          fill: rgba(255, 255, 255, 0.7) !important;
-          width: 16px !important;
-          height: 16px !important;
-        }
-        .rr-controller__timer {
-          color: rgba(255, 255, 255, 0.5) !important;
-          font-size: 11px !important;
-          font-weight: 500 !important;
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
-          letter-spacing: 0.02em !important;
+          display: none !important;
         }
       `}</style>
 
-      {/* Player */}
-      <Card className="border border-border bg-card overflow-hidden shadow-sm ">
-        <div className="bg-zinc-950 flex items-center justify-center relative overflow-hidden min-h-[600px] max-h-[85vh]">
+      {/* Player + Controls */}
+      <Card ref={containerRef} className="border border-border bg-card overflow-hidden shadow-sm">
+        {/* Video area */}
+        <div className="bg-zinc-950 flex items-center justify-center relative overflow-hidden min-h-[500px] max-h-[80vh]">
           {chunks.length === 0 ? (
             <div className="p-12 text-center">
               <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
@@ -191,10 +266,129 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
             </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center overflow-auto">
-              <div ref={playerRef} className="w-full h-full min-h-[600px]" />
+              <div ref={playerRef} className="w-full h-full min-h-[500px]" />
             </div>
           )}
         </div>
+
+        {/* Custom Control Bar */}
+        {chunks.length > 0 && (
+          <div className="bg-zinc-950/95 backdrop-blur-sm border-t border-white/[0.06] px-4 py-3 space-y-2.5">
+            {/* Timeline scrubber */}
+            <div
+              className="group relative h-1.5 bg-white/[0.08] rounded-full cursor-pointer hover:h-2.5 transition-all"
+              onClick={handleSeek}
+            >
+              {/* Progress fill */}
+              <div
+                className="absolute inset-y-0 left-0 bg-blue-500 rounded-full transition-[width] duration-75"
+                style={{ width: `${progress}%` }}
+              />
+              {/* Scrubber handle */}
+              <div
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-white rounded-full border-2 border-blue-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                style={{ left: `${progress}%` }}
+              />
+            </div>
+
+            {/* Controls row */}
+            <div className="flex items-center justify-between gap-3">
+              {/* Left: Playback controls */}
+              <div className="flex items-center gap-1">
+                {/* Skip back 10s */}
+                <button
+                  onClick={handleSkipBack}
+                  className="h-8 w-8 flex items-center justify-center rounded-md text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors"
+                  title="Back 10s"
+                >
+                  <SkipBack className="h-3.5 w-3.5" />
+                </button>
+
+                {/* Play/Pause */}
+                <button
+                  onClick={handleTogglePlay}
+                  className="h-9 w-9 flex items-center justify-center rounded-lg bg-white/[0.06] text-white hover:bg-white/[0.12] transition-colors"
+                  title={isPlaying ? 'Pause' : 'Play'}
+                >
+                  {isPlaying ? (
+                    <Pause className="h-4 w-4" />
+                  ) : (
+                    <Play className="h-4 w-4 ml-0.5" />
+                  )}
+                </button>
+
+                {/* Skip forward 10s */}
+                <button
+                  onClick={handleSkipForward}
+                  className="h-8 w-8 flex items-center justify-center rounded-md text-white/60 hover:text-white hover:bg-white/[0.08] transition-colors"
+                  title="Forward 10s"
+                >
+                  <SkipForward className="h-3.5 w-3.5" />
+                </button>
+
+                {/* Time display */}
+                <span className="text-[11px] font-mono text-white/40 ml-2 tabular-nums select-none">
+                  {formatTime(currentTime)} / {formatTime(totalTime)}
+                </span>
+              </div>
+
+              {/* Right: Speed + Skip Inactive + Fullscreen */}
+              <div className="flex items-center gap-2">
+                {/* Speed buttons */}
+                <div className="flex items-center bg-white/[0.04] rounded-lg p-0.5 gap-0.5">
+                  {SPEED_OPTIONS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => handleSetSpeed(s)}
+                      className={cn(
+                        "h-6 px-2 rounded-md text-[11px] font-medium transition-all",
+                        speed === s
+                          ? "bg-blue-500 text-white shadow-sm"
+                          : "text-white/50 hover:text-white hover:bg-white/[0.06]"
+                      )}
+                    >
+                      {s}x
+                    </button>
+                  ))}
+                </div>
+
+                {/* Separator */}
+                <div className="h-4 w-px bg-white/[0.08]" />
+
+                {/* Skip inactive */}
+                <button
+                  onClick={handleToggleSkipInactive}
+                  className={cn(
+                    "h-7 px-2.5 rounded-md text-[11px] font-medium flex items-center gap-1.5 transition-all",
+                    skipInactive
+                      ? "bg-blue-500/15 text-blue-400 border border-blue-500/20"
+                      : "text-white/40 hover:text-white/70 hover:bg-white/[0.06]"
+                  )}
+                  title="Skip inactive periods"
+                >
+                  <FastForward className="h-3 w-3" />
+                  Skip
+                </button>
+
+                {/* Separator */}
+                <div className="h-4 w-px bg-white/[0.08]" />
+
+                {/* Fullscreen */}
+                <button
+                  onClick={handleToggleFullscreen}
+                  className="h-8 w-8 flex items-center justify-center rounded-md text-white/50 hover:text-white hover:bg-white/[0.08] transition-colors"
+                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                >
+                  {isFullscreen ? (
+                    <Minimize className="h-3.5 w-3.5" />
+                  ) : (
+                    <Maximize className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Session metadata */}

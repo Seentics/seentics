@@ -3,12 +3,12 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import {
-  ArrowRight, Loader2, Check, Zap, Crown, Sparkles
+  ArrowRight, Loader2, Check, Zap, Crown, Sparkles, Rocket
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
-  plan: 'starter' | 'growth' | 'pro' | 'enterprise';
+  plan: 'starter' | 'basic' | 'growth' | 'pro' | 'enterprise';
   price: number;
 }
 
@@ -37,6 +37,27 @@ const PLANS = [
       '1 Automation',
       '30 Day Data Retention',
       'Community Support',
+    ],
+  },
+  {
+    id: 'basic' as const,
+    name: 'Basic',
+    price: 15,
+    description: 'For hobby projects and small sites',
+    icon: Rocket,
+    color: 'text-teal-500',
+    borderColor: 'border-teal-500',
+    bgColor: 'bg-teal-500',
+    features: [
+      '2 Websites',
+      '100,000 Monthly Events',
+      '10 Heatmap Pages',
+      '3,000 Session Recordings',
+      '5 Funnels',
+      '5 Automations',
+      '1 Month Recording Retention',
+      '1 Year Analytics Retention',
+      'Email Support',
     ],
   },
   {
@@ -110,7 +131,7 @@ const PLANS = [
 export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderProps) {
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
 
-  const handleSubscribe = (planId: 'starter' | 'growth' | 'pro' | 'enterprise') => {
+  const handleSubscribe = (planId: 'starter' | 'basic' | 'growth' | 'pro' | 'enterprise') => {
     if (!onSubscribe) return;
     const plan = PLANS.find(p => p.id === planId);
     if (!plan) return;
@@ -118,76 +139,87 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
     onSubscribe({ plan: planId, price: plan.price });
   };
 
+  const topRow = PLANS.slice(0, 3);    // Starter, Basic, Growth
+  const bottomRow = PLANS.slice(3);     // Pro, Enterprise
+
+  const renderCard = (plan: typeof PLANS[number]) => {
+    const Icon = plan.icon;
+    const isCurrent = currentPlan === plan.id;
+
+    return (
+      <div
+        key={plan.id}
+        className={cn(
+          "relative flex flex-col rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-lg",
+          plan.popular ? `border-2 ${plan.borderColor} shadow-md` : "border-border/60",
+          isCurrent && "ring-2 ring-primary/20"
+        )}
+      >
+        {plan.popular && (
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+            <span className={cn("text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full text-white", plan.bgColor)}>
+              Most Popular
+            </span>
+          </div>
+        )}
+
+        <div className="mb-5">
+          <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center mb-3", `${plan.bgColor}/10`)}>
+            <Icon className={cn("h-4 w-4", plan.color)} />
+          </div>
+          <h3 className="text-lg font-semibold">{plan.name}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{plan.description}</p>
+        </div>
+
+        <div className="flex items-baseline gap-1 mb-6">
+          <span className="text-3xl font-bold tracking-tight">
+            ${plan.price}
+          </span>
+          <span className="text-sm text-muted-foreground">/mo</span>
+        </div>
+
+        <ul className="space-y-2.5 flex-1 mb-6">
+          {plan.features.map((feature, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <Check className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", plan.color)} />
+              <span className="text-xs text-muted-foreground leading-tight">{feature}</span>
+            </li>
+          ))}
+        </ul>
+
+        <Button
+          onClick={() => handleSubscribe(plan.id)}
+          disabled={loading || isCurrent}
+          variant={plan.popular ? "default" : "outline"}
+          className={cn(
+            "w-full gap-1.5 text-xs font-medium",
+            plan.popular && "shadow-md"
+          )}
+        >
+          {loading && loadingPlan === plan.id ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : isCurrent ? (
+            'Current Plan'
+          ) : plan.price === 0 ? (
+            <>Start Free <ArrowRight className="h-3.5 w-3.5" /></>
+          ) : (
+            <>Get {plan.name} <ArrowRight className="h-3.5 w-3.5" /></>
+          )}
+        </Button>
+      </div>
+    );
+  };
+
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {PLANS.map((plan) => {
-          const Icon = plan.icon;
-          const isCurrent = currentPlan === plan.id;
+    <div className="w-full max-w-5xl mx-auto">
+      {/* Row 1: Starter, Basic, Growth */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {topRow.map(renderCard)}
+      </div>
 
-          return (
-            <div
-              key={plan.id}
-              className={cn(
-                "relative flex flex-col rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-lg",
-                plan.popular ? `border-2 ${plan.borderColor} shadow-md` : "border-border/60",
-                isCurrent && "ring-2 ring-primary/20"
-              )}
-            >
-              {plan.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className={cn("text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full text-white", plan.bgColor)}>
-                    Most Popular
-                  </span>
-                </div>
-              )}
-
-              <div className="mb-5">
-                <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center mb-3", `${plan.bgColor}/10`)}>
-                  <Icon className={cn("h-4 w-4", plan.color)} />
-                </div>
-                <h3 className="text-lg font-semibold">{plan.name}</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">{plan.description}</p>
-              </div>
-
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-3xl font-bold tracking-tight">
-                  ${plan.price}
-                </span>
-                <span className="text-sm text-muted-foreground">/mo</span>
-              </div>
-
-              <ul className="space-y-2.5 flex-1 mb-6">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <Check className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", plan.color)} />
-                    <span className="text-xs text-muted-foreground leading-tight">{feature}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Button
-                onClick={() => handleSubscribe(plan.id)}
-                disabled={loading || isCurrent}
-                variant={plan.popular ? "default" : "outline"}
-                className={cn(
-                  "w-full gap-1.5 text-xs font-medium",
-                  plan.popular && "shadow-md"
-                )}
-              >
-                {loading && loadingPlan === plan.id ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : isCurrent ? (
-                  'Current Plan'
-                ) : plan.price === 0 ? (
-                  <>Start Free <ArrowRight className="h-3.5 w-3.5" /></>
-                ) : (
-                  <>Get {plan.name} <ArrowRight className="h-3.5 w-3.5" /></>
-                )}
-              </Button>
-            </div>
-          );
-        })}
+      {/* Row 2: Pro, Enterprise (centered) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5 max-w-3xl mx-auto">
+        {bottomRow.map(renderCard)}
       </div>
 
       <div className="mt-8 text-center">

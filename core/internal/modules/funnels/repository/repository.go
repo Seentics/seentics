@@ -4,6 +4,7 @@ import (
 	"analytics-app/internal/modules/funnels/models"
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
@@ -52,6 +53,9 @@ func (r *FunnelRepository) listFunnelsInternal(ctx context.Context, websiteID st
 	defer rows.Close()
 
 	var funnels []models.Funnel
+	var funnelIDs []string
+	funnelIndex := make(map[string]int)
+
 	for rows.Next() {
 		var f models.Funnel
 		err := rows.Scan(
@@ -62,10 +66,31 @@ func (r *FunnelRepository) listFunnelsInternal(ctx context.Context, websiteID st
 			return nil, fmt.Errorf("failed to scan funnel: %w", err)
 		}
 
-		// Load steps for each funnel
-		f.Steps, _ = r.GetStepsByFunnelID(ctx, f.ID)
-
+		funnelIndex[f.ID] = len(funnels)
+		funnelIDs = append(funnelIDs, f.ID)
 		funnels = append(funnels, f)
+	}
+
+	// Batch load all steps in one query (fixes N+1)
+	if len(funnelIDs) > 0 {
+		stepQuery := `
+			SELECT id, funnel_id, name, step_order, step_type, page_path, event_type, match_type
+			FROM funnel_steps
+			WHERE funnel_id = ANY($1)
+			ORDER BY funnel_id, step_order ASC
+		`
+		stepRows, err := r.db.Query(ctx, stepQuery, funnelIDs)
+		if err == nil {
+			defer stepRows.Close()
+			for stepRows.Next() {
+				var s models.FunnelStep
+				if err := stepRows.Scan(&s.ID, &s.FunnelID, &s.Name, &s.Order, &s.StepType, &s.PagePath, &s.EventType, &s.MatchType); err == nil {
+					if idx, ok := funnelIndex[s.FunnelID]; ok {
+						funnels[idx].Steps = append(funnels[idx].Steps, s)
+					}
+				}
+			}
+		}
 	}
 
 	return funnels, nil
@@ -252,7 +277,7 @@ func (r *FunnelRepository) GetStepsByFunnelID(ctx context.Context, funnelID stri
 	return steps, nil
 }
 
-// GetFunnelStats calculates real-time statistics for a funnel based on historical events
+// GetFunnelStats calculates real-time statistics for a funnel using a single ClickHouse query
 func (r *FunnelRepository) GetFunnelStats(ctx context.Context, funnelID string, websiteID string) (*models.FunnelStats, error) {
 	steps, err := r.GetStepsByFunnelID(ctx, funnelID)
 	if err != nil {
@@ -263,94 +288,63 @@ func (r *FunnelRepository) GetFunnelStats(ctx context.Context, funnelID string, 
 		return &models.FunnelStats{}, nil
 	}
 
+	if r.ch == nil {
+		return nil, fmt.Errorf("ClickHouse connection required for funnel stats")
+	}
+
+	// Build a single query with conditional aggregation for all steps
+	var selectClauses []string
+	var args []interface{}
+	args = append(args, websiteID)
+
+	for i, step := range steps {
+		var condition string
+		if step.StepType == "page_view" {
+			if step.MatchType == "exact" {
+				condition = fmt.Sprintf("event_type = 'pageview' AND page = ?")
+				args = append(args, step.PagePath)
+			} else {
+				condition = fmt.Sprintf("event_type = 'pageview' AND page LIKE ?")
+				args = append(args, "%"+step.PagePath+"%")
+			}
+		} else {
+			condition = fmt.Sprintf("event_type = 'custom' AND page = ?")
+			args = append(args, step.EventType)
+		}
+		selectClauses = append(selectClauses,
+			fmt.Sprintf("count(DISTINCT IF(%s, visitor_id, NULL)) AS step_%d", condition, i))
+	}
+
+	query := fmt.Sprintf(`
+		SELECT %s
+		FROM events
+		WHERE website_id = ?
+		AND timestamp >= now() - interval 30 day`,
+		strings.Join(selectClauses, ", "))
+
+	// Scan results
+	counts := make([]uint64, len(steps))
+	scanDest := make([]interface{}, len(steps))
+	for i := range counts {
+		scanDest[i] = &counts[i]
+	}
+
+	err = r.ch.QueryRow(ctx, query, args...).Scan(scanDest...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get funnel stats from ClickHouse: %w", err)
+	}
+
 	stats := &models.FunnelStats{
 		StepBreakdown: make([]models.StepStats, len(steps)),
 	}
 
-	// For each step, count unique visitors who hit the page/event
 	for i, step := range steps {
-		var count int
-		var query string
-		var args []interface{}
-
-		if r.ch != nil {
-			if step.StepType == "page_view" {
-				query = `
-					SELECT count(DISTINCT visitor_id) 
-					FROM events 
-					WHERE website_id = ? 
-					AND event_type = 'pageview'
-				`
-				if step.MatchType == "exact" {
-					query += " AND page = ?"
-				} else {
-					query += " AND page LIKE ?"
-				}
-
-				path := step.PagePath
-				if step.MatchType != "exact" {
-					path = "%" + path + "%"
-				}
-				args = []interface{}{websiteID, path}
-			} else {
-				query = `
-					SELECT count(DISTINCT visitor_id) 
-					FROM events 
-					WHERE website_id = ? 
-					AND event_type = 'custom' 
-					AND page = ?
-				`
-				args = []interface{}{websiteID, step.EventType}
-			}
-
-			var countUint64 uint64
-			err := r.ch.QueryRow(ctx, query, args...).Scan(&countUint64)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get count from CH for step %d: %w", i, err)
-			}
-			count = int(countUint64)
-		} else {
-			if step.StepType == "page_view" {
-				query = `
-					SELECT COUNT(DISTINCT visitor_id) 
-					FROM events 
-					WHERE website_id = $1 
-					AND event_type = 'pageview'
-				`
-				if step.MatchType == "exact" {
-					query += " AND page = $2"
-				} else {
-					query += " AND page LIKE $2"
-				}
-
-				path := step.PagePath
-				if step.MatchType != "exact" {
-					path = "%" + path + "%"
-				}
-				args = []interface{}{websiteID, path}
-			} else {
-				query = `
-					SELECT COUNT(DISTINCT visitor_id) 
-					FROM events 
-					WHERE website_id = $1 
-					AND event_type = 'custom' 
-					AND page = $2
-				`
-				args = []interface{}{websiteID, step.EventType}
-			}
-
-			err := r.db.QueryRow(ctx, query, args...).Scan(&count)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get count from PG for step %d: %w", i, err)
-			}
-		}
-
+		count := int(counts[i])
 		stats.StepBreakdown[i] = models.StepStats{
 			StepOrder: step.Order,
 			StepName:  step.Name,
 			Count:     count,
 		}
-
 		if i == 0 {
 			stats.TotalEntries = count
 		}
@@ -363,8 +357,6 @@ func (r *FunnelRepository) GetFunnelStats(ctx context.Context, funnelID string, 
 	for i := range stats.StepBreakdown {
 		if i == 0 {
 			stats.StepBreakdown[i].ConversionRate = 100.0
-			stats.StepBreakdown[i].DropoffRate = 0.0
-			stats.StepBreakdown[i].DropoffCount = 0
 			continue
 		}
 

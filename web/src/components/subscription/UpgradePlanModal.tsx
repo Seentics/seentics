@@ -3,7 +3,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Zap, Crown, ArrowRight, X, Sparkles } from 'lucide-react';
+import { CheckCircle, Zap, Crown, ArrowRight, X, Sparkles, Rocket } from 'lucide-react';
 import { useAuth } from '@/stores/useAuthStore';
 import api from '@/lib/api';
 import { isEnterprise } from '@/lib/features';
@@ -12,13 +12,32 @@ import { cn } from '@/lib/utils';
 interface UpgradePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentPlan: 'starter' | 'growth' | 'pro' | 'enterprise';
+  currentPlan: 'starter' | 'basic' | 'growth' | 'pro' | 'enterprise';
   limitType: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'replays' | 'monthlyEvents';
   currentUsage: number;
   limit: number;
 }
 
 const planDetails = {
+  basic: {
+    name: 'Basic',
+    price: '$15',
+    period: '/mo',
+    icon: Rocket,
+    color: 'teal',
+    features: [
+      "2 Websites",
+      "100,000 Monthly Events",
+      "3,000 Session Recordings",
+      "10 Heatmap Pages",
+      "5 Funnels",
+      "5 Automations",
+      "1 Month Recording Retention",
+      "1 Year Analytics Retention",
+      "Email Support"
+    ],
+    buttonText: 'Upgrade to Basic'
+  },
   growth: {
     name: 'Growth',
     price: '$29',
@@ -119,9 +138,9 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
     }
   }, [isOpen]);
 
-  const upgradePlans = ['growth', 'pro', 'enterprise'] as const;
+  const upgradePlans = ['basic', 'growth', 'pro', 'enterprise'] as const;
 
-  const handleUpgrade = async (plan: 'growth' | 'pro' | 'enterprise') => {
+  const handleUpgrade = async (plan: 'basic' | 'growth' | 'pro' | 'enterprise') => {
     if (!isAuthenticated) {
       window.location.href = '/signin';
       return;
@@ -170,6 +189,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   };
 
   const colorMap: Record<string, { bg: string; hover: string; check: string }> = {
+    teal: { bg: 'bg-teal-500', hover: 'hover:bg-teal-600', check: 'text-teal-500' },
     indigo: { bg: 'bg-indigo-500', hover: 'hover:bg-indigo-600', check: 'text-indigo-500' },
     purple: { bg: 'bg-purple-500', hover: 'hover:bg-purple-600', check: 'text-purple-500' },
     amber: { bg: 'bg-amber-500', hover: 'hover:bg-amber-600', check: 'text-amber-500' },
@@ -177,7 +197,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[95vh] overflow-y-auto w-[95vw]">
+      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto w-[95vw]">
         <DialogHeader className="relative">
           <Button
             variant="ghost"
@@ -200,7 +220,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
           </div>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-6">
           {upgradePlans.map((planKey) => {
             const plan = planDetails[planKey];
             const PlanIcon = plan.icon;

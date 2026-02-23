@@ -25,39 +25,165 @@ func NewClickHouseEventRepository(conn driver.Conn, logger zerolog.Logger) *Clic
 }
 
 func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
-	query := `
-	CREATE TABLE IF NOT EXISTS events (
-		id UUID,
-		website_id String,
-		visitor_id String,
-		session_id String,
-		event_type String,
-		page String,
-		referrer Nullable(String),
-		user_agent Nullable(String),
-		ip_address Nullable(String),
-		country Nullable(String),
-		country_code Nullable(String),
-		city Nullable(String),
-		region Nullable(String),
-		continent Nullable(String),
-		browser Nullable(String),
-		device Nullable(String),
-		os Nullable(String),
-		utm_source Nullable(String),
-		utm_medium Nullable(String),
-		utm_campaign Nullable(String),
-		utm_term Nullable(String),
-		utm_content Nullable(String),
-		time_on_page Int64,
-		properties String,
-		timestamp DateTime64(3, 'UTC'),
-		created_at DateTime64(3, 'UTC')
-	) ENGINE = MergeTree()
-	PARTITION BY toYYYYMM(timestamp)
-	ORDER BY (website_id, timestamp, event_type)`
+	queries := []string{
+		// Main events table
+		`CREATE TABLE IF NOT EXISTS events (
+			id UUID,
+			website_id String,
+			visitor_id String,
+			session_id String,
+			event_type String,
+			page String,
+			referrer Nullable(String),
+			user_agent Nullable(String),
+			ip_address Nullable(String),
+			country Nullable(String),
+			country_code Nullable(String),
+			city Nullable(String),
+			region Nullable(String),
+			continent Nullable(String),
+			browser Nullable(String),
+			device Nullable(String),
+			os Nullable(String),
+			utm_source Nullable(String),
+			utm_medium Nullable(String),
+			utm_campaign Nullable(String),
+			utm_term Nullable(String),
+			utm_content Nullable(String),
+			time_on_page Int64,
+			properties String,
+			timestamp DateTime64(3, 'UTC'),
+			created_at DateTime64(3, 'UTC')
+		) ENGINE = MergeTree()
+		PARTITION BY toYYYYMM(timestamp)
+		ORDER BY (website_id, timestamp, event_type)`,
 
-	return r.conn.Exec(ctx, query)
+		// Daily aggregated stats
+		`CREATE TABLE IF NOT EXISTS daily_stats (
+			website_id String,
+			day Date,
+			page_views SimpleAggregateFunction(sum, UInt64),
+			unique_visitors AggregateFunction(uniq, String),
+			sessions AggregateFunction(uniq, String)
+		) ENGINE = AggregatingMergeTree()
+		PARTITION BY toYYYYMM(day)
+		ORDER BY (website_id, day)`,
+
+		`CREATE MATERIALIZED VIEW IF NOT EXISTS mv_daily_stats
+		TO daily_stats
+		AS SELECT
+			website_id,
+			toDate(timestamp) AS day,
+			count() AS page_views,
+			uniqState(visitor_id) AS unique_visitors,
+			uniqState(session_id) AS sessions
+		FROM events
+		WHERE event_type = 'pageview'
+		GROUP BY website_id, day`,
+
+		// Hourly aggregated stats
+		`CREATE TABLE IF NOT EXISTS hourly_stats (
+			website_id String,
+			hour DateTime,
+			page_views SimpleAggregateFunction(sum, UInt64),
+			unique_visitors AggregateFunction(uniq, String),
+			sessions AggregateFunction(uniq, String)
+		) ENGINE = AggregatingMergeTree()
+		PARTITION BY toYYYYMM(hour)
+		ORDER BY (website_id, hour)
+		TTL hour + INTERVAL 90 DAY`,
+
+		`CREATE MATERIALIZED VIEW IF NOT EXISTS mv_hourly_stats
+		TO hourly_stats
+		AS SELECT
+			website_id,
+			toStartOfHour(timestamp) AS hour,
+			count() AS page_views,
+			uniqState(visitor_id) AS unique_visitors,
+			uniqState(session_id) AS sessions
+		FROM events
+		WHERE event_type = 'pageview'
+		GROUP BY website_id, hour`,
+
+		// Daily page stats
+		`CREATE TABLE IF NOT EXISTS daily_page_stats (
+			website_id String,
+			day Date,
+			page String,
+			page_views SimpleAggregateFunction(sum, UInt64),
+			unique_visitors AggregateFunction(uniq, String)
+		) ENGINE = AggregatingMergeTree()
+		PARTITION BY toYYYYMM(day)
+		ORDER BY (website_id, day, page)`,
+
+		`CREATE MATERIALIZED VIEW IF NOT EXISTS mv_daily_page_stats
+		TO daily_page_stats
+		AS SELECT
+			website_id,
+			toDate(timestamp) AS day,
+			page,
+			count() AS page_views,
+			uniqState(visitor_id) AS unique_visitors
+		FROM events
+		WHERE event_type = 'pageview'
+		GROUP BY website_id, day, page`,
+
+		// Daily country stats
+		`CREATE TABLE IF NOT EXISTS daily_country_stats (
+			website_id String,
+			day Date,
+			country String,
+			country_code String,
+			page_views SimpleAggregateFunction(sum, UInt64),
+			unique_visitors AggregateFunction(uniq, String)
+		) ENGINE = AggregatingMergeTree()
+		PARTITION BY toYYYYMM(day)
+		ORDER BY (website_id, day, country)`,
+
+		`CREATE MATERIALIZED VIEW IF NOT EXISTS mv_daily_country_stats
+		TO daily_country_stats
+		AS SELECT
+			website_id,
+			toDate(timestamp) AS day,
+			COALESCE(country, 'Unknown') AS country,
+			COALESCE(country_code, '') AS country_code,
+			count() AS page_views,
+			uniqState(visitor_id) AS unique_visitors
+		FROM events
+		WHERE event_type = 'pageview'
+		GROUP BY website_id, day, country, country_code`,
+
+		// Daily referrer stats
+		`CREATE TABLE IF NOT EXISTS daily_referrer_stats (
+			website_id String,
+			day Date,
+			referrer String,
+			page_views SimpleAggregateFunction(sum, UInt64),
+			unique_visitors AggregateFunction(uniq, String)
+		) ENGINE = AggregatingMergeTree()
+		PARTITION BY toYYYYMM(day)
+		ORDER BY (website_id, day, referrer)`,
+
+		`CREATE MATERIALIZED VIEW IF NOT EXISTS mv_daily_referrer_stats
+		TO daily_referrer_stats
+		AS SELECT
+			website_id,
+			toDate(timestamp) AS day,
+			COALESCE(referrer, 'direct') AS referrer,
+			count() AS page_views,
+			uniqState(visitor_id) AS unique_visitors
+		FROM events
+		WHERE event_type = 'pageview'
+		GROUP BY website_id, day, referrer`,
+	}
+
+	for _, q := range queries {
+		if err := r.conn.Exec(ctx, q); err != nil {
+			r.logger.Warn().Err(err).Msg("ClickHouse schema statement failed (may already exist)")
+		}
+	}
+
+	return nil
 }
 
 func (r *ClickHouseEventRepository) Create(ctx context.Context, event *models.Event) error {
