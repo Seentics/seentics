@@ -35,13 +35,14 @@ func (m *Migrator) RunMigrations(ctx context.Context) error {
 	defer sqlDB.Close()
 
 	// Create postgres driver instance
+	m.logger.Debug().Msg("Creating postgres driver instance")
 	driver, err := postgres.WithInstance(sqlDB, &postgres.Config{})
 	if err != nil {
 		return fmt.Errorf("failed to create postgres driver: %w", err)
 	}
 
 	// Create migrate instance
-	// Path is relative to the binary's working directory (repo root in Docker)
+	m.logger.Debug().Msg("Creating migrate instance")
 	migrator, err := migrate.NewWithDatabaseInstance(
 		"file://internal/shared/migrations",
 		"postgres",
@@ -50,6 +51,7 @@ func (m *Migrator) RunMigrations(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create migrate instance: %w", err)
 	}
+	m.logger.Debug().Msg("Migrate instance created")
 	defer migrator.Close()
 
 	// Get current version

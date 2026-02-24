@@ -428,7 +428,7 @@ func setupLogger(cfg *config.Config) zerolog.Logger {
 	if cfg.Environment == "production" {
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 		zerolog.SetGlobalLevel(level)
-		return zerolog.New(os.Stdout).Level(level).With().Timestamp().Str("service", "analytics").Str("version", "1.0.0").Logger().Sample(&zerolog.BasicSampler{N: 100})
+		return zerolog.New(os.Stdout).Level(level).With().Timestamp().Str("service", "analytics").Str("version", "1.0.0").Logger()
 	} else {
 		zerolog.TimeFieldFormat = time.RFC3339
 		zerolog.SetGlobalLevel(level)
