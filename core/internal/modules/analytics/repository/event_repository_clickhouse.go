@@ -1,11 +1,13 @@
 package repository
 
 import (
-	"github.com/Seentics/seentics/internal/modules/analytics/models"
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
+
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/google/uuid"
@@ -182,19 +184,25 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 
 	for _, q := range queries {
 		if err := r.conn.Exec(ctx, q); err != nil {
-			r.logger.Warn().Err(err).Msg("ClickHouse schema statement failed (may already exist)")
+			// Check if it's "Table already exists" or similar common non-fatal errors
+			if strings.Contains(err.Error(), "already exists") {
+				continue
+			}
+			return fmt.Errorf("failed to execute ClickHouse schema statement: %w", err)
 		}
 	}
 
 	// Ensure columns added after initial schema creation exist on pre-existing tables.
-	// ALTER TABLE ... ADD COLUMN IF NOT EXISTS is idempotent in ClickHouse.
 	alterQueries := []string{
 		`ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude Float64 DEFAULT 0 AFTER continent`,
 		`ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude Float64 DEFAULT 0 AFTER latitude`,
 	}
 	for _, q := range alterQueries {
 		if err := r.conn.Exec(ctx, q); err != nil {
-			r.logger.Warn().Err(err).Msg("ClickHouse ALTER TABLE failed (column may already exist)")
+			if strings.Contains(err.Error(), "already exists") {
+				continue
+			}
+			r.logger.Warn().Err(err).Msg("ClickHouse ALTER TABLE failed")
 		}
 	}
 
