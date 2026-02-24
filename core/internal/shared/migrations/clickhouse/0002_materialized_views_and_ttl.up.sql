@@ -1,5 +1,5 @@
 -- Add TTL to auto-expire events older than 2 years
-ALTER TABLE events MODIFY TTL timestamp + INTERVAL 2 YEAR;
+ALTER TABLE events MODIFY TTL toDateTime(timestamp) + INTERVAL 2 YEAR;
 
 -- Daily aggregated stats (auto-populated on insert via materialized view)
 CREATE TABLE IF NOT EXISTS daily_stats (
