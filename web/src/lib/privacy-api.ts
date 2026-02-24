@@ -91,9 +91,7 @@ class PrivacyAPI {
     };
   }): Promise<{ success: boolean; data: { request: PrivacyRequest } }> {
     try {
-      console.log('Creating privacy request:', request);
       const response = await api.post('/user/privacy/requests', request);
-      console.log('Privacy request response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Failed to create privacy request:', error);

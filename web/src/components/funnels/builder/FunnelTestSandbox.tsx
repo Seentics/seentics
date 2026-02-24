@@ -22,11 +22,11 @@ interface FunnelTestSandboxProps {
   websiteId: string;
 }
 
-export function FunnelTestSandbox({ 
-  isOpen, 
-  onClose, 
+export function FunnelTestSandbox({
+  isOpen,
+  onClose,
   funnel,
-  websiteId 
+  websiteId
 }: FunnelTestSandboxProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isTesting, setIsTesting] = useState(false);
@@ -46,7 +46,7 @@ export function FunnelTestSandbox({
       setShowIframe(false);
       setConversionRate(0);
       setDropoffStep(null);
-      
+
       // Initialize test steps
       const steps: FunnelStep[] = funnel.steps.map((step, index) => ({
         id: step.id || `step_${index}`,
@@ -56,7 +56,7 @@ export function FunnelTestSandbox({
         status: 'pending'
       }));
       setTestSteps(steps);
-      
+
       // Load iframe after a short delay
       setTimeout(() => {
         setIsLoading(false);
@@ -71,7 +71,6 @@ export function FunnelTestSandbox({
     // Listen for messages from iframe
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'FUNNEL_TEST_READY') {
-        console.log('Iframe ready for funnel testing');
       } else if (event.data.type === 'STEP_PROGRESSED') {
         const { stepIndex } = event.data;
         setCurrentStepIndex(stepIndex);
@@ -94,7 +93,7 @@ export function FunnelTestSandbox({
   }, [showIframe, testSteps]);
 
   const updateStepStatus = (index: number, status: FunnelStep['status']) => {
-    setTestSteps(prev => prev.map((step, i) => 
+    setTestSteps(prev => prev.map((step, i) =>
       i === index ? { ...step, status, timestamp: Date.now() } : step
     ));
   };
@@ -106,9 +105,9 @@ export function FunnelTestSandbox({
     setCurrentStepIndex(-1);
     setConversionRate(0);
     setDropoffStep(null);
-    
+
     // Reset all steps
-    setTestSteps(prev => prev.map(step => ({...step, status: 'pending' as const})));
+    setTestSteps(prev => prev.map(step => ({ ...step, status: 'pending' as const })));
 
     // Send funnel config to iframe
     iframeRef.current.contentWindow?.postMessage({
@@ -180,7 +179,7 @@ export function FunnelTestSandbox({
                 <span className="text-2xl font-bold text-emerald-500">{currentConversionRate}%</span>
               </div>
               <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div 
+                <div
                   className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
                   style={{ width: `${currentConversionRate}%` }}
                 />
@@ -204,26 +203,24 @@ export function FunnelTestSandbox({
                     <div className="absolute left-5 -top-3 w-0.5 h-3 bg-slate-700" />
                   )}
                   <div
-                    className={`p-3 rounded-lg border transition-all ${
-                      step.status === 'completed'
+                    className={`p-3 rounded-lg border transition-all ${step.status === 'completed'
                         ? 'bg-emerald-500/10 border-emerald-500/30'
                         : step.status === 'current'
-                        ? 'bg-blue-500/10 border-blue-500/30 ring-2 ring-blue-500/20'
-                        : step.status === 'dropped'
-                        ? 'bg-red-500/10 border-red-500/30'
-                        : 'bg-slate-800/50 border-slate-700'
-                    }`}
+                          ? 'bg-blue-500/10 border-blue-500/30 ring-2 ring-blue-500/20'
+                          : step.status === 'dropped'
+                            ? 'bg-red-500/10 border-red-500/30'
+                            : 'bg-slate-800/50 border-slate-700'
+                      }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold ${
-                        step.status === 'completed'
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold ${step.status === 'completed'
                           ? 'bg-emerald-500 text-white'
                           : step.status === 'current'
-                          ? 'bg-blue-500 text-white'
-                          : step.status === 'dropped'
-                          ? 'bg-red-500 text-white'
-                          : 'bg-slate-700 text-slate-400'
-                      }`}>
+                            ? 'bg-blue-500 text-white'
+                            : step.status === 'dropped'
+                              ? 'bg-red-500 text-white'
+                              : 'bg-slate-700 text-slate-400'
+                        }`}>
                         {step.status === 'completed' ? (
                           <CheckCircle2 className="h-5 w-5" />
                         ) : step.status === 'current' ? (

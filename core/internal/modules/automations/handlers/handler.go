@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"analytics-app/internal/modules/automations/models"
-	"analytics-app/internal/modules/automations/services"
+	"github.com/Seentics/seentics/internal/modules/automations/models"
+	"github.com/Seentics/seentics/internal/modules/automations/services"
 	"fmt"
 	"net/http"
 

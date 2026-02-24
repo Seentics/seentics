@@ -1,14 +1,23 @@
 package services
 
 import (
-	"analytics-app/internal/modules/heatmaps/models"
-	"analytics-app/internal/modules/heatmaps/repository"
-	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"context"
 	"fmt"
+	"math"
+	"sync"
 	"time"
 
+	"github.com/Seentics/seentics/internal/modules/heatmaps/models"
+	"github.com/Seentics/seentics/internal/modules/heatmaps/repository"
+	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
+
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
+)
+
+const (
+	BatchSize     = 2000
+	FlushInterval = 5 * time.Second
 )
 
 type HeatmapService interface {
@@ -19,9 +28,17 @@ type HeatmapService interface {
 	GetTopElements(ctx context.Context, websiteID string, url string, eventType string, from, to time.Time, userID string) ([]models.TopElement, error)
 	DeleteHeatmapPage(ctx context.Context, websiteID string, url string, userID string) error
 	BulkDeleteHeatmapPages(ctx context.Context, websiteID string, urls []string, userID string) error
+	Shutdown(timeout time.Duration) error
 }
 
 func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, origin string) error {
+	s.shutdownMu.RLock()
+	if s.isShutdown {
+		s.shutdownMu.RUnlock()
+		return fmt.Errorf("service is shutdown")
+	}
+	s.shutdownMu.RUnlock()
+
 	// Validate website existence
 	w, err := s.websites.GetWebsiteByAnyID(context.Background(), req.WebsiteID)
 	if err != nil {
@@ -32,28 +49,221 @@ func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, orig
 		return fmt.Errorf("website is inactive: %s", req.WebsiteID)
 	}
 
+	// Canonicalize website ID
+	req.WebsiteID = w.ID.String()
+
 	// 1. Domain Validation
 	if !s.websites.ValidateOriginDomain(origin, w.URL) {
 		return fmt.Errorf("domain mismatch: origin=%s, expected=%s", origin, w.URL)
 	}
 
-	// 2. Feature Toggle Check - Only check if explicitly disabled (manual override)
+	// 2. Feature Toggle Check
 	if !w.HeatmapEnabled {
 		return fmt.Errorf("heatmap recording is manually disabled for this website. enable it in settings")
 	}
 
-	return s.repo.RecordHeatmap(context.Background(), w.ID.String(), req.Points)
+	// Push points to buffer
+	for i := range req.Points {
+		req.Points[i].WebsiteID = req.WebsiteID
+		if req.Points[i].URL == "" {
+			// If URL is missing, it's likely a bad request from tracker or old version
+			continue
+		}
+		select {
+		case s.pointsChan <- req.Points[i]:
+			// Success
+		default:
+			s.logger.Warn().Msg("Heatmap points channel full, dropping point")
+		}
+	}
+
+	return nil
 }
 
 type heatmapService struct {
 	repo     repository.HeatmapRepository
 	websites *websiteServicePkg.WebsiteService
+	logger   zerolog.Logger
+
+	pointsChan chan models.HeatmapPoint
+	batchChan  chan []models.HeatmapPoint
+
+	ctx        context.Context
+	cancel     context.CancelFunc
+	wg         sync.WaitGroup
+	isShutdown bool
+	shutdownMu sync.RWMutex
 }
 
-func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServicePkg.WebsiteService) HeatmapService {
-	return &heatmapService{
-		repo:     repo,
-		websites: websites,
+func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger) HeatmapService {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	s := &heatmapService{
+		repo:       repo,
+		websites:   websites,
+		logger:     logger,
+		pointsChan: make(chan models.HeatmapPoint, 20000), // Larger buffer for dense heatmap data
+		batchChan:  make(chan []models.HeatmapPoint, 500),
+		ctx:        ctx,
+		cancel:     cancel,
+	}
+
+	s.startHeatmapConsumer()
+	s.startBatchProcessor()
+
+	return s
+}
+
+func (s *heatmapService) startHeatmapConsumer() {
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+
+		ticker := time.NewTicker(FlushInterval)
+		defer ticker.Stop()
+
+		batch := make([]models.HeatmapPoint, 0, BatchSize)
+
+		for {
+			select {
+			case <-s.ctx.Done():
+				if len(batch) > 0 {
+					s.sendBatch(batch)
+				}
+				return
+			case point := <-s.pointsChan:
+				batch = append(batch, point)
+				if len(batch) >= BatchSize {
+					s.sendBatch(batch)
+					batch = make([]models.HeatmapPoint, 0, BatchSize)
+					ticker.Reset(FlushInterval)
+				}
+			case <-ticker.C:
+				if len(batch) > 0 {
+					s.sendBatch(batch)
+					batch = make([]models.HeatmapPoint, 0, BatchSize)
+				}
+			}
+		}
+	}()
+}
+
+func (s *heatmapService) sendBatch(batch []models.HeatmapPoint) {
+	// Aggregate points in the batch to reduce DB load
+	// key format: website_id:page_path:event_type:device_type:x_percent:y_percent:selector
+	type aggKey struct {
+		WebsiteID string
+		PagePath  string
+		EventType string
+		Device    string
+		X         int
+		Y         int
+		Selector  string
+	}
+
+	aggregated := make(map[aggKey]int)
+	for _, p := range batch {
+		key := aggKey{
+			WebsiteID: p.WebsiteID,
+			PagePath:  p.URL,
+			EventType: p.Type,
+			Device:    p.DeviceType,
+			X:         int(math.Round(p.XPercent * 100)),
+			Y:         int(math.Round(p.YPercent * 100)),
+			Selector:  p.Selector,
+		}
+		aggregated[key]++
+	}
+
+	// Convert back to points for repository (carrying intensity)
+	finalBatch := make([]models.HeatmapPoint, 0, len(aggregated))
+	for k, count := range aggregated {
+		finalBatch = append(finalBatch, models.HeatmapPoint{
+			WebsiteID:  k.WebsiteID,
+			URL:        k.PagePath,
+			Type:       k.EventType,
+			DeviceType: k.Device,
+			XPercent:   float64(k.X) / 100.0,
+			YPercent:   float64(k.Y) / 100.0,
+			Selector:   k.Selector,
+			Intensity:  count,
+		})
+	}
+
+	select {
+	case s.batchChan <- finalBatch:
+		// Success
+	case <-s.ctx.Done():
+		s.logger.Warn().Msg("Heatmap batch dropped during shutdown")
+	default:
+		s.logger.Warn().Msg("Heatmap batch channel full, dropping batch")
+	}
+}
+
+func (s *heatmapService) startBatchProcessor() {
+	s.wg.Add(1)
+	go func() {
+		defer s.wg.Done()
+
+		for {
+			select {
+			case <-s.ctx.Done():
+				// Flush remaining batches
+				for {
+					select {
+					case batch := <-s.batchChan:
+						s.processBatch(batch)
+					default:
+						return
+					}
+				}
+			case batch := <-s.batchChan:
+				s.processBatch(batch)
+			}
+		}
+	}()
+}
+
+func (s *heatmapService) processBatch(batch []models.HeatmapPoint) {
+	if len(batch) == 0 {
+		return
+	}
+
+	// Note: We need to group by websiteID because the repo call takes websiteID as arg
+	// In the future, the repo could be updated to take points with WebsiteID internally.
+	// For now, we group by websiteID.
+	byWebsite := make(map[string][]models.HeatmapPoint)
+	for _, p := range batch {
+		byWebsite[p.WebsiteID] = append(byWebsite[p.WebsiteID], p)
+	}
+
+	ctx := context.Background()
+	for websiteID, points := range byWebsite {
+		if err := s.repo.RecordHeatmap(ctx, websiteID, points); err != nil {
+			s.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to flush heatmap batch to DB")
+		}
+	}
+}
+
+func (s *heatmapService) Shutdown(timeout time.Duration) error {
+	s.logger.Info().Msg("Shutting down heatmap service")
+	s.shutdownMu.Lock()
+	s.isShutdown = true
+	s.shutdownMu.Unlock()
+
+	s.cancel()
+
+	done := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("heatmap service shutdown timed out")
 	}
 }
 

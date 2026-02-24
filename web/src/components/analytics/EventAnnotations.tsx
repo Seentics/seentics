@@ -76,7 +76,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
             Annotate
           </Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <form onSubmit={handleSubmit}>
             <DialogHeader>
               <DialogTitle>Add Event Annotation</DialogTitle>
@@ -158,47 +158,50 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
               </Button>
             </DialogFooter>
           </form>
+
+          {/* Annotations List */}
+          {annotations.length > 0 && (
+            <div className="mt-8 border-t pt-6">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Recent Events</p>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                {annotations
+                  .sort((a, b) => b.date.getTime() - a.date.getTime())
+                  .slice(0, 10)
+                  .map((annotation) => (
+                    <div
+                      key={annotation.id}
+                      className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: annotation.color }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{annotation.title}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(annotation.date, 'MMM d, yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(annotation.id);
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
-
-      {/* Annotations List */}
-      {annotations.length > 0 && (
-        <div className="mt-4 space-y-2">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Recent Events</p>
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {annotations
-              .sort((a, b) => b.date.getTime() - a.date.getTime())
-              .slice(0, 5)
-              .map((annotation) => (
-                <div
-                  key={annotation.id}
-                  className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-card/50 hover:bg-card transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: annotation.color }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{annotation.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(annotation.date, 'MMM d, yyyy')}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => onDelete(annotation.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

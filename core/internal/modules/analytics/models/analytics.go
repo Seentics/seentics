@@ -19,7 +19,6 @@ type TrafficSummary struct {
 	NewVisitors        int     `json:"new_visitors" db:"new_visitors"`
 	ReturningVisitors  int     `json:"returning_visitors" db:"returning_visitors"`
 	EngagementScore    float64 `json:"engagement_score" db:"engagement_score"`
-	RetentionRate      float64 `json:"retention_rate" db:"retention_rate"`
 }
 
 // DashboardMetrics - USED in dashboard_analytics.go

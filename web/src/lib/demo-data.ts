@@ -260,23 +260,37 @@ export const getDemoData = () => {
             },
         },
 
-        // Activity trends
+        // Activity trends (matches backend ActivityTrendsResponse shape)
         activityTrends: {
-            trends: {
-                hourly_pattern: Array.from({ length: 24 }, (_, hour) => ({
-                    hour,
-                    avg_visitors: Math.floor(50 + Math.random() * 100 + Math.sin(hour / 4) * 50),
-                })),
-                daily_pattern: [
-                    { day: 'Monday', avg_visitors: 1234 },
-                    { day: 'Tuesday', avg_visitors: 1345 },
-                    { day: 'Wednesday', avg_visitors: 1456 },
-                    { day: 'Thursday', avg_visitors: 1543 },
-                    { day: 'Friday', avg_visitors: 1432 },
-                    { day: 'Saturday', avg_visitors: 987 },
-                    { day: 'Sunday', avg_visitors: 876 },
-                ],
-            },
+            website_id: 'demo',
+            trends: Array.from({ length: 24 }, (_, hour) => {
+                const curve = Math.sin((hour - 6) * Math.PI / 12) + 1;
+                const visitors = Math.floor(80 + (curve * 350) + Math.random() * 60);
+                const pageViews = Math.floor(visitors * (2.5 + Math.random()));
+                const sessions = Math.floor(visitors * 0.7);
+                const ts = new Date();
+                ts.setHours(hour, 0, 0, 0);
+                return {
+                    timestamp: ts.toISOString(),
+                    visitors,
+                    page_views: pageViews,
+                    events: pageViews,
+                    sessions,
+                    engagement: sessions > 0 ? +(pageViews / sessions).toFixed(1) : 0,
+                    label: `${hour.toString().padStart(2, '0')}:00`,
+                };
+            }),
+        },
+
+        // Goal conversions (matches backend goal stats shape)
+        goalStats: {
+            goals: [
+                { event_type: 'Signup Completed', count: 4876, sample_properties: { page: '/signup-complete' } },
+                { event_type: 'Newsletter Subscribe', count: 8765, sample_properties: { element_id: 'newsletter-form', form_name: 'newsletter' } },
+                { event_type: 'Pricing Page Visit', count: 12543, sample_properties: { page: '/pricing' } },
+                { event_type: 'Demo Video Watched', count: 6543, sample_properties: { video_id: 'product-demo', element_text: 'Watch Demo' } },
+                { event_type: 'Contact Form Submit', count: 2187, sample_properties: { form_name: 'contact-form', element_id: 'contact-submit' } },
+            ],
         },
 
         // Retention data

@@ -1,8 +1,8 @@
 package tests
 
 import (
-	"analytics-app/internal/modules/analytics/models"
-	"analytics-app/internal/shared/utils"
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
+	"github.com/Seentics/seentics/internal/shared/utils"
 	"testing"
 	"time"
 

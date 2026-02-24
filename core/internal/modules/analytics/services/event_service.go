@@ -1,17 +1,17 @@
 package services
 
 import (
-	"analytics-app/internal/modules/analytics/models"
-	"analytics-app/internal/modules/analytics/repository"
-	natsService "analytics-app/internal/shared/nats"
 	"context"
 	"fmt"
 	"sync"
 	"time"
 
-	autoServicePkg "analytics-app/internal/modules/automations/services"
-	websiteServicePkg "analytics-app/internal/modules/websites/services"
-	"analytics-app/internal/shared/utils"
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
+	"github.com/Seentics/seentics/internal/modules/analytics/repository"
+
+	autoServicePkg "github.com/Seentics/seentics/internal/modules/automations/services"
+	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
+	"github.com/Seentics/seentics/internal/shared/utils"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
@@ -19,7 +19,7 @@ import (
 
 const (
 	// Optimized batch collection for better throughput
-	BatchSize     = 1000
+	BatchSize     = 2000
 	FlushInterval = 5 * time.Second // Increased from 2s to balance latency vs efficiency
 )
 
@@ -27,96 +27,44 @@ type EventService struct {
 	repo     repository.EventRepository
 	db       *pgxpool.Pool
 	logger   zerolog.Logger
-	nats     *natsService.NATSService
 	websites *websiteServicePkg.WebsiteService
 	auto     *autoServicePkg.AutomationService // Added for orchestration
 	engine   *autoServicePkg.ExecutionEngine   // Added for execution
 
-	// Simple event channel for async processing (fed from NATS)
+	// In-memory event channel for direct processing (replacing NATS)
+	eventChan chan models.Event
+	// Simple event channel for async processing
 	batchChan chan []models.Event
 
 	// Shutdown control
-	ctx            context.Context
-	cancel         context.CancelFunc
-	wg             sync.WaitGroup
-	isShutdown     bool
-	shutdownMu     sync.RWMutex
-	partitionCache sync.Map // cache for verified partitions
+	ctx        context.Context
+	cancel     context.CancelFunc
+	wg         sync.WaitGroup
+	isShutdown bool
+	shutdownMu sync.RWMutex
 }
 
-func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, natsSvc *natsService.NATSService, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger) *EventService {
+func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger) *EventService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	service := &EventService{
 		repo:      repo,
 		db:        db,
-		nats:      natsSvc,
 		websites:  websiteSvc,
 		auto:      autoSvc,
 		engine:    autoServicePkg.NewExecutionEngine(autoSvc, logger),
 		logger:    logger,
+		eventChan: make(chan models.Event, 10000), // Large buffer for bursts
 		batchChan: make(chan []models.Event, 500),
 		ctx:       ctx,
 		cancel:    cancel,
 	}
 
-	// Start NATS consumer and internal batch processor
-	service.startNATSConsumer()
+	// Start internal event consumer and batch processor
+	service.startEventConsumer()
 	service.startBatchProcessor()
 
 	return service
-}
-
-// ensurePartitionExists checks if a partition exists for the given date and creates it if needed
-func (s *EventService) ensurePartitionExists(ctx context.Context, targetDate time.Time) error {
-	// Calculate partition boundaries (monthly partitions)
-	startOfMonth := time.Date(targetDate.Year(), targetDate.Month(), 1, 0, 0, 0, 0, time.UTC)
-	endOfMonth := startOfMonth.AddDate(0, 1, 0)
-
-	partitionName := fmt.Sprintf("events_y%dm%02d", startOfMonth.Year(), startOfMonth.Month())
-
-	// Check in-memory cache first to avoid DB roundtrip
-	if _, cached := s.partitionCache.Load(partitionName); cached {
-		return nil
-	}
-
-	startDate := startOfMonth.Format("2006-01-02")
-	endDate := endOfMonth.Format("2006-01-02")
-
-	// Check if partition already exists in DB
-	var exists bool
-	checkQuery := `
-		SELECT EXISTS (
-			SELECT 1 FROM pg_tables
-			WHERE tablename = $1 AND schemaname = 'public'
-		)
-	`
-	err := s.db.QueryRow(ctx, checkQuery, partitionName).Scan(&exists)
-	if err != nil {
-		return fmt.Errorf("failed to check if partition exists: %w", err)
-	}
-
-	if !exists {
-		// Create the partition
-		createQuery := fmt.Sprintf(
-			"CREATE TABLE IF NOT EXISTS %s PARTITION OF events FOR VALUES FROM ('%s') TO ('%s')",
-			partitionName, startDate, endDate,
-		)
-		_, err := s.db.Exec(ctx, createQuery)
-		if err != nil {
-			return fmt.Errorf("failed to create partition %s: %w", partitionName, err)
-		}
-		s.logger.Info().
-			Str("partition_name", partitionName).
-			Str("start_date", startDate).
-			Str("end_date", endDate).
-			Msg("Created new partition")
-	}
-
-	// Store in cache for future events this month
-	s.partitionCache.Store(partitionName, true)
-
-	return nil
 }
 
 func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*models.EventResponse, error) {
@@ -165,10 +113,13 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 	// Enrich event data
 	s.enrichEventData(ctx, event)
 
-	// Publish to NATS
-	if err := s.nats.ProduceEvent(ctx, *event); err != nil {
-		s.logger.Error().Err(err).Msg("Failed to publish event to NATS")
-		return nil, fmt.Errorf("failed to process event")
+	// Push to internal channel for async processing
+	select {
+	case s.eventChan <- *event:
+		// Success
+	default:
+		s.logger.Warn().Msg("Event channel full, dropping event")
+		return nil, fmt.Errorf("server busy, try again later")
 	}
 
 	return &models.EventResponse{
@@ -232,12 +183,13 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 
 		s.enrichEventData(ctx, &req.Events[i])
 
-		// Publish to NATS
-		if err := s.nats.ProduceEvent(ctx, req.Events[i]); err != nil {
-			s.logger.Error().Err(err).Msg("Failed to publish batch event to NATS")
-			continue
+		// Push to internal channel
+		select {
+		case s.eventChan <- req.Events[i]:
+			accepted++
+		default:
+			s.logger.Warn().Msg("Event channel full, dropping batch event")
 		}
-		accepted++
 	}
 
 	return &models.BatchEventResponse{
@@ -247,36 +199,11 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	}, nil
 }
 
-// startNATSConsumer consumes from NATS and feeds into the batch processor
-func (s *EventService) startNATSConsumer() {
+// startEventConsumer consumes from the internal channel and feeds into the batch processor
+func (s *EventService) startEventConsumer() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
-
-		eventChan := make(chan models.Event, BatchSize*2)
-		consumerCtx, consumerCancel := context.WithCancel(s.ctx)
-		defer consumerCancel()
-
-		// Run NATS consumer in a separate goroutine
-		go s.nats.ConsumeEvents(consumerCtx, func(event models.Event) error {
-			// Trigger automations (async)
-			eventData := map[string]interface{}{
-				"event_type": event.EventType,
-				"page":       event.Page,
-				"visitor_id": event.VisitorID,
-				"session_id": event.SessionID,
-				"properties": event.Properties,
-				"timestamp":  event.Timestamp,
-			}
-			go s.engine.ProcessEvent(s.ctx, event.WebsiteID, eventData)
-
-			select {
-			case eventChan <- event:
-				return nil
-			case <-consumerCtx.Done():
-				return consumerCtx.Err()
-			}
-		})
 
 		ticker := time.NewTicker(FlushInterval)
 		defer ticker.Stop()
@@ -290,7 +217,18 @@ func (s *EventService) startNATSConsumer() {
 					s.sendBatch(batch)
 				}
 				return
-			case event := <-eventChan:
+			case event := <-s.eventChan:
+				// Trigger automations (async)
+				eventData := map[string]interface{}{
+					"event_type": event.EventType,
+					"page":       event.Page,
+					"visitor_id": event.VisitorID,
+					"session_id": event.SessionID,
+					"properties": event.Properties,
+					"timestamp":  event.Timestamp,
+				}
+				go s.engine.ProcessEvent(s.ctx, event.WebsiteID, eventData)
+
 				batch = append(batch, event)
 				if len(batch) >= BatchSize {
 					s.sendBatch(batch)
@@ -358,33 +296,14 @@ func (s *EventService) processBatch(batch []models.Event) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	// Ensure partitions exist for all events in the batch
-	uniqueDates := make(map[string]time.Time)
+	// Failsafe normalization: ensure website_id is canonical
 	for i := range batch {
 		event := &batch[i]
 
-		// Failsafe normalization: ensure website_id is canonical
-		// We do this here too because messages might have been produced using the old UUID
-		// if the producer service hadn't been updated yet or if there's a leak.
 		if len(event.WebsiteID) > 24 { // Likely a UUID
 			if website, err := s.websites.GetWebsiteByAnyID(ctx, event.WebsiteID); err == nil {
 				event.WebsiteID = website.SiteID
 			}
-		}
-
-		if !event.Timestamp.IsZero() {
-			dateKey := event.Timestamp.Format("2006-01")
-			uniqueDates[dateKey] = event.Timestamp
-		}
-	}
-
-	// Create partitions for unique months
-	for _, eventTime := range uniqueDates {
-		if err := s.ensurePartitionExists(ctx, eventTime); err != nil {
-			s.logger.Warn().
-				Err(err).
-				Time("event_time", eventTime).
-				Msg("Failed to ensure partition exists, continuing anyway")
 		}
 	}
 

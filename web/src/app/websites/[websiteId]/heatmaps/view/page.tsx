@@ -132,7 +132,7 @@ export default function HeatmapViewPage() {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data && typeof event.data === 'object' && event.data.type?.startsWith('SEENTICS_')) {
-        console.log('[HeatmapView] Received message:', event.data);
+        // Handle seentics internal messages
       }
       if (event.data?.type === 'SEENTICS_DIMENSIONS') {
         const { height } = event.data;

@@ -1,9 +1,9 @@
 package handlers
 
 import (
-	"analytics-app/internal/modules/replays/models"
-	"analytics-app/internal/modules/replays/services"
-	"analytics-app/internal/shared/utils"
+	"github.com/Seentics/seentics/internal/modules/replays/models"
+	"github.com/Seentics/seentics/internal/modules/replays/services"
+	"github.com/Seentics/seentics/internal/shared/utils"
 	"net/http"
 	"strconv"
 	"strings"

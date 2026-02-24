@@ -61,13 +61,15 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             title: 'Heatmaps',
             href: `/websites/${websiteId}/heatmaps`,
             icon: MousePointer2,
-            description: 'User Interaction Maps'
+            description: 'User Interaction Maps',
+            isLocked: isDemo
         },
         {
             title: 'Session Replay',
             href: `/websites/${websiteId}/replays`,
             icon: Video,
-            description: 'Watch User Sessions'
+            description: 'Watch User Sessions',
+            isLocked: isDemo
         },
         {
             title: 'Automations',
@@ -113,14 +115,6 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             description: 'Help & Contact',
             isLocked: isDemo,
             enterpriseOnly: true
-        },
-        {
-            title: 'Admin',
-            href: `/admin`,
-            icon: Lock,
-            description: 'Internal Management',
-            enterpriseOnly: true,
-            adminOnly: true
         },
     ];
 
@@ -212,10 +206,9 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                     <div className="flex flex-col">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm tracking-tight">{link.title}</span>
-                                            {/* {(link as any).isLocked && (
-                                                <Lock size={12} className="text-muted-foreground/60" />
-                                            )} */}
-
+                                            {(link as any).isLocked && (
+                                                <Lock size={11} className="text-muted-foreground/40" />
+                                            )}
                                         </div>
                                     </div>
                                 )}

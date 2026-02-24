@@ -1,8 +1,8 @@
 package services
 
 import (
-	"analytics-app/internal/modules/analytics/repository/privacy"
-	websiteServicePkg "analytics-app/internal/modules/websites/services"
+	"github.com/Seentics/seentics/internal/modules/analytics/repository/privacy"
+	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
 	"context"
 	"fmt"
 	"time"

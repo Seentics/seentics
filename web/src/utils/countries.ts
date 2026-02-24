@@ -270,13 +270,13 @@ export const getCountryCode = (name: string): string | undefined => {
   return COUNTRIES[name]?.code;
 };
 
-// Get country flag URL
+// Get country flag URL (local images)
 export const getCountryFlag = (name: string): string => {
   const country = COUNTRIES[name];
   if (!country) {
-    return `https://flagcdn.com/w40/${name.substring(0, 2).toLowerCase()}.png`;
+    return `/images/country/${name.substring(0, 2).toLowerCase()}.png`;
   }
-  return `https://flagcdn.com/w40/${country.code.toLowerCase()}.png`;
+  return `/images/country/${country.code.toLowerCase()}.png`;
 };
 
 // Geography name mapping for world atlas compatibility

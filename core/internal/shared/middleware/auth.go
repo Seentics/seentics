@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"analytics-app/internal/shared/config"
+	"github.com/Seentics/seentics/internal/shared/config"
 	"fmt"
 	"net/http"
 	"os"

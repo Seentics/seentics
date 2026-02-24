@@ -14,7 +14,7 @@ declare global {
 }
 
 export default function TrackerTestDemo() {
-  const [events, setEvents] = useState<Array<{name: string, props: any, timestamp: string}>>([]);
+  const [events, setEvents] = useState<Array<{ name: string, props: any, timestamp: string }>>([]);
 
   const trackTestEvent = (eventName: string, props: Record<string, any> = {}) => {
     if (typeof window !== 'undefined' && window.seenticsTest) {
@@ -30,7 +30,6 @@ export default function TrackerTestDemo() {
   const getTrackerInfo = () => {
     if (typeof window !== 'undefined' && window.seenticsTest) {
       const info = window.seenticsTest.getInfo();
-      console.log('Tracker Info:', info);
       alert(`Tracker Info: ${JSON.stringify(info, null, 2)}`);
     }
   };
@@ -39,15 +38,15 @@ export default function TrackerTestDemo() {
     <div className="p-6 bg-gray-50 rounded">
       {/* Load the tracker in test mode */}
       <TrackerScript testMode={true} siteId="demo-site-123" />
-      
+
       <h2 className="text-2xl font-bold mb-4 text-gray-800">🧪 Seentics Tracker Test Demo</h2>
-      
+
       <div className="mb-6">
         <p className="text-gray-600 mb-4">
-          This demo shows how the Seentics tracker works on localhost. 
+          This demo shows how the Seentics tracker works on localhost.
           Open your browser console to see detailed tracking information.
         </p>
-        
+
         <div className="flex flex-wrap gap-2 mb-4">
           <button
             onClick={() => trackTestEvent('button_click', { button: 'test_button_1' })}
@@ -55,21 +54,21 @@ export default function TrackerTestDemo() {
           >
             Track Button Click
           </button>
-          
+
           <button
             onClick={() => trackTestEvent('form_submit', { form: 'newsletter', email: 'test@example.com' })}
             className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
           >
             Track Form Submit
           </button>
-          
+
           <button
             onClick={() => trackTestEvent('purchase', { product: 'premium_plan', amount: 99.99 })}
             className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
           >
             Track Purchase
           </button>
-          
+
           <button
             onClick={getTrackerInfo}
             className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"

@@ -28,7 +28,7 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
     if (limitType && hasReachedLimit(limitType)) {
       return limitType;
     }
-    
+
     // Check all limits to find which one is reached
     if (!subscription) return undefined;
     const limits: Array<keyof typeof subscription.usage> = ['websites', 'workflows', 'funnels', 'monthlyEvents'];
@@ -48,7 +48,6 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
   };
 
   const handleUpgrade = () => {
-    console.log('Upgrade button clicked');
     try {
       // Use window.location.href to navigate in the same tab to avoid popup blockers
       window.location.href = 'https://seentics.lemonsqueezy.com/buy/39b59b36-94d3-40a5-821c-e31b6836345c';
@@ -111,7 +110,7 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
                 </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               {subscription.plan !== 'enterprise' && (
                 <Button
@@ -123,7 +122,7 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
                   Upgrade
                 </Button>
               )}
-              
+
               <Button
                 variant="ghost"
                 size="sm"

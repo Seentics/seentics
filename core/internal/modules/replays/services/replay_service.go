@@ -1,11 +1,11 @@
 package services
 
 import (
-	"analytics-app/internal/modules/replays/models"
-	"analytics-app/internal/modules/replays/repository"
-	websiteServicePkg "analytics-app/internal/modules/websites/services"
-	"analytics-app/internal/shared/storage"
-	"analytics-app/internal/shared/utils"
+	"github.com/Seentics/seentics/internal/modules/replays/models"
+	"github.com/Seentics/seentics/internal/modules/replays/repository"
+	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
+	"github.com/Seentics/seentics/internal/shared/storage"
+	"github.com/Seentics/seentics/internal/shared/utils"
 	"bytes"
 	"compress/gzip"
 	"context"

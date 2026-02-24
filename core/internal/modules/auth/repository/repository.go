@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"analytics-app/internal/modules/auth/models"
+	"github.com/Seentics/seentics/internal/modules/auth/models"
 	"context"
 	"errors"
 	"fmt"

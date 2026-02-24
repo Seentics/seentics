@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"analytics-app/internal/modules/heatmaps/models"
-	"analytics-app/internal/modules/heatmaps/services"
+	"github.com/Seentics/seentics/internal/modules/heatmaps/models"
+	"github.com/Seentics/seentics/internal/modules/heatmaps/services"
 	"net/http"
 	"time"
 

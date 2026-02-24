@@ -23,13 +23,13 @@ The Go backend powering Seentics — handles analytics ingestion, heatmaps, sess
        │                │                │
        └────────────────┼────────────────┘
                         │
-    ┌───────────┬───────┼───────┬──────────┐
-    │           │       │       │          │
- Postgres  ClickHouse CacheGrid NATS     MinIO
-(metadata)  (events)  (cache)  (stream) (replays)
+     ┌───────────┬───────┼───────┬──────────┐
+     │           │       │       │          │
+  Postgres  ClickHouse CacheGrid   MinIO
+ (metadata)  (events)  (cache)   (replays)
 ```
 
-Events flow in through the HTTP API, get published to NATS JetStream for async processing, batched, and stored in ClickHouse (with PostgreSQL fallback). Session replay chunks go to S3-compatible storage (MinIO locally).
+Events flow in through the HTTP API, are buffered in memory for batching, and then stored in ClickHouse (with PostgreSQL fallback). Automations are triggered asynchronously. Session replay chunks go to S3-compatible storage (MinIO locally).
 
 ## Tech Stack
 
@@ -39,7 +39,7 @@ Events flow in through the HTTP API, get published to NATS JetStream for async p
 | Framework | Gin |
 | Analytics DB | ClickHouse |
 | Metadata DB | PostgreSQL 15 |
-| Streaming | NATS JetStream |
+| Buffering | In-memory batching (replaced NATS) |
 | Cache & Rate Limiting | [CacheGrid](https://github.com/skshohagmiah/cachegrid) — embedded, high-performance Go cache with built-in rate limiting, distributed locks, and LRU eviction. No external process needed. |
 | Object Storage | S3-compatible (MinIO) |
 
@@ -63,7 +63,6 @@ core/
 │       ├── database/        # PostgreSQL + ClickHouse connections
 │       ├── middleware/      # Auth, CORS, rate limiting, request logging
 │       ├── migrations/      # Auto-run SQL migrations
-│       ├── nats/            # NATS JetStream producer/consumer
 │       ├── storage/         # S3-compatible object storage
 │       └── utils/           # Geolocation, helpers
 ├── Dockerfile               # Production image
@@ -95,7 +94,7 @@ go build -o server ./cmd/api/
 ./server
 ```
 
-Prerequisites: PostgreSQL 15+, NATS 2.10+, ClickHouse (optional, falls back to Postgres). CacheGrid is embedded — no external cache server required.
+Prerequisites: PostgreSQL 15+, ClickHouse (optional, falls back to Postgres). CacheGrid is embedded — no external cache server required.
 
 ## Configuration
 
@@ -103,8 +102,6 @@ Prerequisites: PostgreSQL 15+, NATS 2.10+, ClickHouse (optional, falls back to P
 |----------|---------|-------------|
 | `PORT` | `3002` | Server port |
 | `DATABASE_URL` | — | PostgreSQL connection string |
-| `NATS_URL` | `nats://localhost:4222` | NATS server |
-| `NATS_SUBJECT_EVENTS` | `analytics.events` | NATS subject for events |
 | `JWT_SECRET` | — | JWT signing secret |
 | `CLICKHOUSE_HOST` | `localhost` | ClickHouse host |
 | `CLICKHOUSE_PORT` | `9000` | ClickHouse native port |

@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"analytics-app/internal/modules/analytics/repository"
+	"github.com/Seentics/seentics/internal/modules/analytics/repository"
 	"net/http"
 
 	"github.com/gin-gonic/gin"

@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"analytics-app/internal/modules/analytics/models"
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
 	"errors"
 	"net/url"
 	"strings"

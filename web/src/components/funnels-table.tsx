@@ -27,12 +27,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
-import { 
-  useFunnels, 
-  useFunnelAnalytics, 
-  useDeleteFunnel, 
+import {
+  useFunnels,
+  useFunnelAnalytics,
+  useDeleteFunnel,
   useUpdateFunnel,
-  type Funnel 
+  type Funnel
 } from '@/lib/analytics-api';
 import {
   AlertDialog,
@@ -63,7 +63,7 @@ function formatDate(dateString: string): string {
     const now = new Date();
     const diffTime = Math.abs(now.getTime() - date.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays === 1) {
       return 'Yesterday';
     } else if (diffDays < 7) {
@@ -72,8 +72,8 @@ function formatDate(dateString: string): string {
       const weeks = Math.floor(diffDays / 7);
       return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
     } else {
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
         day: 'numeric',
         year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
       });
@@ -94,13 +94,7 @@ function formatConversionRate(rate: number | undefined | null): string {
 // Component to display funnel performance metrics
 function FunnelPerformanceCell({ funnelId }: { funnelId: string }) {
   const { data: analyticsResponse, isLoading, error } = useFunnelAnalytics(funnelId, 7); // Last 7 days
-  
-  // Debug logging
-  console.log(`🔍 FunnelPerformanceCell - funnelId: ${funnelId}`);
-  console.log(`🔍 FunnelPerformanceCell - analyticsResponse:`, analyticsResponse);
-  console.log(`🔍 FunnelPerformanceCell - isLoading:`, isLoading);
-  console.log(`🔍 FunnelPerformanceCell - error:`, error);
-  
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 text-sm">
@@ -109,26 +103,19 @@ function FunnelPerformanceCell({ funnelId }: { funnelId: string }) {
       </div>
     );
   }
-  
+
   // Handle different response structures
   let analytics: any[] = [];
   if (analyticsResponse) {
-    // Check if it's the new response format
     if ('analytics' in analyticsResponse && Array.isArray(analyticsResponse.analytics)) {
       analytics = analyticsResponse.analytics;
-    }
-    // Check if it's the old format (direct array)
-    else if (Array.isArray(analyticsResponse)) {
+    } else if (Array.isArray(analyticsResponse)) {
       analytics = analyticsResponse;
-    }
-    // Check if it's a single analytics object
-    else if (analyticsResponse && typeof analyticsResponse === 'object') {
+    } else if (analyticsResponse && typeof analyticsResponse === 'object') {
       analytics = [analyticsResponse];
     }
   }
-  
-  console.log(`🔍 FunnelPerformanceCell - processed analytics:`, analytics);
-  
+
   if (error || !analytics || analytics.length === 0) {
     return (
       <div>
@@ -153,12 +140,12 @@ function FunnelPerformanceCell({ funnelId }: { funnelId: string }) {
       </div>
     );
   }
-  
+
   // Calculate aggregated metrics from the analytics array
   let totalVisitors = 0;
   let totalConversions = 0;
   let conversionRate = 0;
-  
+
   if (Array.isArray(analytics) && analytics.length > 0) {
     totalVisitors = analytics.reduce((sum, item) => sum + (item.total_starts || 0), 0);
     totalConversions = analytics.reduce((sum, item) => sum + (item.total_conversions || 0), 0);
@@ -166,7 +153,7 @@ function FunnelPerformanceCell({ funnelId }: { funnelId: string }) {
       conversionRate = (totalConversions / totalVisitors) * 100;
     }
   }
-  
+
   return (
     <div>
       <div className="flex items-center gap-2 text-sm">
@@ -222,16 +209,16 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
 
   const filteredFunnels = useMemo(() => {
     if (!Array.isArray(funnels) || funnels.length === 0) return [];
-    
+
     return funnels.filter(funnel => {
-      const matchesSearch = !searchQuery || 
+      const matchesSearch = !searchQuery ||
         (funnel.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (funnel.description || '').toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesStatus = statusFilter === 'All' || 
+
+      const matchesStatus = statusFilter === 'All' ||
         (statusFilter === 'Active' && funnel.is_active) ||
         (statusFilter === 'Paused' && !funnel.is_active);
-      
+
       return matchesSearch && matchesStatus;
     });
   }, [funnels, searchQuery, statusFilter]);
@@ -342,7 +329,7 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
             <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">No funnels found</h3>
             <p className="text-muted-foreground mb-4">
-              {searchQuery || statusFilter !== 'All' 
+              {searchQuery || statusFilter !== 'All'
                 ? 'Try adjusting your search or filter criteria.'
                 : 'Create your first funnel to start tracking conversions.'
               }
@@ -441,7 +428,7 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
                             <span className="sr-only">View Details</span>
                           </Link>
                         </Button>
-                        
+
                         <Button
                           variant="ghost"
                           size="sm"

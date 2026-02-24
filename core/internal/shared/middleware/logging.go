@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"analytics-app/internal/shared/utils"
+	"github.com/Seentics/seentics/internal/shared/utils"
 	"strings"
 
 	"github.com/gin-gonic/gin"

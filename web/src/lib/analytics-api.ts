@@ -299,14 +299,6 @@ export interface TrafficSummary {
   };
 }
 
-export interface RetentionData {
-  website_id: string;
-  date_range: string;
-  total_visitors: number;
-  day_1: number;
-  day_7: number;
-  day_30: number;
-}
 
 // =============================================================================
 // NEW INTERFACES FOR WRAPPED RESPONSES
@@ -406,7 +398,7 @@ export const useDashboardData = (websiteId: string, days: number = 7, filters: A
         const demo = getDemoData();
         return demo.dashboardData;
       }
-      
+
       const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
       Object.entries(filters).forEach(([key, value]) => {
         if (value) params.append(key, value);
@@ -506,13 +498,15 @@ export const getTopOS = async (websiteId: string, days: number = 7, filters: Ana
 // Top Resolutions
 export const getTopResolutions = async (websiteId: string, days: number = 7, limit: number = 10): Promise<any> => {
   if (websiteId === 'demo') {
-    return { top_resolutions: [
+    return {
+      top_resolutions: [
         { name: '1920x1080', count: 4500, percentage: 45.0 },
         { name: '1366x768', count: 3200, percentage: 32.0 },
         { name: '375x812', count: 2800, percentage: 28.0 },
         { name: '1440x900', count: 2100, percentage: 21.0 },
         { name: '414x896', count: 1500, percentage: 15.0 }
-    ]};
+      ]
+    };
   }
   const response = await api.get(`/analytics/top-resolutions/${websiteId}?days=${days}&limit=${limit}&timezone=${getUserTimezone()}`);
   return response.data;
@@ -643,26 +637,6 @@ export const getCustomEventsStats = async (websiteId: string, days: number = 7):
 //   return response.data;
 // };
 
-// User Retention
-export const getUserRetention = async (websiteId: string, days: number = 7): Promise<RetentionData> => {
-  if (websiteId === 'demo') {
-    return getDemoData().retentionData as any;
-  }
-  const response = await api.get(`/analytics/user-retention/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
-  const data = response.data;
-
-  // Backend returns { website_id, date_range, retention }
-  // Frontend expects the data directly with website_id and date_range included
-  if (data.retention) {
-    return {
-      website_id: data.website_id,
-      date_range: data.date_range,
-      ...data.retention,
-    };
-  }
-
-  return data;
-};
 
 // Visitor Insights
 export const getVisitorInsights = async (websiteId: string, days: number = 7): Promise<GetVisitorInsightsResponse> => {
@@ -694,7 +668,6 @@ export const analyticsKeys = {
   dailyStats: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'daily-stats', websiteId, days, filters] as const,
   goalStats: (websiteId: string, days: number) => [...analyticsKeys.all, 'goal-stats', websiteId, days] as const,
   customEvents: (websiteId: string, days: number) => [...analyticsKeys.all, 'custom-events', websiteId, days] as const,
-  userRetention: (websiteId: string, days: number) => [...analyticsKeys.all, 'user-retention', websiteId, days] as const,
   visitorInsights: (websiteId: string, days: number) => [...analyticsKeys.all, 'visitor-insights', websiteId, days] as const,
 };
 
@@ -842,7 +815,7 @@ export const useGoalStats = (websiteId: string, days: number = 30) => {
     queryFn: async () => {
       if (websiteId === 'demo') {
         const demo = getDemoData();
-        return { goals: demo.customEvents?.top_events || [] };
+        return demo.goalStats || { goals: [] };
       }
       const response = await api.get(`/analytics/goals-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
       return response.data;
@@ -862,15 +835,6 @@ export const useGoalStats = (websiteId: string, days: number = 30) => {
 //   });
 // };
 
-// User Retention Hook
-export const useUserRetention = (websiteId: string, days: number = 30) => {
-  return useQuery<RetentionData>({
-    queryKey: analyticsKeys.userRetention(websiteId, days),
-    queryFn: () => getUserRetention(websiteId, days),
-    enabled: !!websiteId,
-    staleTime: 30 * 60 * 1000, // 30 minutes for retention data
-  });
-};
 
 // Visitor Insights Hook
 export const useVisitorInsights = (websiteId: string, days: number = 7) => {
@@ -1023,7 +987,6 @@ export default {
   getDailyStats,
   getCustomEventsStats,
   // detectAnomalies, // REMOVED: Backend doesn't support this endpoint for MVP
-  getUserRetention,
   getVisitorInsights,
 
   // Hooks
@@ -1041,7 +1004,6 @@ export default {
   useDailyStats,
   useCustomEvents,
   // useAnomalies, // REMOVED: Backend doesn't support this endpoint for MVP
-  useUserRetention,
   useVisitorInsights,
   useTrackEvent,
   useTrackBatchEvents,

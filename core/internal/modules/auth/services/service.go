@@ -1,9 +1,9 @@
 package services
 
 import (
-	"analytics-app/internal/modules/auth/models"
-	"analytics-app/internal/modules/auth/repository"
-	"analytics-app/internal/shared/config"
+	"github.com/Seentics/seentics/internal/modules/auth/models"
+	"github.com/Seentics/seentics/internal/modules/auth/repository"
+	"github.com/Seentics/seentics/internal/shared/config"
 	"context"
 	"errors"
 	"fmt"

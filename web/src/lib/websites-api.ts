@@ -85,15 +85,11 @@ export async function getWebsites(): Promise<Website[]> {
 
 // Adds a new website.
 export async function addWebsite(website: { name: string; url: string }, userId: string): Promise<Website> {
-  console.log('Inside add website')
   try {
     const response: any = await api.post('/user/websites', { ...website, userId });
-    console.log('Full API response:', response);
-    console.log('Response data:', response?.data);
 
     // Try different possible response structures
     const websiteData = response?.data?.data?.website || response?.data?.website || response?.data?.data || response?.data || response;
-    console.log('Parsed website data:', websiteData);
 
     if (!websiteData || (!websiteData._id && !websiteData.id)) {
       throw new Error('Invalid website data received from server');

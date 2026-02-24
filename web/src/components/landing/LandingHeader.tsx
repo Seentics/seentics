@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Play } from 'lucide-react';
 import { FaDiscord } from 'react-icons/fa';
 import Link from 'next/link';
 import { Logo } from '../ui/logo';
@@ -63,6 +63,12 @@ export default function LandingHeader() {
             <FaDiscord size={15} />
           </a>
           <ThemeToggle />
+          <Link href="/websites/demo" className="hidden sm:block">
+            <Button variant="outline" size="sm" className="h-8 px-3 text-xs font-medium rounded-md gap-1.5 border-primary/30 text-primary hover:bg-primary/5">
+              <Play size={12} className="fill-primary" />
+              Live Demo
+            </Button>
+          </Link>
           <div className="hidden sm:flex items-center gap-2">
             {isAuthenticated ? (
               <Link href="/websites">
@@ -127,7 +133,13 @@ export default function LandingHeader() {
                 </a>
               </nav>
 
-              <div className="pt-2 border-t border-border/40">
+              <div className="pt-2 border-t border-border/40 space-y-2">
+                <Link href="/websites/demo" onClick={() => setMobileOpen(false)}>
+                  <Button variant="outline" className="w-full h-10 text-sm font-medium rounded-lg gap-2 border-primary/30 text-primary">
+                    <Play size={14} className="fill-primary" />
+                    Live Demo
+                  </Button>
+                </Link>
                 {isAuthenticated ? (
                   <Link href="/websites" onClick={() => setMobileOpen(false)}>
                     <Button className="w-full h-10 text-sm font-medium rounded-lg">

@@ -1,9 +1,10 @@
 package repository
 
 import (
-	"analytics-app/internal/modules/analytics/models"
 	"context"
 	"time"
+
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
 )
 
 type MainAnalyticsRepository interface {
@@ -27,7 +28,6 @@ type MainAnalyticsRepository interface {
 	GetTopContinents(ctx context.Context, websiteID string, startDate, endDate time.Time, limit int) ([]models.TopItem, error)
 	GetTopRegions(ctx context.Context, websiteID string, startDate, endDate time.Time, limit int) ([]models.TopItem, error)
 	GetGeolocationBreakdown(ctx context.Context, websiteID string, startDate, endDate time.Time) (*models.GeolocationBreakdown, error)
-	GetUserRetention(ctx context.Context, websiteID string) (*models.RetentionData, error)
 	GetVisitorInsights(ctx context.Context, websiteID string, days int, timezone string) (*models.VisitorInsights, error)
 	GetActivityTrends(ctx context.Context, websiteID string, timezone string) (*models.ActivityTrendsResponse, error)
 	GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.EventItem, error)

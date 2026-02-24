@@ -1,9 +1,10 @@
 package repository
 
 import (
-	"analytics-app/internal/modules/analytics/models"
 	"context"
 	"fmt"
+
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -80,8 +81,7 @@ func (ts *TrafficSummaryAnalytics) GetTrafficSummary(ctx context.Context, websit
 			0.0 as sessions_growth_rate,
 			COALESCE(vm.new_visitor_count, 0) as new_visitors,
 			COALESCE(vm.returning_visitor_count, 0) as returning_visitors,
-			50.0 as engagement_score,
-			25.0 as retention_rate
+			50.0 as engagement_score
 		FROM aggregated a
 		CROSS JOIN session_metrics sm
 		CROSS JOIN visitor_metrics vm`, tzStartSQL, tzStartSQL)
@@ -92,7 +92,6 @@ func (ts *TrafficSummaryAnalytics) GetTrafficSummary(ctx context.Context, websit
 		&summary.BounceRate, &summary.AvgSessionTime, &summary.PagesPerSession,
 		&summary.GrowthRate, &summary.VisitorsGrowthRate, &summary.SessionsGrowthRate,
 		&summary.NewVisitors, &summary.ReturningVisitors, &summary.EngagementScore,
-		&summary.RetentionRate,
 	)
 
 	if err != nil {

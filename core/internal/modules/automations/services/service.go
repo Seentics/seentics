@@ -1,9 +1,9 @@
 package services
 
 import (
-	"analytics-app/internal/modules/automations/models"
-	"analytics-app/internal/modules/automations/repository"
-	websiteServicePkg "analytics-app/internal/modules/websites/services"
+	"github.com/Seentics/seentics/internal/modules/automations/models"
+	"github.com/Seentics/seentics/internal/modules/automations/repository"
+	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
 	"context"
 	"fmt"
 

@@ -1,9 +1,9 @@
 package services
 
 import (
-	authRepoPkg "analytics-app/internal/modules/auth/repository"
-	"analytics-app/internal/modules/websites/models"
-	"analytics-app/internal/modules/websites/repository"
+	authRepoPkg "github.com/Seentics/seentics/internal/modules/auth/repository"
+	"github.com/Seentics/seentics/internal/modules/websites/models"
+	"github.com/Seentics/seentics/internal/modules/websites/repository"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	heatmapRepoPkg "analytics-app/internal/modules/heatmaps/repository"
+	heatmapRepoPkg "github.com/Seentics/seentics/internal/modules/heatmaps/repository"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"

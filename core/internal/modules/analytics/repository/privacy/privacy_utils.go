@@ -47,27 +47,23 @@ func (r *PrivacyRepository) GetUserWebsitesFromUserService(userID string) ([]str
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Printf("Failed to call user service for user %s: %v\n", userID, err)
 		// Fallback to analytics data method
 		return r.getWebsitesFromAnalyticsData(userID)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		fmt.Printf("User service returned status %d for user %s\n", resp.StatusCode, userID)
 		// Fallback to analytics data method
 		return r.getWebsitesFromAnalyticsData(userID)
 	}
 
 	var response UserServiceResponse
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		fmt.Printf("Failed to decode user service response for user %s: %v\n", userID, err)
 		// Fallback to analytics data method
 		return r.getWebsitesFromAnalyticsData(userID)
 	}
 
 	if !response.Success {
-		fmt.Printf("User service returned error for user %s\n", userID)
 		// Fallback to analytics data method
 		return r.getWebsitesFromAnalyticsData(userID)
 	}
@@ -78,13 +74,11 @@ func (r *PrivacyRepository) GetUserWebsitesFromUserService(userID string) ([]str
 		websiteIDs = append(websiteIDs, website.ID)
 	}
 
-	fmt.Printf("Retrieved %d websites from user service for user %s: %v\n", len(websiteIDs), userID, websiteIDs)
 	return websiteIDs, nil
 }
 
 // getWebsitesFromAnalyticsData is a fallback method to get websites from analytics data
 func (r *PrivacyRepository) getWebsitesFromAnalyticsData(userID string) ([]string, error) {
-	fmt.Printf("Using fallback method to get websites from analytics data for user %s\n", userID)
 
 	query := `SELECT DISTINCT website_id FROM events WHERE visitor_id = $1 OR session_id LIKE $2`
 
@@ -129,7 +123,6 @@ func (r *PrivacyRepository) LogPrivacyOperation(operation, userID, details strin
 	if err != nil {
 		// If the audit log table doesn't exist, just log to console
 		// In production, you would ensure the table exists
-		fmt.Printf("Privacy operation logged: %s for user %s - %s\n", operation, userID, details)
 		return nil
 	}
 

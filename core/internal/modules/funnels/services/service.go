@@ -1,9 +1,9 @@
 package services
 
 import (
-	"analytics-app/internal/modules/funnels/models"
-	"analytics-app/internal/modules/funnels/repository"
-	websiteServicePkg "analytics-app/internal/modules/websites/services"
+	"github.com/Seentics/seentics/internal/modules/funnels/models"
+	"github.com/Seentics/seentics/internal/modules/funnels/repository"
+	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
 	"context"
 	"fmt"
 

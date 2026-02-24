@@ -1,14 +1,15 @@
 package services
 
 import (
-	"analytics-app/internal/modules/analytics/models"
-	"analytics-app/internal/modules/analytics/repository"
-	websiteServicePkg "analytics-app/internal/modules/websites/services"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
+	"github.com/Seentics/seentics/internal/modules/analytics/repository"
+	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -294,14 +295,6 @@ func (s *AnalyticsService) GetGeolocationBreakdown(ctx context.Context, websiteI
 	}
 
 	return breakdown, nil
-}
-
-func (s *AnalyticsService) GetUserRetention(ctx context.Context, websiteID string, days int, userID string) (*models.RetentionData, error) {
-	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
-	if err != nil {
-		return nil, err
-	}
-	return s.repo.GetUserRetention(ctx, canonicalID)
 }
 
 func (s *AnalyticsService) GetVisitorInsights(ctx context.Context, websiteID string, days int, timezone string, userID string) (*models.VisitorInsights, error) {

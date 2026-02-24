@@ -1,8 +1,8 @@
 {
-  "name": "analytics-platform-frontend",
+  "name": "@seentics/web",
   "version": "0.1.0",
   "private": false,
-  "description": "Frontend application for Open Source Analytics & Automation Platform",
+  "description": "Frontend application for Seentics - Open Source Analytics & Automation Platform",
   "keywords": [
     "nextjs",
     "react",
@@ -11,14 +11,14 @@
     "analytics",
     "website-tracking"
   ],
-  "author": "Open Source Community",
+  "author": "Seentics Community",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/analytics-platform.git",
-    "directory": "frontend"
+    "url": "https://github.com/Seentics/seentics.git",
+    "directory": "seentics/web"
   },
-  "homepage": "https://github.com/yourusername/analytics-platform#readme",
+  "homepage": "https://github.com/Seentics/seentics#readme",
   "scripts": {
     "dev": " next dev",
     "build": "npm run minify:trackers && next build",

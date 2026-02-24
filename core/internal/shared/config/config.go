@@ -9,26 +9,24 @@ import (
 )
 
 type Config struct {
-	Environment           string
-	Port                  string
-	DatabaseURL           string
-	LogLevel              string
-	NATSUrl            string
-	NATSSubjectEvents  string
-	JWTSecret             string
-	GlobalAPIKey          string
-	DbMaxConns            int
-	DbMinConns            int
-	CORSAllowedOrigins    string
-	PostalServerURL       string
-	PostalAPIKey          string
-	PostalFromEmail       string
-	PostalFromName        string
-	ClickHouseHost        string
-	ClickHousePort        int
-	ClickHouseUser        string
-	ClickHousePassword    string
-	ClickHouseDB          string
+	Environment        string
+	Port               string
+	DatabaseURL        string
+	LogLevel           string
+	JWTSecret          string
+	GlobalAPIKey       string
+	DbMaxConns         int
+	DbMinConns         int
+	CORSAllowedOrigins string
+	PostalServerURL    string
+	PostalAPIKey       string
+	PostalFromEmail    string
+	PostalFromName     string
+	ClickHouseHost     string
+	ClickHousePort     int
+	ClickHouseUser     string
+	ClickHousePassword string
+	ClickHouseDB       string
 }
 
 func Load() (*Config, error) {
@@ -36,26 +34,24 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		Environment:           getEnvOrDefault("ENVIRONMENT", "development"),
-		Port:                  getEnvOrDefault("PORT", "3002"),
-		DatabaseURL:           getEnvOrDefault("DATABASE_URL", ""),
-		LogLevel:              getEnvOrDefault("LOG_LEVEL", "info"),
-		NATSUrl:            getEnvOrDefault("NATS_URL", "nats://localhost:4222"),
-		NATSSubjectEvents:  getEnvOrDefault("NATS_SUBJECT_EVENTS", "analytics.events"),
-		JWTSecret:             getEnvOrDefault("JWT_SECRET", ""),
-		GlobalAPIKey:          getEnvOrDefault("GLOBAL_API_KEY", ""),
-		DbMaxConns:            GetEnvAsInt("DB_MAX_CONNS", 100),
-		DbMinConns:            GetEnvAsInt("DB_MIN_CONNS", 25),
-		CORSAllowedOrigins:    getEnvOrDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://www.seentics.com,https://seentics.com"),
-		PostalServerURL:       getEnvOrDefault("POSTAL_SERVER_URL", ""),
-		PostalAPIKey:          getEnvOrDefault("POSTAL_API_KEY", ""),
-		PostalFromEmail:       getEnvOrDefault("POSTAL_FROM_EMAIL", ""),
-		PostalFromName:        getEnvOrDefault("POSTAL_FROM_NAME", "Seentics Support"),
-		ClickHouseHost:        getEnvOrDefault("CLICKHOUSE_HOST", "localhost"),
-		ClickHousePort:        GetEnvAsInt("CLICKHOUSE_PORT", 9000),
-		ClickHouseUser:        getEnvOrDefault("CLICKHOUSE_USER", "default"),
-		ClickHousePassword:    getEnvOrDefault("CLICKHOUSE_PASSWORD", ""),
-		ClickHouseDB:          getEnvOrDefault("CLICKHOUSE_DB", "seentics"),
+		Environment:        getEnvOrDefault("ENVIRONMENT", "development"),
+		Port:               getEnvOrDefault("PORT", "3002"),
+		DatabaseURL:        getEnvOrDefault("DATABASE_URL", ""),
+		LogLevel:           getEnvOrDefault("LOG_LEVEL", "info"),
+		JWTSecret:          getEnvOrDefault("JWT_SECRET", ""),
+		GlobalAPIKey:       getEnvOrDefault("GLOBAL_API_KEY", ""),
+		DbMaxConns:         GetEnvAsInt("DB_MAX_CONNS", 100),
+		DbMinConns:         GetEnvAsInt("DB_MIN_CONNS", 25),
+		CORSAllowedOrigins: getEnvOrDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://www.seentics.com,https://seentics.com"),
+		PostalServerURL:    getEnvOrDefault("POSTAL_SERVER_URL", ""),
+		PostalAPIKey:       getEnvOrDefault("POSTAL_API_KEY", ""),
+		PostalFromEmail:    getEnvOrDefault("POSTAL_FROM_EMAIL", ""),
+		PostalFromName:     getEnvOrDefault("POSTAL_FROM_NAME", "Seentics Support"),
+		ClickHouseHost:     getEnvOrDefault("CLICKHOUSE_HOST", "localhost"),
+		ClickHousePort:     GetEnvAsInt("CLICKHOUSE_PORT", 9000),
+		ClickHouseUser:     getEnvOrDefault("CLICKHOUSE_USER", "default"),
+		ClickHousePassword: getEnvOrDefault("CLICKHOUSE_PASSWORD", ""),
+		ClickHouseDB:       getEnvOrDefault("CLICKHOUSE_DB", "seentics"),
 	}
 
 	// Validate required fields

@@ -1,7 +1,7 @@
 package privacy
 
 import (
-	"analytics-app/internal/modules/analytics/models"
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
 	"context"
 	"encoding/json"
 	"fmt"

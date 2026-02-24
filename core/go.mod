@@ -1,4 +1,4 @@
-module analytics-app
+module github.com/Seentics/seentics
 
 go 1.24.4
 
@@ -15,7 +15,6 @@ require (
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mssola/user_agent v0.6.0
-	github.com/nats-io/nats.go v1.37.0
 	github.com/oschwald/geoip2-golang v1.9.0
 	github.com/rs/zerolog v1.31.0
 	github.com/skshohagmiah/cachegrid v0.0.0-20260223122543-9143f835b19f
@@ -94,8 +93,6 @@ require (
 	github.com/miekg/dns v1.1.68 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
-	github.com/nats-io/nkeys v0.4.7 // indirect
-	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/oschwald/maxminddb-golang v1.11.0 // indirect
 	github.com/paulmach/orb v0.12.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect

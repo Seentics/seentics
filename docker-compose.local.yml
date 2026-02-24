@@ -14,11 +14,7 @@ services:
       - DATABASE_URL=postgres://${POSTGRES_USER:-seentics_admin}:${POSTGRES_PASSWORD:-seentics_pass}@postgres-local:5432/${POSTGRES_DB:-seentics_analytics}?sslmode=disable
       - LOG_LEVEL=debug
       - JWT_SECRET=${JWT_SECRET:-local_secret_key_change_me}
-      - REDIS_URL=redis://:${REDIS_PASSWORD:-seentics_redis_pass}@redis-local:6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-seentics_redis_pass}
       - GLOBAL_API_KEY=${GLOBAL_API_KEY:-dev_key_123}
-      - NATS_URL=nats://nats-local:4222
-      - NATS_SUBJECT_EVENTS=analytics.events
       - CLOUD_ENABLED=false
       - S3_ENDPOINT=http://minio-local:9000
       - AWS_ACCESS_KEY_ID=minioadmin
@@ -28,15 +24,12 @@ services:
     depends_on:
       postgres-local:
         condition: service_healthy
-      redis-local:
-        condition: service_healthy
-      nats-local:
-        condition: service_healthy
     volumes:
       - ./backend/data:/app/data
     restart: unless-stopped
     networks:
       - seentics-local-network
+
   # ---------------------------------------------------------------------------
   # Infrastructure (Local Only)
   # ---------------------------------------------------------------------------
@@ -53,37 +46,6 @@ services:
       - seentics-local-network
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  redis-local:
-    image: redis:7-alpine
-    container_name: redis-local
-    command: redis-server --requirepass ${REDIS_PASSWORD:-seentics_redis_pass}
-    networks:
-      - seentics-local-network
-    healthcheck:
-      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-seentics_redis_pass}", "ping" ]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  # NATS (lightweight event streaming with JetStream)
-  nats-local:
-    image: nats:2.10-alpine
-    container_name: nats-local
-    command: -c /etc/nats/nats-server.conf
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-    networks:
-      - seentics-local-network
-    volumes:
-      - nats-local-data:/data
-      - ./nats-server.conf:/etc/nats/nats-server.conf:ro
-    healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -126,5 +88,4 @@ networks:
 
 volumes:
   postgres-local-data:
-  nats-local-data:
   minio-local-data:

@@ -1,11 +1,12 @@
 package repository
 
 import (
-	"analytics-app/internal/modules/analytics/models"
 	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/rs/zerolog"
@@ -93,9 +94,9 @@ func (r *ClickHouseAnalyticsRepository) GetDashboardMetrics(ctx context.Context,
 		)
 		SELECT
 			COALESCE(SUM(page_count), 0) as page_views,
-			COUNT(DISTINCT session_id) as total_visitors,
+			COUNT(*) as total_visitors,
 			COUNT(DISTINCT visitor_id) as unique_visitors,
-			COUNT(DISTINCT session_id) as sessions,
+			COUNT(*) as sessions,
 			COALESCE(
 				(countIf(page_count = 1) * 100.0) /
 				NULLIF(COUNT(*), 0), 0
@@ -252,76 +253,66 @@ func (r *ClickHouseAnalyticsRepository) GetComparisonMetrics(ctx context.Context
 	}, nil
 }
 
-// GetUTMAnalytics returns UTM metrics from ClickHouse
+// GetUTMAnalytics returns UTM metrics from ClickHouse using 3 efficient aggregated queries
 func (r *ClickHouseAnalyticsRepository) GetUTMAnalytics(ctx context.Context, websiteID string, days int) (map[string]interface{}, error) {
-	query := `
-		SELECT
-			COALESCE(utm_source, 'direct') as source,
-			COALESCE(utm_medium, 'none') as medium,
-			COALESCE(utm_campaign, 'none') as campaign,
-			COUNT(*) as visits,
-			COUNT(DISTINCT visitor_id) as unique_visitors
-		FROM events
-		WHERE website_id = ?
-		AND timestamp >= now() - interval ? day
-		AND event_type = 'pageview'
-		GROUP BY utm_source, utm_medium, utm_campaign
-		ORDER BY visits DESC`
-
-	rows, err := r.conn.Query(ctx, query, websiteID, days)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
 	breakdown := map[string]interface{}{
 		"sources":   make([]map[string]interface{}, 0),
 		"mediums":   make([]map[string]interface{}, 0),
 		"campaigns": make([]map[string]interface{}, 0),
 	}
 
-	sourceMap := make(map[string]map[string]interface{})
-	mediumMap := make(map[string]map[string]interface{})
-	campaignMap := make(map[string]map[string]interface{})
+	baseWhere := `website_id = ? AND timestamp >= now() - interval ? day AND event_type = 'pageview'`
 
+	// Sources
+	sourceQuery := fmt.Sprintf(`SELECT COALESCE(utm_source, 'direct') as source, COUNT(*) as visits, COUNT(DISTINCT visitor_id) as unique_visitors FROM events WHERE %s GROUP BY source ORDER BY visits DESC LIMIT 10`, baseWhere)
+	rows, err := r.conn.Query(ctx, sourceQuery, websiteID, days)
+	if err != nil {
+		return nil, err
+	}
+	sources := make([]map[string]interface{}, 0)
 	for rows.Next() {
-		var source, medium, campaign string
-		var visits, uniqueVisitors uint64
-		if err := rows.Scan(&source, &medium, &campaign, &visits, &uniqueVisitors); err != nil {
-			continue
-		}
-
-		if s, ok := sourceMap[source]; ok {
-			s["visits"] = s["visits"].(uint64) + visits
-			s["unique_visitors"] = s["unique_visitors"].(uint64) + uniqueVisitors
-		} else {
-			sourceMap[source] = map[string]interface{}{"source": source, "visits": visits, "unique_visitors": uniqueVisitors}
-		}
-
-		if m, ok := mediumMap[medium]; ok {
-			m["visits"] = m["visits"].(uint64) + visits
-			m["unique_visitors"] = m["unique_visitors"].(uint64) + uniqueVisitors
-		} else {
-			mediumMap[medium] = map[string]interface{}{"medium": medium, "visits": visits, "unique_visitors": uniqueVisitors}
-		}
-
-		if c, ok := campaignMap[campaign]; ok {
-			c["visits"] = c["visits"].(uint64) + visits
-			c["unique_visitors"] = c["unique_visitors"].(uint64) + uniqueVisitors
-		} else {
-			campaignMap[campaign] = map[string]interface{}{"campaign": campaign, "visits": visits, "unique_visitors": uniqueVisitors}
+		var source string
+		var visits, unique uint64
+		if err := rows.Scan(&source, &visits, &unique); err == nil {
+			sources = append(sources, map[string]interface{}{"source": source, "visits": visits, "unique_visitors": unique})
 		}
 	}
+	rows.Close()
+	breakdown["sources"] = sources
 
-	for _, v := range sourceMap {
-		breakdown["sources"] = append(breakdown["sources"].([]map[string]interface{}), v)
+	// Mediums
+	mediumQuery := fmt.Sprintf(`SELECT COALESCE(utm_medium, 'none') as medium, COUNT(*) as visits, COUNT(DISTINCT visitor_id) as unique_visitors FROM events WHERE %s GROUP BY medium ORDER BY visits DESC LIMIT 10`, baseWhere)
+	rows, err = r.conn.Query(ctx, mediumQuery, websiteID, days)
+	if err != nil {
+		return nil, err
 	}
-	for _, v := range mediumMap {
-		breakdown["mediums"] = append(breakdown["mediums"].([]map[string]interface{}), v)
+	mediums := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var medium string
+		var visits, unique uint64
+		if err := rows.Scan(&medium, &visits, &unique); err == nil {
+			mediums = append(mediums, map[string]interface{}{"medium": medium, "visits": visits, "unique_visitors": unique})
+		}
 	}
-	for _, v := range campaignMap {
-		breakdown["campaigns"] = append(breakdown["campaigns"].([]map[string]interface{}), v)
+	rows.Close()
+	breakdown["mediums"] = mediums
+
+	// Campaigns
+	campaignQuery := fmt.Sprintf(`SELECT COALESCE(utm_campaign, 'none') as campaign, COUNT(*) as visits, COUNT(DISTINCT visitor_id) as unique_visitors FROM events WHERE %s GROUP BY campaign ORDER BY visits DESC LIMIT 10`, baseWhere)
+	rows, err = r.conn.Query(ctx, campaignQuery, websiteID, days)
+	if err != nil {
+		return nil, err
 	}
+	campaigns := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var campaign string
+		var visits, unique uint64
+		if err := rows.Scan(&campaign, &visits, &unique); err == nil {
+			campaigns = append(campaigns, map[string]interface{}{"campaign": campaign, "visits": visits, "unique_visitors": unique})
+		}
+	}
+	rows.Close()
+	breakdown["campaigns"] = campaigns
 
 	return breakdown, nil
 }
@@ -656,31 +647,36 @@ func (r *ClickHouseAnalyticsRepository) GetTopOS(ctx context.Context, websiteID 
 func (r *ClickHouseAnalyticsRepository) GetTrafficSummary(ctx context.Context, websiteID string, days int, timezone string) (*models.TrafficSummary, error) {
 	query := `
 		SELECT
-			count(*) as total_page_views,
-			count(DISTINCT visitor_id) as total_visitors,
-			count(DISTINCT visitor_id) as unique_visitors,
-			count(DISTINCT session_id) as total_sessions,
-			(countIf(page_count = 1) * 100.0 / count(DISTINCT session_id)) as bounce_rate,
-			avg(session_duration) as avg_session_time,
-			(count(*) / count(DISTINCT session_id)) as pages_per_session
+			COALESCE(SUM(page_count), 0) as total_page_views,
+			COUNT(*) as total_sessions,
+			COUNT(DISTINCT visitor_id) as unique_visitors,
+			COUNT(*) as total_sessions_2,
+			COALESCE((countIf(page_count = 1) * 100.0) / NULLIF(COUNT(*), 0), 0) as bounce_rate,
+			COALESCE(AVG(session_duration), 0) as avg_session_time,
+			COALESCE(SUM(page_count) * 1.0 / NULLIF(COUNT(*), 0), 0) as pages_per_session
 		FROM (
 			SELECT
 				session_id,
-				visitor_id,
+				any(visitor_id) as visitor_id,
 				count(*) as page_count,
-				max(timestamp) - min(timestamp) as session_duration
+				if(count(*) > 1,
+					least(dateDiff('second', min(timestamp), max(timestamp)), 1800),
+					any(time_on_page)
+				) as session_duration
 			FROM events
 			WHERE website_id = ?
 			AND timestamp >= now() - interval ? day
 			AND event_type = 'pageview'
-			GROUP BY session_id, visitor_id
+			GROUP BY session_id
 		)`
 
 	var summary models.TrafficSummary
+	var totalSessions2 uint64
 	err := r.conn.QueryRow(ctx, query, websiteID, days).Scan(
-		&summary.TotalPageViews, &summary.TotalVisitors, &summary.UniqueVisitors, &summary.TotalSessions,
+		&summary.TotalPageViews, &summary.TotalSessions, &summary.UniqueVisitors, &totalSessions2,
 		&summary.BounceRate, &summary.AvgSessionTime, &summary.PagesPerSession,
 	)
+	summary.TotalVisitors = summary.UniqueVisitors
 
 	if err != nil {
 		return nil, err
@@ -934,24 +930,30 @@ func (r *ClickHouseAnalyticsRepository) GetVisitorInsights(ctx context.Context, 
 		DateRange: days,
 	}
 
+	// Bound the scan to 2x the requested period to detect returning visitors
+	// without scanning the entire events table
 	query := `
 		SELECT
 			countIf(min_timestamp >= now() - interval ? day) as new_visitors,
 			countIf(min_timestamp < now() - interval ? day) as returning_visitors,
-			avg(avg_duration) as avg_duration
+			COALESCE(avg(session_duration), 0) as avg_duration
 		FROM (
 			SELECT
 				visitor_id,
 				min(timestamp) as min_timestamp,
-				max(timestamp) - min(timestamp) as avg_duration
+				if(count(*) > 1,
+					least(dateDiff('second', min(timestamp), max(timestamp)), 1800),
+					0
+				) as session_duration
 			FROM events
 			WHERE website_id = ?
+			AND timestamp >= now() - interval ? day
+			AND event_type = 'pageview'
 			GROUP BY visitor_id
-			HAVING max(timestamp) >= now() - interval ? day
 		)`
 
 	var newVisitors, returningVisitors uint64
-	err := r.conn.QueryRow(ctx, query, days, days, websiteID, days).Scan(
+	err := r.conn.QueryRow(ctx, query, days, days, websiteID, days*2).Scan(
 		&newVisitors, &returningVisitors, &insights.AverageSessionDuration,
 	)
 	if err != nil {
@@ -1079,62 +1081,6 @@ func (r *ClickHouseAnalyticsRepository) GetActivityTrends(ctx context.Context, w
 		WebsiteID: websiteID,
 		Trends:    trends,
 	}, nil
-}
-
-// GetUserRetention with total_visitors count
-func (r *ClickHouseAnalyticsRepository) GetUserRetention(ctx context.Context, websiteID string) (*models.RetentionData, error) {
-	// Get total visitors for cohort size
-	countQuery := `
-		SELECT count(DISTINCT visitor_id)
-		FROM events
-		WHERE website_id = ?
-		AND timestamp >= now() - interval 30 day
-		AND event_type = 'pageview'`
-
-	var totalVisitors uint64
-	r.conn.QueryRow(ctx, countQuery, websiteID).Scan(&totalVisitors)
-
-	// Using ClickHouse retention function for Day 1, 7, 30
-	query := `
-		SELECT
-			retention(
-				timestamp >= now() - interval 2 day AND timestamp < now() - interval 1 day,
-				timestamp >= now() - interval 1 day
-			) as d1,
-			retention(
-				timestamp >= now() - interval 8 day AND timestamp < now() - interval 7 day,
-				timestamp >= now() - interval 7 day
-			) as d7,
-			retention(
-				timestamp >= now() - interval 31 day AND timestamp < now() - interval 30 day,
-				timestamp >= now() - interval 30 day
-			) as d30
-		FROM events
-		WHERE website_id = ?`
-
-	var d1, d7, d30 []uint8
-	err := r.conn.QueryRow(ctx, query, websiteID).Scan(&d1, &d7, &d30)
-	if err != nil {
-		return &models.RetentionData{WebsiteID: websiteID, DateRange: 30, TotalVisitors: int(totalVisitors)}, nil
-	}
-
-	data := &models.RetentionData{
-		WebsiteID:     websiteID,
-		DateRange:     30,
-		TotalVisitors: int(totalVisitors),
-	}
-
-	if len(d1) >= 2 && d1[0] > 0 {
-		data.Day1 = float64(d1[1]) / float64(d1[0]) * 100
-	}
-	if len(d7) >= 2 && d7[0] > 0 {
-		data.Day7 = float64(d7[1]) / float64(d7[0]) * 100
-	}
-	if len(d30) >= 2 && d30[0] > 0 {
-		data.Day30 = float64(d30[1]) / float64(d30[0]) * 100
-	}
-
-	return data, nil
 }
 
 func (r *ClickHouseAnalyticsRepository) GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.EventItem, error) {

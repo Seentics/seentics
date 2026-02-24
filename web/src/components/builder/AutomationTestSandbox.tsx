@@ -18,11 +18,11 @@ interface AutomationTestSandboxProps {
   websiteId: string;
 }
 
-export function AutomationTestSandbox({ 
-  isOpen, 
-  onClose, 
+export function AutomationTestSandbox({
+  isOpen,
+  onClose,
   automation,
-  websiteId 
+  websiteId
 }: AutomationTestSandboxProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isTesting, setIsTesting] = useState(false);
@@ -39,7 +39,7 @@ export function AutomationTestSandbox({
       setExecutionSteps([]);
       setTestComplete(false);
       setShowIframe(false);
-      
+
       // Load iframe after a short delay
       setTimeout(() => {
         setIsLoading(false);
@@ -55,7 +55,6 @@ export function AutomationTestSandbox({
     const handleMessage = (event: MessageEvent) => {
       // Security: verify origin in production
       if (event.data.type === 'AUTOMATION_TEST_READY') {
-        console.log('Iframe ready for testing');
       } else if (event.data.type === 'EXECUTION_STEP') {
         const step: ExecutionStep = event.data.step;
         setExecutionSteps(prev => {
@@ -158,15 +157,14 @@ export function AutomationTestSandbox({
               {executionSteps.map((step, index) => (
                 <div
                   key={index}
-                  className={`p-3 rounded-lg border ${
-                    step.status === 'success'
+                  className={`p-3 rounded-lg border ${step.status === 'success'
                       ? 'bg-green-500/10 border-green-500/20'
                       : step.status === 'failed'
-                      ? 'bg-red-500/10 border-red-500/20'
-                      : step.status === 'running'
-                      ? 'bg-blue-500/10 border-blue-500/20'
-                      : 'bg-slate-800/50 border-slate-700'
-                  }`}
+                        ? 'bg-red-500/10 border-red-500/20'
+                        : step.status === 'running'
+                          ? 'bg-blue-500/10 border-blue-500/20'
+                          : 'bg-slate-800/50 border-slate-700'
+                    }`}
                 >
                   <div className="flex items-start gap-2">
                     {step.status === 'success' && (

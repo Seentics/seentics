@@ -35,7 +35,6 @@ export default function AuthInitializer() {
     // Check if token is expired and handle accordingly
     if (access_token && isTokenExpired()) {
       // Token is expired, could implement refresh logic here
-      console.log('Token expired, user should re-authenticate');
     }
   }, [access_token, isTokenExpired]);
 

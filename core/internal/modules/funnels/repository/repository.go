@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"analytics-app/internal/modules/funnels/models"
+	"github.com/Seentics/seentics/internal/modules/funnels/models"
 	"context"
 	"fmt"
 	"strings"

@@ -8,8 +8,7 @@ import { TopPagesChart } from '@/components/analytics/TopPagesChart';
 import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { TrafficOverview } from '@/components/analytics/TrafficOverview';
 import { UTMPerformanceChart } from '@/components/analytics/UTMPerformanceChart';
-import { RetentionCohortChart } from '@/components/analytics/RetentionCohortChart';
-import { FrustrationSignals } from '@/components/analytics/FrustrationSignals';
+import { VisitorActivity } from '@/components/analytics/VisitorActivity';
 import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -33,7 +32,6 @@ import {
   useTopResolutions,
   useTopPages,
   useTopReferrers,
-  useUserRetention,
   useVisitorInsights,
   useGoalStats,
   usePreviousPeriodDailyStats,
@@ -132,7 +130,7 @@ export default function WebsiteDashboardPage() {
     if (Object.keys(urlFilters).length > 0) {
       setAdvancedFilters((prev: any) => ({ ...prev, ...urlFilters }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync filters to URL
@@ -244,7 +242,6 @@ export default function WebsiteDashboardPage() {
   const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(deferredId, dateRange);
   const { data: goalStats, isLoading: goalStatsLoading } = useGoalStats(deferredId, dateRange);
   const { data: activityTrends, isLoading: trendsLoading, error: trendsError } = useActivityTrends(deferredId);
-  const { data: retentionData, isLoading: retentionLoading } = useUserRetention(deferredId, dateRange);
 
   // Previous period data for comparison overlay
   const { data: previousDailyStats } = usePreviousPeriodDailyStats(deferredId, dateRange, showComparison);
@@ -257,20 +254,21 @@ export default function WebsiteDashboardPage() {
   const finalTopBrowsers = isDemoMode ? demoData?.topBrowsers : topBrowsers;
   const finalTopDevices = isDemoMode ? demoData?.topDevices : topDevices;
   const finalTopOS = isDemoMode ? demoData?.topOS : topOS;
-  const finalTopResolutions = isDemoMode ? { top_resolutions: [
-    { name: '1920x1080', count: 450, percentage: 45.0 },
-    { name: '1366x768', count: 320, percentage: 32.0 },
-    { name: '375x812', count: 280, percentage: 28.0 },
-    { name: '1440x900', count: 210, percentage: 21.0 },
-    { name: '414x896', count: 150, percentage: 15.0 }
-  ]} : topResolutions;
+  const finalTopResolutions = isDemoMode ? {
+    top_resolutions: [
+      { name: '1920x1080', count: 450, percentage: 45.0 },
+      { name: '1366x768', count: 320, percentage: 32.0 },
+      { name: '375x812', count: 280, percentage: 28.0 },
+      { name: '1440x900', count: 210, percentage: 21.0 },
+      { name: '414x896', count: 150, percentage: 15.0 }
+    ]
+  } : topResolutions;
   const finalDailyStats = isDemoMode ? demoData?.dailyStats : dailyStats;
   const finalHourlyStats = isDemoMode ? demoData?.hourlyStats : hourlyStats;
   const finalGeolocationData = isDemoMode ? demoData?.geolocationData : geolocationData;
   const finalVisitorInsights = isDemoMode ? demoData?.visitorInsights : visitorInsights;
   const finalCustomEvents = isDemoMode ? demoData?.customEvents : customEvents;
   const finalActivityTrends = isDemoMode ? demoData?.activityTrends : activityTrends;
-  const finalRetentionData = isDemoMode ? demoData?.retentionData : retentionData;
   const finalPreviousDailyStats = isDemoMode ? demoData?.dailyStats : previousDailyStats;
 
   // Transform API data to match demo component expectations
@@ -514,62 +512,62 @@ export default function WebsiteDashboardPage() {
 
     return (
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <DashboardPageHeader 
+        <DashboardPageHeader
           title="Overview"
           description="Track your website visitor behavior in real-time."
         >
-            <div className="flex items-center gap-3">
-              {/* Demo Mode Badge */}
-              {/* {isDemoMode && (
+          <div className="flex items-center gap-3">
+            {/* Demo Mode Badge */}
+            {/* {isDemoMode && (
                 <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wider border border-blue-500/20 shadow-sm shadow-blue-500/5">
                   DEMO MODE
                 </div>
               )} */}
-            </div>
+          </div>
 
-            <div className="h-10 w-10 flex items-center justify-center bg-card/50 backdrop-blur-md hover:bg-card transition-colors rounded shadow-sm border border-border/40">
-                <ThemeToggle />
-            </div>
-            {/* Website Switcher */}
-            <Select value={websiteId} onValueChange={handleWebsiteChange}>
-              <SelectTrigger className="w-full sm:w-[220px] h-10 bg-card/50 backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm border border-border/40">
-                <div className="flex items-center truncate">
-                  <Globe className="mr-2 h-4 w-4 text-primary shrink-0" />
-                  <span className="truncate font-bold text-sm tracking-tight text-foreground">{currentWebsite?.name || 'Select website'}</span>
-                </div>
-              </SelectTrigger>
-              <SelectContent className="rounded shadow-2xl bg-card">
-                {websites.map((site) => ( 
-                  <SelectItem key={site.id} value={site.id} className="rounded py-2">
-                    <span className="font-medium text-foreground">{site.name}</span>
+          <div className="h-10 w-10 flex items-center justify-center bg-card/50 backdrop-blur-md hover:bg-card transition-colors rounded shadow-sm border border-border/40">
+            <ThemeToggle />
+          </div>
+          {/* Website Switcher */}
+          <Select value={websiteId} onValueChange={handleWebsiteChange}>
+            <SelectTrigger className="w-full sm:w-[220px] h-10 bg-card/50 backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm border border-border/40">
+              <div className="flex items-center truncate">
+                <Globe className="mr-2 h-4 w-4 text-primary shrink-0" />
+                <span className="truncate font-bold text-sm tracking-tight text-foreground">{currentWebsite?.name || 'Select website'}</span>
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded shadow-2xl bg-card">
+              {websites.map((site) => (
+                <SelectItem key={site.id} value={site.id} className="rounded py-2">
+                  <span className="font-medium text-foreground">{site.name}</span>
+                </SelectItem>
+              ))}
+              {websites.length > 0 && (
+                <>
+                  <div className="h-px bg-border my-1 mx-2" />
+                  <SelectItem value="add-new" className="text-primary rounded py-2">
+                    <div className="flex items-center font-bold">
+                      <PlusCircle className="mr-2 h-4 w-4" />
+                      Add Website
+                    </div>
                   </SelectItem>
-                ))}
-                {websites.length > 0 && (
-                  <>
-                    <div className="h-px bg-border my-1 mx-2" />
-                    <SelectItem value="add-new" className="text-primary rounded py-2">
-                      <div className="flex items-center font-bold">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add Website
-                      </div>
-                    </SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
+                </>
+              )}
+            </SelectContent>
+          </Select>
 
-            <div className="flex items-center gap-2 flex-wrap">
-              <FilterModal 
-                dateRange={dateRange}
-                isCustomRange={isCustomRange}
-                customStartDate={customStartDate}
-                customEndDate={customEndDate}
-                onDateRangeChange={handleDateRangeChange}
-                onCustomDateChange={handleCustomDateChange}
-                onFiltersChange={setAdvancedFilters}
-                activeFiltersCount={Object.keys(advancedFilters).length}
-              />
-            </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <FilterModal
+              dateRange={dateRange}
+              isCustomRange={isCustomRange}
+              customStartDate={customStartDate}
+              customEndDate={customEndDate}
+              onDateRangeChange={handleDateRangeChange}
+              onCustomDateChange={handleCustomDateChange}
+              onFiltersChange={setAdvancedFilters}
+              activeFiltersCount={Object.keys(advancedFilters).length}
+            />
+          </div>
         </DashboardPageHeader>
 
         {/* Stats Grid */}
@@ -634,7 +632,7 @@ export default function WebsiteDashboardPage() {
           />
         </section>
 
-       
+
 
         {/* AUDIENCE INTELLIGENCE */}
         <div className="space-y-4">
@@ -672,7 +670,7 @@ export default function WebsiteDashboardPage() {
             onFilter={handleDashboardFilter}
           />
 
-          {/* Devices + Frustration Signals — 2-col grid */}
+          {/* Devices + Visitor Activity — 2-col grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card className="border border-border/60 bg-card shadow-sm">
               <CardContent className="p-8">
@@ -687,29 +685,22 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
 
-            <FrustrationSignals
-              customEvents={transformedCustomEvents}
-              websiteId={websiteId}
-              isLoading={!isDemoMode && customEventsLoading}
+            <VisitorActivity
+              activityTrends={finalActivityTrends as any}
+              dashboardData={finalDashboardData}
+              isLoading={!isDemoMode && trendsLoading}
             />
           </div>
-
-          {/* Retention Cohort */}
-          <RetentionCohortChart
-            data={finalRetentionData}
-            isLoading={!isDemoMode && retentionLoading}
-            totalVisitors={finalRetentionData?.total_visitors || finalDashboardData?.total_visitors || 0}
-          />
         </div>
 
- {/* CONVERSION & MARKETING INTELLIGENCE */}
+        {/* CONVERSION & MARKETING INTELLIGENCE */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
             <Target className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-bold tracking-tight">Conversion & Marketing</h2>
             <div className="h-px bg-border flex-1 ml-4" />
           </div>
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Goal Conversions */}
             <Card className="border border-border/60 bg-card shadow-sm">
@@ -805,7 +796,7 @@ export default function WebsiteDashboardPage() {
       <main className="p-6 md:p-8 lg:p-10 w-full max-w-[1400px] mx-auto">
         {renderContent()}
       </main>
-      
+
       {/* Add Website Modal */}
       <AddWebsiteModal
         open={showAddWebsiteModal}
@@ -813,7 +804,7 @@ export default function WebsiteDashboardPage() {
         onSuccess={handleWebsiteAdded}
       />
 
-      <AddGoalModal 
+      <AddGoalModal
         open={showAddGoalModal}
         onOpenChange={setShowAddGoalModal}
         websiteId={websiteId}

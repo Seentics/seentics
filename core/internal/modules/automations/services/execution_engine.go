@@ -1,7 +1,7 @@
 package services
 
 import (
-	"analytics-app/internal/modules/automations/models"
+	"github.com/Seentics/seentics/internal/modules/automations/models"
 	"bytes"
 	"context"
 	"encoding/json"

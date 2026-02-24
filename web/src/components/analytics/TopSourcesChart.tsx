@@ -1,6 +1,6 @@
 'use client';
 
-import { Globe, Layers } from 'lucide-react';
+import { Globe, Layers, Search, Users, Link, Mail, MousePointerClick } from 'lucide-react';
 import Image from 'next/image';
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -23,18 +23,28 @@ interface TopSourcesChartProps {
   onFilter?: (filter: Record<string, string>) => void;
 }
 
+const CategoryIcons: Record<string, { icon: React.ElementType; color: string }> = {
+  Direct: { icon: MousePointerClick, color: '#4285F4' },
+  Search: { icon: Search, color: '#34A853' },
+  Social: { icon: Users, color: '#EA4335' },
+  Referral: { icon: Link, color: '#8B5CF6' },
+  Email: { icon: Mail, color: '#FBBC05' },
+};
+
 const getSourceImage = (label: string) => {
   const lower = label.toLowerCase();
-  if (lower.includes('google') || lower.includes('search') || lower.includes('bing') || lower.includes('yahoo')) return '/images/search.png';
-  if (lower.includes('facebook') || lower.includes('fb')) return '/images/facebook.png';
-  if (lower.includes('twitter') || lower.includes('x.com')) return '/images/twitter.png';
-  if (lower.includes('linkedin')) return '/images/linkedin.png';
-  if (lower.includes('instagram')) return '/images/instagram.png';
-  if (lower.includes('tiktok')) return '/images/tiktok.png';
-  if (lower.includes('pinterest')) return '/images/pinterest.png';
-  if (lower.includes('email') || lower.includes('mail')) return '/images/search.png';
-  if (lower.includes('direct') || lower.includes('referral') || lower.includes('link')) return '/images/link.png';
-  return '/images/planet-earth.png';
+  if (lower.includes('google')) return '/images/browser/chrome.png';
+  if (lower.includes('bing') || lower.includes('microsoft')) return '/images/browser/edge.png';
+  if (lower.includes('yahoo')) return '/images/browser/safari.png';
+  if (lower.includes('yandex')) return '/images/browser/yandexbrowser.png';
+  if (lower.includes('duckduckgo') || lower.includes('baidu')) return '/images/browser/searchbot.png';
+  if (lower.includes('facebook') || lower.includes('fb.')) return '/images/browser/facebook.png';
+  if (lower.includes('instagram')) return '/images/browser/instagram.png';
+  if (lower.includes('twitter') || lower.includes('x.com') || lower.includes('t.co')) return '/images/browser/unknown.png';
+  if (lower.includes('reddit')) return '/images/browser/brave.png';
+  if (lower.includes('youtube')) return '/images/browser/chrome.png';
+  if (lower.includes('pinterest')) return '/images/browser/opera.png';
+  return null;
 };
 
 export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSourcesChartProps) {
@@ -112,7 +122,6 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
           label: name,
           visitors: v.visitors,
           color: v.color,
-          image: getSourceImage(name),
           percentage: totalVisitors > 0 ? (v.visitors / totalVisitors) * 100 : 0
         }));
     }
@@ -130,7 +139,6 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
         label: r.referrer || 'Direct',
         visitors: r.visitors,
         color: type === 'search' ? '#34A853' : '#EA4335',
-        image: getSourceImage(r.referrer || 'Direct'),
         percentage: (r.visitors / maxVal) * 100
       }));
   };
@@ -155,44 +163,57 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
 
     return (
       <div className="space-y-0 mt-4">
-        {items.map((item, index) => (
-          <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ utm_source: item.label })}>
-            <div className="flex items-center space-x-4 flex-1 min-w-0">
-              <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
-                <Image
-                  src={item.image}
-                  alt={item.label}
-                  width={20}
-                  height={20}
-                  className="object-contain"
-                  onError={(e) => {
-                    const target = e.target as HTMLElement;
-                    target.style.display = 'none';
-                    target.nextElementSibling?.classList.remove('hidden');
-                  }}
-                />
-                <Globe className="h-4 w-4 text-primary hidden" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={item.label}>{item.label}</div>
-                <div className="text-xs text-muted-foreground truncate">
-                   {type === 'overview' ? 'Channel' : 'Platform'}
-                </div>
-              </div>
-            </div>
+        {items.map((item, index) => {
+          const categoryIcon = type === 'overview' ? CategoryIcons[item.label] : null;
+          const sourceImg = type !== 'overview' ? getSourceImage(item.label) : null;
 
-            <div className="shrink-0 text-right">
-              <div className="text-right">
-                <div className="font-bold text-base leading-tight">
-                  {formatNumber(item.visitors)}
+          return (
+            <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ utm_source: item.label })}>
+              <div className="flex items-center space-x-4 flex-1 min-w-0">
+                <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
+                  {categoryIcon ? (
+                    <categoryIcon.icon className="h-5 w-5" style={{ color: categoryIcon.color }} />
+                  ) : sourceImg ? (
+                    <>
+                      <Image
+                        src={sourceImg}
+                        alt={item.label}
+                        width={20}
+                        height={20}
+                        className="object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                      <Globe className="h-4 w-4 text-primary hidden" />
+                    </>
+                  ) : (
+                    <Globe className="h-5 w-5 text-muted-foreground" />
+                  )}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Visitors
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={item.label}>{item.label}</div>
+                  <div className="text-xs text-muted-foreground truncate">
+                     {type === 'overview' ? 'Channel' : 'Platform'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 text-right">
+                <div className="text-right">
+                  <div className="font-bold text-base leading-tight">
+                    {formatNumber(item.visitors)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Visitors
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     );
   };

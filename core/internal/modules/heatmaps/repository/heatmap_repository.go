@@ -1,10 +1,11 @@
 package repository
 
 import (
-	"analytics-app/internal/modules/heatmaps/models"
 	"context"
 	"math"
 	"time"
+
+	"github.com/Seentics/seentics/internal/modules/heatmaps/models"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -37,10 +38,10 @@ func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string,
 
 	query := `
 		INSERT INTO heatmap_points (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, intensity, last_updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, 1, NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
 		ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector)
 		DO UPDATE SET
-			intensity = heatmap_points.intensity + 1,
+			intensity = heatmap_points.intensity + EXCLUDED.intensity,
 			last_updated = NOW()
 	`
 
@@ -50,8 +51,12 @@ func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string,
 		if deviceType == "" {
 			deviceType = "desktop"
 		}
-		// Scale floats by 100 to store as High-Precision INTEGER (0.001% resolution instead of 0.1%)
-		batch.Queue(query, websiteID, p.URL, p.Type, deviceType, int32(math.Round(p.XPercent*100)), int32(math.Round(p.YPercent*100)), p.Selector)
+		intensity := p.Intensity
+		if intensity <= 0 {
+			intensity = 1
+		}
+		// Scale floats by 100 to store as High-Precision INTEGER
+		batch.Queue(query, websiteID, p.URL, p.Type, deviceType, int32(math.Round(p.XPercent*100)), int32(math.Round(p.YPercent*100)), p.Selector, intensity)
 	}
 
 	br := r.db.SendBatch(ctx, batch)

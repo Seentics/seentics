@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"analytics-app/internal/modules/automations/models"
+	"github.com/Seentics/seentics/internal/modules/automations/models"
 	"context"
 	"fmt"
 	"time"

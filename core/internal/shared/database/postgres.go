@@ -43,7 +43,7 @@ func ConnectPostgres(databaseURL string, maxConns, minConns int) (*pgxpool.Pool,
 
 	// PostgreSQL-specific connection parameters
 	config.ConnConfig.Config.RuntimeParams["timezone"] = "UTC"
-	config.ConnConfig.Config.RuntimeParams["application_name"] = "analytics-app"
+	config.ConnConfig.Config.RuntimeParams["application_name"] = "github.com/Seentics/seentics"
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -76,8 +76,6 @@ func verifyPostgreSQL(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("failed to get PostgreSQL version: %w", err)
 	}
 
-	fmt.Printf("PostgreSQL version: %s\n", version)
-
 	// Check if UUID extension is available (required for our schema)
 	var hasUuidExtension bool
 	query := "SELECT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'uuid-ossp') OR EXISTS(SELECT 1 FROM pg_proc WHERE proname = 'gen_random_uuid')"
@@ -90,83 +88,6 @@ func verifyPostgreSQL(ctx context.Context, pool *pgxpool.Pool) error {
 		// Try to create the extension if it doesn't exist
 		_, err = pool.Exec(ctx, "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
 		if err != nil {
-			fmt.Printf("Warning: Could not create uuid-ossp extension, using gen_random_uuid() instead: %v\n", err)
-		}
-	}
-
-	return nil
-}
-
-// CreatePartition creates a new partition for the events table
-func CreatePartition(ctx context.Context, pool *pgxpool.Pool, tableName, partitionName, startDate, endDate string) error {
-	query := fmt.Sprintf(
-		"CREATE TABLE IF NOT EXISTS %s PARTITION OF %s FOR VALUES FROM ('%s') TO ('%s')",
-		partitionName, tableName, startDate, endDate,
-	)
-	_, err := pool.Exec(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to create partition %s: %w", partitionName, err)
-	}
-	return nil
-}
-
-// SetupMonthlyPartitions creates monthly partitions for the events table for the next 12 months
-func SetupMonthlyPartitions(ctx context.Context, pool *pgxpool.Pool) error {
-	now := time.Now()
-
-	for i := 0; i < 12; i++ {
-		month := now.AddDate(0, i, 0)
-		nextMonth := month.AddDate(0, 1, 0)
-
-		partitionName := fmt.Sprintf("events_y%dm%02d", month.Year(), month.Month())
-		startDate := month.Format("2006-01-02")
-		endDate := nextMonth.Format("2006-01-02")
-
-		if err := CreatePartition(ctx, pool, "events", partitionName, startDate, endDate); err != nil {
-			return fmt.Errorf("failed to create partition for %s: %w", month.Format("2006-01"), err)
-		}
-	}
-
-	return nil
-}
-
-// DropOldPartitions removes partitions older than the specified retention period
-func DropOldPartitions(ctx context.Context, pool *pgxpool.Pool, retentionMonths int) error {
-	cutoffDate := time.Now().AddDate(0, -retentionMonths, 0)
-
-	// Query to find old partitions
-	query := `
-		SELECT schemaname, tablename 
-		FROM pg_tables 
-		WHERE tablename LIKE 'events_y%m%' 
-		AND schemaname = 'public'
-	`
-
-	rows, err := pool.Query(ctx, query)
-	if err != nil {
-		return fmt.Errorf("failed to query partitions: %w", err)
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var schema, tableName string
-		if err := rows.Scan(&schema, &tableName); err != nil {
-			continue
-		}
-
-		// Parse partition date from table name (events_y2024m01 format)
-		var year, month int
-		if n, _ := fmt.Sscanf(tableName, "events_y%dm%d", &year, &month); n == 2 {
-			partitionDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.UTC)
-
-			if partitionDate.Before(cutoffDate) {
-				dropQuery := fmt.Sprintf("DROP TABLE IF EXISTS %s", tableName)
-				if _, err := pool.Exec(ctx, dropQuery); err != nil {
-					fmt.Printf("Warning: failed to drop old partition %s: %v\n", tableName, err)
-				} else {
-					fmt.Printf("Dropped old partition: %s\n", tableName)
-				}
-			}
 		}
 	}
 

@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"analytics-app/internal/modules/funnels/models"
-	"analytics-app/internal/modules/funnels/services"
+	"github.com/Seentics/seentics/internal/modules/funnels/models"
+	"github.com/Seentics/seentics/internal/modules/funnels/services"
 	"fmt"
 	"net/http"
 

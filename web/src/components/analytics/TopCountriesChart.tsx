@@ -170,7 +170,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
       country: item.country,
       countryCode: countryCode,
       visitors: item.visitors,
-      flag: `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`,
+      flag: `/images/country/${countryCode.toLowerCase()}.png`,
       color: colors[index % colors.length],
       percentage: percentage
     };
@@ -222,14 +222,9 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
                     className="object-cover"
                     onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    const countryCode = item.countryCode.toLowerCase();
-                    if (target.src.includes('flagcdn.com')) {
-                        target.src = `https://restcountries.eu/data/${countryCode}.svg`;
-                    } else {
-                        target.style.display = 'none';
-                        const fallback = target.parentElement?.querySelector('.flag-fallback') as HTMLElement;
-                        if (fallback) fallback.style.display = 'flex';
-                    }
+                    target.style.display = 'none';
+                    const fallback = target.parentElement?.querySelector('.flag-fallback') as HTMLElement;
+                    if (fallback) fallback.style.display = 'flex';
                     }}
                 />
                 <div className="flag-fallback hidden absolute inset-0 bg-accent rounded text-[8px] font-black items-center justify-center">

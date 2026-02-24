@@ -1,9 +1,10 @@
 package repository
 
 import (
-	"analytics-app/internal/modules/analytics/models"
 	"context"
 	"time"
+
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -22,7 +23,6 @@ type PostgresAnalyticsRepository struct {
 	trafficSummary  *TrafficSummaryAnalytics
 	timeSeries      *TimeSeriesAnalytics
 	customEvents    *CustomEventsAnalytics
-	retention       *RetentionAnalytics
 	visitorInsights *VisitorInsightsAnalytics
 	activityTrends  *ActivityTrendsAnalytics
 	goals           *GoalAnalytics
@@ -44,7 +44,6 @@ func NewPostgresAnalyticsRepository(db *pgxpool.Pool) *PostgresAnalyticsReposito
 		trafficSummary:  NewTrafficSummaryAnalytics(db),
 		timeSeries:      NewTimeSeriesAnalytics(db),
 		customEvents:    NewCustomEventsAnalytics(db),
-		retention:       NewRetentionAnalytics(db),
 		visitorInsights: NewVisitorInsightsAnalytics(db),
 		activityTrends:  NewActivityTrendsAnalytics(db),
 		goals:           NewGoalAnalytics(db),
@@ -156,11 +155,6 @@ func (r *PostgresAnalyticsRepository) GetTopRegions(ctx context.Context, website
 
 func (r *PostgresAnalyticsRepository) GetGeolocationBreakdown(ctx context.Context, websiteID string, startDate, endDate time.Time) (*models.GeolocationBreakdown, error) {
 	return r.geolocation.GetGeolocationBreakdown(ctx, websiteID, startDate, endDate)
-}
-
-// User Retention Analytics Methods
-func (r *PostgresAnalyticsRepository) GetUserRetention(ctx context.Context, websiteID string) (*models.RetentionData, error) {
-	return r.retention.GetUserRetention(ctx, websiteID)
 }
 
 // Visitor Insights Analytics Methods

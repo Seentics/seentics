@@ -245,3 +245,125 @@ func (h *InternalHandler) GetSystemStats(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
+
+// GetWebsiteOwner returns the user ID that owns a website identified by site_id.
+// Used by the enterprise gateway to resolve website ownership for billing checks.
+func (h *InternalHandler) GetWebsiteOwner(c *gin.Context) {
+	siteID := c.Query("site_id")
+	if siteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id query parameter required"})
+		return
+	}
+
+	var userID string
+	err := h.db.QueryRow(c.Request.Context(),
+		"SELECT user_id::text FROM websites WHERE site_id = $1 OR id::text = $1",
+		siteID,
+	).Scan(&userID)
+
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "website not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"user_id": userID}})
+}
+
+// RetentionCleanup deletes data older than the specified retention periods for a user's websites.
+// Called by the enterprise gateway's retention worker to enforce plan-specific data retention.
+func (h *InternalHandler) RetentionCleanup(c *gin.Context) {
+	var req struct {
+		UserID                 string `json:"user_id" binding:"required"`
+		AnalyticsRetentionDays int    `json:"analytics_retention_days" binding:"required"`
+		RecordingRetentionDays int    `json:"recording_retention_days"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Get all website SiteIDs and UUIDs for this user
+	rows, err := h.db.Query(ctx,
+		"SELECT id::text, site_id FROM websites WHERE user_id::text = $1",
+		req.UserID,
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to query websites"})
+		return
+	}
+	defer rows.Close()
+
+	var siteIDs []string
+	var uuidStrings []string
+	for rows.Next() {
+		var id, siteID string
+		if err := rows.Scan(&id, &siteID); err == nil {
+			siteIDs = append(siteIDs, siteID)
+			uuidStrings = append(uuidStrings, id)
+		}
+	}
+
+	if len(siteIDs) == 0 {
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{"deleted_events": 0, "deleted_replays": 0, "deleted_heatmaps": 0}})
+		return
+	}
+
+	result := gin.H{
+		"deleted_events":   0,
+		"deleted_replays":  0,
+		"deleted_heatmaps": 0,
+	}
+
+	// Delete old analytics events from ClickHouse
+	if h.ch != nil && req.AnalyticsRetentionDays > 0 {
+		err := h.ch.Exec(ctx,
+			"DELETE FROM events WHERE website_id IN (?) AND timestamp < now() - INTERVAL ? DAY",
+			siteIDs, req.AnalyticsRetentionDays,
+		)
+		if err != nil {
+			h.logger.Warn().Err(err).Str("user_id", req.UserID).Msg("Retention: failed to delete ClickHouse events")
+		}
+	}
+
+	// Delete old session replays from PostgreSQL
+	if req.RecordingRetentionDays > 0 {
+		tag, err := h.db.Exec(ctx,
+			"DELETE FROM session_replays WHERE (website_id = ANY($1) OR website_id = ANY($2)) AND created_at < NOW() - $3 * INTERVAL '1 day'",
+			siteIDs, uuidStrings, req.RecordingRetentionDays,
+		)
+		if err != nil {
+			h.logger.Warn().Err(err).Str("user_id", req.UserID).Msg("Retention: failed to delete session replays")
+		} else {
+			result["deleted_replays"] = tag.RowsAffected()
+		}
+	} else if req.RecordingRetentionDays == 0 {
+		// 0 means no recordings allowed (Starter plan) — delete all
+		tag, err := h.db.Exec(ctx,
+			"DELETE FROM session_replays WHERE website_id = ANY($1) OR website_id = ANY($2)",
+			siteIDs, uuidStrings,
+		)
+		if err != nil {
+			h.logger.Warn().Err(err).Str("user_id", req.UserID).Msg("Retention: failed to delete all session replays")
+		} else {
+			result["deleted_replays"] = tag.RowsAffected()
+		}
+	}
+
+	// Delete old heatmap points from PostgreSQL
+	if req.RecordingRetentionDays > 0 {
+		tag, err := h.db.Exec(ctx,
+			"DELETE FROM heatmap_points WHERE (website_id::text = ANY($1) OR website_id::text = ANY($2)) AND created_at < NOW() - $3 * INTERVAL '1 day'",
+			siteIDs, uuidStrings, req.RecordingRetentionDays,
+		)
+		if err != nil {
+			h.logger.Warn().Err(err).Str("user_id", req.UserID).Msg("Retention: failed to delete heatmap points")
+		} else {
+			result["deleted_heatmaps"] = tag.RowsAffected()
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": result})
+}

@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"analytics-app/internal/modules/replays/models"
+	"github.com/Seentics/seentics/internal/modules/replays/models"
 	"context"
 	"encoding/json"
 	"fmt"

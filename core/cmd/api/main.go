@@ -1,18 +1,7 @@
 package main
 
 import (
-	"analytics-app/internal/modules/analytics/handlers"
-	"analytics-app/internal/modules/analytics/repository"
-	"analytics-app/internal/modules/analytics/repository/privacy"
-	"analytics-app/internal/modules/analytics/services"
-	"analytics-app/internal/shared/config"
-	"analytics-app/internal/shared/database"
-	"analytics-app/internal/shared/middleware"
-	"analytics-app/internal/shared/migrations"
-	natsService "analytics-app/internal/shared/nats"
-	"analytics-app/internal/shared/storage"
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -21,30 +10,40 @@ import (
 	"syscall"
 	"time"
 
-	authHandlerPkg "analytics-app/internal/modules/auth/handlers"
-	authRepoPkg "analytics-app/internal/modules/auth/repository"
-	authServicePkg "analytics-app/internal/modules/auth/services"
+	"github.com/Seentics/seentics/internal/modules/analytics/handlers"
+	"github.com/Seentics/seentics/internal/modules/analytics/repository"
+	"github.com/Seentics/seentics/internal/modules/analytics/repository/privacy"
+	"github.com/Seentics/seentics/internal/modules/analytics/services"
+	"github.com/Seentics/seentics/internal/shared/config"
+	"github.com/Seentics/seentics/internal/shared/database"
+	"github.com/Seentics/seentics/internal/shared/middleware"
+	"github.com/Seentics/seentics/internal/shared/migrations"
+	"github.com/Seentics/seentics/internal/shared/storage"
 
-	autoHandlerPkg "analytics-app/internal/modules/automations/handlers"
-	autoRepoPkg "analytics-app/internal/modules/automations/repository"
-	autoServicePkg "analytics-app/internal/modules/automations/services"
+	authHandlerPkg "github.com/Seentics/seentics/internal/modules/auth/handlers"
+	authRepoPkg "github.com/Seentics/seentics/internal/modules/auth/repository"
+	authServicePkg "github.com/Seentics/seentics/internal/modules/auth/services"
 
-	funnelHandlerPkg "analytics-app/internal/modules/funnels/handlers"
-	funnelRepoPkg "analytics-app/internal/modules/funnels/repository"
-	funnelServicePkg "analytics-app/internal/modules/funnels/services"
+	autoHandlerPkg "github.com/Seentics/seentics/internal/modules/automations/handlers"
+	autoRepoPkg "github.com/Seentics/seentics/internal/modules/automations/repository"
+	autoServicePkg "github.com/Seentics/seentics/internal/modules/automations/services"
 
-	websiteHandlerPkg "analytics-app/internal/modules/websites/handlers"
-	websiteRepoPkg "analytics-app/internal/modules/websites/repository"
-	websiteServicePkg "analytics-app/internal/modules/websites/services"
+	funnelHandlerPkg "github.com/Seentics/seentics/internal/modules/funnels/handlers"
+	funnelRepoPkg "github.com/Seentics/seentics/internal/modules/funnels/repository"
+	funnelServicePkg "github.com/Seentics/seentics/internal/modules/funnels/services"
 
-	heatmapHandlerPkg "analytics-app/internal/modules/heatmaps/handlers"
-	heatmapRepoPkg "analytics-app/internal/modules/heatmaps/repository"
-	heatmapServicePkg "analytics-app/internal/modules/heatmaps/services"
-	replayHandlerPkg "analytics-app/internal/modules/replays/handlers"
-	replayRepoPkg "analytics-app/internal/modules/replays/repository"
-	replayServicePkg "analytics-app/internal/modules/replays/services"
+	websiteHandlerPkg "github.com/Seentics/seentics/internal/modules/websites/handlers"
+	websiteRepoPkg "github.com/Seentics/seentics/internal/modules/websites/repository"
+	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
 
-	"analytics-app/internal/shared/utils"
+	heatmapHandlerPkg "github.com/Seentics/seentics/internal/modules/heatmaps/handlers"
+	heatmapRepoPkg "github.com/Seentics/seentics/internal/modules/heatmaps/repository"
+	heatmapServicePkg "github.com/Seentics/seentics/internal/modules/heatmaps/services"
+	replayHandlerPkg "github.com/Seentics/seentics/internal/modules/replays/handlers"
+	replayRepoPkg "github.com/Seentics/seentics/internal/modules/replays/repository"
+	replayServicePkg "github.com/Seentics/seentics/internal/modules/replays/services"
+
+	"github.com/Seentics/seentics/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -87,14 +86,6 @@ func main() {
 		logger.Fatal().Err(err).Msg("Failed to run database migrations")
 	}
 
-	// Auto-create partitions (6 months back, 12 months forward)
-	logger.Info().Msg("Setting up automatic partitions...")
-	if err := database.SetupMonthlyPartitions(context.Background(), db); err != nil {
-		logger.Error().Err(err).Msg("Failed to setup automatic partitions")
-	} else {
-		logger.Info().Msg("Automatic partitions setup completed")
-	}
-
 	// Initialize CacheGrid (in-process cache for rate limiting, website caching, geolocation)
 	cache, err := cachegrid.NewMemory()
 	if err != nil {
@@ -133,18 +124,14 @@ func main() {
 	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, heatmapRepo, cache, cfg.Environment, logger)
 	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
 
-	// NATS & Events
-	natsSvc, err := natsService.NewNATSService(cfg.NATSUrl, cfg.NATSSubjectEvents, logger)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to connect to NATS")
-	}
+	// Events
 
 	// Automations
 	autoRepo := autoRepoPkg.NewAutomationRepository(db)
 	autoService := autoServicePkg.NewAutomationService(autoRepo, websiteService)
 	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
 
-	eventService := services.NewEventService(eventRepo, db, natsSvc, websiteService, autoService, logger)
+	eventService := services.NewEventService(eventRepo, db, websiteService, autoService, logger)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger)
 	privacyService := services.NewPrivacyService(privacyRepo, websiteService, logger)
 
@@ -162,7 +149,7 @@ func main() {
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 	// Heatmaps (Service)
-	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService)
+	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger)
 	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
 
 	// S3 Store
@@ -212,11 +199,8 @@ func main() {
 	if err := eventService.Shutdown(10 * time.Second); err != nil {
 		logger.Error().Err(err).Msg("Failed to shutdown event service gracefully")
 	}
-
-	if natsSvc != nil {
-		if err := natsSvc.Close(); err != nil {
-			logger.Error().Err(err).Msg("Failed to close NATS service")
-		}
+	if err := heatmapService.Shutdown(10 * time.Second); err != nil {
+		logger.Error().Err(err).Msg("Failed to shutdown heatmap service gracefully")
 	}
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
@@ -232,18 +216,6 @@ func setupRouter(cfg *config.Config, cache *cachegrid.Cache, eventService *servi
 	}
 
 	router := gin.New()
-
-	// EMERGENCY DEBUG LOGGING
-	router.Use(func(c *gin.Context) {
-		fmt.Printf("DEBUG ROUTER: INCOMING REQUEST %s %s\n", c.Request.Method, c.Request.URL.Path)
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Printf("DEBUG ROUTER: PANIC RECOVERED: %v\n", r)
-				c.AbortWithStatus(500)
-			}
-		}()
-		c.Next()
-	})
 
 	router.Use(middleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB limit
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
@@ -306,7 +278,6 @@ func setupRouter(cfg *config.Config, cache *cachegrid.Cache, eventService *servi
 			analytics.GET("/custom-events/:website_id", analyticsHandler.GetCustomEvents)
 			analytics.GET("/live-visitors/:website_id", analyticsHandler.GetLiveVisitors)
 			analytics.GET("/geolocation-breakdown/:website_id", analyticsHandler.GetGeolocationBreakdown)
-			analytics.GET("/user-retention/:website_id", analyticsHandler.GetUserRetention)
 			analytics.GET("/visitor-insights/:website_id", analyticsHandler.GetVisitorInsights)
 			analytics.GET("/export/:website_id", analyticsHandler.ExportAnalytics)
 			analytics.POST("/import", analyticsHandler.ImportAnalytics)
@@ -343,6 +314,8 @@ func setupRouter(cfg *config.Config, cache *cachegrid.Cache, eventService *servi
 			internal.GET("/user-resource-counts", internalHandler.GetUserResourceCounts)
 			internal.POST("/user/sync", internalHandler.UpsertUser)
 			internal.GET("/system/stats", internalHandler.GetSystemStats)
+			internal.GET("/website-owner", internalHandler.GetWebsiteOwner)
+			internal.POST("/retention-cleanup", internalHandler.RetentionCleanup)
 		}
 
 		automations := v1.Group("/websites/:website_id/automations")

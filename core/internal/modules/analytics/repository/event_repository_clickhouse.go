@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"analytics-app/internal/modules/analytics/models"
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -42,6 +42,8 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 			city Nullable(String),
 			region Nullable(String),
 			continent Nullable(String),
+			latitude Float64 DEFAULT 0,
+			longitude Float64 DEFAULT 0,
 			browser Nullable(String),
 			device Nullable(String),
 			os Nullable(String),
@@ -56,7 +58,8 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 			created_at DateTime64(3, 'UTC')
 		) ENGINE = MergeTree()
 		PARTITION BY toYYYYMM(timestamp)
-		ORDER BY (website_id, timestamp, event_type)`,
+		ORDER BY (website_id, timestamp, event_type)
+		TTL timestamp + INTERVAL 2 YEAR`,
 
 		// Daily aggregated stats
 		`CREATE TABLE IF NOT EXISTS daily_stats (
@@ -183,6 +186,18 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 		}
 	}
 
+	// Ensure columns added after initial schema creation exist on pre-existing tables.
+	// ALTER TABLE ... ADD COLUMN IF NOT EXISTS is idempotent in ClickHouse.
+	alterQueries := []string{
+		`ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude Float64 DEFAULT 0 AFTER continent`,
+		`ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude Float64 DEFAULT 0 AFTER latitude`,
+	}
+	for _, q := range alterQueries {
+		if err := r.conn.Exec(ctx, q); err != nil {
+			r.logger.Warn().Err(err).Msg("ClickHouse ALTER TABLE failed (column may already exist)")
+		}
+	}
+
 	return nil
 }
 
@@ -224,6 +239,15 @@ func (r *ClickHouseEventRepository) CreateBatch(ctx context.Context, events []mo
 			timeOnPage = int64(*event.TimeOnPage)
 		}
 
+		lat := float64(0)
+		if event.Latitude != nil {
+			lat = *event.Latitude
+		}
+		lng := float64(0)
+		if event.Longitude != nil {
+			lng = *event.Longitude
+		}
+
 		err = batch.Append(
 			event.ID,
 			event.WebsiteID,
@@ -239,6 +263,8 @@ func (r *ClickHouseEventRepository) CreateBatch(ctx context.Context, events []mo
 			event.City,
 			event.Region,
 			event.Continent,
+			lat,
+			lng,
 			event.Browser,
 			event.Device,
 			event.OS,
@@ -294,11 +320,11 @@ func (r *ClickHouseEventRepository) GetTotalPageviews(ctx context.Context) (int6
 
 func (r *ClickHouseEventRepository) GetByWebsiteID(ctx context.Context, websiteID string, limit, offset int) ([]models.Event, error) {
 	query := `
-		SELECT 
-			id, website_id, visitor_id, session_id, event_type, page, referrer, user_agent, 
-			ip_address, country, country_code, city, region, continent, browser, device, 
-			os, utm_source, utm_medium, utm_campaign, utm_term, utm_content, time_on_page, 
-			properties, timestamp, created_at
+		SELECT
+			id, website_id, visitor_id, session_id, event_type, page, referrer, user_agent,
+			ip_address, country, country_code, city, region, continent, latitude, longitude,
+			browser, device, os, utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+			time_on_page, properties, timestamp, created_at
 		FROM events
 		WHERE website_id = ?
 		ORDER BY timestamp DESC
@@ -315,12 +341,13 @@ func (r *ClickHouseEventRepository) GetByWebsiteID(ctx context.Context, websiteI
 		var event models.Event
 		var propertiesJSON string
 		var timeOnPage int64
+		var lat, lng float64
 
 		err := rows.Scan(
 			&event.ID, &event.WebsiteID, &event.VisitorID, &event.SessionID, &event.EventType, &event.Page, &event.Referrer, &event.UserAgent,
-			&event.IPAddress, &event.Country, &event.CountryCode, &event.City, &event.Region, &event.Continent, &event.Browser, &event.Device,
-			&event.OS, &event.UTMSource, &event.UTMMedium, &event.UTMCampaign, &event.UTMTerm, &event.UTMContent, &timeOnPage,
-			&propertiesJSON, &event.Timestamp, &event.CreatedAt,
+			&event.IPAddress, &event.Country, &event.CountryCode, &event.City, &event.Region, &event.Continent, &lat, &lng,
+			&event.Browser, &event.Device, &event.OS, &event.UTMSource, &event.UTMMedium, &event.UTMCampaign, &event.UTMTerm, &event.UTMContent,
+			&timeOnPage, &propertiesJSON, &event.Timestamp, &event.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -328,6 +355,12 @@ func (r *ClickHouseEventRepository) GetByWebsiteID(ctx context.Context, websiteI
 
 		top := int(timeOnPage)
 		event.TimeOnPage = &top
+		if lat != 0 {
+			event.Latitude = &lat
+		}
+		if lng != 0 {
+			event.Longitude = &lng
+		}
 
 		if propertiesJSON != "" {
 			var props map[string]interface{}

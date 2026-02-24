@@ -219,8 +219,6 @@ func (h *PostgreSQLHelper) SetupPerformanceOptimizations(ctx context.Context) er
 	for _, query := range optimizations {
 		_, err := h.db.Exec(ctx, query)
 		if err != nil {
-			// Log warning but don't fail - some settings might not be changeable
-			fmt.Printf("Warning: failed to apply optimization: %s, error: %v\n", query, err)
 		}
 	}
 
@@ -245,7 +243,6 @@ func (h *PostgreSQLHelper) CreateIndexes(ctx context.Context) error {
 	for _, indexSQL := range indexes {
 		_, err := h.db.Exec(ctx, indexSQL)
 		if err != nil {
-			fmt.Printf("Warning: failed to create index: %s, error: %v\n", indexSQL, err)
 		}
 	}
 

@@ -49,7 +49,6 @@ export async function addTagToVisitor(visitorId: string, tag: string): Promise<v
         lastSeenAt: serverTimestamp(),
       });
     }
-    console.log(`Tag "${tag}" added to visitor "${visitorId}"`);
   } catch (error) {
     console.error('Error adding tag to visitor:', error);
     throw error;
@@ -65,7 +64,6 @@ export async function removeTagFromVisitor(visitorId: string, tag: string): Prom
       tags: arrayRemove(tag),
       lastSeenAt: serverTimestamp(),
     });
-    console.log(`Tag "${tag}" removed from visitor "${visitorId}"`);
   } catch (error) {
     // It might throw an error if the document doesn't exist, which is fine.
     // We can just log it for debugging but not re-throw.

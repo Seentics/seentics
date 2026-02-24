@@ -4,10 +4,10 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Globe, Workflow, Filter, Plus } from 'lucide-react';
-import { 
-  useUpgradePrompt, 
-  LimitReachedAlert, 
-  UsageDashboard 
+import {
+  useUpgradePrompt,
+  LimitReachedAlert,
+  UsageDashboard
 } from '@/components/subscription';
 
 // Example: Website Creation Component
@@ -19,10 +19,9 @@ export const CreateWebsiteButton: React.FC = () => {
       showUpgradeModal('websites');
       return;
     }
-    
+
     // Proceed with website creation
-    console.log('Creating website...');
-    // Your website creation logic here
+    // Proceed with website creation
   };
 
   return (
@@ -45,10 +44,9 @@ export const CreateWorkflowButton: React.FC = () => {
       showUpgradeModal('workflows');
       return;
     }
-    
+
     // Proceed with workflow creation
-    console.log('Creating workflow...');
-    // Your workflow creation logic here
+    // Proceed with workflow creation
   };
 
   return (
@@ -71,10 +69,9 @@ export const CreateFunnelButton: React.FC = () => {
       showUpgradeModal('funnels');
       return;
     }
-    
+
     // Proceed with funnel creation
-    console.log('Creating funnel...');
-    // Your funnel creation logic here
+    // Proceed with funnel creation
   };
 
   return (
@@ -94,27 +91,27 @@ export const DashboardWithLimits: React.FC = () => {
     <div className="space-y-6">
       {/* Usage Dashboard */}
       <UsageDashboard />
-      
+
       {/* Limit Alerts */}
       <div className="space-y-4">
         <LimitReachedAlert
           type="websites"
           title="Website Limit Reached"
-          onDismiss={() => console.log('Website alert dismissed')}
+          onDismiss={() => { }}
         />
-        
+
         <LimitReachedAlert
           type="workflows"
           title="Workflow Limit Reached"
-          onDismiss={() => console.log('Workflow alert dismissed')}
+          onDismiss={() => { }}
         />
-        
+
         <LimitReachedAlert
           type="funnels"
           title="Funnel Limit Reached"
-          onDismiss={() => console.log('Funnel alert dismissed')}
+          onDismiss={() => { }}
         />
-        
+
         <LimitReachedAlert
           type="monthlyEvents"
           title="Monthly Events Limit Reached"

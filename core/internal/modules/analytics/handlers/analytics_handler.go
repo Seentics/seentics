@@ -1,11 +1,12 @@
 package handlers
 
 import (
-	"analytics-app/internal/modules/analytics/models"
-	"analytics-app/internal/modules/analytics/services"
 	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
+	"github.com/Seentics/seentics/internal/modules/analytics/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -586,30 +587,6 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, breakdown)
-}
-
-func (h *AnalyticsHandler) GetUserRetention(c *gin.Context) {
-	userID := h.getUserID(c)
-	if userID == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-		return
-	}
-
-	websiteID := c.Param("website_id")
-	if websiteID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
-		return
-	}
-
-	days := h.parseDays(c, 30)
-
-	retention, err := h.service.GetUserRetention(c.Request.Context(), websiteID, days, userID)
-	if err != nil {
-		h.handleError(c, err, "Failed to get user retention data")
-		return
-	}
-
-	c.JSON(http.StatusOK, retention)
 }
 
 func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
