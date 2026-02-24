@@ -22,7 +22,7 @@ import {
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { addGoal } from '@/lib/websites-api';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Check, Copy, Code } from 'lucide-react';
 
 interface AddGoalModalProps {
   open: boolean;
@@ -36,23 +36,43 @@ export function AddGoalModal({ open, onOpenChange, websiteId }: AddGoalModalProp
   const [identifier, setIdentifier] = useState('');
   const [selector, setSelector] = useState('');
   const [showHelper, setShowHelper] = useState(false);
+  const [createdGoal, setCreatedGoal] = useState<{ type: string; identifier: string; selector?: string } | null>(null);
+  const [copied, setCopied] = useState(false);
   const queryClient = useQueryClient();
+
+  const resetForm = () => {
+    setName('');
+    setIdentifier('');
+    setSelector('');
+    setCreatedGoal(null);
+    setShowHelper(false);
+    setCopied(false);
+  };
 
   const mutation = useMutation({
     mutationFn: (data: { name: string; type: string; identifier: string; selector?: string }) =>
       addGoal(websiteId, data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       toast.success('Goal created successfully');
       queryClient.invalidateQueries({ queryKey: ['goals', websiteId] });
-      onOpenChange(false);
-      setName('');
-      setIdentifier('');
-      setSelector('');
+      queryClient.invalidateQueries({ queryKey: ['goalStats'] });
+      setCreatedGoal({ type: variables.type, identifier: variables.identifier, selector: variables.selector });
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to create goal');
     },
   });
+
+  const handleClose = () => {
+    resetForm();
+    onOpenChange(false);
+  };
+
+  const copySnippet = async (text: string) => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,8 +84,79 @@ export function AddGoalModal({ open, onOpenChange, websiteId }: AddGoalModalProp
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[460px]">
+        {createdGoal ? (
+          /* ─── Success: show tracking instructions ─── */
+          <div className="space-y-4">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <Check className="h-4 w-4 text-emerald-500" />
+                </div>
+                <DialogTitle>Goal Created</DialogTitle>
+              </div>
+              <DialogDescription>
+                {createdGoal.type === 'pageview'
+                  ? 'This goal will automatically track visits to the specified page. No code changes needed.'
+                  : createdGoal.selector
+                    ? 'Clicks on the target element will be auto-tracked. No code changes needed.'
+                    : 'To start tracking conversions, trigger this event from your site.'}
+              </DialogDescription>
+            </DialogHeader>
+
+            {createdGoal.type === 'event' && !createdGoal.selector && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Code className="h-3.5 w-3.5" />
+                  Add this to your site where the action happens:
+                </div>
+                <div className="relative group">
+                  <pre className="bg-muted/50 border border-border/50 rounded-lg p-4 text-sm font-mono text-foreground overflow-x-auto">
+                    <code>{`seentics.track('${createdGoal.identifier}')`}</code>
+                  </pre>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => copySnippet(`seentics.track('${createdGoal.identifier}')`)}
+                  >
+                    {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  You can also pass properties: <code className="bg-muted px-1 rounded text-[10px]">{`seentics.track('${createdGoal.identifier}', { value: 99 })`}</code>
+                </p>
+              </div>
+            )}
+
+            {createdGoal.type === 'event' && createdGoal.selector && (
+              <div className="bg-muted/30 border border-border/50 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">
+                  The tracker script will automatically fire <code className="bg-muted px-1 rounded font-bold">{createdGoal.identifier}</code> when a user clicks on <code className="bg-muted px-1 rounded font-bold">{createdGoal.selector}</code>.
+                </p>
+              </div>
+            )}
+
+            {createdGoal.type === 'pageview' && (
+              <div className="bg-muted/30 border border-border/50 rounded-lg p-3">
+                <p className="text-xs text-muted-foreground">
+                  Conversions will be counted each time a visitor views <code className="bg-muted px-1 rounded font-bold">{createdGoal.identifier}</code>. No code changes required.
+                </p>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button onClick={() => resetForm()} variant="outline">
+                Create Another
+              </Button>
+              <Button onClick={handleClose}>
+                Done
+              </Button>
+            </DialogFooter>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Create New Goal</DialogTitle>
@@ -166,6 +257,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId }: AddGoalModalProp
             </Button>
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

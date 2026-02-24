@@ -46,6 +46,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
 import { EventsDetails } from '@/components/analytics/EventsDetails';
+import { GoalConversions } from '@/components/analytics/GoalConversions';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
@@ -710,24 +711,31 @@ export default function WebsiteDashboardPage() {
                     <CardTitle className="text-lg font-bold tracking-tight">Goal Conversions</CardTitle>
                     <p className="text-xs text-muted-foreground">Behavioral targets</p>
                   </div>
-                  <Button
-                    onClick={() => setShowAddGoalModal(true)}
-                    variant="secondary"
-                    size="sm"
-                    className="px-2 py-0 font-medium text-xs rounded gap-2 shadow-sm transition-transform active:scale-95"
-                  >
-                    <PlusCircle className="h-4 w-4" />
-                    Add Goal
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Link href={`/websites/${websiteId}/settings?tab=goals`}>
+                      <Button variant="ghost" size="sm" className="px-2 py-0 font-medium text-xs rounded text-muted-foreground hover:text-foreground">
+                        <Settings className="h-3.5 w-3.5 mr-1" />
+                        Manage
+                      </Button>
+                    </Link>
+                    <Button
+                      onClick={() => setShowAddGoalModal(true)}
+                      variant="secondary"
+                      size="sm"
+                      className="px-2 py-0 font-medium text-xs rounded gap-2 shadow-sm transition-transform active:scale-95"
+                    >
+                      <PlusCircle className="h-4 w-4" />
+                      Add Goal
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-4 flex-1">
-                <div className="max-h-[400px] overflow-y-auto  custom-scrollbar">
-                  <EventsDetails
-                    items={finalGoalStats}
-                    isLoading={!isDemoMode && goalStatsLoading}
-                  />
-                </div>
+                <GoalConversions
+                  items={finalGoalStats}
+                  totalVisitors={finalDashboardData?.unique_visitors || 0}
+                  isLoading={!isDemoMode && goalStatsLoading}
+                />
               </CardContent>
             </Card>
 

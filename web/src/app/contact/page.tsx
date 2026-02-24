@@ -11,7 +11,6 @@ import { Mail, MessageSquare, Phone, MapPin, Clock, Send, ExternalLink, Github, 
 import { Logo } from '@/components/ui/logo';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import api from '@/lib/api';
 import { isEnterprise } from '@/lib/features';
 
 export default function ContactPage() {
@@ -44,37 +43,42 @@ export default function ContactPage() {
     setIsSubmitting(true);
 
     try {
-      // Create subject line with category and name
       const subjectLine = `[${formData.subject.toUpperCase()}] ${formData.name}${formData.company ? ` (${formData.company})` : ''}`;
-      
-      const response = await api.post('/user/support/contact', {
-        subject: subjectLine,
-        message: formData.message,
-        email: formData.email
+
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          message: formData.message,
+          subject: subjectLine,
+          company: formData.company,
+        }),
       });
 
-      if (response.data.success) {
-        toast({
-          title: "Message Sent!",
-          description: "Thank you for contacting us. We'll get back to you within 24 hours.",
-        });
-        
-        // Reset form
-        setFormData({
-          name: '',
-          email: '',
-          company: '',
-          subject: 'general',
-          message: ''
-        });
-      } else {
-        throw new Error(response.data.message || 'Failed to send message');
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send message');
       }
+
+      toast({
+        title: "Message Sent!",
+        description: "Thank you for contacting us. We'll get back to you within 24 hours.",
+      });
+
+      setFormData({
+        name: '',
+        email: '',
+        company: '',
+        subject: 'general',
+        message: ''
+      });
     } catch (error: any) {
-      console.error('Contact form error:', error);
       toast({
         title: "Error",
-        description: error.response?.data?.message || error.message || "Failed to send message. Please try again.",
+        description: error.message || "Failed to send message. Please try again.",
         variant: "destructive",
       });
     } finally {

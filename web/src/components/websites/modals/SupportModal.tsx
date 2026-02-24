@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import { isEnterprise } from '@/lib/features';
-import api from '@/lib/api';
 
 interface SupportModalProps {
   isOpen: boolean;
@@ -38,11 +37,20 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
     setError(null);
 
     try {
-      await api.post('/user/support/contact', {
-        subject: `[Support Modal] Message from ${formData.name}`,
-        message: formData.message,
-        email: formData.email
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          message: formData.message,
+          subject: `[Support Modal] Message from ${formData.name}`,
+        }),
       });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to send message');
+      }
 
       setIsSuccess(true);
       setFormData({ name: '', email: '', message: '' });
@@ -51,7 +59,7 @@ export function SupportModal({ isOpen, onClose }: SupportModalProps) {
         onClose();
       }, 2500);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to send message.');
+      setError(err.message || 'Failed to send message.');
     } finally {
       setIsSubmitting(false);
     }

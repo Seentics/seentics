@@ -8,6 +8,7 @@ import {
     Zap,
     MousePointer2,
     Video,
+    Target,
 } from 'lucide-react';
 
 import { ProfileSettings } from '@/components/profile-settings';
@@ -15,12 +16,14 @@ import { WebsitesSettingsComponent } from '@/components/settings/WebsitesSetting
 import { ScriptSettingsComponent } from '@/components/settings/ScriptSettingsComponent';
 import { HeatmapSettingsComponent } from '@/components/settings/HeatmapSettingsComponent';
 import { ReplaySettingsComponent } from '@/components/settings/ReplaySettingsComponent';
+import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { cn } from '@/lib/utils';
 
 const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'websites', label: 'Websites', icon: Globe },
+    { id: 'goals', label: 'Goals', icon: Target },
     { id: 'heatmaps', label: 'Heatmaps', icon: MousePointer2 },
     { id: 'replays', label: 'Replays', icon: Video },
     { id: 'scripts', label: 'Scripts', icon: Zap },
@@ -40,6 +43,7 @@ export default function SettingsPage() {
             case 'websites': return <WebsitesSettingsComponent />;
             case 'heatmaps': return <HeatmapSettingsComponent websiteId={websiteId} />;
             case 'replays': return <ReplaySettingsComponent websiteId={websiteId} />;
+            case 'goals': return <GoalsSettingsComponent websiteId={websiteId} />;
             case 'scripts': return <ScriptSettingsComponent websiteId={websiteId} />;
             default: return <ProfileSettings />;
         }

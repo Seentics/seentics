@@ -102,11 +102,10 @@ export default function RootLayout({
         {/* Global Chat Support */}
         {/* <TawkMessenger /> */}
 
-        {/* Seentics Analytics Local Tracking */}
+        {/* Seentics Analytics Production Tracking */}
         <Script
-          src="http://localhost:3000/trackers/seentics-core.min.js"
-          data-website-id="12d359a0cab0f9b703e0be95"
-          data-auto-load="analytics,automation,funnels,replay,heatmap"
+          src="https://www.seentics.com/trackers/seentics-core.js"
+          data-site-id="066a286d-a288-4a83-aa50-1d2a42e1e396"
           strategy="afterInteractive"
         />
 

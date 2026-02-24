@@ -5,7 +5,6 @@ import { MessageSquare, X, Send, CheckCircle2, AlertCircle, Clock, ShieldCheck, 
 import { cn } from '@/lib/utils';
 import { isEnterprise } from '@/lib/features';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -29,11 +28,20 @@ export default function SupportWidget() {
         setError(null);
 
         try {
-            await api.post('/user/support/contact', {
-                subject: `[Support] Message from ${formData.name}`,
-                message: formData.message,
-                email: formData.email
+            const res = await fetch('/api/contact', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: formData.name,
+                    email: formData.email,
+                    message: formData.message,
+                    subject: `[Support] Message from ${formData.name}`,
+                }),
             });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to send message');
+            }
 
             setIsSuccess(true);
             setFormData({ name: '', email: '', message: '' });
@@ -42,7 +50,7 @@ export default function SupportWidget() {
                 setIsOpen(false);
             }, 3000);
         } catch (err: any) {
-            setError(err.response?.data?.error || 'Something went wrong. Please try again.');
+            setError(err.message || 'Something went wrong. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
