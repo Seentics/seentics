@@ -61,7 +61,7 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 		) ENGINE = MergeTree()
 		PARTITION BY toYYYYMM(timestamp)
 		ORDER BY (website_id, timestamp, event_type)
-		TTL toDateTime(timestamp) + INTERVAL 2 YEAR`,
+		TTL toDate(timestamp) + INTERVAL 2 YEAR`,
 
 		// Daily aggregated stats
 		`CREATE TABLE IF NOT EXISTS daily_stats (
