@@ -1,21 +1,20 @@
 <p align="center">
-  <img src="logo.svg" alt="Seentics" width="80" />
+  <img src="logo.svg" alt="Seentics" width="100" />
 </p>
 
 <h1 align="center">Seentics</h1>
 
 <p align="center">
-  Open-source analytics platform with heatmaps, session replays, funnels, and behavioral automation.
+  <strong>The open-source, privacy-first analytics platform that turns data into action.</strong>
   <br />
-  <strong>Own your data. Understand your users. Automate what matters.</strong>
+  Real-time insights, Visual Heatmaps, Session Replays, Advanced Funnels, and Behavioral Automations.
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> &middot;
   <a href="#features">Features</a> &middot;
   <a href="#tech-stack">Tech Stack</a> &middot;
-  <a href="DEPLOYMENT.md">Deploy</a> &middot;
-  <a href="ROADMAP.md">Roadmap</a> &middot;
+  <a href="DEPLOYMENT.md">Deployment</a> &middot;
   <a href="CONTRIBUTING.md">Contribute</a>
 </p>
 
@@ -24,140 +23,106 @@
   <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white" alt="Go" /></a>
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" alt="Next.js" /></a>
   <a href="https://www.docker.com"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker" /></a>
+  <a href="https://github.com/Seentics/seentics/stargazers"><img src="https://img.shields.io/github/stars/Seentics/seentics.svg?style=social&label=Star" alt="GitHub stars" /></a>
 </p>
 
 ---
 
-<p align="center">
-  <img src="web/public/analytics-dashboard.png" alt="Seentics Dashboard" width="800" />
-</p>
+## 🚀 Why Seentics?
 
-## Why Seentics?
+Most analytics tools tell you *what* happened, but they don't help you understand *why* or let you *act* on it. Seentics brings the power of enterprise behavior analysis to everyone, without sacrificing privacy or performance.
 
-Most analytics tools either lock your data in a SaaS or give you charts with no way to act on them. Seentics does both — deep behavioral insights plus automation — and you keep every byte of data on your own infrastructure.
+- **Privacy First** — No cookies, no fingerprints, no PII. GDPR/PECR compliant by design.
+- **Visual Evidence** — Don't just look at charts; see exactly how users interact with Heatmaps and Replays.
+- **Actionable** — Use our Visual Automation Builder to trigger on-site actions based on real-time behavior.
+- **Self-Hosted** — You own your data. Deploy in minutes on your own infrastructure.
+- **Built for Scale** — Powered by ClickHouse and Go for high-throughput event processing.
 
-- **Self-hosted** — No third-party data sharing, no cookie banners needed
-- **Privacy-first** — GDPR/CCPA compliant by design
-- **Scales with you** — ClickHouse for analytics, PostgreSQL for metadata, NATS for streaming
-- **Actionable** — Trigger popups, banners, and workflows based on real-time behavior
+## ✨ Features
 
-## Features
+### 📊 Real-time Analytics
+A snapshot of your site's health. Monitor live visitors, page views, session duration, and bounce rates across custom date ranges. Breakdown by source, device, browser, and geography.
 
-**Analytics** — Real-time dashboard, live visitors, traffic sources, geo breakdown, UTM tracking, custom events, data export
+### 🔥 Visual Heatmaps
+Stop guessing where users click. Our high-performance heatmap engine generates click maps and scroll maps without slowing down your site. Supporting multiple viewports (Desktop/Tablet/Mobile) and live page switching.
 
-**Heatmaps** — Click maps, scroll depth, pointer tracking across every page
+### 📼 Session Replays
+Watch exactly how users navigate your site. Understand friction points, identify bugs, and improve UX with full session reconstructions. Stored efficiently in S3-compatible storage with automatic PII masking.
 
-**Session Replays** — Full recordings with automatic PII masking, stored in S3-compatible storage
+### 🚀 Advanced Funnels
+Visualize the customer journey. Create multi-step funnels to see exactly where users are dropping off in your signup flow or checkout process.
 
-**Funnels** — Multi-step conversion tracking with drop-off analysis
+### 🤖 Behavioral Automations
+Turn visitors into customers. Use our low-code visual builder to trigger:
+- **Popups & Banners** based on exit intent or scroll depth.
+- **Custom Webhooks** to sync data with your CRMs or messaging apps.
+- **JavaScript Injection** for personalized site modifications.
 
-**Automation** — Visual workflow builder for behavioral triggers — show popups, redirect users, fire webhooks, all based on what visitors actually do
+---
 
-## Quick Start
+## 🛠 Tech Stack
 
+| Component | Technology |
+|-----------|------------|
+| **Backend** | Go 1.24 (Gin Gonic) |
+| **Frontend** | Next.js 14, Tailwind CSS, Radix UI |
+| **Analytics DB** | ClickHouse (Primary) |
+| **Metadata DB** | PostgreSQL 15 |
+| **Streaming** | NATS JetStream |
+| **Caching** | [CacheGrid](https://github.com/skshohagmiah/cachegrid) (Embedded Go Cache) |
+| **Storage** | S3-Compatible (MinIO for local development) |
+
+---
+
+## ⚡ Quick Start
+
+### 1. Requirements
+Ensure you have [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/) installed.
+
+### 2. Launch
 ```bash
-# Clone
+# Clone the repository
 git clone https://github.com/Seentics/seentics.git
 cd seentics
 
-# Configure
+# Copy environment variables
 cp core/.env.example core/.env
 
-# Launch (all services: backend, frontend, databases)
-docker compose up --build
+# Start the full stack
+docker compose up -d --build
 ```
 
-Open [localhost:3000](http://localhost:3000) — create your first site and start tracking.
+### 3. Access
+- **Dashboard**: [http://localhost:3000](http://localhost:3000)
+- **API**: [http://localhost:3002](http://localhost:3002)
 
-## Architecture
+---
 
-```
+## 🏗 Architecture
+
+```text
 [Browser] --> [Next.js Frontend :3000]
                     |
-              [Go Backend :3002]
+              [Go Backend :3002] (NATS + ClickHouse + Postgres)
                     |
-    +-----------+---+---+---------+-------+
-    |           |       |         |       |
- Postgres  ClickHouse  CacheGrid  NATS   MinIO
- (metadata) (events)   (cache)  (stream) (replays)
+     +--------------+-------------+-------------+
+     |              |             |             |
+ ClickHouse      Postgres       MinIO       CacheGrid
+ (Events)       (Metadata)    (Replays)      (Caching)
 ```
 
-**Single binary backend** — the Go service handles auth, events, heatmaps, replays, funnels, automations, and the tracker config API. Events flow through NATS for async processing, get batched, and land in ClickHouse (with PostgreSQL fallback).
+## 🤝 Contributing
 
-## Tech Stack
+We love contributions! Whether it's a bug report, a new feature, or a documentation improvement, feel free to open an issue or submit a pull request.
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Go 1.24, Gin framework |
-| Frontend | Next.js 14, Tailwind CSS, shadcn/ui |
-| Analytics DB | ClickHouse |
-| Metadata DB | PostgreSQL 15 |
-| Streaming | NATS JetStream |
-| Cache & Rate Limiting | [CacheGrid](https://github.com/skshohagmiah/cachegrid) — embedded, high-performance Go cache with built-in rate limiting, distributed locks, and LRU eviction. No external process needed. |
-| Object Storage | S3-compatible (MinIO for local) |
-| Container | Docker Compose |
+Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
-## Project Structure
+## 📄 License
 
-```
-seentics/
-├── core/                  # Go backend
-│   ├── cmd/api/           # Entry point
-│   ├── internal/
-│   │   ├── modules/       # analytics, auth, automations, funnels,
-│   │   │                  # heatmaps, replays, websites
-│   │   └── shared/        # config, database, middleware, nats, storage
-│   ├── Dockerfile
-│   └── Dockerfile.dev
-├── web/                   # Next.js frontend
-│   ├── src/
-│   │   ├── app/           # App router pages
-│   │   ├── components/    # UI components
-│   │   └── lib/           # API clients, hooks, utils
-│   ├── Dockerfile
-│   └── Dockerfile.dev
-└── docker-compose.yml     # Full stack for local development
-```
-
-## Configuration
-
-Copy `core/.env.example` to `core/.env` and adjust as needed:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3002` | Backend API port |
-| `DATABASE_URL` | — | PostgreSQL connection string |
-| `NATS_URL` | `nats://localhost:4222` | NATS server URL |
-| `JWT_SECRET` | — | Secret for JWT signing (min 32 chars in prod) |
-| `CLICKHOUSE_HOST` | `localhost` | ClickHouse host |
-| `S3_ENDPOINT` | `http://minio:9000` | S3-compatible storage for replays |
-
-## Production Deployment
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for the full guide with Nginx, SSL, and recommended server specs.
-
-```bash
-# Quick deploy with Docker Compose
-docker compose -f docker-compose.yml up -d --build
-```
-
-## Contributing
-
-We welcome contributions of all kinds. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes
-4. Open a pull request
-
-## License
-
-AGPL v3.0 — See [LICENSE](LICENSE) for details.
-
-You can use Seentics freely for any purpose. If you modify the source and offer it as a service, you must open-source your changes.
+Seentics is licensed under the **AGPL v3.0**. See the [LICENSE](LICENSE) file for more information. 
 
 ---
 
 <p align="center">
-  Built by the <a href="https://github.com/Seentics">Seentics</a> community
+  Built with ❤️ by the <a href="https://github.com/Seentics">Seentics Team</a>
 </p>
