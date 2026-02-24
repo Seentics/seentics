@@ -23,6 +23,7 @@
   <a href="https://golang.org"><img src="https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white" alt="Go" /></a>
   <a href="https://nextjs.org"><img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" alt="Next.js" /></a>
   <a href="https://www.docker.com"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker" /></a>
+  <a href="https://github.com/Seentics/seentics/stargazers"><img src="https://img.shields.io/github/stars/Seentics/seentics.svg?style=social&label=Star" alt="GitHub stars" /></a>
 </p>
 
 <p align="center">
@@ -71,8 +72,7 @@ Turn visitors into customers. Use our low-code visual builder to trigger:
 | **Frontend** | Next.js 14, Tailwind CSS, Radix UI |
 | **Analytics DB** | ClickHouse (Primary) |
 | **Metadata DB** | PostgreSQL 15 |
-| **Streaming** | NATS JetStream (Asynchronous event processing) |
-| **Caching** | [CacheGrid](https://github.com/skshohagmiah/cachegrid) (Embedded Go Cache) |
+| **Caching** | [CacheGrid](https://github.com/skshohagmiah/cachegrid) (Embedded high-performance Go cache) |
 | **Storage** | S3-Compatible (MinIO for local development) |
 
 ---
@@ -106,7 +106,7 @@ docker compose up -d --build
 ```text
 [Browser] --> [Next.js Frontend :3000]
                     |
-              [Go Backend :3002] (NATS + ClickHouse + Postgres)
+              [Go Backend :3002] (ClickHouse + Postgres)
                     |
      +--------------+-------------+-------------+
      |              |             |             |
@@ -116,7 +116,7 @@ docker compose up -d --build
 
 ## 🤝 Contributing
 
-We love contributions! Whether it's a bug report, a new feature, or a documentation improvement, feel free to open an issue or submit a pull request.
+ We love contributions! Whether it's a bug report, a new feature, or a documentation improvement, feel free to open an issue or submit a pull request.
 
 Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for more details.
 
