@@ -14,11 +14,10 @@ export function TrackingSettingsComponent({ websiteId }: { websiteId: string }) 
   }, []);
 
 const trackingSnippet = `<!-- Seentics Analytics -->
-<script 
-  defer 
-  data-website-id="${websiteId}" 
-  data-auto-load="analytics,automation,funnels,replay,heatmap"
-  src="${origin}/trackers/seentics-core.js"
+<script
+  defer
+  data-website-id="${websiteId}"
+  src="${origin}/trackers/seentics.js"
 ></script>`;
 
   const handleCopy = () => {

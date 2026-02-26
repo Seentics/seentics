@@ -104,7 +104,7 @@ export default function RootLayout({
 
         {/* Seentics Analytics Production Tracking */}
         <Script
-          src="https://www.seentics.com/trackers/seentics-core.js"
+          src="https://www.seentics.com/trackers/seentics.js"
           data-site-id="066a286d-a288-4a83-aa50-1d2a42e1e396"
           strategy="afterInteractive"
         />

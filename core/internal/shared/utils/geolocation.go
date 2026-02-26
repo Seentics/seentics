@@ -15,7 +15,7 @@ import (
 
 	"github.com/oschwald/geoip2-golang"
 	"github.com/rs/zerolog"
-	cachegrid "github.com/skshohagmiah/cachegrid"
+	"github.com/Seentics/seentics/internal/shared/cache"
 )
 
 var (
@@ -43,7 +43,7 @@ type cacheEntry struct {
 
 // GeolocationService provides IP geolocation with multiple backends
 type GeolocationService struct {
-	cache     *cachegrid.Cache
+	cache     *cache.Cache
 	maxmindDB *geoip2.Reader
 
 	// Fallback in-memory cache
@@ -75,7 +75,7 @@ func GetClientIP(ctx context.Context) string {
 }
 
 // NewGeolocationService creates a new geolocation service with CacheGrid and MaxMind support
-func NewGeolocationService(cache *cachegrid.Cache) *GeolocationService {
+func NewGeolocationService(cache *cache.Cache) *GeolocationService {
 	// Simple console logger as default if no global one is set
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).With().Timestamp().Str("service", "geolocation").Logger()
 
@@ -101,7 +101,7 @@ func NewGeolocationService(cache *cachegrid.Cache) *GeolocationService {
 }
 
 // InitGlobalGeolocationService initializes the global singleton with a cache instance
-func InitGlobalGeolocationService(cache *cachegrid.Cache) {
+func InitGlobalGeolocationService(cache *cache.Cache) {
 	serviceOnce.Do(func() {
 		globalGeoService = NewGeolocationService(cache)
 	})

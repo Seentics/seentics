@@ -16,19 +16,19 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
-	cachegrid "github.com/skshohagmiah/cachegrid"
+	"github.com/Seentics/seentics/internal/shared/cache"
 )
 
 type WebsiteService struct {
 	repo        *repository.WebsiteRepository
 	authRepo    *authRepoPkg.AuthRepository
 	heatmapRepo heatmapRepoPkg.HeatmapRepository
-	cache       *cachegrid.Cache
+	cache       *cache.Cache
 	env         string
 	logger      zerolog.Logger
 }
 
-func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, heatmapRepo heatmapRepoPkg.HeatmapRepository, cache *cachegrid.Cache, env string, logger zerolog.Logger) *WebsiteService {
+func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, heatmapRepo heatmapRepoPkg.HeatmapRepository, cache *cache.Cache, env string, logger zerolog.Logger) *WebsiteService {
 	return &WebsiteService{
 		repo:        repo,
 		authRepo:    authRepo,

@@ -43,11 +43,14 @@ import (
 	replayRepoPkg "github.com/Seentics/seentics/internal/modules/replays/repository"
 	replayServicePkg "github.com/Seentics/seentics/internal/modules/replays/services"
 
+	trackerPkg "github.com/Seentics/seentics/internal/modules/tracker"
+
 	"github.com/Seentics/seentics/internal/shared/utils"
 
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
-	cachegrid "github.com/skshohagmiah/cachegrid"
+	"github.com/Seentics/seentics/internal/shared/cache"
 )
 
 func getEnvOrDefault(key, defaultValue string) string {
@@ -86,16 +89,16 @@ func main() {
 		logger.Fatal().Err(err).Msg("Failed to run database migrations")
 	}
 
-	// Initialize CacheGrid (in-process cache for rate limiting, website caching, geolocation)
-	cache, err := cachegrid.NewMemory()
+	// Initialize in-process cache for rate limiting, website caching, geolocation
+	appCache, err := cache.NewDefault()
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to initialize cache")
 	}
-	defer cache.Shutdown()
-	logger.Info().Msg("CacheGrid initialized")
+	defer appCache.Shutdown()
+	logger.Info().Msg("Cache initialized")
 
 	// Initialize global geolocation service with cache
-	utils.InitGlobalGeolocationService(cache)
+	utils.InitGlobalGeolocationService(appCache)
 
 	ctx := context.Background()
 
@@ -121,7 +124,7 @@ func main() {
 
 	// Websites
 	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
-	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, heatmapRepo, cache, cfg.Environment, logger)
+	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, heatmapRepo, appCache, cfg.Environment, logger)
 	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
 
 	// Events
@@ -169,8 +172,11 @@ func main() {
 	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store)
 	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 
+	// Unified tracker handler (init + collect)
+	trackerHandler := trackerPkg.NewTrackerHandler(websiteService, eventService, heatmapService, replayService, funnelService, autoService, logger)
+
 	// Setup router
-	router := setupRouter(cfg, cache, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, authHandler, websiteHandler, heatmapHandler, replayHandler, internalHandler, logger)
+	router := setupRouter(cfg, appCache, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, authHandler, websiteHandler, heatmapHandler, replayHandler, internalHandler, trackerHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -210,13 +216,14 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, cache *cachegrid.Cache, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, internalHandler *handlers.InternalHandler, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, internalHandler *handlers.InternalHandler, trackerHandler *trackerPkg.TrackerHandler, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
 
+	router.Use(gzip.Gzip(gzip.DefaultCompression))
 	router.Use(middleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB limit
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	router.Use(middleware.ClientIPMiddleware())
@@ -242,6 +249,8 @@ func setupRouter(cfg *config.Config, cache *cachegrid.Cache, eventService *servi
 			path == "/api/v1/heatmaps/record" ||
 			path == "/api/v1/replays/record" ||
 			strings.HasPrefix(path, "/api/v1/tracker/config/") ||
+			strings.HasPrefix(path, "/api/v1/tracker/init/") ||
+			path == "/api/v1/tracker/collect" ||
 			strings.HasPrefix(path, "/api/v1/workflows/site/") ||
 			strings.HasPrefix(path, "/api/v1/internal/") {
 			c.Next()
@@ -251,7 +260,7 @@ func setupRouter(cfg *config.Config, cache *cachegrid.Cache, eventService *servi
 	})
 
 	// Apply Rate Limiting AFTER Auth so it can identify users by ID
-	router.Use(middleware.RateLimitMiddleware(cache))
+	router.Use(middleware.RateLimitMiddleware(appCache))
 
 	router.GET("/health", healthHandler.HealthCheck)
 	v1 := router.Group("/api/v1")
@@ -294,6 +303,10 @@ func setupRouter(cfg *config.Config, cache *cachegrid.Cache, eventService *servi
 		}
 
 		v1.GET("/tracker/config/:site_id", websiteHandler.GetTrackerConfig)
+
+		// Unified tracker endpoints (init + collect)
+		v1.GET("/tracker/init/:site_id", trackerHandler.Init)
+		v1.POST("/tracker/collect", middleware.DecompressMiddleware(), trackerHandler.Collect)
 
 		admin := v1.Group("/admin", middleware.RoleMiddleware("admin"))
 		{

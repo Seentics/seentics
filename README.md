@@ -96,7 +96,7 @@ After creating a website in the dashboard, add this to your site's `<head>`:
 ```html
 <script
   async
-  src="http://localhost:3002/trackers/seentics-core.js"
+  src="http://localhost:3002/trackers/seentics.js"
   data-site-id="YOUR_SITE_ID"
 ></script>
 ```
@@ -195,7 +195,7 @@ ClickHouse    PostgreSQL     MinIO
  (events)     (metadata)   (replays)
 ```
 
-The tracking script (`seentics-core.js`) is served by the Go backend and sends events directly to it. The backend processes events into ClickHouse for analytics queries, stores session replay data in S3-compatible storage, and uses PostgreSQL for user accounts, website configs, goals, and automation rules.
+The tracking script (`seentics.js`) is served by the Go backend and sends events directly to it. The backend processes events into ClickHouse for analytics queries, stores session replay data in S3-compatible storage, and uses PostgreSQL for user accounts, website configs, goals, and automation rules.
 
 ---
 

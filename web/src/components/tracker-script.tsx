@@ -9,9 +9,9 @@ interface TrackerScriptProps {
 }
 
 /**
- * Simplified TrackerScript as requested.
- * - Localhost: Uses the local site_id from env or hardcoded fallback, with seentics-core.js
- * - Production: Uses the production tracker with the production site_id
+ * Unified Seentics tracker script.
+ * - Localhost: Uses local dev site_id with local tracker
+ * - Production: Uses production tracker with production site_id
  */
 export default function TrackerScript({ testMode, siteId }: TrackerScriptProps = {}) {
   const [mounted, setMounted] = useState(false);
@@ -28,7 +28,6 @@ export default function TrackerScript({ testMode, siteId }: TrackerScriptProps =
     window.location.hostname.includes('localhost')
   );
 
-  // Use env var if set, otherwise fall back to the local dev site_id
   const localSiteId = process.env.NEXT_PUBLIC_DEFAULT_SITE_ID || '8a9a0f057175fc7f98d09293';
 
   if (isLocalhost) {
@@ -36,19 +35,17 @@ export default function TrackerScript({ testMode, siteId }: TrackerScriptProps =
       <Script
         async
         data-website-id={localSiteId}
-        data-auto-load="analytics,automation,funnels,heatmap,replay"
-        src="http://localhost:3000/trackers/seentics-core.js"
+        src="http://localhost:3000/trackers/seentics.js"
         strategy="afterInteractive"
       />
     );
   }
 
-  // Production: Use specific tracking code as requested
   return (
     <Script
-      id="seentics-analytics"
+      id="seentics-tracker"
       async
-      src="https://www.seentics.com/trackers/seentics-core.js"
+      src="https://www.seentics.com/trackers/seentics.js"
       data-site-id="4d3b4215-7e19-495c-8428-6e03dcaaeb86"
       data-api-host="https://api.seentics.com"
       strategy="afterInteractive"

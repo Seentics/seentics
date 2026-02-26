@@ -164,7 +164,7 @@ export const LOGIC_TYPES = [
     icon: GitBranch,
     color: 'purple',
     description: 'Check if user is on Mobile, Desktop, or Tablet',
-    implemented: true, // ✅ Verified: seentics-automation.js:42-100 evaluateCondition
+    implemented: true, // ✅ Verified: seentics.js automation section
   },
   {
     type: 'conditionNode',
@@ -173,7 +173,7 @@ export const LOGIC_TYPES = [
     icon: Users,
     color: 'blue',
     description: 'Check if user is New or Returning',
-    implemented: true, // ✅ Verified: seentics-automation.js:42-100 evaluateCondition
+    implemented: true, // ✅ Verified: seentics.js automation section
   },
   {
     type: 'conditionNode',
@@ -182,7 +182,7 @@ export const LOGIC_TYPES = [
     icon: Globe,
     color: 'orange',
     description: 'Check for specific UTM or URL parameters',
-    implemented: true, // ✅ Verified: seentics-automation.js:42-100 evaluateCondition
+    implemented: true, // ✅ Verified: seentics.js automation section
   },
   {
     type: 'advancedConditionNode',
@@ -209,7 +209,7 @@ export const LOGIC_TYPES = [
     icon: Clock,
     color: 'amber',
     description: 'Pause the workflow for a specific duration',
-    implemented: true, // ✅ Timer system: seentics-automation.js:216-221
+    implemented: true, // ✅ Timer system: seentics.js automation section
   },
   {
     type: 'conditionNode',
@@ -227,7 +227,7 @@ export const LOGIC_TYPES = [
     icon: TrendingUp,
     color: 'green',
     description: 'Check where user came from (organic, paid, social)',
-    implemented: true, // ✅ Referrer condition: seentics-automation.js:84
+    implemented: true, // ✅ Referrer condition: seentics.js automation section
   },
   {
     type: 'conditionNode',

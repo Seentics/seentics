@@ -34,30 +34,30 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 			website_id String,
 			visitor_id String,
 			session_id String,
-			event_type String,
+			event_type LowCardinality(String),
 			page String,
 			referrer Nullable(String),
 			user_agent Nullable(String),
 			ip_address Nullable(String),
 			country Nullable(String),
-			country_code Nullable(String),
+			country_code LowCardinality(Nullable(String)),
 			city Nullable(String),
 			region Nullable(String),
-			continent Nullable(String),
+			continent LowCardinality(Nullable(String)),
 			latitude Float64 DEFAULT 0,
 			longitude Float64 DEFAULT 0,
-			browser Nullable(String),
-			device Nullable(String),
-			os Nullable(String),
-			utm_source Nullable(String),
-			utm_medium Nullable(String),
+			browser LowCardinality(Nullable(String)),
+			device LowCardinality(Nullable(String)),
+			os LowCardinality(Nullable(String)),
+			utm_source LowCardinality(Nullable(String)),
+			utm_medium LowCardinality(Nullable(String)),
 			utm_campaign Nullable(String),
 			utm_term Nullable(String),
 			utm_content Nullable(String),
 			time_on_page Int64,
 			properties String,
-			timestamp DateTime64(3, 'UTC'),
-			created_at DateTime64(3, 'UTC')
+			timestamp DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1)),
+			created_at DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1))
 		) ENGINE = MergeTree()
 		PARTITION BY toYYYYMM(timestamp)
 		ORDER BY (website_id, timestamp, event_type)
@@ -196,6 +196,17 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 	alterQueries := []string{
 		`ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude Float64 DEFAULT 0 AFTER continent`,
 		`ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude Float64 DEFAULT 0 AFTER latitude`,
+		// Optimize column types and codecs for existing tables
+		`ALTER TABLE events MODIFY COLUMN IF EXISTS timestamp CODEC(Delta, ZSTD(1))`,
+		`ALTER TABLE events MODIFY COLUMN IF EXISTS created_at CODEC(Delta, ZSTD(1))`,
+		`ALTER TABLE events MODIFY COLUMN IF EXISTS event_type LowCardinality(String)`,
+		`ALTER TABLE events MODIFY COLUMN IF EXISTS browser LowCardinality(Nullable(String))`,
+		`ALTER TABLE events MODIFY COLUMN IF EXISTS device LowCardinality(Nullable(String))`,
+		`ALTER TABLE events MODIFY COLUMN IF EXISTS os LowCardinality(Nullable(String))`,
+		`ALTER TABLE events MODIFY COLUMN IF EXISTS continent LowCardinality(Nullable(String))`,
+		`ALTER TABLE events MODIFY COLUMN IF EXISTS country_code LowCardinality(Nullable(String))`,
+		`ALTER TABLE events MODIFY COLUMN IF EXISTS utm_source LowCardinality(Nullable(String))`,
+		`ALTER TABLE events MODIFY COLUMN IF EXISTS utm_medium LowCardinality(Nullable(String))`,
 	}
 	for _, q := range alterQueries {
 		if err := r.conn.Exec(ctx, q); err != nil {

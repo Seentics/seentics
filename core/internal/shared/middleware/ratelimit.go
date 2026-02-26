@@ -7,12 +7,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	cachegrid "github.com/skshohagmiah/cachegrid"
+	"github.com/Seentics/seentics/internal/shared/cache"
 )
 
 // RateLimitMiddleware enforces rate limits for the core service.
-// It uses CacheGrid for rate limiting across the service.
-func RateLimitMiddleware(cache *cachegrid.Cache) gin.HandlerFunc {
+func RateLimitMiddleware(appCache *cache.Cache) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 		clientIP := c.ClientIP()
@@ -56,7 +55,7 @@ func RateLimitMiddleware(cache *cachegrid.Cache) gin.HandlerFunc {
 
 		key := fmt.Sprintf("%s:%s", keyPrefix, identifier)
 
-		allowed, state := cache.RateLimit(key, cachegrid.RateLimitOptions{
+		allowed, state := appCache.RateLimit(key, cache.RateLimitOptions{
 			Limit:  limit,
 			Window: window,
 		})
