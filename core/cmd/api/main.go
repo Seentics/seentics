@@ -47,10 +47,9 @@ import (
 
 	"github.com/Seentics/seentics/internal/shared/utils"
 
-	"github.com/gin-contrib/gzip"
+	"github.com/Seentics/seentics/internal/shared/cache"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
-	"github.com/Seentics/seentics/internal/shared/cache"
 )
 
 func getEnvOrDefault(key, defaultValue string) string {
@@ -102,7 +101,9 @@ func main() {
 
 	ctx := context.Background()
 
-	// Repositories — ClickHouse for all analytics, PostgreSQL for metadata only
+	// --- Repositories & Storage Infrastructure ---
+
+	// ClickHouse Repositories
 	chRepo := repository.NewClickHouseEventRepository(chConn, logger)
 	if err := chRepo.CreateSchema(ctx); err != nil {
 		logger.Fatal().Err(err).Msg("Failed to create ClickHouse schema")
@@ -110,33 +111,67 @@ func main() {
 	logger.Info().Msg("ClickHouse schema verified/created")
 	var eventRepo repository.EventRepository = chRepo
 
-	pgAnalyticsRepo := repository.NewPostgresAnalyticsRepository(db) // used only for goals/resolutions metadata
+	pgAnalyticsRepo := repository.NewPostgresAnalyticsRepository(db)
 	var analyticsRepo repository.MainAnalyticsRepository = repository.NewClickHouseAnalyticsRepository(chConn, pgAnalyticsRepo, logger)
+
+	// S3 Store
+	s3Region := getEnvOrDefault("AWS_REGION", "us-east-1")
+	s3Bucket := getEnvOrDefault("S3_BUCKET_REPLAYS", "seentics-replays")
+	s3Endpoint := getEnvOrDefault("S3_ENDPOINT", "http://minio:9000")
+	s3Access := getEnvOrDefault("AWS_ACCESS_KEY_ID", "minioadmin")
+	s3Secret := getEnvOrDefault("AWS_SECRET_ACCESS_KEY", "minioadmin")
+	s3Store, err := storage.NewS3Store(s3Region, s3Bucket, s3Endpoint, s3Access, s3Secret)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to initialize S3 store")
+	}
+
+	// Module Repositories
+	authRepo := authRepoPkg.NewAuthRepository(db)
+	heatmapRepo := heatmapRepoPkg.NewHeatmapRepository(db)
+	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
+	autoRepo := autoRepoPkg.NewAutomationRepository(db)
+	funnelRepo := funnelRepoPkg.NewFunnelRepository(db, chConn)
+	replayRepo := replayRepoPkg.NewReplayRepository(db)
 	privacyRepo := privacy.NewPrivacyRepository(db)
 
-	// Auth
-	authRepo := authRepoPkg.NewAuthRepository(db)
+	// --- Services ---
+
+	// Website Service (Now includes all repos for cleanup)
+	websiteService := websiteServicePkg.NewWebsiteService(
+		websiteRepo,
+		authRepo,
+		heatmapRepo,
+		analyticsRepo,
+		eventRepo,
+		autoRepo,
+		funnelRepo,
+		replayRepo,
+		s3Store,
+		appCache,
+		cfg.Environment,
+		logger,
+	)
+	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
+
+	// Other Services
 	authService := authServicePkg.NewAuthService(authRepo, cfg, logger)
 	authHandler := authHandlerPkg.NewAuthHandler(authService, logger)
 
-	// Heatmaps (Repository only, for website service)
-	heatmapRepo := heatmapRepoPkg.NewHeatmapRepository(db)
-
-	// Websites
-	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
-	websiteService := websiteServicePkg.NewWebsiteService(websiteRepo, authRepo, heatmapRepo, appCache, cfg.Environment, logger)
-	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
-
-	// Events
-
-	// Automations
-	autoRepo := autoRepoPkg.NewAutomationRepository(db)
 	autoService := autoServicePkg.NewAutomationService(autoRepo, websiteService)
 	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
 
 	eventService := services.NewEventService(eventRepo, db, websiteService, autoService, logger)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger)
 	privacyService := services.NewPrivacyService(privacyRepo, websiteService, logger)
+
+	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
+	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
+
+	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger)
+	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
+
+	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store)
+	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 
 	// Handlers
 	eventHandler := handlers.NewEventHandler(eventService, logger)
@@ -146,31 +181,6 @@ func main() {
 	adminHandler := handlers.NewAdminHandler(eventRepo, logger)
 	internalHandler := handlers.NewInternalHandler(db, logger)
 	internalHandler.SetClickHouse(chConn)
-
-	// Funnels
-	funnelRepo := funnelRepoPkg.NewFunnelRepository(db, chConn)
-	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
-	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
-	// Heatmaps (Service)
-	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger)
-	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
-
-	// S3 Store
-	s3Region := getEnvOrDefault("AWS_REGION", "us-east-1")
-	s3Bucket := getEnvOrDefault("S3_BUCKET_REPLAYS", "seentics-replays")
-	s3Endpoint := getEnvOrDefault("S3_ENDPOINT", "http://minio:9000") // Default to local MinIO
-	s3Access := getEnvOrDefault("AWS_ACCESS_KEY_ID", "minioadmin")
-	s3Secret := getEnvOrDefault("AWS_SECRET_ACCESS_KEY", "minioadmin")
-
-	s3Store, err := storage.NewS3Store(s3Region, s3Bucket, s3Endpoint, s3Access, s3Secret)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize S3 store")
-	}
-
-	// Replays
-	replayRepo := replayRepoPkg.NewReplayRepository(db)
-	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store)
-	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 
 	// Unified tracker handler (init + collect)
 	trackerHandler := trackerPkg.NewTrackerHandler(websiteService, eventService, heatmapService, replayService, funnelService, autoService, logger)
@@ -223,7 +233,6 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 
 	router := gin.New()
 
-	router.Use(gzip.Gzip(gzip.DefaultCompression))
 	router.Use(middleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB limit
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	router.Use(middleware.ClientIPMiddleware())
@@ -288,6 +297,7 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 			analytics.GET("/live-visitors/:website_id", analyticsHandler.GetLiveVisitors)
 			analytics.GET("/geolocation-breakdown/:website_id", analyticsHandler.GetGeolocationBreakdown)
 			analytics.GET("/visitor-insights/:website_id", analyticsHandler.GetVisitorInsights)
+			analytics.GET("/recent-activity/:website_id", analyticsHandler.GetRecentActivity)
 			analytics.GET("/export/:website_id", analyticsHandler.ExportAnalytics)
 			analytics.POST("/import", analyticsHandler.ImportAnalytics)
 		}

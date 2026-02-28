@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useCallback, useRef, useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Trash2, 
-  Settings2, 
+import {
+  Plus,
+  Trash2,
+  Settings2,
   Zap,
   ZoomIn,
   ZoomOut,
@@ -12,23 +12,22 @@ import {
 } from 'lucide-react';
 import { useAutomationStore } from '@/stores/automationStore';
 import { Button } from '@/components/ui/button';
-import { 
-  TRIGGER_TYPES, 
-  ACTION_TYPES, 
-  LOGIC_TYPES 
+import {
+  TRIGGER_TYPES,
+  ACTION_TYPES,
 } from './EnhancedBuilderSidebar';
 
 // Helper to get icon for node
 const getIcon = (type: string, subtype?: string) => {
-  const all = [...TRIGGER_TYPES, ...ACTION_TYPES, ...LOGIC_TYPES];
+  const all = [...TRIGGER_TYPES, ...ACTION_TYPES];
   const item = all.find(i => (i.type === type && (!subtype || (i as any).subtype === subtype)));
   return item?.icon || Zap;
 };
 
 const getColorClass = (type: string, subtype?: string) => {
-  const all = [...TRIGGER_TYPES, ...ACTION_TYPES, ...LOGIC_TYPES];
+  const all = [...TRIGGER_TYPES, ...ACTION_TYPES];
   const item = all.find(i => (i.type === type && (!subtype || (i as any).subtype === subtype)));
-  
+
   const colorMap: Record<string, string> = {
     amber: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
     orange: 'bg-orange-500/10 text-orange-500 border-orange-500/20',
@@ -41,7 +40,7 @@ const getColorClass = (type: string, subtype?: string) => {
     pink: 'bg-pink-500/10 text-pink-500 border-pink-500/20',
     rose: 'bg-rose-500/10 text-rose-500 border-rose-500/20',
   };
-  
+
   return colorMap[item?.color || 'blue'] || colorMap.blue;
 };
 
@@ -73,9 +72,9 @@ export const CanvasBuilder = () => {
     e.stopPropagation();
     setDraggedNode(nodeId);
     setHasMoved(false);
-    setDragStart({ 
-      x: e.clientX - nodes.find(n => n.id === nodeId)!.position.x * zoom, 
-      y: e.clientY - nodes.find(n => n.id === nodeId)!.position.y * zoom 
+    setDragStart({
+      x: e.clientX - nodes.find(n => n.id === nodeId)!.position.x * zoom,
+      y: e.clientY - nodes.find(n => n.id === nodeId)!.position.y * zoom
     });
   };
 
@@ -84,12 +83,12 @@ export const CanvasBuilder = () => {
     if ((e.target as HTMLElement).closest('button')) return;
     if ((e.target as HTMLElement).closest('.connection-handle')) return;
     e.stopPropagation();
-    
+
     // Only open modal if we didn't drag the node and not connecting
     if (!hasMoved && !connectingFrom && !isDraggingConnection) {
       setSelectedNodeId(nodeId);
     }
-    
+
     // If we're connecting, finish the connection
     if (connectingFrom && connectingFrom !== nodeId && isDraggingConnection) {
       const exists = nodeConnections.some(
@@ -119,8 +118,8 @@ export const CanvasBuilder = () => {
         updateNode(draggedNode, {
           ...node.data,
         });
-        const newNodes = nodes.map(n => 
-          n.id === draggedNode 
+        const newNodes = nodes.map(n =>
+          n.id === draggedNode
             ? { ...n, position: { x: (e.clientX - dragStart.x) / zoom, y: (e.clientY - dragStart.y) / zoom } }
             : n
         );
@@ -132,7 +131,7 @@ export const CanvasBuilder = () => {
         y: pan.y + e.movementY
       });
     }
-    
+
     // Track mouse position for connection line
     if (connectingFrom) {
       const canvas = canvasRef.current;
@@ -174,7 +173,7 @@ export const CanvasBuilder = () => {
         setIsDraggingConnection(false);
         return;
       }
-      
+
       // Zoom in: Cmd/Ctrl + Plus
       if ((e.metaKey || e.ctrlKey) && (e.key === '=' || e.key === '+')) {
         e.preventDefault();
@@ -223,7 +222,7 @@ export const CanvasBuilder = () => {
         position: { x: 400, y: 100 + index * 120 }
       }));
       setNodes(arranged);
-      
+
       // Create connections
       const connections = [];
       for (let i = 0; i < arranged.length - 1; i++) {
@@ -330,7 +329,7 @@ export const CanvasBuilder = () => {
                 />
               );
             })}
-            
+
             {/* Temporary connection line while dragging */}
             {connectingFrom && (() => {
               const fromNode = nodes.find(n => n.id === connectingFrom);
@@ -384,13 +383,11 @@ export const CanvasBuilder = () => {
                 onMouseDown={(e) => handleNodeMouseDown(e, node.id)}
                 onMouseUp={(e) => handleNodeClick(e, node.id)}
               >
-                <div className={`w-[250px] bg-slate-900/90 border-2 ${
-                  isConnecting ? 'border-primary ring-2 ring-primary/50' : 
-                  canConnect ? 'border-primary/50 hover:border-primary' : 
-                  'border-slate-800 hover:border-slate-700'
-                } rounded-lg p-3 transition-all shadow-xl backdrop-blur-sm ${
-                  canConnect ? 'cursor-pointer' : ''
-                }`}>
+                <div className={`w-[250px] bg-slate-900/90 border-2 ${isConnecting ? 'border-primary ring-2 ring-primary/50' :
+                    canConnect ? 'border-primary/50 hover:border-primary' :
+                      'border-slate-800 hover:border-slate-700'
+                  } rounded-lg p-3 transition-all shadow-xl backdrop-blur-sm ${canConnect ? 'cursor-pointer' : ''
+                  }`}>
                   <div className="flex items-center gap-3">
                     <div className={`h-9 w-9 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0`}>
                       <Icon size={18} />
@@ -406,32 +403,32 @@ export const CanvasBuilder = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="h-7 w-7 text-slate-500 hover:text-white hover:bg-white/10" 
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-slate-500 hover:text-white hover:bg-white/10"
                         onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); }}
                       >
                         <Settings2 size={14} />
                       </Button>
-                      <Button 
-                        size="icon" 
-                        variant="ghost" 
-                        className="h-7 w-7 text-slate-500 hover:text-red-500 hover:bg-red-500/10" 
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-slate-500 hover:text-red-500 hover:bg-red-500/10"
                         onClick={(e) => { e.stopPropagation(); deleteNode(node.id); }}
                       >
                         <Trash2 size={14} />
                       </Button>
                     </div>
                   </div>
-                  
+
                   {/* Connection Points */}
-                  <div 
-                    className="connection-handle absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-slate-700 border-2 border-slate-900 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-crosshair hover:bg-primary hover:border-primary z-10" 
+                  <div
+                    className="connection-handle absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-slate-700 border-2 border-slate-900 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-crosshair hover:bg-primary hover:border-primary z-10"
                     title="Drop connection here"
                   />
-                  <div 
-                    className="connection-handle absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-primary border-2 border-slate-900 rounded-full opacity-0 group-hover:opacity-100 transition-all cursor-grab active:cursor-grabbing hover:scale-110 hover:ring-2 hover:ring-primary/50 z-10" 
+                  <div
+                    className="connection-handle absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-4 h-4 bg-primary border-2 border-slate-900 rounded-full opacity-0 group-hover:opacity-100 transition-all cursor-grab active:cursor-grabbing hover:scale-110 hover:ring-2 hover:ring-primary/50 z-10"
                     onMouseDown={(e) => handleConnectionHandleMouseDown(e, node.id)}
                     title="Drag to connect"
                   />

@@ -8,7 +8,7 @@ import { TopPagesChart } from '@/components/analytics/TopPagesChart';
 import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { TrafficOverview } from '@/components/analytics/TrafficOverview';
 import { UTMPerformanceChart } from '@/components/analytics/UTMPerformanceChart';
-import { VisitorActivity } from '@/components/analytics/VisitorActivity';
+import { RecentActivityFeed } from '@/components/analytics/RecentActivityFeed';
 import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -19,7 +19,6 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { useToast } from '@/hooks/use-toast';
 import {
-  useActivityTrends,
   useCustomEvents,
   useDailyStats,
   useDashboardData,
@@ -35,6 +34,7 @@ import {
   useVisitorInsights,
   useGoalStats,
   usePreviousPeriodDailyStats,
+  useRecentActivity,
 } from '@/lib/analytics-api';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
@@ -242,7 +242,7 @@ export default function WebsiteDashboardPage() {
   const { data: geolocationData, isLoading: geolocationLoading, error: geolocationError } = useGeolocationBreakdown(deferredId, dateRange);
   const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(deferredId, dateRange);
   const { data: goalStats, isLoading: goalStatsLoading } = useGoalStats(deferredId, dateRange);
-  const { data: activityTrends, isLoading: trendsLoading, error: trendsError } = useActivityTrends(deferredId);
+  const { data: recentActivity, isLoading: recentActivityLoading } = useRecentActivity(deferredId);
 
   // Previous period data for comparison overlay
   const { data: previousDailyStats } = usePreviousPeriodDailyStats(deferredId, dateRange, showComparison);
@@ -269,7 +269,6 @@ export default function WebsiteDashboardPage() {
   const finalGeolocationData = isDemoMode ? demoData?.geolocationData : geolocationData;
   const finalVisitorInsights = isDemoMode ? demoData?.visitorInsights : visitorInsights;
   const finalCustomEvents = isDemoMode ? demoData?.customEvents : customEvents;
-  const finalActivityTrends = isDemoMode ? demoData?.activityTrends : activityTrends;
   const finalPreviousDailyStats = isDemoMode ? demoData?.dailyStats : previousDailyStats;
 
   // Transform API data to match demo component expectations
@@ -671,7 +670,7 @@ export default function WebsiteDashboardPage() {
             onFilter={handleDashboardFilter}
           />
 
-          {/* Devices + Visitor Activity — 2-col grid */}
+          {/* Devices + Live Activity — 2-col grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <Card className="border border-border/60 bg-card shadow-sm">
               <CardContent className="p-8">
@@ -686,11 +685,14 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
 
-            <VisitorActivity
-              activityTrends={finalActivityTrends as any}
-              dashboardData={finalDashboardData}
-              isLoading={!isDemoMode && trendsLoading}
-            />
+            <Card className="border border-border/60 bg-card shadow-sm">
+              <CardContent className="p-8">
+                <RecentActivityFeed
+                  data={recentActivity}
+                  isLoading={!isDemoMode && recentActivityLoading}
+                />
+              </CardContent>
+            </Card>
           </div>
         </div>
 

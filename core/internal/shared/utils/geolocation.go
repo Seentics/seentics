@@ -13,9 +13,9 @@ import (
 
 	"strings"
 
+	"github.com/Seentics/seentics/internal/shared/cache"
 	"github.com/oschwald/geoip2-golang"
 	"github.com/rs/zerolog"
-	"github.com/Seentics/seentics/internal/shared/cache"
 )
 
 var (
@@ -133,12 +133,10 @@ func (g *GeolocationService) GetLocation(ip string) LocationInfo {
 	}
 
 	// Handle localhost and private IPs
-	// Handle local/private IPs in development mode
 	if isPrivateIP(ip) {
-		if os.Getenv("ENVIRONMENT") == "development" {
-			if devLoc := g.getDevLocation(); devLoc != nil {
-				return *devLoc
-			}
+		// Use the host's public location as a proxy for local development traffic
+		if devLoc := g.getDevLocation(); devLoc != nil {
+			return *devLoc
 		}
 
 		return LocationInfo{
@@ -174,40 +172,47 @@ func (g *GeolocationService) GetLocation(ip string) LocationInfo {
 // getFromCache retrieves location from CacheGrid cache
 func (g *GeolocationService) getDevLocation() *LocationInfo {
 	devLocationOnce.Do(func() {
-		// Use a short timeout for the external lookup
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer cancel()
-
-		req, err := http.NewRequestWithContext(ctx, "GET", "https://api.ipify.org", nil)
-		if err != nil {
-			g.logger.Warn().Err(err).Msg("Failed to create request for public IP lookup")
-			return
+		// Try multiple services to get the public IP
+		urls := []string{
+			"https://api.ipify.org",
+			"https://ifconfig.me/ip",
+			"https://icanhazip.com",
 		}
 
-		req.Header.Set("User-Agent", "Seentics-Analytics-Dev/1.0")
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			g.logger.Warn().Err(err).Msg("Failed to execute public IP lookup request")
-			return
-		}
-		defer resp.Body.Close()
+		var ip string
+		for _, url := range urls {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+			if err != nil {
+				cancel()
+				continue
+			}
 
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return
+			req.Header.Set("User-Agent", "Seentics-Analytics-Dev/1.0")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				cancel()
+				continue
+			}
+
+			body, err := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			cancel()
+
+			if err == nil {
+				ip = strings.TrimSpace(string(body))
+				if ip != "" {
+					break
+				}
+			}
 		}
 
-		ip := strings.TrimSpace(string(body))
 		if ip != "" {
 			loc := g.getFromFreeAPI(ip)
-			if loc.Country != "Unknown" {
+			if loc.Country != "Unknown" && loc.Country != "Local" {
 				devLocation = &loc
 				g.logger.Info().Str("public_ip", ip).Str("country", loc.Country).Msg("Resolved development public IP")
-			} else {
-				g.logger.Warn().Str("public_ip", ip).Msg("Resolved public IP but failed to get location details")
 			}
-		} else {
-			g.logger.Warn().Msg("Failed to resolve public IP (empty response)")
 		}
 	})
 	return devLocation

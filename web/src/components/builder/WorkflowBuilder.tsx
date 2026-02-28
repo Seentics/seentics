@@ -9,16 +9,16 @@ import { useAutomationStore } from '@/stores/automationStore';
 import { LinearBuilder } from './LinearBuilder';
 import { EnhancedBuilderSidebar } from './EnhancedBuilderSidebar';
 
-export const WorkflowBuilder = ({ 
-  websiteId, 
-  automationId 
-}: { 
-  websiteId: string; 
+export const WorkflowBuilder = ({
+  websiteId,
+  automationId
+}: {
+  websiteId: string;
   automationId?: string | null;
 }) => {
-  const { 
-    nodes, 
-    loadAutomation, 
+  const {
+    nodes,
+    loadAutomation,
     loadTemplate,
     resetWorkflow,
     addNode,
@@ -61,7 +61,6 @@ export const WorkflowBuilder = ({
       const initialConfig: any = {};
       if (type === 'triggerNode' && subtype) initialConfig.triggerType = subtype;
       if (type === 'actionNode' && subtype) initialConfig.actionType = subtype;
-      if (type.includes('conditionNode') && subtype) initialConfig.conditionType = subtype;
 
       const newNode: any = {
         id: `node_${Date.now()}`,
@@ -79,28 +78,28 @@ export const WorkflowBuilder = ({
 
   return (
     <div className="fixed inset-0 flex flex-col w-full h-full bg-zinc-950 overflow-hidden z-[50]">
-      <BuilderToolbar 
-        websiteId={websiteId} 
-        automationId={automationId} 
+      <BuilderToolbar
+        websiteId={websiteId}
+        automationId={automationId}
       />
-      
-      <div 
-        className="relative flex-1 flex overflow-hidden" 
+
+      <div
+        className="relative flex-1 flex overflow-hidden"
         onDrop={onDrop}
         onDragOver={onDragOver}
       >
         {/* List-Based Builder */}
         <LinearBuilder />
-        
+
         {/* Sidebar */}
-        <div className="w-[320px] h-full border-l border-white/[0.06] bg-zinc-900/80 backdrop-blur-xl">
-           <EnhancedBuilderSidebar />
+        <div className="w-[400px] h-full border-l border-white/[0.06] bg-zinc-900/80 backdrop-blur-xl">
+          <EnhancedBuilderSidebar />
         </div>
 
         {/* Configuration Modal */}
         {selectedNode && (
-          <NodeConfigModal 
-            node={selectedNode} 
+          <NodeConfigModal
+            node={selectedNode}
             onClose={() => setSelectedNodeId(null)}
           />
         )}

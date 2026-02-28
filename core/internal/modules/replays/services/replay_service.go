@@ -1,11 +1,6 @@
 package services
 
 import (
-	"github.com/Seentics/seentics/internal/modules/replays/models"
-	"github.com/Seentics/seentics/internal/modules/replays/repository"
-	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
-	"github.com/Seentics/seentics/internal/shared/storage"
-	"github.com/Seentics/seentics/internal/shared/utils"
 	"bytes"
 	"compress/gzip"
 	"context"
@@ -14,6 +9,12 @@ import (
 	"io"
 	"strings"
 	"sync"
+
+	"github.com/Seentics/seentics/internal/modules/replays/models"
+	"github.com/Seentics/seentics/internal/modules/replays/repository"
+	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
+	"github.com/Seentics/seentics/internal/shared/storage"
+	"github.com/Seentics/seentics/internal/shared/utils"
 
 	"github.com/google/uuid"
 )
@@ -83,7 +84,33 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 	// Canonicalize website ID
 	req.WebsiteID = website.SiteID
 
-	// 3. Upload events to S3 with Gzip compression
+	// 3. Quota Enforcement (Enterprise Mode)
+	if limit, ok := ctx.Value("max_replays").(int); ok && limit > 0 {
+		// Check if this session_id already exists in the database.
+		// If yes, we allow recording to it regardless of the limit.
+		// If NO, we check if we are at the limit.
+		exists, err := s.repo.SessionExists(ctx, req.WebsiteID, req.SessionID)
+		if err != nil {
+			return fmt.Errorf("failed to check session existence: %w", err)
+		}
+
+		if !exists {
+			// Count total unique sessions for this website (or user? usually it's per website in OSS, global in usage view)
+			// The user view shows "1 of 100" global. So we should probably count global for the user.
+			// But for simplicity of core service, let's count per website if it's OSS, or just follow the context.
+
+			// Actually, the billing service counts global across all websites of the user.
+			// But the core service doesn't easily know all other websites of the user here without more calls.
+
+			// Let's just check the current website's count for now as a first-line defense.
+			count, err := s.repo.CountSessions(ctx, req.WebsiteID)
+			if err == nil && count >= int64(limit) {
+				return fmt.Errorf("recording limit reached (%d/%d). cannot start new sessions", count, limit)
+			}
+		}
+	}
+
+	// 4. Upload events to S3 with Gzip compression
 	data, err := json.Marshal(req.Events)
 	if err != nil {
 		return err

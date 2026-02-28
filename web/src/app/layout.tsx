@@ -102,12 +102,20 @@ export default function RootLayout({
         {/* Global Chat Support */}
         {/* <TawkMessenger /> */}
 
-        {/* Seentics Analytics Production Tracking */}
-        <Script
-          src="https://www.seentics.com/trackers/seentics.js"
-          data-site-id="066a286d-a288-4a83-aa50-1d2a42e1e396"
-          strategy="afterInteractive"
-        />
+        {/* Seentics Analytics Tracking */}
+        {process.env.NODE_ENV === 'development' ? (
+          <Script
+            src="http://localhost:3000/trackers/seentics.js"
+            data-website-id="e793786b038fdc87f905adb2"
+            strategy="afterInteractive"
+          />
+        ) : (
+          <Script
+            src="https://www.seentics.com/trackers/seentics.js"
+            data-site-id="066a286d-a288-4a83-aa50-1d2a42e1e396"
+            strategy="afterInteractive"
+          />
+        )}
 
         {/* Lemon Squeezy Checkout Script - Enterprise only */}
         {process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true' && <LemonSqueezyScript />}

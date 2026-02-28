@@ -46,6 +46,13 @@ func RateLimitMiddleware(appCache *cache.Cache) gin.HandlerFunc {
 			if userID, exists := c.Get("user_id"); exists {
 				identifier = userID.(string)
 			}
+		case strings.HasPrefix(path, "/api/v1/analytics/"):
+			// Analytics query endpoints — expensive ClickHouse queries
+			limit = 300
+			keyPrefix = "rl:analytics"
+			if userID, exists := c.Get("user_id"); exists {
+				identifier = userID.(string)
+			}
 		default:
 			// General Dashboard/API access
 			if userID, exists := c.Get("user_id"); exists {

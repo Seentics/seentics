@@ -1,11 +1,12 @@
 package services
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/Seentics/seentics/internal/modules/automations/models"
 	"github.com/Seentics/seentics/internal/modules/automations/repository"
 	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
-	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -131,7 +132,6 @@ func (s *AutomationService) CreateAutomation(ctx context.Context, req *models.Cr
 		TriggerConfig: req.TriggerConfig,
 		IsActive:      true,
 		Actions:       req.Actions,
-		Conditions:    req.Conditions,
 	}
 
 	// Save to database
@@ -271,12 +271,6 @@ func (s *AutomationService) TestAutomation(ctx context.Context, automation *mode
 			Matched: true,
 			Message: fmt.Sprintf("Trigger '%s' would be activated", automation.TriggerType),
 		},
-		Conditions: &models.TestConditionsResult{
-			Total:   len(automation.Conditions),
-			Passed:  0,
-			Failed:  0,
-			Details: []models.TestConditionDetail{},
-		},
 		Actions: &models.TestActionsResult{
 			Total:    len(automation.Actions),
 			Executed: 0,
@@ -284,39 +278,16 @@ func (s *AutomationService) TestAutomation(ctx context.Context, automation *mode
 		},
 	}
 
-	// Evaluate conditions
-	for i, condition := range automation.Conditions {
-		conditionPassed := s.evaluateTestCondition(condition, testData)
-		detail := models.TestConditionDetail{
-			Index:   i + 1,
-			Type:    condition.ConditionType,
-			Passed:  conditionPassed,
-			Message: fmt.Sprintf("Condition %d: %s", i+1, condition.ConditionType),
+	// Mark actions as would-be executed
+	for i, action := range automation.Actions {
+		detail := models.TestActionDetail{
+			Index:    i + 1,
+			Type:     action.ActionType,
+			WouldRun: true,
+			Message:  fmt.Sprintf("Action %d: %s would execute", i+1, action.ActionType),
 		}
-
-		if conditionPassed {
-			result.Conditions.Passed++
-		} else {
-			result.Conditions.Failed++
-			result.Success = false
-			result.Message = fmt.Sprintf("Condition %d failed", i+1)
-		}
-
-		result.Conditions.Details = append(result.Conditions.Details, detail)
-	}
-
-	// If all conditions pass, mark actions as would-be executed
-	if result.Conditions.Failed == 0 {
-		for i, action := range automation.Actions {
-			detail := models.TestActionDetail{
-				Index:    i + 1,
-				Type:     action.ActionType,
-				WouldRun: true,
-				Message:  fmt.Sprintf("Action %d: %s would execute", i+1, action.ActionType),
-			}
-			result.Actions.Executed++
-			result.Actions.Details = append(result.Actions.Details, detail)
-		}
+		result.Actions.Executed++
+		result.Actions.Details = append(result.Actions.Details, detail)
 	}
 
 	return result, nil
@@ -335,34 +306,4 @@ func (s *AutomationService) HasExecutedForVisitor(ctx context.Context, automatio
 // HasExecutedToday checks if an automation executed for a visitor in the last 24 hours
 func (s *AutomationService) HasExecutedToday(ctx context.Context, automationID, visitorID string) (bool, error) {
 	return s.repo.HasExecutedToday(ctx, automationID, visitorID)
-}
-
-// evaluateTestCondition checks if a condition would pass with test data
-func (s *AutomationService) evaluateTestCondition(condition models.AutomationCondition, testData map[string]interface{}) bool {
-	// Simple evaluation for common condition types
-	switch condition.ConditionType {
-	case "page_match":
-		if pageURL, ok := testData["page_url"].(string); ok {
-			if pattern, ok := condition.ConditionConfig["pattern"].(string); ok {
-				// Simple contains check (in real implementation, use regex)
-				return len(pageURL) > 0 && len(pattern) > 0
-			}
-		}
-		return true // Default to pass if no pattern specified
-
-	case "visit_count":
-		// Simulate visit count check
-		return true
-
-	case "time_on_page":
-		// Simulate time check
-		return true
-
-	case "scroll_depth":
-		// Simulate scroll check
-		return true
-
-	default:
-		return true
-	}
 }

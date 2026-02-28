@@ -32,4 +32,6 @@ type MainAnalyticsRepository interface {
 	GetActivityTrends(ctx context.Context, websiteID string, timezone string) (*models.ActivityTrendsResponse, error)
 	GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.EventItem, error)
 	GetTopResolutions(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error)
+	GetRecentActivity(ctx context.Context, websiteID string, limit int) ([]models.RecentActivity, error)
+	DeleteAllWebsiteData(ctx context.Context, websiteID string) error
 }

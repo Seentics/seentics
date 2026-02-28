@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"github.com/Seentics/seentics/internal/modules/automations/models"
-	"github.com/Seentics/seentics/internal/modules/automations/services"
 	"fmt"
 	"net/http"
+
+	"github.com/Seentics/seentics/internal/modules/automations/models"
+	"github.com/Seentics/seentics/internal/modules/automations/services"
 
 	"github.com/gin-gonic/gin"
 )
@@ -360,23 +361,12 @@ func (h *AutomationHandler) TestAutomation(c *gin.Context) {
 		return
 	}
 
-	// Convert request to automation model for testing
 	automation := &models.Automation{
 		ID:            req.Automation.ID,
 		Name:          req.Automation.Name,
 		TriggerType:   req.Automation.Trigger.Type,
 		TriggerConfig: req.Automation.Trigger.Config,
-		Conditions:    []models.AutomationCondition{},
 		Actions:       []models.AutomationAction{},
-	}
-
-	// Convert conditions
-	for i, cond := range req.Automation.Conditions {
-		automation.Conditions = append(automation.Conditions, models.AutomationCondition{
-			ConditionType:   cond.Type,
-			ConditionConfig: cond.Config,
-			OrderIndex:      i,
-		})
 	}
 
 	// Convert actions

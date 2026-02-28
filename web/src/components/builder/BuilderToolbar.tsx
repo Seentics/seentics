@@ -151,7 +151,6 @@ export const BuilderToolbar = ({
           id: automation.id,
           name: automation.name,
           trigger: nodes.find(n => n.type === 'triggerNode')?.data,
-          conditions: nodes.filter(n => n.type === 'conditionNode').map(n => n.data),
           actions: nodes.filter(n => n.type === 'actionNode').map(n => n.data),
         }}
         websiteId={websiteId}

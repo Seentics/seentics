@@ -1,7 +1,10 @@
 package tracker
 
 import (
+	"context"
+	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	analyticsModels "github.com/Seentics/seentics/internal/modules/analytics/models"
@@ -68,8 +71,20 @@ func (h *TrackerHandler) Init(c *gin.Context) {
 		origin = c.Request.Header.Get("Referer")
 	}
 
+	ctx := c.Request.Context()
+	if h := c.GetHeader("X-Max-Heatmaps"); h != "" {
+		if limit, err := strconv.Atoi(h); err == nil {
+			ctx = context.WithValue(ctx, "max_heatmaps", limit)
+		}
+	}
+	if h := c.GetHeader("X-Max-Replays"); h != "" {
+		if limit, err := strconv.Atoi(h); err == nil {
+			ctx = context.WithValue(ctx, "max_replays", limit)
+		}
+	}
+
 	// 1. Site config (includes goals, feature flags, heatmap/replay settings)
-	config, err := h.websites.GetTrackerConfig(c.Request.Context(), siteID, origin)
+	config, err := h.websites.GetTrackerConfig(ctx, siteID, origin)
 	if err != nil {
 		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("Tracker init: config fetch failed")
 		c.JSON(http.StatusNotFound, gin.H{"error": "Website not found or domain mismatch"})
@@ -100,24 +115,37 @@ func (h *TrackerHandler) Init(c *gin.Context) {
 // CollectRequest is the unified payload from the tracker script.
 // All fields are optional — only sections with data need to be present.
 type CollectRequest struct {
-	SiteID      string                              `json:"site_id"`
-	Domain      string                              `json:"domain"`
-	Events      []analyticsModels.Event             `json:"events,omitempty"`
-	Heatmaps    []heatmapModels.HeatmapPoint        `json:"heatmaps,omitempty"`
-	Replay      *replayModels.RecordReplayRequest    `json:"replay,omitempty"`
+	SiteID      string                                 `json:"site_id"`
+	Domain      string                                 `json:"domain"`
+	Events      []analyticsModels.Event                `json:"events,omitempty"`
+	Heatmaps    []heatmapModels.HeatmapPoint           `json:"heatmaps,omitempty"`
+	Replay      *replayModels.RecordReplayRequest      `json:"replay,omitempty"`
 	Funnels     []funnelModels.TrackFunnelEventRequest `json:"funnels,omitempty"`
-	Automations []autoModels.AutomationExecution     `json:"automations,omitempty"`
+	Automations []autoModels.AutomationExecution       `json:"automations,omitempty"`
 }
 
 // CollectResponse reports how many items were processed per section.
 type CollectResponse struct {
-	Status    string            `json:"status"`
-	Processed map[string]int    `json:"processed"`
+	Status    string         `json:"status"`
+	Processed map[string]int `json:"processed"`
 }
 
 // Collect receives all tracking data from the tracker in a single POST.
 // Each section is processed independently — failure in one doesn't block others.
 func (h *TrackerHandler) Collect(c *gin.Context) {
+	// 1. Read limits from gateway headers and inject into context
+	ctx := c.Request.Context()
+	if hLine := c.GetHeader("X-Max-Heatmaps"); hLine != "" {
+		if limit, err := strconv.Atoi(hLine); err == nil {
+			ctx = context.WithValue(ctx, "max_heatmaps", limit)
+		}
+	}
+	if hLine := c.GetHeader("X-Max-Replays"); hLine != "" {
+		if limit, err := strconv.Atoi(hLine); err == nil {
+			ctx = context.WithValue(ctx, "max_replays", limit)
+		}
+	}
+
 	var req CollectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
@@ -126,6 +154,34 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 
 	if req.SiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id is required"})
+		return
+	}
+
+	// Guard against oversized batches to prevent memory/CPU abuse
+	const maxEvents = 500
+	const maxHeatmapPoints = 2000
+	const maxReplayEvents = 5000
+	const maxFunnelEvents = 200
+	const maxAutomations = 100
+
+	if len(req.Events) > maxEvents {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many events (max %d)", maxEvents)})
+		return
+	}
+	if len(req.Heatmaps) > maxHeatmapPoints {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many heatmap points (max %d)", maxHeatmapPoints)})
+		return
+	}
+	if req.Replay != nil && len(req.Replay.Events) > maxReplayEvents {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many replay events (max %d)", maxReplayEvents)})
+		return
+	}
+	if len(req.Funnels) > maxFunnelEvents {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many funnel events (max %d)", maxFunnelEvents)})
+		return
+	}
+	if len(req.Automations) > maxAutomations {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many automations (max %d)", maxAutomations)})
 		return
 	}
 
@@ -139,7 +195,6 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 	userAgent := c.Request.UserAgent()
 
 	processed := make(map[string]int)
-	ctx := c.Request.Context()
 
 	// --- Events ---
 	if len(req.Events) > 0 {
@@ -176,7 +231,7 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 			WebsiteID: req.SiteID,
 			Points:    req.Heatmaps,
 		}
-		if err := h.heatmaps.RecordHeatmapData(heatmapReq, origin); err != nil {
+		if err := h.heatmaps.RecordHeatmapData(ctx, heatmapReq, origin); err != nil {
 			h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: heatmap processing failed")
 		} else {
 			processed["heatmaps"] = len(req.Heatmaps)
@@ -245,4 +300,3 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 		Processed: processed,
 	})
 }
-

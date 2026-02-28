@@ -21,7 +21,7 @@ const (
 )
 
 type HeatmapService interface {
-	RecordHeatmapData(req models.HeatmapRecordRequest, origin string) error
+	RecordHeatmapData(ctx context.Context, req models.HeatmapRecordRequest, origin string) error
 	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, deviceType string, from, to time.Time, userID string) ([]models.HeatmapPoint, error)
 	GetHeatmapPages(ctx context.Context, websiteID string, userID string) ([]models.HeatmapPageStat, error)
 	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
@@ -31,7 +31,7 @@ type HeatmapService interface {
 	Shutdown(timeout time.Duration) error
 }
 
-func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, origin string) error {
+func (s *heatmapService) RecordHeatmapData(ctx context.Context, req models.HeatmapRecordRequest, origin string) error {
 	s.shutdownMu.RLock()
 	if s.isShutdown {
 		s.shutdownMu.RUnlock()
@@ -40,7 +40,7 @@ func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, orig
 	s.shutdownMu.RUnlock()
 
 	// Validate website existence
-	w, err := s.websites.GetWebsiteByAnyID(context.Background(), req.WebsiteID)
+	w, err := s.websites.GetWebsiteByAnyID(ctx, req.WebsiteID)
 	if err != nil {
 		return fmt.Errorf("invalid website_id: %s", req.WebsiteID)
 	}
@@ -60,6 +60,36 @@ func (s *heatmapService) RecordHeatmapData(req models.HeatmapRecordRequest, orig
 	// 2. Feature Toggle Check
 	if !w.HeatmapEnabled {
 		return fmt.Errorf("heatmap recording is manually disabled for this website. enable it in settings")
+	}
+
+	// 3. Quota Enforcement (Enterprise Mode)
+	// If max_heatmaps is present in context, we must ensure we don't exceed the number of unique URLs.
+	if limit, ok := ctx.Value("max_heatmaps").(int); ok && limit > 0 {
+		tracked, err := s.repo.GetTrackedURLs(ctx, req.WebsiteID)
+		if err == nil {
+			// Create a map for fast lookup of existing tracked URLs
+			trackedMap := make(map[string]bool)
+			for _, u := range tracked {
+				trackedMap[u] = true
+			}
+
+			// If we are at or over the limit, we only allow points for ALREADY tracked URLs.
+			if len(tracked) >= limit {
+				// Check if ALL points in this request are for existing URLs.
+				// If any point is for a NEW URL, we must block/filter it.
+				filteredPoints := make([]models.HeatmapPoint, 0, len(req.Points))
+				for _, p := range req.Points {
+					if trackedMap[p.URL] {
+						filteredPoints = append(filteredPoints, p)
+					}
+				}
+
+				if len(filteredPoints) == 0 && len(req.Points) > 0 {
+					return fmt.Errorf("heatmap limit reached (%d/%d). cannot track new pages", len(tracked), limit)
+				}
+				req.Points = filteredPoints
+			}
+		}
 	}
 
 	// Push points to buffer

@@ -215,7 +215,7 @@ export default function HeatmapViewPage() {
       } catch (err) {
         console.error('Failed to fetch heatmap points:', err);
       } finally {
-        setLoading(true);
+        setLoading(false);
       }
     };
     fetchPoints();
@@ -298,33 +298,34 @@ export default function HeatmapViewPage() {
     if (isDemo) return 'https://seentics.com';
     if (!website?.url) return '';
 
-    let baseUrl = normalizeUrl(website.url).replace(/\/$/, '');
-    const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-    const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
-
-    // Special handling for local development
-    const isLocalhost = (host: string) =>
-      host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local') || host.includes('localhost');
-
+    const baseUrl = normalizeUrl(website.url).replace(/\/$/, '');
     const fullPath = url.startsWith('/') ? url : `/${url}`;
 
     try {
       const targetUrl = new URL(baseUrl);
-      const targetHostname = targetUrl.hostname;
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+      const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
 
-      // If we are on localhost and the target is also some form of localhost but ports/names differ,
-      // fallback to current origin to allow viewing the page in the iframe
-      if (isLocalhost(currentHostname) && isLocalhost(targetHostname) && targetUrl.origin !== currentOrigin) {
-        console.warn(`[HeatmapView] Localhost mismatch detected (${targetUrl.origin} vs ${currentOrigin}). Falling back to current origin for iframe.`);
+      const isLocal = (h: string) => h === 'localhost' || h === '127.0.0.1' || h.includes('localhost');
+
+      // If the origins match exactly (same protocol, host, and port), use relative path
+      if (targetUrl.origin === currentOrigin) {
         return fullPath;
       }
 
-      if (targetHostname === currentHostname) return fullPath;
+      // If we are on localhost, and the target is also localhost but different port (or protocol)
+      // We often want to use the current origin's context if it's the dashboard itself
+      if (isLocal(currentHostname) && isLocal(targetUrl.hostname)) {
+        console.log('[HeatmapView] Localhost origin detected, using current origin for iframe fallback');
+        return fullPath;
+      }
 
-      return `${baseUrl}${fullPath}`;
+      const finalUrl = `${targetUrl.origin}${fullPath}`;
+      console.log('[HeatmapView] External origin detected, loading full URL:', finalUrl);
+      return finalUrl;
     } catch (err) {
-      console.error('[HeatmapView] Failed to parse website URL:', err);
-      return '';
+      console.warn('[HeatmapView] Failed to parse website URL, defaulting to current origin path:', fullPath);
+      return fullPath;
     }
   };
 
@@ -469,11 +470,16 @@ export default function HeatmapViewPage() {
                 )}
 
                 {loading || isLoadingWebsite ? (
-                  <div className="absolute inset-0 bg-white/90 z-20 flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
-                    <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
-                    <div className="flex flex-col items-center">
-                      <span className="text-sm font-medium text-zinc-700">Loading heatmap data</span>
-                      <span className="text-xs text-zinc-400 mt-0.5">Mapping interaction coordinates...</span>
+                  <div className="absolute inset-0 bg-white/30 z-20 flex flex-col items-center justify-center gap-3 backdrop-blur-[2px] pointer-events-none">
+                    <div className="bg-white/90 backdrop-blur-xl p-5 rounded-3xl shadow-2xl flex items-center gap-4 border border-white/40 ring-1 ring-black/5 animate-in fade-in zoom-in duration-300">
+                      <div className="relative">
+                        <Loader2 className="h-5 w-5 animate-spin text-zinc-900" />
+                        <div className="absolute inset-0 blur-sm bg-zinc-400/20 rounded-full animate-pulse" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-semibold text-zinc-900 tracking-tight">Syncing Data</span>
+                        <span className="text-[10px] text-zinc-500 font-medium">Mapping interaction coordinates...</span>
+                      </div>
                     </div>
                   </div>
                 ) : iframeError ? (
@@ -501,10 +507,12 @@ export default function HeatmapViewPage() {
                     </div>
                   </div>
                 ) : !points || points.length === 0 ? (
-                  <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center gap-2">
-                    <Crosshair className="h-8 w-8 text-zinc-300" />
-                    <span className="text-sm font-medium text-zinc-400">No data points recorded</span>
-                    <span className="text-xs text-zinc-400">Waiting for user interactions on this page.</span>
+                  <div className="absolute inset-0 bg-white/40 z-20 flex flex-col items-center justify-center gap-2 pointer-events-none">
+                    <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-xl flex flex-col items-center gap-2 border border-white/20">
+                      <Crosshair className="h-8 w-8 text-zinc-400" />
+                      <span className="text-sm font-medium text-zinc-900">No data recorded yet</span>
+                      <span className="text-xs text-zinc-500">Waiting for first interactions on this path</span>
+                    </div>
                   </div>
                 ) : null}
 

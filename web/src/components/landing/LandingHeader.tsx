@@ -23,17 +23,17 @@ export default function LandingHeader() {
 
   const navLinks = [
     { name: 'Features', href: '#features' },
+    { name: 'Comparison', href: '#comparison' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'FAQ', href: '#faq' },
   ];
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${
-        scrolled
-          ? 'bg-background/80 border-b border-border/40 backdrop-blur-md h-14'
-          : 'bg-transparent h-16'
-      }`}
+      className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${scrolled
+        ? 'bg-background/80 border-b border-border/40 backdrop-blur-md h-14'
+        : 'bg-transparent h-16'
+        }`}
     >
       <div className="container mx-auto px-6 h-full flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
@@ -63,12 +63,6 @@ export default function LandingHeader() {
             <FaDiscord size={15} />
           </a>
           <ThemeToggle />
-          <Link href="/websites/demo" className="hidden sm:block">
-            <Button variant="outline" size="sm" className="h-8 px-3 text-xs font-medium rounded-md gap-1.5 border-primary/30 text-primary hover:bg-primary/5">
-              <Play size={12} className="fill-primary" />
-              Live Demo
-            </Button>
-          </Link>
           <div className="hidden sm:flex items-center gap-2">
             {isAuthenticated ? (
               <Link href="/websites">

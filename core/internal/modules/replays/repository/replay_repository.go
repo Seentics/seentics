@@ -1,10 +1,11 @@
 package repository
 
 import (
-	"github.com/Seentics/seentics/internal/modules/replays/models"
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/Seentics/seentics/internal/modules/replays/models"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -15,8 +16,11 @@ type ReplayRepository interface {
 	ListSessionsWithMetadata(ctx context.Context, websiteID string, limit, offset int) ([]models.ReplaySessionMetadata, error)
 	DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) ([]string, error)
 	BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string) ([]string, error)
+	DeleteAllByWebsiteID(ctx context.Context, websiteID string) ([]string, error)
 	GetPageSnapshot(ctx context.Context, websiteID, siteID, url string) (json.RawMessage, error)
 	FindSessionIDForPage(ctx context.Context, websiteID, url string) (string, error)
+	SessionExists(ctx context.Context, websiteID, sessionID string) (bool, error)
+	CountSessions(ctx context.Context, websiteID string) (int64, error)
 }
 
 type replayRepository struct {
@@ -209,4 +213,48 @@ func (r *replayRepository) BulkDeleteReplays(ctx context.Context, websiteID stri
 	}
 
 	return keys, nil
+}
+
+func (r *replayRepository) DeleteAllByWebsiteID(ctx context.Context, websiteID string) ([]string, error) {
+	// 1. Get all session_id and sequence pairs to build S3 keys
+	query := `SELECT session_id, sequence FROM session_replays WHERE website_id = $1`
+	rows, err := r.db.Query(ctx, query, websiteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var keys []string
+	for rows.Next() {
+		var sID string
+		var seq int
+		if err := rows.Scan(&sID, &seq); err != nil {
+			return nil, err
+		}
+		// Build Both Gzip and Non-Gzip keys
+		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sID, seq))
+		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sID, seq))
+	}
+
+	// 2. Delete from DB
+	_, err = r.db.Exec(ctx, `DELETE FROM session_replays WHERE website_id = $1`, websiteID)
+	if err != nil {
+		return nil, err
+	}
+
+	return keys, nil
+}
+
+func (r *replayRepository) SessionExists(ctx context.Context, websiteID, sessionID string) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM session_replays WHERE website_id = $1 AND session_id = $2)`
+	err := r.db.QueryRow(ctx, query, websiteID, sessionID).Scan(&exists)
+	return exists, err
+}
+
+func (r *replayRepository) CountSessions(ctx context.Context, websiteID string) (int64, error) {
+	var count int64
+	query := `SELECT COUNT(DISTINCT session_id) FROM session_replays WHERE website_id = $1`
+	err := r.db.QueryRow(ctx, query, websiteID).Scan(&count)
+	return count, err
 }

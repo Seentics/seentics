@@ -17,17 +17,16 @@ import { Button } from '@/components/ui/button';
 import {
   TRIGGER_TYPES,
   ACTION_TYPES,
-  LOGIC_TYPES,
 } from './EnhancedBuilderSidebar';
 
 const getIcon = (type: string, subtype?: string) => {
-  const all = [...TRIGGER_TYPES, ...ACTION_TYPES, ...LOGIC_TYPES];
+  const all = [...TRIGGER_TYPES, ...ACTION_TYPES];
   const item = all.find(i => i.type === type && (!subtype || (i as any).subtype === subtype));
   return item?.icon || Zap;
 };
 
 const getColorClass = (type: string, subtype?: string) => {
-  const all = [...TRIGGER_TYPES, ...ACTION_TYPES, ...LOGIC_TYPES];
+  const all = [...TRIGGER_TYPES, ...ACTION_TYPES];
   const item = all.find(i => i.type === type && (!subtype || (i as any).subtype === subtype));
 
   const colorMap: Record<string, string> = {
@@ -48,7 +47,6 @@ const getColorClass = (type: string, subtype?: string) => {
 
 const nodeTypeConfig: Record<string, { label: string; dotColor: string; badgeClass: string }> = {
   triggerNode: { label: 'TRIGGER', dotColor: 'bg-amber-500', badgeClass: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
-  conditionNode: { label: 'CONDITION', dotColor: 'bg-blue-500', badgeClass: 'text-blue-400 bg-blue-500/10 border-blue-500/20' },
   actionNode: { label: 'ACTION', dotColor: 'bg-emerald-500', badgeClass: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' },
 };
 
@@ -122,7 +120,7 @@ export const LinearBuilder = () => {
             <ArrowDown className="h-3.5 w-3.5 text-primary mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-zinc-300 font-medium mb-1">Workflow runs top to bottom</p>
-              <p>1 Trigger (required) → Conditions (optional) → Actions (required)</p>
+              <p>1 Trigger (required) → Actions (required)</p>
             </div>
           </div>
         </div>
@@ -154,28 +152,13 @@ export const LinearBuilder = () => {
                     const colorClass = getColorClass(node.type || '', node.data.config?.triggerType || node.data.config?.actionType || node.data.config?.conditionType);
                     const config = (node.type && nodeTypeConfig[node.type]) || { label: 'STEP', dotColor: 'bg-zinc-500', badgeClass: 'text-zinc-400 bg-zinc-500/10 border-zinc-500/20' };
 
-                    const isCondition = node.type === 'conditionNode';
                     const isAction = node.type === 'actionNode';
-                    const isFirstCondition = isFirstInGroup(index, 'conditionNode');
-                    const isLastCondition = isLastInGroup(index, 'conditionNode');
                     const isFirstAction = isFirstInGroup(index, 'actionNode');
                     const isLastAction = isLastInGroup(index, 'actionNode');
-                    const condGroupCount = isFirstCondition ? getGroupCount(index, 'conditionNode') : 0;
                     const actGroupCount = isFirstAction ? getGroupCount(index, 'actionNode') : 0;
 
                     return (
                       <React.Fragment key={node.id}>
-                        {/* Condition group header */}
-                        {isFirstCondition && (
-                          <div className="flex items-center justify-center my-3">
-                            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md">
-                              <GitBranch className="h-3 w-3 text-blue-400" />
-                              <span className="text-[11px] font-medium text-blue-400">
-                                {condGroupCount} condition{condGroupCount > 1 ? 's' : ''}
-                              </span>
-                            </div>
-                          </div>
-                        )}
 
                         {/* Action group header */}
                         {isFirstAction && (
@@ -190,7 +173,7 @@ export const LinearBuilder = () => {
                         )}
 
                         {/* Connector line */}
-                        {index > 0 && !isFirstCondition && !isFirstAction && (
+                        {index > 0 && !isFirstAction && (
                           <div className="flex justify-center">
                             <div className="w-px h-3 bg-white/[0.08]" />
                           </div>
@@ -274,7 +257,7 @@ export const LinearBuilder = () => {
                         </Draggable>
 
                         {/* Block-to-block connector */}
-                        {(isLastCondition || isLastAction || (!isCondition && !isAction)) && index < nodes.length - 1 && (
+                        {(isLastAction || !isAction) && index < nodes.length - 1 && (
                           <div className="flex justify-center my-3">
                             <div className="w-px h-5 bg-white/[0.08] relative">
                               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-1.5 w-1.5 bg-zinc-700 rounded-full" />
@@ -296,7 +279,7 @@ export const LinearBuilder = () => {
               <div className="flex items-center gap-2 py-1.5 px-3 rounded-md bg-white/[0.03] border border-white/[0.06]">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
                 <span className="text-xs font-medium text-zinc-400">
-                  {nodes.length} step{nodes.length > 1 ? 's' : ''} — {triggerCount}T · {nodes.filter(n => n.type === 'conditionNode').length}C · {actionCount}A
+                  {nodes.length} step{nodes.length > 1 ? 's' : ''} — {triggerCount}T · {actionCount}A
                 </span>
               </div>
             </div>

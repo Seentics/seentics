@@ -1,8 +1,9 @@
 package repository
 
 import (
-	"github.com/Seentics/seentics/internal/modules/analytics/models"
 	"context"
+
+	"github.com/Seentics/seentics/internal/modules/analytics/models"
 )
 
 type EventRepository interface {
@@ -13,5 +14,6 @@ type EventRepository interface {
 	GetUniqueVisitorsToday(ctx context.Context) (int64, error)
 	GetTotalPageviews(ctx context.Context) (int64, error)
 	GetByWebsiteID(ctx context.Context, websiteID string, limit, offset int) ([]models.Event, error)
+	DeleteByWebsiteID(ctx context.Context, websiteID string) error
 	HealthCheck(ctx context.Context) error
 }

@@ -394,6 +394,16 @@ func (r *ClickHouseEventRepository) GetByWebsiteID(ctx context.Context, websiteI
 	return events, nil
 }
 
+func (r *ClickHouseEventRepository) DeleteByWebsiteID(ctx context.Context, websiteID string) error {
+	// Mutation in ClickHouse is asynchronous; we only need to issue the command.
+	query := `ALTER TABLE events DELETE WHERE website_id = ?`
+	if err := r.conn.Exec(ctx, query, websiteID); err != nil {
+		r.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to delete events from ClickHouse")
+		return err
+	}
+	return nil
+}
+
 func (r *ClickHouseEventRepository) HealthCheck(ctx context.Context) error {
 	return r.conn.Ping(ctx)
 }

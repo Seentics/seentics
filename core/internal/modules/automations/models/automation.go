@@ -52,9 +52,8 @@ type Automation struct {
 	UpdatedAt     time.Time `json:"updatedAt" db:"updated_at"`
 
 	// Relations (not stored in DB, loaded separately)
-	Actions    []AutomationAction    `json:"actions,omitempty" db:"-"`
-	Conditions []AutomationCondition `json:"conditions,omitempty" db:"-"`
-	Stats      *AutomationStats      `json:"stats,omitempty" db:"-"`
+	Actions []AutomationAction `json:"actions,omitempty" db:"-"`
+	Stats   *AutomationStats   `json:"stats,omitempty" db:"-"`
 }
 
 // AutomationAction represents an action to be performed
@@ -66,16 +65,6 @@ type AutomationAction struct {
 	OrderIndex   int       `json:"orderIndex" db:"order_index"`
 	CreatedAt    time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt    time.Time `json:"updatedAt" db:"updated_at"`
-}
-
-// AutomationCondition represents a condition for automation execution
-type AutomationCondition struct {
-	ID              string    `json:"id" db:"id"`
-	AutomationID    string    `json:"automationId" db:"automation_id"`
-	ConditionType   string    `json:"conditionType" db:"condition_type"`
-	ConditionConfig JSONB     `json:"conditionConfig" db:"condition_config"`
-	OrderIndex      int       `json:"orderIndex" db:"order_index"`
-	CreatedAt       time.Time `json:"createdAt" db:"created_at"`
 }
 
 // AutomationExecution represents a single execution of an automation
@@ -104,12 +93,11 @@ type AutomationStats struct {
 
 // CreateAutomationRequest represents the request to create an automation
 type CreateAutomationRequest struct {
-	Name          string                `json:"name" binding:"required"`
-	Description   string                `json:"description"`
-	TriggerType   string                `json:"triggerType" binding:"required"`
-	TriggerConfig JSONB                 `json:"triggerConfig"`
-	Actions       []AutomationAction    `json:"actions" binding:"required,min=1"`
-	Conditions    []AutomationCondition `json:"conditions"`
+	Name          string             `json:"name" binding:"required"`
+	Description   string             `json:"description"`
+	TriggerType   string             `json:"triggerType" binding:"required"`
+	TriggerConfig JSONB              `json:"triggerConfig"`
+	Actions       []AutomationAction `json:"actions" binding:"required,min=1"`
 }
 
 // BatchExecutionRequest represents a batch of automation executions
@@ -120,13 +108,12 @@ type BatchExecutionRequest struct {
 
 // UpdateAutomationRequest represents the request to update an automation
 type UpdateAutomationRequest struct {
-	Name          *string                `json:"name"`
-	Description   *string                `json:"description"`
-	TriggerType   *string                `json:"triggerType"`
-	TriggerConfig JSONB                  `json:"triggerConfig"`
-	IsActive      *bool                  `json:"isActive"`
-	Actions       *[]AutomationAction    `json:"actions"`
-	Conditions    *[]AutomationCondition `json:"conditions"`
+	Name          *string             `json:"name"`
+	Description   *string             `json:"description"`
+	TriggerType   *string             `json:"triggerType"`
+	TriggerConfig JSONB               `json:"triggerConfig"`
+	IsActive      *bool               `json:"isActive"`
+	Actions       *[]AutomationAction `json:"actions"`
 }
 
 // BatchDeleteRequest represents a request to delete multiple automations
@@ -136,29 +123,14 @@ type BatchDeleteRequest struct {
 
 // Test automation models
 type TestAutomationResult struct {
-	Success    bool                  `json:"success"`
-	Message    string                `json:"message"`
-	Trigger    *TestTriggerResult    `json:"trigger,omitempty"`
-	Conditions *TestConditionsResult `json:"conditions,omitempty"`
-	Actions    *TestActionsResult    `json:"actions,omitempty"`
+	Success bool               `json:"success"`
+	Message string             `json:"message"`
+	Trigger *TestTriggerResult `json:"trigger,omitempty"`
+	Actions *TestActionsResult `json:"actions,omitempty"`
 }
 
 type TestTriggerResult struct {
 	Matched bool   `json:"matched"`
-	Message string `json:"message"`
-}
-
-type TestConditionsResult struct {
-	Total   int                   `json:"total"`
-	Passed  int                   `json:"passed"`
-	Failed  int                   `json:"failed"`
-	Details []TestConditionDetail `json:"details"`
-}
-
-type TestConditionDetail struct {
-	Index   int    `json:"index"`
-	Type    string `json:"type"`
-	Passed  bool   `json:"passed"`
 	Message string `json:"message"`
 }
 
@@ -183,10 +155,6 @@ type TestAutomationRequest struct {
 			Type   string                 `json:"type"`
 			Config map[string]interface{} `json:"config"`
 		} `json:"trigger"`
-		Conditions []struct {
-			Type   string                 `json:"type"`
-			Config map[string]interface{} `json:"config"`
-		} `json:"conditions"`
 		Actions []struct {
 			Type   string                 `json:"type"`
 			Config map[string]interface{} `json:"config"`

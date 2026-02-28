@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/Seentics/seentics/internal/modules/analytics/models"
 	"github.com/Seentics/seentics/internal/modules/analytics/services"
@@ -11,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 )
+
+const queryTimeout = 15 * time.Second
 
 type AnalyticsHandler struct {
 	service *services.AnalyticsService
@@ -47,6 +51,9 @@ func (h *AnalyticsHandler) parseDays(c *gin.Context, defaultDays int) int {
 			days = parsedDays
 		}
 	}
+	if days > 365 {
+		days = 365
+	}
 	return days
 }
 
@@ -56,6 +63,9 @@ func (h *AnalyticsHandler) parseLimit(c *gin.Context, defaultLimit int) int {
 		if parsedLimit, err := strconv.Atoi(l); err == nil && parsedLimit > 0 {
 			limit = parsedLimit
 		}
+	}
+	if limit > 1000 {
+		limit = 1000
 	}
 	return limit
 }
@@ -87,6 +97,14 @@ func (h *AnalyticsHandler) handleError(c *gin.Context, err error, msg string) {
 	c.JSON(status, gin.H{"error": errStr})
 }
 
+// withQueryTimeout wraps the gin request context with a deadline and returns a cancel func.
+// Usage: cancel := h.withQueryTimeout(c); defer cancel()
+func (h *AnalyticsHandler) withQueryTimeout(c *gin.Context) context.CancelFunc {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), queryTimeout)
+	c.Request = c.Request.WithContext(ctx)
+	return cancel
+}
+
 func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -103,6 +121,9 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 	days := h.parseDays(c, 7)
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
 
 	data, err := h.service.GetDashboard(c.Request.Context(), websiteID, days, timezone, filters, userID)
 	if err != nil {
@@ -130,6 +151,9 @@ func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
 	limit := h.parseLimit(c, 10)
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
 
 	pages, err := h.service.GetTopPages(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
@@ -164,6 +188,9 @@ func (h *AnalyticsHandler) GetPageUTMBreakdown(c *gin.Context) {
 
 	days := h.parseDays(c, 7)
 
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
 	breakdown, err := h.service.GetPageUTMBreakdown(c.Request.Context(), websiteID, pagePath, days, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get page UTM breakdown")
@@ -190,6 +217,9 @@ func (h *AnalyticsHandler) GetTopReferrers(c *gin.Context) {
 	limit := h.parseLimit(c, 10)
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
 
 	referrers, err := h.service.GetTopReferrers(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
@@ -221,6 +251,9 @@ func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
 
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
 	sources, err := h.service.GetTopSources(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top sources")
@@ -251,6 +284,9 @@ func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
 
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
 	countries, err := h.service.GetTopCountries(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top countries")
@@ -278,6 +314,9 @@ func (h *AnalyticsHandler) GetTopResolutions(c *gin.Context) {
 
 	days := h.parseDays(c, 7)
 	limit := h.parseLimit(c, 10)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
 
 	resolutions, err := h.service.GetTopResolutions(c.Request.Context(), websiteID, days, limit, userID)
 	if err != nil {
@@ -309,6 +348,9 @@ func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
 
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
 	browsers, err := h.service.GetTopBrowsers(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top browsers")
@@ -338,6 +380,9 @@ func (h *AnalyticsHandler) GetTopDevices(c *gin.Context) {
 	limit := h.parseLimit(c, 10)
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
 
 	devices, err := h.service.GetTopDevices(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
@@ -369,6 +414,9 @@ func (h *AnalyticsHandler) GetTopOS(c *gin.Context) {
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
 
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
 	osList, err := h.service.GetTopOS(c.Request.Context(), websiteID, days, limit, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top OS")
@@ -397,6 +445,9 @@ func (h *AnalyticsHandler) GetTrafficSummary(c *gin.Context) {
 	days := h.parseDays(c, 7)
 	timezone := h.parseTimezone(c)
 
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
 	summary, err := h.service.GetTrafficSummary(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get traffic summary")
@@ -422,6 +473,9 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 	days := h.parseDays(c, 30)
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
 
 	stats, err := h.service.GetDailyStats(c.Request.Context(), websiteID, days, timezone, filters, userID)
 	if err != nil {
@@ -452,6 +506,9 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
 
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
 	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, 1, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get hourly stats")
@@ -479,6 +536,9 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 	}
 
 	days := h.parseDays(c, 7)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
 
 	customEvents, err := h.service.GetCustomEvents(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
@@ -527,6 +587,9 @@ func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
 
 	days := h.parseDays(c, 7)
 
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
 	stats, err := h.service.GetGoalStats(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get goal stats")
@@ -551,6 +614,9 @@ func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
 		return
 	}
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
 
 	liveVisitors, err := h.service.GetLiveVisitors(c.Request.Context(), websiteID, userID)
 	if err != nil {
@@ -580,6 +646,9 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 	days := h.parseDays(c, 7)
 	timezone := h.parseTimezone(c)
 
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
 	breakdown, err := h.service.GetGeolocationBreakdown(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get geolocation breakdown")
@@ -604,6 +673,9 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 
 	days := h.parseDays(c, 7)
 	timezone := h.parseTimezone(c)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
 
 	insights, err := h.service.GetVisitorInsights(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
@@ -711,6 +783,9 @@ func (h *AnalyticsHandler) GetActivityTrends(c *gin.Context) {
 
 	timezone := h.parseTimezone(c)
 
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
 	data, err := h.service.GetActivityTrends(c.Request.Context(), websiteID, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get activity trends")
@@ -718,4 +793,34 @@ func (h *AnalyticsHandler) GetActivityTrends(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, data)
+}
+
+func (h *AnalyticsHandler) GetRecentActivity(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	limit := h.parseLimit(c, 20)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
+	activities, err := h.service.GetRecentActivity(c.Request.Context(), websiteID, limit, userID)
+	if err != nil {
+		h.handleError(c, err, "Failed to get recent activity")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"website_id": websiteID,
+		"activities": activities,
+	})
 }

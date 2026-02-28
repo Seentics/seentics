@@ -176,6 +176,16 @@ type DashboardData struct {
 	Geolocation       GeolocationBreakdown `json:"geolocation"`
 }
 
+// RecentActivity represents a single recent pageview event for the activity feed
+type RecentActivity struct {
+	Page      string `json:"page"`
+	Country   string `json:"country"`
+	Device    string `json:"device"`
+	Browser   string `json:"browser"`
+	Referrer  string `json:"referrer"`
+	Timestamp string `json:"timestamp"`
+}
+
 // LEGACY MODELS - Keep these for compatibility but they might not be actively used
 
 // SessionAnalytics represents session-based analytics data

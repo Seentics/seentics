@@ -1,9 +1,6 @@
 package services
 
 import (
-	authRepoPkg "github.com/Seentics/seentics/internal/modules/auth/repository"
-	"github.com/Seentics/seentics/internal/modules/websites/models"
-	"github.com/Seentics/seentics/internal/modules/websites/repository"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -12,30 +9,64 @@ import (
 	"strings"
 	"time"
 
+	authRepoPkg "github.com/Seentics/seentics/internal/modules/auth/repository"
+	"github.com/Seentics/seentics/internal/modules/websites/models"
+	"github.com/Seentics/seentics/internal/modules/websites/repository"
+
 	heatmapRepoPkg "github.com/Seentics/seentics/internal/modules/heatmaps/repository"
 
+	analyticsRepoPkg "github.com/Seentics/seentics/internal/modules/analytics/repository"
+	autoRepoPkg "github.com/Seentics/seentics/internal/modules/automations/repository"
+	funnelRepoPkg "github.com/Seentics/seentics/internal/modules/funnels/repository"
+	replayRepoPkg "github.com/Seentics/seentics/internal/modules/replays/repository"
+	"github.com/Seentics/seentics/internal/shared/cache"
+	"github.com/Seentics/seentics/internal/shared/storage"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
-	"github.com/Seentics/seentics/internal/shared/cache"
 )
 
 type WebsiteService struct {
-	repo        *repository.WebsiteRepository
-	authRepo    *authRepoPkg.AuthRepository
-	heatmapRepo heatmapRepoPkg.HeatmapRepository
-	cache       *cache.Cache
-	env         string
-	logger      zerolog.Logger
+	repo          *repository.WebsiteRepository
+	authRepo      *authRepoPkg.AuthRepository
+	heatmapRepo   heatmapRepoPkg.HeatmapRepository
+	analyticsRepo analyticsRepoPkg.MainAnalyticsRepository
+	eventRepo     analyticsRepoPkg.EventRepository
+	autoRepo      *autoRepoPkg.AutomationRepository
+	funnelRepo    *funnelRepoPkg.FunnelRepository
+	replayRepo    replayRepoPkg.ReplayRepository
+	s3Store       *storage.S3Store
+	cache         *cache.Cache
+	env           string
+	logger        zerolog.Logger
 }
 
-func NewWebsiteService(repo *repository.WebsiteRepository, authRepo *authRepoPkg.AuthRepository, heatmapRepo heatmapRepoPkg.HeatmapRepository, cache *cache.Cache, env string, logger zerolog.Logger) *WebsiteService {
+func NewWebsiteService(
+	repo *repository.WebsiteRepository,
+	authRepo *authRepoPkg.AuthRepository,
+	heatmapRepo heatmapRepoPkg.HeatmapRepository,
+	analyticsRepo analyticsRepoPkg.MainAnalyticsRepository,
+	eventRepo analyticsRepoPkg.EventRepository,
+	autoRepo *autoRepoPkg.AutomationRepository,
+	funnelRepo *funnelRepoPkg.FunnelRepository,
+	replayRepo replayRepoPkg.ReplayRepository,
+	s3Store *storage.S3Store,
+	cache *cache.Cache,
+	env string,
+	logger zerolog.Logger,
+) *WebsiteService {
 	return &WebsiteService{
-		repo:        repo,
-		authRepo:    authRepo,
-		heatmapRepo: heatmapRepo,
-		cache:       cache,
-		env:         env,
-		logger:      logger,
+		repo:          repo,
+		authRepo:      authRepo,
+		heatmapRepo:   heatmapRepo,
+		analyticsRepo: analyticsRepo,
+		eventRepo:     eventRepo,
+		autoRepo:      autoRepo,
+		funnelRepo:    funnelRepo,
+		replayRepo:    replayRepo,
+		s3Store:       s3Store,
+		cache:         cache,
+		env:           env,
+		logger:        logger,
 	}
 }
 
@@ -68,10 +99,19 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 		}
 	}
 
-	// In OSS mode, heatmaps are unlimited — no billing plan check needed
-	maxHeatmaps := -1 // -1 means unlimited
-	trackedURLs := []string{}
+	// In OSS mode, heatmaps are unlimited by default.
+	// In Enterprise mode, the gateway can inject a limit into the context.
+	maxHeatmaps := -1
+	if limit, ok := ctx.Value("max_heatmaps").(int); ok {
+		maxHeatmaps = limit
+	}
 
+	maxReplays := -1
+	if limit, ok := ctx.Value("max_replays").(int); ok {
+		maxReplays = limit
+	}
+
+	trackedURLs := []string{}
 	if w.HeatmapEnabled {
 		// Get already tracked URLs
 		urls, err := s.heatmapRepo.GetTrackedURLs(ctx, w.ID.String())
@@ -93,6 +133,7 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 		"replay_sampling_rate":     w.ReplaySamplingRate,
 		"replay_include_patterns":  w.ReplayIncludePatterns,
 		"replay_exclude_patterns":  w.ReplayExcludePatterns,
+		"max_replays":              maxReplays,
 		"goals":                    trackerGoals,
 	}, nil
 }
@@ -114,8 +155,8 @@ func (s *WebsiteService) CreateWebsite(ctx context.Context, userID uuid.UUID, re
 		return nil, fmt.Errorf("invalid website URL format")
 	}
 
-	// Normalize URL to just the domain
-	normalizedURL := strings.TrimPrefix(parsedURL.Hostname(), "www.")
+	// Normalize URL: include port if present, but strip www.
+	normalizedURL := strings.TrimPrefix(parsedURL.Host, "www.")
 
 	// Generate unique 24-char site_id (KSUID/NanoID style)
 	siteID := generateID(12) // 24 hex chars
@@ -320,21 +361,96 @@ func (s *WebsiteService) UpdateWebsite(ctx context.Context, id string, userID uu
 	return original, nil
 }
 
-// DeleteWebsite removes a website tracking profile
+// DeleteWebsite removes a website tracking profile and all its associated data
 func (s *WebsiteService) DeleteWebsite(ctx context.Context, id string, userID uuid.UUID) error {
+	// 1. Get website info first for cleanup (need UUID and SiteID)
+	// We use GetWebsiteByAnyID to reconcile public SiteID or internal ID
+	w, err := s.GetWebsiteByAnyID(ctx, id)
+	if err != nil {
+		// If website doesn't exist, just return nil (it's already gone)
+		return nil
+	}
+
+	// 2. Validate ownership (even though repo.Delete does it, we need details for cleanup)
+	if w.UserID != userID {
+		return fmt.Errorf("unauthorized")
+	}
+
+	// 3. Cascade cleanup for all related data across ClickHouse, Postgres, and S3
+	s.cleanupAllRelatedData(ctx, w)
+
+	// 4. Delete the main website record from PostgreSQL
 	if err := s.repo.Delete(ctx, id, userID); err != nil {
 		return err
 	}
 
-	// Try to get website to invalidate cache properly
-	w, err := s.repo.GetBySiteID(ctx, id)
-	if err == nil {
-		s.invalidateCache(ctx, w)
-	} else if s.cache != nil {
-		s.cache.Delete(fmt.Sprintf("website:site_id:%s", id))
-	}
+	// 5. Invalidate caches
+	s.invalidateCache(ctx, w)
 
 	return nil
+}
+
+// cleanupAllRelatedData wipes all associated data for a website across all storage modules.
+func (s *WebsiteService) cleanupAllRelatedData(ctx context.Context, w *models.Website) {
+	siteID := w.SiteID
+	uuidStr := w.ID.String()
+
+	s.logger.Info().Str("site_id", siteID).Str("id", uuidStr).Msg("Performing full data cleanup for website")
+
+	// 1. ClickHouse Analytics Data (Aggregated stats tables)
+	if s.analyticsRepo != nil {
+		if err := s.analyticsRepo.DeleteAllWebsiteData(ctx, siteID); err != nil {
+			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: analytics stats")
+		}
+	}
+
+	// 2. ClickHouse Raw Events
+	if s.eventRepo != nil {
+		if err := s.eventRepo.DeleteByWebsiteID(ctx, siteID); err != nil {
+			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: raw events")
+		}
+	}
+
+	// 3. Heatmaps (Postgres heatmap_points and heatmap_sessions)
+	if s.heatmapRepo != nil {
+		if err := s.heatmapRepo.DeleteAllByWebsiteID(ctx, uuidStr); err != nil {
+			s.logger.Error().Err(err).Str("id", uuidStr).Msg("Failed cleanup: heatmap points")
+		}
+	}
+
+	// 4. Funnels (Postgres funnels, steps, and step analytics)
+	if s.funnelRepo != nil {
+		if err := s.funnelRepo.DeleteAllByWebsiteID(ctx, siteID); err != nil {
+			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: funnels")
+		}
+	}
+
+	// 5. Automations (Postgres automations, actions, conditions, and executions)
+	if s.autoRepo != nil {
+		if err := s.autoRepo.DeleteAllByWebsiteID(ctx, siteID); err != nil {
+			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: automations")
+		}
+	}
+
+	// 6. Session Replays (Postgres DB metadata + S3 file deletion)
+	if s.replayRepo != nil {
+		s3Keys, err := s.replayRepo.DeleteAllByWebsiteID(ctx, siteID)
+		if err != nil {
+			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: replay metadata")
+		} else if s.s3Store != nil && len(s3Keys) > 0 {
+			// Trigger asynchronous S3 cleanup to avoid blocking the main delete request
+			go func(keys []string, site string) {
+				bgCtx := context.Background()
+				count := 0
+				for _, key := range keys {
+					if err := s.s3Store.Delete(bgCtx, key); err == nil {
+						count++
+					}
+				}
+				s.logger.Info().Int("deleted_count", count).Str("site_id", site).Msg("S3 storage cleanup completed")
+			}(s3Keys, siteID)
+		}
+	}
 }
 
 // ListGoals returns all goals for a website

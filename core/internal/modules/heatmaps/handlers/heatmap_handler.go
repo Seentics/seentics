@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"github.com/Seentics/seentics/internal/modules/heatmaps/models"
-	"github.com/Seentics/seentics/internal/modules/heatmaps/services"
 	"net/http"
 	"time"
+
+	"github.com/Seentics/seentics/internal/modules/heatmaps/models"
+	"github.com/Seentics/seentics/internal/modules/heatmaps/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -47,7 +48,7 @@ func (h *HeatmapHandler) RecordHeatmap(c *gin.Context) {
 
 	h.logger.Debug().Str("origin", origin).Str("website_id", req.WebsiteID).Msg("Heatmap request origin")
 
-	if err := h.service.RecordHeatmapData(req, origin); err != nil {
+	if err := h.service.RecordHeatmapData(c.Request.Context(), req, origin); err != nil {
 		h.logger.Error().Err(err).Str("website_id", req.WebsiteID).Str("origin", origin).Msg("Failed to record heatmap")
 		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 		return

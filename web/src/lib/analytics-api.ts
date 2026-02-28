@@ -408,9 +408,9 @@ export const useDashboardData = (websiteId: string, days: number = 7, filters: A
       return response.data;
     },
     enabled: !!websiteId,
-    refetchInterval: 30000, // Refetch every 30 seconds
+    refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes
     refetchOnWindowFocus: true,
-    staleTime: 20000, // Consider data stale after 20 seconds
+    staleTime: 60 * 1000, // Consider data stale after 1 minute
   });
 };
 
@@ -585,18 +585,19 @@ export const getHourlyStats = async (websiteId: string, days: number = 7, filter
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
   const response = await api.get(`/analytics/hourly-stats/${websiteId}?${params.toString()}`);
 
-  // Convert UTC timestamps to local time
+  // Backend already returns hours in the user's timezone via toStartOfHour(timestamp, tz).
+  // Parse the hour number from the backend's "YYYY-MM-DD HH:00:00" string.
   if (response.data.hourly_stats) {
     response.data.hourly_stats = response.data.hourly_stats.map((stat: any) => {
-      const utcTime = new Date(stat.timestamp);
-      const localHour = utcTime.getHours();
-      const localMinute = utcTime.getMinutes();
+      // stat.hour is e.g. "2026-02-27 06:00:00" — extract the hour part
+      const hourStr = typeof stat.hour === 'string' ? stat.hour : '';
+      const match = hourStr.match(/(\d{2}):(\d{2}):\d{2}$/);
+      const h = match ? parseInt(match[1], 10) : 0;
 
       return {
         ...stat,
-        hour: localHour,
-        hour_label: `${localHour.toString().padStart(2, '0')}:${localMinute.toString().padStart(2, '0')}`,
-        timestamp: utcTime.toISOString()
+        hour: h,
+        hour_label: `${h.toString().padStart(2, '0')}:00`,
       };
     });
   }
@@ -748,7 +749,7 @@ export const useLiveVisitors = (websiteId: string) => {
     queryFn: () => getLiveVisitors(websiteId),
     enabled: !!websiteId,
     staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 30 * 1000, // Refresh every 30 seconds
+    refetchInterval: 60 * 1000, // Refresh every 60 seconds
   });
 };
 
@@ -780,8 +781,8 @@ export const useActivityTrends = (websiteId: string) => {
     queryKey: analyticsKeys.activityTrends(websiteId),
     queryFn: () => getActivityTrends(websiteId),
     enabled: !!websiteId,
-    staleTime: 2 * 60 * 1000, // 2 minutes for real-time trends
-    refetchInterval: 2 * 60 * 1000, // Refresh every 2 minutes
+    staleTime: 3 * 60 * 1000, // 3 minutes for real-time trends
+    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
   });
 };
 
@@ -821,6 +822,22 @@ export const useGoalStats = (websiteId: string, days: number = 30) => {
       return response.data;
     },
     enabled: !!websiteId,
+  });
+};
+
+export const useRecentActivity = (websiteId: string) => {
+  return useQuery({
+    queryKey: ['recent-activity', websiteId],
+    queryFn: async () => {
+      if (websiteId === 'demo') {
+        return { activities: [] };
+      }
+      const response = await api.get(`/analytics/recent-activity/${websiteId}?limit=20`);
+      return response.data;
+    },
+    enabled: !!websiteId,
+    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 15000,
   });
 };
 

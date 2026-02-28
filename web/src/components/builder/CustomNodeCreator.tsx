@@ -23,7 +23,7 @@ interface CustomNodeDefinition {
   id: string;
   name: string;
   description: string;
-  category: 'trigger' | 'condition' | 'action';
+  category: 'trigger' | 'action';
   icon: string;
   color: string;
   fields: CustomFieldDefinition[];
@@ -34,7 +34,7 @@ interface CustomNodeCreatorProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (node: CustomNodeDefinition) => void;
-  defaultCategory?: 'trigger' | 'condition' | 'action';
+  defaultCategory?: 'trigger' | 'action';
 }
 
 export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, onClose, onSave, defaultCategory = 'action' }) => {
@@ -109,7 +109,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
       id: `custom_${nodeData.category}_${Date.now()}`,
       name: nodeData.name,
       description: nodeData.description,
-      category: nodeData.category as 'trigger' | 'condition' | 'action',
+      category: nodeData.category as 'trigger' | 'action',
       icon: nodeData.icon || '⚡',
       color: nodeData.color || '#3b82f6',
       fields: nodeData.fields || [],
@@ -150,7 +150,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
               <Code className="w-5 h-5" />
               Basic Information
             </h3>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Node Name</Label>
@@ -176,12 +176,6 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
                       <div className="flex items-center gap-2">
                         <Zap className="w-4 h-4" />
                         Trigger
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="condition">
-                      <div className="flex items-center gap-2">
-                        <Filter className="w-4 h-4" />
-                        Condition
                       </div>
                     </SelectItem>
                     <SelectItem value="action">
@@ -269,7 +263,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
             {/* Add New Field */}
             <div className="p-4 rounded-xl border-2 border-dashed border-slate-700 bg-slate-900/20 space-y-4">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Add New Field</Label>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs text-slate-400">Field Name (variable)</Label>
@@ -328,9 +322,9 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
                   <Label className="text-xs text-slate-400">Options (comma-separated)</Label>
                   <Input
                     value={currentField.options?.join(', ') || ''}
-                    onChange={(e) => setCurrentField({ 
-                      ...currentField, 
-                      options: e.target.value.split(',').map(o => o.trim()).filter(Boolean) 
+                    onChange={(e) => setCurrentField({
+                      ...currentField,
+                      options: e.target.value.split(',').map(o => o.trim()).filter(Boolean)
                     })}
                     placeholder="e.g. Option 1, Option 2, Option 3"
                     className="bg-slate-900/50 border-slate-800 h-10 text-white"
@@ -354,7 +348,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
               <Code className="w-5 h-5" />
               Execution Code (Advanced)
             </h3>
-            
+
             <div className="space-y-2">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">
                 JavaScript Code
@@ -366,7 +360,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
                 className="bg-slate-900/50 border-slate-800 min-h-[150px] text-white font-mono text-sm"
               />
               <p className="text-[10px] text-slate-500">
-                💡 Use <code className="bg-slate-800 px-1 py-0.5 rounded">config</code> to access field values, 
+                💡 Use <code className="bg-slate-800 px-1 py-0.5 rounded">config</code> to access field values,
                 <code className="bg-slate-800 px-1 py-0.5 rounded ml-1">data</code> for trigger data
               </p>
             </div>

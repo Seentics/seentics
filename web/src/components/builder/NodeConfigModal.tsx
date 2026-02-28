@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  X, 
-  Settings2, 
-  Zap, 
-  Trash2, 
+import {
+  X,
+  Settings2,
+  Zap,
+  Trash2,
   Info,
   ChevronRight,
   Save,
@@ -58,7 +58,7 @@ interface NodeConfigModalProps {
 // Dynamic Variable Helper Component
 const VariableHelper = ({ onInsert }: { onInsert: (variable: string) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
-  
+
   const variableGroups = [
     {
       category: 'User Data',
@@ -143,14 +143,14 @@ const VariableHelper = ({ onInsert }: { onInsert: (variable: string) => void }) 
         <Braces size={14} className="mr-1" />
         Insert Variable
       </Button>
-      
+
       {isOpen && (
         <div className="absolute top-full left-0 mt-2 w-[500px] bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 max-h-[400px] overflow-y-auto">
           <div className="p-3 border-b border-slate-800 bg-slate-800/50">
             <h4 className="text-xs font-black text-white uppercase tracking-wider">Available Variables</h4>
             <p className="text-[10px] text-slate-400 mt-1">Click to insert dynamic data into your configuration</p>
           </div>
-          
+
           <div className="p-2">
             {variableGroups.map((group, idx) => (
               <div key={idx} className="mb-3">
@@ -180,7 +180,7 @@ const VariableHelper = ({ onInsert }: { onInsert: (variable: string) => void }) 
               </div>
             ))}
           </div>
-          
+
           <div className="p-3 border-t border-slate-800 bg-slate-800/30">
             <p className="text-[10px] text-slate-400">
               💡 Tip: Variables are replaced with real data when the automation runs
@@ -219,6 +219,10 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
   const webhookUrlRef = useRef<HTMLInputElement>(null);
   const redirectUrlRef = useRef<HTMLInputElement>(null);
   const hideElementSelectorRef = useRef<HTMLInputElement>(null);
+  const slackWebhookRef = useRef<HTMLInputElement>(null);
+  const slackMessageRef = useRef<HTMLTextAreaElement>(null);
+  const whatsappPhoneRef = useRef<HTMLInputElement>(null);
+  const whatsappMessageRef = useRef<HTMLTextAreaElement>(null);
 
   const updateConfig = (key: string, value: any) => {
     setLocalData(prev => ({
@@ -234,12 +238,12 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
   const insertVariable = (inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement>, variable: string) => {
     const input = inputRef.current;
     if (!input) return;
-    
+
     const start = input.selectionStart || 0;
     const end = input.selectionEnd || 0;
     const currentValue = input.value;
     const newValue = currentValue.substring(0, start) + variable + currentValue.substring(end);
-    
+
     // Update the config with new value
     const configKey = input.name || input.id;
     if (configKey) {
@@ -267,7 +271,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
   };
 
   const typeLabel = node.type.replace('Node', '');
-  const subtype = node.data.config?.triggerType || node.data.config?.actionType || node.data.config?.conditionType || node.subtype;
+  const subtype = node.data.config?.triggerType || node.data.config?.actionType || node.subtype;
 
   const renderConfigFields = () => {
     // Page View Trigger
@@ -276,7 +280,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Target URL Pattern</Label>
-            <Input 
+            <Input
               value={localData.config.url_pattern || ''}
               onChange={(e) => updateConfig('url_pattern', e.target.value)}
               placeholder="e.g. /pricing or /blog/*"
@@ -287,7 +291,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
 
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Frequency Control</Label>
-            <Select 
+            <Select
               value={localData.config.frequency || 'always'}
               onValueChange={(val) => updateConfig('frequency', val)}
             >
@@ -313,7 +317,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Element Selector (CSS)</Label>
-            <Input 
+            <Input
               value={localData.config.selector || ''}
               onChange={(e) => updateConfig('selector', e.target.value)}
               placeholder="e.g. #signup-btn or .cta-button"
@@ -323,7 +327,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Target Page (Optional)</Label>
-            <Input 
+            <Input
               value={localData.config.url_pattern || ''}
               onChange={(e) => updateConfig('url_pattern', e.target.value)}
               placeholder="e.g. /landing-page"
@@ -346,7 +350,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Scroll Percentage (%)</Label>
             <div className="flex items-center gap-4">
-               <Input 
+              <Input
                 type="number"
                 min="1"
                 max="100"
@@ -354,8 +358,8 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
                 onChange={(e) => updateConfig('percentage', e.target.value)}
                 className="bg-slate-900/50 border-slate-800 h-11 text-white w-24"
               />
-              <Slider 
-                value={[parseInt(localData.config.percentage) || 50]} 
+              <Slider
+                value={[parseInt(localData.config.percentage) || 50]}
                 onValueChange={([val]) => updateConfig('percentage', val)}
                 max={100}
                 step={10}
@@ -379,7 +383,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Event Name</Label>
-            <Input 
+            <Input
               value={localData.config.event_name || ''}
               onChange={(e) => updateConfig('event_name', e.target.value)}
               placeholder="e.g. form_submit or purchase"
@@ -390,13 +394,13 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Property Requirement (Optional)</Label>
             <div className="grid grid-cols-2 gap-2">
-              <Input 
+              <Input
                 value={localData.config.event_key || ''}
                 onChange={(e) => updateConfig('event_key', e.target.value)}
                 placeholder="Key (e.g. plan)"
                 className="bg-slate-900/50 border-slate-800 h-11 text-white text-xs"
               />
-              <Input 
+              <Input
                 value={localData.config.event_value || ''}
                 onChange={(e) => updateConfig('event_value', e.target.value)}
                 placeholder="Value (e.g. pro)"
@@ -420,7 +424,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Time Duration (seconds)</Label>
             <div className="flex items-center gap-4">
-              <Input 
+              <Input
                 type="number"
                 min="1"
                 value={localData.config.seconds || '10'}
@@ -433,7 +437,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Target Page (Optional)</Label>
-            <Input 
+            <Input
               value={localData.config.url_pattern || ''}
               onChange={(e) => updateConfig('url_pattern', e.target.value)}
               placeholder="e.g. /pricing"
@@ -455,7 +459,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Target Page (Optional)</Label>
-            <Input 
+            <Input
               value={localData.config.url_pattern || ''}
               onChange={(e) => updateConfig('url_pattern', e.target.value)}
               placeholder="e.g. /checkout or leave empty for all pages"
@@ -464,7 +468,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Frequency Control</Label>
-            <Select 
+            <Select
               value={localData.config.frequency || 'once_per_session'}
               onValueChange={(val) => updateConfig('frequency', val)}
             >
@@ -494,7 +498,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Form Selector (CSS)</Label>
-            <Input 
+            <Input
               value={localData.config.selector || ''}
               onChange={(e) => updateConfig('selector', e.target.value)}
               placeholder="e.g. #contact-form or .signup-form"
@@ -504,7 +508,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Target Page (Optional)</Label>
-            <Input 
+            <Input
               value={localData.config.url_pattern || ''}
               onChange={(e) => updateConfig('url_pattern', e.target.value)}
               placeholder="e.g. /contact"
@@ -526,7 +530,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Inactivity Duration (seconds)</Label>
-            <Input 
+            <Input
               type="number"
               min="5"
               value={localData.config.seconds || '30'}
@@ -550,7 +554,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Funnel Name/ID</Label>
-            <Input 
+            <Input
               value={localData.config.funnel_id || ''}
               onChange={(e) => updateConfig('funnel_id', e.target.value)}
               placeholder="e.g. checkout-funnel or funnel_123"
@@ -560,7 +564,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Drop-off Step (Optional)</Label>
-            <Input 
+            <Input
               value={localData.config.step || ''}
               onChange={(e) => updateConfig('step', e.target.value)}
               placeholder="e.g. payment or step-2"
@@ -588,7 +592,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Funnel Name/ID</Label>
-            <Input 
+            <Input
               value={localData.config.funnel_id || ''}
               onChange={(e) => updateConfig('funnel_id', e.target.value)}
               placeholder="e.g. signup-funnel or funnel_456"
@@ -616,7 +620,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Goal Name/ID</Label>
-            <Input 
+            <Input
               value={localData.config.goal_id || ''}
               onChange={(e) => updateConfig('goal_id', e.target.value)}
               placeholder="e.g. newsletter_signup or goal_789"
@@ -626,7 +630,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Minimum Goal Value (Optional)</Label>
-            <Input 
+            <Input
               type="number"
               value={localData.config.min_value || ''}
               onChange={(e) => updateConfig('min_value', e.target.value)}
@@ -696,13 +700,87 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
       );
     }
 
+    // Slack Action
+    if (node.type === 'actionNode' && subtype === 'slack') {
+      return (
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Incoming Webhook URL</Label>
+              <VariableHelper onInsert={(v) => insertVariable(slackWebhookRef, v)} />
+            </div>
+            <Input
+              ref={slackWebhookRef}
+              name="webhookUrl"
+              value={localData.config.webhookUrl || ''}
+              onChange={(e) => updateConfig('webhookUrl', e.target.value)}
+              placeholder="https://hooks.slack.com/services/..."
+              className="bg-slate-900/50 border-slate-800 h-11 text-white font-mono text-sm"
+            />
+            <p className="text-[10px] text-slate-500">Create a webhook in your Slack App settings</p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Message Text</Label>
+              <VariableHelper onInsert={(v) => insertVariable(slackMessageRef, v)} />
+            </div>
+            <Textarea
+              ref={slackMessageRef}
+              name="message"
+              value={localData.config.message || ''}
+              onChange={(e) => updateConfig('message', e.target.value)}
+              placeholder="New event triggered! {{event_name}}"
+              className="bg-slate-900/50 border-slate-800 min-h-[120px] text-white font-mono text-sm"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // WhatsApp Action
+    if (node.type === 'actionNode' && subtype === 'whatsapp') {
+      return (
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Phone Number</Label>
+              <VariableHelper onInsert={(v) => insertVariable(whatsappPhoneRef, v)} />
+            </div>
+            <Input
+              ref={whatsappPhoneRef}
+              name="phoneNumber"
+              value={localData.config.phoneNumber || ''}
+              onChange={(e) => updateConfig('phoneNumber', e.target.value)}
+              placeholder="+1234567890 or {{user_phone}}"
+              className="bg-slate-900/50 border-slate-800 h-11 text-white font-mono text-sm"
+            />
+            <p className="text-[10px] text-slate-500">Must include country code (e.g. +1 for USA)</p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Message Text</Label>
+              <VariableHelper onInsert={(v) => insertVariable(whatsappMessageRef, v)} />
+            </div>
+            <Textarea
+              ref={whatsappMessageRef}
+              name="message"
+              value={localData.config.message || ''}
+              onChange={(e) => updateConfig('message', e.target.value)}
+              placeholder="Hello {{user_name}}! Thanks for visiting."
+              className="bg-slate-900/50 border-slate-800 min-h-[120px] text-white font-mono text-sm"
+            />
+          </div>
+        </div>
+      );
+    }
+
     // Webhook Action
     if ((node.type === 'actionNode' || node.type === 'webhook') && (subtype === 'webhook' || node.type === 'webhook')) {
       return (
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Endpoint URL</Label>
-            <Input 
+            <Input
               value={localData.config.url || ''}
               onChange={(e) => updateConfig('url', e.target.value)}
               placeholder="https://api.myapp.com/webhook"
@@ -711,7 +789,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">HTTP Method</Label>
-            <Select 
+            <Select
               value={localData.config.method || 'POST'}
               onValueChange={(val) => updateConfig('method', val)}
             >
@@ -731,7 +809,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               <Label className="text-sm font-bold text-white">Include Payload</Label>
               <p className="text-[10px] text-slate-500">Send event data as JSON body</p>
             </div>
-            <Switch 
+            <Switch
               checked={localData.config.include_payload !== false}
               onCheckedChange={(val) => updateConfig('include_payload', val)}
             />
@@ -749,7 +827,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Modal Title</Label>
               <VariableHelper onInsert={(variable) => insertVariable(modalTitleRef, variable)} />
             </div>
-            <Input 
+            <Input
               ref={modalTitleRef}
               value={localData.config.title || ''}
               onChange={(e) => updateConfig('title', e.target.value)}
@@ -762,7 +840,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Modal Content</Label>
               <VariableHelper onInsert={(variable) => insertVariable(modalContentRef, variable)} />
             </div>
-            <Textarea 
+            <Textarea
               ref={modalContentRef}
               value={localData.config.content || ''}
               onChange={(e) => updateConfig('content', e.target.value)}
@@ -776,7 +854,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
                 <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Primary Button Text</Label>
                 <VariableHelper onInsert={(variable) => insertVariable(modalButtonRef, variable)} />
               </div>
-              <Input 
+              <Input
                 ref={modalButtonRef}
                 value={localData.config.primaryButton || ''}
                 onChange={(e) => updateConfig('primaryButton', e.target.value)}
@@ -786,7 +864,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
             </div>
             <div className="space-y-2">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Primary Button URL</Label>
-              <Input 
+              <Input
                 value={localData.config.primaryUrl || ''}
                 onChange={(e) => updateConfig('primaryUrl', e.target.value)}
                 placeholder="/signup"
@@ -796,7 +874,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Custom HTML (Advanced)</Label>
-            <Textarea 
+            <Textarea
               value={localData.config.customHtml || ''}
               onChange={(e) => updateConfig('customHtml', e.target.value)}
               placeholder="<div>Custom HTML content...</div>"
@@ -816,7 +894,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Banner Message</Label>
               <VariableHelper onInsert={(variable) => insertVariable(bannerContentRef, variable)} />
             </div>
-            <Textarea 
+            <Textarea
               ref={bannerContentRef}
               value={localData.config.content || ''}
               onChange={(e) => updateConfig('content', e.target.value)}
@@ -827,7 +905,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Position</Label>
-              <Select 
+              <Select
                 value={localData.config.position || 'bottom'}
                 onValueChange={(val) => updateConfig('position', val)}
               >
@@ -842,7 +920,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
             </div>
             <div className="space-y-2">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Icon/Emoji</Label>
-              <Input 
+              <Input
                 value={localData.config.icon || ''}
                 onChange={(e) => updateConfig('icon', e.target.value)}
                 placeholder="e.g. ✨ 🎉 ⚡"
@@ -853,7 +931,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Background Color</Label>
-              <Input 
+              <Input
                 type="color"
                 value={localData.config.backgroundColor || '#0f172a'}
                 onChange={(e) => updateConfig('backgroundColor', e.target.value)}
@@ -862,7 +940,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
             </div>
             <div className="space-y-2">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Text Color</Label>
-              <Input 
+              <Input
                 type="color"
                 value={localData.config.textColor || '#ffffff'}
                 onChange={(e) => updateConfig('textColor', e.target.value)}
@@ -875,7 +953,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Button Text (Optional)</Label>
               <VariableHelper onInsert={(variable) => insertVariable(bannerButtonRef, variable)} />
             </div>
-            <Input 
+            <Input
               ref={bannerButtonRef}
               value={localData.config.primaryButton || ''}
               onChange={(e) => updateConfig('primaryButton', e.target.value)}
@@ -885,7 +963,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Button URL</Label>
-            <Input 
+            <Input
               value={localData.config.primaryUrl || ''}
               onChange={(e) => updateConfig('primaryUrl', e.target.value)}
               placeholder="/learn-more"
@@ -894,7 +972,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Auto-dismiss (seconds, 0 = manual close)</Label>
-            <Input 
+            <Input
               type="number"
               min="0"
               value={localData.config.duration || '0'}
@@ -915,7 +993,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Notification Title</Label>
               <VariableHelper onInsert={(variable) => insertVariable(notificationTitleRef, variable)} />
             </div>
-            <Input 
+            <Input
               ref={notificationTitleRef}
               value={localData.config.title || ''}
               onChange={(e) => updateConfig('title', e.target.value)}
@@ -928,7 +1006,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Message</Label>
               <VariableHelper onInsert={(variable) => insertVariable(notificationMessageRef, variable)} />
             </div>
-            <Textarea 
+            <Textarea
               ref={notificationMessageRef}
               value={localData.config.message || ''}
               onChange={(e) => updateConfig('message', e.target.value)}
@@ -939,7 +1017,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Type</Label>
-              <Select 
+              <Select
                 value={localData.config.type || 'info'}
                 onValueChange={(val) => updateConfig('type', val)}
               >
@@ -956,7 +1034,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
             </div>
             <div className="space-y-2">
               <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Position</Label>
-              <Select 
+              <Select
                 value={localData.config.position || 'top'}
                 onValueChange={(val) => updateConfig('position', val)}
               >
@@ -972,7 +1050,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Duration (seconds)</Label>
-            <Input 
+            <Input
               type="number"
               min="1"
               max="30"
@@ -991,7 +1069,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Redirect URL</Label>
-            <Input 
+            <Input
               value={localData.config.url || ''}
               onChange={(e) => updateConfig('url', e.target.value)}
               placeholder="e.g. /thank-you or https://example.com"
@@ -1001,7 +1079,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Delay Before Redirect (seconds)</Label>
-            <Input 
+            <Input
               type="number"
               min="0"
               value={localData.config.delay || '0'}
@@ -1014,7 +1092,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               <Label className="text-sm font-bold text-white">Open in New Tab</Label>
               <p className="text-[10px] text-slate-500">Opens URL in a new browser tab</p>
             </div>
-            <Switch 
+            <Switch
               checked={localData.config.newTab || false}
               onCheckedChange={(val) => updateConfig('newTab', val)}
             />
@@ -1029,7 +1107,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">JavaScript Code</Label>
-            <Textarea 
+            <Textarea
               value={localData.config.code || ''}
               onChange={(e) => updateConfig('code', e.target.value)}
               placeholder="console.log('Hello from automation!');\n// Your code here..."
@@ -1039,7 +1117,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Injection Position</Label>
-            <Select 
+            <Select
               value={localData.config.position || 'body'}
               onValueChange={(val) => updateConfig('position', val)}
             >
@@ -1068,7 +1146,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Element Selector (CSS)</Label>
-            <Input 
+            <Input
               value={localData.config.selector || ''}
               onChange={(e) => updateConfig('selector', e.target.value)}
               placeholder="e.g. #promo-banner or .popup-ad"
@@ -1091,7 +1169,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Element Selector (CSS)</Label>
-            <Input 
+            <Input
               value={localData.config.selector || ''}
               onChange={(e) => updateConfig('selector', e.target.value)}
               placeholder="e.g. #hidden-content or .reveal-section"
@@ -1101,7 +1179,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Display Type</Label>
-            <Select 
+            <Select
               value={localData.config.display_type || 'block'}
               onValueChange={(val) => updateConfig('display_type', val)}
             >
@@ -1127,7 +1205,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Event Name</Label>
-            <Input 
+            <Input
               value={localData.config.event_name || ''}
               onChange={(e) => updateConfig('event_name', e.target.value)}
               placeholder="e.g. automation_triggered or special_action"
@@ -1137,7 +1215,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Event Properties (JSON)</Label>
-            <Textarea 
+            <Textarea
               value={localData.config.properties || ''}
               onChange={(e) => updateConfig('properties', e.target.value)}
               placeholder='{"action": "completed", "value": 100}'
@@ -1155,7 +1233,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <div className="space-y-6">
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Cookie Name</Label>
-            <Input 
+            <Input
               value={localData.config.cookie_name || ''}
               onChange={(e) => updateConfig('cookie_name', e.target.value)}
               placeholder="e.g. promo_shown or user_preference"
@@ -1164,7 +1242,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Cookie Value</Label>
-            <Input 
+            <Input
               value={localData.config.cookie_value || ''}
               onChange={(e) => updateConfig('cookie_value', e.target.value)}
               placeholder="e.g. true or 2024-02-09"
@@ -1173,7 +1251,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
           </div>
           <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Expiration (days)</Label>
-            <Input 
+            <Input
               type="number"
               min="1"
               value={localData.config.expiration_days || '30'}
@@ -1186,283 +1264,21 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
       );
     }
 
-    // Condition Node - Different configs for each subtype
-    if (node.type === 'conditionNode') {
-      // Device Check Condition
-      if (subtype === 'device') {
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Device Type</Label>
-              <Select 
-                value={localData.config.device_type || 'mobile'}
-                onValueChange={(val) => updateConfig('device_type', val)}
-              >
-                <SelectTrigger className="bg-slate-900/50 border-slate-800 h-11 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                  <SelectItem value="mobile">Mobile</SelectItem>
-                  <SelectItem value="tablet">Tablet</SelectItem>
-                  <SelectItem value="desktop">Desktop</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-slate-500">Workflow continues if user is on this device type</p>
-            </div>
-          </div>
-        );
-      }
-
-      // Visitor Status Condition
-      if (subtype === 'visitor') {
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Visitor Type</Label>
-              <Select 
-                value={localData.config.visitor_type || 'new'}
-                onValueChange={(val) => updateConfig('visitor_type', val)}
-              >
-                <SelectTrigger className="bg-slate-900/50 border-slate-800 h-11 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                  <SelectItem value="new">New Visitor</SelectItem>
-                  <SelectItem value="returning">Returning Visitor</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-slate-500">Workflow continues based on visitor status</p>
-            </div>
-          </div>
-        );
-      }
-
-      // URL Parameter Condition
-      if (subtype === 'url_param') {
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Parameter Name</Label>
-              <Input 
-                value={localData.config.param_name || ''}
-                onChange={(e) => updateConfig('param_name', e.target.value)}
-                placeholder="e.g. utm_source or ref"
-                className="bg-slate-900/50 border-slate-800 h-11 text-white"
-              />
-              <p className="text-[10px] text-slate-500">The URL parameter to check for</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Operator</Label>
-                <Select 
-                  value={localData.config.operator || 'equals'}
-                  onValueChange={(val) => updateConfig('operator', val)}
-                >
-                  <SelectTrigger className="bg-slate-900/50 border-slate-800 h-11 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                    <SelectItem value="equals">Equals</SelectItem>
-                    <SelectItem value="contains">Contains</SelectItem>
-                    <SelectItem value="exists">Exists</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Value</Label>
-                <Input 
-                  value={localData.config.param_value || ''}
-                  onChange={(e) => updateConfig('param_value', e.target.value)}
-                  placeholder="e.g. google"
-                  className="bg-slate-900/50 border-slate-800 h-11 text-white"
-                  disabled={localData.config.operator === 'exists'}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      // Page View Count Condition
-      if (subtype === 'page_views') {
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Operator</Label>
-                <Select 
-                  value={localData.config.operator || 'gt'}
-                  onValueChange={(val) => updateConfig('operator', val)}
-                >
-                  <SelectTrigger className="bg-slate-900/50 border-slate-800 h-11 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                    <SelectItem value="gt">Greater than</SelectItem>
-                    <SelectItem value="lt">Less than</SelectItem>
-                    <SelectItem value="eq">Equals</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Number of Pages</Label>
-                <Input 
-                  type="number"
-                  min="1"
-                  value={localData.config.count || '3'}
-                  onChange={(e) => updateConfig('count', e.target.value)}
-                  className="bg-slate-900/50 border-slate-800 h-11 text-white"
-                />
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-500">Check how many pages the visitor has viewed in this session.</p>
-          </div>
-        );
-      }
-
-      // Traffic Source Condition
-      if (subtype === 'traffic_source') {
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Traffic Source Type</Label>
-              <Select 
-                value={localData.config.source_type || 'any'}
-                onValueChange={(val) => updateConfig('source_type', val)}
-              >
-                <SelectTrigger className="bg-slate-900/50 border-slate-800 h-11 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                  <SelectItem value="any">Any source</SelectItem>
-                  <SelectItem value="direct">Direct (no referrer)</SelectItem>
-                  <SelectItem value="organic">Organic Search (Google, Bing)</SelectItem>
-                  <SelectItem value="social">Social Media</SelectItem>
-                  <SelectItem value="paid">Paid Advertising</SelectItem>
-                  <SelectItem value="referral">Referral (other websites)</SelectItem>
-                  <SelectItem value="custom">Custom domain check</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {localData.config.source_type === 'custom' && (
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Domain/Keyword to Match</Label>
-                <Input 
-                  value={localData.config.custom_value || ''}
-                  onChange={(e) => updateConfig('custom_value', e.target.value)}
-                  placeholder="e.g. facebook.com or utm_medium=cpc"
-                  className="bg-slate-900/50 border-slate-800 h-11 text-white"
-                />
-              </div>
-            )}
-          </div>
-        );
-      }
-
-      // Cookie Condition
-      if (subtype === 'cookie') {
-        return (
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Cookie Name</Label>
-              <Input 
-                value={localData.config.cookie_name || ''}
-                onChange={(e) => updateConfig('cookie_name', e.target.value)}
-                placeholder="e.g. user_preference or promo_shown"
-                className="bg-slate-900/50 border-slate-800 h-11 text-white"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Operator</Label>
-                <Select 
-                  value={localData.config.operator || 'exists'}
-                  onValueChange={(val) => updateConfig('operator', val)}
-                >
-                  <SelectTrigger className="bg-slate-900/50 border-slate-800 h-11 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                    <SelectItem value="exists">Exists</SelectItem>
-                    <SelectItem value="not_exists">Does not exist</SelectItem>
-                    <SelectItem value="equals">Equals value</SelectItem>
-                    <SelectItem value="contains">Contains value</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Value (if checking)</Label>
-                <Input 
-                  value={localData.config.cookie_value || ''}
-                  onChange={(e) => updateConfig('cookie_value', e.target.value)}
-                  placeholder="expected value"
-                  className="bg-slate-900/50 border-slate-800 h-11 text-white"
-                  disabled={['exists', 'not_exists'].includes(localData.config.operator || 'exists')}
-                />
-              </div>
-            </div>
-          </div>
-        );
-      }
-
-      // Generic If/Else Condition
-      return (
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Property to Check</Label>
-            <Input 
-              value={localData.config.property || ''}
-              onChange={(e) => updateConfig('property', e.target.value)}
-              placeholder="e.g. browser, country, or custom_var"
-              className="bg-slate-900/50 border-slate-800 h-11 text-white"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Operator</Label>
-              <Select 
-                value={localData.config.operator || 'equals'}
-                onValueChange={(val) => updateConfig('operator', val)}
-              >
-                <SelectTrigger className="bg-slate-900/50 border-slate-800 h-11 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-900 border-slate-800 text-white">
-                  <SelectItem value="equals">Equals</SelectItem>
-                  <SelectItem value="not_equals">Does not equal</SelectItem>
-                  <SelectItem value="contains">Contains</SelectItem>
-                  <SelectItem value="starts_with">Starts with</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Value</Label>
-              <Input 
-                value={localData.config.value || ''}
-                onChange={(e) => updateConfig('value', e.target.value)}
-                placeholder="e.g. Chrome"
-                className="bg-slate-900/50 border-slate-800 h-11 text-white"
-              />
-            </div>
-          </div>
-        </div>
-      );
-    }
 
     // Wait Action
     if (node.type === 'actionNode' && subtype === 'wait') {
       return (
         <div className="space-y-6">
-           <div className="space-y-2">
+          <div className="space-y-2">
             <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Delay Duration</Label>
             <div className="flex gap-2">
-              <Input 
+              <Input
                 type="number"
                 value={localData.config.delay_value || '1'}
                 onChange={(e) => updateConfig('delay_value', e.target.value)}
                 className="bg-slate-900/50 border-slate-800 h-11 text-white w-24"
               />
-              <Select 
+              <Select
                 value={localData.config.delay_unit || 'minutes'}
                 onValueChange={(val) => updateConfig('delay_unit', val)}
               >
@@ -1485,7 +1301,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
     return (
       <div className="p-8 border-2 border-dashed border-slate-800 rounded-2xl text-center space-y-4">
         <div className="h-12 w-12 bg-slate-900 rounded-xl flex items-center justify-center mx-auto text-slate-500">
-           <Code2 size={24} />
+          <Code2 size={24} />
         </div>
         <div>
           <h3 className="text-white font-bold">No Special Config</h3>
@@ -1501,7 +1317,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         <DialogHeader className="p-6 border-b border-slate-800 bg-slate-800/50">
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-inner">
-               <Settings2 size={24} />
+              <Settings2 size={24} />
             </div>
             <div>
               <DialogTitle className="text-xl font-black text-white tracking-tight">Configure {typeLabel} Step</DialogTitle>
@@ -1517,8 +1333,8 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
         </div>
 
         <DialogFooter className="p-6 border-t border-slate-800 bg-slate-900/20 flex flex-row items-center justify-between gap-4">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="text-slate-500 hover:text-red-500 hover:bg-red-500/5 font-bold text-xs"
             onClick={handleDelete}
           >

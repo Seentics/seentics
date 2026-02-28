@@ -50,20 +50,6 @@ export interface AutomationAction {
   };
 }
 
-export interface AutomationCondition {
-  id: string;
-  type: 'if' | 'and' | 'or' | 'timeWindow' | 'userBehavior';
-  label: string;
-  config: {
-    field?: string;
-    operator?: 'equals' | 'contains' | 'startsWith' | 'endsWith' | 'greaterThan' | 'lessThan' | 'between';
-    value?: any;
-    conditions?: AutomationCondition[];
-    startTime?: string;
-    endTime?: string;
-    behaviorType?: 'bounce' | 'convert' | 'engage';
-  };
-}
 
 export interface AutomationDelay {
   id: string;
@@ -82,7 +68,6 @@ export interface Automation {
   description?: string;
   enabled: boolean;
   trigger: AutomationTrigger;
-  conditions: AutomationCondition[];
   delay?: AutomationDelay;
   actions: AutomationAction[];
   createdAt: Date;
@@ -194,14 +179,13 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
 
     if (!triggerNode) throw new Error('No trigger node found');
 
-    // 2. Build the action and condition sequences by traversing the graph
+    // 2. Build the action sequences by traversing the graph
     const actions: any[] = [];
-    const conditions: any[] = [];
     const visited = new Set<string>();
     const queue = [triggerNode.id];
     visited.add(triggerNode.id);
 
-    // BFS traversal to collect all reachable actions and conditions
+    // BFS traversal to collect all reachable actions
     while (queue.length > 0) {
       const currentNodeId = queue.shift()!;
       const outgoingEdges = edges.filter(e => e.source === currentNodeId);
@@ -217,11 +201,6 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
                 actionType: nextNode.data.config?.actionType || 'modal',
                 actionConfig: nextNode.data.config || {},
               });
-            } else if (nextNode.type === 'conditionNode' || nextNode.type === 'advancedConditionNode') {
-              conditions.push({
-                conditionType: nextNode.data.config?.conditionType || 'if',
-                conditionConfig: nextNode.data.config || {},
-              });
             }
             queue.push(nextNode.id);
           }
@@ -229,9 +208,9 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
       }
     }
 
-    // Fallback for LinearBuilder: if no actions/conditions were reached via edges,
+    // Fallback for LinearBuilder: if no actions were reached via edges,
     // collect all them from the nodes array in their visual order.
-    if (actions.length === 0 && conditions.length === 0) {
+    if (actions.length === 0) {
       nodes.forEach(n => {
         if (n.id === triggerNode.id || visited.has(n.id)) return;
 
@@ -239,11 +218,6 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
           actions.push({
             actionType: n.data.config?.actionType || 'modal',
             actionConfig: n.data.config || {},
-          });
-        } else if (n.type === 'conditionNode' || n.type === 'advancedConditionNode') {
-          conditions.push({
-            conditionType: n.data.config?.conditionType || 'if',
-            conditionConfig: n.data.config || {},
           });
         }
       });
@@ -265,7 +239,6 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
       triggerType: triggerConfig.triggerType,
       triggerConfig,
       actions,
-      conditions
     };
   },
 
@@ -345,7 +318,6 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
 
       // Validate workflow structure
       const triggerNodes = nodes.filter(n => n.type === 'triggerNode');
-      const conditionNodes = nodes.filter(n => n.type === 'conditionNode');
       const actionNodes = nodes.filter(n => n.type === 'actionNode');
 
       if (triggerNodes.length === 0) {
@@ -364,10 +336,6 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
             type: triggerNodes[0].data.config?.triggerType || 'pageView',
             config: triggerNodes[0].data.config || {}
           },
-          conditions: conditionNodes.map(node => ({
-            type: node.data.config?.conditionType || 'page_match',
-            config: node.data.config || {}
-          })),
           actions: actionNodes.map(node => ({
             type: node.data.config?.actionType || 'modal',
             config: node.data.config || {}

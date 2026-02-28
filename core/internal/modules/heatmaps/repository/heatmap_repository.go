@@ -20,6 +20,7 @@ type HeatmapRepository interface {
 	GetTrackedURLs(ctx context.Context, websiteID string) ([]string, error)
 	DeleteHeatmapPage(ctx context.Context, websiteID string, url string) error
 	BulkDeleteHeatmapPages(ctx context.Context, websiteID string, urls []string) error
+	DeleteAllByWebsiteID(ctx context.Context, websiteID string) error
 	GetTopElements(ctx context.Context, websiteID string, url string, eventType string, from, to time.Time) ([]models.TopElement, error)
 }
 
@@ -182,6 +183,18 @@ func (r *heatmapRepository) BulkDeleteHeatmapPages(ctx context.Context, websiteI
 	}
 	query := `DELETE FROM heatmap_points WHERE website_id = $1 AND page_path = ANY($2)`
 	_, err := r.db.Exec(ctx, query, websiteID, urls)
+	return err
+}
+
+func (r *heatmapRepository) DeleteAllByWebsiteID(ctx context.Context, websiteID string) error {
+	// 1. Delete heatmap points
+	_, err := r.db.Exec(ctx, `DELETE FROM heatmap_points WHERE website_id::text = $1`, websiteID)
+	if err != nil {
+		return err
+	}
+
+	// 2. Delete heatmap sessions
+	_, err = r.db.Exec(ctx, `DELETE FROM heatmap_sessions WHERE website_id::text = $1`, websiteID)
 	return err
 }
 

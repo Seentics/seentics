@@ -1,13 +1,16 @@
 package services
 
 import (
-	"github.com/Seentics/seentics/internal/modules/automations/models"
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
+
+	"github.com/Seentics/seentics/internal/modules/automations/models"
 
 	"github.com/rs/zerolog"
 )
@@ -48,14 +51,6 @@ func (e *ExecutionEngine) ExecuteAutomation(ctx context.Context, automation *mod
 		e.logger.Debug().
 			Str("automation_id", automation.ID).
 			Msg("Automation skipped due to frequency control")
-		return nil
-	}
-
-	// Evaluate conditions
-	if !e.evaluateConditions(automation.Conditions, triggerData) {
-		e.logger.Debug().
-			Str("automation_id", automation.ID).
-			Msg("Automation conditions not met")
 		return nil
 	}
 
@@ -139,63 +134,49 @@ func (e *ExecutionEngine) shouldExecute(ctx context.Context, automation *models.
 	}
 }
 
-// evaluateConditions checks if all conditions are met
-func (e *ExecutionEngine) evaluateConditions(conditions []models.AutomationCondition, data map[string]interface{}) bool {
-	if len(conditions) == 0 {
-		return true // No conditions = always execute
-	}
-
-	for _, condition := range conditions {
-		if !e.evaluateCondition(condition, data) {
-			return false
-		}
-	}
-	return true
-}
-
-// evaluateCondition evaluates a single condition
-func (e *ExecutionEngine) evaluateCondition(condition models.AutomationCondition, data map[string]interface{}) bool {
-	switch condition.ConditionType {
-	case "page_match":
-		page, _ := data["page"].(string)
-		targetPage, _ := condition.ConditionConfig["page"].(string)
-		return page == targetPage
-
-	case "event_property":
-		properties, _ := data["properties"].(map[string]interface{})
-		key, _ := condition.ConditionConfig["key"].(string)
-		value, _ := condition.ConditionConfig["value"]
-		return properties[key] == value
-
-	case "visitor_count":
-		// TODO: Implement visitor count condition
-		return true
-
-	case "time_on_page":
-		// TODO: Implement time on page condition
-		return true
-
-	default:
-		return true
-	}
-}
-
 // executeAction executes a single action
 func (e *ExecutionEngine) executeAction(ctx context.Context, action models.AutomationAction, data map[string]interface{}) error {
 	switch action.ActionType {
 	case "webhook":
 		return e.executeWebhook(ctx, action, data)
+	case "slack":
+		return e.executeSlack(ctx, action, data)
+	case "whatsapp":
+		return e.executeWhatsApp(ctx, action, data)
 	case "email":
 		return e.executeEmail(ctx, action, data)
-	case "script":
-		// Script injection is handled client-side
+	case "script", "javascript":
+		// Handled client-side
 		return nil
-	case "banner":
-		// Banner display is handled client-side
+	case "banner", "modal", "notification", "hideElement", "showElement", "redirect", "setCookie":
+		// Handled client-side in the browser tracker
+		e.logger.Debug().
+			Str("action_type", action.ActionType).
+			Msg("Browser-based action recorded for delivery")
+		return nil
+	case "trackEvent":
+		// Server-side event tracking (can be used to pipe data back into analytics)
+		e.logger.Info().Msg("Track Event action would record a new event")
 		return nil
 	default:
 		return fmt.Errorf("unknown action type: %s", action.ActionType)
 	}
+}
+
+// executeEmail stays as a stub for now
+func (e *ExecutionEngine) executeEmail(ctx context.Context, action models.AutomationAction, data map[string]interface{}) error {
+	recipient, _ := action.ActionConfig["recipient"].(string)
+	subject, _ := action.ActionConfig["subject"].(string)
+
+	recipient = e.replaceVariables(recipient, data)
+	subject = e.replaceVariables(subject, data)
+
+	e.logger.Info().
+		Str("recipient", recipient).
+		Str("subject", subject).
+		Msg("Email notification would be sent (Email server not configured)")
+
+	return nil
 }
 
 // executeWebhook sends a webhook
@@ -258,23 +239,87 @@ func (e *ExecutionEngine) executeWebhook(ctx context.Context, action models.Auto
 	return nil
 }
 
-// executeEmail sends an email
-func (e *ExecutionEngine) executeEmail(ctx context.Context, action models.AutomationAction, data map[string]interface{}) error {
-	to, ok := action.ActionConfig["to"].(string)
-	if !ok || to == "" {
-		return fmt.Errorf("email recipient is required")
+// executeSlack sends a message to Slack via Webhook
+func (e *ExecutionEngine) executeSlack(ctx context.Context, action models.AutomationAction, data map[string]interface{}) error {
+	webhookURL, _ := action.ActionConfig["webhookUrl"].(string)
+	message, _ := action.ActionConfig["message"].(string)
+
+	if webhookURL == "" {
+		e.logger.Warn().Msg("Slack action skipped: No webhookUrl configured")
+		return nil
 	}
 
-	subject, _ := action.ActionConfig["subject"].(string)
-	emailBody, _ := action.ActionConfig["body"].(string)
+	// 1. Replace variables in message
+	message = e.replaceVariables(message, data)
 
-	// TODO: Integrate with email service (SendGrid, AWS SES, etc.)
-	// For now, just log
+	// 2. Prepare simple Slack payload
+	payload := map[string]interface{}{
+		"text": message,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal slack payload: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", webhookURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("failed to create slack request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("slack request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("slack returned status %d", resp.StatusCode)
+	}
+
+	e.logger.Info().Str("webhook", webhookURL).Msg("Slack notification sent successfully")
+	return nil
+}
+
+func (e *ExecutionEngine) replaceVariables(text string, data map[string]interface{}) string {
+	if text == "" {
+		return text
+	}
+
+	// Find all {{variable}} patterns
+	re := regexp.MustCompile(`\{\{\s*([a-zA-Z0-9_-]+)\s*\}\}`)
+	return re.ReplaceAllStringFunc(text, func(match string) string {
+		// Extract key from {{key}}
+		submatches := re.FindStringSubmatch(match)
+		if len(submatches) < 2 {
+			return match
+		}
+		key := submatches[1]
+
+		// Find value in data
+		if val, ok := data[key]; ok {
+			return fmt.Sprintf("%v", val)
+		}
+
+		// Fallback to empty string or original match if not found
+		return ""
+	})
+}
+
+// executeWhatsApp stays as a stub for now
+func (e *ExecutionEngine) executeWhatsApp(ctx context.Context, action models.AutomationAction, data map[string]interface{}) error {
+	phone, _ := action.ActionConfig["phoneNumber"].(string)
+	message, _ := action.ActionConfig["message"].(string)
+
+	phone = e.replaceVariables(phone, data)
+	message = e.replaceVariables(message, data)
+
 	e.logger.Info().
-		Str("to", to).
-		Str("subject", subject).
-		Str("body", emailBody).
-		Msg("Email would be sent (email service not configured)")
+		Str("phone", phone).
+		Str("message", message).
+		Msg("WhatsApp message would be sent (WhatsApp API not configured in core)")
 
 	return nil
 }
@@ -308,19 +353,78 @@ func (e *ExecutionEngine) ProcessEvent(ctx context.Context, websiteID string, ev
 	return nil
 }
 
-// matchesTrigger checks if an event matches an automation trigger
+// matchesTrigger checks if an analytics event matches an automation trigger
 func (e *ExecutionEngine) matchesTrigger(automation models.Automation, eventType string, eventData map[string]interface{}) bool {
-	switch automation.TriggerType {
+	// Normalized trigger type for matching
+	tType := strings.ToLower(automation.TriggerType)
+
+	switch tType {
 	case "pageview":
 		return eventType == "pageview"
-	case "event":
+
+	case "event", "customevent":
+		// Custom analytics event match
 		triggerEvent, _ := automation.TriggerConfig["event_name"].(string)
 		return eventType == triggerEvent
-	case "page_exit":
-		return eventType == "page_exit"
-	case "time_on_page":
-		return eventType == "pageview" // Will be evaluated by conditions
+
+	case "page_exit", "exitintent":
+		return eventType == "page_exit" || eventType == "exit_intent"
+
+	case "time_on_page", "timeonpage":
+		// time_on_page usually comes as a pageview event but is processed after a delay
+		// If it's sent as a specific event, match it
+		return eventType == "time_on_page"
+
+	case "scroll":
+		return eventType == "scroll"
+
+	case "inactivity":
+		return eventType == "inactivity"
+
+	case "rageclicks", "rage_clicks":
+		return eventType == "rage_click" || eventType == "rage_clicks"
+
+	case "formsubmit":
+		return eventType == "form_submit"
+
+	case "funnelcomplete":
+		if eventType != "funnel_complete" {
+			return false
+		}
+		// Optional: Match specific funnel ID
+		funnelID, _ := automation.TriggerConfig["funnel_id"].(string)
+		if funnelID != "" {
+			eventFunnelID, _ := eventData["funnel_id"].(string)
+			return funnelID == eventFunnelID
+		}
+		return true
+
+	case "funneldropoff":
+		if eventType != "funnel_drop_off" && eventType != "funnel_dropoff" {
+			return false
+		}
+		// Optional: Match specific funnel ID
+		funnelID, _ := automation.TriggerConfig["funnel_id"].(string)
+		if funnelID != "" {
+			eventFunnelID, _ := eventData["funnel_id"].(string)
+			return funnelID == eventFunnelID
+		}
+		return true
+
+	case "goalcompleted":
+		if eventType != "goal_completed" {
+			return false
+		}
+		// Optional: Match goal name
+		goalName, _ := automation.TriggerConfig["goal_name"].(string)
+		if goalName != "" {
+			eventGoalName, _ := eventData["goal_name"].(string)
+			return goalName == eventGoalName
+		}
+		return true
+
 	default:
-		return false
+		// Attempt exact match for any other custom types
+		return eventType == tType
 	}
 }

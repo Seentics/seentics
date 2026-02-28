@@ -2,6 +2,9 @@ FROM golang:1.24
 
 WORKDIR /app
 
+# Use a more reliable proxy list for regions with connection issues
+ENV GOPROXY=https://goproxy.cn,https://goproxy.io,direct
+
 # Install Air for hot reloading
 RUN go install github.com/air-verse/air@v1.61.7
 

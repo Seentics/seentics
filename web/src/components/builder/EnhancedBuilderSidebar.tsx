@@ -14,6 +14,7 @@ import {
   Globe,
   Mail,
   MessageSquare,
+  MessageCircle,
   Bell,
   BarChart3,
   Database,
@@ -33,6 +34,8 @@ import {
   Square,
   Plus,
   Settings,
+  MousePointerClick,
+  Hourglass,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -41,7 +44,6 @@ import { useCustomNodesStore } from '@/stores/customNodesStore';
 import { CustomNodeCreator } from './CustomNodeCreator';
 
 export const TRIGGER_TYPES = [
-  // 🔥 HIGH IMPACT TRIGGERS
   {
     type: 'pageView',
     label: 'Page View',
@@ -49,25 +51,14 @@ export const TRIGGER_TYPES = [
     color: 'blue',
     description: 'Triggers when a user visits a specific page',
     implemented: true,
-    priority: 'high',
   },
   {
-    type: 'click',
-    label: 'Button Click',
-    icon: MousePointer2,
-    color: 'purple',
-    description: 'Triggers when a specific button/element is clicked',
+    type: 'customEvent',
+    label: 'Custom Event',
+    icon: Code2,
+    color: 'yellow',
+    description: 'Triggers on a custom analytics event',
     implemented: true,
-    priority: 'high',
-  },
-  {
-    type: 'exitIntent',
-    label: 'Exit Intent',
-    icon: LogOut,
-    color: 'red',
-    description: 'Triggers when user attempts to leave the page',
-    implemented: true,
-    priority: 'high',
   },
   {
     type: 'timeOnPage',
@@ -76,7 +67,6 @@ export const TRIGGER_TYPES = [
     color: 'green',
     description: 'Triggers after user spends X time on page',
     implemented: true,
-    priority: 'high',
   },
   {
     type: 'scroll',
@@ -85,56 +75,14 @@ export const TRIGGER_TYPES = [
     color: 'lime',
     description: 'Triggers when user scrolls to a specific depth',
     implemented: true,
-    priority: 'high',
-  },
-  
-  // 🎯 CONVERSION & FUNNEL TRIGGERS
-  {
-    type: 'funnelDropoff',
-    label: 'Funnel Drop-off',
-    icon: TrendingDown,
-    color: 'rose',
-    description: 'Triggers when user drops off from a funnel step',
-    implemented: true,
-    priority: 'high',
   },
   {
-    type: 'funnelComplete',
-    label: 'Funnel Completed',
-    icon: CheckCircle2,
-    color: 'emerald',
-    description: 'Triggers when user completes entire funnel',
+    type: 'exitIntent',
+    label: 'Exit Intent',
+    icon: LogOut,
+    color: 'red',
+    description: 'Triggers when user attempts to leave the page',
     implemented: true,
-    priority: 'high',
-  },
-  {
-    type: 'goalCompleted',
-    label: 'Goal Completed',
-    icon: Target,
-    color: 'cyan',
-    description: 'Triggers when analytics goal is reached',
-    implemented: true,
-    priority: 'high',
-  },
-  {
-    type: 'formSubmit',
-    label: 'Form Submit',
-    icon: FileText,
-    color: 'indigo',
-    description: 'Triggers when a form is submitted',
-    implemented: true,
-    priority: 'medium',
-  },
-  
-  // ⚙️ ADVANCED TRIGGERS
-  {
-    type: 'customEvent',
-    label: 'Custom Event',
-    icon: Code2,
-    color: 'yellow',
-    description: 'Triggers on a custom analytics event',
-    implemented: true,
-    priority: 'medium',
   },
   {
     type: 'inactivity',
@@ -143,105 +91,60 @@ export const TRIGGER_TYPES = [
     color: 'slate',
     description: 'Triggers after period of no user interaction',
     implemented: true,
-    priority: 'medium',
   },
   {
-    type: 'webhook',
-    label: 'Incoming Webhook',
-    icon: Globe,
-    color: 'cyan',
-    description: 'Triggers on external HTTP request',
-    implemented: false,
-    priority: 'low',
+    type: 'formSubmit',
+    label: 'Form Submit',
+    icon: FileText,
+    color: 'indigo',
+    description: 'Triggers when a form is submitted',
+    implemented: true,
+  },
+  {
+    type: 'funnelComplete',
+    label: 'Funnel Completed',
+    icon: CheckCircle2,
+    color: 'emerald',
+    description: 'Triggers when user completes entire funnel',
+    implemented: true,
+  },
+  {
+    type: 'funnelDropoff',
+    label: 'Funnel Drop-off',
+    icon: TrendingDown,
+    color: 'rose',
+    description: 'Triggers when user abandons a funnel',
+    implemented: true,
+  },
+  {
+    type: 'goalCompleted',
+    label: 'Goal Reached',
+    icon: Target,
+    color: 'amber',
+    description: 'Triggers when user reaches a defined goal',
+    implemented: true,
+  },
+  {
+    type: 'rageClicks',
+    label: 'Rage Clicks',
+    icon: MousePointerClick,
+    color: 'red',
+    description: 'Identify frustrated users from multiple rapid clicks',
+    implemented: true,
   },
 ];
 
-export const LOGIC_TYPES = [
-  {
-    type: 'conditionNode',
-    subtype: 'device',
-    label: 'Device Check',
-    icon: GitBranch,
-    color: 'purple',
-    description: 'Check if user is on Mobile, Desktop, or Tablet',
-    implemented: true, // ✅ Verified: seentics.js automation section
-  },
-  {
-    type: 'conditionNode',
-    subtype: 'visitor',
-    label: 'Visitor Status',
-    icon: Users,
-    color: 'blue',
-    description: 'Check if user is New or Returning',
-    implemented: true, // ✅ Verified: seentics.js automation section
-  },
-  {
-    type: 'conditionNode',
-    subtype: 'url_param',
-    label: 'URL Parameter',
-    icon: Globe,
-    color: 'orange',
-    description: 'Check for specific UTM or URL parameters',
-    implemented: true, // ✅ Verified: seentics.js automation section
-  },
-  {
-    type: 'advancedConditionNode',
-    subtype: 'segment',
-    label: 'User Segment',
-    icon: InfinityIcon,
-    color: 'pink',
-    description: 'Complex matching against user segments',
-    implemented: true, // ✅ Condition evaluation supports if/else logic
-  },
-  {
-    type: 'conditionNode',
-    subtype: 'if',
-    label: 'Logic Split (If/Else)',
-    icon: GitBranch,
-    color: 'purple',
-    description: 'Branch your workflow based on custom logic',
-    implemented: true, // ✅ evaluateCondition with eq/neq/contains/gt operators
-  },
-  {
-    type: 'actionNode',
-    subtype: 'wait',
-    label: 'Wait / Delay',
-    icon: Clock,
-    color: 'amber',
-    description: 'Pause the workflow for a specific duration',
-    implemented: true, // ✅ Timer system: seentics.js automation section
-  },
-  {
-    type: 'conditionNode',
-    subtype: 'page_views',
-    label: 'Page View Count',
-    icon: Eye,
-    color: 'cyan',
-    description: 'Check number of pages viewed in session',
-    implemented: true, // ✅ Session tracking available
-  },
-  {
-    type: 'conditionNode',
-    subtype: 'traffic_source',
-    label: 'Traffic Source',
-    icon: TrendingUp,
-    color: 'green',
-    description: 'Check where user came from (organic, paid, social)',
-    implemented: true, // ✅ Referrer condition: seentics.js automation section
-  },
-  {
-    type: 'conditionNode',
-    subtype: 'cookie',
-    label: 'Cookie Value',
-    icon: Cookie,
-    color: 'orange',
-    description: 'Check if specific cookie exists/value',
-    implemented: true, // ✅ Browser API accessible
-  },
-];
 
 export const ACTION_TYPES = [
-  // 🔥 HIGH IMPACT UI ACTIONS
+  {
+    type: 'actionNode',
+    subtype: 'email',
+    label: 'Send Email',
+    icon: Mail,
+    color: 'blue',
+    description: 'Send an automated email notification',
+    implemented: true,
+  },
   {
     type: 'actionNode',
     subtype: 'modal',
@@ -250,7 +153,6 @@ export const ACTION_TYPES = [
     color: 'pink',
     description: 'Display a popup modal to the user',
     implemented: true,
-    priority: 'high',
   },
   {
     type: 'actionNode',
@@ -260,52 +162,16 @@ export const ACTION_TYPES = [
     color: 'amber',
     description: 'Show a persistent banner message',
     implemented: true,
-    priority: 'high',
   },
   {
     type: 'actionNode',
     subtype: 'notification',
-    label: 'Toast Notification',
+    label: 'Notification',
     icon: Bell,
     color: 'orange',
     description: 'Show toast notification in the browser',
     implemented: true,
-    priority: 'high',
   },
-  {
-    type: 'actionNode',
-    subtype: 'redirect',
-    label: 'Redirect User',
-    icon: Zap,
-    color: 'blue',
-    description: 'Redirect user to another URL',
-    implemented: true,
-    priority: 'high',
-  },
-  
-  // 📧 COMMUNICATION ACTIONS
-  {
-    type: 'actionNode',
-    subtype: 'email',
-    label: 'Send Email',
-    icon: Mail,
-    color: 'cyan',
-    description: 'Send an automated email to user or team',
-    implemented: true,
-    priority: 'high',
-  },
-  {
-    type: 'actionNode',
-    subtype: 'webhook',
-    label: 'Call Webhook',
-    icon: Globe,
-    color: 'purple',
-    description: 'Send an outgoing webhook request',
-    implemented: true,
-    priority: 'high',
-  },
-  
-  // 🎨 ELEMENT MANIPULATION
   {
     type: 'actionNode',
     subtype: 'hideElement',
@@ -314,7 +180,6 @@ export const ACTION_TYPES = [
     color: 'slate',
     description: 'Hide a specific element on the page',
     implemented: true,
-    priority: 'medium',
   },
   {
     type: 'actionNode',
@@ -324,10 +189,52 @@ export const ACTION_TYPES = [
     color: 'lime',
     description: 'Show a previously hidden element',
     implemented: true,
-    priority: 'medium',
   },
-  
-  // ⚙️ ADVANCED ACTIONS
+  {
+    type: 'actionNode',
+    subtype: 'slack',
+    label: 'Slack Notification',
+    icon: MessageSquare,
+    color: 'indigo',
+    description: 'Post a message to a Slack channel',
+    implemented: true,
+  },
+  {
+    type: 'actionNode',
+    subtype: 'whatsapp',
+    label: 'WhatsApp Message',
+    icon: MessageCircle,
+    color: 'emerald',
+    description: 'Send an automated WhatsApp message',
+    implemented: true,
+  },
+  {
+    type: 'actionNode',
+    subtype: 'webhook',
+    label: 'Call Webhook',
+    icon: Globe,
+    color: 'purple',
+    description: 'Send an outgoing webhook request',
+    implemented: true,
+  },
+  {
+    type: 'actionNode',
+    subtype: 'javascript',
+    label: 'Script Injection',
+    icon: Code2,
+    color: 'rose',
+    description: 'Run custom JavaScript code',
+    implemented: true,
+  },
+  {
+    type: 'actionNode',
+    subtype: 'redirect',
+    label: 'Redirect User',
+    icon: Zap,
+    color: 'blue',
+    description: 'Redirect user to another URL',
+    implemented: true,
+  },
   {
     type: 'actionNode',
     subtype: 'trackEvent',
@@ -336,7 +243,6 @@ export const ACTION_TYPES = [
     color: 'violet',
     description: 'Send a custom event to analytics',
     implemented: true,
-    priority: 'medium',
   },
   {
     type: 'actionNode',
@@ -346,27 +252,15 @@ export const ACTION_TYPES = [
     color: 'yellow',
     description: 'Set a browser cookie with value',
     implemented: true,
-    priority: 'medium',
   },
   {
     type: 'actionNode',
-    subtype: 'javascript',
-    label: 'Execute JavaScript',
-    icon: Code2,
-    color: 'rose',
-    description: 'Run custom JavaScript code',
+    subtype: 'wait',
+    label: 'Delay Step',
+    icon: Hourglass,
+    color: 'slate',
+    description: 'Pause automation execution for a specified duration',
     implemented: true,
-    priority: 'low',
-  },
-  {
-    type: 'actionNode',
-    subtype: 'slack',
-    label: 'Slack Message',
-    icon: MessageSquare,
-    color: 'indigo',
-    description: 'Post a message to a Slack channel',
-    implemented: false,
-    priority: 'low',
   },
 ];
 
@@ -389,16 +283,12 @@ export const EnhancedBuilderSidebar = () => {
   const filteredTriggers = TRIGGER_TYPES.filter((t) =>
     t.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  const filteredLogic = LOGIC_TYPES.filter((l) =>
-    l.label.toLowerCase().includes(searchTerm.toLowerCase())
-  );
   const filteredActions = ACTION_TYPES.filter((a) =>
     a.label.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Get custom nodes by category
   const customTriggers = customNodes.filter(node => node.category === 'trigger');
-  const customConditions = customNodes.filter(node => node.category === 'condition');
   const customActions = customNodes.filter(node => node.category === 'action');
 
   const handleSaveCustomNode = (node: any) => {
@@ -422,11 +312,10 @@ export const EnhancedBuilderSidebar = () => {
     <div
       onDragStart={(event) => item.implemented ? onDragStart(event, type, item.label, item.description, subtype) : undefined}
       draggable={item.implemented}
-      className={`p-3 rounded-lg border transition-all ${
-        item.implemented
-          ? 'border-slate-800 bg-slate-900/30 hover:border-slate-700 hover:bg-slate-900/60 cursor-grab active:cursor-grabbing'
-          : 'border-slate-800/50 bg-slate-900/10 border-dashed opacity-50 cursor-not-allowed'
-      }`}
+      className={`p-3 rounded-lg border transition-all ${item.implemented
+        ? 'border-slate-800 bg-slate-900/30 hover:border-slate-700 hover:bg-slate-900/60 cursor-grab active:cursor-grabbing'
+        : 'border-slate-800/50 bg-slate-900/10 border-dashed opacity-50 cursor-not-allowed'
+        }`}
     >
       <div className="flex items-center gap-3">
         <div className={`h-9 w-9 rounded-md ${item.implemented ? colorMap[item.color] : 'bg-slate-700/30 text-slate-600'} flex items-center justify-center flex-shrink-0`}>
@@ -452,7 +341,7 @@ export const EnhancedBuilderSidebar = () => {
   );
 
   return (
-    <aside className="w-[340px] h-full border-l border-slate-800 bg-slate-900/40 backdrop-blur-xl flex flex-col overflow-hidden">
+    <aside className="w-[400px] h-full border-l border-slate-800 bg-slate-900/40 backdrop-blur-xl flex flex-col overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-slate-800">
         <div className="flex items-center gap-2.5">
@@ -467,15 +356,12 @@ export const EnhancedBuilderSidebar = () => {
       </div>
 
       <Tabs defaultValue="triggers" className="flex-1 flex flex-col overflow-hidden">
-        <div className="px-4 pt-3">
-          <TabsList className="w-full bg-slate-900/50 border border-slate-800 p-0.5 h-9">
-            <TabsTrigger value="triggers" className="flex-1 text-[11px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-white">
+        <div className="pt-0">
+          <TabsList className="w-full bg-slate-900/40 border-b border-slate-800 p-0 h-12 rounded-none flex items-stretch">
+            <TabsTrigger value="triggers" className="flex-1 text-[11px] font-black uppercase tracking-widest rounded-none border-r border-slate-800/50 data-[state=active]:bg-primary/10 data-[state=active]:text-primary border-b-2 border-b-transparent data-[state=active]:border-b-primary transition-all">
               Triggers
             </TabsTrigger>
-            <TabsTrigger value="logic" className="flex-1 text-[11px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-white">
-              Logic
-            </TabsTrigger>
-            <TabsTrigger value="actions" className="flex-1 text-[11px] font-semibold data-[state=active]:bg-primary data-[state=active]:text-white">
+            <TabsTrigger value="actions" className="flex-1 text-[11px] font-black uppercase tracking-widest rounded-none data-[state=active]:bg-primary/10 data-[state=active]:text-primary border-b-2 border-b-transparent data-[state=active]:border-b-primary transition-all">
               Actions
             </TabsTrigger>
           </TabsList>
@@ -511,7 +397,7 @@ export const EnhancedBuilderSidebar = () => {
                   <div className="h-2" />
                 </>
               )}
-              
+
               {filteredTriggers.map((trigger) => (
                 <NodeItem key={trigger.type} item={trigger} type="triggerNode" subtype={trigger.type} />
               ))}
@@ -523,52 +409,11 @@ export const EnhancedBuilderSidebar = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="logic" className="m-0 mt-0 space-y-2.5">
-            <div className="space-y-2.5">
-              {customConditions.length > 0 && (
-                <>
-                  <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 px-2 py-1">Custom Conditions</div>
-                  {customConditions.map((condition) => (
-                    <div
-                      key={condition.id}
-                      draggable
-                      onDragStart={(e) => onDragStart(e, 'logicNode', condition.name, condition.description, condition.id)}
-                      className="group relative cursor-move p-3 rounded-xl border-2 border-slate-800 hover:border-purple-500/40 bg-slate-900/60 hover:bg-slate-900 transition-all duration-200"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="h-9 w-9 rounded-lg flex items-center justify-center text-2xl" style={{ backgroundColor: condition.color + '20' }}>
-                          {condition.icon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-[13px] font-bold text-white mb-0.5">{condition.name}</h4>
-                          <p className="text-[10px] text-slate-500 leading-relaxed">{condition.description}</p>
-                        </div>
-                      </div>
-                      <div className="absolute top-2 right-2">
-                        <Settings className="w-3 h-3 text-slate-600" />
-                      </div>
-                    </div>
-                  ))}
-                  <div className="h-2" />
-                </>
-              )}
-              
-              {filteredLogic.map((logic, idx) => (
-                <NodeItem key={idx} item={logic} type={logic.type} subtype={logic.subtype} />
-              ))}
-              {filteredLogic.length === 0 && customConditions.length === 0 && (
-                <div className="py-8 text-center">
-                  <p className="text-xs text-slate-600">No logic nodes found</p>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-
           <TabsContent value="actions" className="m-0 mt-0 space-y-2.5">
-            
-            <div className="space-y-2.5">
+            <div className="space-y-4">
+              {/* Custom Actions */}
               {customActions.length > 0 && (
-                <>
+                <div className="space-y-2.5">
                   <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 px-2 py-1">Custom Actions</div>
                   {customActions.map((action) => (
                     <div
@@ -591,28 +436,32 @@ export const EnhancedBuilderSidebar = () => {
                       </div>
                     </div>
                   ))}
-                  <div className="h-2" />
-                </>
+                </div>
               )}
-              
-              {filteredActions.map((action, idx) => (
-                <NodeItem key={idx} item={action} type={action.type} subtype={action.subtype} />
-              ))}
+
+              {/* Actions Segment */}
+              <div className="space-y-2.5">
+
+                {filteredActions.map((action, idx) => (
+                  <NodeItem key={`action-${idx}`} item={action} type={action.type} subtype={action.subtype} />
+                ))}
+              </div>
+
               {filteredActions.length === 0 && customActions.length === 0 && (
                 <div className="py-8 text-center">
-                  <p className="text-xs text-slate-600">No actions found</p>
+                  <p className="text-xs text-slate-600">No tools found</p>
                 </div>
               )}
             </div>
           </TabsContent>
         </div>
       </Tabs>
-      
+
       <CustomNodeCreator
         isOpen={isCustomNodeCreatorOpen}
         onClose={() => setIsCustomNodeCreatorOpen(false)}
         onSave={handleSaveCustomNode}
-        defaultCategory={customNodeCategory}
+        defaultCategory={customNodeCategory === 'trigger' ? 'trigger' : 'action'}
       />
     </aside>
   );

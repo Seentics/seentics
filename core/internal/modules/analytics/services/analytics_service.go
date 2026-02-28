@@ -375,3 +375,11 @@ func (s *AnalyticsService) ImportWebsiteData(ctx context.Context, websiteID stri
 
 	return 100, nil
 }
+
+func (s *AnalyticsService) GetRecentActivity(ctx context.Context, websiteID string, limit int, userID string) ([]models.RecentActivity, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetRecentActivity(ctx, canonicalID, limit)
+}

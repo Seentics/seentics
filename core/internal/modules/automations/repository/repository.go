@@ -1,10 +1,11 @@
 package repository
 
 import (
-	"github.com/Seentics/seentics/internal/modules/automations/models"
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/Seentics/seentics/internal/modules/automations/models"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -116,25 +117,6 @@ func (r *AutomationRepository) listAutomationsInternal(ctx context.Context, webs
 		}
 	}
 
-	// Batch load all conditions in one query (fixes N+1)
-	conditionQuery := `
-		SELECT id, automation_id, condition_type, condition_config, created_at
-		FROM automation_conditions
-		WHERE automation_id = ANY($1)
-	`
-	conditionRows, err := r.db.Query(ctx, conditionQuery, autoIDs)
-	if err == nil {
-		defer conditionRows.Close()
-		for conditionRows.Next() {
-			var cond models.AutomationCondition
-			if err := conditionRows.Scan(&cond.ID, &cond.AutomationID, &cond.ConditionType, &cond.ConditionConfig, &cond.CreatedAt); err == nil {
-				if idx, ok := autoIndex[cond.AutomationID]; ok {
-					automations[idx].Conditions = append(automations[idx].Conditions, cond)
-				}
-			}
-		}
-	}
-
 	return automations, nil
 }
 
@@ -159,9 +141,8 @@ func (r *AutomationRepository) GetAutomationByID(ctx context.Context, id string)
 		return nil, fmt.Errorf("failed to get automation: %w", err)
 	}
 
-	// Load actions and conditions
+	// Load actions
 	a.Actions, _ = r.GetActionsByAutomationID(ctx, a.ID)
-	a.Conditions, _ = r.GetConditionsByAutomationID(ctx, a.ID)
 
 	return &a, nil
 }
@@ -211,24 +192,6 @@ func (r *AutomationRepository) CreateAutomation(ctx context.Context, automation 
 		)
 		if err != nil {
 			return fmt.Errorf("failed to insert action: %w", err)
-		}
-	}
-
-	// Insert conditions
-	for _, condition := range automation.Conditions {
-		condition.ID = uuid.New().String()
-		condition.AutomationID = automation.ID
-
-		conditionQuery := `
-			INSERT INTO automation_conditions (id, automation_id, condition_type, condition_config, created_at)
-			VALUES ($1, $2, $3, $4, $5)
-		`
-		_, err = tx.Exec(ctx, conditionQuery,
-			condition.ID, condition.AutomationID, condition.ConditionType,
-			condition.ConditionConfig, now,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to insert condition: %w", err)
 		}
 	}
 
@@ -311,34 +274,6 @@ func (r *AutomationRepository) UpdateAutomation(ctx context.Context, id string, 
 		}
 	}
 
-	// Update conditions if provided
-	if updates.Conditions != nil {
-		// Delete existing conditions
-		_, err = tx.Exec(ctx, "DELETE FROM automation_conditions WHERE automation_id = $1", id)
-		if err != nil {
-			return fmt.Errorf("failed to delete old conditions: %w", err)
-		}
-
-		// Insert new conditions
-		now := time.Now()
-		for _, condition := range *updates.Conditions {
-			condition.ID = uuid.New().String()
-			condition.AutomationID = id
-
-			conditionQuery := `
-				INSERT INTO automation_conditions (id, automation_id, condition_type, condition_config, created_at)
-				VALUES ($1, $2, $3, $4, $5)
-			`
-			_, err = tx.Exec(ctx, conditionQuery,
-				condition.ID, condition.AutomationID, condition.ConditionType,
-				condition.ConditionConfig, now,
-			)
-			if err != nil {
-				return fmt.Errorf("failed to insert condition: %w", err)
-			}
-		}
-	}
-
 	return tx.Commit(ctx)
 }
 
@@ -366,6 +301,12 @@ func (r *AutomationRepository) DeleteAutomations(ctx context.Context, ids []stri
 	}
 
 	return nil
+}
+
+func (r *AutomationRepository) DeleteAllByWebsiteID(ctx context.Context, websiteID string) error {
+	query := `DELETE FROM automations WHERE website_id = $1`
+	_, err := r.db.Exec(ctx, query, websiteID)
+	return err
 }
 
 // GetActionsByAutomationID retrieves all actions for an automation
@@ -397,36 +338,6 @@ func (r *AutomationRepository) GetActionsByAutomationID(ctx context.Context, aut
 	}
 
 	return actions, nil
-}
-
-// GetConditionsByAutomationID retrieves all conditions for an automation
-func (r *AutomationRepository) GetConditionsByAutomationID(ctx context.Context, automationID string) ([]models.AutomationCondition, error) {
-	query := `
-		SELECT id, automation_id, condition_type, condition_config, created_at
-		FROM automation_conditions
-		WHERE automation_id = $1
-	`
-
-	rows, err := r.db.Query(ctx, query, automationID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query conditions: %w", err)
-	}
-	defer rows.Close()
-
-	var conditions []models.AutomationCondition
-	for rows.Next() {
-		var condition models.AutomationCondition
-		err := rows.Scan(
-			&condition.ID, &condition.AutomationID, &condition.ConditionType,
-			&condition.ConditionConfig, &condition.CreatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan condition: %w", err)
-		}
-		conditions = append(conditions, condition)
-	}
-
-	return conditions, nil
 }
 
 // GetBatchAutomationStats retrieves statistics for multiple automations in one query

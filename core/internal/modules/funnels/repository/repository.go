@@ -1,11 +1,12 @@
 package repository
 
 import (
-	"github.com/Seentics/seentics/internal/modules/funnels/models"
 	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/Seentics/seentics/internal/modules/funnels/models"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/google/uuid"
@@ -285,6 +286,12 @@ func (r *FunnelRepository) DeleteFunnels(ctx context.Context, ids []string) erro
 	return nil
 }
 
+func (r *FunnelRepository) DeleteAllByWebsiteID(ctx context.Context, websiteID string) error {
+	query := `DELETE FROM funnels WHERE website_id = $1`
+	_, err := r.db.Exec(ctx, query, websiteID)
+	return err
+}
+
 // GetStepsByFunnelID retrieves steps for a funnel
 func (r *FunnelRepository) GetStepsByFunnelID(ctx context.Context, funnelID string) ([]models.FunnelStep, error) {
 	query := `
@@ -340,14 +347,14 @@ func (r *FunnelRepository) GetFunnelStats(ctx context.Context, funnelID string, 
 		var condition string
 		if step.StepType == "page_view" {
 			if step.MatchType == "exact" {
-				condition = fmt.Sprintf("event_type = 'pageview' AND page = ?")
+				condition = "event_type = 'pageview' AND page = ?"
 				args = append(args, step.PagePath)
 			} else {
-				condition = fmt.Sprintf("event_type = 'pageview' AND page LIKE ?")
+				condition = "event_type = 'pageview' AND page LIKE ?"
 				args = append(args, "%"+step.PagePath+"%")
 			}
 		} else {
-			condition = fmt.Sprintf("event_type = 'custom' AND page = ?")
+			condition = "event_type = 'custom' AND page = ?"
 			args = append(args, step.EventType)
 		}
 		selectClauses = append(selectClauses,

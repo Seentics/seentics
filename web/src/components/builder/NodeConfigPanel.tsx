@@ -47,8 +47,8 @@ export const NodeConfigPanel = ({ node, onClose }: NodeConfigPanelProps) => {
       <div className="flex-1 overflow-y-auto px-6 py-8 space-y-10 scrollbar-hide">
         {node.type === 'triggerNode' && <TriggerConfig config={config} setConfig={setConfig} />}
         {node.type === 'actionNode' && <ActionConfig config={config} setConfig={setConfig} />}
-        {node.type === 'conditionNode' && <ConditionConfig config={config} setConfig={setConfig} />}
-        
+        {node.type === 'actionNode' && <ActionConfig config={config} setConfig={setConfig} />}
+
         <div className="pt-8 border-t border-slate-800/50">
           <ExecutionSettings config={config} setConfig={setConfig} />
         </div>
@@ -74,7 +74,7 @@ const TriggerConfig = ({ config, setConfig }: any) => {
   return (
     <div className="space-y-6">
       <SectionHead title="Trigger Basis" subtitle="When should this automation start?" />
-      
+
       {triggerType === 'pageView' && (
         <Field label="Page Path / URL">
           <Input
@@ -191,6 +191,32 @@ const ActionConfig = ({ config, setConfig }: any) => {
               className="w-full h-32 p-4 bg-slate-950 border border-slate-800 rounded text-sm text-white outline-none focus:ring-1 ring-primary/20 transition-all font-mono"
             />
           </Field>
+        </div>
+      )}
+
+      {actionType === 'whatsapp' && (
+        <div className="space-y-4">
+          <Field label="Phone Number (with Country Code)">
+            <Input
+              placeholder="+1234567890"
+              value={config.phoneNumber || ''}
+              onChange={(e) => setConfig({ ...config, phoneNumber: e.target.value })}
+              className="bg-slate-900 border-slate-800 h-11"
+            />
+          </Field>
+          <Field label="Message Text">
+            <textarea
+              placeholder="Hello! This is an automated message."
+              value={config.message || ''}
+              onChange={(e) => setConfig({ ...config, message: e.target.value })}
+              className="w-full h-32 p-4 bg-slate-950 border border-slate-800 rounded text-sm text-white outline-none focus:ring-1 ring-primary/20 transition-all font-mono"
+            />
+          </Field>
+          <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+            <p className="text-[10px] text-emerald-500 leading-relaxed font-medium">
+              💡 Uses WhatsApp Click-to-Chat or Business API. Ensure the phone number includes the global country code.
+            </p>
+          </div>
         </div>
       )}
 
@@ -336,8 +362,8 @@ const ActionConfig = ({ config, setConfig }: any) => {
       {actionType === 'webhook' && (
         <div className="space-y-4">
           <div className="flex gap-3">
-             <div className="w-1/4">
-               <Field label="Method">
+            <div className="w-1/4">
+              <Field label="Method">
                 <select
                   value={config.method || 'POST'}
                   onChange={(e) => setConfig({ ...config, method: e.target.value })}
@@ -347,8 +373,8 @@ const ActionConfig = ({ config, setConfig }: any) => {
                   <option value="GET">GET</option>
                 </select>
               </Field>
-             </div>
-             <div className="flex-1">
+            </div>
+            <div className="flex-1">
               <Field label="Endpoint URL">
                 <Input
                   placeholder="https://api..."
@@ -357,7 +383,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                   className="bg-slate-900 border-slate-800 h-11"
                 />
               </Field>
-             </div>
+            </div>
           </div>
           <Field label="JSON Payload">
             <textarea
@@ -368,7 +394,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
                   const body = JSON.parse(e.target.value);
                   setConfig({ ...config, body });
                 } catch (error) {
-                    console.error('Failed to parse expression:', error);
+                  console.error('Failed to parse expression:', error);
                 }
               }}
               className="w-full h-40 p-4 bg-slate-950 border border-slate-800 rounded text-xs font-mono text-white outline-none focus:ring-1 ring-primary/20 transition-all"
@@ -381,141 +407,6 @@ const ActionConfig = ({ config, setConfig }: any) => {
 };
 
 
-const ConditionConfig = ({ config, setConfig }: any) => {
-  const conditionType = config.conditionType || 'if';
-
-  return (
-    <div className="space-y-6">
-      <SectionHead title="Logic Criteria" subtitle="Control the flow based on data" />
-
-      {conditionType === 'device' && (
-        <Field label="Match Device">
-          <select
-            value={config.device || 'mobile'}
-            onChange={(e) => setConfig({ ...config, device: e.target.value })}
-            className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
-          >
-            <option value="mobile">Mobile Devices</option>
-            <option value="desktop">Desktop / Laptop</option>
-            <option value="tablet">Tablets</option>
-          </select>
-        </Field>
-      )}
-
-      {conditionType === 'visitor' && (
-        <Field label="Visitor Status">
-          <select
-            value={config.status || 'new'}
-            onChange={(e) => setConfig({ ...config, status: e.target.value })}
-            className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
-          >
-            <option value="new">New Visitors</option>
-            <option value="returning">Returning Visitors</option>
-          </select>
-        </Field>
-      )}
-
-      {conditionType === 'url_param' && (
-        <div className="space-y-4">
-          <Field label="Parameter Name">
-            <Input
-              placeholder="e.g. utm_source"
-              value={config.param || ''}
-              onChange={(e) => setConfig({ ...config, param: e.target.value })}
-              className="bg-slate-950 border-slate-800 h-11"
-            />
-          </Field>
-          <Field label="Comparison">
-            <div className="flex gap-2">
-              <select
-                value={config.operator || 'eq'}
-                onChange={(e) => setConfig({ ...config, operator: e.target.value })}
-                className="w-1/3 h-11 px-3 bg-slate-950 border border-slate-800 rounded text-sm text-white"
-              >
-                <option value="eq">Equals</option>
-                <option value="contains">Contains</option>
-              </select>
-              <Input
-                placeholder="Value"
-                value={config.value || ''}
-                onChange={(e) => setConfig({ ...config, value: e.target.value })}
-                className="flex-1 bg-slate-950 border-slate-800 h-11"
-              />
-            </div>
-          </Field>
-        </div>
-      )}
-
-      {conditionType === 'if' && (
-        <div className="space-x-2 flex items-end">
-          <div className="flex-1">
-             <Field label="Data Field">
-              <select
-                value={config.field || 'user.email'}
-                onChange={(e) => setConfig({ ...config, field: e.target.value })}
-                className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white outline-none"
-              >
-                <option value="user.email">User Email</option>
-                <option value="page.path">Current URL</option>
-                <option value="user.country">Country</option>
-              </select>
-            </Field>
-          </div>
-          <div className="w-1/4">
-             <Field label="Operator">
-              <select
-                value={config.operator || 'equals'}
-                onChange={(e) => setConfig({ ...config, operator: e.target.value })}
-                className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
-              >
-                <option value="equals">is</option>
-                <option value="contains">contains</option>
-              </select>
-            </Field>
-          </div>
-        </div>
-      )}
-
-      {conditionType === 'if' && (
-        <Field label="Comparison Value">
-          <Input
-            value={config.value || ''}
-            onChange={(e) => setConfig({ ...config, value: e.target.value })}
-            className="bg-slate-950 border-slate-800 h-11"
-          />
-        </Field>
-      )}
-
-      {conditionType === 'wait' && (
-        <div className="flex gap-4">
-          <div className="flex-1">
-            <Field label="Wait Amount">
-              <Input
-                 type="number"
-                value={config.delay || 10}
-                onChange={(e) => setConfig({ ...config, delay: parseInt(e.target.value) })}
-                className="bg-slate-900 border-slate-800 h-11"
-              />
-            </Field>
-          </div>
-          <div className="w-1/3">
-             <Field label="Unit">
-              <select
-                value={config.unit || 'minutes'}
-                onChange={(e) => setConfig({ ...config, unit: e.target.value })}
-                className="w-full h-11 px-3 bg-slate-900 border border-slate-800 rounded text-sm text-white"
-              >
-                <option value="seconds">Seconds</option>
-                <option value="minutes">Minutes</option>
-                <option value="hours">Hours</option>
-              </select>
-            </Field>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
 
 const ExecutionSettings = ({ config, setConfig }: any) => (
   <div className="space-y-6">
