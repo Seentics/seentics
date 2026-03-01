@@ -1,6 +1,7 @@
 
 import { QueryProvider } from '@/components/query-provider';
 import { ThemeProvider } from '@/components/theme-provider';
+import { ThemeCustomizationProvider } from '@/contexts/ThemeCustomizationContext';
 import { cn } from '@/lib/utils';
 import type { Metadata } from 'next';
 import './globals.css';
@@ -71,6 +72,7 @@ export default function RootLayout({
         >
 
           <QueryProvider>
+            <ThemeCustomizationProvider>
             {/* <LimitReachedTopBar /> */}
             <div className="relative min-h-screen isolate overflow-x-hidden">
               {/* Ambient Background Blobs */}
@@ -85,6 +87,7 @@ export default function RootLayout({
               {/* Floating Support Widget - Enterprise Only */}
               <SupportWidget />
             </div>
+            </ThemeCustomizationProvider>
           </QueryProvider>
           <Toaster />
           <SonnerToaster />

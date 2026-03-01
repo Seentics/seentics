@@ -37,33 +37,33 @@ export default function BillingDocs() {
                         <thead>
                             <tr className="bg-muted/50 border-b">
                                 <th className="p-4 text-left font-semibold">Resource</th>
-                                <th className="p-4 text-center font-semibold">Starter ($0)</th>
-                                <th className="p-4 text-center font-semibold">Growth ($29)</th>
-                                <th className="p-4 text-center font-semibold text-primary">Pro ($79)</th>
-                                <th className="p-4 text-center font-semibold">Enterprise ($399)</th>
+                                <th className="p-4 text-center font-semibold">Free ($0)</th>
+                                <th className="p-4 text-center font-semibold">Basic ($15)</th>
+                                <th className="p-4 text-center font-semibold text-primary">Pro ($49)</th>
+                                <th className="p-4 text-center font-semibold">Enterprise ($0 base + usage)</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr className="border-b">
                                 <td className="p-4 font-medium">Monthly Events</td>
                                 <td className="p-4 text-center text-muted-foreground">10K</td>
-                                <td className="p-4 text-center text-muted-foreground">200K</td>
-                                <td className="p-4 text-center font-bold text-primary">2M</td>
-                                <td className="p-4 text-center text-muted-foreground">15M</td>
+                                <td className="p-4 text-center text-muted-foreground">100K</td>
+                                <td className="p-4 text-center font-bold text-primary">1M</td>
+                                <td className="p-4 text-center text-muted-foreground">First 15M included</td>
                             </tr>
                             <tr className="border-b">
                                 <td className="p-4 font-medium">Session Recordings</td>
                                 <td className="p-4 text-center text-muted-foreground">100</td>
-                                <td className="p-4 text-center text-muted-foreground">10K</td>
-                                <td className="p-4 text-center font-bold text-primary">50K</td>
-                                <td className="p-4 text-center text-muted-foreground">200K</td>
+                                <td className="p-4 text-center text-muted-foreground">3K</td>
+                                <td className="p-4 text-center font-bold text-primary">25K</td>
+                                <td className="p-4 text-center text-muted-foreground">Up to 200K</td>
                             </tr>
                             <tr className="border-b">
-                                <td className="p-4 font-medium">Funnels</td>
+                                <td className="p-4 font-medium">Websites</td>
                                 <td className="p-4 text-center text-muted-foreground">1</td>
-                                <td className="p-4 text-center text-muted-foreground">10</td>
-                                <td className="p-4 text-center font-bold text-primary">Unlimited</td>
-                                <td className="p-4 text-center text-muted-foreground">Unlimited</td>
+                                <td className="p-4 text-center text-muted-foreground">3</td>
+                                <td className="p-4 text-center font-bold text-primary">15</td>
+                                <td className="p-4 text-center text-muted-foreground">First 100 included</td>
                             </tr>
                             <tr className="border-b">
                                 <td className="p-4 font-medium">Analytics Retention</td>
@@ -82,6 +82,9 @@ export default function BillingDocs() {
                         </tbody>
                     </table>
                 </div>
+                <p className="text-xs text-muted-foreground mt-3 px-1">
+                    Enterprise includes 100 websites and 15M events, then $2 per additional website, $1.50 per 1K additional events.
+                </p>
             </section>
 
             <section className="p-10 rounded bg-card border flex flex-col md:flex-row items-center justify-between gap-8">

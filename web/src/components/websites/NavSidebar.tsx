@@ -18,6 +18,7 @@ import {
     MousePointer2,
     Video,
     Lock,
+    Users2,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

@@ -18,8 +18,13 @@ export function BillingSettingsComponent() {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = React.useState(false);
   const [cancelling, setCancelling] = React.useState(false);
 
-  const normalizedPlan = (subscription?.plan || 'Starter').toLowerCase();
-  const isStarter = normalizedPlan === 'starter' || normalizedPlan === 'free';
+  const normalizedPlan = (subscription?.plan || 'Free').toLowerCase();
+  const isStarter = normalizedPlan === 'free';
+  const isUsageBasedPlan = normalizedPlan.includes('enterprise');
+  const currentPlanPriceLabel = isUsageBasedPlan
+    ? '$0 base + usage'
+    : `$${normalizedPlan.includes('free') ? '0' : normalizedPlan.includes('basic') ? '15' : normalizedPlan.includes('pro') ? '49' : '0'}`;
+  const currentPlanPeriodLabel = isUsageBasedPlan ? 'Usage-based pricing' : '/ month';
 
   const handleCancel = async () => {
     if (!window.confirm('Are you sure you want to cancel your subscription? This will revert your account to the Starter plan at the end of the current billing cycle.')) {
@@ -59,15 +64,15 @@ export function BillingSettingsComponent() {
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-6">
                 <div className="px-4 py-1.5 rounded-full bg-primary text-white font-black text-[10px] uppercase tracking-[0.2em]">
-                    {subscription?.plan || 'Starter'}
+                    {subscription?.plan || 'Free'}
                 </div>
                 <div className="px-4 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 font-black text-[10px] uppercase tracking-[0.2em] border border-emerald-500/20">
                     Active Status
                 </div>
               </div>
               <div className="flex items-baseline gap-2 mb-8">
-                <h3 className="text-5xl font-black tracking-tight">${normalizedPlan.includes('starter') ? '0' : normalizedPlan.includes('growth') ? '29' : normalizedPlan.includes('pro') ? '79' : normalizedPlan.includes('enterprise') ? '399' : '0'}</h3>
-                <span className="text-lg font-bold text-muted-foreground">/ month</span>
+                <h3 className="text-5xl font-black tracking-tight">{currentPlanPriceLabel}</h3>
+                <span className="text-lg font-bold text-muted-foreground">{currentPlanPeriodLabel}</span>
               </div>
 
               <div className="flex flex-wrap gap-3">

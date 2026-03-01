@@ -91,7 +91,7 @@ export const LIMITS = {
 };
 
 // Get current limits based on plan
-export const getCurrentLimits = (plan: string = 'starter') => {
+export const getCurrentLimits = (plan: string = 'free') => {
   const normalizedPlan = plan.toLowerCase() as keyof typeof LIMITS;
   return LIMITS[normalizedPlan] || LIMITS.starter;
 };

@@ -8,7 +8,7 @@ import {
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
-  plan: 'starter' | 'basic' | 'growth' | 'pro' | 'enterprise';
+  plan: 'free' | 'basic' | 'pro' | 'enterprise';
   price: number;
 }
 
@@ -20,8 +20,8 @@ interface PlanBuilderProps {
 
 const PLANS = [
   {
-    id: 'starter' as const,
-    name: 'Starter',
+    id: 'free' as const,
+    name: 'Free',
     price: 0,
     description: 'For side projects and personal sites',
     icon: Zap,
@@ -43,13 +43,13 @@ const PLANS = [
     id: 'basic' as const,
     name: 'Basic',
     price: 15,
-    description: 'For hobby projects and small sites',
+    description: 'For small businesses',
     icon: Rocket,
     color: 'text-teal-500',
     borderColor: 'border-teal-500',
     bgColor: 'bg-teal-500',
     features: [
-      '2 Websites',
+      '3 Websites',
       '100,000 Monthly Events',
       '10 Heatmap Pages',
       '3,000 Session Recordings',
@@ -61,65 +61,48 @@ const PLANS = [
     ],
   },
   {
-    id: 'growth' as const,
-    name: 'Growth',
-    price: 29,
-    description: 'For growing businesses',
-    icon: Zap,
-    popular: true,
-    color: 'text-indigo-500',
-    borderColor: 'border-indigo-500',
-    bgColor: 'bg-indigo-500',
-    features: [
-      '3 Websites',
-      '200,000 Monthly Events',
-      'Unlimited Heatmaps',
-      '10,000 Session Recordings',
-      '10 Funnels',
-      '10 Automations',
-      '3 Month Recording Retention',
-      '2 Year Analytics Retention',
-      'Email Support',
-    ],
-  },
-  {
     id: 'pro' as const,
     name: 'Pro',
-    price: 79,
-    description: 'For scaling teams',
+    price: 49,
+    description: 'For growing teams',
     icon: Crown,
+    popular: true,
     color: 'text-purple-500',
     borderColor: 'border-purple-500',
     bgColor: 'bg-purple-500',
     features: [
       '15 Websites',
-      '2,000,000 Monthly Events',
+      '1,000,000 Monthly Events',
       'Unlimited Heatmaps',
-      '50,000 Session Recordings',
+      '25,000 Session Recordings',
       'Unlimited Funnels',
       'Unlimited Automations',
       '3 Month Recording Retention',
-      '5 Year Analytics Retention',
+      '3 Year Analytics Retention',
       'Priority Support',
     ],
   },
   {
     id: 'enterprise' as const,
     name: 'Enterprise',
-    price: 399,
-    description: 'For agencies and large teams',
+    price: 0,
+    priceLabel: '$0 base + usage',
+    billingLabel: '$2/site + $1.50/1k events',
+    description: 'Perfect for agencies - scale without limits',
     icon: Sparkles,
     color: 'text-amber-500',
     borderColor: 'border-amber-500',
     bgColor: 'bg-amber-500',
     features: [
-      '100 Websites',
-      '15,000,000 Monthly Events',
+      'No Base Fee (Usage-Only Billing)',
+      'First 100 Websites Included',
+      'First 15M Monthly Events Included',
+      'Then $2 per Additional Website',
+      'Then $1.50 per 1,000 Additional Events',
+      'Up to 200,000 Session Recordings',
       'Unlimited Heatmaps',
-      '200,000 Session Recordings',
       'Unlimited Funnels',
       'Unlimited Automations',
-      '3 Month Recording Retention',
       '7 Year Analytics Retention',
       'White Label Solution',
       'Client Management',
@@ -131,7 +114,7 @@ const PLANS = [
 export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderProps) {
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
 
-  const handleSubscribe = (planId: 'starter' | 'basic' | 'growth' | 'pro' | 'enterprise') => {
+  const handleSubscribe = (planId: 'free' | 'basic' | 'pro' | 'enterprise') => {
     if (!onSubscribe) return;
     const plan = PLANS.find(p => p.id === planId);
     if (!plan) return;
@@ -139,8 +122,8 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
     onSubscribe({ plan: planId, price: plan.price });
   };
 
-  const topRow = PLANS.slice(0, 3);    // Starter, Basic, Growth
-  const bottomRow = PLANS.slice(3);     // Pro, Enterprise
+  const topRow = PLANS.slice(0, 2);    // Free, Basic
+  const bottomRow = PLANS.slice(2);     // Pro, Enterprise
 
   const renderCard = (plan: typeof PLANS[number]) => {
     const Icon = plan.icon;
@@ -172,10 +155,19 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
         </div>
 
         <div className="flex items-baseline gap-1 mb-6">
-          <span className="text-3xl font-bold tracking-tight">
-            ${plan.price}
-          </span>
-          <span className="text-sm text-muted-foreground">/mo</span>
+          {plan.id === 'enterprise' ? (
+            <div className="flex flex-col">
+              <span className="text-2xl font-bold tracking-tight">{plan.priceLabel}</span>
+              <span className="text-sm text-muted-foreground">{plan.billingLabel}</span>
+            </div>
+          ) : (
+            <>
+              <span className="text-3xl font-bold tracking-tight">
+                ${plan.price}
+              </span>
+              <span className="text-sm text-muted-foreground">/mo</span>
+            </>
+          )}
         </div>
 
         <ul className="space-y-2.5 flex-1 mb-6">
@@ -200,8 +192,10 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : isCurrent ? (
             'Current Plan'
-          ) : plan.price === 0 ? (
+          ) : plan.id === 'free' ? (
             <>Start Free <ArrowRight className="h-3.5 w-3.5" /></>
+          ) : plan.id === 'enterprise' ? (
+            <>Start Usage-Based <ArrowRight className="h-3.5 w-3.5" /></>
           ) : (
             <>Get {plan.name} <ArrowRight className="h-3.5 w-3.5" /></>
           )}
@@ -211,16 +205,13 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto">
-      {/* Row 1: Starter, Basic, Growth */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+    <div className="w-full max-w-7xl mx-auto">
+      {/* Row 1: Free, Basic */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
         {topRow.map(renderCard)}
-      </div>
-
-      {/* Row 2: Pro, Enterprise (centered) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5 max-w-3xl mx-auto">
         {bottomRow.map(renderCard)}
       </div>
+
 
       <div className="mt-8 text-center">
         <p className="text-xs text-muted-foreground flex items-center justify-center gap-4 flex-wrap">

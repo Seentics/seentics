@@ -91,7 +91,7 @@ export default function HeatmapsPage() {
   const [isDeletingBulk, setIsDeletingBulk] = useState(false);
 
   const isDemo = websiteId === 'demo';
-  const isFreePlan = subscription?.plan === 'starter';
+  const isFreePlan = subscription?.plan === 'free';
   const isHeatmapDisabled = website && website.heatmap_enabled === false;
 
   const fetchPages = async () => {

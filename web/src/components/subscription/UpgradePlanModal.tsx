@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 interface UpgradePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentPlan: 'starter' | 'basic' | 'growth' | 'pro' | 'enterprise';
+  currentPlan: 'free' | 'basic' | 'pro' | 'enterprise';
   limitType: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'replays' | 'monthlyEvents';
   currentUsage: number;
   limit: number;
@@ -26,8 +26,8 @@ const planDetails = {
     icon: Rocket,
     color: 'teal',
     features: [
-      "2 Websites",
-      "100,000 Monthly Events",
+      "3 Websites",
+      "100,000 Monthly Events", 
       "3,000 Session Recordings",
       "10 Heatmap Pages",
       "5 Funnels",
@@ -38,54 +38,38 @@ const planDetails = {
     ],
     buttonText: 'Upgrade to Basic'
   },
-  growth: {
-    name: 'Growth',
-    price: '$29',
-    period: '/mo',
-    icon: Zap,
-    color: 'indigo',
-    features: [
-      "3 Websites",
-      "200,000 Monthly Events",
-      "10,000 Session Recordings",
-      "Unlimited Heatmaps",
-      "10 Funnels",
-      "10 Automations",
-      "3 Month Recording Retention",
-      "2 Year Analytics Retention",
-      "Email Support"
-    ],
-    buttonText: 'Upgrade to Growth'
-  },
   pro: {
     name: 'Pro',
-    price: '$79',
+    price: '$49',
     period: '/mo',
     icon: Crown,
     color: 'purple',
     features: [
       "15 Websites",
-      "2,000,000 Monthly Events",
-      "50,000 Session Recordings",
+      "1,000,000 Monthly Events",
+      "25,000 Session Recordings",
       "Unlimited Heatmaps",
       "Unlimited Funnels",
       "Unlimited Automations",
       "3 Month Recording Retention",
-      "5 Year Analytics Retention",
+      "3 Year Analytics Retention",
       "Priority Support"
     ],
     buttonText: 'Upgrade to Pro'
   },
   enterprise: {
     name: 'Enterprise',
-    price: '$399',
-    period: '/mo',
+    price: '$0 base + usage',
+    period: '$2/site + $1.50/1k events',
     icon: Sparkles,
     color: 'amber',
     features: [
-      "100 Websites",
-      "15,000,000 Monthly Events",
-      "200,000 Session Recordings",
+      'No Base Fee (Usage-Only Billing)',
+      'First 100 Websites Included',
+      'First 15M Monthly Events Included',
+      'Then $2 per Additional Website',
+      'Then $1.50 per 1,000 Additional Events',
+      'Up to 200,000 Session Recordings',
       "Unlimited Heatmaps",
       "Unlimited Funnels",
       "Unlimited Automations",
@@ -138,9 +122,9 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
     }
   }, [isOpen]);
 
-  const upgradePlans = ['basic', 'growth', 'pro', 'enterprise'] as const;
+  const upgradePlans = ['basic', 'pro', 'enterprise'] as const;
 
-  const handleUpgrade = async (plan: 'basic' | 'growth' | 'pro' | 'enterprise') => {
+  const handleUpgrade = async (plan: 'basic' | 'pro' | 'enterprise') => {
     if (!isAuthenticated) {
       window.location.href = '/signin';
       return;
@@ -220,7 +204,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
           </div>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
           {upgradePlans.map((planKey) => {
             const plan = planDetails[planKey];
             const PlanIcon = plan.icon;

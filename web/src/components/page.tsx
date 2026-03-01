@@ -53,7 +53,7 @@ export default function HeatmapViewPage() {
   });
 
   const isDemo = websiteId === 'demo';
-  const isFreePlan = subscription?.plan === 'starter';
+  const isFreePlan = subscription?.plan === 'free';
   const showDummy = isDemo || isFreePlan;
 
   const generateDummyPoints = (type: 'click' | 'move') => {

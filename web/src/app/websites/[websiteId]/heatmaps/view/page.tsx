@@ -125,7 +125,7 @@ export default function HeatmapViewPage() {
   }, [website?.url]);
 
   const isDemo = websiteId === 'demo';
-  const isFreePlan = subscription?.plan === 'starter';
+  const isFreePlan = subscription?.plan === 'free';
   const showDummy = isDemo || isFreePlan;
 
   // Listen for messages from the tracker script in the iframe

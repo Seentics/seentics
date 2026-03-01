@@ -26,37 +26,38 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
   const { user } = useAuth();
   const { subscription, loading: subscriptionLoading, getUsagePercentage } = useSubscription();
   
-  const currentPlan = subscription?.plan || 'starter';
+  const currentPlan = subscription?.plan || 'free';
   const usage = subscription?.usage?.monthlyEvents?.current || 0;
   const percentage = getUsagePercentage('monthlyEvents');
 
   const plans = [
     {
-      name: 'Starter',
+      name: 'Free',
       price: '$0',
       description: 'For side projects',
       features: ['1 Website', '10K Events/mo', '100 Recordings', '3 Heatmaps', '1 Funnel', '1 Automation'],
-      current: currentPlan === 'starter',
+      current: currentPlan === 'free',
     },
     {
-      name: 'Growth',
-      price: '$29',
-      description: 'For growing businesses',
-      features: ['3 Websites', '200K Events/mo', '10K Recordings', 'Unlimited Heatmaps', '10 Funnels', '10 Automations'],
-      current: currentPlan === 'growth',
+      name: 'Basic',
+      price: '$15',
+      description: 'For small businesses',
+      features: ['3 Websites', '100K Events/mo', '3K Recordings', '10 Heatmaps', '5 Funnels', '5 Automations'],
+      current: currentPlan === 'basic',
     },
     {
       name: 'Pro',
-      price: '$79',
-      description: 'For scaling teams',
-      features: ['15 Websites', '2M Events/mo', '50K Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels'],
+      price: '$49',
+      description: 'For growing teams',
+      features: ['15 Websites', '1M Events/mo', '25K Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels'],
       current: currentPlan === 'pro',
     },
     {
       name: 'Enterprise',
-      price: '$399',
+      price: '$0 base + usage',
+      period: 'Usage-based',
       description: 'For agencies & large teams',
-      features: ['100 Websites', '15M Events/mo', '200K Recordings', 'White Label', 'Dedicated Support'],
+      features: ['No Base Fee (Usage-Only)', '100 Websites Included', '15M Events Included', '+$2 per Additional Website', '+$1.50 per 1k Additional Events', '200k Session Recordings', 'Unlimited Everything Else', 'White Label', 'Dedicated Support'],
       current: currentPlan === 'enterprise',
     }
   ];
@@ -140,7 +141,7 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
                                         {plan.name}
                                         {plan.current && <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full">Current</span>}
                                     </CardTitle>
-                                    <div className="text-3xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
+                                    <div className="text-3xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground">{plan.period || '/mo'}</span></div>
                                     <CardDescription>{plan.description}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="flex-1">

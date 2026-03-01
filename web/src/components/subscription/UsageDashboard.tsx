@@ -113,7 +113,7 @@ export const UsageDashboard: React.FC = () => {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            {subscription.plan === 'starter' && 'Perfect for getting started with basic features'}
+            {subscription.plan === 'free' && 'Perfect for getting started with basic features'}
             {subscription.plan === 'growth' && 'For growing businesses with advanced features'}
             {subscription.plan === 'pro' && 'For scaling teams with priority support'}
             {subscription.plan === 'enterprise' && 'Full-featured plan for agencies and large teams'}

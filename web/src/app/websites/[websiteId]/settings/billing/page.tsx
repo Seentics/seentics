@@ -19,17 +19,17 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { cn } from '@/lib/utils';
 
 const planPrices: Record<string, number> = {
-  starter: 0,
-  growth: 29,
-  pro: 79,
+  free: 0,
+  basic: 15,
+  pro: 49,
   enterprise: 399,
 };
 
 const planFeatures: Record<string, string[]> = {
-  starter: ['Analytics Dashboard', '10K Monthly Events', '1 Website', '1 Funnel', '1 Automation', '3 Heatmaps', '100 Session Recordings', 'Community Support'],
-  growth: ['Analytics Dashboard', '200K Monthly Events', '3 Websites', '10 Funnels', '10 Automations', 'Unlimited Heatmaps', '10,000 Session Recordings', 'Email Support'],
-  pro: ['Analytics Dashboard', '2M Monthly Events', '15 Websites', 'Unlimited Funnels', 'Unlimited Automations', 'Unlimited Heatmaps', '50,000 Session Recordings', 'Priority Support'],
-  enterprise: ['Analytics Dashboard', '15M Monthly Events', '100 Websites', 'Unlimited Funnels', 'Unlimited Automations', 'Unlimited Heatmaps', '200,000 Session Recordings', 'Dedicated Support'],
+  free: ['Analytics Dashboard', '10K Monthly Events', '1 Website', '1 Funnel', '1 Automation', '3 Heatmaps', '100 Session Recordings', 'Community Support'],
+  basic: ['Analytics Dashboard', '100K Monthly Events', '3 Websites', '5 Funnels', '5 Automations', '10 Heatmap Pages', '3,000 Session Recordings', 'Email Support'],
+  pro: ['Analytics Dashboard', '1M Monthly Events', '15 Websites', 'Unlimited Funnels', 'Unlimited Automations', 'Unlimited Heatmaps', '25,000 Session Recordings', 'Priority Support'],
+  enterprise: ['No Base Fee (Usage-Only Billing)', 'First 100 Websites Included', 'First 15M Monthly Events Included', 'Then $2 per Additional Website', 'Then $1.50 per 1,000 Additional Events', 'Up to 200,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels', 'Unlimited Automations', '7 Year Analytics Retention', 'White Label Solution', 'Client Management', 'Dedicated Support'],
 };
 
 export default function BillingSettings() {
@@ -54,8 +54,10 @@ export default function BillingSettings() {
     );
   }
 
-  const currentPlan = subscription?.plan || 'starter';
-  const price = planPrices[currentPlan] ?? 0;
+  const currentPlan = subscription?.plan || 'free';
+  const isUsageBasedPlan = currentPlan === 'enterprise';
+  const priceLabel = isUsageBasedPlan ? '$0 base + usage' : `$${planPrices[currentPlan] ?? 0}`;
+  const periodLabel = isUsageBasedPlan ? 'Usage-based pricing' : '/month';
   const eventsPercentage = getUsagePercentage('monthlyEvents');
   const currentEvents = subscription?.usage?.monthlyEvents?.current || 0;
   const limitEvents = subscription?.usage?.monthlyEvents?.limit || 10000;
@@ -94,18 +96,18 @@ export default function BillingSettings() {
                 </span>
               </div>
               <div className="flex items-baseline gap-2 mb-1">
-                <h2 className="text-3xl font-bold tracking-tight">${price}</h2>
-                <span className="text-sm text-muted-foreground">/month</span>
+                <h2 className="text-3xl font-bold tracking-tight">{priceLabel}</h2>
+                <span className="text-sm text-muted-foreground">{periodLabel}</span>
               </div>
               <p className="text-xs text-muted-foreground capitalize">{currentPlan} Plan</p>
 
               <div className="flex flex-wrap gap-2 mt-5">
-                <Button size="sm" className="gap-1.5 text-xs font-medium"
-                  onClick={() => router.push(`/websites/${websiteId}/billing`)}
-                >
-                  <Zap className="h-3.5 w-3.5" />
-                  {currentPlan === 'starter' ? 'Upgrade Plan' : 'Change Plan'}
-                </Button>
+                  <Button size="sm" className="gap-1.5 text-xs font-medium"
+                    onClick={() => router.push(`/websites/${websiteId}/billing`)}
+                  >
+                    <Zap className="h-3.5 w-3.5" />
+                    {currentPlan === 'free' ? 'Upgrade Plan' : 'Change Plan'}
+                  </Button>
                 <Button variant="outline" size="sm" className="gap-1.5 text-xs font-medium"
                   onClick={() => window.open('https://seentics.lemonsqueezy.com/billing', '_blank')}
                 >
@@ -152,7 +154,7 @@ export default function BillingSettings() {
               Included in <span className="capitalize">{currentPlan}</span>
             </h4>
             <ul className="space-y-3">
-              {(planFeatures[currentPlan] || planFeatures.starter).map((feature, i) => (
+              {(planFeatures[currentPlan] || planFeatures.free).map((feature, i) => (
                 <li key={i} className="flex items-start gap-2.5 text-xs text-muted-foreground">
                   <div className="h-4 w-4 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
                     <Check className="h-2.5 w-2.5 text-emerald-500" />
