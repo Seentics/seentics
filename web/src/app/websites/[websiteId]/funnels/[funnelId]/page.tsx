@@ -253,20 +253,21 @@ export default function FunnelDetailsPage() {
 }
 
 function DetailStatsCard({ title, value, icon: Icon, description, color }: { title: string; value: string; icon: any; description: string; color: string }) {
-    const accentMap: Record<string, string> = { blue: 'bg-blue-500', emerald: 'bg-emerald-500', violet: 'bg-violet-500', amber: 'bg-amber-500' };
+    const bgMap: Record<string, string> = { blue: 'bg-blue-500/10', emerald: 'bg-emerald-500/10', violet: 'bg-violet-500/10', amber: 'bg-amber-500/10' };
     const iconMap: Record<string, string> = { blue: 'text-blue-500', emerald: 'text-emerald-500', violet: 'text-violet-500', amber: 'text-amber-500' };
     return (
-        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-sm">
-            <div className={`absolute left-0 top-0 bottom-0 w-1 ${accentMap[color]}`} />
-            <CardHeader className="pb-1 pl-5">
-                <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">{title}</span>
-                    <Icon className={cn('h-4 w-4', iconMap[color])} />
+        <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">{title}</p>
+                        <p className="text-2xl font-semibold tracking-tight">{value}</p>
+                        <p className="text-xs text-muted-foreground">{description}</p>
+                    </div>
+                    <div className={cn('shrink-0 h-9 w-9 rounded-lg flex items-center justify-center', bgMap[color])}>
+                        <Icon className={cn('h-4 w-4', iconMap[color])} />
+                    </div>
                 </div>
-            </CardHeader>
-            <CardContent className="pl-5 pt-0">
-                <div className="text-2xl font-semibold tracking-tight">{value}</div>
-                <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
             </CardContent>
         </Card>
     );

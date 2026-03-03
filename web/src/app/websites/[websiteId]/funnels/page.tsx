@@ -18,12 +18,10 @@ import {
     RefreshCw,
     Target,
     BarChart3,
-    ChevronLeft,
-    ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -38,10 +36,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { formatNumber } from '@/lib/analytics-api';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Checkbox } from '@/components/ui/checkbox';
 import Link from 'next/link';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { cn } from '@/lib/utils';
+import { DataTable, ColumnDef, SortableHeader, selectionColumn } from '@/components/ui/data-table';
 
 export default function FunnelsPage() {
     const params = useParams();
@@ -87,21 +85,8 @@ export default function FunnelsPage() {
         return { active, entries, conversion };
     }, [funnels]);
 
-    const handleSelectAll = (checked: boolean) => {
-        if (checked) {
-            setSelectedIds(filteredFunnels.map(f => f.id));
-        } else {
-            setSelectedIds([]);
-        }
-    };
-
-    const handleSelectOne = (id: string, checked: boolean) => {
-        if (checked) {
-            setSelectedIds(prev => [...prev, id]);
-        } else {
-            setSelectedIds(prev => prev.filter(i => i !== id));
-        }
-    };
+    const handleSelectAll = (_checked: boolean) => {}; // handled by DataTable
+    const handleSelectOne = (_id: string, _checked: boolean) => {}; // handled by DataTable
 
     const handleDelete = async (funnelId: string, name: string) => {
         if (!confirm(`Are you sure you want to delete funnel "${name}"?`)) return;
@@ -161,6 +146,137 @@ export default function FunnelsPage() {
         }
     };
 
+    const columns = useMemo((): ColumnDef<any>[] => [
+        selectionColumn<any>(),
+        {
+            id: 'funnel',
+            header: 'Funnel',
+            cell: ({ row }) => {
+                const funnel = row.original;
+                return (
+                    <div className="flex items-center gap-3 min-w-0">
+                        <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm', funnel.isActive ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground')}>
+                            <Filter className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold truncate">{funnel.name}</p>
+                            <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                                Created {new Date(funnel.createdAt).toLocaleDateString()}
+                            </p>
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'steps',
+            header: 'Steps',
+            size: 90,
+            cell: ({ row }) => (
+                <div className="text-center">
+                    <span className="text-sm font-bold tabular-nums">{row.original.steps?.length || 0}</span>
+                </div>
+            ),
+        },
+        {
+            id: 'entries',
+            header: ({ column }) => <SortableHeader column={column}>Entries</SortableHeader>,
+            accessorFn: (row) => row.stats?.totalEntries || 0,
+            size: 110,
+            cell: ({ row }) => (
+                <div className="text-center">
+                    <span className="text-sm font-bold tabular-nums">{formatNumber(row.original.stats?.totalEntries || 0)}</span>
+                </div>
+            ),
+        },
+        {
+            id: 'conversion',
+            header: ({ column }) => <SortableHeader column={column}>Conversion</SortableHeader>,
+            accessorFn: (row) => row.stats?.conversionRate || 0,
+            size: 110,
+            cell: ({ row }) => {
+                const rate = row.original.stats?.conversionRate || 0;
+                return (
+                    <div className="flex flex-col items-center gap-1.5">
+                        <span className={cn('text-xs font-bold tabular-nums px-1.5 py-0.5 rounded-full',
+                            rate >= 30 ? 'bg-emerald-500/10 text-emerald-600' : rate >= 10 ? 'bg-amber-500/10 text-amber-600' : 'bg-rose-500/10 text-rose-600'
+                        )}>
+                            {rate.toFixed(1)}%
+                        </span>
+                        <div className="h-1 w-12 bg-muted/60 rounded-full overflow-hidden">
+                            <div className={cn('h-full rounded-full', rate >= 30 ? 'bg-emerald-500' : rate >= 10 ? 'bg-amber-500' : 'bg-rose-500')}
+                                style={{ width: `${Math.min(100, rate)}%` }} />
+                        </div>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'status',
+            header: 'Status',
+            size: 100,
+            cell: ({ row }) => {
+                const funnel = row.original;
+                return (
+                    <div className="flex items-center justify-center gap-2">
+                        <div className={cn('h-2 w-2 rounded-full', funnel.isActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-muted-foreground/40')} />
+                        <span className={cn('text-xs font-bold', funnel.isActive ? 'text-emerald-500' : 'text-muted-foreground/60')}>
+                            {funnel.isActive ? 'ACTIVE' : 'PAUSED'}
+                        </span>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'row_actions',
+            header: '',
+            size: 120,
+            enableSorting: false,
+            cell: ({ row }) => {
+                const funnel = row.original;
+                return (
+                    <div className="flex items-center justify-end gap-1 pr-4" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-all hover:bg-muted">
+                                    <MoreVertical className="h-3.5 w-3.5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52 bg-card/98 backdrop-blur-xl border-border/40 shadow-2xl p-1">
+                                <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-primary/5">
+                                    <Link href={`/websites/${websiteId}/funnels/builder?id=${funnel.id}`} className="flex items-center gap-3 w-full py-2.5 px-3">
+                                        <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center"><Edit3 className="h-4 w-4 text-blue-500" /></div>
+                                        <div className="flex flex-col"><span className="text-xs font-semibold">Edit Funnel</span><span className="text-[10px] text-muted-foreground">Modify steps</span></div>
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleToggleStatus(funnel)} className="cursor-pointer rounded-md focus:bg-emerald-500/5">
+                                    <div className="flex items-center gap-3 w-full py-2.5 px-3">
+                                        <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center', funnel.isActive ? 'bg-amber-500/10' : 'bg-emerald-500/10')}>
+                                            {funnel.isActive ? <Pause className="h-4 w-4 text-amber-500" /> : <Play className="h-4 w-4 text-emerald-500" />}
+                                        </div>
+                                        <div className="flex flex-col"><span className="text-xs font-semibold">{funnel.isActive ? 'Pause Funnel' : 'Activate Funnel'}</span></div>
+                                    </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="my-1 bg-border/40" />
+                                <DropdownMenuItem onClick={() => handleDelete(funnel.id, funnel.name)} className="cursor-pointer rounded-md focus:bg-rose-500/10 text-rose-500">
+                                    <div className="flex items-center gap-3 w-full py-2.5 px-3">
+                                        <div className="h-8 w-8 rounded-lg bg-rose-500/10 flex items-center justify-center"><Trash2 className="h-4 w-4" /></div>
+                                        <div className="flex flex-col"><span className="text-xs font-semibold">Delete Funnel</span></div>
+                                    </div>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button size="sm" variant="secondary"
+                            className="h-7 gap-1.5 px-2.5 text-[11px] font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-all shadow-sm border border-primary/20"
+                            onClick={() => router.push(`/websites/${websiteId}/funnels/${funnel.id}`)}>
+                            <Eye className="h-3.5 w-3.5 fill-current" /> VIEW
+                        </Button>
+                    </div>
+                );
+            },
+        },
+    ], [websiteId, handleDelete, handleToggleStatus, router]);
+
     if (isLoading) return <FunnelsSkeleton />;
 
     if (error) {
@@ -217,312 +333,80 @@ export default function FunnelsPage() {
             </div>
 
             {/* Table */}
-            <Card className="border border-border/60 bg-card shadow-sm overflow-hidden flex flex-col">
-                {/* Toolbar */}
-                <div className="px-5 py-4 border-b border-border/40 bg-muted/5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <div>
-                                <h3 className="text-base font-semibold text-foreground">All Funnels</h3>
-                                <p className="text-sm text-muted-foreground mt-0.5">
-                                    {totalCount} total conversion paths
-                                </p>
-                            </div>
-
-                            {selectedIds.length > 0 && (
-                                <div className="flex items-center gap-2 animate-in slide-in-from-left-2 duration-200">
-                                    <div className="h-8 w-px bg-border/60 mx-1" />
-                                    <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">{selectedIds.length} selected</span>
-                                    <Button
-                                        variant="destructive"
-                                        size="sm"
-                                        className="h-8 gap-2 text-xs shadow-sm"
-                                        onClick={handleBulkDelete}
-                                    >
-                                        <Trash2 className="h-3.5 w-3.5" /> Delete Selected
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 text-xs text-muted-foreground"
-                                        onClick={() => setSelectedIds([])}
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
-                            )}
-                        </div>
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                            <Input
-                                placeholder="Search funnels..."
-                                className="pl-8 w-full sm:w-[240px] h-9 text-sm bg-background border-border/50 focus-visible:ring-1 focus-visible:ring-primary/30"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                        </div>
+            <DataTable
+                columns={columns}
+                data={filteredFunnels}
+                paginationMode="server"
+                pageIndex={page - 1}
+                pageCount={totalPages}
+                pageSize={pageSize}
+                totalRowCount={totalCount}
+                onPaginationChange={({ pageIndex }) => setPage(pageIndex + 1)}
+                enableRowSelection
+                onRowSelectionChange={(rows) => setSelectedIds(rows.map((r: any) => r.id))}
+                onRowClick={(row: any) => router.push(`/websites/${websiteId}/funnels/${row.id}`)}
+                emptyIcon={<Filter className="h-6 w-6" />}
+                emptyTitle={searchTerm ? 'No matching funnels' : 'No funnels yet'}
+                emptyDescription={
+                    searchTerm
+                        ? `No funnels matching "${searchTerm}"`
+                        : 'Create your first funnel to start tracking user journeys.'
+                }
+                emptyAction={
+                    searchTerm ? (
+                        <Button variant="ghost" size="sm" className="mt-1 text-xs" onClick={() => setSearchTerm('')}>Clear search</Button>
+                    ) : (
+                        <Link href={`/websites/${websiteId}/funnels/builder`}>
+                            <Button size="sm" className="gap-2 text-xs"><Plus className="h-3.5 w-3.5" /> Create Funnel</Button>
+                        </Link>
+                    )
+                }
+                toolbarLeft={
+                    <div>
+                        <h3 className="text-base font-semibold">Funnels</h3>
+                        <p className="text-sm text-muted-foreground mt-0.5">{totalCount} total funnels</p>
                     </div>
-                </div>
-
-                {filteredFunnels.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center px-4 bg-muted/5">
-                        <div className="h-14 w-14 bg-muted/40 rounded-2xl flex items-center justify-center mb-4">
-                            <Filter className="h-6 w-6 text-muted-foreground/40" />
-                        </div>
-                        <h3 className="text-sm font-semibold mb-1">
-                            {searchTerm ? 'No matching paths' : 'No funnels yet'}
-                        </h3>
-                        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                            {searchTerm
-                                ? `No funnels matching "${searchTerm}"`
-                                : 'Create your first funnel to start tracking conversions.'}
-                        </p>
-                        {searchTerm ? (
-                            <Button variant="ghost" size="sm" className="mt-3 text-xs" onClick={() => setSearchTerm('')}>Clear search</Button>
-                        ) : (
-                            <Link href={`/websites/${websiteId}/funnels/builder`}>
-                                <Button size="sm" className="mt-4 gap-1.5 text-xs">
-                                    <Plus className="h-3.5 w-3.5" />
-                                    Create Funnel
-                                </Button>
-                            </Link>
-                        )}
-                    </div>
-                ) : (
+                }
+                selectionActions={(rows) => (
                     <>
-                        {/* Column headers */}
-                        <div className="grid grid-cols-[40px_1fr_90px_110px_110px_100px_120px] items-center px-5 py-2.5 border-b border-border/30 bg-muted/20 text-xs font-medium text-muted-foreground">
-                            <div className="flex items-center justify-center">
-                                <Checkbox
-                                    checked={selectedIds.length === filteredFunnels.length && filteredFunnels.length > 0}
-                                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                                />
-                            </div>
-                            <div className="pl-2">Funnel</div>
-                            <div className="text-center">Steps</div>
-                            <div className="text-center">Entries</div>
-                            <div className="text-center">Conversion</div>
-                            <div className="text-center">Status</div>
-                            <div className="text-right pr-4">Action</div>
-                        </div>
-
-                        {/* Rows */}
-                        <div className="divide-y divide-border/20">
-                            {filteredFunnels.map((funnel) => {
-                                const isSelected = selectedIds.includes(funnel.id);
-                                return (
-                                    <div
-                                        key={funnel.id}
-                                        className={cn(
-                                            "group grid grid-cols-[40px_1fr_90px_110px_110px_100px_120px] items-center px-5 py-3 transition-colors cursor-pointer",
-                                            isSelected ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-muted/30",
-                                            !funnel.isActive && !isSelected && "bg-muted/5 opacity-80"
-                                        )}
-                                        onClick={() => router.push(`/websites/${websiteId}/funnels/${funnel.id}`)}
-                                    >
-                                        <div className="flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-                                            <Checkbox
-                                                checked={isSelected}
-                                                onCheckedChange={(checked) => handleSelectOne(funnel.id, !!checked)}
-                                            />
-                                        </div>
-
-                                        {/* Funnel info */}
-                                        <div className="flex items-center gap-3 min-w-0 pl-2">
-                                            <div className={cn(
-                                                "h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 transition-all shadow-sm",
-                                                funnel.isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-                                            )}>
-                                                <BarChart3 className="h-4 w-4" />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <p className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors truncate">{funnel.name}</p>
-                                                <p className="text-[10px] text-muted-foreground/60 mt-0.5 font-medium uppercase tracking-wider">
-                                                    Created {new Date(funnel.createdAt).toLocaleDateString()}
-                                                </p>
-                                            </div>
-                                        </div>
-
-                                        {/* Steps */}
-                                        <div className="text-center">
-                                            <p className="text-sm font-bold tabular-nums text-foreground">{(funnel.steps || []).length}</p>
-                                            <p className="text-[10px] text-muted-foreground/60">milestones</p>
-                                        </div>
-
-                                        {/* Entries */}
-                                        <div className="text-center">
-                                            <p className="text-sm font-bold tabular-nums text-foreground">{formatNumber(funnel.stats?.totalEntries || 0)}</p>
-                                            <p className="text-[10px] text-muted-foreground/60">visitors</p>
-                                        </div>
-
-                                        {/* Conversion */}
-                                        <div className="flex flex-col items-center gap-1.5">
-                                            <span className={cn(
-                                                "text-xs font-bold tabular-nums px-1.5 py-0.5 rounded-full",
-                                                (funnel.stats?.conversionRate || 0) >= 10 ? 'bg-emerald-500/10 text-emerald-600' :
-                                                    (funnel.stats?.conversionRate || 0) >= 3 ? 'bg-amber-500/10 text-amber-600' :
-                                                        'bg-rose-500/10 text-rose-600'
-                                            )}>
-                                                {funnel.stats?.conversionRate || 0}%
-                                            </span>
-                                            <div className="w-12 h-1 bg-muted/60 rounded-full overflow-hidden">
-                                                <div
-                                                    className={cn(
-                                                        "h-full rounded-full transition-all duration-700",
-                                                        (funnel.stats?.conversionRate || 0) >= 10 ? 'bg-emerald-500' :
-                                                            (funnel.stats?.conversionRate || 0) >= 3 ? 'bg-amber-500' :
-                                                                'bg-rose-500'
-                                                    )}
-                                                    style={{ width: `${funnel.stats?.conversionRate || 0}%` }}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Status */}
-                                        <div className="flex items-center justify-center gap-2">
-                                            <div className={cn(
-                                                'h-2 w-2 rounded-full',
-                                                funnel.isActive ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] animate-pulse' : 'bg-muted-foreground/40'
-                                            )} />
-                                            <span className={cn(
-                                                'text-xs font-bold',
-                                                funnel.isActive ? 'text-emerald-500' : 'text-muted-foreground/60'
-                                            )}>
-                                                {funnel.isActive ? 'ACTIVE' : 'PAUSED'}
-                                            </span>
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="flex items-center justify-end gap-1 px-4" onClick={(e) => e.stopPropagation()}>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-all hover:bg-muted border border-transparent hover:border-border/50 shadow-sm">
-                                                        <MoreVertical className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="w-52 bg-card/98 backdrop-blur-xl border-border/40 shadow-2xl p-1">
-                                                    <DropdownMenuItem
-                                                        onClick={() => router.push(`/websites/${websiteId}/funnels/builder?id=${funnel.id}&mode=edit`)}
-                                                        className="cursor-pointer rounded-md focus:bg-primary/5 transition-colors py-2.5 px-3"
-                                                    >
-                                                        <div className="flex items-center gap-3 w-full">
-                                                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                                                                <Edit3 className="h-4 w-4 text-blue-500" />
-                                                            </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-semibold">Edit Path</span>
-                                                                <span className="text-[10px] text-muted-foreground leading-tight">Modify funnel steps</span>
-                                                            </div>
-                                                        </div>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onClick={() => handleToggleStatus(funnel)}
-                                                        className="cursor-pointer rounded-md focus:bg-emerald-500/5 transition-colors py-2.5 px-3"
-                                                    >
-                                                        <div className="flex items-center gap-3 w-full">
-                                                            <div className={cn("h-8 w-8 rounded-lg flex items-center justify-center", funnel.isActive ? "bg-amber-500/10" : "bg-emerald-500/10")}>
-                                                                {funnel.isActive ? <Pause className="h-4 w-4 text-amber-500" /> : <Play className="h-4 w-4 text-emerald-500" />}
-                                                            </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-semibold">{funnel.isActive ? 'Pause' : 'Activate'}</span>
-                                                                <span className="text-[10px] text-muted-foreground leading-tight">{funnel.isActive ? 'Stop tracking' : 'Resume tracking'}</span>
-                                                            </div>
-                                                        </div>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator className="my-1 bg-border/40" />
-                                                    <DropdownMenuItem
-                                                        onClick={() => handleDelete(funnel.id, funnel.name)}
-                                                        className="cursor-pointer rounded-md focus:bg-rose-500/10 text-rose-500 transition-colors py-2.5 px-3"
-                                                    >
-                                                        <div className="flex items-center gap-3 w-full">
-                                                            <div className="h-8 w-8 rounded-lg bg-rose-500/10 flex items-center justify-center">
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </div>
-                                                            <div className="flex flex-col">
-                                                                <span className="text-xs font-semibold">Delete Path</span>
-                                                                <span className="text-[10px] text-rose-500/70 leading-tight">Remove all funnel data</span>
-                                                            </div>
-                                                        </div>
-                                                    </DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                            <Button
-                                                variant="secondary"
-                                                size="sm"
-                                                className="h-7 gap-1.5 px-2.5 text-[11px] font-bold bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary transition-all shadow-sm border border-primary/20 backdrop-blur-sm"
-                                                onClick={() => router.push(`/websites/${websiteId}/funnels/${funnel.id}`)}
-                                            >
-                                                <Eye className="h-3.5 w-3.5 fill-current" /> VIEW
-                                            </Button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Pagination */}
-                        <div className="px-5 py-3 border-t border-border/40 bg-muted/5 flex items-center justify-between">
-                            <div className="text-xs text-muted-foreground font-medium">
-                                Showing <span className="text-foreground">{(page - 1) * pageSize + 1}</span> to <span className="text-foreground">{Math.min(page * pageSize, totalCount)}</span> of <span className="text-foreground font-bold">{totalCount}</span> funnels
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => setPage(prev => Math.max(1, prev - 1))}
-                                    disabled={page === 1}
-                                >
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-
-                                <div className="flex items-center gap-1">
-                                    {[...Array(totalPages)].map((_, i) => (
-                                        <Button
-                                            key={i + 1}
-                                            variant={page === i + 1 ? "secondary" : "ghost"}
-                                            size="sm"
-                                            className={cn("h-8 w-8 p-0 text-xs font-bold", page === i + 1 ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground")}
-                                            onClick={() => setPage(i + 1)}
-                                        >
-                                            {i + 1}
-                                        </Button>
-                                    )).slice(Math.max(0, page - 3), Math.min(totalPages, page + 2))}
-                                </div>
-
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => setPage(prev => Math.min(totalPages, prev + 1))}
-                                    disabled={page === totalPages}
-                                >
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
+                        <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-1 rounded-full">{rows.length} selected</span>
+                        <Button variant="destructive" size="sm" className="h-8 gap-2 text-xs shadow-sm" onClick={handleBulkDelete}>
+                            <Trash2 className="h-3.5 w-3.5" /> Delete Selected
+                        </Button>
                     </>
                 )}
-            </Card>
+                toolbarRight={
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                            placeholder="Search funnels..."
+                            className="pl-8 w-full md:w-[240px] h-9 text-sm bg-background border-border/50 focus-visible:ring-1 focus-visible:ring-primary/30"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                }
+            />
         </div>
     );
 }
 
 function StatsCard({ title, value, icon: Icon, description, color = 'blue' }: { title: string; value: string | number; icon: any; description: string; color?: string }) {
-    const accentMap: Record<string, string> = { blue: 'bg-blue-500', emerald: 'bg-emerald-500', violet: 'bg-violet-500', amber: 'bg-amber-500' };
+    const bgMap: Record<string, string> = { blue: 'bg-blue-500/10', emerald: 'bg-emerald-500/10', violet: 'bg-violet-500/10', amber: 'bg-amber-500/10' };
     const iconMap: Record<string, string> = { blue: 'text-blue-500', emerald: 'text-emerald-500', violet: 'text-violet-500', amber: 'text-amber-500' };
     return (
-        <Card className="relative overflow-hidden border border-border/60 bg-card shadow-sm">
-            <div className={`absolute left-0 top-0 bottom-0 w-1 ${accentMap[color]}`} />
-            <CardHeader className="pb-1 pl-5">
-                <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">{title}</span>
-                    <Icon className={cn('h-4 w-4', iconMap[color])} />
+        <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-5">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 space-y-1">
+                        <p className="text-xs font-medium text-muted-foreground">{title}</p>
+                        <p className="text-2xl font-semibold tracking-tight">{typeof value === 'number' ? value.toLocaleString() : value}</p>
+                        <p className="text-xs text-muted-foreground">{description}</p>
+                    </div>
+                    <div className={cn('shrink-0 h-9 w-9 rounded-lg flex items-center justify-center', bgMap[color])}>
+                        <Icon className={cn('h-4 w-4', iconMap[color])} />
+                    </div>
                 </div>
-            </CardHeader>
-            <CardContent className="pl-5 pt-0">
-                <div className="text-2xl font-semibold tracking-tight">{typeof value === 'number' ? value.toLocaleString() : value}</div>
-                <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
             </CardContent>
         </Card>
     );
