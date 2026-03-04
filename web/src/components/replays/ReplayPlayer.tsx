@@ -54,6 +54,10 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const containerRef = useRef<HTMLDivElement>(null);
   const playerInstanceRef = useRef<rrwebPlayer | null>(null);
   const animFrameRef = useRef<number>(0);
+  const scrubberRef = useRef<HTMLDivElement>(null);
+  // Stable refs so seek/drag handlers always read latest values without stale closures
+  const isPlayingRef = useRef(false);
+  const totalTimeRef = useRef(0);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,6 +70,10 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [speed, setSpeed] = useState(1);
   const [skipInactive, setSkipInactive] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Keep stable refs in sync
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
 
   // Fetch replay data
   useEffect(() => {
@@ -116,15 +124,25 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       setSpeed(1);
       setSkipInactive(true);
 
+      // Detect replay end
+      try {
+        const replayer = player.getReplayer();
+        if (replayer) {
+          replayer.on('finish', () => {
+            setIsPlaying(false);
+          });
+        }
+      } catch {}
+
       // Poll current time via requestAnimationFrame
       const updateTime = () => {
         try {
           const replayer = player.getReplayer();
           if (replayer) {
-            const timer = (replayer as any).timer;
-            if (timer && typeof timer.timeOffset === 'number') {
-              setCurrentTime(timer.timeOffset);
-            }
+            // getCurrentTime() = timer.timeOffset (running) + getTimeOffset() (base)
+            // getTimeOffset() alone is static — it does NOT include the running timer
+            const t = (replayer as any).getCurrentTime?.() ?? (replayer as any).getTimeOffset?.() ?? 0;
+            setCurrentTime(t);
           }
         } catch {}
         animFrameRef.current = requestAnimationFrame(updateTime);
@@ -158,42 +176,65 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const handleSetSpeed = useCallback((newSpeed: number) => {
     const player = playerInstanceRef.current;
     if (!player) return;
-    player.setSpeed(newSpeed);
+    try {
+      player.setSpeed(newSpeed);
+    } catch {
+      // fallback for versions that don't expose setSpeed directly
+      (player as any).$set({ speed: newSpeed });
+    }
     setSpeed(newSpeed);
   }, []);
 
   const handleSkipForward = useCallback(() => {
     const player = playerInstanceRef.current;
     if (!player) return;
-    const newTime = Math.min(currentTime + 10000, totalTime);
-    player.goto(newTime, isPlaying);
+    const newTime = Math.min(currentTime + 10000, totalTimeRef.current);
+    player.goto(newTime, isPlayingRef.current);
     setCurrentTime(newTime);
-  }, [currentTime, totalTime, isPlaying]);
+  }, [currentTime]);
 
   const handleSkipBack = useCallback(() => {
     const player = playerInstanceRef.current;
     if (!player) return;
     const newTime = Math.max(currentTime - 10000, 0);
-    player.goto(newTime, isPlaying);
+    player.goto(newTime, isPlayingRef.current);
     setCurrentTime(newTime);
-  }, [currentTime, isPlaying]);
+  }, [currentTime]);
 
   const handleToggleSkipInactive = useCallback(() => {
     const player = playerInstanceRef.current;
     if (!player) return;
-    player.toggleSkipInactive();
-    setSkipInactive(prev => !prev);
+    const next = !skipInactive;
+    try {
+      player.toggleSkipInactive();
+    } catch {
+      (player as any).$set({ skipInactive: next });
+    }
+    setSkipInactive(next);
+  }, [skipInactive]);
+
+  // Core seek function — uses stable refs so it's safe inside drag closures
+  const seekTo = useCallback((clientX: number) => {
+    const player = playerInstanceRef.current;
+    const track = scrubberRef.current;
+    if (!player || !track || totalTimeRef.current === 0) return;
+    const rect = track.getBoundingClientRect();
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const newTime = Math.floor(ratio * totalTimeRef.current);
+    player.goto(newTime, isPlayingRef.current);
+    setCurrentTime(newTime);
   }, []);
 
-  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    const player = playerInstanceRef.current;
-    if (!player || totalTime === 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const newTime = Math.floor(ratio * totalTime);
-    player.goto(newTime, isPlaying);
-    setCurrentTime(newTime);
-  }, [totalTime, isPlaying]);
+  // Pointer-capture drag: works for both click and drag across the scrubber
+  const handleScrubberPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    seekTo(e.clientX);
+  }, [seekTo]);
+
+  const handleScrubberPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    seekTo(e.clientX);
+  }, [seekTo]);
 
   const handleToggleFullscreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -274,10 +315,13 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         {/* Custom Control Bar */}
         {chunks.length > 0 && (
           <div className="bg-zinc-950/95 backdrop-blur-sm border-t border-white/[0.06] px-4 py-3 space-y-2.5">
-            {/* Timeline scrubber */}
+            {/* Timeline scrubber — pointer capture enables click AND drag */}
             <div
-              className="group relative h-1.5 bg-white/[0.08] rounded-full cursor-pointer hover:h-2.5 transition-all"
-              onClick={handleSeek}
+              ref={scrubberRef}
+              className="group relative h-1.5 bg-white/[0.08] rounded-full cursor-pointer hover:h-2.5 transition-all select-none"
+              style={{ touchAction: 'none' }}
+              onPointerDown={handleScrubberPointerDown}
+              onPointerMove={handleScrubberPointerMove}
             >
               {/* Progress fill */}
               <div
