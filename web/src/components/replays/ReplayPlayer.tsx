@@ -62,6 +62,9 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chunks, setChunks] = useState<any[]>([]);
+  const videoAreaRef = useRef<HTMLDivElement>(null);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  const [bufferProgress, setBufferProgress] = useState<{ loaded: number; total: number } | null>(null);
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
@@ -71,26 +74,89 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [skipInactive, setSkipInactive] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Keep stable refs in sync
-  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+  // Keep totalTime ref in sync
   useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
 
-  // Fetch replay data
+  // Streaming fetch: manifest (instant, Postgres-only) → chunk 0 → start player
+  // → background-stream remaining chunks via replayer.addEvent()
   useEffect(() => {
-    const fetchReplayData = async () => {
+    const controller = new AbortController();
+    streamAbortRef.current = controller;
+
+    const fetchStreaming = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`/replays/data/${sessionId}?website_id=${websiteId}`);
-        const data = response.data;
-        const allEvents = data.chunks.flatMap((chunk: any) => chunk.data);
-        setChunks(allEvents);
+        setError(null);
+
+        // Step 1: manifest — Postgres only, no S3
+        const manifestRes = await api.get(
+          `/replays/manifest/${sessionId}?website_id=${websiteId}`,
+          { signal: controller.signal }
+        );
+        const sequences: number[] = manifestRes.data?.sequences ?? [];
+
+        if (sequences.length === 0) {
+          setChunks([]);
+          setLoading(false);
+          return;
+        }
+
+        // Step 2: chunk 0 (full DOM snapshot) — start player immediately
+        const chunk0Res = await api.get(
+          `/replays/chunk/${sessionId}?website_id=${websiteId}&seq=${sequences[0]}`,
+          { signal: controller.signal }
+        );
+        const initialEvents: any[] = Array.isArray(chunk0Res.data) ? chunk0Res.data : [];
+        setChunks(initialEvents);
         setLoading(false);
+        setBufferProgress(sequences.length > 1 ? { loaded: 1, total: sequences.length } : null);
+
+        // Step 3: stream remaining chunks into the running player
+        for (let i = 1; i < sequences.length; i++) {
+          if (controller.signal.aborted) break;
+          try {
+            const res = await api.get(
+              `/replays/chunk/${sessionId}?website_id=${websiteId}&seq=${sequences[i]}`,
+              { signal: controller.signal }
+            );
+            const events: any[] = Array.isArray(res.data) ? res.data : [];
+            if (events.length > 0) {
+              const replayer = playerInstanceRef.current?.getReplayer?.();
+              if (replayer) {
+                events.forEach(event => {
+                  try { (replayer as any).addEvent(event); } catch {}
+                });
+              }
+            }
+            setBufferProgress({ loaded: i + 1, total: sequences.length });
+          } catch {
+            // Non-fatal — skip failed chunks, playback continues
+          }
+        }
+        setBufferProgress(null);
+
+        // All chunks loaded — update totalTime only if session.duration_seconds
+        // wasn't available (getMetaData only covers the initial event set, not
+        // events added via addEvent, so only use it as a last resort).
+        if (!session?.duration_seconds) {
+          try {
+            const meta = playerInstanceRef.current?.getMetaData?.();
+            if (meta && meta.totalTime > 0) setTotalTime(meta.totalTime);
+          } catch {}
+        }
       } catch (err: any) {
+        if (err?.code === 'ERR_CANCELED' || err?.name === 'AbortError' || err?.name === 'CanceledError') return;
         setError(err.message || 'Failed to fetch replay data');
         setLoading(false);
       }
     };
-    fetchReplayData();
+
+    fetchStreaming();
+
+    return () => {
+      controller.abort();
+      streamAbortRef.current = null;
+    };
   }, [sessionId, websiteId]);
 
   // Initialize player
@@ -98,14 +164,17 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     if (!loading && chunks.length > 0 && playerRef.current) {
       playerRef.current.innerHTML = '';
 
+      const containerW = videoAreaRef.current?.offsetWidth || playerRef.current.offsetWidth || 1024;
+      const containerH = videoAreaRef.current?.offsetHeight || 600;
+
       const player = new rrwebPlayer({
         target: playerRef.current,
         props: {
           events: chunks,
           autoPlay: true,
           speed: 1,
-          width: playerRef.current.offsetWidth || 1024,
-          height: 700,
+          width: containerW,
+          height: containerH,
           showController: false,
           UNSAFE_replayCanvas: true,
         },
@@ -113,35 +182,49 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
       playerInstanceRef.current = player;
 
-      // Get total duration
+      // Prefer session.duration_seconds (DB value = full session span) over
+      // getMetaData() which only covers the events loaded so far (chunk 0).
       try {
         const meta = player.getMetaData();
-        setTotalTime(meta.totalTime);
+        const sessionMs = (session?.duration_seconds ?? 0) * 1000;
+        setTotalTime(sessionMs > 0 ? sessionMs : meta.totalTime);
       } catch {}
 
       // Set initial state
       setIsPlaying(true);
+      isPlayingRef.current = true;
       setSpeed(1);
       setSkipInactive(true);
 
-      // Detect replay end
+      // Use the rrweb Replayer's own event system for state tracking.
+      // getCurrentTime() is the same call rrweb-player uses internally in its RAF loop.
+      // We cannot rely on rrweb-player's Svelte '$on' because showController:false
+      // prevents the inner controller from forwarding ui-update-current-time.
       try {
         const replayer = player.getReplayer();
         if (replayer) {
+          replayer.on('state-change', (states: any) => {
+            const playerState = states?.player?.value;
+            if (playerState) {
+              const playing = playerState === 'playing';
+              isPlayingRef.current = playing;
+              setIsPlaying(playing);
+            }
+          });
           replayer.on('finish', () => {
+            isPlayingRef.current = false;
             setIsPlaying(false);
           });
         }
       } catch {}
 
-      // Poll current time via requestAnimationFrame
+      // RAF loop — mirrors exactly how rrweb-player's own controller tracks time:
+      //   n(6, b = g.getCurrentTime())  [rrweb-player source, line ~106779]
       const updateTime = () => {
         try {
-          const replayer = player.getReplayer();
+          const replayer = playerInstanceRef.current?.getReplayer?.();
           if (replayer) {
-            // getCurrentTime() = timer.timeOffset (running) + getTimeOffset() (base)
-            // getTimeOffset() alone is static — it does NOT include the running timer
-            const t = (replayer as any).getCurrentTime?.() ?? (replayer as any).getTimeOffset?.() ?? 0;
+            const t = (replayer as any).getCurrentTime?.() ?? 0;
             setCurrentTime(t);
           }
         } catch {}
@@ -170,7 +253,9 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     const player = playerInstanceRef.current;
     if (!player) return;
     player.toggle();
-    setIsPlaying(prev => !prev);
+    // Update ref synchronously so seekTo/skip handlers read the correct value immediately
+    isPlayingRef.current = !isPlayingRef.current;
+    setIsPlaying(isPlayingRef.current);
   }, []);
 
   const handleSetSpeed = useCallback((newSpeed: number) => {
@@ -260,8 +345,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     return (
       <div className="flex flex-col items-center justify-center p-20 bg-muted/20 rounded-xl border border-border/60">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/40 mb-3" />
-        <span className="text-sm font-medium text-muted-foreground">Loading session data...</span>
-        <p className="text-xs text-muted-foreground/60 mt-1">Reconstructing timeline from recorded events</p>
+        <span className="text-sm font-medium text-muted-foreground">Loading session...</span>
+        <p className="text-xs text-muted-foreground/60 mt-1">Fetching first frame to start playback</p>
       </div>
     );
   }
@@ -298,17 +383,17 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
       {/* Player + Controls */}
       <Card ref={containerRef} className="border border-border bg-card overflow-hidden shadow-sm">
-        {/* Video area */}
-        <div className="bg-zinc-950 flex items-center justify-center relative overflow-hidden min-h-[500px] max-h-[80vh]">
+        {/* Video area — explicit fixed height so rrweb matches exactly, no clipping */}
+        <div ref={videoAreaRef} className="bg-zinc-950 relative" style={{ height: '600px' }}>
           {chunks.length === 0 ? (
-            <div className="p-12 text-center">
-              <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
-              <p className="text-xs text-white/15">This session contains no replay data.</p>
+            <div className="flex items-center justify-center h-full p-12 text-center">
+              <div>
+                <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
+                <p className="text-xs text-white/15">This session contains no replay data.</p>
+              </div>
             </div>
           ) : (
-            <div className="w-full h-full flex items-center justify-center overflow-auto">
-              <div ref={playerRef} className="w-full h-full min-h-[500px]" />
-            </div>
+            <div ref={playerRef} className="w-full h-full" />
           )}
         </div>
 
@@ -323,6 +408,13 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
               onPointerDown={handleScrubberPointerDown}
               onPointerMove={handleScrubberPointerMove}
             >
+              {/* Buffer fill — shows how much has been streamed from S3 */}
+              {bufferProgress && (
+                <div
+                  className="absolute inset-y-0 left-0 bg-white/[0.18] rounded-full transition-[width] duration-300"
+                  style={{ width: `${(bufferProgress.loaded / bufferProgress.total) * 100}%` }}
+                />
+              )}
               {/* Progress fill */}
               <div
                 className="absolute inset-y-0 left-0 bg-blue-500 rounded-full transition-[width] duration-75"
@@ -376,8 +468,15 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
                 </span>
               </div>
 
-              {/* Right: Speed + Skip Inactive + Fullscreen */}
+              {/* Right: Buffer indicator + Speed + Skip Inactive + Fullscreen */}
               <div className="flex items-center gap-2">
+                {/* Buffer progress pill — shown while streaming background chunks */}
+                {bufferProgress && (
+                  <div className="flex items-center gap-1.5 h-6 px-2 rounded-md bg-white/[0.04] text-white/30 text-[10px] font-medium">
+                    <div className="w-2 h-2 rounded-full bg-blue-500/50 animate-pulse" />
+                    {bufferProgress.loaded}/{bufferProgress.total}
+                  </div>
+                )}
                 {/* Speed buttons */}
                 <div className="flex items-center bg-white/[0.04] rounded-lg p-0.5 gap-0.5">
                   {SPEED_OPTIONS.map((s) => (

@@ -135,12 +135,12 @@ export default function HeatmapsPage() {
             className="flex items-center gap-3 min-w-0"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className={cn(
+            {/* <div className={cn(
               'h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0',
               page.active ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted/50 text-muted-foreground'
             )}>
               <BarChart3 className="h-4 w-4" />
-            </div>
+            </div> */}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-medium text-foreground hover:text-primary transition-colors truncate">

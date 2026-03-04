@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	"github.com/Seentics/seentics/internal/modules/replays/models"
-	"github.com/Seentics/seentics/internal/modules/replays/services"
-	"github.com/Seentics/seentics/internal/shared/utils"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/Seentics/seentics/internal/modules/replays/models"
+	"github.com/Seentics/seentics/internal/modules/replays/services"
+	"github.com/Seentics/seentics/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -124,6 +125,64 @@ func (h *ReplayHandler) GetReplay(c *gin.Context) {
 
 	// For the frontend, we might want to flatten the chunks into a single events array
 	c.JSON(http.StatusOK, gin.H{"chunks": chunks})
+}
+
+// GetReplayManifest returns ordered sequence numbers for a session (no S3 download).
+// The frontend uses this to know how many chunks exist for streaming.
+func (h *ReplayHandler) GetReplayManifest(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Query("website_id")
+	sessionID := c.Param("session_id")
+
+	if websiteID == "" || sessionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id and session_id are required"})
+		return
+	}
+
+	seqs, err := h.service.GetReplayManifest(c.Request.Context(), websiteID, sessionID, userID)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to get replay manifest")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get replay manifest"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"sequences": seqs, "total_chunks": len(seqs)})
+}
+
+// GetReplayChunk downloads and returns a single chunk's events from S3.
+// Called by the frontend progressively during streaming playback.
+func (h *ReplayHandler) GetReplayChunk(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Query("website_id")
+	sessionID := c.Param("session_id")
+	seqStr := c.DefaultQuery("seq", "0")
+
+	seq, err := strconv.Atoi(seqStr)
+	if err != nil || seq < 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid seq parameter"})
+		return
+	}
+
+	data, err := h.service.GetReplayChunk(c.Request.Context(), websiteID, sessionID, userID, seq)
+	if err != nil {
+		h.logger.Error().Err(err).Int("seq", seq).Msg("Failed to get replay chunk")
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Return compressed if client accepts it — otherwise raw JSON
+	c.Header("Cache-Control", "private, max-age=3600")
+	c.Data(http.StatusOK, "application/json", data)
 }
 
 // ListSessions returns a list of session IDs that have recordings

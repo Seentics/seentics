@@ -28,9 +28,5 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     return null; // Will redirect via useEffect
   }
 
-  return (
-    <div className="p-4 sm:p-6">
-      {children}
-    </div>
-  );
+  return <>{children}</>;
 }

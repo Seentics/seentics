@@ -45,16 +45,17 @@ const PLANS = [
     price: 15,
     description: 'For small businesses',
     icon: Rocket,
+    popular: true,
     color: 'text-teal-500',
     borderColor: 'border-teal-500',
     bgColor: 'bg-teal-500',
     features: [
       '3 Websites',
       '100,000 Monthly Events',
-      '10 Heatmap Pages',
+      '20 Heatmap Pages',
       '3,000 Session Recordings',
-      '5 Funnels',
-      '5 Automations',
+      '10 Funnels',
+      '10 Automations',
       '1 Month Recording Retention',
       '1 Year Analytics Retention',
       'Email Support',
@@ -66,7 +67,6 @@ const PLANS = [
     price: 49,
     description: 'For growing teams',
     icon: Crown,
-    popular: true,
     color: 'text-purple-500',
     borderColor: 'border-purple-500',
     bgColor: 'bg-purple-500',
@@ -82,45 +82,43 @@ const PLANS = [
       'Priority Support',
     ],
   },
-  {
-    id: 'enterprise' as const,
-    name: 'Enterprise',
-    price: 0,
-    priceLabel: '$0 base + usage',
-    billingLabel: '$2/site · $1.50/1K events · $5/1K recordings',
-    description: 'Pay only for what you use — perfect for agencies',
-    icon: Sparkles,
-    color: 'text-amber-500',
-    borderColor: 'border-amber-500',
-    bgColor: 'bg-amber-500',
-    features: [
-      'No Base Fee — Pure Pay-As-You-Go',
-      '5 Websites Included, then $2/site/mo',
-      '100K Events Included, then $1.50/1K events',
-      '5K Recordings Included, then $5/1K recordings',
-      'Unlimited Heatmaps',
-      'Unlimited Funnels & Automations',
-      '7 Year Analytics Retention',
-      '3 Month Recording Retention',
-      'White Label & Client Management',
-      'Dedicated Support',
-    ],
-  },
+  // HIDDEN: Enterprise plan — uncomment to re-enable
+  // {
+  //   id: 'enterprise' as const,
+  //   name: 'Enterprise',
+  //   price: 0,
+  //   priceLabel: '$0 base + usage',
+  //   billingLabel: '$2/site · $1.50/1K events · $5/1K recordings',
+  //   description: 'Pay only for what you use — perfect for agencies',
+  //   icon: Sparkles,
+  //   color: 'text-amber-500',
+  //   borderColor: 'border-amber-500',
+  //   bgColor: 'bg-amber-500',
+  //   features: [
+  //     'No Base Fee — Pure Pay-As-You-Go',
+  //     '5 Websites Included, then $2/site/mo',
+  //     '100K Events Included, then $1.50/1K events',
+  //     '5K Recordings Included, then $5/1K recordings',
+  //     'Unlimited Heatmaps',
+  //     'Unlimited Funnels & Automations',
+  //     '7 Year Analytics Retention',
+  //     '3 Month Recording Retention',
+  //     'White Label & Client Management',
+  //     'Dedicated Support',
+  //   ],
+  // },
 ];
 
 export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderProps) {
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
 
-  const handleSubscribe = (planId: 'free' | 'basic' | 'pro' | 'enterprise') => {
+  const handleSubscribe = (planId: 'free' | 'basic' | 'pro' /* | 'enterprise' */) => {
     if (!onSubscribe) return;
     const plan = PLANS.find(p => p.id === planId);
     if (!plan) return;
     setLoadingPlan(planId);
     onSubscribe({ plan: planId, price: plan.price });
   };
-
-  const topRow = PLANS.slice(0, 2);    // Free, Basic
-  const bottomRow = PLANS.slice(2);     // Pro, Enterprise
 
   const renderCard = (plan: typeof PLANS[number]) => {
     const Icon = plan.icon;
@@ -202,11 +200,9 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto">
-      {/* Row 1: Free, Basic */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-        {topRow.map(renderCard)}
-        {bottomRow.map(renderCard)}
+    <div className="w-full max-w-5xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {PLANS.map(renderCard)}
       </div>
 
 

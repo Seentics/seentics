@@ -419,8 +419,13 @@ export function DataTable<TData>({
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
-                    className="h-9 px-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
-                    style={header.column.getSize() !== 150 ? { width: header.column.getSize() } : undefined}
+                    className="h-9 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground whitespace-nowrap"
+                    style={{
+                      ...(header.column.id === '__select__'
+                        ? { paddingLeft: '2rem', paddingRight: '0.5rem' }
+                        : { paddingLeft: '1rem', paddingRight: '1rem' }),
+                      ...(header.column.getSize() !== 150 ? { width: header.column.getSize() } : {}),
+                    }}
                   >
                     {header.isPlaceholder
                       ? null
@@ -447,8 +452,13 @@ export function DataTable<TData>({
                 {row.getVisibleCells().map((cell) => (
                   <TableCell
                     key={cell.id}
-                    className="px-4 py-3 align-middle"
-                    style={cell.column.getSize() !== 150 ? { width: cell.column.getSize() } : undefined}
+                    className="py-3 align-middle"
+                    style={{
+                      ...(cell.column.id === '__select__'
+                        ? { paddingLeft: '2rem', paddingRight: '0.5rem' }
+                        : { paddingLeft: '1rem', paddingRight: '1rem' }),
+                      ...(cell.column.getSize() !== 150 ? { width: cell.column.getSize() } : {}),
+                    }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>

@@ -62,6 +62,28 @@
     return fetch(C.host + '/api/v1/' + ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
   };
+  // postGzip: compress payload with CompressionStream (supported in all modern browsers),
+  // falling back to plain JSON if not available. keepalive=true for page-hide flushes.
+  var postGzip = function (ep, data, keepalive) {
+    var json = JSON.stringify(data);
+    var opts = { method: 'POST', keepalive: !!keepalive };
+    if (typeof CompressionStream !== 'undefined') {
+      var cs = new CompressionStream('gzip');
+      var writer = cs.writable.getWriter();
+      writer.write(new TextEncoder().encode(json));
+      writer.close();
+      return new Response(cs.readable).arrayBuffer().then(function (buf) {
+        return fetch(C.host + '/api/v1/' + ep, Object.assign({}, opts, {
+          headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' },
+          body: buf
+        }));
+      }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+    }
+    return fetch(C.host + '/api/v1/' + ep, Object.assign({}, opts, {
+      headers: { 'Content-Type': 'application/json' },
+      body: json
+    })).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
+  };
   var get = function (ep) {
     return fetch(C.host + '/api/v1/' + ep).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
   };
@@ -90,7 +112,7 @@
     if (flushing) return;
     var p = buildPayload(); if (!p) return;
     flushing = true;
-    post('tracker/collect', p).catch(function () { restoreBuf(p); }).finally(function () { flushing = false; });
+    postGzip('tracker/collect', p).catch(function () { restoreBuf(p); }).finally(function () { flushing = false; });
   };
   var beaconFlush = function () {
     var p = buildPayload(); if (!p) return;

@@ -47,8 +47,11 @@ function val(v: string | undefined | null, fallback = '—'): string {
 
 function formatDuration(seconds: number): string {
   const s = Math.round(seconds);
-  if (s < 60) return `${s}s`;
-  return `${Math.floor(s / 60)}m ${s % 60}s`;
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  if (m === 0) return `${sec}s`;
+  if (sec === 0) return `${m}m`;
+  return `${m}m ${sec}s`;
 }
 
 function getDeviceIcon(device: string) {
@@ -220,7 +223,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
     {
       accessorKey: 'start_time',
       header: ({ column }) => <SortableHeader column={column}>Time</SortableHeader>,
-      size: 90,
+      size: 140,
       cell: ({ row }) => {
         const timeAgo = (() => {
           try {
@@ -229,7 +232,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
             return formatDistanceToNow(date, { addSuffix: true });
           } catch { return 'Just now'; }
         })();
-        return <div className="text-center"><span className="text-xs text-muted-foreground">{timeAgo}</span></div>;
+        return <div className="text-center"><span className="text-xs text-muted-foreground whitespace-nowrap">{timeAgo}</span></div>;
       },
     },
     {

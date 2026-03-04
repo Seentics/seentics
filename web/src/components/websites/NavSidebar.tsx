@@ -13,7 +13,6 @@ import {
     Shield,
     ChevronUp,
     Headset,
-    Radio,
     Route,
     ChevronLeft,
     ChevronRight,
@@ -87,14 +86,6 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             icon: Filter,
             description: 'Conversion Journeys',
             isLocked: isDemo
-        },
-        {
-            title: 'Real-time',
-            href: `/websites/${websiteId}/realtime`,
-            icon: Radio,
-            description: 'Live Visitor Activity',
-            isLocked: isDemo,
-            enterpriseOnly: true
         },
         {
             title: 'Paths',

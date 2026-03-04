@@ -24,7 +24,6 @@ export default function LandingHeader() {
   const navLinks = [
     { name: 'Features', href: '#features' },
     { name: 'Comparison', href: '#comparison' },
-    { name: 'Agency', href: '/agency-solution' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'FAQ', href: '#faq' },
   ];
@@ -32,17 +31,17 @@ export default function LandingHeader() {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${scrolled
-        ? 'bg-background/80 border-b border-border/40 backdrop-blur-md h-14'
-        : 'bg-transparent h-16'
+        ? 'bg-background/80 border-b border-border/40 backdrop-blur-md h-16'
+        : 'bg-transparent h-20'
         }`}
     >
-      <div className="container mx-auto px-6 h-full flex items-center justify-between">
+      <div className="container mx-auto px-6 h-full flex items-center justify-between relative">
         <Link href="/" className="flex items-center gap-2">
           <Logo size="md" />
           <span className="text-base font-semibold text-foreground">Seentics</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6">
+        <nav className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
           {navLinks.map((link) => (
             <Link
               key={link.name}

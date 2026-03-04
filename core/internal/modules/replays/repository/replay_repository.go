@@ -13,6 +13,8 @@ import (
 type ReplayRepository interface {
 	SaveChunk(ctx context.Context, websiteID, sessionID string, data json.RawMessage, sequence int, meta *models.SessionMeta) error
 	GetChunks(ctx context.Context, websiteID, sessionID string) ([]models.SessionReplayChunk, error)
+	// GetChunkSequences returns ordered sequence numbers without fetching event data.
+	GetChunkSequences(ctx context.Context, websiteID, sessionID string) ([]int, error)
 	ListSessionsWithMetadata(ctx context.Context, websiteID string, limit, offset int) ([]models.ReplaySessionMetadata, error)
 	DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) ([]string, error)
 	BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string) ([]string, error)
@@ -78,6 +80,30 @@ func (r *replayRepository) GetChunks(ctx context.Context, websiteID, sessionID s
 	}
 
 	return chunks, nil
+}
+
+func (r *replayRepository) GetChunkSequences(ctx context.Context, websiteID, sessionID string) ([]int, error) {
+	query := `
+		SELECT sequence
+		FROM session_replays
+		WHERE website_id = $1 AND session_id = $2
+		ORDER BY sequence ASC
+	`
+	rows, err := r.db.Query(ctx, query, websiteID, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var seqs []int
+	for rows.Next() {
+		var s int
+		if err := rows.Scan(&s); err != nil {
+			return nil, err
+		}
+		seqs = append(seqs, s)
+	}
+	return seqs, nil
 }
 
 func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, websiteID string, limit, offset int) ([]models.ReplaySessionMetadata, error) {

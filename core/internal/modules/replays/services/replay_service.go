@@ -22,6 +22,10 @@ import (
 type ReplayService interface {
 	RecordReplay(ctx context.Context, req models.RecordReplayRequest, origin, userAgent, country string) error
 	GetReplay(ctx context.Context, websiteID, sessionID, userID string) ([]models.SessionReplayChunk, error)
+	// Streaming-friendly endpoints: manifest returns sequence numbers only (no S3 download),
+	// GetReplayChunk fetches a single chunk from S3.
+	GetReplayManifest(ctx context.Context, websiteID, sessionID, userID string) ([]int, error)
+	GetReplayChunk(ctx context.Context, websiteID, sessionID, userID string, seq int) (json.RawMessage, error)
 	ListSessions(ctx context.Context, websiteID, userID string, limit, offset int) ([]models.ReplaySessionMetadata, error)
 	DeleteReplay(ctx context.Context, websiteID, sessionID, userID string) error
 	BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string, userID string) error
@@ -222,6 +226,53 @@ func (s *replayService) GetReplay(ctx context.Context, websiteID string, session
 	}
 
 	return chunks, nil
+}
+
+// GetReplayManifest returns the ordered list of chunk sequence numbers for a session
+// by reading Postgres only — no S3 download. Used by the frontend to know how many
+// chunks exist so it can stream them one at a time.
+func (s *replayService) GetReplayManifest(ctx context.Context, websiteID, sessionID, userID string) ([]int, error) {
+	siteID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetChunkSequences(ctx, siteID, sessionID)
+}
+
+// GetReplayChunk downloads and decompresses exactly one chunk from S3.
+func (s *replayService) GetReplayChunk(ctx context.Context, websiteID, sessionID, userID string, seq int) (json.RawMessage, error) {
+	siteID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Try gzipped key first
+	key := fmt.Sprintf("replays/%s/%s/%d.json.gz", siteID, sessionID, seq)
+	reader, dlErr := s.store.Download(ctx, key)
+	if dlErr != nil {
+		key = fmt.Sprintf("replays/%s/%s/%d.json", siteID, sessionID, seq)
+		reader, dlErr = s.store.Download(ctx, key)
+	}
+	if dlErr != nil {
+		return nil, fmt.Errorf("chunk %d not found", seq)
+	}
+	defer reader.Close()
+
+	var finalReader io.Reader = reader
+	if strings.HasSuffix(key, ".gz") {
+		gzr, err := gzip.NewReader(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decompress chunk %d: %w", seq, err)
+		}
+		defer gzr.Close()
+		finalReader = gzr
+	}
+
+	raw, err := io.ReadAll(finalReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read chunk %d: %w", seq, err)
+	}
+	return json.RawMessage(raw), nil
 }
 
 func (s *replayService) ListSessions(ctx context.Context, websiteID, userID string, limit, offset int) ([]models.ReplaySessionMetadata, error) {

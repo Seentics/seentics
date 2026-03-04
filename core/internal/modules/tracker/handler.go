@@ -257,11 +257,21 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 			}
 		}
 
-		if err := h.replays.RecordReplay(ctx, *req.Replay, origin, userAgent, country); err != nil {
-			h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: replay processing failed")
-		} else {
-			processed["replay"] = 1
-		}
+		// Run replay recording asynchronously so the HTTP response is not
+		// blocked by gzip compression + S3 upload + Postgres write.
+		// This is safe — the tracker will retry on the next flush if needed.
+		replayCopy := *req.Replay
+		replayOrigin := origin
+		replayUA := userAgent
+		replayCountry := country
+		go func() {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := h.replays.RecordReplay(bgCtx, replayCopy, replayOrigin, replayUA, replayCountry); err != nil {
+				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: replay processing failed (async)")
+			}
+		}()
+		processed["replay"] = 1
 	}
 
 	// --- Funnels ---

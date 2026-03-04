@@ -39,6 +39,7 @@ import (
 	heatmapHandlerPkg "github.com/Seentics/seentics/internal/modules/heatmaps/handlers"
 	heatmapRepoPkg "github.com/Seentics/seentics/internal/modules/heatmaps/repository"
 	heatmapServicePkg "github.com/Seentics/seentics/internal/modules/heatmaps/services"
+
 	replayHandlerPkg "github.com/Seentics/seentics/internal/modules/replays/handlers"
 	replayRepoPkg "github.com/Seentics/seentics/internal/modules/replays/repository"
 	replayServicePkg "github.com/Seentics/seentics/internal/modules/replays/services"
@@ -48,6 +49,7 @@ import (
 	"github.com/Seentics/seentics/internal/shared/utils"
 
 	"github.com/Seentics/seentics/internal/shared/cache"
+	ginGzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 )
@@ -233,6 +235,7 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 
 	router := gin.New()
 
+	router.Use(ginGzip.Gzip(ginGzip.DefaultCompression))
 	router.Use(middleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB limit
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	router.Use(middleware.ClientIPMiddleware())
@@ -436,6 +439,9 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 			replays.GET("/sessions", replayHandler.ListSessions)
 			replays.GET("/snapshot", replayHandler.GetPageSnapshot)
 			replays.GET("/data/:session_id", replayHandler.GetReplay)
+			// Streaming playback endpoints: manifest (no S3) + per-chunk fetch
+			replays.GET("/manifest/:session_id", replayHandler.GetReplayManifest)
+			replays.GET("/chunk/:session_id", replayHandler.GetReplayChunk)
 			replays.DELETE("/sessions/:session_id", replayHandler.DeleteReplay)
 			replays.DELETE("/bulk-delete", replayHandler.BulkDeleteReplays)
 		}

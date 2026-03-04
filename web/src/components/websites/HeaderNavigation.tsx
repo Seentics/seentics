@@ -16,7 +16,6 @@ import {
     MousePointer2,
     Video,
     Lock,
-    Radio,
     Route,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
@@ -53,7 +52,6 @@ export function HeaderNavigation({ websiteId, floating = false }: { websiteId: s
         { title: 'Replays', href: `/websites/${websiteId}/replays`, icon: Video, isLocked: isDemo },
         { title: 'Automations', href: `/websites/${websiteId}/automations`, icon: Workflow, isLocked: isDemo },
         { title: 'Funnels', href: `/websites/${websiteId}/funnels`, icon: Filter, isLocked: isDemo },
-        { title: 'Real-time', href: `/websites/${websiteId}/realtime`, icon: Radio, isLocked: isDemo, enterpriseOnly: true },
         { title: 'Paths', href: `/websites/${websiteId}/paths`, icon: Route, isLocked: isDemo, enterpriseOnly: true },
         { title: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard, isLocked: isDemo, enterpriseOnly: true },
         { title: 'Privacy', href: `/websites/${websiteId}/privacy`, icon: Shield, isLocked: isDemo, enterpriseOnly: true },

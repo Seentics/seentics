@@ -42,7 +42,7 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
       name: 'Basic',
       price: '$15',
       description: 'For small businesses',
-      features: ['3 Websites', '100K Events/mo', '3K Recordings', '10 Heatmaps', '5 Funnels', '5 Automations'],
+      features: ['3 Websites', '100K Events/mo', '3K Recordings', '20 Heatmaps', '10 Funnels', '10 Automations'],
       current: currentPlan === 'basic',
     },
     {
@@ -52,14 +52,15 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
       features: ['15 Websites', '1M Events/mo', '25K Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels'],
       current: currentPlan === 'pro',
     },
-    {
-      name: 'Enterprise',
-      price: '$0 base + usage',
-      period: 'Pay-as-you-go',
-      description: 'For agencies & large teams',
-      features: ['No Base Fee — Pay-As-You-Go', '5 Sites Incl., then $2/site/mo', '100K Events Incl., then $1.50/1K', '5K Recordings Incl., then $5/1K', 'Unlimited Heatmaps & Funnels', '7 Year Analytics Retention', 'White Label & Client Mgmt', 'Dedicated Support'],
-      current: currentPlan === 'enterprise',
-    }
+    // HIDDEN: Enterprise plan — uncomment to re-enable
+    // {
+    //   name: 'Enterprise',
+    //   price: '$0 base + usage',
+    //   period: 'Pay-as-you-go',
+    //   description: 'For agencies & large teams',
+    //   features: ['No Base Fee — Pay-As-You-Go', '5 Sites Incl., then $2/site/mo', '100K Events Incl., then $1.50/1K', '5K Recordings Incl., then $5/1K', 'Unlimited Heatmaps & Funnels', '7 Year Analytics Retention', 'White Label & Client Mgmt', 'Dedicated Support'],
+    //   current: currentPlan === 'enterprise',
+    // }
   ];
 
   return (

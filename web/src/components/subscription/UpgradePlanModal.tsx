@@ -29,9 +29,9 @@ const planDetails = {
       "3 Websites",
       "100,000 Monthly Events", 
       "3,000 Session Recordings",
-      "10 Heatmap Pages",
-      "5 Funnels",
-      "5 Automations",
+      "20 Heatmap Pages",
+      "10 Funnels",
+      "10 Automations",
       "1 Month Recording Retention",
       "1 Year Analytics Retention",
       "Email Support"
@@ -88,6 +88,21 @@ const limitMessages: Record<string, string> = {
   monthlyEvents: 'You\'ve reached your monthly events limit'
 };
 
+const limitLabels: Record<string, string> = {
+  websites: 'websites',
+  workflows: 'automations',
+  funnels: 'funnels',
+  heatmaps: 'heatmap pages',
+  replays: 'session recordings',
+  monthlyEvents: 'monthly events',
+};
+
+const formatNum = (n: number) => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  return n.toLocaleString();
+};
+
 declare global {
   interface Window {
     createLemonSqueezy?: () => void;
@@ -119,9 +134,10 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
     }
   }, [isOpen]);
 
-  const upgradePlans = ['basic', 'pro', 'enterprise'] as const;
+  // HIDDEN: 'enterprise' removed — uncomment to re-enable
+  const upgradePlans = ['basic', 'pro'] as const;
 
-  const handleUpgrade = async (plan: 'basic' | 'pro' | 'enterprise') => {
+  const handleUpgrade = async (plan: 'basic' | 'pro' /* | 'enterprise' */) => {
     if (!isAuthenticated) {
       window.location.href = '/signin';
       return;
@@ -169,16 +185,16 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
     }
   };
 
-  const colorMap: Record<string, { bg: string; hover: string; check: string }> = {
-    teal: { bg: 'bg-teal-500', hover: 'hover:bg-teal-600', check: 'text-teal-500' },
-    indigo: { bg: 'bg-indigo-500', hover: 'hover:bg-indigo-600', check: 'text-indigo-500' },
-    purple: { bg: 'bg-purple-500', hover: 'hover:bg-purple-600', check: 'text-purple-500' },
-    amber: { bg: 'bg-amber-500', hover: 'hover:bg-amber-600', check: 'text-amber-500' },
+  const colorMap: Record<string, { bg: string; hover: string; check: string; border: string }> = {
+    teal: { bg: 'bg-teal-500', hover: 'hover:bg-teal-600', check: 'text-teal-500', border: 'border-teal-500' },
+    indigo: { bg: 'bg-indigo-500', hover: 'hover:bg-indigo-600', check: 'text-indigo-500', border: 'border-indigo-500' },
+    purple: { bg: 'bg-purple-500', hover: 'hover:bg-purple-600', check: 'text-purple-500', border: 'border-purple-500' },
+    amber: { bg: 'bg-amber-500', hover: 'hover:bg-amber-600', check: 'text-amber-500', border: 'border-amber-500' },
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto w-[95vw]">
+      <DialogContent className="max-w-3xl max-h-[95vh] overflow-y-auto w-[95vw]">
         <DialogHeader className="relative">
           <Button
             variant="ghost"
@@ -196,16 +212,18 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
               {limitMessages[limitType]}
             </p>
             <p className="text-xs text-muted-foreground">
-              You're using <span className="font-medium text-foreground">{currentUsage} of {limit}</span> {limitType}. Upgrade to continue growing.
+              You're using{' '}
+              <span className="font-medium text-foreground">{formatNum(currentUsage)} of {formatNum(limit)}</span>{' '}
+              {limitLabels[limitType] ?? limitType}. Upgrade to continue growing.
             </p>
           </div>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
           {upgradePlans.map((planKey) => {
             const plan = planDetails[planKey];
             const PlanIcon = plan.icon;
-            const isRecommended = planKey === 'growth';
+            const isRecommended = planKey === 'basic';
             const isCurrent = currentPlan === planKey;
             const colors = colorMap[plan.color];
 
@@ -222,7 +240,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
                 <div className={cn(
                   "h-full flex flex-col rounded-xl border bg-card p-6 transition-all duration-300",
                   isCurrent ? 'border-primary/20 bg-primary/5' :
-                  isRecommended ? 'border-2 border-indigo-500 shadow-md' : 'border-border/60'
+                  isRecommended ? `border-2 ${colors.border} shadow-md` : 'border-border/60'
                 )}>
                   <div className="text-center mb-5">
                     <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-3", `${colors.bg}/10`)}>

@@ -89,18 +89,8 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 		return nil, fmt.Errorf("website is inactive")
 	}
 
-	// Domain Validation
-	origin := ""
-	if event.Referrer != nil {
-		origin = *event.Referrer
-	}
-	if !s.websites.ValidateOriginDomain(origin, website.URL) {
-		s.logger.Warn().
-			Str("referrer", origin).
-			Str("site_domain", website.URL).
-			Msg("Domain mismatch")
-		return nil, fmt.Errorf("domain mismatch")
-	}
+	// Domain Validation skipped for single-event path — no reliable own-domain field available.
+	// The batch path validates using req.Domain (location.hostname sent by the tracker).
 
 	// Validate and set defaults
 	if event.EventType == "" {
@@ -156,13 +146,14 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 		return nil, fmt.Errorf("website is inactive")
 	}
 
-	// Validate Domain for the batch based on the first event or provided domain
-	// We check against the first event's referrer or a common domain in the request if available
-	testOrigin := ""
-	if len(req.Events) > 0 && req.Events[0].Referrer != nil {
-		testOrigin = *req.Events[0].Referrer
-	}
-	if !s.websites.ValidateOriginDomain(testOrigin, website.URL) {
+	// Validate that the batch originates from the registered website domain.
+	// req.Domain is set by the tracker script to location.hostname (the site's own hostname),
+	// NOT document.referrer (which is the incoming referrer, e.g. google.com).
+	if !s.websites.ValidateOriginDomain(req.Domain, website.URL) {
+		s.logger.Warn().
+			Str("req_domain", req.Domain).
+			Str("site_domain", website.URL).
+			Msg("Domain mismatch in batch event")
 		return nil, fmt.Errorf("domain mismatch")
 	}
 
