@@ -22,6 +22,7 @@ export const FEATURES: Record<string, boolean> = {
   WORKFLOW_BASIC: true,
   FUNNEL_BASIC: true,
   HEATMAPS: true,
+  LAYOUT_SETTINGS: true,
 
   // Enterprise-only features
   BILLING_PAGE: isEnterprise,
@@ -76,17 +77,20 @@ export const LIMITS = {
     support: 'Priority',
   },
   enterprise: {
-    websites: '100',
-    events: '15M',
+    websites: '5 included',
+    events: '100K included',
     workflows: 'Unlimited',
     funnels: 'Unlimited',
     heatmaps: 'Unlimited',
-    replays: '200,000',
+    replays: '5K included',
     recordingRetention: '3 months',
     analyticsRetention: '7 years',
     support: 'Dedicated',
     whiteLabel: true,
     clientManagement: true,
+    overageWebsite: '$2/site/mo',
+    overageEvents: '$1.50/1K events',
+    overageRecordings: '$5/1K recordings',
   },
 };
 

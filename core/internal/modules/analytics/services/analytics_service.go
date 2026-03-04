@@ -383,3 +383,49 @@ func (s *AnalyticsService) GetRecentActivity(ctx context.Context, websiteID stri
 	}
 	return s.repo.GetRecentActivity(ctx, canonicalID, limit)
 }
+
+func (s *AnalyticsService) GetPathAnalysis(ctx context.Context, websiteID string, days int, userID string) (*models.PathAnalysis, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	var entryPages []models.TopItem
+	var exitPages []models.TopItem
+	var pageFlows []models.PageFlow
+	var avgPathLength float64
+
+	g.Go(func() error {
+		var e error
+		entryPages, e = s.repo.GetEntryPages(gCtx, canonicalID, days, 10)
+		return e
+	})
+	g.Go(func() error {
+		var e error
+		exitPages, e = s.repo.GetExitPages(gCtx, canonicalID, days, 10)
+		return e
+	})
+	g.Go(func() error {
+		var e error
+		pageFlows, e = s.repo.GetPageFlows(gCtx, canonicalID, days, 30)
+		return e
+	})
+	g.Go(func() error {
+		var e error
+		avgPathLength, e = s.repo.GetAvgPathLength(gCtx, canonicalID, days)
+		return e
+	})
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return &models.PathAnalysis{
+		TopEntryPages: entryPages,
+		TopExitPages:  exitPages,
+		PageFlows:     pageFlows,
+		AvgPathLength: avgPathLength,
+	}, nil
+}

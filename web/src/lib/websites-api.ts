@@ -320,3 +320,7 @@ export const addMember = async (websiteId: string, data: { email: string; role: 
 export const removeMember = async (websiteId: string, userId: string): Promise<void> => {
   await api.delete(`/user/websites/${websiteId}/members/${userId}`);
 };
+
+export const updateMemberRole = async (websiteId: string, userId: string, role: string): Promise<void> => {
+  await api.put(`/user/websites/${websiteId}/members/${userId}/role`, { role });
+};

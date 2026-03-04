@@ -60,25 +60,22 @@ const planDetails = {
   enterprise: {
     name: 'Enterprise',
     price: '$0 base + usage',
-    period: '$2/site + $1.50/1k events',
+    period: 'Pay-as-you-go',
     icon: Sparkles,
     color: 'amber',
     features: [
-      'No Base Fee (Usage-Only Billing)',
-      'First 100 Websites Included',
-      'First 15M Monthly Events Included',
-      'Then $2 per Additional Website',
-      'Then $1.50 per 1,000 Additional Events',
-      'Up to 200,000 Session Recordings',
+      'No Base Fee — Pure Pay-As-You-Go',
+      '5 Websites Included, then $2/site/mo',
+      '100K Events Included, then $1.50/1K events',
+      '5K Recordings Included, then $5/1K recordings',
       "Unlimited Heatmaps",
-      "Unlimited Funnels",
-      "Unlimited Automations",
+      "Unlimited Funnels & Automations",
       "7 Year Analytics Retention",
-      "White Label Solution",
-      "Client Management",
+      "3 Month Recording Retention",
+      "White Label & Client Management",
       "Dedicated Support"
     ],
-    buttonText: 'Upgrade to Enterprise'
+    buttonText: 'Start Usage-Based'
   }
 };
 

@@ -70,17 +70,17 @@ const API_ENDPOINTS = [
 ];
 
 const ENTERPRISE_FEATURES = [
-    'First 100 Websites Included',
-    'First 15M Monthly Events Included', 
-    'Then $2 per Additional Website',
-    'Then $1.50 per 1K Additional Events',
-    'Up to 200,000 Session Recordings',
+    'No Base Fee — Pure Pay-As-You-Go',
+    '5 Websites Included, then $2/site/mo',
+    '100K Events Included, then $1.50/1K events',
+    '5K Recordings Included, then $5/1K recordings',
     'Unlimited Heatmaps & Funnels',
-    'White Label Branding & Domain',
+    'White Label Branding & Custom Domain',
     'Agency Management Portal',
     'Raw Server-to-Server API (12+ endpoints)',
     'Client-Level Feature Toggles',
     '7-Year Analytics Retention',
+    '3-Month Recording Retention',
     'Dedicated Support Channel',
 ];
 
@@ -211,8 +211,8 @@ export default function AgencySolutionPage() {
                 <div className="container mx-auto px-6">
                     <div className="flex flex-wrap items-center justify-center gap-10 text-sm font-medium text-muted-foreground/80">
                         {[
-                            '100 Websites included',
-                            '15M Monthly Events',
+                            'Pay-As-You-Go Pricing',
+                            'No Base Fee',
                             'White Label Ready',
                             'Raw Server API',
                             'Dedicated Support',
@@ -422,7 +422,7 @@ export default function AgencySolutionPage() {
                                 <p className="text-5xl font-extrabold text-foreground mb-4 tracking-tight">
                                     $0 base + usage
                                 </p>
-                                <p className="text-sm font-medium text-muted-foreground">$2 per additional website, $1.50 per 1K additional events. Generous included quotas.</p>
+                                <p className="text-sm font-medium text-muted-foreground">$2/site/mo · $1.50/1K events · $5/1K recordings. Generous included quotas.</p>
                             </div>
 
                             <div className="space-y-4 mb-10 bg-muted/20 rounded-2xl p-6 border border-border/40">

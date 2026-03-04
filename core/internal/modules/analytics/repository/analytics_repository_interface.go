@@ -33,5 +33,9 @@ type MainAnalyticsRepository interface {
 	GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.EventItem, error)
 	GetTopResolutions(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error)
 	GetRecentActivity(ctx context.Context, websiteID string, limit int) ([]models.RecentActivity, error)
+	GetPageFlows(ctx context.Context, websiteID string, days int, limit int) ([]models.PageFlow, error)
+	GetEntryPages(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error)
+	GetExitPages(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error)
+	GetAvgPathLength(ctx context.Context, websiteID string, days int) (float64, error)
 	DeleteAllWebsiteData(ctx context.Context, websiteID string) error
 }

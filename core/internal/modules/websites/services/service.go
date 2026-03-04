@@ -552,6 +552,25 @@ func (s *WebsiteService) RemoveMember(ctx context.Context, siteID string, userID
 	return s.repo.RemoveMember(ctx, w.ID, userID)
 }
 
+// UpdateMemberRole changes a team member's role
+func (s *WebsiteService) UpdateMemberRole(ctx context.Context, siteID string, userID uuid.UUID, role string) error {
+	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	if err != nil {
+		return err
+	}
+
+	// Cannot change the owner's role
+	if w.UserID == userID {
+		return fmt.Errorf("cannot change the website owner's role")
+	}
+
+	if role != "admin" && role != "viewer" {
+		return fmt.Errorf("invalid role: must be 'admin' or 'viewer'")
+	}
+
+	return s.repo.UpdateMemberRole(ctx, w.ID, userID, role)
+}
+
 // Helper to generate secure random identifiers
 func generateID(length int) string {
 	b := make([]byte, length)

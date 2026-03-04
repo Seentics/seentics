@@ -298,6 +298,7 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 			analytics.GET("/geolocation-breakdown/:website_id", analyticsHandler.GetGeolocationBreakdown)
 			analytics.GET("/visitor-insights/:website_id", analyticsHandler.GetVisitorInsights)
 			analytics.GET("/recent-activity/:website_id", analyticsHandler.GetRecentActivity)
+			analytics.GET("/path-analysis/:website_id", analyticsHandler.GetPathAnalysis)
 			analytics.GET("/export/:website_id", analyticsHandler.ExportAnalytics)
 			analytics.POST("/import", analyticsHandler.ImportAnalytics)
 		}
@@ -416,6 +417,7 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 			websites.GET("/:id/members", websiteHandler.ListMembers)
 			websites.POST("/:id/members", websiteHandler.AddMember)
 			websites.DELETE("/:id/members/:user_id", websiteHandler.RemoveMember)
+			websites.PUT("/:id/members/:user_id/role", websiteHandler.UpdateMemberRole)
 		}
 
 		heatmaps := v1.Group("/heatmaps")

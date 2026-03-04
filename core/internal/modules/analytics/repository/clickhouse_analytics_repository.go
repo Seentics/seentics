@@ -1176,6 +1176,126 @@ func (r *ClickHouseAnalyticsRepository) GetRecentActivity(ctx context.Context, w
 	return activities, nil
 }
 
+func (r *ClickHouseAnalyticsRepository) GetPageFlows(ctx context.Context, websiteID string, days int, limit int) ([]models.PageFlow, error) {
+	query := `
+		SELECT from_page, to_page, count(*) as cnt
+		FROM (
+			SELECT
+				page as from_page,
+				leadInFrame(page) OVER (PARTITION BY session_id ORDER BY timestamp ROWS BETWEEN CURRENT ROW AND 1 FOLLOWING) as to_page
+			FROM events
+			WHERE website_id = ?
+			AND event_type = 'pageview'
+			AND timestamp >= now() - interval ? day
+		)
+		WHERE to_page != '' AND from_page != to_page
+		GROUP BY from_page, to_page
+		ORDER BY cnt DESC
+		LIMIT ?`
+
+	rows, err := r.conn.Query(ctx, query, websiteID, days, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var flows []models.PageFlow
+	for rows.Next() {
+		var f models.PageFlow
+		var count uint64
+		if err := rows.Scan(&f.FromPage, &f.ToPage, &count); err != nil {
+			continue
+		}
+		f.Count = int(count)
+		flows = append(flows, f)
+	}
+	return flows, nil
+}
+
+func (r *ClickHouseAnalyticsRepository) GetEntryPages(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error) {
+	query := `
+		SELECT page as name, count(*) as cnt
+		FROM (
+			SELECT session_id, argMin(page, timestamp) as page
+			FROM events
+			WHERE website_id = ?
+			AND event_type = 'pageview'
+			AND timestamp >= now() - interval ? day
+			GROUP BY session_id
+		)
+		GROUP BY page
+		ORDER BY cnt DESC
+		LIMIT ?`
+
+	rows, err := r.conn.Query(ctx, query, websiteID, days, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []models.TopItem
+	for rows.Next() {
+		var item models.TopItem
+		var count uint64
+		if err := rows.Scan(&item.Name, &count); err != nil {
+			continue
+		}
+		item.Count = int(count)
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func (r *ClickHouseAnalyticsRepository) GetExitPages(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error) {
+	query := `
+		SELECT page as name, count(*) as cnt
+		FROM (
+			SELECT session_id, argMax(page, timestamp) as page
+			FROM events
+			WHERE website_id = ?
+			AND event_type = 'pageview'
+			AND timestamp >= now() - interval ? day
+			GROUP BY session_id
+		)
+		GROUP BY page
+		ORDER BY cnt DESC
+		LIMIT ?`
+
+	rows, err := r.conn.Query(ctx, query, websiteID, days, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []models.TopItem
+	for rows.Next() {
+		var item models.TopItem
+		var count uint64
+		if err := rows.Scan(&item.Name, &count); err != nil {
+			continue
+		}
+		item.Count = int(count)
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func (r *ClickHouseAnalyticsRepository) GetAvgPathLength(ctx context.Context, websiteID string, days int) (float64, error) {
+	query := `
+		SELECT avg(pages) FROM (
+			SELECT session_id, count(*) as pages
+			FROM events
+			WHERE website_id = ?
+			AND event_type = 'pageview'
+			AND timestamp >= now() - interval ? day
+			GROUP BY session_id
+		)`
+
+	var avg float64
+	err := r.conn.QueryRow(ctx, query, websiteID, days).Scan(&avg)
+	return avg, err
+}
+
 func (r *ClickHouseAnalyticsRepository) DeleteAllWebsiteData(ctx context.Context, websiteID string) error {
 	tables := []string{
 		"events",

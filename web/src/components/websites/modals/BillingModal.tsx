@@ -55,9 +55,9 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
     {
       name: 'Enterprise',
       price: '$0 base + usage',
-      period: 'Usage-based',
+      period: 'Pay-as-you-go',
       description: 'For agencies & large teams',
-      features: ['No Base Fee (Usage-Only)', '100 Websites Included', '15M Events Included', '+$2 per Additional Website', '+$1.50 per 1k Additional Events', '200k Session Recordings', 'Unlimited Everything Else', 'White Label', 'Dedicated Support'],
+      features: ['No Base Fee — Pay-As-You-Go', '5 Sites Incl., then $2/site/mo', '100K Events Incl., then $1.50/1K', '5K Recordings Incl., then $5/1K', 'Unlimited Heatmaps & Funnels', '7 Year Analytics Retention', 'White Label & Client Mgmt', 'Dedicated Support'],
       current: currentPlan === 'enterprise',
     }
   ];

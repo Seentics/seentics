@@ -186,6 +186,21 @@ type RecentActivity struct {
 	Timestamp string `json:"timestamp"`
 }
 
+// PageFlow represents a transition from one page to another within sessions
+type PageFlow struct {
+	FromPage string `json:"from_page"`
+	ToPage   string `json:"to_page"`
+	Count    int    `json:"count"`
+}
+
+// PathAnalysis aggregates page flow data for journey analysis
+type PathAnalysis struct {
+	TopEntryPages []TopItem  `json:"top_entry_pages"`
+	TopExitPages  []TopItem  `json:"top_exit_pages"`
+	PageFlows     []PageFlow `json:"page_flows"`
+	AvgPathLength float64    `json:"avg_path_length"`
+}
+
 // LEGACY MODELS - Keep these for compatibility but they might not be actively used
 
 // SessionAnalytics represents session-based analytics data

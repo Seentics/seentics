@@ -18,14 +18,14 @@ const planPriceMap: Record<string, number> = {
     free: 0,
     basic: 15,
     pro: 49,
-    enterprise: 399,
+    enterprise: 0,
 };
 
 const planDescriptions: Record<string, string> = {
     free: 'For side projects and personal sites',
     basic: 'For small businesses',
     pro: 'For growing teams with priority support',
-    enterprise: 'Pure usage-based pricing. $2/website, $1/1k events, $5/1k sessions',
+    enterprise: 'Pay-as-you-go: $2/site · $1.50/1K events · $5/1K recordings',
 };
 
 const planFeatures: Record<string, string[]> = {
@@ -65,22 +65,15 @@ const planFeatures: Record<string, string[]> = {
         'Priority Support',
     ],
     enterprise: [
-        'No Base Fee (Usage-Only Billing)',
-        'First 100 Websites Included',
-        'First 15M Monthly Events Included',
-        'Then $2 per Additional Website',
-        'Then $1.50 per 1,000 Additional Events',
-        'Up to 200,000 Session Recordings',
+        'No Base Fee — Pure Pay-As-You-Go',
+        '5 Websites Included, then $2/site/mo',
+        '100K Events Included, then $1.50/1K events',
+        '5K Recordings Included, then $5/1K recordings',
         'Unlimited Heatmaps',
-        'Unlimited Funnels',
-        'Unlimited Automations',
+        'Unlimited Funnels & Automations',
         '7 Year Analytics Retention',
-        'White Label Solution',
-        'Client Management',
-        'Dedicated Support',
         '3 Month Recording Retention',
-        'White Labeling',
-        'Client Management',
+        'White Label & Client Management',
         'Dedicated Support',
     ],
 };

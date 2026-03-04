@@ -824,3 +824,30 @@ func (h *AnalyticsHandler) GetRecentActivity(c *gin.Context) {
 		"activities": activities,
 	})
 }
+
+func (h *AnalyticsHandler) GetPathAnalysis(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	days := h.parseDays(c, 7)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
+	analysis, err := h.service.GetPathAnalysis(c.Request.Context(), websiteID, days, userID)
+	if err != nil {
+		h.handleError(c, err, "Failed to get path analysis")
+		return
+	}
+
+	c.JSON(http.StatusOK, analysis)
+}

@@ -49,33 +49,33 @@ export default function BillingDocs() {
                                 <td className="p-4 text-center text-muted-foreground">10K</td>
                                 <td className="p-4 text-center text-muted-foreground">100K</td>
                                 <td className="p-4 text-center font-bold text-primary">1M</td>
-                                <td className="p-4 text-center text-muted-foreground">First 15M included</td>
+                                <td className="p-4 text-center text-muted-foreground">100K incl., then $1.50/1K</td>
                             </tr>
                             <tr className="border-b">
                                 <td className="p-4 font-medium">Session Recordings</td>
                                 <td className="p-4 text-center text-muted-foreground">100</td>
                                 <td className="p-4 text-center text-muted-foreground">3K</td>
                                 <td className="p-4 text-center font-bold text-primary">25K</td>
-                                <td className="p-4 text-center text-muted-foreground">Up to 200K</td>
+                                <td className="p-4 text-center text-muted-foreground">5K incl., then $5/1K</td>
                             </tr>
                             <tr className="border-b">
                                 <td className="p-4 font-medium">Websites</td>
                                 <td className="p-4 text-center text-muted-foreground">1</td>
                                 <td className="p-4 text-center text-muted-foreground">3</td>
                                 <td className="p-4 text-center font-bold text-primary">15</td>
-                                <td className="p-4 text-center text-muted-foreground">First 100 included</td>
+                                <td className="p-4 text-center text-muted-foreground">5 incl., then $2/site/mo</td>
                             </tr>
                             <tr className="border-b">
                                 <td className="p-4 font-medium">Analytics Retention</td>
                                 <td className="p-4 text-center text-muted-foreground">30 Days</td>
-                                <td className="p-4 text-center text-muted-foreground">2 Years</td>
-                                <td className="p-4 text-center font-bold text-primary">5 Years</td>
+                                <td className="p-4 text-center text-muted-foreground">1 Year</td>
+                                <td className="p-4 text-center font-bold text-primary">3 Years</td>
                                 <td className="p-4 text-center text-muted-foreground">7 Years</td>
                             </tr>
                             <tr>
                                 <td className="p-4 font-medium">Recording Retention</td>
                                 <td className="p-4 text-center text-muted-foreground">30 Days</td>
-                                <td className="p-4 text-center text-muted-foreground">3 Months</td>
+                                <td className="p-4 text-center text-muted-foreground">1 Month</td>
                                 <td className="p-4 text-center font-bold text-primary">3 Months</td>
                                 <td className="p-4 text-center text-muted-foreground">3 Months</td>
                             </tr>
@@ -83,7 +83,7 @@ export default function BillingDocs() {
                     </table>
                 </div>
                 <p className="text-xs text-muted-foreground mt-3 px-1">
-                    Enterprise includes 100 websites and 15M events, then $2 per additional website, $1.50 per 1K additional events.
+                    Enterprise is pure pay-as-you-go with no base fee. Overage rates: $2/additional website/mo, $1.50/1K additional events, $5/1K additional recordings.
                 </p>
             </section>
 

@@ -263,6 +263,30 @@ func (h *WebsiteHandler) RemoveMember(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Member removed successfully"})
 }
 
+// UpdateMemberRole handles PUT /api/v1/user/websites/:id/members/:user_id/role
+func (h *WebsiteHandler) UpdateMemberRole(c *gin.Context) {
+	id := c.Param("id")
+	userIDStr := c.Param("user_id")
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	var req models.UpdateMemberRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.UpdateMemberRole(c.Request.Context(), id, userID, req.Role); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Member role updated successfully"})
+}
+
 // Delete handles the DELETE /api/v1/user/websites/:id request
 func (h *WebsiteHandler) Delete(c *gin.Context) {
 	userIDStr, exists := c.Get("user_id")

@@ -10,6 +10,7 @@ export interface UserPreferences {
   density: string;
   dashboardTitle: string;
   logoUrl: string;
+  layoutMode: string;
 }
 
 export const DEFAULT_PREFERENCES: UserPreferences = {
@@ -22,6 +23,7 @@ export const DEFAULT_PREFERENCES: UserPreferences = {
   density: 'comfortable',
   dashboardTitle: '',
   logoUrl: '',
+  layoutMode: 'sidebar',
 };
 
 export async function getPreferences(): Promise<UserPreferences> {

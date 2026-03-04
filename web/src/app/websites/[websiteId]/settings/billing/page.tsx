@@ -22,14 +22,14 @@ const planPrices: Record<string, number> = {
   free: 0,
   basic: 15,
   pro: 49,
-  enterprise: 399,
+  enterprise: 0,
 };
 
 const planFeatures: Record<string, string[]> = {
   free: ['Analytics Dashboard', '10K Monthly Events', '1 Website', '1 Funnel', '1 Automation', '3 Heatmaps', '100 Session Recordings', 'Community Support'],
   basic: ['Analytics Dashboard', '100K Monthly Events', '3 Websites', '5 Funnels', '5 Automations', '10 Heatmap Pages', '3,000 Session Recordings', 'Email Support'],
   pro: ['Analytics Dashboard', '1M Monthly Events', '15 Websites', 'Unlimited Funnels', 'Unlimited Automations', 'Unlimited Heatmaps', '25,000 Session Recordings', 'Priority Support'],
-  enterprise: ['No Base Fee (Usage-Only Billing)', 'First 100 Websites Included', 'First 15M Monthly Events Included', 'Then $2 per Additional Website', 'Then $1.50 per 1,000 Additional Events', 'Up to 200,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels', 'Unlimited Automations', '7 Year Analytics Retention', 'White Label Solution', 'Client Management', 'Dedicated Support'],
+  enterprise: ['No Base Fee — Pure Pay-As-You-Go', '5 Websites Included, then $2/site/mo', '100K Events Included, then $1.50/1K events', '5K Recordings Included, then $5/1K recordings', 'Unlimited Heatmaps', 'Unlimited Funnels & Automations', '7 Year Analytics Retention', '3 Month Recording Retention', 'White Label & Client Management', 'Dedicated Support'],
 };
 
 export default function BillingSettings() {

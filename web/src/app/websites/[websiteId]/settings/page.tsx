@@ -10,6 +10,12 @@ import {
     Video,
     Target,
     Palette,
+    PanelLeft,
+    Key,
+    Bell,
+    FileText,
+    Plug,
+    LayoutDashboard,
 } from 'lucide-react';
 
 import { ProfileSettings } from '@/components/profile-settings';
@@ -19,10 +25,17 @@ import { HeatmapSettingsComponent } from '@/components/settings/HeatmapSettingsC
 import { ReplaySettingsComponent } from '@/components/settings/ReplaySettingsComponent';
 import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
 import { CustomizationSettingsComponent } from '@/components/settings/CustomizationSettingsComponent';
+import { LayoutSettingsComponent } from '@/components/settings/LayoutSettingsComponent';
+import { ApiKeysSettingsComponent } from '@/components/settings/ApiKeysSettingsComponent';
+import { AlertsSettingsComponent } from '@/components/settings/AlertsSettingsComponent';
+import { ReportsSettingsComponent } from '@/components/settings/ReportsSettingsComponent';
+import { IntegrationsSettingsComponent } from '@/components/settings/IntegrationsSettingsComponent';
+import { DashboardsSettingsComponent } from '@/components/settings/DashboardsSettingsComponent';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { cn } from '@/lib/utils';
+import { isEnterprise } from '@/lib/features';
 
-const tabs = [
+const baseTabs = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'websites', label: 'Websites', icon: Globe },
     { id: 'goals', label: 'Goals', icon: Target },
@@ -30,6 +43,14 @@ const tabs = [
     { id: 'replays', label: 'Replays', icon: Video },
     { id: 'scripts', label: 'Scripts', icon: Zap },
     { id: 'customization', label: 'Customization', icon: Palette },
+    { id: 'layout', label: 'Layout', icon: PanelLeft },
+    ...(isEnterprise ? [
+        { id: 'api-keys', label: 'API Keys', icon: Key },
+        { id: 'alerts', label: 'Alerts', icon: Bell },
+        { id: 'reports', label: 'Reports', icon: FileText },
+        { id: 'integrations', label: 'Integrations', icon: Plug },
+        { id: 'dashboards', label: 'Dashboards', icon: LayoutDashboard },
+    ] : []),
 ];
 
 export default function SettingsPage() {
@@ -37,7 +58,7 @@ export default function SettingsPage() {
     const searchParams = useSearchParams();
     const websiteId = params?.websiteId as string;
     const tabParam = searchParams.get('tab');
-    const isValidTab = tabs.some(t => t.id === tabParam);
+    const isValidTab = baseTabs.some(t => t.id === tabParam);
     const [activeTab, setActiveTab] = useState(isValidTab ? tabParam! : 'profile');
 
     const renderContent = () => {
@@ -49,6 +70,12 @@ export default function SettingsPage() {
             case 'goals': return <GoalsSettingsComponent websiteId={websiteId} />;
             case 'scripts': return <ScriptSettingsComponent websiteId={websiteId} />;
             case 'customization': return <CustomizationSettingsComponent />;
+            case 'layout': return <LayoutSettingsComponent />;
+            case 'api-keys': return <ApiKeysSettingsComponent />;
+            case 'alerts': return <AlertsSettingsComponent />;
+            case 'reports': return <ReportsSettingsComponent />;
+            case 'integrations': return <IntegrationsSettingsComponent />;
+            case 'dashboards': return <DashboardsSettingsComponent />;
             default: return <ProfileSettings />;
         }
     };
@@ -63,7 +90,7 @@ export default function SettingsPage() {
             {/* Horizontal Tabs */}
             <div className="border-b border-border/40">
                 <nav className="flex gap-1 overflow-x-auto pb-px -mb-px">
-                    {tabs.map((tab) => {
+                    {baseTabs.map((tab) => {
                         const isActive = activeTab === tab.id;
                         return (
                             <button

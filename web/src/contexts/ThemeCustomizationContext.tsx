@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { UserPreferences, DEFAULT_PREFERENCES, getPreferences, updatePreferences } from '@/lib/preferences-api';
 import { useAuth } from '@/stores/useAuthStore';
+import { useLayoutStore, LayoutMode } from '@/stores/useLayoutStore';
 
 interface ThemeCustomizationContextValue {
   preferences: UserPreferences;
@@ -79,6 +80,7 @@ function clearTheme() {
 
 export function ThemeCustomizationProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
+  const setLayoutMode = useLayoutStore((s) => s.setLayoutMode);
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -89,6 +91,9 @@ export function ThemeCustomizationProvider({ children }: { children: React.React
       .then(prefs => {
         setPreferences(prefs);
         applyTheme(prefs);
+        if (prefs.layoutMode && ['sidebar', 'dock', 'header', 'floating-header'].includes(prefs.layoutMode)) {
+          setLayoutMode(prefs.layoutMode as LayoutMode);
+        }
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
@@ -105,6 +110,7 @@ export function ThemeCustomizationProvider({ children }: { children: React.React
     await updatePreferences(DEFAULT_PREFERENCES);
     setPreferences(DEFAULT_PREFERENCES);
     clearTheme();
+    setLayoutMode('sidebar');
   }, []);
 
   return (

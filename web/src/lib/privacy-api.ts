@@ -1,4 +1,5 @@
 import api from './api';
+import { isEnterprise } from './features';
 
 export interface PrivacySettings {
   analyticsTracking: boolean;
@@ -53,6 +54,26 @@ export interface ComplianceStatus {
   ccpaCompliant: boolean;
   pendingRequests: number;
   lastUpdated: string;
+}
+
+export interface WebsitePrivacySettings {
+  ipAnonymization: 'none' | 'partial' | 'full';
+  respectDnt: boolean;
+  consentMode: 'cookieless' | 'strict';
+  dataRetentionDays: number | null;
+}
+
+export interface GDPRRequestItem {
+  id: string;
+  userId: string;
+  userEmail?: string;
+  requestType: string;
+  status: string;
+  processedBy?: string;
+  processedAt?: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 class PrivacyAPI {
@@ -172,6 +193,10 @@ class PrivacyAPI {
   async exportAnalyticsData(userId: string): Promise<any> {
     if (userId === 'demo') return { mock: 'data' };
     try {
+      if (isEnterprise) {
+        const response = await api.get('/user/gdpr/export');
+        return response.data;
+      }
       const response = await api.get(`/privacy/export/${userId}`);
       return response.data;
     } catch (error) {
@@ -230,6 +255,28 @@ class PrivacyAPI {
       console.error('Failed to run data retention cleanup:', error);
       throw error;
     }
+  }
+
+  // Enterprise: per-website privacy settings
+  async getWebsitePrivacy(siteId: string): Promise<{ success: boolean; data: WebsitePrivacySettings }> {
+    const response = await api.get(`/user/websites/${siteId}/privacy`);
+    return response.data;
+  }
+
+  async updateWebsitePrivacy(siteId: string, settings: Partial<WebsitePrivacySettings>): Promise<{ success: boolean; data: WebsitePrivacySettings }> {
+    const response = await api.put(`/user/websites/${siteId}/privacy`, settings);
+    return response.data;
+  }
+
+  // Enterprise: GDPR request management
+  async getGDPRRequests(): Promise<{ success: boolean; data: GDPRRequestItem[] }> {
+    const response = await api.get('/user/gdpr/requests');
+    return response.data;
+  }
+
+  async cancelGDPRRequest(id: string): Promise<{ success: boolean; message: string }> {
+    const response = await api.post(`/user/gdpr/requests/${id}/cancel`);
+    return response.data;
   }
 }
 

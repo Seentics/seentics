@@ -17,10 +17,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getMembers, removeMember, WebsiteMember } from '@/lib/websites-api';
+import { getMembers, removeMember, updateMemberRole, WebsiteMember } from '@/lib/websites-api';
 import { InviteMemberModal } from '../websites/modals/InviteMemberModal';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -53,6 +56,22 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
       toast.error(error.message || 'Failed to remove member');
     },
   });
+
+  const roleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+      updateMemberRole(websiteId, userId, role),
+    onSuccess: () => {
+      toast.success('Role updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['members', websiteId] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || error.message || 'Failed to update role');
+    },
+  });
+
+  const handleChangeRole = (memberUserId: string, newRole: string) => {
+    roleMutation.mutate({ userId: memberUserId, role: newRole });
+  };
 
   const handleRemoveMember = (memberUserId: string) => {
     if (confirm('Are you sure you want to remove this member?')) {
@@ -126,10 +145,32 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48 rounded p-2">
-                      <DropdownMenuItem className="rounded gap-2 cursor-pointer flex items-center">
-                        <Shield className="h-4 w-4 text-muted-foreground" />
-                        Change Role
-                      </DropdownMenuItem>
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="rounded gap-2 cursor-pointer flex items-center">
+                          <Shield className="h-4 w-4 text-muted-foreground" />
+                          Change Role
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent className="w-36 rounded p-1">
+                          <DropdownMenuItem
+                            onClick={() => handleChangeRole(member.userId, 'admin')}
+                            disabled={member.role === 'admin' || roleMutation.isPending}
+                            className="rounded gap-2 cursor-pointer"
+                          >
+                            <Shield className="h-4 w-4 text-blue-500" />
+                            Admin
+                            {member.role === 'admin' && <span className="ml-auto text-[10px] text-muted-foreground">Current</span>}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleChangeRole(member.userId, 'viewer')}
+                            disabled={member.role === 'viewer' || roleMutation.isPending}
+                            className="rounded gap-2 cursor-pointer"
+                          >
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                            Viewer
+                            {member.role === 'viewer' && <span className="ml-auto text-[10px] text-muted-foreground">Current</span>}
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
                       <DropdownMenuItem 
                         onClick={() => handleRemoveMember(member.userId)}
                         className="rounded gap-2 cursor-pointer text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
