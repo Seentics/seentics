@@ -24,13 +24,13 @@ export interface NotificationAlert {
 // User Notifications (Bell Icons)
 export interface UserNotification {
   id: string;
-  user_id: string;
+  userId: string;
   type: string;
   title: string;
   message: string;
-  link: string;
-  is_read: boolean;
-  created_at: string;
+  metadata?: Record<string, any>;
+  read: boolean;
+  createdAt: string;
 }
 
 export const listChannels = async (websiteId: string): Promise<NotificationChannel[]> => {
@@ -73,31 +73,13 @@ export const toggleAlert = async (websiteId: string, id: string) => {
 export const getUserNotifications = async (): Promise<UserNotification[]> => {
   try {
     const response = await api.get('/user/notifications');
-    return response.data;
-  } catch (error) {
-    // If not logged in or error, return demo notifications
-    return [
-      {
-        id: '1',
-        user_id: 'demo',
-        type: 'alert',
-        title: 'Traffic Spike',
-        message: 'Your website "Seentics Demo" is receiving 300% more traffic than usual.',
-        link: '/websites/demo/pulse',
-        is_read: false,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: '2',
-        user_id: 'demo',
-        type: 'automation',
-        title: 'Workflow Executed',
-        message: 'The "Welcome Email" automation was triggered for a new signup.',
-        link: '/websites/demo/automations',
-        is_read: true,
-        created_at: new Date(Date.now() - 3600000).toISOString()
-      }
-    ];
+    // Backend returns { success: true, data: [...] }
+    const payload = response.data;
+    if (payload && Array.isArray(payload.data)) return payload.data;
+    if (Array.isArray(payload)) return payload;
+    return [];
+  } catch {
+    return [];
   }
 };
 

@@ -182,26 +182,36 @@ export function ProfileSettings() {
 
   if (!user) return null;
 
+  const initials = user.name
+    ? user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+    : 'U';
+
   return (
-    <div className="space-y-6 max-w-2xl">
-      {/* Avatar & Identity */}
-      <Card className="border border-border/60 bg-card shadow-sm">
-        <CardContent className="p-5">
-          <div className="flex items-start gap-5">
-            <div className="relative group">
-              <Avatar className="h-20 w-20 ring-2 ring-border/40">
+    <div className="space-y-6 max-w-3xl">
+      {/* Profile Identity Banner */}
+      <Card className="border border-border/60 overflow-hidden shadow-sm">
+        {/* Gradient banner */}
+        <div className="h-24 bg-gradient-to-r from-blue-500/20 via-violet-500/15 to-indigo-500/10 relative">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+        </div>
+        <CardContent className="px-6 pb-6">
+          {/* Avatar overlapping banner */}
+          <div className="flex items-end gap-4 -mt-10 mb-4">
+            <div className="relative flex-shrink-0">
+              <Avatar className="h-20 w-20 ring-4 ring-background shadow-md">
                 <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
-                  {user.name?.[0]?.toUpperCase() || 'U'}
+                <AvatarFallback className="text-lg font-bold bg-gradient-to-br from-blue-500 to-violet-500 text-white">
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <button
-                className="absolute -bottom-1 -right-1 h-7 w-7 rounded-full bg-background border border-border shadow-sm flex items-center justify-center hover:bg-muted transition-colors"
+                className="absolute -bottom-0.5 -right-0.5 h-7 w-7 rounded-full bg-background border-2 border-background shadow flex items-center justify-center hover:bg-muted transition-colors"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isAvatarLoading}
+                title="Change avatar"
               >
                 {isAvatarLoading ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                 ) : (
                   <Camera className="h-3 w-3 text-muted-foreground" />
                 )}
@@ -217,40 +227,43 @@ export function ProfileSettings() {
                 className="hidden"
               />
             </div>
-
-            <div className="flex-1 min-w-0 pt-1">
-              <h3 className="text-base font-semibold text-foreground">{user.name}</h3>
-              <p className="text-sm text-muted-foreground">{user.email}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline" className="text-[10px] font-medium bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-                  {user.isActive ? 'Active' : 'Pending'}
+            <div className="pb-1 flex-1 min-w-0">
+              <h2 className="text-base font-bold text-foreground leading-tight truncate">{user.name}</h2>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            </div>
+            <div className="pb-1 flex items-center gap-2 flex-shrink-0">
+              <Badge className="text-[10px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0 px-2 py-0.5">
+                {user.isActive ? 'Active' : 'Pending'}
+              </Badge>
+              {oauthProvider && (
+                <Badge variant="outline" className="text-[10px] font-medium px-2 py-0.5">
+                  via {oauthProvider.name}
                 </Badge>
-                {oauthProvider && (
-                  <Badge variant="outline" className="text-[10px] font-medium">
-                    {oauthProvider.name}
-                  </Badge>
-                )}
-              </div>
+              )}
             </div>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Click the camera icon to update your profile picture (JPEG, PNG or WebP, max 2 MB).
+          </p>
         </CardContent>
       </Card>
 
-      {/* Profile Form */}
-      <Card className="border border-border/60 bg-card shadow-sm">
-        <CardContent className="p-5">
-          <div className="flex items-center gap-2.5 mb-5">
-            <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center">
-              <User className="h-4 w-4 text-primary" />
+      {/* Two-column grid: General Info + Security */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+        {/* General Information */}
+        <Card className="border border-border/60 bg-card shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <User className="h-4 w-4 text-blue-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold leading-none">General Information</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Your display name and email.</p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-sm font-semibold">General Information</h3>
-              <p className="text-xs text-muted-foreground">Update your display name and email address.</p>
-            </div>
-          </div>
 
-          <form onSubmit={handleProfileSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <form onSubmit={handleProfileSubmit} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="name" className="text-xs font-medium text-muted-foreground">Display Name</Label>
                 <Input
@@ -263,7 +276,12 @@ export function ProfileSettings() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">Email Address</Label>
+                <Label htmlFor="email" className="text-xs font-medium text-muted-foreground">
+                  Email Address
+                  {oauthProvider && (
+                    <span className="ml-1.5 text-[10px] text-muted-foreground/60 font-normal">(managed by {oauthProvider.name})</span>
+                  )}
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -275,59 +293,55 @@ export function ProfileSettings() {
                   required
                 />
               </div>
-            </div>
 
-            <div className="flex justify-end pt-1">
-              <Button type="submit" size="sm" disabled={isLoading} className="gap-1.5 text-xs font-medium">
-                {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
-                Save Changes
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Password */}
-      {!oauthProvider && (
-        <Card className="border border-border/60 bg-card shadow-sm">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-2.5 mb-5">
-              <div className="h-8 w-8 rounded-md bg-amber-500/10 flex items-center justify-center">
-                <Shield className="h-4 w-4 text-amber-500" />
+              <div className="pt-1">
+                <Button type="submit" size="sm" disabled={isLoading} className="w-full gap-1.5 text-xs font-medium">
+                  {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  Save Changes
+                </Button>
               </div>
-              <div>
-                <h3 className="text-sm font-semibold">Security</h3>
-                <p className="text-xs text-muted-foreground">Update your password to keep your account secure.</p>
-              </div>
-            </div>
+            </form>
+          </CardContent>
+        </Card>
 
-            <form onSubmit={handlePasswordChange} className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="current-password" className="text-xs font-medium text-muted-foreground">Current Password</Label>
-                <div className="relative">
-                  <Input
-                    id="current-password"
-                    type={showPassword ? "text" : "password"}
-                    value={passwordData.currentPassword}
-                    onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
-                    className="h-9 text-sm pr-10"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0.5 top-0.5 h-8 w-8 text-muted-foreground"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                  </Button>
+        {/* Security / Password */}
+        {!oauthProvider ? (
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2.5 mb-5">
+                <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                  <Shield className="h-4 w-4 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold leading-none">Security</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Change your account password.</p>
                 </div>
               </div>
 
-              <Separator className="opacity-40" />
+              <form onSubmit={handlePasswordChange} className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="current-password" className="text-xs font-medium text-muted-foreground">Current Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="current-password"
+                      type={showPassword ? "text" : "password"}
+                      value={passwordData.currentPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                      className="h-9 text-sm pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Separator className="opacity-40 my-1" />
+
                 <div className="space-y-1.5">
                   <Label htmlFor="new-password" className="text-xs font-medium text-muted-foreground">New Password</Label>
                   <div className="relative">
@@ -340,17 +354,16 @@ export function ProfileSettings() {
                       required
                       minLength={8}
                     />
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0.5 top-0.5 h-8 w-8 text-muted-foreground"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       onClick={() => setShowNewPassword(!showNewPassword)}
                     >
                       {showNewPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    </Button>
+                    </button>
                   </div>
                 </div>
+
                 <div className="space-y-1.5">
                   <Label htmlFor="confirm-password" className="text-xs font-medium text-muted-foreground">Confirm Password</Label>
                   <div className="relative">
@@ -362,29 +375,47 @@ export function ProfileSettings() {
                       className="h-9 text-sm pr-10"
                       required
                     />
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0.5 top-0.5 h-8 w-8 text-muted-foreground"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
                       {showConfirmPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    </Button>
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex justify-end pt-1">
-                <Button type="submit" size="sm" variant="outline" disabled={isPasswordLoading} className="gap-1.5 text-xs font-medium">
-                  {isPasswordLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lock className="h-3.5 w-3.5" />}
-                  Update Password
-                </Button>
+                <div className="pt-1">
+                  <Button type="submit" size="sm" variant="outline" disabled={isPasswordLoading} className="w-full gap-1.5 text-xs font-medium">
+                    {isPasswordLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lock className="h-3.5 w-3.5" />}
+                    Update Password
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-5">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                  <Shield className="h-4 w-4 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold leading-none">Security</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Password managed externally.</p>
+                </div>
               </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+              <div className="rounded-lg border border-dashed border-border/60 p-4 text-center">
+                <p className="text-xs text-muted-foreground">
+                  Your account is authenticated via <span className="font-medium text-foreground">{oauthProvider.name}</span>.
+                  Password changes are managed through your {oauthProvider.name} account.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 }

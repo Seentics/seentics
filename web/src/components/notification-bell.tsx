@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, Trash2, MailOpen, AlertCircle, Info, Zap } from 'lucide-react';
+import { Bell, Check, Trash2, MailOpen, AlertCircle, Info, Zap, MessageSquare, RefreshCw } from 'lucide-react';
 import { 
   Popover, 
   PopoverContent, 
@@ -28,7 +28,7 @@ export function NotificationBell() {
     try {
       const data = await getUserNotifications();
       setNotifications(data || []);
-      setUnreadCount((data || []).filter(n => !n.is_read).length);
+      setUnreadCount((data || []).filter(n => !n.read).length);
     } catch (error) {
       console.error('Failed to fetch notifications:', error);
     }
@@ -64,8 +64,14 @@ export function NotificationBell() {
       case 'alert': return <AlertCircle className="h-4 w-4 text-destructive" />;
       case 'automation': return <Zap className="h-4 w-4 text-orange-500" />;
       case 'info': return <Info className="h-4 w-4 text-blue-500" />;
+      case 'support_update': return <MessageSquare className="h-4 w-4 text-violet-500" />;
       default: return <Bell className="h-4 w-4 text-muted-foreground" />;
     }
+  };
+
+  const getNotificationLink = (n: UserNotification): string | null => {
+    if (n.metadata?.link) return n.metadata.link as string;
+    return null;
   };
 
   return (
@@ -107,30 +113,30 @@ export function NotificationBell() {
               {notifications.map((n) => (
                 <div 
                   key={n.id} 
-                  className={`p-4 flex gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group relative ${!n.is_read ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
-                  onClick={() => !n.is_read && handleMarkRead(n.id)}
+                  className={`p-4 flex gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group relative ${!n.read ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
+                  onClick={() => !n.read && handleMarkRead(n.id)}
                 >
                   <div className="mt-1 flex-shrink-0">
-                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${!n.is_read ? 'bg-primary/10' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${!n.read ? 'bg-primary/10' : 'bg-slate-100 dark:bg-slate-800'}`}>
                       {getIcon(n.type)}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm leading-tight mb-1 ${!n.is_read ? 'font-bold' : 'font-medium text-slate-600 dark:text-slate-400'}`}>
+                    <p className={`text-sm leading-tight mb-1 ${!n.read ? 'font-bold' : 'font-medium text-slate-600 dark:text-slate-400'}`}>
                       {n.title}
                     </p>
                     <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                       {n.message}
                     </p>
                     <p className="text-[10px] font-bold text-muted-foreground mt-2 uppercase tracking-tight">
-                      {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
                     </p>
                   </div>
-                  {!n.is_read && (
+                  {!n.read && (
                     <div className="absolute top-4 right-4 h-2 w-2 rounded-full bg-primary" />
                   )}
-                  {n.link && (
-                    <Link href={n.link} className="absolute inset-0 z-10" />
+                  {getNotificationLink(n) && (
+                    <Link href={getNotificationLink(n)!} className="absolute inset-0 z-10" />
                   )}
                 </div>
               ))}

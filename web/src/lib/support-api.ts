@@ -15,29 +15,42 @@ export interface TicketReply {
   id: string;
   ticketId: string;
   message: string;
-  senderName: string;
-  senderType: string;
+  userName: string;
+  isPrivate: boolean;
   createdAt: string;
 }
 
 class SupportAPI {
   async getTickets(): Promise<{ success: boolean; data: SupportTicket[] }> {
     const response = await api.get('/user/support/tickets');
-    return response.data;
+    const raw = response.data;
+    if (Array.isArray(raw)) return { success: true, data: raw };
+    return raw;
   }
 
   async getTicket(id: string): Promise<{ success: boolean; data: SupportTicket }> {
     const response = await api.get(`/user/support/tickets/${id}`);
-    return response.data;
+    const raw = response.data;
+    if (raw && raw.id) return { success: true, data: raw };
+    return raw;
   }
 
   async createTicket(ticket: { subject: string; description: string; priority: string }): Promise<{ success: boolean; data: SupportTicket }> {
     const response = await api.post('/user/support/tickets', ticket);
-    return response.data;
+    const raw = response.data;
+    if (raw && raw.id) return { success: true, data: raw };
+    return raw;
   }
 
   async replyToTicket(id: string, message: string): Promise<{ success: boolean; data: TicketReply }> {
     const response = await api.post(`/user/support/tickets/${id}/replies`, { message });
+    const raw = response.data;
+    if (raw && raw.id) return { success: true, data: raw };
+    return raw;
+  }
+
+  async deleteTicket(id: string): Promise<{ success: boolean }> {
+    const response = await api.delete(`/user/support/tickets/${id}`);
     return response.data;
   }
 }

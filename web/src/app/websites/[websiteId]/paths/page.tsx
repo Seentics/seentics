@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -15,14 +16,12 @@ import {
 } from '@/components/ui/select';
 import {
   ArrowRight,
-  Loader2,
   LogIn,
   LogOut,
   Route,
   TrendingUp,
-  ArrowDown,
+  MoveRight,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { isEnterprise } from '@/lib/features';
 import api from '@/lib/api';
 
@@ -44,9 +43,32 @@ interface PathAnalysis {
   avg_path_length: number;
 }
 
-export default function PathsPage() {
-  if (!isEnterprise) return null;
+function PageListSkeleton() {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-3 py-2.5">
+          <Skeleton className="h-4 w-4 rounded" />
+          <Skeleton className="h-3 flex-1 rounded" />
+          <Skeleton className="h-5 w-12 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 gap-2">
+      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+        <Route className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <p className="text-sm text-muted-foreground">{message}</p>
+    </div>
+  );
+}
+
+export default function PathsPage() {
   const params = useParams();
   const websiteId = params?.websiteId as string;
   const [days, setDays] = useState('7');
@@ -57,21 +79,22 @@ export default function PathsPage() {
       const response = await api.get(`/analytics/path-analysis/${websiteId}?days=${days}`);
       return response.data;
     },
-    enabled: !!websiteId,
+    enabled: !!websiteId && isEnterprise,
     staleTime: 60 * 1000,
   });
 
   const topFlowCount = data?.page_flows?.[0]?.count || 1;
+  const entryMax = data?.top_entry_pages?.[0]?.count || 1;
+  const exitMax = data?.top_exit_pages?.[0]?.count || 1;
 
   return (
-    <div className="p-4 sm:p-8 space-y-6 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <DashboardPageHeader
-          title="Path Analysis"
-          description="Understand how visitors navigate through your website."
-        />
+    <div className="p-6 md:p-8 space-y-6 animate-in fade-in duration-500 max-w-[1400px] mx-auto">
+      <DashboardPageHeader
+        title="Path Analysis"
+        description="Understand how visitors navigate through your website."
+      >
         <Select value={days} onValueChange={setDays}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-[150px] h-9 text-sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -81,186 +104,238 @@ export default function PathsPage() {
             <SelectItem value="30">Last 30 days</SelectItem>
           </SelectContent>
         </Select>
+      </DashboardPageHeader>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Avg Path Length */}
+        <Card className="p-5 flex items-center gap-4 border border-border/60 shadow-sm">
+          <div className="w-11 h-11 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+            <Route className="h-5 w-5 text-blue-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Avg. Path Length</p>
+            {isLoading ? (
+              <Skeleton className="h-7 w-16 rounded" />
+            ) : (
+              <p className="text-2xl font-black tracking-tight leading-none">
+                {(data?.avg_path_length || 0).toFixed(1)}
+                <span className="text-xs font-normal text-muted-foreground ml-1.5">pages/session</span>
+              </p>
+            )}
+          </div>
+        </Card>
+
+        {/* Top Entry */}
+        <Card className="p-5 flex items-center gap-4 border border-border/60 shadow-sm">
+          <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+            <LogIn className="h-5 w-5 text-emerald-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Top Entry Page</p>
+            {isLoading ? (
+              <Skeleton className="h-5 w-32 rounded" />
+            ) : (
+              <p className="text-sm font-bold truncate" title={data?.top_entry_pages?.[0]?.name}>
+                {data?.top_entry_pages?.[0]?.name || '—'}
+              </p>
+            )}
+          </div>
+        </Card>
+
+        {/* Top Exit */}
+        <Card className="p-5 flex items-center gap-4 border border-border/60 shadow-sm">
+          <div className="w-11 h-11 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
+            <LogOut className="h-5 w-5 text-rose-500" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground font-medium mb-0.5">Top Exit Page</p>
+            {isLoading ? (
+              <Skeleton className="h-5 w-32 rounded" />
+            ) : (
+              <p className="text-sm font-bold truncate" title={data?.top_exit_pages?.[0]?.name}>
+                {data?.top_exit_pages?.[0]?.name || '—'}
+              </p>
+            )}
+          </div>
+        </Card>
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <>
-          {/* Summary Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                  <Route className="h-5 w-5 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium">Avg. Path Length</p>
-                  <p className="text-2xl font-black">{(data?.avg_path_length || 0).toFixed(1)}</p>
-                  <p className="text-[10px] text-muted-foreground">pages per session</p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
-                  <LogIn className="h-5 w-5 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium">Top Entry Page</p>
-                  <p className="text-lg font-bold truncate max-w-[200px]">
-                    {data?.top_entry_pages?.[0]?.name || '-'}
-                  </p>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
-                  <LogOut className="h-5 w-5 text-red-500" />
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground font-medium">Top Exit Page</p>
-                  <p className="text-lg font-bold truncate max-w-[200px]">
-                    {data?.top_exit_pages?.[0]?.name || '-'}
-                  </p>
-                </div>
-              </div>
-            </Card>
+      {/* Entry & Exit Pages */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Entry Pages */}
+        <Card className="overflow-hidden border border-border/60 shadow-sm">
+          <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border/60">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <LogIn className="h-3.5 w-3.5 text-emerald-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold">Entry Pages</h3>
+              <p className="text-[10px] text-muted-foreground leading-none mt-0.5">First page visitors land on</p>
+            </div>
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Entry Pages */}
-            <Card className="p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <LogIn className="h-4 w-4 text-green-500" />
-                <h3 className="text-sm font-bold">Entry Pages</h3>
-                <p className="text-[10px] text-muted-foreground ml-auto">Where visitors land</p>
-              </div>
-              <div className="space-y-1.5">
+          <div className="p-3">
+            {isLoading ? (
+              <PageListSkeleton />
+            ) : (data?.top_entry_pages || []).length === 0 ? (
+              <EmptyState message="No entry page data yet" />
+            ) : (
+              <div className="space-y-0.5">
                 {(data?.top_entry_pages || []).map((item, idx) => {
-                  const maxCount = data?.top_entry_pages?.[0]?.count || 1;
-                  const pct = (item.count / maxCount) * 100;
+                  const pct = (item.count / entryMax) * 100;
                   return (
-                    <div key={item.name} className="relative">
+                    <div key={item.name} className="group relative rounded-lg overflow-hidden">
                       <div
-                        className="absolute inset-0 bg-green-500/5 rounded"
+                        className="absolute inset-y-0 left-0 bg-emerald-500/10 transition-all"
                         style={{ width: `${pct}%` }}
                       />
-                      <div className="relative flex items-center justify-between py-2 px-3">
-                        <span className="text-xs font-medium truncate flex-1 flex items-center gap-2">
-                          <span className="text-[10px] text-muted-foreground w-4">{idx + 1}.</span>
+                      <div className="relative flex items-center gap-3 px-3 py-2.5">
+                        <span className="text-[11px] font-medium text-muted-foreground w-5 shrink-0 text-right">
+                          {idx + 1}
+                        </span>
+                        <span
+                          className="text-xs font-medium truncate flex-1 text-foreground"
+                          title={item.name}
+                        >
                           {item.name}
                         </span>
-                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] h-5 px-2 shrink-0 font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-0"
+                        >
                           {item.count.toLocaleString()}
                         </Badge>
                       </div>
                     </div>
                   );
                 })}
-                {(data?.top_entry_pages || []).length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-4">No data</p>
-                )}
               </div>
-            </Card>
+            )}
+          </div>
+        </Card>
 
-            {/* Exit Pages */}
-            <Card className="p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <LogOut className="h-4 w-4 text-red-500" />
-                <h3 className="text-sm font-bold">Exit Pages</h3>
-                <p className="text-[10px] text-muted-foreground ml-auto">Where visitors leave</p>
-              </div>
-              <div className="space-y-1.5">
+        {/* Exit Pages */}
+        <Card className="overflow-hidden border border-border/60 shadow-sm">
+          <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border/60">
+            <div className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center">
+              <LogOut className="h-3.5 w-3.5 text-rose-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold">Exit Pages</h3>
+              <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Last page before visitors leave</p>
+            </div>
+          </div>
+          <div className="p-3">
+            {isLoading ? (
+              <PageListSkeleton />
+            ) : (data?.top_exit_pages || []).length === 0 ? (
+              <EmptyState message="No exit page data yet" />
+            ) : (
+              <div className="space-y-0.5">
                 {(data?.top_exit_pages || []).map((item, idx) => {
-                  const maxCount = data?.top_exit_pages?.[0]?.count || 1;
-                  const pct = (item.count / maxCount) * 100;
+                  const pct = (item.count / exitMax) * 100;
                   return (
-                    <div key={item.name} className="relative">
+                    <div key={item.name} className="group relative rounded-lg overflow-hidden">
                       <div
-                        className="absolute inset-0 bg-red-500/5 rounded"
+                        className="absolute inset-y-0 left-0 bg-rose-500/10 transition-all"
                         style={{ width: `${pct}%` }}
                       />
-                      <div className="relative flex items-center justify-between py-2 px-3">
-                        <span className="text-xs font-medium truncate flex-1 flex items-center gap-2">
-                          <span className="text-[10px] text-muted-foreground w-4">{idx + 1}.</span>
+                      <div className="relative flex items-center gap-3 px-3 py-2.5">
+                        <span className="text-[11px] font-medium text-muted-foreground w-5 shrink-0 text-right">
+                          {idx + 1}
+                        </span>
+                        <span
+                          className="text-xs font-medium truncate flex-1 text-foreground"
+                          title={item.name}
+                        >
                           {item.name}
                         </span>
-                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">
+                        <Badge
+                          variant="secondary"
+                          className="text-[10px] h-5 px-2 shrink-0 font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-400 border-0"
+                        >
                           {item.count.toLocaleString()}
                         </Badge>
                       </div>
                     </div>
                   );
                 })}
-                {(data?.top_exit_pages || []).length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-4">No data</p>
-                )}
               </div>
-            </Card>
+            )}
           </div>
+        </Card>
+      </div>
 
-          {/* Page Flow Visualization */}
-          <Card className="p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-bold">Page Flows</h3>
-              <p className="text-[10px] text-muted-foreground ml-auto">
-                Most common page transitions
-              </p>
+      {/* Page Flows */}
+      <Card className="overflow-hidden border border-border/60 shadow-sm">
+        <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border/60">
+          <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center">
+            <TrendingUp className="h-3.5 w-3.5 text-violet-500" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold">Page Flows</h3>
+            <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Most common transitions between pages</p>
+          </div>
+        </div>
+
+        <div className="p-3">
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-3">
+                  <Skeleton className="h-3 w-4 rounded" />
+                  <Skeleton className="h-3 flex-1 rounded" />
+                  <Skeleton className="h-4 w-6 rounded" />
+                  <Skeleton className="h-3 flex-1 rounded" />
+                  <Skeleton className="h-5 w-12 rounded-full" />
+                </div>
+              ))}
             </div>
-            <div className="space-y-1">
-              {(data?.page_flows || []).length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-8">
-                  Not enough data to show page flows yet.
-                </p>
-              ) : (
-                (data?.page_flows || []).map((flow, idx) => {
-                  const intensity = (flow.count / topFlowCount) * 100;
-                  return (
-                    <div key={`${flow.from_page}-${flow.to_page}`} className="relative">
-                      <div
-                        className="absolute inset-0 bg-primary/5 rounded"
-                        style={{ width: `${intensity}%` }}
-                      />
-                      <div className="relative flex items-center gap-2 py-2.5 px-3">
-                        <span className="text-[10px] text-muted-foreground w-5 shrink-0">{idx + 1}.</span>
-                        <span className="text-xs font-medium truncate flex-1 max-w-[40%]" title={flow.from_page}>
-                          {flow.from_page}
-                        </span>
-                        <ArrowRight className="h-3.5 w-3.5 text-primary shrink-0" />
-                        <span className="text-xs font-medium truncate flex-1 max-w-[40%]" title={flow.to_page}>
-                          {flow.to_page}
-                        </span>
-                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0 ml-auto">
-                          {flow.count.toLocaleString()}
-                        </Badge>
+          ) : (data?.page_flows || []).length === 0 ? (
+            <EmptyState message="Not enough navigation data yet" />
+          ) : (
+            <div className="space-y-0.5">
+              {(data?.page_flows || []).map((flow, idx) => {
+                const intensity = (flow.count / topFlowCount) * 100;
+                return (
+                  <div key={`${flow.from_page}-${flow.to_page}`} className="group relative rounded-lg overflow-hidden">
+                    <div
+                      className="absolute inset-y-0 left-0 bg-violet-500/5 transition-all"
+                      style={{ width: `${intensity}%` }}
+                    />
+                    <div className="relative flex items-center gap-2 px-3 py-2.5">
+                      <span className="text-[11px] font-medium text-muted-foreground w-5 shrink-0 text-right">
+                        {idx + 1}
+                      </span>
+                      <span
+                        className="text-xs font-medium truncate flex-1 text-foreground"
+                        title={flow.from_page}
+                      >
+                        {flow.from_page}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0 text-violet-500">
+                        <MoveRight className="h-3.5 w-3.5" />
                       </div>
+                      <span
+                        className="text-xs font-medium truncate flex-1 text-foreground"
+                        title={flow.to_page}
+                      >
+                        {flow.to_page}
+                      </span>
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] h-5 px-2 shrink-0 font-semibold bg-violet-500/10 text-violet-700 dark:text-violet-400 border-0 ml-auto"
+                      >
+                        {flow.count.toLocaleString()}
+                      </Badge>
                     </div>
-                  );
-                })
-              )}
+                  </div>
+                );
+              })}
             </div>
-          </Card>
-
-          {/* Info Card */}
-          <div className="bg-muted/30 p-4 rounded border border-border/50 flex gap-4">
-            <Route className="h-5 w-5 text-muted-foreground shrink-0" />
-            <div className="space-y-1">
-              <p className="text-xs font-bold text-foreground">About Path Analysis</p>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Path analysis shows how visitors navigate between pages on your website. Entry pages
-                are the first pages visited in a session, exit pages are the last. Page flows show the
-                most common transitions between any two pages. Use this data to optimize navigation
-                and reduce friction in key user journeys.
-              </p>
-            </div>
-          </div>
-        </>
-      )}
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

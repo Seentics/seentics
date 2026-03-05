@@ -21,47 +21,75 @@ import { ReplaySettingsComponent } from '@/components/settings/ReplaySettingsCom
 import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
 import { CustomizationSettingsComponent } from '@/components/settings/CustomizationSettingsComponent';
 import { LayoutSettingsComponent } from '@/components/settings/LayoutSettingsComponent';
+import { AlertsSettingsComponent } from '@/components/settings/AlertsSettingsComponent';
+import { ReportsSettingsComponent } from '@/components/settings/ReportsSettingsComponent';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { cn } from '@/lib/utils';
+import { Bell, FileText } from 'lucide-react';
 
 const sectionGroups = [
     {
         label: 'Account',
         items: [
-            { id: 'profile', label: 'Profile', icon: User },
-            { id: 'websites', label: 'Websites', icon: Globe },
+            { id: 'profile',       label: 'Profile',        icon: User,          description: 'Your personal info' },
+            { id: 'websites',      label: 'Websites',       icon: Globe,         description: 'Manage tracked sites' },
         ],
     },
     {
         label: 'Features',
         items: [
-            { id: 'goals', label: 'Goals', icon: Target },
-            { id: 'heatmaps', label: 'Heatmaps', icon: MousePointer2 },
-            { id: 'replays', label: 'Replays', icon: Video },
-            { id: 'scripts', label: 'Scripts', icon: Zap },
+            { id: 'goals',         label: 'Goals',          icon: Target,        description: 'Conversion tracking' },
+            { id: 'heatmaps',      label: 'Heatmaps',       icon: MousePointer2, description: 'Click & scroll maps' },
+            { id: 'replays',       label: 'Replays',        icon: Video,         description: 'Session recordings' },
+            { id: 'scripts',       label: 'Scripts',        icon: Zap,           description: 'Tracking snippet' },
+        ],
+    },
+    {
+        label: 'Automation',
+        items: [
+            { id: 'alerts',        label: 'Alerts',         icon: Bell,          description: 'Traffic notifications' },
+            { id: 'reports',       label: 'Reports',        icon: FileText,      description: 'Scheduled email reports' },
         ],
     },
     {
         label: 'Appearance',
         items: [
-            { id: 'customization', label: 'Customization', icon: Palette },
-            { id: 'layout', label: 'Layout', icon: PanelLeft },
+            { id: 'customization', label: 'Customization',  icon: Palette,       description: 'Branding & theme' },
+            { id: 'layout',        label: 'Layout',         icon: PanelLeft,     description: 'Dashboard layout' },
         ],
     },
-    // HIDDEN: Enterprise section — uncomment to re-enable
-    // ...(isEnterprise ? [{
-    //     label: 'Enterprise',
-    //     items: [
-    //         { id: 'api-keys', label: 'API Keys', icon: Key },
-    //         { id: 'alerts', label: 'Alerts', icon: Bell },
-    //         { id: 'reports', label: 'Reports', icon: FileText },
-    //         { id: 'integrations', label: 'Integrations', icon: Plug },
-    //         { id: 'dashboards', label: 'Dashboards', icon: LayoutDashboard },
-    //     ],
-    // }] : []),
 ];
 
 const allTabs = sectionGroups.flatMap(g => g.items);
+
+const iconColors: Record<string, string> = {
+    profile:       'text-blue-500 bg-blue-500/10',
+    websites:      'text-emerald-500 bg-emerald-500/10',
+    goals:         'text-orange-500 bg-orange-500/10',
+    heatmaps:      'text-rose-500 bg-rose-500/10',
+    replays:       'text-violet-500 bg-violet-500/10',
+    scripts:       'text-yellow-500 bg-yellow-500/10',
+    alerts:        'text-amber-500 bg-amber-500/10',
+    reports:       'text-indigo-500 bg-indigo-500/10',
+    customization: 'text-pink-500 bg-pink-500/10',
+    layout:        'text-cyan-500 bg-cyan-500/10',
+};
+
+const renderContent = (activeTab: string, websiteId: string) => {
+    switch (activeTab) {
+        case 'profile':       return <ProfileSettings />;
+        case 'websites':      return <WebsitesSettingsComponent />;
+        case 'heatmaps':      return <HeatmapSettingsComponent websiteId={websiteId} />;
+        case 'replays':       return <ReplaySettingsComponent websiteId={websiteId} />;
+        case 'goals':         return <GoalsSettingsComponent websiteId={websiteId} />;
+        case 'scripts':       return <ScriptSettingsComponent websiteId={websiteId} />;
+        case 'alerts':        return <AlertsSettingsComponent websiteId={websiteId} />;
+        case 'reports':       return <ReportsSettingsComponent websiteId={websiteId} />;
+        case 'customization': return <CustomizationSettingsComponent />;
+        case 'layout':        return <LayoutSettingsComponent />;
+        default:              return <ProfileSettings />;
+    }
+};
 
 export default function SettingsPage() {
     const params = useParams();
@@ -72,76 +100,73 @@ export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState(isValidTab ? tabParam! : 'profile');
 
     const activeItem = allTabs.find(t => t.id === activeTab);
-
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'profile': return <ProfileSettings />;
-            case 'websites': return <WebsitesSettingsComponent />;
-            case 'heatmaps': return <HeatmapSettingsComponent websiteId={websiteId} />;
-            case 'replays': return <ReplaySettingsComponent websiteId={websiteId} />;
-            case 'goals': return <GoalsSettingsComponent websiteId={websiteId} />;
-            case 'scripts': return <ScriptSettingsComponent websiteId={websiteId} />;
-            case 'customization': return <CustomizationSettingsComponent />;
-            case 'layout': return <LayoutSettingsComponent />;
-            // HIDDEN: Enterprise tabs — uncomment to re-enable
-            // case 'api-keys': return <ApiKeysSettingsComponent />;
-            // case 'alerts': return <AlertsSettingsComponent />;
-            // case 'reports': return <ReportsSettingsComponent />;
-            // case 'integrations': return <IntegrationsSettingsComponent />;
-            // case 'dashboards': return <DashboardsSettingsComponent />;
-            default: return <ProfileSettings />;
-        }
-    };
+    const ActiveIcon = activeItem?.icon;
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
-            <DashboardPageHeader
-                title="Settings"
-                description="Manage your account, websites, and feature configurations."
-            />
+        <div className="p-6 md:p-8 max-w-[1300px] mx-auto animate-in fade-in duration-500">
+            {/* Page header */}
+            <div className="mb-6">
+                <DashboardPageHeader
+                    title="Settings"
+                    description="Manage your account, features, and appearance."
+                />
+            </div>
 
-            <div className="mt-6 flex gap-6 items-start">
-                {/* ── Sidebar nav ── */}
-                <aside className="w-52 flex-shrink-0 sticky top-8 max-h-[calc(100vh-6rem)] overflow-y-auto">
-                    <nav className="flex flex-col gap-5">
-                        {sectionGroups.map((group) => (
-                            <div key={group.label}>
-                                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 select-none">
-                                    {group.label}
-                                </p>
-                                <ul className="flex flex-col gap-0.5">
-                                    {group.items.map((tab) => {
-                                        const isActive = activeTab === tab.id;
-                                        return (
-                                            <li key={tab.id}>
-                                                <button
-                                                    onClick={() => setActiveTab(tab.id)}
-                                                    className={cn(
-                                                        'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all',
-                                                        isActive
-                                                            ? 'bg-primary/10 text-primary'
-                                                            : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground'
-                                                    )}
-                                                >
-                                                    <tab.icon className={cn('h-4 w-4 flex-shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} />
-                                                    {tab.label}
-                                                </button>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
+            {/* Tab bar — grouped with dividers */}
+            <div className="flex items-end gap-0 border-b border-border/60 mb-8 overflow-x-auto">
+                {sectionGroups.map((group, gi) => (
+                    <React.Fragment key={group.label}>
+                        {/* Divider between groups (not before first) */}
+                        {gi > 0 && (
+                            <div className="w-px h-5 bg-border/60 self-center mx-1 flex-shrink-0" />
+                        )}
+                        {group.items.map((tab) => {
+                            const isActive = activeTab === tab.id;
+                            const Icon = tab.icon;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={cn(
+                                        'flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap flex-shrink-0',
+                                        isActive
+                                            ? 'border-primary text-foreground'
+                                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                                    )}
+                                >
+                                    <div className={cn(
+                                        'w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all',
+                                        isActive ? iconColors[tab.id] : 'text-muted-foreground'
+                                    )}>
+                                        <Icon className="h-3 w-3" />
+                                    </div>
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
+                    </React.Fragment>
+                ))}
+            </div>
+
+            {/* Content */}
+            <div className="animate-in fade-in duration-200" key={activeTab}>
+                {activeItem && (
+                    <div className="mb-6 pb-6 border-b border-border/40 flex items-center gap-3">
+                        {ActiveIcon && (
+                            <div className={cn(
+                                'w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0',
+                                iconColors[activeTab] || 'bg-muted text-muted-foreground'
+                            )}>
+                                <ActiveIcon className="h-4 w-4" />
                             </div>
-                        ))}
-                    </nav>
-                </aside>
-
-                {/* ── Divider ── */}
-                <div className="w-px self-stretch bg-border/40 flex-shrink-0" />
-
-                {/* ── Content ── */}
-                <main className="flex-1 min-w-0 animate-in fade-in duration-300" key={activeTab}>
-                    {renderContent()}
-                </main>
+                        )}
+                        <div>
+                            <h2 className="text-sm font-bold text-foreground leading-none">{activeItem.label}</h2>
+                            <p className="text-xs text-muted-foreground mt-0.5">{activeItem.description}</p>
+                        </div>
+                    </div>
+                )}
+                {renderContent(activeTab, websiteId)}
             </div>
         </div>
     );
