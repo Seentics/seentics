@@ -258,20 +258,9 @@ func (s *heatmapService) processBatch(batch []models.HeatmapPoint) {
 	if len(batch) == 0 {
 		return
 	}
-
-	// Note: We need to group by websiteID because the repo call takes websiteID as arg
-	// In the future, the repo could be updated to take points with WebsiteID internally.
-	// For now, we group by websiteID.
-	byWebsite := make(map[string][]models.HeatmapPoint)
-	for _, p := range batch {
-		byWebsite[p.WebsiteID] = append(byWebsite[p.WebsiteID], p)
-	}
-
 	ctx := context.Background()
-	for websiteID, points := range byWebsite {
-		if err := s.repo.RecordHeatmap(ctx, websiteID, points); err != nil {
-			s.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to flush heatmap batch to DB")
-		}
+	if err := s.repo.RecordHeatmapBatch(ctx, batch); err != nil {
+		s.logger.Error().Err(err).Int("points", len(batch)).Msg("Failed to flush heatmap batch to DB")
 	}
 }
 

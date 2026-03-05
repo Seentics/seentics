@@ -5,7 +5,6 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
 import { Menu, X, Play } from 'lucide-react';
-import { FaDiscord } from 'react-icons/fa';
 import Link from 'next/link';
 import { Logo } from '../ui/logo';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -23,7 +22,7 @@ export default function LandingHeader() {
 
   const navLinks = [
     { name: 'Features', href: '#features' },
-    { name: 'Comparison', href: '#comparison' },
+    { name: 'Automations', href: '#automations' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'FAQ', href: '#faq' },
   ];
@@ -54,14 +53,6 @@ export default function LandingHeader() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <a
-            href="https://discord.gg/TYdPvDRA"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <FaDiscord size={15} />
-          </a>
           <ThemeToggle />
           <div className="hidden sm:flex items-center gap-2">
             {isAuthenticated ? (
@@ -117,14 +108,6 @@ export default function LandingHeader() {
                     {link.name}
                   </Link>
                 ))}
-                <a
-                  href="https://discord.gg/TYdPvDRA"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="py-2.5 text-sm font-medium text-foreground hover:text-primary transition-colors flex items-center gap-2"
-                >
-                  <FaDiscord size={15} /> Discord
-                </a>
               </nav>
 
               <div className="pt-2 border-t border-border/40 space-y-2">

@@ -28,13 +28,15 @@ type EventService struct {
 	db       *pgxpool.Pool
 	logger   zerolog.Logger
 	websites *websiteServicePkg.WebsiteService
-	auto     *autoServicePkg.AutomationService // Added for orchestration
-	engine   *autoServicePkg.ExecutionEngine   // Added for execution
+	auto     *autoServicePkg.AutomationService
+	engine   *autoServicePkg.ExecutionEngine
 
-	// In-memory event channel for direct processing (replacing NATS)
+	// In-memory event channel for direct processing
 	eventChan chan models.Event
-	// Simple event channel for async processing
+	// Async batch write channel
 	batchChan chan []models.Event
+	// Bounded semaphore: caps concurrent automation goroutines to prevent runaway spawning
+	autoSem chan struct{}
 
 	// Shutdown control
 	ctx        context.Context
@@ -56,6 +58,7 @@ func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, websiteS
 		logger:    logger,
 		eventChan: make(chan models.Event, 10000), // Large buffer for bursts
 		batchChan: make(chan []models.Event, 500),
+		autoSem:   make(chan struct{}, 64), // max 64 concurrent automation goroutines
 		ctx:       ctx,
 		cancel:    cancel,
 	}
@@ -218,7 +221,7 @@ func (s *EventService) startEventConsumer() {
 				}
 				return
 			case event := <-s.eventChan:
-				// Trigger automations (async)
+				// Trigger automations through bounded worker pool
 				eventData := map[string]interface{}{
 					"event_type": event.EventType,
 					"page":       event.Page,
@@ -227,7 +230,17 @@ func (s *EventService) startEventConsumer() {
 					"properties": event.Properties,
 					"timestamp":  event.Timestamp,
 				}
-				go s.engine.ProcessEvent(s.ctx, event.WebsiteID, eventData)
+				websiteID := event.WebsiteID
+				select {
+				case s.autoSem <- struct{}{}: // acquire slot
+					go func() {
+						defer func() { <-s.autoSem }()
+						s.engine.ProcessEvent(s.ctx, websiteID, eventData)
+					}()
+				default:
+					// Pool full — skip automation trigger to not block event pipeline
+					s.logger.Warn().Str("website_id", websiteID).Msg("Automation worker pool full, skipping trigger")
+				}
 
 				batch = append(batch, event)
 				if len(batch) >= BatchSize {
@@ -293,7 +306,7 @@ func (s *EventService) processBatch(batch []models.Event) {
 	}
 
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	// Failsafe normalization: ensure website_id is canonical

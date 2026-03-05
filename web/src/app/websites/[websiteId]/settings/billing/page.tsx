@@ -57,9 +57,8 @@ export default function BillingSettings() {
   }
 
   const currentPlan = subscription?.plan || 'free';
-  const isUsageBasedPlan = currentPlan === 'enterprise';
-  const priceLabel = isUsageBasedPlan ? '$0 base + usage' : `$${planPrices[currentPlan] ?? 0}`;
-  const periodLabel = isUsageBasedPlan ? 'Usage-based pricing' : '/month';
+  const priceLabel = `$${planPrices[currentPlan] ?? 0}`;
+  const periodLabel = currentPlan === 'starter' || currentPlan === 'free' ? '' : '/month';
   const eventsPercentage = getUsagePercentage('monthlyEvents');
   const currentEvents = subscription?.usage?.monthlyEvents?.current || 0;
   const limitEvents = subscription?.usage?.monthlyEvents?.limit || 10000;

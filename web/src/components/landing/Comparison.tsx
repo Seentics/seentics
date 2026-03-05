@@ -20,10 +20,19 @@ export default function Comparison() {
     <section id="comparison" className="py-24 md:py-32 bg-background border-t border-border/40">
       <div className="container mx-auto px-6 max-w-5xl">
         <div className="text-center mb-20">
+          <motion.p
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
+          >
+            Comparison
+          </motion.p>
           <motion.h2
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            transition={{ delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
             How we compare
@@ -32,7 +41,7 @@ export default function Comparison() {
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: 0.05 }}
+            transition={{ delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-xl mx-auto"
           >
             One platform that replaces half a dozen tools, while being faster and more private.

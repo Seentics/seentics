@@ -72,11 +72,20 @@ export default function Pricing() {
     <section id="pricing" className="py-24 md:py-32 bg-background">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <motion.h2
+          <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
+            className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
+          >
+            Pricing
+          </motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
             Simple, transparent pricing
@@ -85,10 +94,10 @@ export default function Pricing() {
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.05 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg"
           >
-            Start free and scale as you grow. No hidden fees.
+            Start free and scale as you grow. No hidden fees, no surprises.
           </motion.p>
         </div>
 

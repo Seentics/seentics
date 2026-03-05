@@ -42,23 +42,32 @@ export default function Features() {
     <section id="features" className="py-24 md:py-32 bg-background">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <motion.h2
+          <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
+            className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
+          >
+            Platform
+          </motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
-            Everything you need, nothing you don't
+            Enterprise-grade analytics in one platform
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.05 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg"
           >
-            One platform replaces your entire analytics stack. No integrations, no extra costs.
+            Replace five disconnected tools with one unified platform. No extra integrations, no hidden costs.
           </motion.p>
         </div>
 

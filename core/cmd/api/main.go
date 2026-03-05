@@ -176,7 +176,6 @@ func main() {
 	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 
 	// Handlers
-	eventHandler := handlers.NewEventHandler(eventService, logger)
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService, logger)
 	privacyHandler := handlers.NewPrivacyHandler(privacyService, logger)
 	healthHandler := handlers.NewHealthHandler(db, logger)
@@ -188,7 +187,7 @@ func main() {
 	trackerHandler := trackerPkg.NewTrackerHandler(websiteService, eventService, heatmapService, replayService, funnelService, autoService, logger)
 
 	// Setup router
-	router := setupRouter(cfg, appCache, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, authHandler, websiteHandler, heatmapHandler, replayHandler, internalHandler, trackerHandler, logger)
+	router := setupRouter(cfg, appCache, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, authHandler, websiteHandler, heatmapHandler, replayHandler, internalHandler, trackerHandler, logger)
 
 	// Start server
 	server := &http.Server{
@@ -228,7 +227,7 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, internalHandler *handlers.InternalHandler, trackerHandler *trackerPkg.TrackerHandler, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, appCache *cache.Cache, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, internalHandler *handlers.InternalHandler, trackerHandler *trackerPkg.TrackerHandler, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -269,8 +268,6 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 	{
 		analytics := v1.Group("/analytics")
 		{
-			analytics.POST("/event", eventHandler.TrackEvent)
-			analytics.POST("/batch", eventHandler.TrackBatchEvents)
 			analytics.GET("/dashboard/:website_id", analyticsHandler.GetDashboard)
 			analytics.GET("/top-pages/:website_id", analyticsHandler.GetTopPages)
 			analytics.GET("/page-utm-breakdown/:website_id", analyticsHandler.GetPageUTMBreakdown)
@@ -348,8 +345,6 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 		}
 
 		v1.GET("/workflows/site/:website_id/active", autoHandler.GetActiveWorkflows)
-		v1.POST("/workflows/execution/action", autoHandler.TrackExecution)
-		v1.POST("/workflows/execution/batch", autoHandler.TrackBatchExecutions) // Batch endpoint
 		v1.POST("/automations/test", autoHandler.TestAutomation)
 
 		funnels := v1.Group("/websites/:website_id/funnels")
@@ -364,8 +359,6 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 		}
 
 		v1.GET("/funnels/active", funnelHandler.GetActiveFunnels)
-		v1.POST("/funnels/track", funnelHandler.TrackFunnelEvent)
-		v1.POST("/funnels/batch", funnelHandler.TrackBatchFunnelEvents) // Batch endpoint
 
 		// Public auth endpoints (no authentication required)
 		publicAuth := v1.Group("/auth")
@@ -415,7 +408,6 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 
 		heatmaps := v1.Group("/heatmaps")
 		{
-			heatmaps.POST("/record", heatmapHandler.RecordHeatmap)
 			heatmaps.GET("/data", heatmapHandler.GetHeatmapData)
 			heatmaps.GET("/pages", heatmapHandler.GetHeatmapPages)
 			heatmaps.GET("/top-elements", heatmapHandler.GetTopElements)
@@ -425,7 +417,6 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 
 		replays := v1.Group("/replays")
 		{
-			replays.POST("/record", replayHandler.RecordReplay)
 			replays.GET("/sessions", replayHandler.ListSessions)
 			replays.GET("/snapshot", replayHandler.GetPageSnapshot)
 			replays.GET("/data/:session_id", replayHandler.GetReplay)

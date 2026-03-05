@@ -43,11 +43,20 @@ export default function FAQ() {
     <section id="faq" className="py-24 md:py-32 bg-background">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <motion.h2
+          <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
+            className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
+          >
+            FAQ
+          </motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
             Frequently asked questions
@@ -56,10 +65,10 @@ export default function FAQ() {
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.05 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg"
           >
-            Everything you need to know to get started.
+            Everything you need to know before getting started.
           </motion.p>
         </div>
 
@@ -98,10 +107,10 @@ export default function FAQ() {
           className="max-w-xl mx-auto text-center py-16 border-t border-border/40"
         >
           <h3 className="text-2xl font-bold tracking-tight text-foreground mb-3">
-            Ready to get started?
+            Ready to scale your analytics?
           </h3>
           <p className="text-muted-foreground mb-6">
-            Join hundreds of businesses using Seentics for privacy-friendly analytics.
+            Join hundreds of businesses using Seentics to understand their users and grow revenue.
           </p>
           <div className="flex items-center justify-center gap-3">
             <Link href={isAuthenticated ? '/websites' : '/signup'}>

@@ -16,66 +16,26 @@ import { cn } from '@/lib/utils';
 
 const planPriceMap: Record<string, number> = {
     free: 0,
+    starter: 0,
     basic: 15,
-    pro: 49,
-    enterprise: 0,
+    growth: 29,
+    pro: 59,
 };
 
 const planDescriptions: Record<string, string> = {
     free: 'For side projects and personal sites',
+    starter: 'For side projects and personal sites',
     basic: 'For small businesses',
-    pro: 'For growing teams with priority support',
-    enterprise: 'Pay-as-you-go: $2/site · $1.50/1K events · $5/1K recordings',
+    growth: 'For growing businesses',
+    pro: 'For scaling teams with priority support',
 };
 
 const planFeatures: Record<string, string[]> = {
-    free: [
-        'Analytics Dashboard',
-        '10K Monthly Events',
-        '1 Website',
-        '1 Funnel',
-        '1 Automation',
-        '3 Heatmaps',
-        '100 Session Recordings',
-        '30 Day Data Retention',
-        'Community Support',
-    ],
-    basic: [
-        'Analytics Dashboard',
-        '100K Monthly Events',
-        '3 Websites',
-        '10 Funnels',
-        '10 Automations',
-        '20 Heatmap Pages',
-        '3,000 Session Recordings',
-        '1 Year Analytics Retention',
-        '1 Month Recording Retention',
-        'Email Support',
-    ],
-    pro: [
-        'Analytics Dashboard',
-        '1M Monthly Events',
-        '15 Websites',
-        'Unlimited Funnels',
-        'Unlimited Automations',
-        'Unlimited Heatmaps',
-        '25,000 Session Recordings',
-        '3 Year Analytics Retention',
-        '3 Month Recording Retention',
-        'Priority Support',
-    ],
-    enterprise: [
-        'No Base Fee — Pure Pay-As-You-Go',
-        '5 Websites Included, then $2/site/mo',
-        '100K Events Included, then $1.50/1K events',
-        '5K Recordings Included, then $5/1K recordings',
-        'Unlimited Heatmaps',
-        'Unlimited Funnels & Automations',
-        '7 Year Analytics Retention',
-        '3 Month Recording Retention',
-        'White Label & Client Management',
-        'Dedicated Support',
-    ],
+    free: ['Analytics Dashboard', '10K Monthly Events', '1 Website', '1 Funnel', '1 Automation', '3 Heatmaps', '100 Session Recordings', '30 Day Data Retention', 'Community Support'],
+    starter: ['Analytics Dashboard', '10K Monthly Events', '1 Website', '1 Funnel', '1 Automation', '3 Heatmaps', '100 Session Recordings', '30 Day Data Retention', 'Community Support'],
+    basic: ['Analytics Dashboard', '100K Monthly Events', '3 Websites', '10 Funnels', '10 Automations', '20 Heatmap Pages', '3,000 Session Recordings', '1 Year Analytics Retention', 'Email Support'],
+    growth: ['Analytics Dashboard', '300K Monthly Events', '5 Websites', 'Unlimited Heatmaps', '10,000 Session Recordings', '10 Funnels', '10 Automations', '2 Year Analytics Retention', 'Email Support'],
+    pro: ['Analytics Dashboard', '1M Monthly Events', '15 Websites', 'Unlimited Funnels', 'Unlimited Automations', 'Unlimited Heatmaps', '25,000 Session Recordings', '3 Year Analytics Retention', 'Priority Support'],
 };
 
 export default function AccountBillingSettings() {
@@ -126,14 +86,11 @@ export default function AccountBillingSettings() {
     }
 
     const currentPlan = subscription?.plan || 'free';
-    const isUsageBasedPlan = currentPlan === 'enterprise' && !subscription?.isCustomPlan;
     const planPriceLabel = subscription?.isCustomPlan && subscription?.priceMonthly
         ? `$${subscription.priceMonthly}`
-        : isUsageBasedPlan
-            ? '$0 base + usage'
-            : `$${planPriceMap[currentPlan] ?? 0}`;
-    const planPeriodLabel = isUsageBasedPlan ? 'Usage-based pricing' : '/month';
-    const isStarter = currentPlan === 'free';
+        : `$${planPriceMap[currentPlan] ?? 0}`;
+    const planPeriodLabel = (currentPlan === 'free' || currentPlan === 'starter') ? '' : '/month';
+    const isStarter = currentPlan === 'free' || currentPlan === 'starter';
 
     const usageItems = [
         { name: 'Monthly Events', key: 'monthlyEvents', icon: BarChart3, current: subscription?.usage?.monthlyEvents?.current || 0, limit: subscription?.usage?.monthlyEvents?.limit || 10000 },
@@ -301,7 +258,7 @@ export default function AccountBillingSettings() {
             <UpgradePlanModal
                 isOpen={isUpgradeModalOpen}
                 onClose={() => setIsUpgradeModalOpen(false)}
-                currentPlan={currentPlan as any}
+                currentPlan={currentPlan as 'free' | 'starter' | 'basic' | 'growth' | 'pro'}
                 limitType="monthlyEvents"
                 currentUsage={subscription?.usage?.monthlyEvents?.current || 0}
                 limit={subscription?.usage?.monthlyEvents?.limit || 10000}

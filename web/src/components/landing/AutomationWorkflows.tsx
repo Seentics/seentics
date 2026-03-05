@@ -54,11 +54,20 @@ export default function AutomationWorkflows() {
     <section id="automations" className="py-24 md:py-32 bg-background border-t border-border/50">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-16 px-4">
-          <motion.h2
+          <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
+            className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
+          >
+            Automations
+          </motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
             Turn every click into an action
@@ -67,10 +76,10 @@ export default function AutomationWorkflows() {
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.05 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg"
           >
-            Build logical sequences that engage visitors when it matters most.
+            Build if-this-then-that workflows that engage visitors at exactly the right moment.
           </motion.p>
         </div>
 

@@ -13,6 +13,9 @@ import (
 
 type HeatmapRepository interface {
 	RecordHeatmap(ctx context.Context, websiteID string, points []models.HeatmapPoint) error
+	// RecordHeatmapBatch writes points from multiple websites in one pgx.Batch call.
+	// Each point must have WebsiteID populated.
+	RecordHeatmapBatch(ctx context.Context, points []models.HeatmapPoint) error
 	GetHeatmapData(ctx context.Context, websiteID string, url string, heatmapType string, deviceType string, from, to time.Time) ([]models.HeatmapPoint, error)
 	GetHeatmapPages(ctx context.Context, websiteID string) ([]models.HeatmapPageStat, error)
 	CountHeatmapPages(ctx context.Context, websiteID string) (int, error)
@@ -69,6 +72,54 @@ func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string,
 			elY = -1
 		}
 		batch.Queue(query, websiteID, p.URL, p.Type, deviceType, int32(math.Round(p.XPercent*100)), int32(math.Round(p.YPercent*100)), p.Selector, elX, elY, intensity)
+	}
+
+	br := r.db.SendBatch(ctx, batch)
+	defer br.Close()
+
+	for range points {
+		if _, err := br.Exec(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *heatmapRepository) RecordHeatmapBatch(ctx context.Context, points []models.HeatmapPoint) error {
+	if len(points) == 0 {
+		return nil
+	}
+
+	query := `
+			INSERT INTO heatmap_points (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, el_x, el_y, intensity, last_updated)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+				ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector)
+				DO UPDATE SET
+					intensity = heatmap_points.intensity + EXCLUDED.intensity,
+					el_x = CASE WHEN heatmap_points.el_x < 0 THEN EXCLUDED.el_x ELSE heatmap_points.el_x END,
+					el_y = CASE WHEN heatmap_points.el_y < 0 THEN EXCLUDED.el_y ELSE heatmap_points.el_y END,
+					last_updated = NOW()
+	`
+
+	batch := &pgx.Batch{}
+	for _, p := range points {
+		deviceType := p.DeviceType
+		if deviceType == "" {
+			deviceType = "desktop"
+		}
+		intensity := p.Intensity
+		if intensity <= 0 {
+			intensity = 1
+		}
+		elX := p.ElX
+		if elX == 0 {
+			elX = -1
+		}
+		elY := p.ElY
+		if elY == 0 {
+			elY = -1
+		}
+		batch.Queue(query, p.WebsiteID, p.URL, p.Type, deviceType, int32(math.Round(p.XPercent*100)), int32(math.Round(p.YPercent*100)), p.Selector, elX, elY, intensity)
 	}
 
 	br := r.db.SendBatch(ctx, batch)
