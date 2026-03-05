@@ -503,13 +503,14 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 		return
 	}
 
+	days := h.parseDays(c, 1)
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
 
 	cancel := h.withQueryTimeout(c)
 	defer cancel()
 
-	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, 1, timezone, filters, userID)
+	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, days, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get hourly stats")
 		return
@@ -540,35 +541,24 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 	cancel := h.withQueryTimeout(c)
 	defer cancel()
 
-	customEvents, err := h.service.GetCustomEvents(c.Request.Context(), websiteID, days, userID)
+	result, err := h.service.GetCustomEventsWithUTM(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get custom events")
-		c.JSON(http.StatusOK, gin.H{
-			"website_id":    websiteID,
-			"top_events":    []interface{}{},
-			"timeseries":    []interface{}{},
-			"total_events":  0,
-			"unique_events": 0,
-		})
+		h.handleError(c, err, "Failed to get custom events")
 		return
 	}
 
 	totalEvents := 0
-	uniqueEvents := 0
-	for _, event := range customEvents {
+	for _, event := range result.Events {
 		totalEvents += event.Count
-		uniqueEvents++
 	}
-
-	utmData, _ := h.service.GetUTMAnalytics(c.Request.Context(), websiteID, days, userID)
 
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":      websiteID,
-		"top_events":      customEvents,
+		"top_events":      result.Events,
 		"timeseries":      []interface{}{},
 		"total_events":    totalEvents,
-		"unique_events":   uniqueEvents,
-		"utm_performance": utmData,
+		"unique_events":   len(result.Events),
+		"utm_performance": result.UTM,
 	})
 }
 

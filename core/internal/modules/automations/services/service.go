@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Seentics/seentics/internal/modules/automations/models"
 	"github.com/Seentics/seentics/internal/modules/automations/repository"
@@ -174,21 +175,10 @@ func (s *AutomationService) DeleteAutomation(ctx context.Context, id string, use
 
 // DeleteAutomations removes multiple automations at once
 func (s *AutomationService) DeleteAutomations(ctx context.Context, ids []string, userID string) error {
-	// For each ID, check ownership (or at least check if user can access them)
-	// For simplicity, we'll verify each one exists for this user.
-	// In a real optimized system, we could do this in a single query.
-	validIDs := []string{}
-	for _, id := range ids {
-		_, err := s.GetAutomation(ctx, id, userID)
-		if err == nil {
-			validIDs = append(validIDs, id)
-		}
+	validIDs, err := s.repo.FilterIDsByUser(ctx, ids, userID)
+	if err != nil || len(validIDs) == 0 {
+		return err
 	}
-
-	if len(validIDs) == 0 {
-		return nil
-	}
-
 	return s.repo.DeleteAutomations(ctx, validIDs)
 }
 
@@ -244,22 +234,45 @@ func (s *AutomationService) GetActiveAutomations(ctx context.Context, websiteID 
 	return s.repo.GetActiveAutomations(ctx, w.SiteID)
 }
 
-// TrackExecution records an automated action execution (Public)
+// TrackExecution records a single automated action execution (Public).
 func (s *AutomationService) TrackExecution(ctx context.Context, exec *models.AutomationExecution, origin string) error {
 	w, err := s.websites.GetWebsiteBySiteID(ctx, exec.WebsiteID)
 	if err != nil {
 		return fmt.Errorf("website not found")
 	}
-
 	if !s.websites.ValidateOriginDomain(origin, w.URL) {
 		return fmt.Errorf("domain mismatch")
 	}
-
 	if !w.AutomationEnabled {
 		return fmt.Errorf("automation is disabled for this website")
 	}
-
 	return s.repo.CreateExecution(ctx, exec)
+}
+
+// TrackExecutionBatch validates the website once then batch-inserts all executions.
+// Compared to calling TrackExecution N times this saves N-1 DB round-trips.
+func (s *AutomationService) TrackExecutionBatch(ctx context.Context, siteID string, executions []models.AutomationExecution, origin string, now time.Time) error {
+	if len(executions) == 0 {
+		return nil
+	}
+	w, err := s.websites.GetWebsiteBySiteID(ctx, siteID)
+	if err != nil {
+		return fmt.Errorf("website not found")
+	}
+	if !s.websites.ValidateOriginDomain(origin, w.URL) {
+		return fmt.Errorf("domain mismatch")
+	}
+	if !w.AutomationEnabled {
+		return fmt.Errorf("automation is disabled for this website")
+	}
+	canonicalID := w.SiteID
+	for i := range executions {
+		executions[i].WebsiteID = canonicalID
+		if executions[i].ExecutedAt.IsZero() {
+			executions[i].ExecutedAt = now
+		}
+	}
+	return s.repo.BatchCreateExecutions(ctx, executions)
 }
 
 // TestAutomation simulates automation execution with test data (for testing/debugging)

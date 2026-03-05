@@ -9,14 +9,10 @@ export interface Workflow {
     // Add other workflow properties as needed
 }
 
-export async function getWorkflow(id: string): Promise<Workflow | null> {
-    // Placeholder implementation
-    console.warn('getWorkflow is not implemented');
+export async function getWorkflow(_id: string): Promise<Workflow | null> {
     return null;
 }
 
-export async function getWorkflows(siteId: string): Promise<Workflow[]> {
-    // Placeholder implementation
-    console.warn('getWorkflows is not implemented');
+export async function getWorkflows(_siteId: string): Promise<Workflow[]> {
     return [];
 }

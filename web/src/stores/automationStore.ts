@@ -287,9 +287,35 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
           isDirty: false
         });
       } else {
-        // Fallback for legacy linear automations
-        // (Implementation omitted for brevity, but would generate nodes from actions array)
-        set({ automation: data, isDirty: false });
+        // Reconstruct nodes from flat automation data (legacy / linear-created automations)
+        const triggerNode: Node = {
+          id: 'trigger_1',
+          type: 'triggerNode',
+          data: {
+            label: data.triggerType || 'Trigger',
+            description: '',
+            config: { triggerType: data.triggerType, ...(data.triggerConfig || {}) },
+          },
+          position: { x: 250, y: 50 },
+        };
+        const actionNodes: Node[] = (data.actions || []).map((action: any, i: number) => ({
+          id: `action_${i + 1}`,
+          type: 'actionNode',
+          data: {
+            label: action.actionType || 'Action',
+            description: '',
+            config: { actionType: action.actionType, ...(action.actionConfig || {}) },
+          },
+          position: { x: 250, y: 220 + i * 150 },
+        }));
+        const reconstructedNodes = [triggerNode, ...actionNodes];
+        const reconstructedEdges: Edge[] = actionNodes.map((node, i) => ({
+          id: `e-${i}`,
+          source: i === 0 ? triggerNode.id : `action_${i}`,
+          target: node.id,
+          animated: true,
+        }));
+        set({ nodes: reconstructedNodes, edges: reconstructedEdges, automation: data, isDirty: false });
       }
     } catch (error) {
       console.error('Failed to load automation:', error);

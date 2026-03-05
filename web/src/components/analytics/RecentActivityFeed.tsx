@@ -136,15 +136,15 @@ export function RecentActivityFeed({ data, isLoading }: RecentActivityFeedProps)
   const activities = data?.activities || [];
 
   return (
-    <div className="space-y-3">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h3 className="text-lg font-bold tracking-tight">Live Activity</h3>
-          <p className="text-xs text-muted-foreground">Recent page views on your site</p>
+    <div>
+      {/* Header with divider */}
+      <div className="flex items-center justify-between pb-4 mb-2 border-b border-border/60">
+        <div>
+          <h3 className="text-base font-semibold tracking-tight">Live Activity</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">Recent page views on your site</p>
         </div>
         {activities.length > 0 && (
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-accent/10 px-2 py-1 rounded">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2.5 py-1 rounded">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
@@ -155,9 +155,9 @@ export function RecentActivityFeed({ data, isLoading }: RecentActivityFeedProps)
       </div>
 
       {activities.length === 0 ? (
-        <div className="text-center py-10 space-y-3">
-          <div className="w-12 h-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
-            <Globe className="h-6 w-6 text-primary" />
+        <div className="text-center py-12 space-y-3">
+          <div className="w-10 h-10 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
+            <Globe className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">No recent activity</p>
@@ -167,9 +167,9 @@ export function RecentActivityFeed({ data, isLoading }: RecentActivityFeedProps)
           </div>
         </div>
       ) : (
-        <div className="max-h-[420px] overflow-y-auto -mx-1 px-1">
+        <div className="max-h-[420px] overflow-y-auto">
           {activities.map((item, i) => {
-            const { Icon: DeviceIcon, label: deviceName } = deviceLabel(item.device);
+            const { Icon: DeviceIcon } = deviceLabel(item.device);
             const flag = getCountryFlag(item.country);
             const ago = timeAgo(item.timestamp);
             const isRecent = ago === 'just now' || ago.endsWith('s ago');
@@ -179,56 +179,39 @@ export function RecentActivityFeed({ data, isLoading }: RecentActivityFeedProps)
               <div
                 key={`${item.timestamp}-${i}`}
                 className={cn(
-                  "px-3 py-2.5 rounded-md transition-colors hover:bg-accent/5 border-b border-border/30 last:border-0",
+                  "py-3.5 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors -mx-8 px-8",
                   i === 0 && "animate-in fade-in slide-in-from-top-1 duration-300"
                 )}
               >
-                {/* Row 1: Page path + time */}
-                <div className="flex items-center gap-2 mb-1">
-                  <span
-                    className="text-sm font-medium text-foreground truncate flex-1 min-w-0"
-                    title={item.page}
-                  >
+                {/* Page path + time */}
+                <div className="flex items-center justify-between gap-3 mb-1.5">
+                  <span className="text-sm font-medium text-foreground truncate" title={item.page}>
                     {shortenPage(item.page)}
                   </span>
-                  <span
-                    className={cn(
-                      "text-[11px] font-medium shrink-0 tabular-nums",
-                      isRecent ? "text-emerald-500" : "text-muted-foreground"
-                    )}
-                  >
+                  <span className={cn(
+                    "text-[11px] font-medium shrink-0 tabular-nums",
+                    isRecent ? "text-emerald-500" : "text-muted-foreground/60"
+                  )}>
                     {ago}
                   </span>
                 </div>
 
-                {/* Row 2: Country, device, browser, referrer */}
+                {/* Meta row */}
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  {/* Country */}
                   {(flag || item.country) && (
                     <span className="flex items-center gap-1 shrink-0">
-                      {flag && <span className="text-xs">{flag}</span>}
+                      {flag && <span>{flag}</span>}
                       <span>{item.country || 'Unknown'}</span>
                     </span>
                   )}
-
-                  {(flag || item.country) && <span className="text-border">·</span>}
-
-                  {/* Device */}
+                  {(flag || item.country) && <span className="text-border/60">·</span>}
                   <span className="flex items-center gap-1 shrink-0">
                     <DeviceIcon className="h-3 w-3" />
-                    <span>{deviceName}</span>
                   </span>
-
-                  {item.browser && (
-                    <>
-                      <span className="text-border">·</span>
-                      <span className="truncate">{item.browser}</span>
-                    </>
-                  )}
-
+                  {item.browser && <span className="truncate">{item.browser}</span>}
                   {referrerHost && (
                     <>
-                      <span className="text-border">·</span>
+                      <span className="text-border/60">·</span>
                       <span className="flex items-center gap-0.5 truncate">
                         <ExternalLink className="h-2.5 w-2.5 shrink-0" />
                         {referrerHost}

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { GitCompare } from 'lucide-react';
+import { GitCompareArrows } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ComparisonToggleProps {
@@ -13,15 +13,15 @@ interface ComparisonToggleProps {
 export function ComparisonToggle({ enabled, onToggle }: ComparisonToggleProps) {
   return (
     <Button
-      variant={enabled ? 'default' : 'outline'}
+      variant="ghost"
       size="sm"
       onClick={() => onToggle(!enabled)}
       className={cn(
-        'gap-1.5 h-8 px-3 font-medium text-[11px]',
-        enabled && 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+        'h-7 px-3 gap-1.5 text-xs font-medium rounded text-muted-foreground bg-muted/50 hover:bg-muted/70 hover:text-foreground border-0',
+        enabled && 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary'
       )}
     >
-      <GitCompare className="h-3.5 w-3.5" />
+      <GitCompareArrows className="h-3.5 w-3.5" />
       Compare
     </Button>
   );

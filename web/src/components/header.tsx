@@ -189,7 +189,7 @@ function HeaderContent() {
                 <Separator />
 
                 {/* Admin Link - Only show for admin users */}
-                {(user?.email === 'admin@seentics.com' || user?.email === 'shohag@seentics.com') && (
+                {user?.role === 'admin' && (
                   <>
                     <Link href="/admin">
                       <Button

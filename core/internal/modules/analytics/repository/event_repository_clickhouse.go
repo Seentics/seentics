@@ -395,11 +395,17 @@ func (r *ClickHouseEventRepository) GetByWebsiteID(ctx context.Context, websiteI
 }
 
 func (r *ClickHouseEventRepository) DeleteByWebsiteID(ctx context.Context, websiteID string) error {
-	// Mutation in ClickHouse is asynchronous; we only need to issue the command.
+	// Issue the async DELETE mutation.
 	query := `ALTER TABLE events DELETE WHERE website_id = ?`
 	if err := r.conn.Exec(ctx, query, websiteID); err != nil {
 		r.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to delete events from ClickHouse")
 		return err
+	}
+	// Force a merge so the mutation is applied immediately and disk space is reclaimed.
+	// Without this, ClickHouse keeps deleted rows on disk until the next background merge.
+	if err := r.conn.Exec(ctx, "OPTIMIZE TABLE events FINAL"); err != nil {
+		// Non-fatal — the mutation will still be applied eventually by background merges.
+		r.logger.Warn().Err(err).Msg("OPTIMIZE TABLE events FINAL failed (non-fatal)")
 	}
 	return nil
 }

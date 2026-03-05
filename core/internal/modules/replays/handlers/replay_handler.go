@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Seentics/seentics/internal/modules/replays/models"
 	"github.com/Seentics/seentics/internal/modules/replays/services"
@@ -42,14 +43,12 @@ func (h *ReplayHandler) RecordReplay(c *gin.Context) {
 		return
 	}
 
-	// Extract origin for domain validation and User-Agent for session metadata
 	origin := c.Request.Header.Get("Origin")
 	if origin == "" {
 		origin = c.Request.Header.Get("Referer")
 	}
 	userAgent := c.Request.Header.Get("User-Agent")
 
-	// Extract country from CDN/proxy headers, fall back to client IP
 	country := c.Request.Header.Get("CF-IPCountry")
 	if country == "" {
 		country = c.Request.Header.Get("X-Vercel-IP-Country")
@@ -58,7 +57,6 @@ func (h *ReplayHandler) RecordReplay(c *gin.Context) {
 		country = c.Request.Header.Get("X-Country-Code")
 	}
 
-	// If still empty or looks like an IP, use geolocation service
 	clientIP := c.ClientIP()
 	if country == "" || strings.Contains(country, ".") || strings.Contains(country, ":") {
 		loc := utils.GetLocationFromIP(clientIP)
@@ -95,7 +93,7 @@ func (h *ReplayHandler) RecordReplay(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "success"})
 }
 
-// GetReplay returns the full session recording for playback
+// GetReplay returns the full session recording for playback (legacy — prefer manifest+chunk)
 func (h *ReplayHandler) GetReplay(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -111,11 +109,6 @@ func (h *ReplayHandler) GetReplay(c *gin.Context) {
 		return
 	}
 
-	h.logger.Debug().
-		Str("website_id", websiteID).
-		Str("session_id", sessionID).
-		Msg("Fetching session replay")
-
 	chunks, err := h.service.GetReplay(c.Request.Context(), websiteID, sessionID, userID)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to fetch session replay")
@@ -123,12 +116,10 @@ func (h *ReplayHandler) GetReplay(c *gin.Context) {
 		return
 	}
 
-	// For the frontend, we might want to flatten the chunks into a single events array
 	c.JSON(http.StatusOK, gin.H{"chunks": chunks})
 }
 
 // GetReplayManifest returns ordered sequence numbers for a session (no S3 download).
-// The frontend uses this to know how many chunks exist for streaming.
 func (h *ReplayHandler) GetReplayManifest(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -155,7 +146,6 @@ func (h *ReplayHandler) GetReplayManifest(c *gin.Context) {
 }
 
 // GetReplayChunk downloads and returns a single chunk's events from S3.
-// Called by the frontend progressively during streaming playback.
 func (h *ReplayHandler) GetReplayChunk(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -180,12 +170,13 @@ func (h *ReplayHandler) GetReplayChunk(c *gin.Context) {
 		return
 	}
 
-	// Return compressed if client accepts it — otherwise raw JSON
 	c.Header("Cache-Control", "private, max-age=3600")
 	c.Data(http.StatusOK, "application/json", data)
 }
 
-// ListSessions returns a list of session IDs that have recordings
+// ListSessions returns a paginated list of sessions with metadata.
+// Supports cursor-based pagination via the `before` query param (ISO8601 timestamp).
+// Response includes `total` (total sessions for the website) and `has_more` for the UI.
 func (h *ReplayHandler) ListSessions(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -200,18 +191,47 @@ func (h *ReplayHandler) ListSessions(c *gin.Context) {
 	}
 
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	// Parse optional cursor: ISO8601 timestamp of the last seen session's start_time
+	var before *time.Time
+	if beforeStr := c.Query("before"); beforeStr != "" {
+		t, err := time.Parse(time.RFC3339Nano, beforeStr)
+		if err != nil {
+			// Try without nanoseconds
+			t, err = time.Parse(time.RFC3339, beforeStr)
+		}
+		if err == nil {
+			before = &t
+		}
+	}
 
 	h.logger.Debug().Str("website_id", websiteID).Msg("Listing recorded sessions")
 
-	sessions, err := h.service.ListSessions(c.Request.Context(), websiteID, userID, limit, offset)
+	sessions, total, err := h.service.ListSessions(c.Request.Context(), websiteID, userID, limit, before)
 	if err != nil {
 		h.logger.Error().Err(err).Msg("Failed to list recorded sessions")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list sessions"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"sessions": sessions})
+	// Provide next_cursor so the client can request the next page without offset.
+	var nextCursor *string
+	hasMore := len(sessions) == limit
+	if hasMore && len(sessions) > 0 {
+		last := sessions[len(sessions)-1]
+		cursor := last.StartTime.UTC().Format(time.RFC3339Nano)
+		nextCursor = &cursor
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"sessions":    sessions,
+		"total":       total,
+		"has_more":    hasMore,
+		"next_cursor": nextCursor,
+	})
 }
 
 // DeleteReplay deletes all chunks for a session
@@ -280,11 +300,6 @@ func (h *ReplayHandler) GetPageSnapshot(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id and url are required"})
 		return
 	}
-
-	h.logger.Debug().
-		Str("website_id", websiteID).
-		Str("url", url).
-		Msg("Fetching page snapshot for heatmap")
 
 	events, err := h.service.GetPageSnapshot(c.Request.Context(), websiteID, url)
 	if err != nil {

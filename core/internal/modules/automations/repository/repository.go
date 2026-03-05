@@ -416,19 +416,17 @@ func (r *AutomationRepository) GetAutomationStats(ctx context.Context, automatio
 	return &stats, nil
 }
 
-// CreateExecution records an automation execution
+const executionInsertSQL = `
+	INSERT INTO automation_executions
+	(id, automation_id, website_id, visitor_id, session_id, trigger_event_id, status, execution_data, error_message, executed_at, completed_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`
+
+// CreateExecution records a single automation execution.
 func (r *AutomationRepository) CreateExecution(ctx context.Context, execution *models.AutomationExecution) error {
 	if execution.ID == "" {
 		execution.ID = uuid.New().String()
 	}
-
-	query := `
-		INSERT INTO automation_executions 
-		(id, automation_id, website_id, visitor_id, session_id, trigger_event_id, status, execution_data, error_message, executed_at, completed_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-	`
-
-	_, err := r.db.Exec(ctx, query,
+	_, err := r.db.Exec(ctx, executionInsertSQL,
 		execution.ID, execution.AutomationID, execution.WebsiteID,
 		execution.VisitorID, execution.SessionID, execution.TriggerEventID,
 		execution.Status, execution.ExecutionData, execution.ErrorMessage,
@@ -437,39 +435,78 @@ func (r *AutomationRepository) CreateExecution(ctx context.Context, execution *m
 	if err != nil {
 		return fmt.Errorf("failed to create execution: %w", err)
 	}
+	return nil
+}
 
+// BatchCreateExecutions inserts multiple automation executions in a single pgx batch,
+// reducing round-trips from N to 1.
+func (r *AutomationRepository) BatchCreateExecutions(ctx context.Context, executions []models.AutomationExecution) error {
+	if len(executions) == 0 {
+		return nil
+	}
+	batch := &pgx.Batch{}
+	for i := range executions {
+		if executions[i].ID == "" {
+			executions[i].ID = uuid.New().String()
+		}
+		batch.Queue(executionInsertSQL,
+			executions[i].ID, executions[i].AutomationID, executions[i].WebsiteID,
+			executions[i].VisitorID, executions[i].SessionID, executions[i].TriggerEventID,
+			executions[i].Status, executions[i].ExecutionData, executions[i].ErrorMessage,
+			executions[i].ExecutedAt, executions[i].CompletedAt,
+		)
+	}
+	br := r.db.SendBatch(ctx, batch)
+	defer br.Close()
+	for range executions {
+		if _, err := br.Exec(); err != nil {
+			return fmt.Errorf("batch execution insert failed: %w", err)
+		}
+	}
 	return nil
 }
 
 // HasExecutedInSession checks if an automation has executed in a session
 func (r *AutomationRepository) HasExecutedInSession(ctx context.Context, automationID, sessionID string) (bool, error) {
-	var count int
-	query := `SELECT COUNT(*) FROM automation_executions WHERE automation_id = $1 AND session_id = $2`
-	err := r.db.QueryRow(ctx, query, automationID, sessionID).Scan(&count)
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM automation_executions WHERE automation_id = $1 AND session_id = $2)`
+	err := r.db.QueryRow(ctx, query, automationID, sessionID).Scan(&exists)
+	return exists, err
 }
 
 // HasExecutedForVisitor checks if an automation has ever executed for a visitor
 func (r *AutomationRepository) HasExecutedForVisitor(ctx context.Context, automationID, visitorID string) (bool, error) {
-	var count int
-	query := `SELECT COUNT(*) FROM automation_executions WHERE automation_id = $1 AND visitor_id = $2`
-	err := r.db.QueryRow(ctx, query, automationID, visitorID).Scan(&count)
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM automation_executions WHERE automation_id = $1 AND visitor_id = $2)`
+	err := r.db.QueryRow(ctx, query, automationID, visitorID).Scan(&exists)
+	return exists, err
 }
 
 // HasExecutedToday checks if an automation executed for a visitor in the last 24 hours
 func (r *AutomationRepository) HasExecutedToday(ctx context.Context, automationID, visitorID string) (bool, error) {
-	var count int
-	query := `SELECT COUNT(*) FROM automation_executions WHERE automation_id = $1 AND visitor_id = $2 AND executed_at >= NOW() - INTERVAL '24 hours'`
-	err := r.db.QueryRow(ctx, query, automationID, visitorID).Scan(&count)
-	if err != nil {
-		return false, err
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM automation_executions WHERE automation_id = $1 AND visitor_id = $2 AND executed_at >= NOW() - INTERVAL '24 hours')`
+	err := r.db.QueryRow(ctx, query, automationID, visitorID).Scan(&exists)
+	return exists, err
+}
+
+// FilterIDsByUser returns only the automation IDs from ids that belong to userID.
+func (r *AutomationRepository) FilterIDsByUser(ctx context.Context, ids []string, userID string) ([]string, error) {
+	if len(ids) == 0 {
+		return nil, nil
 	}
-	return count > 0, nil
+	query := `SELECT id FROM automations WHERE id = ANY($1) AND user_id = $2`
+	rows, err := r.db.Query(ctx, query, ids, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter automation ids: %w", err)
+	}
+	defer rows.Close()
+	var validIDs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			validIDs = append(validIDs, id)
+		}
+	}
+	return validIDs, nil
 }

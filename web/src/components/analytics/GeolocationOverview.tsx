@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatNumber } from '@/lib/analytics-api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { Globe, MapPin } from 'lucide-react';
+import { Globe, MapPin, Globe2, Map } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
 import { useState } from 'react';
@@ -47,6 +47,7 @@ interface GeolocationOverviewProps {
 
 export function GeolocationOverview({ data, isLoading = false, className = '', onFilter }: GeolocationOverviewProps) {
     const [geoTab, setGeoTab] = useState<string>('map');
+    const [mapView, setMapView] = useState<'globe' | 'flat'>('globe');
 
     const displayData = data;
 
@@ -82,28 +83,54 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
 
     return (
         <Card className={cn("border border-border/60 bg-card shadow-sm overflow-hidden", className)}>
-            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-border/40">
+            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-6 border-b border-border/40">
                 <div className="space-y-1">
                     <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
                         Geographic Intelligence
                     </CardTitle>
                     <p className="text-xs text-muted-foreground">Visitor distribution across global regions</p>
                 </div>
-                <Tabs value={geoTab} onValueChange={setGeoTab} className="w-full lg:w-auto">
-                    <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/10 p-1 rounded">
-                        <TabsTrigger className='text-xs font-medium rounded active:bg-background' value="map">Map</TabsTrigger>
-                        <TabsTrigger className='text-xs font-medium rounded active:bg-background' value="countries">Countries</TabsTrigger>
-                        <TabsTrigger className='text-xs font-medium rounded active:bg-background' value="cities">Cities</TabsTrigger>
-                    </TabsList>
-                </Tabs>
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Map style toggle — only visible on Map tab */}
+                    {geoTab === 'map' && (
+                        <div className="flex items-center gap-0.5 h-8 bg-muted/50 p-0.5 rounded">
+                            {([
+                                { id: 'globe' as const, icon: Globe2, label: '3D Globe' },
+                                { id: 'flat'  as const, icon: Map,    label: 'Flat Map' },
+                            ]).map(({ id, icon: Icon, label }) => (
+                                <button
+                                    key={id}
+                                    onClick={() => setMapView(id)}
+                                    className={cn(
+                                        'h-7 px-3 gap-1.5 flex items-center text-xs font-medium rounded transition-all',
+                                        mapView === id
+                                            ? 'bg-background text-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground bg-transparent'
+                                    )}
+                                >
+                                    <Icon className="h-3.5 w-3.5" />
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    <Tabs value={geoTab} onValueChange={setGeoTab}>
+                        <TabsList className="h-8 bg-muted/50 p-0.5 rounded gap-0.5">
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map">Map</TabsTrigger>
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="countries">Countries</TabsTrigger>
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="cities">Cities</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
             </CardHeader>
             <CardContent className="p-6 pt-6">
-                <div className="min-h-[400px]">
+                <div className="min-h-[620px]">
                     {geoTab === 'map' && (
-                        <div className="h-[450px]  relative rounded overflow-hidden ">
+                        <div className="h-[620px] rounded-xl overflow-hidden">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}
+                                view={mapView}
                             />
                         </div>
                     )}

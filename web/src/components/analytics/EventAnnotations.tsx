@@ -71,7 +71,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
     <div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1.5 h-8 px-3 font-medium text-[11px]">
+          <Button variant="ghost" size="sm" className="gap-1.5 h-7 px-3 font-medium text-xs text-muted-foreground bg-muted/50 hover:bg-muted/70 hover:text-foreground rounded border-0">
             <Tag className="h-3.5 w-3.5" />
             Annotate
           </Button>

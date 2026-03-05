@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/Seentics/seentics/internal/modules/replays/models"
 	"github.com/Seentics/seentics/internal/modules/replays/repository"
@@ -22,11 +23,11 @@ import (
 type ReplayService interface {
 	RecordReplay(ctx context.Context, req models.RecordReplayRequest, origin, userAgent, country string) error
 	GetReplay(ctx context.Context, websiteID, sessionID, userID string) ([]models.SessionReplayChunk, error)
-	// Streaming-friendly endpoints: manifest returns sequence numbers only (no S3 download),
-	// GetReplayChunk fetches a single chunk from S3.
 	GetReplayManifest(ctx context.Context, websiteID, sessionID, userID string) ([]int, error)
 	GetReplayChunk(ctx context.Context, websiteID, sessionID, userID string, seq int) (json.RawMessage, error)
-	ListSessions(ctx context.Context, websiteID, userID string, limit, offset int) ([]models.ReplaySessionMetadata, error)
+	// ListSessions returns sessions ordered by start_time DESC, before the optional cursor time.
+	// Returns the page of sessions, the total session count for the website, and any error.
+	ListSessions(ctx context.Context, websiteID, userID string, limit int, before *time.Time) ([]models.ReplaySessionMetadata, int64, error)
 	DeleteReplay(ctx context.Context, websiteID, sessionID, userID string) error
 	BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string, userID string) error
 	GetPageSnapshot(ctx context.Context, websiteID, url string) (json.RawMessage, error)
@@ -88,26 +89,17 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 	// Canonicalize website ID
 	req.WebsiteID = website.SiteID
 
-	// 3. Quota Enforcement (Enterprise Mode)
+	// 3. Global quota enforcement: count sessions across ALL websites of this user,
+	// not just the current one — prevents limit bypass via multiple websites.
 	if limit, ok := ctx.Value("max_replays").(int); ok && limit > 0 {
-		// Check if this session_id already exists in the database.
-		// If yes, we allow recording to it regardless of the limit.
-		// If NO, we check if we are at the limit.
+		// Only check quota for NEW sessions; existing sessions always get more chunks.
 		exists, err := s.repo.SessionExists(ctx, req.WebsiteID, req.SessionID)
 		if err != nil {
 			return fmt.Errorf("failed to check session existence: %w", err)
 		}
 
 		if !exists {
-			// Count total unique sessions for this website (or user? usually it's per website in OSS, global in usage view)
-			// The user view shows "1 of 100" global. So we should probably count global for the user.
-			// But for simplicity of core service, let's count per website if it's OSS, or just follow the context.
-
-			// Actually, the billing service counts global across all websites of the user.
-			// But the core service doesn't easily know all other websites of the user here without more calls.
-
-			// Let's just check the current website's count for now as a first-line defense.
-			count, err := s.repo.CountSessions(ctx, req.WebsiteID)
+			count, err := s.repo.CountSessionsForUser(ctx, website.UserID)
 			if err == nil && count >= int64(limit) {
 				return fmt.Errorf("recording limit reached (%d/%d). cannot start new sessions", count, limit)
 			}
@@ -134,15 +126,19 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 		return fmt.Errorf("failed to upload to s3: %w", err)
 	}
 
-	// 4. Save reference row in DB
-	// We capture metadata on every chunk to ensure it's available even if sequence 0 is missing.
+	// 5. Save reference row in DB.
+	// Browser/Device/OS/Country are stored on every chunk for resilience (so metadata
+	// is available even if sequence=0 is missing). EntryPage is ONLY stored on sequence=0
+	// to correctly capture the landing page, not a later navigated page.
 	browser, device, osName := parseUA(userAgent)
 	meta := &models.SessionMeta{
-		Browser:   browser,
-		Device:    device,
-		OS:        osName,
-		Country:   country,
-		EntryPage: req.Page,
+		Browser: browser,
+		Device:  device,
+		OS:      osName,
+		Country: country,
+	}
+	if req.Sequence == 0 {
+		meta.EntryPage = req.Page
 	}
 
 	return s.repo.SaveChunk(ctx, req.WebsiteID, req.SessionID, json.RawMessage("[]"), req.Sequence, meta)
@@ -175,18 +171,15 @@ func (s *replayService) GetReplay(ctx context.Context, websiteID string, session
 		go func(idx, seq int, dbData json.RawMessage) {
 			defer wg.Done()
 
-			// Try gzipped key first
 			key := fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sessionID, seq)
 			reader, dlErr := s.store.Download(ctx, key)
 
-			// Legacy fallback: try non-gzipped key
 			if dlErr != nil {
 				key = fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sessionID, seq)
 				reader, dlErr = s.store.Download(ctx, key)
 			}
 
 			if dlErr != nil {
-				// Fallback: use data stored in DB if the S3 object is missing (migration period)
 				if len(dbData) > 2 {
 					results[idx] = result{index: idx, data: dbData}
 					return
@@ -229,8 +222,7 @@ func (s *replayService) GetReplay(ctx context.Context, websiteID string, session
 }
 
 // GetReplayManifest returns the ordered list of chunk sequence numbers for a session
-// by reading Postgres only — no S3 download. Used by the frontend to know how many
-// chunks exist so it can stream them one at a time.
+// by reading Postgres only — no S3 download.
 func (s *replayService) GetReplayManifest(ctx context.Context, websiteID, sessionID, userID string) ([]int, error) {
 	siteID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
@@ -246,7 +238,6 @@ func (s *replayService) GetReplayChunk(ctx context.Context, websiteID, sessionID
 		return nil, err
 	}
 
-	// Try gzipped key first
 	key := fmt.Sprintf("replays/%s/%s/%d.json.gz", siteID, sessionID, seq)
 	reader, dlErr := s.store.Download(ctx, key)
 	if dlErr != nil {
@@ -275,12 +266,12 @@ func (s *replayService) GetReplayChunk(ctx context.Context, websiteID, sessionID
 	return json.RawMessage(raw), nil
 }
 
-func (s *replayService) ListSessions(ctx context.Context, websiteID, userID string, limit, offset int) ([]models.ReplaySessionMetadata, error) {
+func (s *replayService) ListSessions(ctx context.Context, websiteID, userID string, limit int, before *time.Time) ([]models.ReplaySessionMetadata, int64, error) {
 	siteID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return s.repo.ListSessionsWithMetadata(ctx, siteID, limit, offset)
+	return s.repo.ListSessionsWithMetadata(ctx, siteID, limit, before)
 }
 
 func (s *replayService) DeleteReplay(ctx context.Context, websiteID string, sessionID string, userID string) error {
@@ -289,15 +280,12 @@ func (s *replayService) DeleteReplay(ctx context.Context, websiteID string, sess
 		return err
 	}
 
-	// Repo returns S3 keys to clean up
 	keys, err := s.repo.DeleteSessionReplay(ctx, siteID, sessionID)
 	if err != nil {
 		return err
 	}
 
-	// Delete S3 objects in parallel; non-fatal if individual deletes fail
 	s.deleteS3KeysParallel(ctx, keys)
-
 	return nil
 }
 
@@ -343,11 +331,9 @@ func (s *replayService) GetPageSnapshot(ctx context.Context, websiteID string, u
 		return nil, err
 	}
 
-	// Try gzipped first for snapshot
 	key := fmt.Sprintf("replays/%s/%s/0.json.gz", websiteID, sessionID)
 	reader, err := s.store.Download(ctx, key)
 	if err != nil {
-		// Fallback to non-gzipped
 		key = fmt.Sprintf("replays/%s/%s/0.json", websiteID, sessionID)
 		reader, err = s.store.Download(ctx, key)
 	}

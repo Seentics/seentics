@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/Seentics/seentics/internal/modules/automations/models"
 	"github.com/Seentics/seentics/internal/modules/automations/services"
@@ -113,10 +114,10 @@ func (h *AutomationHandler) CreateAutomation(c *gin.Context) {
 		return
 	}
 
-	// Get user ID from context (assuming it's set by auth middleware)
 	userID, exists := c.Get("user_id")
 	if !exists {
-		userID = "system" // fallback
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
 	}
 
 	automation, err := h.service.CreateAutomation(c.Request.Context(), &req, websiteID, userID.(string))
@@ -332,15 +333,9 @@ func (h *AutomationHandler) TrackBatchExecutions(c *gin.Context) {
 		origin = c.Request.Header.Get("Referer")
 	}
 
-	// Process each execution
-	for _, exec := range req.Executions {
-		// Ensure website ID matches batch request
-		exec.WebsiteID = req.WebsiteID
-
-		err := h.service.TrackExecution(c.Request.Context(), &exec, origin)
-		if err != nil {
-			// Log error but continue
-		}
+	if err := h.service.TrackExecutionBatch(c.Request.Context(), req.WebsiteID, req.Executions, origin, time.Now()); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "success", "count": len(req.Executions)})

@@ -17,6 +17,10 @@ type HeatmapPoint struct {
 	Y          float64   `json:"y" db:"y"` // Alias for frontend compatibility
 	Intensity  int       `json:"intensity" db:"intensity"`
 	LastSeen   time.Time `json:"last_seen" db:"last_updated"` // DB uses "last_updated"
+	// Element-relative click position (0-1000 within element bounding rect).
+	// -1 means not recorded (legacy data or non-click event types).
+	ElX int `json:"el_x" db:"el_x"`
+	ElY int `json:"el_y" db:"el_y"`
 }
 
 // UnmarshalJSON handles both "x"/"y" and "x_percent"/"y_percent" from frontend
@@ -38,6 +42,11 @@ func (p *HeatmapPoint) UnmarshalJSON(data []byte) error {
 	}
 	if p.YPercent == 0 && p.Y != 0 {
 		p.YPercent = p.Y
+	}
+	// Default el_x / el_y to -1 when absent in the JSON payload
+	if p.ElX == 0 && p.ElY == 0 {
+		p.ElX = -1
+		p.ElY = -1
 	}
 
 	return nil

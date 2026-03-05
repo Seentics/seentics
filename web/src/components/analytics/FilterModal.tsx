@@ -94,7 +94,7 @@ function SectionHeader({
   return (
     <button
       onClick={onToggle}
-      className="w-full flex items-center justify-between py-3 px-4 rounded-xl hover:bg-muted/40 transition-colors group"
+      className="w-full flex items-center justify-between py-3 px-4 hover:bg-muted/30 transition-colors group"
     >
       <div className="flex items-center gap-2.5">
         <span className="text-primary opacity-70 group-hover:opacity-100 transition-opacity">{icon}</span>
@@ -266,10 +266,10 @@ export function FilterModal({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[560px] rounded-2xl border border-border/20 bg-background shadow-2xl p-0 overflow-hidden outline-none max-h-[92vh] flex flex-col">
+      <DialogContent className="sm:max-w-[560px] rounded-xl border border-border/60 bg-card shadow-2xl p-0 overflow-hidden outline-none max-h-[92vh] flex flex-col">
 
         {/* ── Header ─────────────────────────────────────────────────── */}
-        <DialogHeader className="px-5 pt-5 pb-4 border-b border-border/10 bg-muted/5 shrink-0">
+        <DialogHeader className="px-5 pt-5 pb-4 border-b border-border/60 shrink-0">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <DialogTitle className="text-lg font-black tracking-tight text-foreground flex items-center gap-2">
@@ -310,7 +310,7 @@ export function FilterModal({
         </DialogHeader>
 
         {/* ── Scrollable body ─────────────────────────────────────────── */}
-        <div className="overflow-y-auto flex-1 divide-y divide-border/10">
+        <div className="overflow-y-auto flex-1 divide-y divide-border/60">
 
           {/* ── Section: Time Period ──────────────────────────────────── */}
           <div>
@@ -346,9 +346,9 @@ export function FilterModal({
 
                 {/* Current selection summary */}
                 {!isCustomRange && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/10">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/60">
                     <CalendarIcon className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="text-xs font-bold text-primary">{dateLabel}</span>
+                    <span className="text-xs font-medium text-foreground">{dateLabel}</span>
                   </div>
                 )}
 
@@ -361,7 +361,7 @@ export function FilterModal({
                         ? `${format(customStartDate, 'MMM d, yyyy')} → ${format(customEndDate, 'MMM d, yyyy')}`
                         : 'Pick start and end dates'}
                     </div>
-                    <div className="rounded-xl border border-border/20 bg-muted/5 overflow-hidden">
+                    <div className="rounded-lg border border-border/60 overflow-hidden">
                       <Calendar
                         initialFocus
                         mode="range"
@@ -528,7 +528,7 @@ export function FilterModal({
         </div>
 
         {/* ── Footer ─────────────────────────────────────────────────── */}
-        <div className="px-5 py-4 border-t border-border/10 bg-muted/5 flex items-center justify-between gap-3 shrink-0">
+        <div className="px-5 py-4 border-t border-border/60 flex items-center justify-between gap-3 shrink-0">
           <div className="text-[10px] text-muted-foreground font-medium">
             {advancedCount > 0
               ? `${advancedCount} filter${advancedCount > 1 ? 's' : ''} applied`
@@ -555,8 +555,6 @@ export function FilterModal({
           </div>
         </div>
 
-        {/* Decorative glow */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/8 blur-[100px] -mr-24 -mt-24 rounded-full pointer-events-none" />
       </DialogContent>
     </Dialog>
   );

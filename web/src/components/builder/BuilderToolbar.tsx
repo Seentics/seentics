@@ -7,23 +7,32 @@ import {
   ChevronLeft,
   Workflow,
   Loader2,
+  AlignJustify,
+  GitFork,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAutomationStore } from '@/stores/automationStore';
 import { AutomationTestSandbox } from './AutomationTestSandbox';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
+
+export type BuilderMode = 'linear' | 'canvas';
 
 interface BuilderToolbarProps {
   websiteId: string;
   automationId?: string | null;
   onTestClick?: () => void;
+  mode: BuilderMode;
+  onModeChange: (mode: BuilderMode) => void;
 }
 
 export const BuilderToolbar = ({
   websiteId,
   automationId,
   onTestClick,
+  mode,
+  onModeChange,
 }: BuilderToolbarProps) => {
   const [isSaving, setIsSaving] = useState(false);
   const [showTestSandbox, setShowTestSandbox] = useState(false);
@@ -108,6 +117,38 @@ export const BuilderToolbar = ({
 
       {/* Right: status + actions */}
       <div className="flex items-center gap-2">
+        {/* Mode toggle */}
+        <div className="flex items-center p-0.5 bg-white/[0.04] rounded-md border border-white/[0.06]">
+          <button
+            onClick={() => onModeChange('linear')}
+            title="Linear Builder"
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium transition-all',
+              mode === 'linear'
+                ? 'bg-primary/20 text-primary'
+                : 'text-zinc-500 hover:text-zinc-300'
+            )}
+          >
+            <AlignJustify className="h-3 w-3" />
+            Linear
+          </button>
+          <button
+            onClick={() => onModeChange('canvas')}
+            title="Canvas Builder (drag & drop)"
+            className={cn(
+              'flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-medium transition-all',
+              mode === 'canvas'
+                ? 'bg-primary/20 text-primary'
+                : 'text-zinc-500 hover:text-zinc-300'
+            )}
+          >
+            <GitFork className="h-3 w-3" />
+            Canvas
+          </button>
+        </div>
+
+        <div className="h-4 w-px bg-white/[0.06]" />
+
         {/* Status pill */}
         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/[0.04] rounded-md border border-white/[0.06]">
           <span className={`h-1.5 w-1.5 rounded-full ${canSave ? 'bg-emerald-500' : 'bg-amber-500'}`} />

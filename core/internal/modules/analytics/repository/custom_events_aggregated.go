@@ -87,53 +87,6 @@ func (r *CustomEventsAggregatedRepository) UpsertCustomEvent(ctx context.Context
 	return nil
 }
 
-// GetCustomEventStats returns aggregated custom event statistics
-func (r *CustomEventsAggregatedRepository) GetCustomEventStats(ctx context.Context, websiteID string, days int) ([]models.CustomEventStat, error) {
-	query := `
-		SELECT 
-			event_type,
-			SUM(count) AS total_count,
-			sample_properties
-		FROM custom_events_aggregated
-		WHERE website_id = $1
-		AND last_seen >= NOW() - INTERVAL '1 day' * $2
-		GROUP BY event_type, event_signature, sample_properties
-		ORDER BY total_count DESC
-		LIMIT 100`
-
-	rows, err := r.db.Query(ctx, query, websiteID, days)
-	if err != nil {
-		return nil, fmt.Errorf("query failed: %w", err)
-	}
-	defer rows.Close()
-
-	var events []models.CustomEventStat
-	for rows.Next() {
-		var event models.CustomEventStat
-		var propertiesJSON []byte
-
-		err := rows.Scan(&event.EventType, &event.Count, &propertiesJSON)
-		if err != nil {
-			r.logger.Warn().Err(err).Msg("Failed to scan custom event stat")
-			continue
-		}
-
-		// Parse sample properties
-		if len(propertiesJSON) > 0 {
-			var properties models.Properties
-			if err := json.Unmarshal(propertiesJSON, &properties); err == nil {
-				event.SampleProperties = properties
-				event.SampleEvent = properties
-				event.CommonProperties = r.extractCommonProperties(properties)
-			}
-		}
-
-		events = append(events, event)
-	}
-
-	return events, rows.Err()
-}
-
 // createEventSignature creates a unique signature for an event based on its type and key identifying properties
 // This ensures that different interactive elements (different buttons, different forms)
 // are tracked as separate conversion targets.

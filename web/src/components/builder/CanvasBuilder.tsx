@@ -52,7 +52,7 @@ interface CanvasNode {
 }
 
 export const CanvasBuilder = () => {
-  const { nodes, setNodes, updateNode, deleteNode, setSelectedNodeId } = useAutomationStore();
+  const { nodes, setNodes, updateNode, deleteNode, setSelectedNodeId, addNode, setEdges } = useAutomationStore();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -80,25 +80,27 @@ export const CanvasBuilder = () => {
 
   // Handle node click (only if not dragged)
   const handleNodeClick = (e: React.MouseEvent, nodeId: string) => {
+    // Connection-completion must run FIRST — before any early returns.
+    // Releasing on a button, the connection handle, or anywhere on the node
+    // should all complete the connection.
+    if (connectingFrom && connectingFrom !== nodeId && isDraggingConnection) {
+      e.stopPropagation(); // prevent document mouseup from cancelling
+      setNodeConnections(prev => {
+        const exists = prev.some(c => c.from === connectingFrom && c.to === nodeId);
+        return exists ? prev : [...prev, { from: connectingFrom!, to: nodeId }];
+      });
+      setConnectingFrom(null);
+      setIsDraggingConnection(false);
+      return;
+    }
+
     if ((e.target as HTMLElement).closest('button')) return;
     if ((e.target as HTMLElement).closest('.connection-handle')) return;
     e.stopPropagation();
 
-    // Only open modal if we didn't drag the node and not connecting
-    if (!hasMoved && !connectingFrom && !isDraggingConnection) {
+    // Open config modal only on a clean click (no drag, no connecting)
+    if (!hasMoved) {
       setSelectedNodeId(nodeId);
-    }
-
-    // If we're connecting, finish the connection
-    if (connectingFrom && connectingFrom !== nodeId && isDraggingConnection) {
-      const exists = nodeConnections.some(
-        conn => conn.from === connectingFrom && conn.to === nodeId
-      );
-      if (!exists) {
-        setNodeConnections([...nodeConnections, { from: connectingFrom, to: nodeId }]);
-      }
-      setConnectingFrom(null);
-      setIsDraggingConnection(false);
     }
   };
 
@@ -214,17 +216,34 @@ export const CanvasBuilder = () => {
     }
   }, []);
 
-  // Auto-arrange nodes in a flow
+  // Sync canvas connections → store edges so getLinearizedWorkflow sees them
   useEffect(() => {
-    if (nodes.length > 0 && nodes.every(n => n.position.x === 0 && n.position.y === 0)) {
+    setEdges(nodeConnections.map(conn => ({
+      id: `e-${conn.from}-${conn.to}`,
+      source: conn.from,
+      target: conn.to,
+    })));
+  }, [nodeConnections]);
+
+  // Auto-arrange on initial load: only when ALL nodes are at {x:0,y:0}
+  // (i.e. loaded from the server/store without saved positions).
+  // Nodes dropped via drag-and-drop already have explicit canvas positions, so
+  // they won't all be at {0,0} and this block won't interfere.
+  const prevLengthRef = useRef(0);
+  useEffect(() => {
+    const allAtOrigin = nodes.length > 0 && nodes.every(n => n.position.x === 0 && n.position.y === 0);
+    // Only auto-arrange when the full set loaded at once (not a single new drop)
+    const isInitialLoad = allAtOrigin && nodes.length !== prevLengthRef.current + 1;
+    prevLengthRef.current = nodes.length;
+
+    if (isInitialLoad) {
       const arranged = nodes.map((node, index) => ({
         ...node,
         position: { x: 400, y: 100 + index * 120 }
       }));
       setNodes(arranged);
 
-      // Create connections
-      const connections = [];
+      const connections: Array<{ from: string; to: string }> = [];
       for (let i = 0; i < arranged.length - 1; i++) {
         connections.push({ from: arranged[i].id, to: arranged[i + 1].id });
       }
@@ -238,8 +257,41 @@ export const CanvasBuilder = () => {
     }
   };
 
+  const handleDragOver = (e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/reactflow')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('application/reactflow');
+    if (!type) return;
+
+    const label = e.dataTransfer.getData('application/reactflow-label');
+    const description = e.dataTransfer.getData('application/reactflow-description');
+    const subtype = e.dataTransfer.getData('application/reactflow-subtype');
+
+    const canvas = canvasRef.current;
+    const rect = canvas?.getBoundingClientRect();
+    const x = rect ? (e.clientX - rect.left - pan.x) / zoom - 125 : 400;
+    const y = rect ? (e.clientY - rect.top - pan.y) / zoom - 22 : 200;
+
+    const initialConfig: any = {};
+    if (type === 'triggerNode' && subtype) initialConfig.triggerType = subtype;
+    if (type === 'actionNode' && subtype) initialConfig.actionType = subtype;
+
+    addNode({
+      id: `node_${Date.now()}`,
+      type,
+      position: { x, y },
+      data: { label, description, config: initialConfig },
+    });
+  };
+
   return (
-    <div className="flex-1 relative overflow-hidden bg-slate-950" ref={canvasRef} onWheel={handleWheel}>
+    <div className="flex-1 relative overflow-hidden bg-slate-950" ref={canvasRef} onWheel={handleWheel} onDragOver={handleDragOver} onDrop={handleDrop}>
       {/* Canvas Controls */}
       <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         <Button
@@ -415,7 +467,7 @@ export const CanvasBuilder = () => {
                         size="icon"
                         variant="ghost"
                         className="h-7 w-7 text-slate-500 hover:text-red-500 hover:bg-red-500/10"
-                        onClick={(e) => { e.stopPropagation(); deleteNode(node.id); }}
+                        onClick={(e) => { e.stopPropagation(); deleteNode(node.id); setNodeConnections(prev => prev.filter(c => c.from !== node.id && c.to !== node.id)); }}
                       >
                         <Trash2 size={14} />
                       </Button>

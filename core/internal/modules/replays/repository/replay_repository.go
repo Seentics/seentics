@@ -4,25 +4,31 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/Seentics/seentics/internal/modules/replays/models"
-
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type ReplayRepository interface {
 	SaveChunk(ctx context.Context, websiteID, sessionID string, data json.RawMessage, sequence int, meta *models.SessionMeta) error
 	GetChunks(ctx context.Context, websiteID, sessionID string) ([]models.SessionReplayChunk, error)
-	// GetChunkSequences returns ordered sequence numbers without fetching event data.
 	GetChunkSequences(ctx context.Context, websiteID, sessionID string) ([]int, error)
-	ListSessionsWithMetadata(ctx context.Context, websiteID string, limit, offset int) ([]models.ReplaySessionMetadata, error)
+	// ListSessionsWithMetadata returns sessions ordered by start_time DESC.
+	// before: optional cursor — only sessions whose start_time < before are returned.
+	// Returns the sessions, the total session count for the website (for pagination UI), and any error.
+	ListSessionsWithMetadata(ctx context.Context, websiteID string, limit int, before *time.Time) ([]models.ReplaySessionMetadata, int64, error)
 	DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) ([]string, error)
 	BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string) ([]string, error)
 	DeleteAllByWebsiteID(ctx context.Context, websiteID string) ([]string, error)
 	GetPageSnapshot(ctx context.Context, websiteID, siteID, url string) (json.RawMessage, error)
 	FindSessionIDForPage(ctx context.Context, websiteID, url string) (string, error)
 	SessionExists(ctx context.Context, websiteID, sessionID string) (bool, error)
-	CountSessions(ctx context.Context, websiteID string) (int64, error)
+	// CountSessionsForUser counts distinct sessions across ALL websites owned by the given user.
+	// Used for global quota enforcement across multi-website accounts.
+	CountSessionsForUser(ctx context.Context, userID uuid.UUID) (int64, error)
 }
 
 type replayRepository struct {
@@ -35,7 +41,6 @@ func NewReplayRepository(db *pgxpool.Pool) ReplayRepository {
 
 func (r *replayRepository) SaveChunk(ctx context.Context, websiteID, sessionID string, data json.RawMessage, sequence int, meta *models.SessionMeta) error {
 	if meta != nil {
-		// First chunk — store session metadata alongside the row
 		query := `
 			INSERT INTO session_replays (website_id, session_id, data, sequence, browser, device, os, country, entry_page)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -106,55 +111,80 @@ func (r *replayRepository) GetChunkSequences(ctx context.Context, websiteID, ses
 	return seqs, nil
 }
 
-func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, websiteID string, limit, offset int) ([]models.ReplaySessionMetadata, error) {
+func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, websiteID string, limit int, before *time.Time) ([]models.ReplaySessionMetadata, int64, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
-	// Aggregating metadata directly from existing rows ensures we get data even if sequence 0 is missing.
-	query := `
+
+	// Total distinct sessions for this website (for pagination UI).
+	var total int64
+	countErr := r.db.QueryRow(ctx,
+		`SELECT COUNT(DISTINCT session_id) FROM session_replays WHERE website_id = $1`,
+		websiteID,
+	).Scan(&total)
+	if countErr != nil {
+		total = 0
+	}
+
+	// Cursor-based pagination: only sessions whose start_time is before the cursor.
+	// When before is nil, returns the most recent sessions.
+	const baseSelect = `
 		SELECT
 			session_id,
 			MIN(timestamp)  AS start_time,
 			MAX(timestamp)  AS end_time,
-			EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))) AS duration,
+			LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 1800) AS duration,
 			COUNT(id)       AS chunk_count,
-			COALESCE(MAX(browser)    FILTER (WHERE browser != '' AND browser != 'Unknown'), 'Unknown') AS browser,
-			COALESCE(MAX(device)     FILTER (WHERE device  != '' AND device  != 'Unknown'), 'Unknown') AS device,
-			COALESCE(MAX(os)         FILTER (WHERE os      != '' AND os      != 'Unknown'), 'Unknown') AS os,
-			COALESCE(MAX(country)    FILTER (WHERE country != '' AND country != 'Unknown'), 'Unknown') AS country,
+			COALESCE(MAX(browser)    FILTER (WHERE browser    != '' AND browser    != 'Unknown'), 'Unknown') AS browser,
+			COALESCE(MAX(device)     FILTER (WHERE device     != '' AND device     != 'Unknown'), 'Unknown') AS device,
+			COALESCE(MAX(os)         FILTER (WHERE os         != '' AND os         != 'Unknown'), 'Unknown') AS os,
+			COALESCE(MAX(country)    FILTER (WHERE country    != '' AND country    != 'Unknown'), 'Unknown') AS country,
 			COALESCE(MAX(entry_page) FILTER (WHERE entry_page != '' AND entry_page != 'Unknown'), 'Unknown') AS entry_page
 		FROM session_replays
 		WHERE website_id = $1
 		GROUP BY session_id
-		ORDER BY start_time DESC
-		LIMIT $2 OFFSET $3
 	`
-	rows, err := r.db.Query(ctx, query, websiteID, limit, offset)
+
+	var (
+		rows pgx.Rows
+		err  error
+	)
+
+	if before != nil {
+		rows, err = r.db.Query(ctx,
+			baseSelect+` HAVING MIN(timestamp) < $2 ORDER BY start_time DESC LIMIT $3`,
+			websiteID, *before, limit,
+		)
+	} else {
+		rows, err = r.db.Query(ctx,
+			baseSelect+` ORDER BY start_time DESC LIMIT $2`,
+			websiteID, limit,
+		)
+	}
+
 	if err != nil {
-		return nil, err
+		return nil, total, err
 	}
 	defer rows.Close()
 
 	var sessions []models.ReplaySessionMetadata
 	for rows.Next() {
 		var s models.ReplaySessionMetadata
-		err := rows.Scan(
+		if err := rows.Scan(
 			&s.SessionID, &s.StartTime, &s.EndTime, &s.Duration, &s.ChunkCount,
 			&s.Browser, &s.Device, &s.OS, &s.Country, &s.EntryPage,
-		)
-		if err != nil {
-			return nil, err
+		); err != nil {
+			return nil, total, err
 		}
 		s.WebsiteID = websiteID
 		sessions = append(sessions, s)
 	}
 
-	return sessions, nil
+	return sessions, total, nil
 }
 
 // DeleteSessionReplay removes all DB rows and returns the S3 keys that should be deleted.
 func (r *replayRepository) DeleteSessionReplay(ctx context.Context, websiteID, sessionID string) ([]string, error) {
-	// Collect sequence numbers before deleting so we can build S3 keys.
 	seqRows, err := r.db.Query(ctx,
 		`SELECT sequence FROM session_replays WHERE website_id = $1 AND session_id = $2`,
 		websiteID, sessionID,
@@ -180,9 +210,10 @@ func (r *replayRepository) DeleteSessionReplay(ctx context.Context, websiteID, s
 		return nil, err
 	}
 
-	keys := make([]string, len(sequences))
-	for i, seq := range sequences {
-		keys[i] = fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sessionID, seq)
+	keys := make([]string, 0, len(sequences)*2)
+	for _, seq := range sequences {
+		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sessionID, seq))
+		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sessionID, seq))
 	}
 	return keys, nil
 }
@@ -192,7 +223,6 @@ func (r *replayRepository) GetPageSnapshot(ctx context.Context, websiteID, siteI
 }
 
 func (r *replayRepository) FindSessionIDForPage(ctx context.Context, websiteID, url string) (string, error) {
-	// Look up by entry_page stored on the sequence=0 metadata row.
 	query := `
 		SELECT session_id
 		FROM session_replays
@@ -207,12 +237,12 @@ func (r *replayRepository) FindSessionIDForPage(ctx context.Context, websiteID, 
 	}
 	return sessionID, nil
 }
+
 func (r *replayRepository) BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string) ([]string, error) {
 	if len(sessionIDs) == 0 {
 		return nil, nil
 	}
 
-	// 1. Get all sequence numbers for these sessions to build S3 keys
 	query := `SELECT session_id, sequence FROM session_replays WHERE website_id = $1 AND session_id = ANY($2)`
 	rows, err := r.db.Query(ctx, query, websiteID, sessionIDs)
 	if err != nil {
@@ -227,12 +257,10 @@ func (r *replayRepository) BulkDeleteReplays(ctx context.Context, websiteID stri
 		if err := rows.Scan(&sID, &seq); err != nil {
 			return nil, err
 		}
-		// Build Both Gzip and Non-Gzip keys just to be safe
 		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sID, seq))
 		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sID, seq))
 	}
 
-	// 2. Delete from DB
 	deleteQuery := `DELETE FROM session_replays WHERE website_id = $1 AND session_id = ANY($2)`
 	if _, err := r.db.Exec(ctx, deleteQuery, websiteID, sessionIDs); err != nil {
 		return nil, err
@@ -242,7 +270,6 @@ func (r *replayRepository) BulkDeleteReplays(ctx context.Context, websiteID stri
 }
 
 func (r *replayRepository) DeleteAllByWebsiteID(ctx context.Context, websiteID string) ([]string, error) {
-	// 1. Get all session_id and sequence pairs to build S3 keys
 	query := `SELECT session_id, sequence FROM session_replays WHERE website_id = $1`
 	rows, err := r.db.Query(ctx, query, websiteID)
 	if err != nil {
@@ -257,12 +284,10 @@ func (r *replayRepository) DeleteAllByWebsiteID(ctx context.Context, websiteID s
 		if err := rows.Scan(&sID, &seq); err != nil {
 			return nil, err
 		}
-		// Build Both Gzip and Non-Gzip keys
 		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sID, seq))
 		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sID, seq))
 	}
 
-	// 2. Delete from DB
 	_, err = r.db.Exec(ctx, `DELETE FROM session_replays WHERE website_id = $1`, websiteID)
 	if err != nil {
 		return nil, err
@@ -278,9 +303,16 @@ func (r *replayRepository) SessionExists(ctx context.Context, websiteID, session
 	return exists, err
 }
 
-func (r *replayRepository) CountSessions(ctx context.Context, websiteID string) (int64, error) {
+// CountSessionsForUser counts all distinct sessions across every website owned by userID.
+// This gives the true global usage for billing quota enforcement.
+func (r *replayRepository) CountSessionsForUser(ctx context.Context, userID uuid.UUID) (int64, error) {
 	var count int64
-	query := `SELECT COUNT(DISTINCT session_id) FROM session_replays WHERE website_id = $1`
-	err := r.db.QueryRow(ctx, query, websiteID).Scan(&count)
+	query := `
+		SELECT COUNT(DISTINCT sr.session_id)
+		FROM session_replays sr
+		JOIN websites w ON sr.website_id = w.site_id
+		WHERE w.user_id = $1
+	`
+	err := r.db.QueryRow(ctx, query, userID).Scan(&count)
 	return count, err
 }

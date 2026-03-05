@@ -75,30 +75,53 @@ func (h *HeatmapHandler) GetHeatmapData(c *gin.Context) {
 		return
 	}
 
-	// Default to last 30 days, allow query param override
+	// Accept RFC3339Nano (with millis, e.g. from JS Date.toISOString()) or plain RFC3339.
+	// Default range is 2 years back so old data is always visible.
+	parseTS := func(s string) (time.Time, bool) {
+		for _, layout := range []string{time.RFC3339Nano, time.RFC3339} {
+			if t, err := time.Parse(layout, s); err == nil {
+				return t, true
+			}
+		}
+		return time.Time{}, false
+	}
+
 	to := time.Now()
-	from := to.AddDate(0, 0, -30)
+	from := to.AddDate(-2, 0, 0)
 
 	if fromStr := c.Query("from"); fromStr != "" {
-		if parsed, err := time.Parse(time.RFC3339, fromStr); err == nil {
-			from = parsed
+		if t, ok := parseTS(fromStr); ok {
+			from = t
 		}
 	}
 	if toStr := c.Query("to"); toStr != "" {
-		if parsed, err := time.Parse(time.RFC3339, toStr); err == nil {
-			to = parsed
+		if t, ok := parseTS(toStr); ok {
+			to = t
 		}
 	}
 
-	h.logger.Debug().Str("website_id", websiteID).Str("url", url).Str("type", heatmapType).Str("device", deviceType).Msg("Fetching heatmap data")
+	h.logger.Info().
+		Str("website_id", websiteID).
+		Str("url", url).
+		Str("type", heatmapType).
+		Str("device", deviceType).
+		Str("from", from.Format(time.RFC3339)).
+		Str("to", to.Format(time.RFC3339)).
+		Str("user_id", userID).
+		Msg("GetHeatmapData: querying")
 
 	points, err := h.service.GetHeatmapData(c.Request.Context(), websiteID, url, heatmapType, deviceType, from, to, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to fetch heatmap data")
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch heatmap data"})
+		h.logger.Error().Err(err).Str("website_id", websiteID).Str("user_id", userID).Msg("GetHeatmapData: service error")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	h.logger.Info().Int("points", len(points)).Str("website_id", websiteID).Msg("GetHeatmapData: result")
+
+	if points == nil {
+		points = []models.HeatmapPoint{}
+	}
 	c.JSON(http.StatusOK, gin.H{"points": points})
 }
 
@@ -170,16 +193,22 @@ func (h *HeatmapHandler) GetTopElements(c *gin.Context) {
 	}
 
 	to := time.Now()
-	from := to.AddDate(0, 0, -30)
+	from := to.AddDate(-2, 0, 0)
 
 	if fromStr := c.Query("from"); fromStr != "" {
-		if parsed, err := time.Parse(time.RFC3339, fromStr); err == nil {
-			from = parsed
+		for _, layout := range []string{time.RFC3339Nano, time.RFC3339} {
+			if t, err := time.Parse(layout, fromStr); err == nil {
+				from = t
+				break
+			}
 		}
 	}
 	if toStr := c.Query("to"); toStr != "" {
-		if parsed, err := time.Parse(time.RFC3339, toStr); err == nil {
-			to = parsed
+		for _, layout := range []string{time.RFC3339Nano, time.RFC3339} {
+			if t, err := time.Parse(layout, toStr); err == nil {
+				to = t
+				break
+			}
 		}
 	}
 

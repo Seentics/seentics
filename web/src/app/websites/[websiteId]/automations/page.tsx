@@ -27,6 +27,9 @@ import {
     Edit,
     AlertCircle,
     Activity,
+    AlignJustify,
+    GitFork,
+    ChevronDown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -333,11 +336,37 @@ export default function AutomationsPage() {
                         <LayoutGrid className="h-3.5 w-3.5" /> Templates
                     </Button>
                 </Link>
-                <Link href={`/websites/${websiteId}/automations/builder`}>
-                    <Button className="h-9 gap-2 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-md transition-all">
-                        <Plus className="h-3.5 w-3.5" /> Create Automation
-                    </Button>
-                </Link>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button className="h-9 gap-2 text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 shadow-md transition-all">
+                            <Plus className="h-3.5 w-3.5" /> Create Automation <ChevronDown className="h-3 w-3 ml-0.5 opacity-70" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-60 bg-card/98 backdrop-blur-xl border-border/40 shadow-2xl p-1.5">
+                        <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-primary/5 p-0">
+                            <Link href={`/websites/${websiteId}/automations/builder?mode=linear`} className="flex items-center gap-3 w-full py-2.5 px-3">
+                                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                    <AlignJustify className="h-4 w-4 text-primary" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-semibold">Linear Builder</span>
+                                    <span className="text-[10px] text-muted-foreground">Step-by-step, top to bottom</span>
+                                </div>
+                            </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-violet-500/5 p-0 mt-0.5">
+                            <Link href={`/websites/${websiteId}/automations/builder?mode=canvas`} className="flex items-center gap-3 w-full py-2.5 px-3">
+                                <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+                                    <GitFork className="h-4 w-4 text-violet-500" />
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-semibold">Canvas Builder</span>
+                                    <span className="text-[10px] text-muted-foreground">Drag & drop, n8n-style flow</span>
+                                </div>
+                            </Link>
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
             </DashboardPageHeader>
 
             {/* Stats */}
@@ -372,9 +401,14 @@ export default function AutomationsPage() {
                     searchTerm ? (
                         <Button variant="ghost" size="sm" className="mt-1 text-xs" onClick={() => setSearchTerm('')}>Clear search</Button>
                     ) : (
-                        <Link href={`/websites/${websiteId}/automations/builder`}>
-                            <Button size="sm" className="gap-2 text-xs"><Plus className="h-3.5 w-3.5" /> Create Automation</Button>
-                        </Link>
+                        <div className="flex items-center gap-2 mt-1">
+                            <Link href={`/websites/${websiteId}/automations/builder?mode=linear`}>
+                                <Button size="sm" variant="outline" className="gap-1.5 text-xs"><AlignJustify className="h-3.5 w-3.5" /> Linear</Button>
+                            </Link>
+                            <Link href={`/websites/${websiteId}/automations/builder?mode=canvas`}>
+                                <Button size="sm" className="gap-1.5 text-xs"><GitFork className="h-3.5 w-3.5" /> Canvas</Button>
+                            </Link>
+                        </div>
                     )
                 }
                 toolbarLeft={

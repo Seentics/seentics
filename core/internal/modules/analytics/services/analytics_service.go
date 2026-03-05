@@ -77,7 +77,6 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 	var metrics *models.DashboardMetrics
 	var comparison *models.ComparisonMetrics
 	var liveVisitors int
-	var topResolutions []models.TopItem
 
 	g.Go(func() error {
 		var err error
@@ -111,16 +110,6 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 		return nil
 	})
 
-	g.Go(func() error {
-		var err error
-		topResolutions, err = s.repo.GetTopResolutions(gCtx, websiteID, days, 10)
-		if err != nil {
-			s.logger.Warn().Err(err).Msg("Failed to get top resolutions")
-			topResolutions = []models.TopItem{}
-		}
-		return nil
-	})
-
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
@@ -136,7 +125,7 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 		BounceRate:        metrics.BounceRate,
 		Comparison:        comparison,
 		Metrics:           metrics,
-		TopResolutions:    topResolutions,
+		TopResolutions:    []models.TopItem{},
 		NewVisitors:       0,
 		ReturningVisitors: 0,
 	}, nil
@@ -247,6 +236,29 @@ func (s *AnalyticsService) GetCustomEvents(ctx context.Context, websiteID string
 		return nil, err
 	}
 	return s.repo.GetCustomEventStats(ctx, canonicalID, days)
+}
+
+// CustomEventsData holds combined custom events and UTM data from a single ownership check.
+type CustomEventsData struct {
+	Events []models.CustomEventStat
+	UTM    map[string]interface{}
+}
+
+// GetCustomEventsWithUTM validates ownership once then fetches both custom events and UTM data.
+func (s *AnalyticsService) GetCustomEventsWithUTM(ctx context.Context, websiteID string, days int, userID string) (*CustomEventsData, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	events, err := s.repo.GetCustomEventStats(ctx, canonicalID, days)
+	if err != nil {
+		return nil, err
+	}
+	utm, err := s.repo.GetUTMAnalytics(ctx, canonicalID, days)
+	if err != nil {
+		utm = map[string]interface{}{}
+	}
+	return &CustomEventsData{Events: events, UTM: utm}, nil
 }
 
 func (s *AnalyticsService) GetLiveVisitors(ctx context.Context, websiteID string, userID string) (int, error) {
@@ -367,13 +379,11 @@ func (s *AnalyticsService) ExportWebsiteData(ctx context.Context, websiteID stri
 }
 
 func (s *AnalyticsService) ImportWebsiteData(ctx context.Context, websiteID string, source string, data []byte, userID string) (int, error) {
-	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	_, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return 0, err
 	}
-	_ = canonicalID
-
-	return 100, nil
+	return 0, fmt.Errorf("import not implemented")
 }
 
 func (s *AnalyticsService) GetRecentActivity(ctx context.Context, websiteID string, limit int, userID string) ([]models.RecentActivity, error) {

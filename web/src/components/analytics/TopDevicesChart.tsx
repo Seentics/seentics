@@ -184,15 +184,15 @@ export function TopDevicesChart({ data, osData, screenData, browserData, isLoadi
   return (
     <div className="h-[400px] flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
-           <div className="space-y-1">
-              <CardTitle className="text-lg font-bold tracking-tight">System Insights</CardTitle>
-              <p className="text-xs text-muted-foreground">Devices, OS & tech specs</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60 shrink-0">
+           <div>
+              <h3 className="text-base font-semibold tracking-tight">System Insights</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Devices, OS & tech specs</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[220px] bg-accent/10 p-1 rounded shrink-0">
-             <TabsTrigger value="devices" className="text-xs font-medium rounded active:bg-background">Devices</TabsTrigger>
-             <TabsTrigger value="os" className="text-xs font-medium rounded active:bg-background">OS</TabsTrigger>
-             <TabsTrigger value="browsers" className="text-xs font-medium rounded active:bg-background">Browsers</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[220px] bg-muted/50 p-0.5 rounded shrink-0">
+             <TabsTrigger value="devices" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Devices</TabsTrigger>
+             <TabsTrigger value="os" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">OS</TabsTrigger>
+             <TabsTrigger value="browsers" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Browsers</TabsTrigger>
            </TabsList>
         </div>
         

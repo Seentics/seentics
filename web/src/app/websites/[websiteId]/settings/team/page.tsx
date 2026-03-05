@@ -36,9 +36,9 @@ export default function TeamSettings() {
   if (!isEnterprise) return null;
 
   const teamMembers = [
-    { name: 'Shohag Miah', email: 'shohag@seentics.com', role: 'Owner', status: 'Active' },
+    { name: 'Admin User', email: 'admin@example.com', role: 'Owner', status: 'Active' },
     { name: 'John Doe', email: 'john@example.com', role: 'Admin', status: 'Active' },
-    { name: 'Sarah Wilson', email: 'sarah@design.co', role: 'Viewer', status: 'Pending' }
+    { name: 'Jane Smith', email: 'jane@example.com', role: 'Viewer', status: 'Pending' }
   ];
 
   return (

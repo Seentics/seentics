@@ -251,19 +251,9 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *servic
 			strings.HasPrefix(path, "/api/v1/user/auth/") ||
 			strings.HasPrefix(path, "/api/v1/auth/") ||
 			strings.HasPrefix(path, "/uploads/") ||
-			path == "/api/v1/analytics/event" ||
-			path == "/api/v1/analytics/batch" ||
-			path == "/api/v1/funnels/track" ||
-			path == "/api/v1/funnels/batch" ||
-			path == "/api/v1/funnels/active" ||
-			path == "/api/v1/workflows/execution/action" ||
-			path == "/api/v1/workflows/execution/batch" ||
-			path == "/api/v1/heatmaps/record" ||
-			path == "/api/v1/replays/record" ||
 			strings.HasPrefix(path, "/api/v1/tracker/config/") ||
 			strings.HasPrefix(path, "/api/v1/tracker/init/") ||
 			path == "/api/v1/tracker/collect" ||
-			strings.HasPrefix(path, "/api/v1/workflows/site/") ||
 			strings.HasPrefix(path, "/api/v1/internal/") {
 			c.Next()
 			return

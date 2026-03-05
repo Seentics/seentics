@@ -39,11 +39,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
-type HeatmapType = 'click' | 'move' | 'rage_click' | 'dead_click';
+type HeatmapType = 'click' | 'move' | 'scroll' | 'rage_click' | 'dead_click';
 
 const TYPE_LABELS: Record<HeatmapType, string> = {
   click: 'Click map',
   move: 'Movement map',
+  scroll: 'Scroll depth',
   rage_click: 'Rage clicks',
   dead_click: 'Dead clicks',
 };
@@ -72,9 +73,19 @@ export default function HeatmapViewPage() {
   });
 
   const [activeType, setActiveType] = useState<HeatmapType>('click');
-  const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile' | 'all'>('all');
   const [points, setPoints] = useState<any[]>([]);
+  // resolvedPoints: same as points but with x/y replaced by element-relative
+  // coordinates for click events that have a selector + el_x/el_y recorded.
+  const [resolvedPoints, setResolvedPoints] = useState<any[]>([]);
+  // Snapshot refs so postMessage callbacks can access latest values without
+  // re-registering the message listener on every render.
+  const latestPointsRef = useRef<any[]>([]);
+  const latestDimensionsRef = useRef({ width: 1200, height: 800 });
+  // Keep deviceWidth current inside the stable message-event closure.
+  const deviceWidthRef = useRef(1200);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState({ width: 1200, height: 800 });
   const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
   const [showHeightControl, setShowHeightControl] = useState(false);
@@ -88,11 +99,12 @@ export default function HeatmapViewPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Date range state
-  const [datePreset, setDatePreset] = useState(30);
+  const [datePreset, setDatePreset] = useState(90);
   const [dateFrom, setDateFrom] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0];
+    const d = new Date(); d.setDate(d.getDate() - 90); return d.toISOString().split('T')[0];
   });
   const [dateTo, setDateTo] = useState(() => new Date().toISOString().split('T')[0]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Top elements
   const [topElements, setTopElements] = useState<{ selector: string; clicks: number }[]>([]);
@@ -128,6 +140,10 @@ export default function HeatmapViewPage() {
   const isFreePlan = subscription?.plan === 'free';
   const showDummy = isDemo || isFreePlan;
 
+  // Keep snapshot refs in-sync
+  useEffect(() => { latestPointsRef.current = points; }, [points]);
+  useEffect(() => { latestDimensionsRef.current = dimensions; }, [dimensions]);
+
   // Listen for messages from the tracker script in the iframe
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -139,9 +155,29 @@ export default function HeatmapViewPage() {
         if (height && height > 0) {
           // FORCE ALIGN: Use exactly the deviceWidth for horizontal mapping
           // This ensures that the 100% basis matches the dashboard simulation perfectly.
-          setDimensions({ width: deviceWidth, height });
+          setDimensions({ width: deviceWidthRef.current, height });
           setShowHeightControl(false);
         }
+      }
+      // Element-rect response from the tracker: remap click points to element coords
+      if (event.data?.type === 'SEENTICS_ELEMENT_RECTS') {
+        const rects: Record<string, { left: number; top: number; width: number; height: number }> = event.data.rects || {};
+        const pts = latestPointsRef.current;
+        const dims = latestDimensionsRef.current;
+        // Always use the live deviceWidth (not stale dimensions.width) so element
+        // positions from the iframe (which renders at deviceWidth) map correctly.
+        const dw = deviceWidthRef.current || dims.width || 1;
+        const dh = dims.height || 1;
+        setResolvedPoints(pts.map((p: any) => {
+          if (!p.selector || p.el_x == null || p.el_x < 0) return p;
+          const rect = rects[p.selector];
+          if (!rect || rect.width <= 0 || rect.height <= 0) return p;
+          // Compute pixel position within the page document
+          const px = rect.left + (p.el_x / 1000) * rect.width;
+          const py = rect.top + (p.el_y / 1000) * rect.height;
+          // Normalise back to 0-1000 for HeatmapOverlay
+          return { ...p, x: (px / dw) * 1000, y: (py / dh) * 1000 };
+        }));
       }
     };
     window.addEventListener('message', handleMessage);
@@ -168,6 +204,30 @@ export default function HeatmapViewPage() {
     return () => clearInterval(interval);
   }, [loading, isDemo, dimensions.height]);
 
+  // When points arrive (or dimensions settle), try to resolve element-based
+  // click coordinates via postMessage to the iframe tracker.
+  // Falls back to raw page-relative coords after 1 s if the iframe doesn't respond.
+  useEffect(() => {
+    // Scroll heatmap uses band coords — no element resolution needed.
+    if (activeType === 'scroll') {
+      setResolvedPoints(points);
+      return;
+    }
+    // Check whether any points carry element-relative coords.
+    const hasElCoords = points.some((p: any) => p.selector && p.el_x != null && p.el_x >= 0);
+    if (!hasElCoords || !iframeRef.current?.contentWindow) {
+      setResolvedPoints(points);
+      return;
+    }
+    const selectors = Array.from(
+      new Set(points.filter((p: any) => p.selector && p.el_x >= 0).map((p: any) => p.selector as string))
+    );
+    // Fallback: if no response within 1 s, use original coords.
+    const fallback = setTimeout(() => setResolvedPoints(latestPointsRef.current), 1000);
+    iframeRef.current.contentWindow.postMessage({ type: 'SEENTICS_QUERY_ELEMENT_RECTS', selectors }, '*');
+    return () => clearTimeout(fallback);
+  }, [points, dimensions, activeType]);
+
   const generateDummyPoints = (type: HeatmapType) => {
     const count = type === 'click' ? 100 : type === 'move' ? 300 : 40;
     const dummyPoints = [];
@@ -186,40 +246,43 @@ export default function HeatmapViewPage() {
     return dummyPoints;
   };
 
-  // Build date range params
+  // Build date range params — always treat as UTC so users in non-UTC timezones
+  // don't shift the boundary and accidentally exclude today's data.
   const buildDateParams = (from: string, to: string) => {
-    const fromISO = new Date(from + 'T00:00:00').toISOString();
-    const toISO = new Date(to + 'T23:59:59').toISOString();
+    const fromISO = from + 'T00:00:00.000Z';  // UTC start of day
+    const toISO = to + 'T23:59:59.999Z';      // UTC end of day
     return `&from=${encodeURIComponent(fromISO)}&to=${encodeURIComponent(toISO)}`;
   };
 
   // Fetch heatmap points
   useEffect(() => {
+    let cancelled = false;
     const fetchPoints = async () => {
       setLoading(true);
+      setPoints([]);
+      setFetchError(null);
       if (showDummy) {
-        setPoints(generateDummyPoints(activeType));
-        setLoading(false);
+        if (!cancelled) { setPoints(generateDummyPoints(activeType)); setLoading(false); }
         return;
       }
       try {
         const dateParams = buildDateParams(dateFrom, dateTo);
         const response = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}&device=${device}${dateParams}`);
+        if (cancelled) return;
         const rawPoints = response.data.points || [];
-        const mappedPoints = rawPoints.map((p: any) => ({
-          ...p,
-          x: p.x_percent ?? p.x,
-          y: p.y_percent ?? p.y
-        }));
-        setPoints(mappedPoints);
-      } catch (err) {
-        console.error('Failed to fetch heatmap points:', err);
+        setPoints(rawPoints.map((p: any) => ({ ...p, x: p.x_percent ?? p.x, y: p.y_percent ?? p.y })));
+      } catch (err: any) {
+        if (!cancelled) {
+          console.error('Failed to fetch heatmap points:', err);
+          setFetchError(err?.response?.data?.error || err?.message || 'Failed to load heatmap data');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchPoints();
-  }, [websiteId, url, activeType, device, showDummy, dateFrom, dateTo]);
+    return () => { cancelled = true; };
+  }, [websiteId, url, activeType, device, showDummy, dateFrom, dateTo, refreshKey]);
 
   // Fetch top elements for click-based types
   useEffect(() => {
@@ -227,17 +290,19 @@ export default function HeatmapViewPage() {
       setTopElements([]);
       return;
     }
+    let cancelled = false;
     const fetchTopElements = async () => {
       try {
         const dateParams = buildDateParams(dateFrom, dateTo);
         const res = await api.get(`/heatmaps/top-elements?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}${dateParams}`);
-        setTopElements(res.data.elements || []);
+        if (!cancelled) setTopElements(res.data.elements || []);
       } catch {
-        setTopElements([]);
+        if (!cancelled) setTopElements([]);
       }
     };
     fetchTopElements();
-  }, [websiteId, url, activeType, showDummy, dateFrom, dateTo]);
+    return () => { cancelled = true; };
+  }, [websiteId, url, activeType, showDummy, dateFrom, dateTo, refreshKey]);
 
   // Fetch comparison data
   useEffect(() => {
@@ -245,17 +310,21 @@ export default function HeatmapViewPage() {
       setComparePoints([]);
       return;
     }
+    let cancelled = false;
     const fetchCompare = async () => {
       try {
         const dateParams = buildDateParams(compareFrom, compareTo);
         const res = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}&device=${device}${dateParams}`);
-        const raw = res.data.points || [];
-        setComparePoints(raw.map((p: any) => ({ ...p, x: p.x_percent ?? p.x, y: p.y_percent ?? p.y })));
+        if (!cancelled) {
+          const raw = res.data.points || [];
+          setComparePoints(raw.map((p: any) => ({ ...p, x: p.x_percent ?? p.x, y: p.y_percent ?? p.y })));
+        }
       } catch {
-        setComparePoints([]);
+        if (!cancelled) setComparePoints([]);
       }
     };
     fetchCompare();
+    return () => { cancelled = true; };
   }, [compareMode, websiteId, url, activeType, device, compareFrom, compareTo, showDummy]);
 
   // Update view size on mount and resize
@@ -280,7 +349,7 @@ export default function HeatmapViewPage() {
   const getDeviceWidth = () => {
     if (device === 'mobile') return 375;
     if (device === 'tablet') return 768;
-    return 1200;
+    return 1200; // desktop or all → full width
   };
 
   const getDeviceScale = () => {
@@ -293,6 +362,13 @@ export default function HeatmapViewPage() {
 
   const deviceWidth = getDeviceWidth();
   const scale = getDeviceScale();
+  // Keep the ref current so the stable message-event handler uses the latest device width.
+  // Also sync dimensions.width so it never lags behind when the device tab changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    deviceWidthRef.current = deviceWidth;
+    setDimensions(d => d.width !== deviceWidth ? { ...d, width: deviceWidth } : d);
+  }, [deviceWidth]);
 
   const buildIframeUrl = () => {
     if (isDemo) return 'https://seentics.com';
@@ -333,6 +409,38 @@ export default function HeatmapViewPage() {
 
   const densityLabel = points.length > 500 ? 'High' : points.length > 100 ? 'Medium' : points.length > 0 ? 'Low' : 'None';
 
+  // Derived scroll stats (only meaningful when activeType === 'scroll')
+  const scrollStats = (() => {
+    if (activeType !== 'scroll' || points.length === 0) return null;
+    const bandMap: Record<number, number> = {};
+    points.forEach((p: any) => {
+      const band = Math.round(p.y);
+      bandMap[band] = (bandMap[band] || 0) + (p.intensity || 1);
+    });
+    const topIntensity = bandMap[0] || Math.max(...Object.values(bandMap));
+    if (topIntensity === 0) return null;
+
+    // Max band reached (highest y where intensity > 0)
+    const maxBandReached = Math.max(...Object.keys(bandMap).map(Number));
+
+    // Average fold: first band where visits drop below 80%
+    let avgFoldPct = 100;
+    for (let b = 0; b <= 1000; b += 50) {
+      if (!bandMap[b]) continue;
+      const pct = (bandMap[b] / topIntensity) * 100;
+      if (pct < 80 && b > 0) { avgFoldPct = Math.round((b / 1000) * 100); break; }
+    }
+
+    // Half-way visitors: % who reached 50% of page
+    const halfBand = 500;
+    const halfVisitors = bandMap[halfBand] ? Math.round((bandMap[halfBand] / topIntensity) * 100) : 0;
+
+    // Total unique visitors (intensity at band 0 = all visitors)
+    const totalVisitors = topIntensity;
+
+    return { maxBandReached: Math.round((maxBandReached / 1000) * 100), avgFoldPct, halfVisitors, totalVisitors };
+  })();
+
   return (
     <div className="h-screen flex flex-col bg-zinc-950 text-white overflow-hidden select-none">
       {/* Header */}
@@ -354,10 +462,12 @@ export default function HeatmapViewPage() {
         {/* Center: Device & Type (hidden on small screens, shown in panel) */}
         <div className="hidden lg:flex items-center gap-1 bg-zinc-800/60 rounded-lg p-0.5 border border-white/[0.06]">
           <TypeButton active={activeType === 'click'} onClick={() => setActiveType('click')} icon={MousePointerClick} label="Clicks" />
-          <TypeButton active={activeType === 'move'} onClick={() => setActiveType('move')} icon={MousePointer2} label="Movement" />
+          <TypeButton active={activeType === 'move'} onClick={() => setActiveType('move')} icon={MousePointer2} label="Move" />
+          <TypeButton active={activeType === 'scroll'} onClick={() => setActiveType('scroll')} icon={ArrowDownUp} label="Scroll" />
           <TypeButton active={activeType === 'rage_click'} onClick={() => setActiveType('rage_click')} icon={Flame} label="Rage" />
           <TypeButton active={activeType === 'dead_click'} onClick={() => setActiveType('dead_click')} icon={MousePointerBan} label="Dead" />
           <div className="w-px h-5 bg-white/10 mx-0.5" />
+          <button onClick={() => setDevice('all')} className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all", device === 'all' ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5')}>All</button>
           <DeviceButton active={device === 'desktop'} onClick={() => setDevice('desktop')} icon={Monitor} label="Desktop" />
           <DeviceButton active={device === 'tablet'} onClick={() => setDevice('tablet')} icon={Tablet} label="Tablet" />
           <DeviceButton active={device === 'mobile'} onClick={() => setDevice('mobile')} icon={Smartphone} label="Mobile" />
@@ -459,10 +569,10 @@ export default function HeatmapViewPage() {
               <div style={{ height: `${dimensions.height}px`, width: `${deviceWidth}px`, position: 'relative' }}>
                 {showOverlay && (
                   <HeatmapOverlay
-                    points={points}
-                    width={dimensions.width}
+                    points={resolvedPoints}
+                    width={deviceWidth}
                     height={dimensions.height}
-                    totalWidth={dimensions.width}
+                    totalWidth={deviceWidth}
                     totalHeight={dimensions.height}
                     opacity={opacity[0] / 100}
                     type={activeType}
@@ -504,6 +614,14 @@ export default function HeatmapViewPage() {
                           Update Settings
                         </Button>
                       </div>
+                    </div>
+                  </div>
+                ) : fetchError ? (
+                  <div className="absolute inset-0 bg-white/40 z-20 flex flex-col items-center justify-center gap-2 pointer-events-none">
+                    <div className="bg-white/80 backdrop-blur-md p-6 rounded-2xl shadow-xl flex flex-col items-center gap-2 border border-white/20">
+                      <Info className="h-8 w-8 text-red-400" />
+                      <span className="text-sm font-medium text-zinc-900">Failed to load heatmap data</span>
+                      <span className="text-xs text-zinc-500 text-center max-w-[220px]">{fetchError}</span>
                     </div>
                   </div>
                 ) : !points || points.length === 0 ? (
@@ -601,9 +719,9 @@ export default function HeatmapViewPage() {
                 <div style={{ height: `${dimensions.height}px`, width: `${deviceWidth}px`, position: 'relative' }}>
                   <HeatmapOverlay
                     points={comparePoints}
-                    width={dimensions.width}
+                    width={deviceWidth}
                     height={dimensions.height}
-                    totalWidth={dimensions.width}
+                    totalWidth={deviceWidth}
                     totalHeight={dimensions.height}
                     opacity={opacity[0] / 100}
                     type={activeType}
@@ -671,13 +789,15 @@ export default function HeatmapViewPage() {
               <PanelSection title="Overlay Type">
                 <div className="flex flex-wrap gap-1.5">
                   <TypeButton active={activeType === 'click'} onClick={() => setActiveType('click')} icon={MousePointerClick} label="Clicks" />
-                  <TypeButton active={activeType === 'move'} onClick={() => setActiveType('move')} icon={MousePointer2} label="Movement" />
+                  <TypeButton active={activeType === 'move'} onClick={() => setActiveType('move')} icon={MousePointer2} label="Move" />
+                  <TypeButton active={activeType === 'scroll'} onClick={() => setActiveType('scroll')} icon={ArrowDownUp} label="Scroll" />
                   <TypeButton active={activeType === 'rage_click'} onClick={() => setActiveType('rage_click')} icon={Flame} label="Rage" />
                   <TypeButton active={activeType === 'dead_click'} onClick={() => setActiveType('dead_click')} icon={MousePointerBan} label="Dead" />
                 </div>
               </PanelSection>
               <PanelSection title="Device">
-                <div className="flex gap-1.5">
+                <div className="flex gap-1.5 flex-wrap">
+                  <button onClick={() => setDevice('all')} className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all", device === 'all' ? 'bg-white/10 text-white' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/5')}>All</button>
                   <DeviceButton active={device === 'desktop'} onClick={() => setDevice('desktop')} icon={Monitor} label="Desktop" />
                   <DeviceButton active={device === 'tablet'} onClick={() => setDevice('tablet')} icon={Tablet} label="Tablet" />
                   <DeviceButton active={device === 'mobile'} onClick={() => setDevice('mobile')} icon={Smartphone} label="Mobile" />
@@ -834,6 +954,40 @@ export default function HeatmapViewPage() {
               </div>
             )}
 
+            {/* Scroll Depth Stats (only for scroll type) */}
+            {activeType === 'scroll' && scrollStats && (
+              <div className="p-4 border-b border-white/[0.06]">
+                <PanelSection title="Scroll Depth">
+                  <div className="space-y-2.5">
+                    <StatRow label="Total Visitors" value={scrollStats.totalVisitors.toLocaleString()} />
+                    <StatRow label="Reached 50%" value={`${scrollStats.halfVisitors}%`} />
+                    <StatRow label="Max Depth" value={`${scrollStats.maxBandReached}%`} />
+                    <StatRow label="Avg Fold" value={`~${scrollStats.avgFoldPct}% of page`} />
+                  </div>
+                  {/* Mini depth bar */}
+                  <div className="mt-3 space-y-1">
+                    {[0, 25, 50, 75, 100].map(pct => {
+                      const band = pct * 10;
+                      const intensity = (points as any[]).reduce((s: number, p: any) => Math.round(p.y) === band ? s + (p.intensity || 1) : s, 0);
+                      const ratio = scrollStats.totalVisitors > 0 ? intensity / scrollStats.totalVisitors : 0;
+                      return (
+                        <div key={pct} className="flex items-center gap-2">
+                          <span className="text-[9px] text-zinc-500 w-7 text-right tabular-nums">{pct}%</span>
+                          <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all"
+                              style={{ width: `${Math.round(ratio * 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-[9px] text-zinc-400 tabular-nums w-7">{Math.round(ratio * 100)}%</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </PanelSection>
+              </div>
+            )}
+
             {/* Statistics */}
             <div className="p-4 border-b border-white/[0.06]">
               <PanelSection title="Statistics">
@@ -875,13 +1029,11 @@ export default function HeatmapViewPage() {
                     variant="ghost"
                     size="sm"
                     className="w-full justify-start h-8 text-xs text-zinc-400 hover:text-white hover:bg-white/5 gap-2"
-                    onClick={() => {
-                      setLoading(true);
-                      setTimeout(() => setLoading(false), 300);
-                    }}
+                    disabled={loading}
+                    onClick={() => setRefreshKey(k => k + 1)}
                   >
-                    <RefreshCcw className="h-3.5 w-3.5" />
-                    Refresh Data
+                    {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                    {loading ? 'Refreshing...' : 'Refresh Data'}
                   </Button>
                 </div>
               </PanelSection>
@@ -899,7 +1051,7 @@ export default function HeatmapViewPage() {
         <div className="h-3 w-px bg-white/10" />
         <span>{points.length.toLocaleString()} data points</span>
         <div className="h-3 w-px bg-white/10" />
-        <span className="capitalize">{device} &middot; {deviceWidth}×{dimensions.height}px</span>
+        <span className="capitalize">{device === 'all' ? 'All Devices' : device} &middot; {deviceWidth}×{dimensions.height}px</span>
         <div className="flex-1" />
         <span className="hidden sm:block">
           {TYPE_LABELS[activeType]} &middot; {opacity[0]}% opacity{compareMode ? ' · Comparing' : ''}

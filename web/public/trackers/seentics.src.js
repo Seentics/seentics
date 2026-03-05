@@ -62,28 +62,6 @@
     return fetch(C.host + '/api/v1/' + ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
       .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
   };
-  // postGzip: compress payload with CompressionStream (supported in all modern browsers),
-  // falling back to plain JSON if not available. keepalive=true for page-hide flushes.
-  var postGzip = function (ep, data, keepalive) {
-    var json = JSON.stringify(data);
-    var opts = { method: 'POST', keepalive: !!keepalive };
-    if (typeof CompressionStream !== 'undefined') {
-      var cs = new CompressionStream('gzip');
-      var writer = cs.writable.getWriter();
-      writer.write(new TextEncoder().encode(json));
-      writer.close();
-      return new Response(cs.readable).arrayBuffer().then(function (buf) {
-        return fetch(C.host + '/api/v1/' + ep, Object.assign({}, opts, {
-          headers: { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' },
-          body: buf
-        }));
-      }).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
-    }
-    return fetch(C.host + '/api/v1/' + ep, Object.assign({}, opts, {
-      headers: { 'Content-Type': 'application/json' },
-      body: json
-    })).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
-  };
   var get = function (ep) {
     return fetch(C.host + '/api/v1/' + ep).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); });
   };
@@ -112,7 +90,7 @@
     if (flushing) return;
     var p = buildPayload(); if (!p) return;
     flushing = true;
-    postGzip('tracker/collect', p).catch(function () { restoreBuf(p); }).finally(function () { flushing = false; });
+    post('tracker/collect', p).catch(function () { restoreBuf(p); }).finally(function () { flushing = false; });
   };
   var beaconFlush = function () {
     var p = buildPayload(); if (!p) return;
@@ -210,9 +188,9 @@
     }
     return p.join(' > ');
   };
-  var hmAdd = function (type, x, y, sel) {
+  var hmAdd = function (type, x, y, sel, elX, elY) {
     if (!hm.enabled) return;
-    buf.heatmaps.push({ type: type, x: x, y: y, selector: sel || '', url: normPath(loc.pathname), device_type: hmDev(), timestamp: Math.floor(Date.now() / 1000) });
+    buf.heatmaps.push({ type: type, x: x, y: y, selector: sel || '', el_x: (elX !== undefined ? elX : -1), el_y: (elY !== undefined ? elY : -1), url: normPath(loc.pathname), device_type: hmDev(), timestamp: Math.floor(Date.now() / 1000) });
   };
 
   var initHeatmap = function () {
@@ -229,7 +207,17 @@
       hm.lastT = now; hm.lastX = c.x; hm.lastY = c.y; hmAdd('move', c.x, c.y);
     }, { passive: true });
 
-    d.addEventListener('click', function (e) { var c = hmCoords(e); hmAdd('click', c.x, c.y, hmSel(e.target)); });
+    d.addEventListener('click', function (e) {
+      var c = hmCoords(e);
+      var sel = hmSel(e.target);
+      var elX = -1, elY = -1;
+      if (sel && e.target instanceof Element) {
+        var rect = e.target.getBoundingClientRect();
+        if (rect.width > 0) elX = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
+        if (rect.height > 0) elY = Math.max(0, Math.min(1000, Math.round((e.clientY - rect.top) / rect.height * 1000)));
+      }
+      hmAdd('click', c.x, c.y, sel, elX, elY);
+    });
 
     var maxBand = 0, sentBands = {};
     hmRecordBands = function () {
@@ -248,8 +236,26 @@
           type: 'SEENTICS_DIMENSIONS', height: dims.h, width: dims.w,
           left: dims.l - (w.pageXOffset || de.scrollLeft), totalWidth: dims.w, url: loc.href
         }, '*');
-      }
-      if (ev.data && ev.data.type === 'SEENTICS_SET_SCROLL') w.scrollTo(ev.data.left || 0, ev.data.top || 0);
+      }      // Resolve CSS selectors to page-absolute bounding rects for element-based heatmap positioning
+      if (ev.data && ev.data.type === 'SEENTICS_QUERY_ELEMENT_RECTS') {
+        var rects = {};
+        var selectors = ev.data.selectors || [];
+        for (var si = 0; si < selectors.length; si++) {
+          try {
+            var el = d.querySelector(selectors[si]);
+            if (el) {
+              var r = el.getBoundingClientRect();
+              rects[selectors[si]] = {
+                left: r.left + (w.pageXOffset || de.scrollLeft),
+                top: r.top + (w.pageYOffset || de.scrollTop),
+                width: r.width,
+                height: r.height
+              };
+            }
+          } catch (qe) { }
+        }
+        ev.source.postMessage({ type: 'SEENTICS_ELEMENT_RECTS', rects: rects }, '*');
+      }      if (ev.data && ev.data.type === 'SEENTICS_SET_SCROLL') w.scrollTo(ev.data.left || 0, ev.data.top || 0);
     });
     if (w.parent !== w) w.addEventListener('scroll', function () {
       w.parent.postMessage({ type: 'SEENTICS_SCROLL', scrollTop: w.pageYOffset || de.scrollTop, scrollLeft: w.pageXOffset || de.scrollLeft }, '*');
@@ -287,8 +293,18 @@
       if (!w.rrweb) return;
       var stop = w.rrweb.record({
         emit: function (ev) {
+          // A new full snapshot (type 2) marks a rrweb checkpoint.
+          // Flush any accumulated incremental events into their own chunk
+          // so the following chunk starts with a self-contained snapshot,
+          // preventing "Node with id not found" warnings during replay.
+          if (ev.type === 2 && buf.replay.events.length > 0) {
+            flush();
+          }
           buf.replay.events.push(ev);
         },
+        // Force a fresh full DOM snapshot every 30 s so long recordings
+        // stay self-contained and dynamic/SPA nodes are always captured.
+        checkoutEveryNms: 30000,
         maskAllInputs: true, maskInputOptions: { password: true, email: true }
       });
       if (!stop) return;
@@ -361,14 +377,14 @@
       (a.actions || []).forEach(function (act) {
         var cfg = act.actionConfig || act.action_config || {}, type = (act.actionType || act.action_type || '').toLowerCase();
         if (type === 'redirect' && cfg.url) setTimeout(function () { if (cfg.newTab) w.open(cfg.url, '_blank'); else loc.href = cfg.url; }, (parseInt(cfg.delay) || 0) * 1000);
-        else if (type === 'hide_element' && cfg.selector) { var el = d.querySelector(cfg.selector); if (el) el.style.display = 'none'; }
-        else if (type === 'show_element' && cfg.selector) { var el2 = d.querySelector(cfg.selector); if (el2) el2.style.display = cfg.display_type || 'block'; }
+        else if ((type === 'hide_element' || type === 'hideelement') && cfg.selector) { var el = d.querySelector(cfg.selector); if (el) el.style.display = 'none'; }
+        else if ((type === 'show_element' || type === 'showelement') && cfg.selector) { var el2 = d.querySelector(cfg.selector); if (el2) el2.style.display = cfg.display_type || 'block'; }
         else if (type === 'modal') showModal(cfg);
         else if (type === 'banner') showBanner(cfg);
         else if (type === 'notification') showNotif(cfg);
-        else if (type === 'script' && cfg.code) { var s = d.createElement('script'); s.textContent = cfg.code; d.body.appendChild(s); }
+        else if ((type === 'script' || type === 'javascript') && cfg.code) { var s = d.createElement('script'); s.textContent = cfg.code; d.body.appendChild(s); }
         else if ((type === 'track_event' || type === 'trackevent') && cfg.event_name) track(cfg.event_name, {});
-        else if ((type === 'set_cookie' || type === 'setcookie') && cfg.cookie_name) ck(cfg.cookie_name, cfg.cookie_value, parseInt(cfg.expiration_days) || 30);
+        else if ((type === 'set_cookie' || type === 'setcookie') && (cfg.name || cfg.cookie_name)) ck(cfg.name || cfg.cookie_name, cfg.value !== undefined ? cfg.value : cfg.cookie_value, parseInt(cfg.days || cfg.expiration_days) || 30);
       });
       buf.automations.push({ automationId: a.id, websiteId: C.id, visitorId: S.vid, sessionId: S.sid, status: 'success', executedAt: new Date().toISOString() });
     };
@@ -376,8 +392,10 @@
     var evaluate = function (evType, data) {
       autos.forEach(function (a) {
         var tt = (a.triggerType || a.trigger_type || '').toLowerCase(), tc = a.triggerConfig || a.trigger_config || {}, m = false;
-        if (tt === 'timeonpage' && evType === 'timer') m = (data || {}).sec >= (tc.seconds || 10);
-        else if (tt === 'scrolldepth' && evType === 'scroll') m = (data || {}).depth >= (tc.percentage || tc.depth || 50);
+        if (tt === 'pageview' && evType === 'pageview') m = true;
+        else if (tt === 'customevent' && (evType === 'customevent' || evType === 'event')) m = !tc.event_name || (data || {}).name === tc.event_name;
+        else if (tt === 'timeonpage' && evType === 'timer') m = (data || {}).sec >= (tc.seconds || 10);
+        else if ((tt === 'scroll' || tt === 'scrolldepth') && evType === 'scroll') m = (data || {}).depth >= (tc.percentage || tc.depth || 50);
         else if (tt === 'exitintent' && evType === 'exit') m = true;
         else if (tt === 'formsubmit' && evType === 'form') m = true;
         else if (tt === 'inactivity' && evType === 'inactivity') m = (data || {}).sec >= (tc.seconds || 30);
@@ -396,6 +414,23 @@
     on('ev', function (d) { evaluate('event', d); });
     on('form', function (d) { evaluate('form', d); });
     on('funnel:done', function (d) { evaluate('funnel:done', d); });
+
+    // Click trigger: selector-based
+    var clickAutos = autos.filter(function (a) { return (a.triggerType || a.trigger_type || '').toLowerCase() === 'click'; });
+    if (clickAutos.length) {
+      d.addEventListener('click', function (e) {
+        clickAutos.forEach(function (a) {
+          var tc = a.triggerConfig || a.trigger_config || {};
+          if (!tc.selector || !e.target.closest(tc.selector)) return;
+          if (tc.url_pattern && tc.url_pattern !== '*') {
+            var p = tc.url_pattern, cp = loc.pathname;
+            if (p.includes('*')) { if (!new RegExp('^' + p.replace(/\*/g, '.*') + '$').test(cp)) return; }
+            else if (cp !== p) return;
+          }
+          if (shouldRun(a)) { exec(a); markRan(a); }
+        });
+      }, true);
+    }
 
     d.addEventListener('mouseout', function (e) { if (e.clientY < 0) evaluate('exit', {}); });
     d.addEventListener('submit', function (e) { evaluate('form', { id: e.target.id, cls: e.target.className }); }, true);

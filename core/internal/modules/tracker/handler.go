@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	analyticsModels "github.com/Seentics/seentics/internal/modules/analytics/models"
@@ -131,17 +132,19 @@ type CollectResponse struct {
 }
 
 // Collect receives all tracking data from the tracker in a single POST.
-// Each section is processed independently — failure in one doesn't block others.
+// All independent sections (events, heatmaps, funnels, automations) are processed
+// concurrently. Replay is fire-and-forget. Enrichment happens upfront in a single
+// pass before any goroutine is spawned to avoid data races.
 func (h *TrackerHandler) Collect(c *gin.Context) {
-	// 1. Read limits from gateway headers and inject into context
+	// Inject plan limits from gateway headers into context.
 	ctx := c.Request.Context()
-	if hLine := c.GetHeader("X-Max-Heatmaps"); hLine != "" {
-		if limit, err := strconv.Atoi(hLine); err == nil {
+	if v := c.GetHeader("X-Max-Heatmaps"); v != "" {
+		if limit, err := strconv.Atoi(v); err == nil {
 			ctx = context.WithValue(ctx, "max_heatmaps", limit)
 		}
 	}
-	if hLine := c.GetHeader("X-Max-Replays"); hLine != "" {
-		if limit, err := strconv.Atoi(hLine); err == nil {
+	if v := c.GetHeader("X-Max-Replays"); v != "" {
+		if limit, err := strconv.Atoi(v); err == nil {
 			ctx = context.WithValue(ctx, "max_replays", limit)
 		}
 	}
@@ -151,36 +154,33 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
-
 	if req.SiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id is required"})
 		return
 	}
 
-	// Guard against oversized batches to prevent memory/CPU abuse
-	const maxEvents = 500
-	const maxHeatmapPoints = 2000
-	const maxReplayEvents = 5000
-	const maxFunnelEvents = 200
-	const maxAutomations = 100
-
-	if len(req.Events) > maxEvents {
+	// Guard against oversized batches to prevent memory/CPU abuse.
+	const (
+		maxEvents        = 500
+		maxHeatmapPoints = 2000
+		maxReplayEvents  = 5000
+		maxFunnelEvents  = 200
+		maxAutomations   = 100
+	)
+	switch {
+	case len(req.Events) > maxEvents:
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many events (max %d)", maxEvents)})
 		return
-	}
-	if len(req.Heatmaps) > maxHeatmapPoints {
+	case len(req.Heatmaps) > maxHeatmapPoints:
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many heatmap points (max %d)", maxHeatmapPoints)})
 		return
-	}
-	if req.Replay != nil && len(req.Replay.Events) > maxReplayEvents {
+	case req.Replay != nil && len(req.Replay.Events) > maxReplayEvents:
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many replay events (max %d)", maxReplayEvents)})
 		return
-	}
-	if len(req.Funnels) > maxFunnelEvents {
+	case len(req.Funnels) > maxFunnelEvents:
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many funnel events (max %d)", maxFunnelEvents)})
 		return
-	}
-	if len(req.Automations) > maxAutomations {
+	case len(req.Automations) > maxAutomations:
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many automations (max %d)", maxAutomations)})
 		return
 	}
@@ -189,60 +189,61 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 	if origin == "" {
 		origin = c.Request.Header.Get("Referer")
 	}
-
-	// Extract client IP once for all sections
 	clientIP := c.ClientIP()
 	userAgent := c.Request.UserAgent()
+	now := time.Now()
 
-	processed := make(map[string]int)
+	// processed collects per-section counts; written only from section goroutines
+	// which are guarded by wg, so a simple map + mu is sufficient.
+	var mu sync.Mutex
+	processed := make(map[string]int, 5)
+	record := func(key string, n int) {
+		mu.Lock()
+		processed[key] = n
+		mu.Unlock()
+	}
 
-	// --- Events ---
+	var wg sync.WaitGroup
+
+	// --- Events (single batch call — IP/UA enrichment happens inside the service) ---
 	if len(req.Events) > 0 {
-		// Set IP and website_id on all events
-		for i := range req.Events {
-			req.Events[i].WebsiteID = req.SiteID
-			if req.Events[i].IPAddress == nil || *req.Events[i].IPAddress == "" {
-				req.Events[i].IPAddress = &clientIP
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			resp, err := h.events.TrackBatchEvents(ctx, &analyticsModels.BatchEventRequest{
+				SiteID:   req.SiteID,
+				Domain:   req.Domain,
+				Events:   req.Events,
+				ClientIP: clientIP,
+				ClientUA: userAgent,
+			})
+			if err != nil {
+				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: events processing failed")
+				return
 			}
-			if req.Events[i].UserAgent == nil || *req.Events[i].UserAgent == "" {
-				req.Events[i].UserAgent = &userAgent
-			}
-		}
-
-		batchReq := &analyticsModels.BatchEventRequest{
-			SiteID: req.SiteID,
-			Domain: req.Domain,
-			Events: req.Events,
-		}
-		resp, err := h.events.TrackBatchEvents(ctx, batchReq)
-		if err != nil {
-			h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: events processing failed")
-		} else {
-			processed["events"] = resp.EventsCount
-		}
+			record("events", resp.EventsCount)
+		}()
 	}
 
-	// --- Heatmaps ---
+	// --- Heatmaps (single batch call) ---
 	if len(req.Heatmaps) > 0 {
-		for i := range req.Heatmaps {
-			req.Heatmaps[i].WebsiteID = req.SiteID
-		}
-		heatmapReq := heatmapModels.HeatmapRecordRequest{
-			WebsiteID: req.SiteID,
-			Points:    req.Heatmaps,
-		}
-		if err := h.heatmaps.RecordHeatmapData(ctx, heatmapReq, origin); err != nil {
-			h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: heatmap processing failed")
-		} else {
-			processed["heatmaps"] = len(req.Heatmaps)
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := h.heatmaps.RecordHeatmapData(ctx, heatmapModels.HeatmapRecordRequest{
+				WebsiteID: req.SiteID,
+				Points:    req.Heatmaps,
+			}, origin); err != nil {
+				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: heatmap processing failed")
+				return
+			}
+			record("heatmaps", len(req.Heatmaps))
+		}()
 	}
 
-	// --- Replay ---
+	// --- Replay (fire-and-forget — S3 upload must not block the response) ---
 	if req.Replay != nil && len(req.Replay.Events) > 0 {
 		req.Replay.WebsiteID = req.SiteID
-
-		// Resolve country from CDN headers or geolocation
 		country := c.Request.Header.Get("CF-IPCountry")
 		if country == "" {
 			country = c.Request.Header.Get("X-Vercel-IP-Country")
@@ -251,60 +252,48 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 			country = c.Request.Header.Get("X-Country-Code")
 		}
 		if country == "" {
-			geo := utils.GetLocationFromIP(clientIP)
-			if geo.CountryCode != "" && geo.CountryCode != "XX" {
+			if geo := utils.GetLocationFromIP(clientIP); geo.CountryCode != "" && geo.CountryCode != "XX" {
 				country = geo.CountryCode
 			}
 		}
-
-		// Run replay recording asynchronously so the HTTP response is not
-		// blocked by gzip compression + S3 upload + Postgres write.
-		// This is safe — the tracker will retry on the next flush if needed.
 		replayCopy := *req.Replay
-		replayOrigin := origin
-		replayUA := userAgent
-		replayCountry := country
 		go func() {
 			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
-			if err := h.replays.RecordReplay(bgCtx, replayCopy, replayOrigin, replayUA, replayCountry); err != nil {
+			if err := h.replays.RecordReplay(bgCtx, replayCopy, origin, userAgent, country); err != nil {
 				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: replay processing failed (async)")
 			}
 		}()
-		processed["replay"] = 1
+		record("replay", 1)
 	}
 
-	// --- Funnels ---
+	// --- Funnels (1 DB lookup for all events via batch method) ---
 	if len(req.Funnels) > 0 {
-		count := 0
-		for i := range req.Funnels {
-			req.Funnels[i].WebsiteID = req.SiteID
-			if err := h.funnels.TrackFunnelEvent(ctx, &req.Funnels[i], origin); err != nil {
-				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: funnel event processing failed")
-			} else {
-				count++
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := h.funnels.TrackFunnelEventBatch(ctx, req.SiteID, req.Funnels, origin); err != nil {
+				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: funnel batch processing failed")
+				return
 			}
-		}
-		processed["funnels"] = count
+			record("funnels", len(req.Funnels))
+		}()
 	}
 
-	// --- Automations ---
+	// --- Automations (1 DB lookup + 1 batch insert via batch method) ---
 	if len(req.Automations) > 0 {
-		count := 0
-		for i := range req.Automations {
-			req.Automations[i].WebsiteID = req.SiteID
-			if req.Automations[i].ExecutedAt.IsZero() {
-				req.Automations[i].ExecutedAt = time.Now()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := h.automations.TrackExecutionBatch(ctx, req.SiteID, req.Automations, origin, now); err != nil {
+				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: automation batch processing failed")
+				return
 			}
-			if err := h.automations.TrackExecution(ctx, &req.Automations[i], origin); err != nil {
-				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: automation execution processing failed")
-			} else {
-				count++
-			}
-		}
-		processed["automations"] = count
+			record("automations", len(req.Automations))
+		}()
 	}
 
+	wg.Wait()
 	c.JSON(http.StatusOK, CollectResponse{
 		Status:    "ok",
 		Processed: processed,

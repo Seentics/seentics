@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 
-import { BuilderToolbar } from './BuilderToolbar';
+import { BuilderToolbar, BuilderMode } from './BuilderToolbar';
 import { NodeConfigModal } from './NodeConfigModal';
 import { useAutomationStore } from '@/stores/automationStore';
 import { LinearBuilder } from './LinearBuilder';
+import { CanvasBuilder } from './CanvasBuilder';
 import { EnhancedBuilderSidebar } from './EnhancedBuilderSidebar';
 
 export const WorkflowBuilder = ({
@@ -28,6 +29,8 @@ export const WorkflowBuilder = ({
 
   const searchParams = useSearchParams();
   const templateId = searchParams?.get('template');
+  const initialMode = (searchParams?.get('mode') as BuilderMode) || 'linear';
+  const [mode, setMode] = useState<BuilderMode>(initialMode);
 
   // Load animation effect
   useEffect(() => {
@@ -71,7 +74,7 @@ export const WorkflowBuilder = ({
 
       addNode(newNode);
     },
-    [addNode, nodes]
+    [addNode]
   );
 
   const selectedNode = nodes.find(n => n.id === selectedNodeId);
@@ -81,17 +84,19 @@ export const WorkflowBuilder = ({
       <BuilderToolbar
         websiteId={websiteId}
         automationId={automationId}
+        mode={mode}
+        onModeChange={setMode}
       />
 
       <div
         className="relative flex-1 flex overflow-hidden"
-        onDrop={onDrop}
-        onDragOver={onDragOver}
+        onDrop={mode === 'linear' ? onDrop : undefined}
+        onDragOver={mode === 'linear' ? onDragOver : undefined}
       >
-        {/* List-Based Builder */}
-        <LinearBuilder />
+        {/* Active builder — both share the same store, so switching is lossless */}
+        {mode === 'linear' ? <LinearBuilder /> : <CanvasBuilder />}
 
-        {/* Sidebar */}
+        {/* Sidebar — shared across both modes */}
         <div className="w-[400px] h-full border-l border-white/[0.06] bg-zinc-900/80 backdrop-blur-xl">
           <EnhancedBuilderSidebar />
         </div>

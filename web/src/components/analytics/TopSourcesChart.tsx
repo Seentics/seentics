@@ -221,15 +221,15 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
   return (
     <div className="h-[500px] flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
-           <div className="space-y-1">
-              <CardTitle className="text-lg font-bold tracking-tight">Traffic Sources</CardTitle>
-              <p className="text-xs text-muted-foreground">Main acquisition channels</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60 shrink-0">
+           <div>
+              <h3 className="text-base font-semibold tracking-tight">Traffic Sources</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Main acquisition channels</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded">
-             <TabsTrigger value="overview" className="text-xs font-medium rounded active:bg-background">All</TabsTrigger>
-             <TabsTrigger value="search" className="text-xs font-medium rounded active:bg-background">Search</TabsTrigger>
-             <TabsTrigger value="social" className="text-xs font-medium rounded active:bg-background">Social</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted/50 p-0.5 rounded">
+             <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
+             <TabsTrigger value="search" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Search</TabsTrigger>
+             <TabsTrigger value="social" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Social</TabsTrigger>
            </TabsList>
         </div>
 

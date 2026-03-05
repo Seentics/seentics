@@ -10,6 +10,7 @@ import (
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/rs/zerolog"
+	"golang.org/x/sync/errgroup"
 )
 
 // pgMetadataRepo defines the minimal PG interface used for goal/resolution metadata.
@@ -259,68 +260,84 @@ func (r *ClickHouseAnalyticsRepository) GetComparisonMetrics(ctx context.Context
 	}, nil
 }
 
-// GetUTMAnalytics returns UTM metrics from ClickHouse using 3 efficient aggregated queries
+// GetUTMAnalytics returns UTM metrics from ClickHouse using 3 parallel aggregated queries
 func (r *ClickHouseAnalyticsRepository) GetUTMAnalytics(ctx context.Context, websiteID string, days int) (map[string]interface{}, error) {
-	breakdown := map[string]interface{}{
-		"sources":   make([]map[string]interface{}, 0),
-		"mediums":   make([]map[string]interface{}, 0),
-		"campaigns": make([]map[string]interface{}, 0),
-	}
-
 	baseWhere := `website_id = ? AND timestamp >= now() - interval ? day AND event_type = 'pageview'`
 
-	// Sources
-	sourceQuery := fmt.Sprintf(`SELECT COALESCE(utm_source, 'direct') as source, COUNT(*) as visits, uniq(visitor_id) as unique_visitors FROM events WHERE %s GROUP BY source ORDER BY visits DESC LIMIT 10`, baseWhere)
-	rows, err := r.conn.Query(ctx, sourceQuery, websiteID, days)
-	if err != nil {
+	var sources, mediums, campaigns []map[string]interface{}
+
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		q := fmt.Sprintf(`SELECT COALESCE(utm_source, 'direct') as source, COUNT(*) as visits, uniq(visitor_id) as unique_visitors FROM events WHERE %s GROUP BY source ORDER BY visits DESC LIMIT 10`, baseWhere)
+		rows, err := r.conn.Query(egCtx, q, websiteID, days)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var source string
+			var visits, unique uint64
+			if err := rows.Scan(&source, &visits, &unique); err == nil {
+				sources = append(sources, map[string]interface{}{"source": source, "visits": visits, "unique_visitors": unique})
+			}
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		q := fmt.Sprintf(`SELECT COALESCE(utm_medium, 'none') as medium, COUNT(*) as visits, uniq(visitor_id) as unique_visitors FROM events WHERE %s GROUP BY medium ORDER BY visits DESC LIMIT 10`, baseWhere)
+		rows, err := r.conn.Query(egCtx, q, websiteID, days)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var medium string
+			var visits, unique uint64
+			if err := rows.Scan(&medium, &visits, &unique); err == nil {
+				mediums = append(mediums, map[string]interface{}{"medium": medium, "visits": visits, "unique_visitors": unique})
+			}
+		}
+		return nil
+	})
+
+	eg.Go(func() error {
+		q := fmt.Sprintf(`SELECT COALESCE(utm_campaign, 'none') as campaign, COUNT(*) as visits, uniq(visitor_id) as unique_visitors FROM events WHERE %s GROUP BY campaign ORDER BY visits DESC LIMIT 10`, baseWhere)
+		rows, err := r.conn.Query(egCtx, q, websiteID, days)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var campaign string
+			var visits, unique uint64
+			if err := rows.Scan(&campaign, &visits, &unique); err == nil {
+				campaigns = append(campaigns, map[string]interface{}{"campaign": campaign, "visits": visits, "unique_visitors": unique})
+			}
+		}
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-	sources := make([]map[string]interface{}, 0)
-	for rows.Next() {
-		var source string
-		var visits, unique uint64
-		if err := rows.Scan(&source, &visits, &unique); err == nil {
-			sources = append(sources, map[string]interface{}{"source": source, "visits": visits, "unique_visitors": unique})
-		}
-	}
-	rows.Close()
-	breakdown["sources"] = sources
 
-	// Mediums
-	mediumQuery := fmt.Sprintf(`SELECT COALESCE(utm_medium, 'none') as medium, COUNT(*) as visits, uniq(visitor_id) as unique_visitors FROM events WHERE %s GROUP BY medium ORDER BY visits DESC LIMIT 10`, baseWhere)
-	rows, err = r.conn.Query(ctx, mediumQuery, websiteID, days)
-	if err != nil {
-		return nil, err
+	if sources == nil {
+		sources = make([]map[string]interface{}, 0)
 	}
-	mediums := make([]map[string]interface{}, 0)
-	for rows.Next() {
-		var medium string
-		var visits, unique uint64
-		if err := rows.Scan(&medium, &visits, &unique); err == nil {
-			mediums = append(mediums, map[string]interface{}{"medium": medium, "visits": visits, "unique_visitors": unique})
-		}
+	if mediums == nil {
+		mediums = make([]map[string]interface{}, 0)
 	}
-	rows.Close()
-	breakdown["mediums"] = mediums
+	if campaigns == nil {
+		campaigns = make([]map[string]interface{}, 0)
+	}
 
-	// Campaigns
-	campaignQuery := fmt.Sprintf(`SELECT COALESCE(utm_campaign, 'none') as campaign, COUNT(*) as visits, uniq(visitor_id) as unique_visitors FROM events WHERE %s GROUP BY campaign ORDER BY visits DESC LIMIT 10`, baseWhere)
-	rows, err = r.conn.Query(ctx, campaignQuery, websiteID, days)
-	if err != nil {
-		return nil, err
-	}
-	campaigns := make([]map[string]interface{}, 0)
-	for rows.Next() {
-		var campaign string
-		var visits, unique uint64
-		if err := rows.Scan(&campaign, &visits, &unique); err == nil {
-			campaigns = append(campaigns, map[string]interface{}{"campaign": campaign, "visits": visits, "unique_visitors": unique})
-		}
-	}
-	rows.Close()
-	breakdown["campaigns"] = campaigns
-
-	return breakdown, nil
+	return map[string]interface{}{
+		"sources":   sources,
+		"mediums":   mediums,
+		"campaigns": campaigns,
+	}, nil
 }
 
 // GetTopPages returns top pages from ClickHouse with filter support
@@ -366,10 +383,6 @@ func (r *ClickHouseAnalyticsRepository) GetTopPages(ctx context.Context, website
 	}
 
 	return pages, nil
-}
-
-func (r *ClickHouseAnalyticsRepository) GetTopPagesWithTimeBucket(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.PageStat, error) {
-	return r.GetTopPages(ctx, websiteID, days, timezone, limit, models.AnalyticsFilters{})
 }
 
 func (r *ClickHouseAnalyticsRepository) GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int) (map[string]interface{}, error) {
@@ -657,7 +670,6 @@ func (r *ClickHouseAnalyticsRepository) GetTrafficSummary(ctx context.Context, w
 			COALESCE(SUM(page_count), 0) as total_page_views,
 			COUNT(*) as total_sessions,
 			uniq(visitor_id) as unique_visitors,
-			COUNT(*) as total_sessions_2,
 			COALESCE((countIf(page_count = 1) * 100.0) / NULLIF(COUNT(*), 0), 0) as bounce_rate,
 			COALESCE(AVG(session_duration), 0) as avg_session_time,
 			COALESCE(SUM(page_count) * 1.0 / NULLIF(COUNT(*), 0), 0) as pages_per_session
@@ -678,9 +690,8 @@ func (r *ClickHouseAnalyticsRepository) GetTrafficSummary(ctx context.Context, w
 		)`
 
 	var summary models.TrafficSummary
-	var totalSessions2 uint64
 	err := r.conn.QueryRow(ctx, query, websiteID, days).Scan(
-		&summary.TotalPageViews, &summary.TotalSessions, &summary.UniqueVisitors, &totalSessions2,
+		&summary.TotalPageViews, &summary.TotalSessions, &summary.UniqueVisitors,
 		&summary.BounceRate, &summary.AvgSessionTime, &summary.PagesPerSession,
 	)
 	summary.TotalVisitors = summary.UniqueVisitors
@@ -700,7 +711,7 @@ func (r *ClickHouseAnalyticsRepository) GetDailyStats(ctx context.Context, websi
 		SELECT
 			formatDateTime(toStartOfDay(timestamp, ?), '%%Y-%%m-%%d') as date,
 			count(*) as views,
-			count(DISTINCT visitor_id) as unique_visitors
+			uniq(visitor_id) as unique_visitors
 		FROM events
 		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
@@ -739,7 +750,7 @@ func (r *ClickHouseAnalyticsRepository) GetHourlyStats(ctx context.Context, webs
 		SELECT
 			formatDateTime(toStartOfHour(timestamp, ?), '%%Y-%%m-%%d %%H:00:00') as hour,
 			count(*) as views,
-			count(DISTINCT visitor_id) as unique_visitors
+			uniq(visitor_id) as unique_visitors
 		FROM events
 		WHERE website_id = ?
 		AND timestamp >= now() - interval ? day
@@ -885,27 +896,32 @@ func (r *ClickHouseAnalyticsRepository) GetTopRegions(ctx context.Context, websi
 func (r *ClickHouseAnalyticsRepository) GetGeolocationBreakdown(ctx context.Context, websiteID string, startDate, endDate time.Time) (*models.GeolocationBreakdown, error) {
 	g := &models.GeolocationBreakdown{}
 
-	var err error
-	g.Countries, err = r.GetTopCountriesByRange(ctx, websiteID, startDate, endDate, 14)
-	if err != nil {
+	eg, egCtx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		var err error
+		g.Countries, err = r.GetTopCountriesByRange(egCtx, websiteID, startDate, endDate, 14)
+		return err
+	})
+	eg.Go(func() error {
+		var err error
+		g.Continents, err = r.GetTopContinents(egCtx, websiteID, startDate, endDate, 14)
+		return err
+	})
+	eg.Go(func() error {
+		var err error
+		g.Cities, err = r.GetTopCitiesByRange(egCtx, websiteID, startDate, endDate, 14)
+		return err
+	})
+	eg.Go(func() error {
+		var err error
+		g.Regions, err = r.GetTopRegions(egCtx, websiteID, startDate, endDate, 14)
+		return err
+	})
+
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
-
-	g.Continents, err = r.GetTopContinents(ctx, websiteID, startDate, endDate, 14)
-	if err != nil {
-		return nil, err
-	}
-
-	g.Cities, err = r.GetTopCitiesByRange(ctx, websiteID, startDate, endDate, 14)
-	if err != nil {
-		return nil, err
-	}
-
-	g.Regions, err = r.GetTopRegions(ctx, websiteID, startDate, endDate, 14)
-	if err != nil {
-		return nil, err
-	}
-
 	return g, nil
 }
 
@@ -1308,10 +1324,19 @@ func (r *ClickHouseAnalyticsRepository) DeleteAllWebsiteData(ctx context.Context
 	}
 
 	for _, table := range tables {
-		query := fmt.Sprintf("ALTER TABLE %s DELETE WHERE website_id = ?", table)
-		if err := r.conn.Exec(ctx, query, websiteID); err != nil {
+		delQuery := fmt.Sprintf("ALTER TABLE %s DELETE WHERE website_id = ?", table)
+		if err := r.conn.Exec(ctx, delQuery, websiteID); err != nil {
 			r.logger.Warn().Err(err).Str("table", table).Str("website_id", websiteID).Msg("Failed to issue DELETE mutation to ClickHouse")
+			continue
 		}
+		// Run OPTIMIZE in the background — it is a heavy blocking operation and must not
+		// block the request. ClickHouse will eventually merge on its own; this just speeds it up.
+		go func(t string) {
+			optQuery := fmt.Sprintf("OPTIMIZE TABLE %s FINAL", t)
+			if err := r.conn.Exec(context.Background(), optQuery); err != nil {
+				r.logger.Warn().Err(err).Str("table", t).Msg("Background OPTIMIZE TABLE FINAL failed (non-fatal)")
+			}
+		}(table)
 	}
 
 	return nil

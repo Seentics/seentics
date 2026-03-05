@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,7 +46,7 @@ function val(v: string | undefined | null, fallback = '—'): string {
 }
 
 function formatDuration(seconds: number): string {
-  const s = Math.round(seconds);
+  const s = Math.min(Math.round(seconds), 1800); // cap at 30 min
   const m = Math.floor(s / 60);
   const sec = s % 60;
   if (m === 0) return `${sec}s`;
@@ -74,30 +74,55 @@ function getEntryPageLabel(entryPage: string): string {
 
 export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
   const [sessions, setSessions] = useState<ReplaySessionMetadata[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedSessions, setSelectedSessions] = useState<ReplaySessionMetadata[]>([]);
 
-  // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDevice, setFilterDevice] = useState('all');
 
-  const fetchSessions = async () => {
+  const fetchSessions = useCallback(async (cursor?: string) => {
     try {
-      setLoading(true);
-      setError(null);
-      const response = await api.get(`/replays/sessions?website_id=${websiteId}`);
-      setSessions(response.data.sessions || []);
+      if (cursor) {
+        setLoadingMore(true);
+      } else {
+        setLoading(true);
+        setError(null);
+      }
+
+      const params = new URLSearchParams({ website_id: websiteId, limit: '50' });
+      if (cursor) params.set('before', cursor);
+
+      const response = await api.get(`/replays/sessions?${params}`);
+      const data = response.data;
+      const incoming: ReplaySessionMetadata[] = data.sessions || [];
+
+      if (cursor) {
+        setSessions(prev => [...prev, ...incoming]);
+      } else {
+        setSessions(incoming);
+      }
+
+      setTotal(data.total ?? incoming.length);
+      setHasMore(data.has_more ?? false);
+      setNextCursor(data.next_cursor ?? null);
     } catch (err: any) {
-      setError(err?.response?.data?.error || err.message || 'Failed to fetch sessions');
+      if (!cursor) {
+        setError(err?.response?.data?.error || err.message || 'Failed to fetch sessions');
+      }
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, [websiteId]);
 
-  useEffect(() => { fetchSessions(); }, [websiteId]);
+  useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
   const hasActiveFilters = searchQuery !== '' || filterDevice !== 'all';
 
@@ -108,12 +133,11 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
 
   const stats = useMemo(() => {
     if (sessions.length === 0) return { total: 0, avgDuration: '0s', topEnv: '—' };
-    const total = sessions.length;
-    const avgSeconds = sessions.reduce((acc, s) => acc + s.duration_seconds, 0) / total;
+    const avgSeconds = sessions.reduce((acc, s) => acc + s.duration_seconds, 0) / sessions.length;
     const browsers: Record<string, number> = {};
     sessions.forEach(s => { if (s.browser && s.browser !== 'Unknown') browsers[s.browser] = (browsers[s.browser] || 0) + 1; });
     const topBrowser = Object.entries(browsers).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
-    return { total, avgDuration: formatDuration(avgSeconds), topEnv: topBrowser };
+    return { total: sessions.length, avgDuration: formatDuration(avgSeconds), topEnv: topBrowser };
   }, [sessions]);
 
   const filteredSessions = useMemo(() =>
@@ -141,6 +165,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
       await api.delete(`/replays/sessions/${sessionId}?website_id=${websiteId}`);
       setSessions(prev => prev.filter(s => s.session_id !== sessionId));
       setSelectedSessions(prev => prev.filter(s => s.session_id !== sessionId));
+      setTotal(prev => Math.max(0, prev - 1));
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Failed to delete recording');
     } finally {
@@ -156,6 +181,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
       await api.delete('/replays/bulk-delete', { data: { website_id: websiteId, session_ids: ids } });
       setSessions(prev => prev.filter(s => !ids.includes(s.session_id)));
       setSelectedSessions([]);
+      setTotal(prev => Math.max(0, prev - ids.length));
     } catch (err: any) {
       alert(err?.response?.data?.error || 'Failed to delete selected recordings');
     }
@@ -307,7 +333,6 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
   // ---- Main overview ----
   return (
     <div className="space-y-6 pb-12">
-      {/* Header */}
       <DashboardPageHeader
         title="Session Recordings"
         description="Watch how users interact with your site to identify friction and opportunity."
@@ -318,14 +343,14 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
             <Settings className="h-3.5 w-3.5" /> Settings
           </Button>
         </Link>
-        <Button variant="outline" className="gap-2 h-9 text-xs font-medium" onClick={fetchSessions}>
+        <Button variant="outline" className="gap-2 h-9 text-xs font-medium" onClick={() => fetchSessions()} disabled={loading}>
           <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} /> Refresh
         </Button>
       </DashboardPageHeader>
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatsCard title="Total Sessions" value={stats.total} icon={PlayCircle} description="Recorded sessions" color="blue" />
+        <StatsCard title="Total Sessions" value={total} icon={PlayCircle} description="Recorded sessions" color="blue" />
         <StatsCard title="Avg. Duration" value={stats.avgDuration} icon={Clock} description="Mean session length" color="emerald" />
         <StatsCard title="Top Browser" value={stats.topEnv} icon={Laptop} description="Most common browser" color="violet" />
       </div>
@@ -349,78 +374,101 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
           </CardContent>
         </Card>
       ) : (
-        <DataTable
-          columns={columns}
-          data={filteredSessions}
-          enableRowSelection
-          onRowSelectionChange={setSelectedSessions}
-          onRowClick={(session) => setSelectedSession(session.session_id)}
-          selectionActions={(rows) => (
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-8 gap-1.5 px-3 text-xs font-medium"
-              onClick={() => handleBulkDelete(rows)}
-            >
-              <Trash2 className="h-3 w-3" />
-              Delete ({rows.length})
-            </Button>
-          )}
-          toolbarLeft={
-            <div>
-              <h3 className="text-base font-semibold text-foreground">Sessions</h3>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {filteredSessions.length}{' '}
-                {filteredSessions.length === 1 ? 'recording' : 'recordings'}
-                {hasActiveFilters && ` (filtered from ${sessions.length})`}
-              </p>
-            </div>
-          }
-          toolbarRight={
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Search sessions..."
-                  className="pl-8 w-full md:w-[240px] h-8 text-sm bg-muted/30 border-border/50 focus-visible:ring-1 focus-visible:ring-primary/30"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+        <div className="space-y-3">
+          <DataTable
+            columns={columns}
+            data={filteredSessions}
+            enableRowSelection
+            onRowSelectionChange={setSelectedSessions}
+            onRowClick={(session) => setSelectedSession(session.session_id)}
+            selectionActions={(rows) => (
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 gap-1.5 px-3 text-xs font-medium"
+                onClick={() => handleBulkDelete(rows)}
+              >
+                <Trash2 className="h-3 w-3" />
+                Delete ({rows.length})
+              </Button>
+            )}
+            toolbarLeft={
+              <div>
+                <h3 className="text-base font-semibold text-foreground">Sessions</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {filteredSessions.length}{' '}
+                  {filteredSessions.length === 1 ? 'recording' : 'recordings'}
+                  {hasActiveFilters && ` (filtered from ${sessions.length})`}
+                  {total > sessions.length && !hasActiveFilters && ` of ${total}`}
+                </p>
               </div>
-              <Select value={filterDevice} onValueChange={setFilterDevice}>
-                <SelectTrigger className="w-[130px] h-8 text-xs bg-muted/30 border-border/50">
-                  <Monitor className="h-3 w-3 mr-1.5 text-muted-foreground" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All devices</SelectItem>
-                  <SelectItem value="desktop">Desktop</SelectItem>
-                  <SelectItem value="mobile">Mobile</SelectItem>
-                  <SelectItem value="tablet">Tablet</SelectItem>
-                </SelectContent>
-              </Select>
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={clearFilters}
-                >
-                  <X className="h-3 w-3" /> Clear
-                </Button>
-              )}
+            }
+            toolbarRight={
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search sessions..."
+                    className="pl-8 w-full md:w-[240px] h-8 text-sm bg-muted/30 border-border/50 focus-visible:ring-1 focus-visible:ring-primary/30"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Select value={filterDevice} onValueChange={setFilterDevice}>
+                  <SelectTrigger className="w-[130px] h-8 text-xs bg-muted/30 border-border/50">
+                    <Monitor className="h-3 w-3 mr-1.5 text-muted-foreground" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All devices</SelectItem>
+                    <SelectItem value="desktop">Desktop</SelectItem>
+                    <SelectItem value="mobile">Mobile</SelectItem>
+                    <SelectItem value="tablet">Tablet</SelectItem>
+                  </SelectContent>
+                </Select>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={clearFilters}
+                  >
+                    <X className="h-3 w-3" /> Clear
+                  </Button>
+                )}
+              </div>
+            }
+            emptyIcon={<Search className="h-6 w-6 text-muted-foreground/20" />}
+            emptyTitle="No sessions match your filters"
+            emptyDescription="Try a different search or clear the active filters."
+            emptyAction={
+              <Button variant="ghost" size="sm" className="text-xs mt-2" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            }
+            isLoading={loading}
+          />
+
+          {/* Load more */}
+          {hasMore && !hasActiveFilters && (
+            <div className="flex justify-center pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 text-xs"
+                onClick={() => nextCursor && fetchSessions(nextCursor)}
+                disabled={loadingMore}
+              >
+                {loadingMore ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                Load more sessions
+              </Button>
             </div>
-          }
-          emptyIcon={<Search className="h-6 w-6 text-muted-foreground/20" />}
-          emptyTitle="No sessions match your filters"
-          emptyDescription="Try a different search or clear the active filters."
-          emptyAction={
-            <Button variant="ghost" size="sm" className="text-xs mt-2" onClick={clearFilters}>
-              Clear filters
-            </Button>
-          }
-          isLoading={loading}
-        />
+          )}
+        </div>
       )}
     </div>
   );

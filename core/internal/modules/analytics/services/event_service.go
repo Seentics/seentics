@@ -171,6 +171,15 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 		if req.Events[i].Timestamp.IsZero() {
 			req.Events[i].Timestamp = time.Now()
 		}
+		// Apply handler-supplied IP/UA as fallbacks (avoids a loop in the handler layer)
+		if req.ClientIP != "" && (req.Events[i].IPAddress == nil || *req.Events[i].IPAddress == "") {
+			ip := req.ClientIP
+			req.Events[i].IPAddress = &ip
+		}
+		if req.ClientUA != "" && (req.Events[i].UserAgent == nil || *req.Events[i].UserAgent == "") {
+			ua := req.ClientUA
+			req.Events[i].UserAgent = &ua
+		}
 
 		s.enrichEventData(ctx, &req.Events[i])
 
