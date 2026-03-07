@@ -69,14 +69,18 @@ func UnifiedAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		// Try Authorization header first, then fall back to httpOnly cookie
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+		var tokenString string
+		if authHeader != "" {
+			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+		} else if cookieToken, err := c.Cookie("access_token"); err == nil && cookieToken != "" {
+			tokenString = cookieToken
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization required"})
 			c.Abort()
 			return
 		}
-
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])

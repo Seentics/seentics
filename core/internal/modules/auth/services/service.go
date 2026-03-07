@@ -128,8 +128,8 @@ func (s *AuthService) ForgotPassword(ctx context.Context, email string) error {
 		return err
 	}
 
-	// In a real application, you would send an email here
-	s.logger.Info().Str("email", email).Str("token", token).Msg("Password reset requested")
+	// TODO: Send password reset email with the token
+	s.logger.Info().Str("email", email).Msg("Password reset requested")
 
 	return nil
 }

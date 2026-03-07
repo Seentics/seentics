@@ -52,20 +52,29 @@ const SPEED_OPTIONS = [1, 2, 4, 8];
 // Chunk 0 contains the full DOM snapshot so the player can render immediately.
 // We pre-fetch a few more to give the player a head start before progressive
 // loading kicks in.
-const INITIAL_CHUNKS = 3;
+const INITIAL_CHUNKS = 5;
 // How many chunks to fetch in parallel during progressive background loading.
 const BACKGROUND_BATCH = 4;
+// Max retry attempts for failed chunk downloads.
+const CHUNK_RETRIES = 3;
 
 async function fetchChunk(sessionId: string, websiteId: string, seq: number, signal: AbortSignal): Promise<any[]> {
-  try {
-    const res = await api.get(
-      `/replays/chunk/${sessionId}?website_id=${websiteId}&seq=${seq}`,
-      { signal },
-    );
-    return Array.isArray(res.data) ? res.data : [];
-  } catch {
-    return [];
+  for (let attempt = 0; attempt < CHUNK_RETRIES; attempt++) {
+    try {
+      const res = await api.get(
+        `/replays/chunk/${sessionId}?website_id=${websiteId}&seq=${seq}`,
+        { signal },
+      );
+      if (Array.isArray(res.data) && res.data.length > 0) return res.data;
+    } catch (err: any) {
+      if (err?.name === 'AbortError' || err?.name === 'CanceledError') throw err;
+    }
+    // Wait before retrying (200ms, 600ms, 1200ms)
+    if (attempt < CHUNK_RETRIES - 1) {
+      await new Promise(r => setTimeout(r, 200 * (attempt + 1) * (attempt + 1)));
+    }
   }
+  return [];
 }
 
 export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPlayerProps) {
@@ -90,10 +99,19 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [totalTime, setTotalTime] = useState(0);
+  // Use session metadata duration as initial estimate so scrubber/progress are
+  // accurate before all chunks are loaded. Refined as chunks arrive.
+  const [totalTime, setTotalTime] = useState(
+    () => (session?.duration_seconds ?? 0) * 1000
+  );
   const [speed, setSpeed] = useState(1);
   const [skipInactive, setSkipInactive] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Track the highest timestamp we've loaded so far for buffer-ahead guard.
+  const maxBufferedTimeRef = useRef(0);
+  // Whether playback was auto-paused because it outran the buffer.
+  const pausedForBufferRef = useRef(false);
 
   useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
 
@@ -138,6 +156,11 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           (a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0)
         );
 
+        // Track the highest event timestamp we've buffered so far.
+        if (initial.length > 0) {
+          maxBufferedTimeRef.current = initial[initial.length - 1].timestamp ?? 0;
+        }
+
         setBufferProgress(prev => prev ? { ...prev, loaded: initialSeqs.length } : null);
         setInitialEvents(initial);
         setLoading(false);
@@ -148,6 +171,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         // memory upfront for long sessions.
         const remainingSeqs = sequences.slice(INITIAL_CHUNKS);
         if (remainingSeqs.length === 0) {
+          maxBufferedTimeRef.current = Infinity;
           setBufferProgress(null);
           setBackgroundLoading(false);
           return;
@@ -170,17 +194,31 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
             (a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0)
           );
 
-          // Add events to the running player — safe because we're always ahead
-          // of playback for normally-paced sessions.
+          // Track the highest buffered timestamp so the buffer-ahead guard
+          // knows how far ahead we've loaded.
+          if (events.length > 0) {
+            const lastTs = events[events.length - 1].timestamp ?? 0;
+            if (lastTs > maxBufferedTimeRef.current) maxBufferedTimeRef.current = lastTs;
+          }
+
+          // Add events to the running player.
           const player = playerInstanceRef.current;
           if (player) {
             events.forEach(e => player.addEvent(e));
-            // Extend totalTime as more events are added (addEvent updates
-            // the internal events array, so getMetaData() returns accurate totals).
+            // Extend totalTime as more events are added.
             try {
               const newMeta = player.getMetaData();
               if (newMeta.totalTime > 0) setTotalTime(newMeta.totalTime);
             } catch {}
+
+            // If we previously auto-paused because the buffer ran out,
+            // resume now that more data is available.
+            if (pausedForBufferRef.current) {
+              pausedForBufferRef.current = false;
+              player.play();
+              isPlayingRef.current = true;
+              setIsPlaying(true);
+            }
           }
 
           setBufferProgress(prev =>
@@ -188,6 +226,17 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           );
         }
 
+        // All chunks loaded — disable buffer-ahead guard entirely.
+        maxBufferedTimeRef.current = Infinity;
+        if (pausedForBufferRef.current) {
+          pausedForBufferRef.current = false;
+          const player = playerInstanceRef.current;
+          if (player) {
+            player.play();
+            isPlayingRef.current = true;
+            setIsPlaying(true);
+          }
+        }
         setBufferProgress(null);
         setBackgroundLoading(false);
       } catch (err: any) {
@@ -235,11 +284,20 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
       let sessionStartTime = 0;
       try {
-        // Use rrweb's own meta.totalTime — it's derived from actual event timestamps
-        // and is accurate regardless of how many chunks have been loaded so far.
         const meta = player.getMetaData();
-        if (meta.totalTime > 0) setTotalTime(meta.totalTime);
         sessionStartTime = meta.startTime ?? 0;
+        // Only use rrweb's totalTime if it's larger than the metadata estimate.
+        // With partial chunks loaded, rrweb's value is too short; the session
+        // metadata duration (from DB) is more accurate until all chunks arrive.
+        const metaDuration = (session?.duration_seconds ?? 0) * 1000;
+        const rrwebDuration = meta.totalTime > 0 ? meta.totalTime : 0;
+        if (rrwebDuration > metaDuration) {
+          setTotalTime(rrwebDuration);
+        } else if (metaDuration > 0) {
+          setTotalTime(metaDuration);
+        } else if (rrwebDuration > 0) {
+          setTotalTime(rrwebDuration);
+        }
       } catch {}
 
       setIsPlaying(true);
@@ -257,6 +315,23 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
             if (typeof event?.timestamp === 'number' && sessionStartTime > 0) {
               const rel = event.timestamp - sessionStartTime;
               if (rel >= 0) setCurrentTime(rel);
+
+              // Buffer-ahead guard: if playback is within 2s of the last
+              // buffered event and we're still loading, pause to avoid
+              // the player hitting a gap and getting stuck.
+              const maxBuf = maxBufferedTimeRef.current;
+              if (
+                maxBuf > 0 &&
+                !pausedForBufferRef.current &&
+                isPlayingRef.current &&
+                event.timestamp > maxBuf - 2000 &&
+                streamAbortRef.current // still loading
+              ) {
+                pausedForBufferRef.current = true;
+                player.pause();
+                isPlayingRef.current = false;
+                setIsPlaying(false);
+              }
             }
           });
           replayer.on('state-change', (states: any) => {

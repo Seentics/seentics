@@ -10,7 +10,6 @@ import { TopPagesChart } from '@/components/analytics/TopPagesChart';
 import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { TopCountriesChart } from '@/components/analytics/TopCountriesChart';
 import { TopDevicesChart } from '@/components/analytics/TopDevicesChart';
-import { WebVitalsChart } from '@/components/analytics/WebVitalsChart';
 import { Loader2, Zap, Globe, CalendarIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';

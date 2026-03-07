@@ -11,7 +11,7 @@ export const useAuth = create<AuthState>()(
       refresh_token: null,
       isAuthenticated: false,
       rememberMe: false,
-      isLoading: true, // Start with loading true until persisted state loads
+      isLoading: true,
       isAdminVerified: false,
 
       setAdminVerified: (isAdminVerified: boolean) => set({ isAdminVerified }),
@@ -19,7 +19,6 @@ export const useAuth = create<AuthState>()(
       setAuth: ({ user, access_token, refresh_token, rememberMe = false }) =>
         set(() => ({
           user,
-          // subscription, // Removed: Commercial subscription functionality
           access_token,
           refresh_token,
           isAuthenticated: true,
@@ -50,7 +49,6 @@ export const useAuth = create<AuthState>()(
           isLoading,
         })),
 
-      // Initialize auth state after persistence loads
       initializeAuth: () =>
         set(() => ({
           isLoading: false,
@@ -59,7 +57,6 @@ export const useAuth = create<AuthState>()(
       logout: () =>
         set(() => ({
           user: null,
-          // subscription: null, // Removed: Commercial subscription functionality
           access_token: null,
           refresh_token: null,
           isAuthenticated: false,
@@ -71,7 +68,6 @@ export const useAuth = create<AuthState>()(
       resetAuth: () =>
         set(() => ({
           user: null,
-          // subscription: null, // Removed: Commercial subscription functionality
           access_token: null,
           refresh_token: null,
           isAuthenticated: false,
@@ -80,7 +76,6 @@ export const useAuth = create<AuthState>()(
           isAdminVerified: false,
         })),
 
-      // Check if token is expired
       isTokenExpired: () => {
         const { access_token } = get();
         if (!access_token) return true;
@@ -93,7 +88,6 @@ export const useAuth = create<AuthState>()(
         }
       },
 
-      // Get token expiration time
       getTokenExpiration: () => {
         const { access_token } = get();
         if (!access_token) return null;
@@ -108,11 +102,9 @@ export const useAuth = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
+      // Only persist user info and auth state — tokens are in httpOnly cookies
       partialize: (state) => ({
         user: state.user,
-        // subscription: state.subscription, // Removed: Commercial subscription functionality
-        access_token: state.access_token,
-        refresh_token: state.refresh_token,
         isAuthenticated: state.isAuthenticated,
         rememberMe: state.rememberMe,
       }),

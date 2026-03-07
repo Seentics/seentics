@@ -6,10 +6,19 @@ import (
 
 	"github.com/Seentics/seentics/internal/modules/auth/models"
 	"github.com/Seentics/seentics/internal/modules/auth/services"
+	"github.com/Seentics/seentics/internal/shared/config"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 )
+
+// setAuthCookies sets httpOnly secure cookies for access and refresh tokens
+func setAuthCookies(c *gin.Context, tokens models.TokenDetails) {
+	secure := config.IsProduction()
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("access_token", tokens.AccessToken, 86400, "/", "", secure, true)
+	c.SetCookie("refresh_token", tokens.RefreshToken, 604800, "/", "", secure, true)
+}
 
 type AuthHandler struct {
 	service *services.AuthService
@@ -38,6 +47,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	setAuthCookies(c, resp.Tokens)
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "User registered successfully",
 		"data":    resp,
@@ -59,6 +70,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	setAuthCookies(c, resp.Tokens)
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Logged in successfully",
 		"data":    resp,
@@ -68,12 +81,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // RefreshToken handles refreshing an expired access token using a refresh token
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req struct {
-		RefreshToken string `json:"refresh_token" binding:"required"`
+		RefreshToken string `json:"refresh_token"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "refresh_token is required"})
-		return
+	// Bind JSON body (may be empty if using cookie-based refresh)
+	_ = c.ShouldBindJSON(&req)
+
+	// Also check cookie for refresh token if body is empty
+	if req.RefreshToken == "" {
+		if cookieToken, err := c.Cookie("refresh_token"); err == nil {
+			req.RefreshToken = cookieToken
+		}
 	}
 
 	tokens, err := h.service.RefreshToken(c.Request.Context(), req.RefreshToken)
@@ -82,6 +100,8 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+
+	setAuthCookies(c, *tokens)
 
 	c.JSON(http.StatusOK, tokens)
 }

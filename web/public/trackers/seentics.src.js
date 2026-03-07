@@ -291,6 +291,7 @@
 
     loadRR().then(function () {
       if (!w.rrweb) return;
+      var gotFirstSnapshot = false;
       var stop = w.rrweb.record({
         emit: function (ev) {
           // A new full snapshot (type 2) marks a rrweb checkpoint.
@@ -301,6 +302,13 @@
             flush();
           }
           buf.replay.events.push(ev);
+          // Flush chunk 0 immediately after the first full snapshot so the
+          // replay data is available right away instead of waiting for the
+          // 10 s interval. This prevents "starts late" issues.
+          if (ev.type === 2 && !gotFirstSnapshot) {
+            gotFirstSnapshot = true;
+            flush();
+          }
         },
         // Force a fresh full DOM snapshot every 30 s so long recordings
         // stay self-contained and dynamic/SPA nodes are always captured.
