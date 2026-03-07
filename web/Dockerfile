@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 # Install all dependencies first (including dev deps for postinstall)
 RUN npm ci --legacy-peer-deps
-RUN npm install sharp
+RUN npm install sharp --legacy-peer-deps
 
 # Rebuild the source code only when needed
 FROM base AS builder
