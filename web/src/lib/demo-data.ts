@@ -413,6 +413,8 @@ export const getDemoWebsite = () => ({
     automationEnabled: true,
     funnelEnabled: true,
     heatmapEnabled: true,
+    replayEnabled: true,
+    replaySamplingRate: 100,
     verificationToken: '',
     settings: {
         allowedOrigins: ['*'],
