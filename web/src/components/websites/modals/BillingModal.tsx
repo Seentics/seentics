@@ -142,7 +142,7 @@ export function BillingModal({ isOpen, onClose }: BillingModalProps) {
                                         {plan.name}
                                         {plan.current && <span className="bg-primary/10 text-primary text-xs px-2 py-1 rounded-full">Current</span>}
                                     </CardTitle>
-                                    <div className="text-3xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground">{plan.period || '/mo'}</span></div>
+                                    <div className="text-3xl font-bold">{plan.price}<span className="text-sm font-normal text-muted-foreground">/mo</span></div>
                                     <CardDescription>{plan.description}</CardDescription>
                                 </CardHeader>
                                 <CardContent className="flex-1">

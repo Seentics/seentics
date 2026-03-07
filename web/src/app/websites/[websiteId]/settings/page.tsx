@@ -83,8 +83,8 @@ const renderContent = (activeTab: string, websiteId: string) => {
         case 'replays':       return <ReplaySettingsComponent websiteId={websiteId} />;
         case 'goals':         return <GoalsSettingsComponent websiteId={websiteId} />;
         case 'scripts':       return <ScriptSettingsComponent websiteId={websiteId} />;
-        case 'alerts':        return <AlertsSettingsComponent websiteId={websiteId} />;
-        case 'reports':       return <ReportsSettingsComponent websiteId={websiteId} />;
+        case 'alerts':        return <AlertsSettingsComponent />;
+        case 'reports':       return <ReportsSettingsComponent />;
         case 'customization': return <CustomizationSettingsComponent />;
         case 'layout':        return <LayoutSettingsComponent />;
         default:              return <ProfileSettings />;

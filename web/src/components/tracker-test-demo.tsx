@@ -37,7 +37,7 @@ export default function TrackerTestDemo() {
   return (
     <div className="p-6 bg-gray-50 rounded">
       {/* Load the tracker in test mode */}
-      <TrackerScript testMode={true} siteId="demo-site-123" />
+      <TrackerScript />
 
       <h2 className="text-2xl font-bold mb-4 text-gray-800">🧪 Seentics Tracker Test Demo</h2>
 

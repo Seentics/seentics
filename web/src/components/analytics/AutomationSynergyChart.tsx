@@ -90,7 +90,7 @@ export const AutomationInsightTable: React.FC<AutomationInsightTableProps> = ({ 
                     <td className="p-4 px-6">
                       <div className="flex items-center gap-4">
                         <div className="h-10 w-10 min-w-10 rounded bg-accent/10 flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                          {React.cloneElement(wf.icon as React.ReactElement, { className: 'h-4 w-4 text-primary' })}
+                          {React.cloneElement(wf.icon as React.ReactElement<any>, { className: 'h-4 w-4 text-primary' })}
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-sm leading-tight text-foreground truncate ">{wf.name}</p>

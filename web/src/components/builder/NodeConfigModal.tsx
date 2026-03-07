@@ -235,7 +235,7 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
   };
 
   // Helper to insert variable at cursor position
-  const insertVariable = (inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement>, variable: string) => {
+  const insertVariable = (inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement | null>, variable: string) => {
     const input = inputRef.current;
     if (!input) return;
 

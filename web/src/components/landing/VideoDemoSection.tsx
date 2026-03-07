@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export default function FullScreenVideoSection(): JSX.Element {
+export default function FullScreenVideoSection(): React.ReactElement {
   return (
     <div className="h-screen w-full relative">
       <iframe

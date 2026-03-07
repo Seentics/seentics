@@ -175,14 +175,14 @@ export default function WebsitesPage() {
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
-                className="bg-card/50 backdrop-blur-xl p-8 md:p-10 rounded-3xl border border-border/50 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)]"
+                className="bg-card/50 backdrop-blur-xl p-8 md:p-10 rounded-xl border border-border/50 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)]"
               >
                 <div className="mb-8 text-center">
-                  <h2 className="text-3xl font-bold tracking-tight mb-3">Connect your website</h2>
+                  <h2 className="text-3xl font-bold tracking-tight mb-3">Connect website</h2>
                   <p className="text-muted-foreground text-sm">Where should Seentics start tracking visitors?</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-5">
                     <div className="space-y-2">
                       <label className="text-xs font-semibold text-foreground/70 ml-1">Friendly Name</label>

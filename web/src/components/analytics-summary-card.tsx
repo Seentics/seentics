@@ -10,7 +10,12 @@ import {
   CardDescription,
   CardFooter,
 } from '@/components/ui/card';
-import { type DashboardData, useDashboardData, useDailyStats, trafficChartConfig } from '@/lib/analytics-api';
+import { type DashboardData, useDashboardData, useDailyStats } from '@/lib/analytics-api';
+
+const trafficChartConfig = {
+  pageviews: { label: 'Pageviews', color: 'hsl(var(--primary))' },
+  visitors: { label: 'Visitors', color: 'hsl(var(--chart-2))' },
+};
 import { Area, AreaChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } from 'recharts';
 import { ChartContainer } from './ui/chart';
 import Link from 'next/link';

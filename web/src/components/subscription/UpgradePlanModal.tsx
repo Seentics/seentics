@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 interface UpgradePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentPlan: 'free' | 'starter' | 'basic' | 'growth' | 'pro';
+  currentPlan: 'free' | 'basic' | 'growth' | 'pro';
   limitType: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'replays' | 'monthlyEvents';
   currentUsage: number;
   limit: number;

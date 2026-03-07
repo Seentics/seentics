@@ -68,7 +68,7 @@ export const LimitReachedAlert: React.FC<LimitReachedAlertProps> = ({
           </div>
           
           <div className="flex items-center gap-2 ml-4">
-            {showUpgradeButton && subscription.plan !== 'enterprise' && (
+            {showUpgradeButton && subscription.plan !== 'pro' && (
               <Button
                 size="sm"
                 onClick={() => setShowUpgradeModal(true)}

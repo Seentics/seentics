@@ -21,7 +21,7 @@ export interface SubscriptionUsage {
 
 export interface SubscriptionData {
   id: string;
-  plan: 'free' | 'basic' | 'pro' | 'enterprise';
+  plan: 'free' | 'basic' | 'growth' | 'pro';
   status: string;
   usage: SubscriptionUsage;
   features: string[];

@@ -90,7 +90,7 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
   };
 
   const message = limitMessages[reachedLimit];
-  const PlanIcon = subscription.plan === 'enterprise' ? Crown : Zap;
+  const PlanIcon = subscription.plan === 'pro' ? Crown : Zap;
 
   return (
     <>
@@ -112,7 +112,7 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
             </div>
 
             <div className="flex items-center space-x-2">
-              {subscription.plan !== 'enterprise' && (
+              {subscription.plan !== 'pro' && (
                 <Button
                   size="sm"
                   onClick={handleUpgrade}
