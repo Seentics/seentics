@@ -89,8 +89,8 @@ export default function AccountBillingSettings() {
     const planPriceLabel = subscription?.isCustomPlan && subscription?.priceMonthly
         ? `$${subscription.priceMonthly}`
         : `$${planPriceMap[currentPlan] ?? 0}`;
-    const planPeriodLabel = (currentPlan === 'free' || currentPlan === 'starter') ? '' : '/month';
-    const isStarter = currentPlan === 'free' || currentPlan === 'starter';
+    const planPeriodLabel = currentPlan === 'free' ? '' : '/month';
+    const isStarter = currentPlan === 'free';
 
     const usageItems = [
         { name: 'Monthly Events', key: 'monthlyEvents', icon: BarChart3, current: subscription?.usage?.monthlyEvents?.current || 0, limit: subscription?.usage?.monthlyEvents?.limit || 10000 },
