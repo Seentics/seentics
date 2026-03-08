@@ -90,6 +90,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   // Set to true by the player-init effect once rrwebPlayer is created.
   // Background loading must wait for this before calling player.addEvent().
   const playerReadyRef = useRef(false);
+  // True when the user explicitly hit pause — prevents auto-resume on buffer refill.
+  const userPausedRef = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -299,6 +301,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
       playerInstanceRef.current = player;
       playerReadyRef.current = true;
+      userPausedRef.current = false;
 
       let sessionStartTime = 0;
       try {
@@ -363,6 +366,12 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           replayer.on('finish', () => {
             isPlayingRef.current = false;
             setIsPlaying(false);
+            // If we're still streaming more chunks, the player hit the end of
+            // what's been loaded so far — treat it as a buffer stall so the
+            // background loader will resume playback when the next batch arrives.
+            if (streamAbortRef.current && !userPausedRef.current) {
+              pausedForBufferRef.current = true;
+            }
           });
         }
       } catch {}
@@ -390,10 +399,12 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     const player = playerInstanceRef.current;
     if (!player) return;
     if (isPlayingRef.current) {
+      userPausedRef.current = true;
       player.pause();
       isPlayingRef.current = false;
       setIsPlaying(false);
     } else {
+      userPausedRef.current = false;
       player.play();
       isPlayingRef.current = true;
       setIsPlaying(true);
