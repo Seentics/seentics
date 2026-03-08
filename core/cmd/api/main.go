@@ -126,6 +126,11 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to initialize S3 store")
 	}
+	if err := s3Store.EnsureBucket(ctx); err != nil {
+		logger.Warn().Err(err).Str("bucket", s3Bucket).Msg("Failed to ensure S3 bucket exists — uploads may fail")
+	} else {
+		logger.Info().Str("bucket", s3Bucket).Msg("S3 bucket ready")
+	}
 
 	// Module Repositories
 	authRepo := authRepoPkg.NewAuthRepository(db)
@@ -193,9 +198,9 @@ func main() {
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 180 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	go func() {

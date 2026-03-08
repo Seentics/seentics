@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -38,6 +39,23 @@ func NewS3Store(region, bucket, endpoint, accessKey, secretKey string) (*S3Store
 		client: client,
 		bucket: bucket,
 	}, nil
+}
+
+// EnsureBucket creates the bucket if it does not already exist.
+func (s *S3Store) EnsureBucket(ctx context.Context) error {
+	_, err := s.client.CreateBucket(ctx, &s3.CreateBucketInput{
+		Bucket: aws.String(s.bucket),
+	})
+	if err != nil {
+		// Ignore "already exists" errors from both MinIO and AWS
+		errStr := err.Error()
+		if strings.Contains(errStr, "BucketAlreadyOwnedByYou") ||
+			strings.Contains(errStr, "BucketAlreadyExists") {
+			return nil
+		}
+		return fmt.Errorf("failed to create bucket %q: %w", s.bucket, err)
+	}
+	return nil
 }
 
 func (s *S3Store) Upload(ctx context.Context, key string, body io.Reader) error {

@@ -355,7 +355,7 @@ func (h *InternalHandler) RetentionCleanup(c *gin.Context) {
 	// Delete old heatmap points from PostgreSQL
 	if req.RecordingRetentionDays > 0 {
 		tag, err := h.db.Exec(ctx,
-			"DELETE FROM heatmap_points WHERE (website_id::text = ANY($1) OR website_id::text = ANY($2)) AND created_at < NOW() - $3 * INTERVAL '1 day'",
+			"DELETE FROM heatmap_points WHERE (website_id::text = ANY($1) OR website_id::text = ANY($2)) AND last_updated < NOW() - $3 * INTERVAL '1 day'",
 			siteIDs, uuidStrings, req.RecordingRetentionDays,
 		)
 		if err != nil {
