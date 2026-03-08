@@ -1,10 +1,9 @@
 'use client';
 
-import { Globe, Layers, Search, Users, Link, Mail, MousePointerClick } from 'lucide-react';
+import { Globe, Layers, MousePointerClick } from 'lucide-react';
 import Image from 'next/image';
 import React, { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/lib/analytics-api';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,10 +24,6 @@ interface TopSourcesChartProps {
 
 const CategoryIcons: Record<string, { icon: React.ElementType; color: string }> = {
   Direct: { icon: MousePointerClick, color: '#4285F4' },
-  Search: { icon: Search, color: '#34A853' },
-  Social: { icon: Users, color: '#EA4335' },
-  Referral: { icon: Link, color: '#8B5CF6' },
-  Email: { icon: Mail, color: '#FBBC05' },
 };
 
 // Map raw referrer strings to a canonical platform name
@@ -119,45 +114,18 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
   }
 
   const referrers = data?.top_referrers || [];
-  const totalVisitors = referrers.reduce((sum, item) => sum + (item.visitors || 0), 0);
 
   const getSourceData = (type: 'overview' | 'search' | 'social') => {
-    if (type === 'overview') {
-      const totals: Record<string, { visitors: number, color: string }> = {
-        'Direct': { visitors: 0, color: '#4285F4' },
-        'Search': { visitors: 0, color: '#34A853' },
-        'Social': { visitors: 0, color: '#EA4335' },
-        'Referral': { visitors: 0, color: '#8B5CF6' },
-        'Email': { visitors: 0, color: '#FBBC05' },
-      };
-
-      referrers.forEach(item => {
-        const ref = item.referrer || '';
-        if (isDirect(ref)) totals['Direct'].visitors += item.visitors;
-        else if (isOrganic(ref)) totals['Search'].visitors += item.visitors;
-        else if (isSocial(ref)) totals['Social'].visitors += item.visitors;
-        else if (isEmail(ref)) totals['Email'].visitors += item.visitors;
-        else totals['Referral'].visitors += item.visitors;
-      });
-
-      return Object.entries(totals)
-        .filter(([, v]) => v.visitors > 0)
-        .map(([name, v]) => ({
-          label: name,
-          visitors: v.visitors,
-          color: v.color,
-          percentage: totalVisitors > 0 ? (v.visitors / totalVisitors) * 100 : 0
-        }));
-    }
-
-    // Filter and group by canonical platform name
-    const filtered = referrers.filter(r =>
-      type === 'search' ? isOrganic(r.referrer) : isSocial(r.referrer)
-    );
+    // For overview: show all referrers grouped by canonical name (Direct, Google, Facebook, etc.)
+    // For search/social: filter to that category then group
+    const filtered = type === 'overview'
+      ? referrers
+      : referrers.filter(r => type === 'search' ? isOrganic(r.referrer) : isSocial(r.referrer));
 
     const grouped: Record<string, number> = {};
     for (const r of filtered) {
-      const name = getCanonicalName(r.referrer);
+      const ref = r.referrer || '';
+      const name = isDirect(ref) ? 'Direct' : getCanonicalName(ref) || 'Direct';
       grouped[name] = (grouped[name] || 0) + r.visitors;
     }
 
@@ -169,7 +137,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
     return sorted.map(([name, visitors]) => ({
       label: name,
       visitors,
-      color: type === 'search' ? '#34A853' : '#EA4335',
+      color: '#3b82f6',
       percentage: (visitors / maxVal) * 100
     }));
   };
@@ -195,15 +163,15 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
     return (
       <div className="space-y-0 mt-4">
         {items.map((item, index) => {
-          const categoryIcon = type === 'overview' ? CategoryIcons[item.label] : null;
-          const sourceImg = type !== 'overview' ? getSourceImage(item.label) : null;
+          const directIcon = item.label === 'Direct' ? CategoryIcons['Direct'] : null;
+          const sourceImg = !directIcon ? getSourceImage(item.label) : null;
 
           return (
             <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ utm_source: item.label })}>
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
-                  {categoryIcon ? (
-                    <categoryIcon.icon className="h-5 w-5" style={{ color: categoryIcon.color }} />
+                  {directIcon ? (
+                    <directIcon.icon className="h-5 w-5" style={{ color: directIcon.color }} />
                   ) : sourceImg ? (
                     <>
                       <Image
@@ -226,9 +194,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={item.label}>{item.label}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                     {type === 'overview' ? 'Channel' : 'Platform'}
-                  </div>
+                  <div className="text-xs text-muted-foreground truncate">Source</div>
                 </div>
               </div>
 
