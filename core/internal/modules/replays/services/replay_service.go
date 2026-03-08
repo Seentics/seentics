@@ -294,11 +294,25 @@ func (s *replayService) GetReplayChunk(ctx context.Context, websiteID, sessionID
 
 // GetFullReplay downloads all chunks for a session concurrently, merges all
 // rrweb events into one sorted array, and returns it as a flat JSON array.
-// This eliminates the need for progressive chunk streaming on the client.
+// After stitching, the result is cached in S3 as full.json.gz so subsequent
+// calls are a single fast GET instead of N concurrent downloads + merge.
 func (s *replayService) GetFullReplay(ctx context.Context, websiteID, sessionID, userID string) (json.RawMessage, error) {
 	siteID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
+	}
+
+	// ── Cache hit: serve pre-stitched full.json.gz if it already exists ──────
+	cacheKey := fmt.Sprintf("replays/%s/%s/full.json.gz", siteID, sessionID)
+	if reader, dlErr := s.store.Download(ctx, cacheKey); dlErr == nil {
+		defer reader.Close()
+		if gzr, gzErr := gzip.NewReader(reader); gzErr == nil {
+			defer gzr.Close()
+			if raw, readErr := io.ReadAll(gzr); readErr == nil {
+				return json.RawMessage(raw), nil
+			}
+		}
+		// Cache file corrupt — fall through to re-stitch below
 	}
 
 	seqs, err := s.repo.GetChunkSequences(ctx, siteID, sessionID)
@@ -387,6 +401,18 @@ func (s *replayService) GetFullReplay(ctx context.Context, websiteID, sessionID,
 	if err != nil {
 		return nil, err
 	}
+
+	// ── Cache miss: save stitched result to S3 for future fast lookups ────────
+	go func() {
+		var buf bytes.Buffer
+		gz := gzip.NewWriter(&buf)
+		if _, werr := gz.Write(merged); werr == nil {
+			gz.Close()
+			// Use a background context so a client disconnect doesn't abort the save
+			_ = s.store.Upload(context.Background(), cacheKey, bytes.NewReader(buf.Bytes()))
+		}
+	}()
+
 	return json.RawMessage(merged), nil
 }
 

@@ -63,6 +63,10 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
+  // Progressive loading: tracks how many chunks remain in the background
+  const [pendingChunks, setPendingChunks] = useState(0);
+  const restoreTimeRef = useRef<number | null>(null);
+  const restorePlayingRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -76,31 +80,101 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
 
-  // ─── Data loading ──────────────────────────────────────────────────────────
-  // Fetch all events in one request. The server stitches all S3 chunks,
-  // sorts by timestamp, and returns a single flat JSON array.
+  // ─── Data loading (progressive) ───────────────────────────────────────────
+  // 1. Fetch manifest to get chunk sequence list (fast — DB only)
+  // 2. Load chunk 0 immediately → start player (< 1s to first frame)
+  // 3. Load remaining chunks in background concurrently
+  // 4. When all loaded, save position, recreate player with full event set
   useEffect(() => {
     const controller = new AbortController();
+    const signal = controller.signal;
 
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
         setEvents([]);
-        const res = await api.get(
-          `/replays/full/${sessionId}?website_id=${websiteId}`,
-          { signal: controller.signal, timeout: 120000 }, // 2 min — stitching many S3 chunks can be slow
+        setPendingChunks(0);
+
+        // Step 1: get manifest (seq numbers, fast DB query)
+        const manifestRes = await api.get(
+          `/replays/manifest/${sessionId}?website_id=${websiteId}`,
+          { signal, timeout: 10000 },
         );
-        setEvents(res.data?.events ?? []);
+        const sequences: number[] = manifestRes.data?.sequences ?? [];
+
+        if (sequences.length === 0) {
+          setLoading(false);
+          return;
+        }
+
+        // Step 2: load chunk 0 → start player immediately
+        const chunk0Res = await api.get(
+          `/replays/chunk/${sessionId}?website_id=${websiteId}&seq=${sequences[0]}`,
+          { signal, timeout: 15000 },
+        );
+        const chunk0Events: any[] = Array.isArray(chunk0Res.data) ? chunk0Res.data : [];
+        setEvents(chunk0Events);
+        setLoading(false);
+
+        if (sequences.length === 1) return; // only one chunk — done
+
+        // Step 3: load remaining chunks in background concurrently
+        const remaining = sequences.slice(1);
+        setPendingChunks(remaining.length);
+
+        const chunkResults: { seq: number; events: any[] }[] = [];
+        await Promise.all(
+          remaining.map(async (seq) => {
+            if (signal.aborted) return;
+            try {
+              const res = await api.get(
+                `/replays/chunk/${sessionId}?website_id=${websiteId}&seq=${seq}`,
+                { signal, timeout: 30000 },
+              );
+              chunkResults.push({ seq, events: Array.isArray(res.data) ? res.data : [] });
+            } catch {
+              // skip failed chunks
+            } finally {
+              if (!signal.aborted) setPendingChunks(prev => Math.max(0, prev - 1));
+            }
+          })
+        );
+
+        if (signal.aborted) return;
+
+        // Step 4: merge all events, sort by timestamp, recreate player
+        chunkResults.sort((a, b) => a.seq - b.seq);
+        const allEvents = [...chunk0Events, ...chunkResults.flatMap(r => r.events)];
+        allEvents.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+
+        // Save current playback position so we can restore after player recreation
+        restoreTimeRef.current = currentTimeRef.current;
+        restorePlayingRef.current = isPlayingRef.current;
+        setEvents(allEvents);
       } catch (err: any) {
         if (
           err?.code === 'ERR_CANCELED' ||
           err?.name === 'AbortError' ||
           err?.name === 'CanceledError'
         ) return;
-        setError(err.message || 'Failed to fetch replay data');
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        // Fallback: try the full stitched endpoint (server-side cache may already exist)
+        try {
+          const res = await api.get(
+            `/replays/full/${sessionId}?website_id=${websiteId}`,
+            { signal, timeout: 120000 },
+          );
+          setEvents(res.data?.events ?? []);
+        } catch (fallbackErr: any) {
+          if (
+            fallbackErr?.code === 'ERR_CANCELED' ||
+            fallbackErr?.name === 'AbortError' ||
+            fallbackErr?.name === 'CanceledError'
+          ) return;
+          setError(fallbackErr.message || 'Failed to load replay');
+        } finally {
+          if (!signal.aborted) setLoading(false);
+        }
       }
     };
 
@@ -144,8 +218,20 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       if (resolved > 0) setTotalTime(resolved);
     } catch {}
 
-    setIsPlaying(true);
-    isPlayingRef.current = true;
+    // Restore position after player recreation (progressive chunk loading)
+    if (restoreTimeRef.current !== null && restoreTimeRef.current > 0) {
+      const t = restoreTimeRef.current;
+      const wasPlaying = restorePlayingRef.current;
+      restoreTimeRef.current = null;
+      setTimeout(() => {
+        try { player.goto(t, wasPlaying); } catch {}
+      }, 80);
+      isPlayingRef.current = wasPlaying;
+      setIsPlaying(wasPlaying);
+    } else {
+      setIsPlaying(true);
+      isPlayingRef.current = true;
+    }
     setSpeed(1);
     setSkipInactive(false);
 
@@ -309,7 +395,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       <div className="flex flex-col items-center justify-center p-20 bg-muted/20 rounded-xl border border-border/60">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/40 mb-3" />
         <span className="text-sm font-medium text-muted-foreground">Loading session...</span>
-        <p className="text-xs text-muted-foreground/60 mt-1">Fetching session data...</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">Fetching first frame...</p>
       </div>
     );
   }
@@ -378,6 +464,13 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
                 style={{ left: `${progress}%` }}
               />
             </div>
+            {/* Background chunk loading indicator */}
+            {pendingChunks > 0 && (
+              <div className="flex items-center gap-1.5 text-[10px] text-white/30">
+                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                <span>Loading {pendingChunks} more chunk{pendingChunks > 1 ? 's' : ''}...</span>
+              </div>
+            )}
 
             {/* Controls row */}
             <div className="flex items-center justify-between gap-3">
