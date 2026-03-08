@@ -6,6 +6,7 @@ import { isEnterprise } from '@/lib/features';
 import { useRouter } from 'next/navigation';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import api from '@/lib/api';
+import { openCheckout } from '@/lib/checkout';
 
 export default function PricingPage() {
     const router = useRouter();
@@ -32,19 +33,7 @@ export default function PricingPage() {
             });
 
             if (response.data.success && response.data.data.checkoutUrl) {
-                let checkoutUrl = response.data.data.checkoutUrl;
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    if (!checkoutUrl.includes('test=1')) {
-                        checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
-                    }
-                }
-
-                const successUrl = encodeURIComponent('https://seentics.com');
-                if (!checkoutUrl.includes('checkout[success_url]')) {
-                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + `checkout[success_url]=${successUrl}`;
-                }
-
-                window.location.href = checkoutUrl;
+                openCheckout(response.data.data.checkoutUrl);
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to create checkout. Please try again.');

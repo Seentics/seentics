@@ -6,6 +6,7 @@ import { Check, Zap, Sparkles, ShieldCheck, Clock, ArrowRight, Loader2 } from "l
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/stores/useAuthStore";
 import api from "@/lib/api";
+import { openCheckout } from "@/lib/checkout";
 import { toast } from "sonner";
 
 const LIMITS = [
@@ -44,18 +45,7 @@ export function LifetimeDeal() {
             });
 
             if (response.data.success && response.data.data.checkoutUrl) {
-                let checkoutUrl = response.data.data.checkoutUrl;
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    if (!checkoutUrl.includes('test=1')) {
-                        checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
-                    }
-                }
-                const successUrl = encodeURIComponent('https://seentics.com');
-                if (!checkoutUrl.includes('checkout[success_url]')) {
-                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + `checkout[success_url]=${successUrl}`;
-                }
-
-                window.location.href = checkoutUrl;
+                openCheckout(response.data.data.checkoutUrl);
             }
         } catch {
             toast.error('Failed to initialize checkout. Please try again.');

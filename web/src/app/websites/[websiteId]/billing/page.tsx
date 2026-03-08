@@ -85,12 +85,12 @@ export default function AccountBillingSettings() {
         );
     }
 
-    const currentPlan = subscription?.plan || 'free';
-    const planPriceLabel = subscription?.isCustomPlan && subscription?.priceMonthly
-        ? `$${subscription.priceMonthly}`
-        : `$${planPriceMap[currentPlan] ?? 0}`;
-    const planPeriodLabel = currentPlan === 'free' ? '' : '/month';
-    const isStarter = currentPlan === 'free';
+    const rawPlan = subscription?.plan || 'free';
+    const currentPlan = rawPlan.toLowerCase();
+    const planPrice = subscription?.priceMonthly || planPriceMap[currentPlan] || 0;
+    const planPriceLabel = `$${planPrice}`;
+    const planPeriodLabel = currentPlan === 'free' || currentPlan === 'starter' ? '' : subscription?.billingInterval === 'yearly' ? '/mo (billed yearly)' : '/month';
+    const isStarter = currentPlan === 'free' || currentPlan === 'starter';
 
     const usageItems = [
         { name: 'Monthly Events', key: 'monthlyEvents', icon: BarChart3, current: subscription?.usage?.monthlyEvents?.current || 0, limit: subscription?.usage?.monthlyEvents?.limit || 10000 },

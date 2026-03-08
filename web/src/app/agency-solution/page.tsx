@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useAuth } from '@/stores/useAuthStore';
 import api from '@/lib/api';
+import { openCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
 import {
     Users2, Globe, BarChart2, MousePointer2, Video,
@@ -107,16 +108,7 @@ export default function AgencySolutionPage() {
             });
 
             if (response.data.success && response.data.data.checkoutUrl) {
-                let checkoutUrl = response.data.data.checkoutUrl;
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    if (!checkoutUrl.includes('test=1')) checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
-                }
-                const successUrl = encodeURIComponent('https://seentics.com');
-                if (!checkoutUrl.includes('checkout[success_url]')) {
-                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + `checkout[success_url]=${successUrl}`;
-                }
-
-                window.location.href = checkoutUrl;
+                openCheckout(response.data.data.checkoutUrl);
             }
         } catch {
             toast.error('Failed to initialize checkout. Please try again.');

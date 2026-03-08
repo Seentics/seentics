@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Crown, ArrowRight, X, Rocket, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/stores/useAuthStore';
 import api from '@/lib/api';
+import { openCheckout } from '@/lib/checkout';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
 
@@ -143,20 +144,8 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
       const response = await api.post('/user/billing/checkout', { plan, billing });
 
       if (response.data.success && response.data.data.checkoutUrl) {
-        let checkoutUrl = response.data.data.checkoutUrl;
-
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          if (!checkoutUrl.includes('test=1')) {
-            checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
-          }
-        }
-
-        const successUrl = encodeURIComponent('https://seentics.com');
-        if (!checkoutUrl.includes('checkout[success_url]')) {
-          checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + `checkout[success_url]=${successUrl}`;
-        }
-
-        window.location.href = checkoutUrl;
+        onClose();
+        openCheckout(response.data.data.checkoutUrl);
       } else {
         throw new Error(response.data.message || 'Failed to create checkout session');
       }

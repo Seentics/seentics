@@ -21,13 +21,15 @@ export interface SubscriptionUsage {
 
 export interface SubscriptionData {
   id: string;
-  plan: 'free' | 'basic' | 'growth' | 'pro';
+  plan: string;
   status: string;
+  billingInterval?: string;
   usage: SubscriptionUsage;
   features: string[];
   isActive: boolean;
   isCustomPlan?: boolean;
   priceMonthly?: number;
+  priceYearly?: number;
   currentPeriodEnd?: string;
 }
 
