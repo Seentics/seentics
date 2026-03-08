@@ -46,6 +46,31 @@ const COUNTRY_COORDS: Record<string, [number, number]> = {
     'Venezuela': [6.42, -66.59], 'Ecuador': [-1.83, -78.18],
 };
 
+// TopoJSON uses different country names than the GeoIP/API names.
+// Map lowercase TopoJSON names → lowercase API names so choropleth matches.
+const TOPO_NAME_MAP: Record<string, string> = {
+    'united states of america': 'united states',
+    'russian federation': 'russia',
+    'viet nam': 'vietnam',
+    'czechia': 'czech republic',
+    "korea, republic of": 'south korea',
+    "democratic people's republic of korea": 'north korea',
+    "taiwan, province of china": 'taiwan',
+    'lao pdr': 'laos',
+    'myanmar': 'myanmar',
+    'côte d\'ivoire': 'ivory coast',
+    'democratic republic of the congo': 'dr congo',
+    'republic of the congo': 'congo',
+    'united republic of tanzania': 'tanzania',
+    'iran (islamic republic of)': 'iran',
+    'syrian arab republic': 'syria',
+    'libyan arab jamahiriya': 'libya',
+    'bolivia (plurinational state of)': 'bolivia',
+    'venezuela (bolivarian republic of)': 'venezuela',
+    'moldova, republic of': 'moldova',
+    'macedonia, the former yugoslav republic of': 'north macedonia',
+};
+
 const PRIMARY_RGB = '59,130,246'; // #3b82f6 — matches app primary blue
 
 function pinColor(ratio: number) {
@@ -72,8 +97,12 @@ function GlobeView({ data }: { data: TopItem[] }) {
     const [dims, setDims] = useState({ w: 0, h: 0 });
     const [GlobeComponent, setGlobeComponent] = useState<any>(null);
     const [ready, setReady] = useState(false);
-    // Read the actual card bg color so the globe canvas matches
     const [canvasBg, setCanvasBg] = useState('rgba(0,0,0,0)');
+    const [tooltip, setTooltip] = useState<{ name: string; count: number; percentage: number } | null>(null);
+    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+    // Ref so htmlElement callback (which closes over this) always calls the latest setter
+    const onHoverRef = useRef<(item: { name: string; count: number; percentage: number } | null, x: number, y: number) => void>(() => {});
+    onHoverRef.current = (item, x, y) => { setTooltip(item); setTooltipPos({ x, y }); };
 
     useEffect(() => {
         import('react-globe.gl').then(mod => setGlobeComponent(() => mod.default));
@@ -109,7 +138,7 @@ function GlobeView({ data }: { data: TopItem[] }) {
             return [{
                 lat: coords[0], lng: coords[1], altitude: 0.02,
                 name: item.name, count: item.count, percentage: item.percentage,
-                __html: `<div title="${item.name}: ${item.count.toLocaleString()} visitors (${item.percentage.toFixed(2)}%)"
+                __html: `<div data-name="${item.name}" data-count="${item.count}" data-pct="${item.percentage.toFixed(2)}"
                      style="width:${dotSize}px;height:${dotSize}px;border-radius:50%;background:${bg};
                             border:2px solid ${ring};box-shadow:0 0 0 4px ${glow},0 2px 8px rgba(0,0,0,0.5);
                             display:flex;align-items:center;justify-content:center;
@@ -156,8 +185,17 @@ function GlobeView({ data }: { data: TopItem[] }) {
                         const el = document.createElement('div');
                         el.innerHTML = d.__html;
                         const inner = el.firstElementChild as HTMLElement;
-                        inner?.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.3)'; });
-                        inner?.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
+                        inner?.addEventListener('mouseenter', (e: MouseEvent) => {
+                            inner.style.transform = 'scale(1.3)';
+                            onHoverRef.current({ name: d.name, count: d.count, percentage: d.percentage }, e.clientX, e.clientY);
+                        });
+                        inner?.addEventListener('mousemove', (e: MouseEvent) => {
+                            onHoverRef.current({ name: d.name, count: d.count, percentage: d.percentage }, e.clientX, e.clientY);
+                        });
+                        inner?.addEventListener('mouseleave', () => {
+                            inner.style.transform = 'scale(1)';
+                            onHoverRef.current(null, 0, 0);
+                        });
                         return el;
                     }}
                     ringsData={rings}
@@ -166,6 +204,13 @@ function GlobeView({ data }: { data: TopItem[] }) {
                     ringColor="color" ringResolution={72}
                     onGlobeReady={() => setReady(true)}
                 />
+            )}
+            {tooltip && (
+                <div className="fixed z-50 pointer-events-none bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs"
+                    style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 52 }}>
+                    <div className="font-semibold">{tooltip.name}</div>
+                    <div className="text-muted-foreground mt-0.5">{tooltip.count.toLocaleString()} visitors · {tooltip.percentage.toFixed(2)}%</div>
+                </div>
             )}
         </div>
     );
@@ -207,7 +252,8 @@ function FlatMapView({ data }: { data: TopItem[] }) {
                         {({ geographies }) =>
                             geographies.map(geo => {
                                 const name: string = geo.properties?.name ?? '';
-                                const item = countryMap[name.toLowerCase()];
+                                const apiName = TOPO_NAME_MAP[name.toLowerCase()] ?? name.toLowerCase();
+                                const item = countryMap[apiName];
                                 const ratio = item ? item.percentage / maxPct : 0;
                                 const fill = item ? choroplethColor(ratio) : noDataFill;
                                 return (

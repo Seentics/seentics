@@ -31,6 +31,30 @@ const CategoryIcons: Record<string, { icon: React.ElementType; color: string }> 
   Email: { icon: Mail, color: '#FBBC05' },
 };
 
+// Map raw referrer strings to a canonical platform name
+const getCanonicalName = (referrer: string): string => {
+  const s = (referrer || '').toLowerCase();
+  if (s.includes('google')) return 'Google';
+  if (s.includes('bing') || s.includes('microsoft')) return 'Bing';
+  if (s.includes('yahoo')) return 'Yahoo';
+  if (s.includes('duckduckgo')) return 'DuckDuckGo';
+  if (s.includes('baidu')) return 'Baidu';
+  if (s.includes('yandex')) return 'Yandex';
+  if (s.includes('facebook') || s.includes('fb.')) return 'Facebook';
+  if (s.includes('instagram')) return 'Instagram';
+  if (s.includes('twitter') || s.includes('x.com') || s.includes('t.co')) return 'X (Twitter)';
+  if (s.includes('reddit')) return 'Reddit';
+  if (s.includes('youtube')) return 'YouTube';
+  if (s.includes('pinterest')) return 'Pinterest';
+  if (s.includes('linkedin')) return 'LinkedIn';
+  if (s.includes('tiktok')) return 'TikTok';
+  if (s.includes('snapchat')) return 'Snapchat';
+  if (s.includes('whatsapp')) return 'WhatsApp';
+  if (s.includes('telegram')) return 'Telegram';
+  if (s.includes('mailchimp') || s.includes('sendgrid') || s.includes('newsletter')) return referrer;
+  return referrer;
+};
+
 const getSourceImage = (label: string) => {
   const lower = label.toLowerCase();
   if (lower.includes('google')) return '/images/browser/chrome.png';
@@ -126,21 +150,28 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
         }));
     }
 
-    // Filter by tab type
+    // Filter and group by canonical platform name
     const filtered = referrers.filter(r =>
       type === 'search' ? isOrganic(r.referrer) : isSocial(r.referrer)
     );
 
-    const maxVal = Math.max(...filtered.map(r => r.visitors), 1);
-    return filtered
-      .sort((a, b) => b.visitors - a.visitors)
-      .slice(0, 30)
-      .map(r => ({
-        label: r.referrer || 'Direct',
-        visitors: r.visitors,
-        color: type === 'search' ? '#34A853' : '#EA4335',
-        percentage: (r.visitors / maxVal) * 100
-      }));
+    const grouped: Record<string, number> = {};
+    for (const r of filtered) {
+      const name = getCanonicalName(r.referrer);
+      grouped[name] = (grouped[name] || 0) + r.visitors;
+    }
+
+    const sorted = Object.entries(grouped)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 30);
+
+    const maxVal = Math.max(...sorted.map(([, v]) => v), 1);
+    return sorted.map(([name, visitors]) => ({
+      label: name,
+      visitors,
+      color: type === 'search' ? '#34A853' : '#EA4335',
+      percentage: (visitors / maxVal) * 100
+    }));
   };
 
   const PageList = ({ type }: { type: 'overview' | 'search' | 'social' }) => {

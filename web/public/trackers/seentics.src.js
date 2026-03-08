@@ -206,18 +206,40 @@
       if (Math.abs(c.x - hm.lastX) < 1 && Math.abs(c.y - hm.lastY) < 1) return;
       hm.lastT = now; hm.lastX = c.x; hm.lastY = c.y; hmAdd('move', c.x, c.y);
     }, { passive: true });
+    // Touch move for mobile heatmap — synthesise a pointer event from the first touch point.
+    d.addEventListener('touchmove', function (e) {
+      var now = Date.now(); if (now - hm.lastT < 150 || Math.random() > hm.rate) return;
+      var t = e.touches[0]; if (!t) return;
+      var c = hmCoords({ pageX: t.pageX, pageY: t.pageY });
+      if (Math.abs(c.x - hm.lastX) < 1 && Math.abs(c.y - hm.lastY) < 1) return;
+      hm.lastT = now; hm.lastX = c.x; hm.lastY = c.y; hmAdd('move', c.x, c.y);
+    }, { passive: true });
 
-    d.addEventListener('click', function (e) {
-      var c = hmCoords(e);
-      var sel = hmSel(e.target);
+    // Shared click/tap handler — works for both mouse and touch (touchend gives better coordinates on mobile).
+    var hmHandleClick = function (pageX, pageY, clientX, clientY, target) {
+      var c = hmCoords({ pageX: pageX, pageY: pageY });
+      var sel = hmSel(target);
       var elX = -1, elY = -1;
-      if (sel && e.target instanceof Element) {
-        var rect = e.target.getBoundingClientRect();
-        if (rect.width > 0) elX = Math.max(0, Math.min(1000, Math.round((e.clientX - rect.left) / rect.width * 1000)));
-        if (rect.height > 0) elY = Math.max(0, Math.min(1000, Math.round((e.clientY - rect.top) / rect.height * 1000)));
+      if (sel && target instanceof Element) {
+        var rect = target.getBoundingClientRect();
+        if (rect.width > 0) elX = Math.max(0, Math.min(1000, Math.round((clientX - rect.left) / rect.width * 1000)));
+        if (rect.height > 0) elY = Math.max(0, Math.min(1000, Math.round((clientY - rect.top) / rect.height * 1000)));
       }
       hmAdd('click', c.x, c.y, sel, elX, elY);
+    };
+    d.addEventListener('click', function (e) {
+      // Skip synthetic click events that follow a touchend (we handle those via touchend).
+      if (e.detail === 0 && e.clientX === 0 && e.clientY === 0) return;
+      hmHandleClick(e.pageX, e.pageY, e.clientX, e.clientY, e.target);
     });
+    // touchend gives accurate final touch position for tap recording on mobile.
+    d.addEventListener('touchend', function (e) {
+      var t = e.changedTouches && e.changedTouches[0]; if (!t) return;
+      // Only record single-finger taps (not swipes or multi-touch).
+      if (e.changedTouches.length !== 1) return;
+      var el = d.elementFromPoint(t.clientX, t.clientY) || e.target;
+      hmHandleClick(t.pageX, t.pageY, t.clientX, t.clientY, el);
+    }, { passive: true });
 
     var maxBand = 0, sentBands = {};
     hmRecordBands = function () {
@@ -528,15 +550,29 @@
       }).catch(function () { }).then(function () {
         initSession(); pageview(); setupGoals();
         setInterval(flush, 10000);
-        d.addEventListener('visibilitychange', function () { if (d.visibilityState === 'hidden') flush(); });
-        ['click', 'scroll', 'mousemove', 'keydown'].forEach(function (e) {
+        // On mobile, visibilitychange to 'hidden' is the only reliable unload signal.
+        // Use sendBeacon here (not fetch) because fetch requests are aborted when the
+        // page is hidden on mobile browsers.
+        d.addEventListener('visibilitychange', function () {
+          if (d.visibilityState === 'hidden') {
+            track('page_exit', { time_on_page: Math.round((Date.now() - S.t0) / 1000), scroll_depth: S.scroll });
+            if (hmRecordBands) hmRecordBands();
+            beaconFlush();
+          }
+        });
+        // Include touch events so mobile activity correctly resets the session timeout.
+        ['click', 'scroll', 'mousemove', 'keydown', 'touchstart', 'touchend'].forEach(function (e) {
           d.addEventListener(e, db(function () { ss.setItem('_sl', Date.now() + ''); }, 1000), { passive: true });
         });
-        w.addEventListener('beforeunload', function () {
-          track('page_exit', { time_on_page: Math.round((Date.now() - S.t0) / 1000), scroll_depth: S.scroll });
-          if (hmRecordBands) hmRecordBands();
+        // pagehide fires reliably on iOS Safari where beforeunload often does not.
+        // Guard with a flag so we don't double-beacon if both fire (desktop).
+        var _exited = false;
+        var onExit = function () {
+          if (_exited) return; _exited = true;
           beaconFlush();
-        });
+        };
+        w.addEventListener('pagehide', onExit);
+        w.addEventListener('beforeunload', onExit);
         if (C.mod.heatmap) initHeatmap();
         if (C.mod.replay) initReplay();
         if (C.mod.funnels) initFunnels();

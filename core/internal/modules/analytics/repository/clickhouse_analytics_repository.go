@@ -831,14 +831,17 @@ func (r *ClickHouseAnalyticsRepository) GetLiveVisitors(ctx context.Context, web
 
 func (r *ClickHouseAnalyticsRepository) GetTopContinents(ctx context.Context, websiteID string, startDate, endDate time.Time, limit int) ([]models.TopItem, error) {
 	query := `
-		SELECT
-			COALESCE(continent, 'Unknown') as name,
-			count(*) as count
-		FROM events
-		WHERE website_id = ?
-		AND timestamp >= ? AND timestamp <= ?
-		AND event_type = 'pageview'
-		GROUP BY name
+		SELECT name, count, count * 100.0 / SUM(count) OVER () as percentage
+		FROM (
+			SELECT
+				COALESCE(continent, 'Unknown') as name,
+				count(*) as count
+			FROM events
+			WHERE website_id = ?
+			AND timestamp >= ? AND timestamp <= ?
+			AND event_type = 'pageview'
+			GROUP BY name
+		)
 		ORDER BY count DESC
 		LIMIT ?`
 
@@ -852,7 +855,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopContinents(ctx context.Context, we
 	for rows.Next() {
 		var item models.TopItem
 		var count uint64
-		if err := rows.Scan(&item.Name, &count); err != nil {
+		if err := rows.Scan(&item.Name, &count, &item.Percentage); err != nil {
 			continue
 		}
 		item.Count = int(count)
@@ -863,14 +866,17 @@ func (r *ClickHouseAnalyticsRepository) GetTopContinents(ctx context.Context, we
 
 func (r *ClickHouseAnalyticsRepository) GetTopRegions(ctx context.Context, websiteID string, startDate, endDate time.Time, limit int) ([]models.TopItem, error) {
 	query := `
-		SELECT
-			COALESCE(region, 'Unknown') as name,
-			count(*) as count
-		FROM events
-		WHERE website_id = ?
-		AND timestamp >= ? AND timestamp <= ?
-		AND event_type = 'pageview'
-		GROUP BY name
+		SELECT name, count, count * 100.0 / SUM(count) OVER () as percentage
+		FROM (
+			SELECT
+				COALESCE(region, 'Unknown') as name,
+				count(*) as count
+			FROM events
+			WHERE website_id = ?
+			AND timestamp >= ? AND timestamp <= ?
+			AND event_type = 'pageview'
+			GROUP BY name
+		)
 		ORDER BY count DESC
 		LIMIT ?`
 
@@ -884,7 +890,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopRegions(ctx context.Context, websi
 	for rows.Next() {
 		var item models.TopItem
 		var count uint64
-		if err := rows.Scan(&item.Name, &count); err != nil {
+		if err := rows.Scan(&item.Name, &count, &item.Percentage); err != nil {
 			continue
 		}
 		item.Count = int(count)
@@ -927,14 +933,17 @@ func (r *ClickHouseAnalyticsRepository) GetGeolocationBreakdown(ctx context.Cont
 
 func (r *ClickHouseAnalyticsRepository) GetTopCitiesByRange(ctx context.Context, websiteID string, startDate, endDate time.Time, limit int) ([]models.TopItem, error) {
 	query := `
-		SELECT
-			COALESCE(city, 'Unknown') as name,
-			count(DISTINCT visitor_id) as count
-		FROM events
-		WHERE website_id = ?
-		AND timestamp >= ? AND timestamp <= ?
-		AND event_type = 'pageview'
-		GROUP BY name
+		SELECT name, count, count * 100.0 / SUM(count) OVER () as percentage
+		FROM (
+			SELECT
+				COALESCE(city, 'Unknown') as name,
+				count(DISTINCT visitor_id) as count
+			FROM events
+			WHERE website_id = ?
+			AND timestamp >= ? AND timestamp <= ?
+			AND event_type = 'pageview'
+			GROUP BY name
+		)
 		ORDER BY count DESC
 		LIMIT ?`
 
@@ -948,7 +957,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopCitiesByRange(ctx context.Context,
 	for rows.Next() {
 		var item models.TopItem
 		var count uint64
-		if err := rows.Scan(&item.Name, &count); err != nil {
+		if err := rows.Scan(&item.Name, &count, &item.Percentage); err != nil {
 			continue
 		}
 		item.Count = int(count)
@@ -959,14 +968,17 @@ func (r *ClickHouseAnalyticsRepository) GetTopCitiesByRange(ctx context.Context,
 
 func (r *ClickHouseAnalyticsRepository) GetTopCountriesByRange(ctx context.Context, websiteID string, startDate, endDate time.Time, limit int) ([]models.TopItem, error) {
 	query := `
-		SELECT
-			COALESCE(country, 'Unknown') as name,
-			count(DISTINCT visitor_id) as count
-		FROM events
-		WHERE website_id = ?
-		AND timestamp >= ? AND timestamp <= ?
-		AND event_type = 'pageview'
-		GROUP BY name
+		SELECT name, count, count * 100.0 / SUM(count) OVER () as percentage
+		FROM (
+			SELECT
+				COALESCE(country, 'Unknown') as name,
+				count(DISTINCT visitor_id) as count
+			FROM events
+			WHERE website_id = ?
+			AND timestamp >= ? AND timestamp <= ?
+			AND event_type = 'pageview'
+			GROUP BY name
+		)
 		ORDER BY count DESC
 		LIMIT ?`
 
@@ -980,7 +992,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopCountriesByRange(ctx context.Conte
 	for rows.Next() {
 		var item models.TopItem
 		var count uint64
-		if err := rows.Scan(&item.Name, &count); err != nil {
+		if err := rows.Scan(&item.Name, &count, &item.Percentage); err != nil {
 			continue
 		}
 		item.Count = int(count)
