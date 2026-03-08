@@ -48,64 +48,22 @@ function val(v: string | undefined | null, fallback = '—'): string {
 }
 
 const SPEED_OPTIONS = [1, 2, 4, 8];
-// Number of chunks to fetch before starting the player.
-// Chunk 0 contains the full DOM snapshot so the player can render immediately.
-// We pre-fetch a few more to give the player a head start before progressive
-// loading kicks in.
-const INITIAL_CHUNKS = 5;
-// How many chunks to fetch in parallel during progressive background loading.
-const BACKGROUND_BATCH = 4;
-// Max retry attempts for failed chunk downloads.
-const CHUNK_RETRIES = 3;
-
-async function fetchChunk(sessionId: string, websiteId: string, seq: number, signal: AbortSignal): Promise<any[]> {
-  for (let attempt = 0; attempt < CHUNK_RETRIES; attempt++) {
-    try {
-      const res = await api.get(
-        `/replays/chunk/${sessionId}?website_id=${websiteId}&seq=${seq}`,
-        { signal },
-      );
-      if (Array.isArray(res.data) && res.data.length > 0) return res.data;
-    } catch (err: any) {
-      if (err?.name === 'AbortError' || err?.name === 'CanceledError') throw err;
-    }
-    // Wait before retrying (200ms, 600ms, 1200ms)
-    if (attempt < CHUNK_RETRIES - 1) {
-      await new Promise(r => setTimeout(r, 200 * (attempt + 1) * (attempt + 1)));
-    }
-  }
-  return [];
-}
 
 export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPlayerProps) {
   const playerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const playerInstanceRef = useRef<rrwebPlayer | null>(null);
-  const animFrameRef = useRef<number>(0);
   const scrubberRef = useRef<HTMLDivElement>(null);
   const isPlayingRef = useRef(false);
   const totalTimeRef = useRef(0);
   const videoAreaRef = useRef<HTMLDivElement>(null);
-  const streamAbortRef = useRef<AbortController | null>(null);
-  // Set to true by the player-init effect once rrwebPlayer is created.
-  // Background loading must wait for this before calling player.addEvent().
-  const playerReadyRef = useRef(false);
-  // True when the user explicitly hit pause — prevents auto-resume on buffer refill.
-  const userPausedRef = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // initialEvents drives player creation. Once set, background loading adds
-  // remaining events directly to the player via addEvent().
-  const [initialEvents, setInitialEvents] = useState<any[]>([]);
-  const [bufferProgress, setBufferProgress] = useState<{ loaded: number; total: number } | null>(null);
-  const [backgroundLoading, setBackgroundLoading] = useState(false);
+  const [events, setEvents] = useState<any[]>([]);
 
-  // Playback state
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  // Use session metadata duration as initial estimate so scrubber/progress are
-  // accurate before all chunks are loaded. Refined as chunks arrive.
   const [totalTime, setTotalTime] = useState(
     () => (session?.duration_seconds ?? 0) * 1000
   );
@@ -113,151 +71,24 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [skipInactive, setSkipInactive] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Track the highest timestamp we've loaded so far for buffer-ahead guard.
-  const maxBufferedTimeRef = useRef(0);
-  // Whether playback was auto-paused because it outran the buffer.
-  const pausedForBufferRef = useRef(false);
-
   useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
 
   // ─── Data loading ──────────────────────────────────────────────────────────
+  // Fetch all events in one request. The server stitches all S3 chunks,
+  // sorts by timestamp, and returns a single flat JSON array.
   useEffect(() => {
     const controller = new AbortController();
-    streamAbortRef.current = controller;
 
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
-        setInitialEvents([]);
-        setBufferProgress(null);
-
-        // Step 1: Manifest — Postgres only, no S3 round-trips
-        const manifestRes = await api.get(
-          `/replays/manifest/${sessionId}?website_id=${websiteId}`,
+        setEvents([]);
+        const res = await api.get(
+          `/replays/full/${sessionId}?website_id=${websiteId}`,
           { signal: controller.signal },
         );
-        const sequences: number[] = manifestRes.data?.sequences ?? [];
-
-        if (sequences.length === 0) {
-          setInitialEvents([]);
-          setLoading(false);
-          return;
-        }
-
-        setBufferProgress({ loaded: 0, total: sequences.length });
-
-        // Step 2: Fetch the first INITIAL_CHUNKS chunks before starting the player.
-        // These MUST include chunk 0 (the full DOM snapshot). Without it rrweb
-        // cannot render anything — incremental events reference nodes from snapshot.
-        const initialSeqs = sequences.slice(0, INITIAL_CHUNKS);
-        const initialResults = await Promise.all(
-          initialSeqs.map(seq => fetchChunk(sessionId, websiteId, seq, controller.signal))
-        );
-
-        if (controller.signal.aborted) return;
-
-        const initial = (initialResults.flat() as any[]).sort(
-          (a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0)
-        );
-
-        // Track the highest event timestamp we've buffered so far.
-        if (initial.length > 0) {
-          maxBufferedTimeRef.current = initial[initial.length - 1].timestamp ?? 0;
-        }
-
-        setBufferProgress(prev => prev ? { ...prev, loaded: initialSeqs.length } : null);
-        setInitialEvents(initial);
-        setLoading(false);
-
-        // Step 3: Stream the remaining chunks in the background in small batches.
-        // Each batch is added via player.addEvent() so they're available before
-        // the player reaches their timestamps — avoids loading everything into
-        // memory upfront for long sessions.
-        const remainingSeqs = sequences.slice(INITIAL_CHUNKS);
-        if (remainingSeqs.length === 0) {
-          maxBufferedTimeRef.current = Infinity;
-          setBufferProgress(null);
-          setBackgroundLoading(false);
-          return;
-        }
-
-        setBackgroundLoading(true);
-
-        // Wait for the player-init effect to create the rrwebPlayer instance.
-        // setInitialEvents/setLoading are async state updates — the player init
-        // useEffect hasn't run yet when we reach this point, so playerInstanceRef
-        // is still null. Calling addEvent() before it's ready silently drops events,
-        // creating gaps that cause playback to freeze.
-        {
-          let waited = 0;
-          while (!playerReadyRef.current && !controller.signal.aborted) {
-            await new Promise(r => setTimeout(r, 30));
-            if ((waited += 30) > 5000) break; // 5s safety timeout
-          }
-        }
-
-        for (let i = 0; i < remainingSeqs.length; i += BACKGROUND_BATCH) {
-          if (controller.signal.aborted) break;
-
-          const batch = remainingSeqs.slice(i, i + BACKGROUND_BATCH);
-          const results = await Promise.all(
-            batch.map(seq => fetchChunk(sessionId, websiteId, seq, controller.signal))
-          );
-
-          if (controller.signal.aborted) break;
-
-          // Sort within batch before adding so rrweb always gets monotonic timestamps.
-          const events = (results.flat() as any[]).sort(
-            (a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0)
-          );
-
-          // Track the highest buffered timestamp so the buffer-ahead guard
-          // knows how far ahead we've loaded.
-          if (events.length > 0) {
-            const lastTs = events[events.length - 1].timestamp ?? 0;
-            if (lastTs > maxBufferedTimeRef.current) maxBufferedTimeRef.current = lastTs;
-          }
-
-          // Add events to the running player.
-          const player = playerInstanceRef.current;
-          if (player) {
-            events.forEach(e => player.addEvent(e));
-            // Extend totalTime as more events are added.
-            try {
-              const newMeta = player.getMetaData();
-              if (newMeta.totalTime > 0) setTotalTime(newMeta.totalTime);
-            } catch {}
-
-            // If we previously auto-paused because the buffer ran out,
-            // resume now that more data is available.
-            if (pausedForBufferRef.current) {
-              pausedForBufferRef.current = false;
-              player.play();
-              isPlayingRef.current = true;
-              setIsPlaying(true);
-            }
-          }
-
-          setBufferProgress(prev =>
-            prev ? { ...prev, loaded: Math.min(prev.loaded + batch.length, prev.total) } : null
-          );
-        }
-
-        // All chunks loaded — disable buffer-ahead guard entirely.
-        maxBufferedTimeRef.current = Infinity;
-        streamAbortRef.current = null; // signals guard: no more streaming
-        if (pausedForBufferRef.current) {
-          pausedForBufferRef.current = false;
-          const player = playerInstanceRef.current;
-          if (player) {
-            player.play();
-            isPlayingRef.current = true;
-            setIsPlaying(true);
-          }
-        }
-        setBufferProgress(null);
-        setBackgroundLoading(false);
+        setEvents(res.data?.events ?? []);
       } catch (err: any) {
         if (
           err?.code === 'ERR_CANCELED' ||
@@ -265,131 +96,90 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           err?.name === 'CanceledError'
         ) return;
         setError(err.message || 'Failed to fetch replay data');
-        setLoading(false);
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
     load();
-
-    return () => {
-      controller.abort();
-      streamAbortRef.current = null;
-    };
+    return () => controller.abort();
   }, [sessionId, websiteId]);
 
   // ─── Player initialisation ─────────────────────────────────────────────────
+  // All events are available upfront — create the player once, no streaming needed.
   useEffect(() => {
-    if (!loading && initialEvents.length > 0 && playerRef.current) {
-      playerRef.current.innerHTML = '';
+    if (loading || events.length === 0 || !playerRef.current) return;
 
-      const containerW = videoAreaRef.current?.offsetWidth || playerRef.current.offsetWidth || 1024;
-      const containerH = videoAreaRef.current?.offsetHeight || 600;
+    playerRef.current.innerHTML = '';
 
-      const player = new rrwebPlayer({
-        target: playerRef.current,
-        props: {
-          events: initialEvents,
-          autoPlay: true,
-          speed: 1,
-          width: containerW,
-          height: containerH,
-          showController: false,
-          skipInactive: false,
-          UNSAFE_replayCanvas: true,
-        },
-      });
+    const containerW = videoAreaRef.current?.offsetWidth || playerRef.current.offsetWidth || 1024;
+    const containerH = videoAreaRef.current?.offsetHeight || 600;
 
-      playerInstanceRef.current = player;
-      playerReadyRef.current = true;
-      userPausedRef.current = false;
+    const player = new rrwebPlayer({
+      target: playerRef.current,
+      props: {
+        events,
+        autoPlay: true,
+        speed: 1,
+        width: containerW,
+        height: containerH,
+        showController: false,
+        skipInactive: false,
+        UNSAFE_replayCanvas: true,
+      },
+    });
 
-      let sessionStartTime = 0;
-      try {
-        const meta = player.getMetaData();
-        sessionStartTime = meta.startTime ?? 0;
-        // Only use rrweb's totalTime if it's larger than the metadata estimate.
-        // With partial chunks loaded, rrweb's value is too short; the session
-        // metadata duration (from DB) is more accurate until all chunks arrive.
-        const metaDuration = (session?.duration_seconds ?? 0) * 1000;
-        const rrwebDuration = meta.totalTime > 0 ? meta.totalTime : 0;
-        if (rrwebDuration > metaDuration) {
-          setTotalTime(rrwebDuration);
-        } else if (metaDuration > 0) {
-          setTotalTime(metaDuration);
-        } else if (rrwebDuration > 0) {
-          setTotalTime(rrwebDuration);
-        }
-      } catch {}
+    playerInstanceRef.current = player;
 
-      setIsPlaying(true);
-      isPlayingRef.current = true;
-      setSpeed(1);
-      setSkipInactive(false);
+    try {
+      const meta = player.getMetaData();
+      const metaDuration = (session?.duration_seconds ?? 0) * 1000;
+      const rrwebDuration = meta.totalTime > 0 ? meta.totalTime : 0;
+      const resolved = Math.max(metaDuration, rrwebDuration) || rrwebDuration || metaDuration;
+      if (resolved > 0) setTotalTime(resolved);
+    } catch {}
 
-      try {
-        const replayer = player.getReplayer();
-        if (replayer) {
-          // 'event-cast' fires for every rrweb event as it's replayed.
-          // event.timestamp is the absolute ms epoch; subtract sessionStartTime
-          // to get the relative playback position (0-based ms from session start).
-          replayer.on('event-cast', (event: any) => {
-            if (typeof event?.timestamp === 'number' && sessionStartTime > 0) {
-              const rel = event.timestamp - sessionStartTime;
-              if (rel >= 0) setCurrentTime(rel);
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+    setSpeed(1);
+    setSkipInactive(false);
 
-              // Buffer-ahead guard: if playback is within 2s of the last
-              // buffered event and we're still loading, pause to avoid
-              // the player hitting a gap and getting stuck.
-              const maxBuf = maxBufferedTimeRef.current;
-              if (
-                maxBuf > 0 &&
-                !pausedForBufferRef.current &&
-                isPlayingRef.current &&
-                event.timestamp > maxBuf - 2000 &&
-                streamAbortRef.current // still loading
-              ) {
-                pausedForBufferRef.current = true;
-                player.pause();
-                isPlayingRef.current = false;
-                setIsPlaying(false);
-              }
-            }
-          });
-          replayer.on('state-change', (states: any) => {
-            const playerState = states?.player?.value;
-            if (playerState) {
-              const playing = playerState === 'playing';
-              isPlayingRef.current = playing;
-              setIsPlaying(playing);
-            }
-          });
-          replayer.on('finish', () => {
-            isPlayingRef.current = false;
-            setIsPlaying(false);
-            // If we're still streaming more chunks, the player hit the end of
-            // what's been loaded so far — treat it as a buffer stall so the
-            // background loader will resume playback when the next batch arrives.
-            if (streamAbortRef.current && !userPausedRef.current) {
-              pausedForBufferRef.current = true;
-            }
-          });
-        }
-      } catch {}
+    let sessionStartTime = 0;
+    try { sessionStartTime = player.getMetaData().startTime ?? 0; } catch {}
 
-      return () => {
-        cancelAnimationFrame(animFrameRef.current);
-        try { (player as any).$destroy(); } catch {}
-        playerInstanceRef.current = null;
-        playerReadyRef.current = false;
-      };
-    }
-  }, [loading, initialEvents]);
+    try {
+      const replayer = player.getReplayer();
+      if (replayer) {
+        replayer.on('event-cast', (event: any) => {
+          if (typeof event?.timestamp === 'number' && sessionStartTime > 0) {
+            const rel = event.timestamp - sessionStartTime;
+            if (rel >= 0) setCurrentTime(rel);
+          }
+        });
+        replayer.on('state-change', (states: any) => {
+          const playerState = states?.player?.value;
+          if (playerState) {
+            const playing = playerState === 'playing';
+            isPlayingRef.current = playing;
+            setIsPlaying(playing);
+          }
+        });
+        replayer.on('finish', () => {
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+        });
+      }
+    } catch {}
+
+    return () => {
+      try { (player as any).$destroy(); } catch {}
+      playerInstanceRef.current = null;
+    };
+  }, [loading, events]);
 
   // Fullscreen change listener
   useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
@@ -399,12 +189,10 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     const player = playerInstanceRef.current;
     if (!player) return;
     if (isPlayingRef.current) {
-      userPausedRef.current = true;
       player.pause();
       isPlayingRef.current = false;
       setIsPlaying(false);
     } else {
-      userPausedRef.current = false;
       player.play();
       isPlayingRef.current = true;
       setIsPlaying(true);
@@ -497,21 +285,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       <div className="flex flex-col items-center justify-center p-20 bg-muted/20 rounded-xl border border-border/60">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/40 mb-3" />
         <span className="text-sm font-medium text-muted-foreground">Loading session...</span>
-        {bufferProgress ? (
-          <>
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              Fetching chunks — {bufferProgress.loaded} / {bufferProgress.total}
-            </p>
-            <div className="mt-3 w-40 h-1 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary/60 rounded-full transition-all duration-200"
-                style={{ width: `${(bufferProgress.loaded / bufferProgress.total) * 100}%` }}
-              />
-            </div>
-          </>
-        ) : (
-          <p className="text-xs text-muted-foreground/60 mt-1">Fetching session data...</p>
-        )}
+        <p className="text-xs text-muted-foreground/60 mt-1">Fetching session data...</p>
       </div>
     );
   }
@@ -549,7 +323,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
       <Card ref={containerRef} className="border border-border bg-card overflow-hidden shadow-sm">
         <div ref={videoAreaRef} className="bg-zinc-950 relative" style={{ height: '600px' }}>
-          {initialEvents.length === 0 ? (
+          {events.length === 0 ? (
             <div className="flex items-center justify-center h-full p-12 text-center">
               <div>
                 <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
@@ -559,19 +333,9 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           ) : (
             <div ref={playerRef} className="w-full h-full" />
           )}
-
-          {/* Background loading indicator — shown while remaining chunks stream in */}
-          {backgroundLoading && bufferProgress && (
-            <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-black/60 backdrop-blur-sm rounded-md px-2 py-1">
-              <Loader2 className="h-3 w-3 animate-spin text-white/50" />
-              <span className="text-[10px] text-white/50 tabular-nums">
-                {bufferProgress.loaded}/{bufferProgress.total}
-              </span>
-            </div>
-          )}
         </div>
 
-        {initialEvents.length > 0 && (
+        {events.length > 0 && (
           <div className="bg-zinc-950/95 backdrop-blur-sm border-t border-white/[0.06] px-4 py-3 space-y-2.5">
             {/* Timeline scrubber */}
             <div

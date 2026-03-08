@@ -174,6 +174,40 @@ func (h *ReplayHandler) GetReplayChunk(c *gin.Context) {
 	c.Data(http.StatusOK, "application/json", data)
 }
 
+// GetFullReplay downloads all chunks, stitches events into one sorted array,
+// and returns {"events": [...]} in a single response. The client no longer
+// needs progressive chunk streaming or buffer-ahead management.
+func (h *ReplayHandler) GetFullReplay(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Query("website_id")
+	sessionID := c.Param("session_id")
+
+	if websiteID == "" || sessionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id and session_id are required"})
+		return
+	}
+
+	events, err := h.service.GetFullReplay(c.Request.Context(), websiteID, sessionID, userID)
+	if err != nil {
+		h.logger.Error().Err(err).Str("session_id", sessionID).Msg("Failed to get full replay")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Header("Cache-Control", "private, max-age=3600")
+	// Write {"events": <raw-json-array>} without double-encoding the array.
+	c.Header("Content-Type", "application/json")
+	c.Writer.WriteHeader(http.StatusOK)
+	c.Writer.Write([]byte(`{"events":`))
+	c.Writer.Write(events)
+	c.Writer.Write([]byte(`}`))
+}
+
 // ListSessions returns a paginated list of sessions with metadata.
 // Supports cursor-based pagination via the `before` query param (ISO8601 timestamp).
 // Response includes `total` (total sessions for the website) and `has_more` for the UI.

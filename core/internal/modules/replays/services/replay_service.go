@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -25,6 +26,9 @@ type ReplayService interface {
 	GetReplay(ctx context.Context, websiteID, sessionID, userID string) ([]models.SessionReplayChunk, error)
 	GetReplayManifest(ctx context.Context, websiteID, sessionID, userID string) ([]int, error)
 	GetReplayChunk(ctx context.Context, websiteID, sessionID, userID string, seq int) (json.RawMessage, error)
+	// GetFullReplay downloads all chunks concurrently, merges and sorts events by
+	// timestamp, and returns a single flat JSON array ready for rrweb player.
+	GetFullReplay(ctx context.Context, websiteID, sessionID, userID string) (json.RawMessage, error)
 	// ListSessions returns sessions ordered by start_time DESC, before the optional cursor time.
 	// Returns the page of sessions, the total session count for the website, and any error.
 	ListSessions(ctx context.Context, websiteID, userID string, limit int, before *time.Time) ([]models.ReplaySessionMetadata, int64, error)
@@ -264,6 +268,104 @@ func (s *replayService) GetReplayChunk(ctx context.Context, websiteID, sessionID
 		return nil, fmt.Errorf("failed to read chunk %d: %w", seq, err)
 	}
 	return json.RawMessage(raw), nil
+}
+
+// GetFullReplay downloads all chunks for a session concurrently, merges all
+// rrweb events into one sorted array, and returns it as a flat JSON array.
+// This eliminates the need for progressive chunk streaming on the client.
+func (s *replayService) GetFullReplay(ctx context.Context, websiteID, sessionID, userID string) (json.RawMessage, error) {
+	siteID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	seqs, err := s.repo.GetChunkSequences(ctx, siteID, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	if len(seqs) == 0 {
+		return json.RawMessage("[]"), nil
+	}
+
+	// Download all chunks concurrently, capped at 8 parallel S3 requests.
+	const concurrency = 8
+	sem := make(chan struct{}, concurrency)
+
+	type chunkResult struct {
+		idx  int
+		data []byte
+	}
+	results := make([]chunkResult, len(seqs))
+	var wg sync.WaitGroup
+
+	for i, seq := range seqs {
+		wg.Add(1)
+		go func(idx, seq int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			key := fmt.Sprintf("replays/%s/%s/%d.json.gz", siteID, sessionID, seq)
+			reader, dlErr := s.store.Download(ctx, key)
+			if dlErr != nil {
+				key = fmt.Sprintf("replays/%s/%s/%d.json", siteID, sessionID, seq)
+				reader, dlErr = s.store.Download(ctx, key)
+			}
+			if dlErr != nil {
+				return // skip missing chunk
+			}
+			defer reader.Close()
+
+			var r io.Reader = reader
+			if strings.HasSuffix(key, ".gz") {
+				gzr, err := gzip.NewReader(reader)
+				if err != nil {
+					return
+				}
+				defer gzr.Close()
+				r = gzr
+			}
+			raw, err := io.ReadAll(r)
+			if err != nil {
+				return
+			}
+			results[idx] = chunkResult{idx: idx, data: raw}
+		}(i, seq)
+	}
+	wg.Wait()
+
+	// Merge all events from every chunk into one slice.
+	var allEvents []json.RawMessage
+	for _, r := range results {
+		if len(r.data) == 0 {
+			continue
+		}
+		var chunkEvents []json.RawMessage
+		if err := json.Unmarshal(r.data, &chunkEvents); err != nil {
+			continue
+		}
+		allEvents = append(allEvents, chunkEvents...)
+	}
+
+	// Extract timestamps once, then sort — avoids repeated per-comparison unmarshal.
+	type tsOnly struct {
+		Timestamp int64 `json:"timestamp"`
+	}
+	timestamps := make([]int64, len(allEvents))
+	for i, ev := range allEvents {
+		var ts tsOnly
+		_ = json.Unmarshal(ev, &ts)
+		timestamps[i] = ts.Timestamp
+	}
+	sort.Slice(allEvents, func(i, j int) bool {
+		return timestamps[i] < timestamps[j]
+	})
+
+	merged, err := json.Marshal(allEvents)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(merged), nil
 }
 
 func (s *replayService) ListSessions(ctx context.Context, websiteID, userID string, limit int, before *time.Time) ([]models.ReplaySessionMetadata, int64, error) {

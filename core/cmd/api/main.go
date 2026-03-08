@@ -420,7 +420,9 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, analyticsHandler *ha
 			replays.GET("/sessions", replayHandler.ListSessions)
 			replays.GET("/snapshot", replayHandler.GetPageSnapshot)
 			replays.GET("/data/:session_id", replayHandler.GetReplay)
-			// Streaming playback endpoints: manifest (no S3) + per-chunk fetch
+			// Full-session endpoint: all chunks merged server-side into one sorted event array
+			replays.GET("/full/:session_id", replayHandler.GetFullReplay)
+			// Legacy streaming endpoints (kept for backwards compatibility)
 			replays.GET("/manifest/:session_id", replayHandler.GetReplayManifest)
 			replays.GET("/chunk/:session_id", replayHandler.GetReplayChunk)
 			replays.DELETE("/sessions/:session_id", replayHandler.DeleteReplay)
