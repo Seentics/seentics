@@ -3,8 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Github, X, Shield, Code2, Server } from 'lucide-react';
-import { isEnterprise } from '@/lib/features';
+import { ArrowRight, Github, X } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/stores/useAuthStore';
@@ -25,48 +24,52 @@ export default function Hero() {
   }, [isZoomed]);
 
   return (
-    <section className="relative pt-32 pb-16 md:pt-44 md:pb-24 bg-background">
+    <section className="relative pt-32 pb-16 md:pt-44 md:pb-24 bg-background overflow-hidden">
+      {/* Dot pattern background */}
+      <div className="absolute inset-0 [background-image:radial-gradient(hsl(var(--border)/0.4)_1px,transparent_1px)] [background-size:24px_24px]" />
+
+      {/* Radial fade so dots don't have hard edges */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,hsl(var(--background))_70%)]" />
+
+      {/* Top glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/[0.07] rounded-full blur-[120px]" />
+
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex items-center justify-center gap-3 mb-6"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 border border-border/60 text-xs font-medium text-muted-foreground mb-8"
           >
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary">
-              <Code2 className="h-3 w-3" />
-              Open Source
-            </span>
-            <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-              <Shield className="h-3 w-3" />
-              Privacy First
-            </span>
-            {isEnterprise && (
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-medium text-blue-600 dark:text-blue-400">
-                <Server className="h-3 w-3" />
-                EU Hosted · Hetzner Cloud
-              </span>
-            )}
+            Open Source &middot; No Cookies &middot; EU Hosted
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.3] md:leading-[1.2] mb-6"
+            className="mb-6"
           >
-            Know Your Users.{' '}
-            <span className="text-primary">Grow Faster.</span>
+            <span className="block text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.2]">
+              The Open Source
+            </span>
+            <span className="block text-4xl md:text-6xl font-bold tracking-tight leading-[1.2] mt-1">
+              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Google Analytics</span>{' '}
+              <span className="text-foreground">Alternative</span>
+            </span>
+            <span className="block text-lg md:text-2xl text-muted-foreground font-normal mt-4 tracking-normal">
+              with Session Recording, Heatmaps &amp; Automations
+            </span>
           </motion.h1>
 
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
+            className="text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed"
           >
-            See exactly where visitors click, scroll, and drop off. Then automate what happens next. Analytics, heatmaps, session replays, funnels — one tool.
+            Simple, fast, and privacy-friendly website analytics. No cookies, no consent banners. See your traffic, top pages, referrers, and conversions in one clean dashboard.
           </motion.p>
 
           <motion.div
@@ -90,20 +93,12 @@ export default function Hero() {
                 </Button>
               </Link>
             )}
-            {isEnterprise ? (
-              <Link href="/websites/demo">
-                <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-semibold rounded-full">
-                  View Live Demo
-                </Button>
-              </Link>
-            ) : (
-              <Link href="https://github.com/Seentics/seentics" target="_blank">
-                <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-semibold rounded-full">
-                  <Github className="h-4 w-4 mr-2" />
-                  GitHub
-                </Button>
-              </Link>
-            )}
+            <Link href="https://github.com/Seentics/seentics" target="_blank">
+              <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-semibold rounded-full">
+                <Github className="h-4 w-4 mr-2" />
+                GitHub
+              </Button>
+            </Link>
           </motion.div>
 
           {/* Dashboard Preview */}
@@ -113,8 +108,11 @@ export default function Hero() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative max-w-5xl mx-auto"
           >
+            {/* Glow behind the image */}
+            <div className="absolute -inset-4 bg-primary/[0.04] rounded-2xl blur-2xl" />
+
             <div
-              className="relative group cursor-zoom-in rounded-xl border border-border/50 bg-card p-1.5 shadow-lg"
+              className="relative group cursor-zoom-in rounded-xl border border-border/50 bg-card p-1.5 shadow-2xl shadow-black/5"
               onClick={() => setIsZoomed(true)}
             >
               <div className="rounded-lg overflow-hidden">

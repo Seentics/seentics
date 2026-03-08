@@ -2,52 +2,123 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, MousePointer2, Globe, AlertCircle, Zap } from 'lucide-react';
+import { ShoppingCart, DoorOpen, Bell, Zap, GitBranch, Send } from 'lucide-react';
+
+const nodeColors = {
+  trigger: {
+    bg: 'bg-amber-500/10 border-amber-500/30',
+    dot: 'bg-amber-500',
+    text: 'text-amber-700 dark:text-amber-400',
+    line: 'from-amber-500/40',
+  },
+  condition: {
+    bg: 'bg-blue-500/10 border-blue-500/30',
+    dot: 'bg-blue-500',
+    text: 'text-blue-700 dark:text-blue-400',
+    line: 'from-blue-500/40 to-emerald-500/40',
+  },
+  action: {
+    bg: 'bg-emerald-500/10 border-emerald-500/30',
+    dot: 'bg-emerald-500',
+    text: 'text-emerald-700 dark:text-emerald-400',
+    line: '',
+  },
+};
+
+const nodeIcons = {
+  trigger: Zap,
+  condition: GitBranch,
+  action: Send,
+};
 
 const workflows = [
   {
-    title: 'Cart Abandonment Recovery',
-    description: 'Instantly re-engage users who leave their cart to finish their purchase.',
+    title: 'Recover Abandoned Carts',
+    description: 'Automatically message users who leave items in their cart before checking out.',
     steps: [
-      { label: 'Funnel Drop-off (Checkout)', type: 'trigger' },
-      { label: 'Cart value > $100', type: 'condition' },
-      { label: 'Send WhatsApp Message', type: 'action' },
+      { label: 'User drops off at checkout', type: 'trigger' as const },
+      { label: 'Cart value is over $100', type: 'condition' as const },
+      { label: 'Send a WhatsApp reminder', type: 'action' as const },
     ],
-    icon: MousePointer2,
+    icon: ShoppingCart,
   },
   {
-    title: 'Exit-Intent Conversion',
-    description: 'Stop losing visitors at the last second with a perfectly timed offer.',
+    title: 'Catch Leaving Visitors',
+    description: 'Show a targeted offer the moment someone is about to close the tab.',
     steps: [
-      { label: 'Exit Intent detected', type: 'trigger' },
-      { label: 'On Pricing Page', type: 'condition' },
-      { label: 'Show Discount Modal', type: 'action' },
+      { label: 'Exit intent is detected', type: 'trigger' as const },
+      { label: 'Visitor is on pricing page', type: 'condition' as const },
+      { label: 'Display a discount popup', type: 'action' as const },
     ],
-    icon: Globe,
+    icon: DoorOpen,
   },
   {
-    title: 'High-Value Prospect Alert',
-    description: 'Instantly notify your sales team when a warm lead shows strong intent.',
+    title: 'Alert Sales on Hot Leads',
+    description: 'Ping your team in Slack when a visitor shows strong buying signals.',
     steps: [
-      { label: 'Pricing Page visited', type: 'trigger' },
-      { label: 'Spent > 3m on site', type: 'condition' },
-      { label: 'Notify #sales on Slack', type: 'action' },
+      { label: 'Pricing page is viewed', type: 'trigger' as const },
+      { label: 'Visitor spent 3+ minutes', type: 'condition' as const },
+      { label: 'Notify #sales in Slack', type: 'action' as const },
     ],
-    icon: AlertCircle,
+    icon: Bell,
   },
 ];
 
-const stepColors: Record<string, string> = {
-  trigger: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
-  condition: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  action: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
-};
+function FlowNode({
+  step,
+  index,
+  isLast,
+  cardIndex,
+}: {
+  step: (typeof workflows)[0]['steps'][0];
+  index: number;
+  isLast: boolean;
+  cardIndex: number;
+}) {
+  const colors = nodeColors[step.type];
+  const Icon = nodeIcons[step.type];
+  const delay = cardIndex * 0.15 + index * 0.2 + 0.3;
 
-const stepLabels: Record<string, string> = {
-  trigger: 'Trigger',
-  condition: 'If',
-  action: 'Then',
-};
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, x: -12 }}
+        whileInView={{ opacity: 1, x: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.4, delay }}
+        className={`relative flex items-center gap-3 px-4 py-3 rounded-lg border ${colors.bg}`}
+      >
+        {/* Left dot connector */}
+        <div className="absolute -left-[7px] top-1/2 -translate-y-1/2">
+          <motion.div
+            initial={{ scale: 0 }}
+            whileInView={{ scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.3, delay: delay + 0.1 }}
+            className={`h-3.5 w-3.5 rounded-full ${colors.dot} ring-4 ring-card`}
+          />
+        </div>
+
+        <Icon className={`h-3.5 w-3.5 shrink-0 ${colors.text}`} />
+        <span className={`text-xs font-medium ${colors.text}`}>{step.label}</span>
+      </motion.div>
+
+      {/* Connector line */}
+      {!isLast && (
+        <div className="flex items-center pl-[6px] h-6">
+          <motion.div
+            initial={{ scaleY: 0 }}
+            whileInView={{ scaleY: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.3, delay: delay + 0.15 }}
+            className={`w-px h-full bg-gradient-to-b ${colors.line}`}
+            style={{ transformOrigin: 'top' }}
+          />
+        </div>
+      )}
+    </>
+  );
+}
 
 export default function AutomationWorkflows() {
   return (
@@ -70,7 +141,7 @@ export default function AutomationWorkflows() {
             transition={{ duration: 0.5, delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
-            Turn every click into an action
+            React to User Behavior Instantly
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -79,38 +150,40 @@ export default function AutomationWorkflows() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg"
           >
-            Build if-this-then-that workflows that engage visitors at exactly the right moment.
+            Set up simple rules: when something happens on your site, Seentics takes action automatically. No code required.
           </motion.p>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          {workflows.map((workflow, index) => (
+          {workflows.map((workflow, cardIndex) => (
             <motion.div
               key={workflow.title}
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: index * 0.1 }}
-              className="group p-8 rounded-2xl border border-border/50 bg-card hover:border-border transition-all hover:shadow-xl hover:shadow-primary/5 shadow-sm flex flex-col"
+              transition={{ duration: 0.4, delay: cardIndex * 0.1 }}
+              className="group p-7 rounded-2xl border border-border/50 bg-card hover:border-border transition-all hover:shadow-xl hover:shadow-primary/5 shadow-sm flex flex-col"
             >
-              <div className="mb-8">
-                <div className="h-10 w-10 bg-muted rounded-lg flex items-center justify-center text-foreground mb-5 group-hover:scale-110 transition-transform">
+              <div className="mb-6">
+                <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary mb-5 group-hover:scale-110 transition-transform">
                   <workflow.icon className="h-5 w-5" />
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-3 tracking-tight">{workflow.title}</h3>
+                <h3 className="text-base font-semibold text-foreground mb-2 tracking-tight">{workflow.title}</h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   {workflow.description}
                 </p>
               </div>
 
-              <div className="space-y-3 mt-auto">
+              {/* Flow diagram */}
+              <div className="mt-auto pl-3 flex flex-col">
                 {workflow.steps.map((step, i) => (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className={`text-[10px] font-bold w-14 text-center py-1 rounded-md uppercase tracking-wider ${stepColors[step.type]}`}>
-                      {stepLabels[step.type]}
-                    </span>
-                    <span className="text-xs text-muted-foreground font-medium">{step.label}</span>
-                  </div>
+                  <FlowNode
+                    key={i}
+                    step={step}
+                    index={i}
+                    isLast={i === workflow.steps.length - 1}
+                    cardIndex={cardIndex}
+                  />
                 ))}
               </div>
             </motion.div>

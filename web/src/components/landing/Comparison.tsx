@@ -17,7 +17,7 @@ export default function Comparison() {
   ];
 
   return (
-    <section id="comparison" className="py-24 md:py-32 bg-background border-t border-border/40">
+    <section id="comparison" className="py-24 md:py-32 bg-background border-t border-border/50">
       <div className="container mx-auto px-6 max-w-5xl">
         <div className="text-center mb-20">
           <motion.p
@@ -35,7 +35,7 @@ export default function Comparison() {
             transition={{ delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
-            How we compare
+            Seentics vs. the Rest
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -44,7 +44,7 @@ export default function Comparison() {
             transition={{ delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-xl mx-auto"
           >
-            One platform that replaces half a dozen tools, while being faster and more private.
+            Other tools make you choose between analytics, recordings, and privacy. Seentics gives you all three.
           </motion.p>
         </div>
 
@@ -53,7 +53,7 @@ export default function Comparison() {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="relative overflow-x-auto rounded-xl border border-border/60 bg-card/10 backdrop-blur-sm"
+          className="relative overflow-x-auto rounded-xl border border-border/50 bg-card"
         >
           <table className="w-full text-center border-collapse">
             <thead>

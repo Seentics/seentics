@@ -8,32 +8,38 @@ const features = [
   {
     icon: BarChart3,
     title: 'Real-time Analytics',
-    description: 'See who is on your site right now. Pageviews, visitors, referrers, and custom events with sub-second latency.',
+    description: 'Live visitor count, pageviews, referrers, and custom events — updated in under a second.',
+    color: 'text-blue-500 bg-blue-500/10',
   },
   {
     icon: MousePointer2,
-    title: 'Heatmaps',
-    description: 'Visualize where users click, scroll, and move. Understand engagement patterns on every page.',
+    title: 'Click & Scroll Heatmaps',
+    description: 'See exactly where users click and how far they scroll on every page of your site.',
+    color: 'text-orange-500 bg-orange-500/10',
   },
   {
     icon: Play,
     title: 'Session Recordings',
-    description: 'Watch real user sessions to understand behavior, debug issues, and improve the experience.',
+    description: 'Replay real visitor sessions to find UX issues, debug problems, and understand behavior.',
+    color: 'text-purple-500 bg-purple-500/10',
   },
   {
     icon: Filter,
     title: 'Conversion Funnels',
-    description: 'Build multi-step funnels to identify where users drop off and optimize your conversion path.',
+    description: 'Define multi-step funnels and see exactly where users drop off in your signup or checkout flow.',
+    color: 'text-emerald-500 bg-emerald-500/10',
   },
   {
     icon: Workflow,
-    title: 'Automations',
-    description: 'Trigger emails, webhooks, and on-site actions based on user behavior and events.',
+    title: 'Behavioral Automations',
+    description: 'Trigger emails, webhooks, popups, or Slack alerts based on what users do on your site.',
+    color: 'text-amber-500 bg-amber-500/10',
   },
   {
     icon: Shield,
-    title: 'Privacy First',
-    description: 'No cookies by default. PII masking built in. Fully GDPR, CCPA, and PECR compliant.',
+    title: 'Privacy by Default',
+    description: 'No cookies, no personal data collection. GDPR, CCPA, and PECR compliant out of the box.',
+    color: 'text-teal-500 bg-teal-500/10',
   },
 ];
 
@@ -49,7 +55,7 @@ export default function Features() {
             transition={{ duration: 0.5 }}
             className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
           >
-            Platform
+            Features
           </motion.p>
           <motion.h2
             initial={{ opacity: 0, y: 12 }}
@@ -58,7 +64,7 @@ export default function Features() {
             transition={{ duration: 0.5, delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
-            Enterprise-grade analytics in one platform
+            Everything You Need in One Script
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -67,21 +73,23 @@ export default function Features() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg"
           >
-            Replace five disconnected tools with one unified platform. No extra integrations, no hidden costs.
+            Analytics, heatmaps, recordings, funnels, and automations — a single 2KB script replaces your entire analytics stack.
           </motion.p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border/50 border border-border/50 rounded-xl overflow-hidden max-w-5xl mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {features.map((feature, index) => (
             <motion.div
               key={feature.title}
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.4, delay: index * 0.05 }}
-              className="p-8 bg-background hover:bg-muted/30 transition-colors"
+              transition={{ duration: 0.4, delay: index * 0.06 }}
+              className="group p-6 rounded-xl border border-border/50 bg-card hover:border-border hover:shadow-lg hover:shadow-black/[0.03] transition-all"
             >
-              <feature.icon className="h-5 w-5 text-foreground mb-4" />
+              <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-4 ${feature.color}`}>
+                <feature.icon className="h-5 w-5" />
+              </div>
               <h3 className="text-sm font-semibold text-foreground mb-2">
                 {feature.title}
               </h3>
