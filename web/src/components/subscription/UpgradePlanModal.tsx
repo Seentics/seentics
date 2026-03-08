@@ -130,12 +130,6 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   const [loading, setLoading] = React.useState(false);
   const [billing, setBilling] = React.useState<'monthly' | 'yearly'>('monthly');
 
-  React.useEffect(() => {
-    if (window.createLemonSqueezy) {
-      window.createLemonSqueezy();
-    }
-  }, [isOpen]);
-
   const upgradePlans = (['basic', 'growth', 'pro'] as const).filter(p => p !== currentPlan);
 
   const handleUpgrade = async (plan: 'basic' | 'growth' | 'pro') => {
@@ -157,21 +151,12 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
           }
         }
 
-        if (!checkoutUrl.includes('embed=1')) {
-          checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
-        }
-
-        const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
+        const successUrl = encodeURIComponent('https://seentics.com');
         if (!checkoutUrl.includes('checkout[success_url]')) {
-          checkoutUrl += `&checkout[success_url]=${successUrl}`;
+          checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + `checkout[success_url]=${successUrl}`;
         }
 
-        if (window.LemonSqueezy) {
-          onClose();
-          setTimeout(() => { window.LemonSqueezy?.Url.Open(checkoutUrl); }, 100);
-        } else {
-          window.location.href = checkoutUrl;
-        }
+        window.location.href = checkoutUrl;
       } else {
         throw new Error(response.data.message || 'Failed to create checkout session');
       }

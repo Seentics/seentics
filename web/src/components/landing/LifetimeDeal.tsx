@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { Check, Zap, Sparkles, ShieldCheck, Clock, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,12 +30,6 @@ export function LifetimeDeal() {
     const { isAuthenticated } = useAuth();
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (window.createLemonSqueezy) {
-            window.createLemonSqueezy();
-        }
-    }, []);
-
     const handleGrabDeal = async () => {
         if (!isAuthenticated) {
             window.location.href = '/signup';
@@ -56,19 +50,12 @@ export function LifetimeDeal() {
                         checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
                     }
                 }
-                if (!checkoutUrl.includes('embed=1')) {
-                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
-                }
-                const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
+                const successUrl = encodeURIComponent('https://seentics.com');
                 if (!checkoutUrl.includes('checkout[success_url]')) {
-                    checkoutUrl += `&checkout[success_url]=${successUrl}`;
+                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + `checkout[success_url]=${successUrl}`;
                 }
 
-                if (window.LemonSqueezy) {
-                    window.LemonSqueezy.Url.Open(checkoutUrl);
-                } else {
-                    window.location.href = checkoutUrl;
-                }
+                window.location.href = checkoutUrl;
             }
         } catch {
             toast.error('Failed to initialize checkout. Please try again.');

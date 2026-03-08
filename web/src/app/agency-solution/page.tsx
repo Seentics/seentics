@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/stores/useAuthStore';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -95,21 +95,6 @@ export default function AgencySolutionPage() {
     const { isAuthenticated } = useAuth();
     const [loading, setLoading] = useState(false);
 
-    // Initialize Lemon Squeezy SDK
-    useEffect(() => {
-        if (window.createLemonSqueezy) {
-            window.createLemonSqueezy();
-        } else {
-            const script = document.createElement('script');
-            script.src = 'https://app.lemonsqueezy.com/js/lemon.js';
-            script.async = true;
-            document.body.appendChild(script);
-            script.onload = () => {
-                if (window.createLemonSqueezy) window.createLemonSqueezy();
-            };
-        }
-    }, []);
-
     const handleSubscribe = async () => {
         if (!isAuthenticated) {
             window.location.href = '/signup';
@@ -126,15 +111,12 @@ export default function AgencySolutionPage() {
                 if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                     if (!checkoutUrl.includes('test=1')) checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
                 }
-                if (!checkoutUrl.includes('embed=1')) checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
-                const successUrl = encodeURIComponent(`${window.location.origin}/agency`);
-                if (!checkoutUrl.includes('checkout[success_url]')) checkoutUrl += `&checkout[success_url]=${successUrl}`;
-
-                if (window.LemonSqueezy) {
-                    window.LemonSqueezy.Url.Open(checkoutUrl);
-                } else {
-                    window.location.href = checkoutUrl;
+                const successUrl = encodeURIComponent('https://seentics.com');
+                if (!checkoutUrl.includes('checkout[success_url]')) {
+                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + `checkout[success_url]=${successUrl}`;
                 }
+
+                window.location.href = checkoutUrl;
             }
         } catch {
             toast.error('Failed to initialize checkout. Please try again.');

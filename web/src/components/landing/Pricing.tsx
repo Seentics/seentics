@@ -7,20 +7,13 @@ import { isEnterprise } from '@/lib/features';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function Pricing() {
   if (!isEnterprise) return null;
 
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
-
-  // Initialize Lemon Squeezy SDK for modal checkout
-  useEffect(() => {
-    if (window.createLemonSqueezy) {
-      window.createLemonSqueezy();
-    }
-  }, []);
 
   const handleSubscribe = async (selection: PlanSelection) => {
     if (!isAuthenticated) {
@@ -48,19 +41,12 @@ export default function Pricing() {
           }
         }
 
-        if (!checkoutUrl.includes('embed=1')) {
-          checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
-        }
-        const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
+        const successUrl = encodeURIComponent('https://seentics.com');
         if (!checkoutUrl.includes('checkout[success_url]')) {
-          checkoutUrl += `&checkout[success_url]=${successUrl}`;
+          checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + `checkout[success_url]=${successUrl}`;
         }
 
-        if (window.LemonSqueezy) {
-          window.LemonSqueezy.Url.Open(checkoutUrl);
-        } else {
-          window.location.href = checkoutUrl;
-        }
+        window.location.href = checkoutUrl;
       }
     } catch {
       toast.error('Failed to initialize checkout. Please try again.');

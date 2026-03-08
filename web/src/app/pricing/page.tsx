@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { isEnterprise } from '@/lib/features';
 import { useRouter } from 'next/navigation';
@@ -16,19 +16,6 @@ export default function PricingPage() {
             router.replace('/');
         }
     }, [router]);
-
-    // Initialize Lemon Squeezy SDK for modal checkout (in case layout onLoad hasn't fired yet)
-    useEffect(() => {
-        const init = () => {
-            if (window.createLemonSqueezy) {
-                window.createLemonSqueezy();
-            }
-        };
-        init();
-        // Retry after a short delay in case script is still loading
-        const timer = setTimeout(init, 2000);
-        return () => clearTimeout(timer);
-    }, []);
 
     if (!isEnterprise) return null;
 
@@ -52,21 +39,12 @@ export default function PricingPage() {
                     }
                 }
 
-                // Add embed param and success URL for modal checkout
-                if (!checkoutUrl.includes('embed=1')) {
-                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
-                }
-                const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
+                const successUrl = encodeURIComponent('https://seentics.com');
                 if (!checkoutUrl.includes('checkout[success_url]')) {
-                    checkoutUrl += `&checkout[success_url]=${successUrl}`;
+                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + `checkout[success_url]=${successUrl}`;
                 }
 
-                // Open as modal if LS SDK is loaded, otherwise redirect
-                if (window.LemonSqueezy) {
-                    window.LemonSqueezy.Url.Open(checkoutUrl);
-                } else {
-                    window.location.href = checkoutUrl;
-                }
+                window.location.href = checkoutUrl;
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to create checkout. Please try again.');
