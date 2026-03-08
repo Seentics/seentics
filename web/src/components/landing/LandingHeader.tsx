@@ -5,6 +5,7 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
 import { Menu, X, Play } from 'lucide-react';
+import { FaDiscord } from 'react-icons/fa';
 import Link from 'next/link';
 import { Logo } from '../ui/logo';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -53,6 +54,14 @@ export default function LandingHeader() {
         </nav>
 
         <div className="flex items-center gap-3">
+          <Link
+            href="https://discord.gg/eHNHR82add"
+            target="_blank"
+            className="p-2 rounded-md text-muted-foreground hover:text-[#5865F2] hover:bg-[#5865F2]/10 transition-colors"
+            title="Join our Discord"
+          >
+            <FaDiscord className="h-4 w-4" />
+          </Link>
           <ThemeToggle />
           <div className="hidden sm:flex items-center gap-2">
             {isAuthenticated ? (
@@ -111,10 +120,10 @@ export default function LandingHeader() {
               </nav>
 
               <div className="pt-2 border-t border-border/40 space-y-2">
-                <Link href="/websites/demo" onClick={() => setMobileOpen(false)}>
-                  <Button variant="outline" className="w-full h-10 text-sm font-medium rounded-lg gap-2 border-primary/30 text-primary">
-                    <Play size={14} className="fill-primary" />
-                    Live Demo
+                <Link href="https://discord.gg/eHNHR82add" target="_blank" onClick={() => setMobileOpen(false)}>
+                  <Button variant="outline" className="w-full h-10 text-sm font-medium rounded-lg gap-2 border-[#5865F2]/30 text-[#5865F2]">
+                    <FaDiscord size={14} />
+                    Join Discord
                   </Button>
                 </Link>
                 {isAuthenticated ? (

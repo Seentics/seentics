@@ -492,7 +492,7 @@ export default function SupportPage() {
           {/* Quick channels */}
           <div className="grid sm:grid-cols-2 gap-3">
             <a
-              href="https://discord.gg/TYdPvDRA"
+              href="https://discord.gg/eHNHR82add"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 p-4 rounded-xl border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/15 transition-colors group"
@@ -507,15 +507,18 @@ export default function SupportPage() {
               <ExternalLink className="h-3.5 w-3.5 text-indigo-400 group-hover:text-indigo-600 transition-colors flex-shrink-0" />
             </a>
 
-            <div className="flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-card">
+            <a
+              href="mailto:seentics@gmail.com"
+              className="flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors"
+            >
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Mail className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0">
                 <p className="text-sm font-semibold">Email Support</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Reply within 24 hours</p>
+                <p className="text-xs text-muted-foreground mt-0.5">seentics@gmail.com</p>
               </div>
-            </div>
+            </a>
           </div>
 
           {/* Contact form */}

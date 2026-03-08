@@ -266,8 +266,8 @@ function SignUpFlow() {
                         </Link>
                     </div>
 
-                    {/* Step Indicator */}
-                    <div className="relative flex justify-between items-center h-10 px-16 mb-8">
+                    {/* Step Indicator
+                    <div className="relative flex justify-stretch items-center h-10 px-16 mb-8">
                         <div className="absolute top-1/2 left-16 right-16 h-px bg-border -translate-y-1/2" />
                         {[
                             { id: 1, label: 'Signup' },
@@ -282,7 +282,7 @@ function SignUpFlow() {
                                 </span>
                             </div>
                         ))}
-                    </div>
+                    </div> */}
 
                     <AnimatePresence mode="wait">
                         {step === 1 ? (

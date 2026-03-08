@@ -14,7 +14,6 @@ import { Toaster } from '@/components/ui/toaster';
 import { LimitReachedTopBar } from '@/components/subscription';
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import LemonSqueezyScript from '@/components/lemon-squeezy-script';
-import SupportWidget from '@/components/SupportWidget';
 
 // Temporarily disable custom fonts for build
 // const fontBody = Inter({
@@ -83,8 +82,6 @@ export default function RootLayout({
                 {children}
               </div>
 
-              {/* Floating Support Widget - Enterprise Only */}
-              <SupportWidget />
             </div>
             </ThemeCustomizationProvider>
           </QueryProvider>
