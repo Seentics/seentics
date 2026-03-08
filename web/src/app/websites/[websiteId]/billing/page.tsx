@@ -258,7 +258,7 @@ export default function AccountBillingSettings() {
             <UpgradePlanModal
                 isOpen={isUpgradeModalOpen}
                 onClose={() => setIsUpgradeModalOpen(false)}
-                currentPlan={currentPlan as 'free' | 'basic' | 'growth' | 'pro'}
+                currentPlan={currentPlan}
                 limitType="monthlyEvents"
                 currentUsage={subscription?.usage?.monthlyEvents?.current || 0}
                 limit={subscription?.usage?.monthlyEvents?.limit || 10000}

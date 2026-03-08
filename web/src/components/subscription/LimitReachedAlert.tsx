@@ -96,7 +96,7 @@ export const LimitReachedAlert: React.FC<LimitReachedAlertProps> = ({
       <UpgradePlanModal
         isOpen={showUpgradeModal}
         onClose={() => setShowUpgradeModal(false)}
-        currentPlan={subscription.plan as 'free' | 'basic' | 'growth' | 'pro'}
+        currentPlan={subscription.plan}
         limitType={type}
         currentUsage={usage.current}
         limit={usage.limit}
