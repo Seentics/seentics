@@ -204,6 +204,20 @@ function GlobeView({ data }: { data: TopItem[] }) {
                                 circle.style.transform = 'scale(1)';
                                 if (tip) tip.style.display = 'none';
                             });
+                            circle.addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                if (!tip) return;
+                                const isVisible = tip.style.display === 'block';
+                                tip.style.display = isVisible ? 'none' : 'block';
+                                circle.style.transform = isVisible ? 'scale(1)' : 'scale(1.3)';
+                            });
+                            circle.addEventListener('touchstart', (e) => {
+                                e.stopPropagation();
+                                if (!tip) return;
+                                const isVisible = tip.style.display === 'block';
+                                tip.style.display = isVisible ? 'none' : 'block';
+                                circle.style.transform = isVisible ? 'scale(1)' : 'scale(1.3)';
+                            }, { passive: true });
                         }
                         return el;
                     }}
