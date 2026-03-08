@@ -382,6 +382,11 @@ function HeatmapViewContent() {
       const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
       const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
 
+      // Upgrade http → https to avoid mixed-content blocks when the app is on HTTPS
+      if (typeof window !== 'undefined' && window.location.protocol === 'https:' && targetUrl.protocol === 'http:') {
+        targetUrl.protocol = 'https:';
+      }
+
       const isLocal = (h: string) => h === 'localhost' || h === '127.0.0.1' || h.includes('localhost');
 
       // If the origins match exactly (same protocol, host, and port), use relative path
