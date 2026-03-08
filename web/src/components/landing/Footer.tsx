@@ -29,9 +29,8 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-medium text-foreground mb-4">Company</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href="/about" className="hover:text-foreground transition-colors">About</Link></li>
-              <li><Link href="/blog" className="hover:text-foreground transition-colors">Blog</Link></li>
               <li><Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link></li>
+              <li><Link href="https://github.com/Seentics/seentics" target="_blank" className="hover:text-foreground transition-colors">GitHub</Link></li>
             </ul>
           </div>
 
@@ -45,10 +44,10 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-sm font-medium text-foreground mb-4">Support</h3>
+            <h3 className="text-sm font-medium text-foreground mb-4">Resources</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href="/help" className="hover:text-foreground transition-colors">Help Center</Link></li>
-              <li><Link href="/status" className="hover:text-foreground transition-colors">System Status</Link></li>
+              <li><Link href="/websites/demo" className="hover:text-foreground transition-colors">Live Demo</Link></li>
+              <li><Link href="https://github.com/Seentics/seentics/issues" target="_blank" className="hover:text-foreground transition-colors">Support</Link></li>
             </ul>
           </div>
         </div>

@@ -19,7 +19,7 @@ import {
 import { Logo } from '@/components/ui/logo';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useAuth } from '@/stores/useAuthStore';
 import { motion } from 'framer-motion';
@@ -33,6 +33,12 @@ export default function SignInPage() {
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [isLocal, setIsLocal] = useState(false);
+
+    useEffect(() => {
+        const h = window.location.hostname;
+        setIsLocal(h === 'localhost' || h === '127.0.0.1');
+    }, []);
     const { toast } = useToast();
     const router = useRouter();
     const { setAuth } = useAuth();
@@ -166,7 +172,7 @@ export default function SignInPage() {
                         </Button>
                     </div>
 
-                    {!isEnterprise && (
+                    {(!isEnterprise || isLocal) && (
                     <>
                     <div className="relative my-8">
                         <div className="absolute inset-0 flex items-center">

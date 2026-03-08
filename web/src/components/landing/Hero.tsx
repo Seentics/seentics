@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Github, X, Shield, Code2 } from 'lucide-react';
+import { ArrowRight, Github, X, Shield, Code2, Server } from 'lucide-react';
+import { isEnterprise } from '@/lib/features';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/stores/useAuthStore';
@@ -41,6 +42,12 @@ export default function Hero() {
               <Shield className="h-3 w-3" />
               Privacy First
             </span>
+            {isEnterprise && (
+              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs font-medium text-blue-600 dark:text-blue-400">
+                <Server className="h-3 w-3" />
+                EU Hosted · Hetzner Cloud
+              </span>
+            )}
           </motion.div>
 
           <motion.h1
@@ -70,25 +77,33 @@ export default function Hero() {
           >
             {isAuthenticated ? (
               <Link href="/websites">
-                <Button size="lg" className="h-11 px-6 text-sm font-semibold rounded-lg">
+                <Button size="lg" className="h-12 px-8 text-sm font-semibold rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all">
                   Go to Dashboard
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             ) : (
               <Link href="/signup">
-                <Button size="lg" className="h-11 px-6 text-sm font-semibold rounded-lg">
+                <Button size="lg" className="h-12 px-8 text-sm font-semibold rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all">
                   Start for Free
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
             )}
-            <Link href="https://github.com/Seentics/seentics" target="_blank">
-              <Button variant="outline" size="lg" className="h-11 px-6 text-sm font-semibold rounded-lg">
-                <Github className="h-4 w-4 mr-2" />
-                GitHub
-              </Button>
-            </Link>
+            {isEnterprise ? (
+              <Link href="/websites/demo">
+                <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-semibold rounded-full">
+                  View Live Demo
+                </Button>
+              </Link>
+            ) : (
+              <Link href="https://github.com/Seentics/seentics" target="_blank">
+                <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-semibold rounded-full">
+                  <Github className="h-4 w-4 mr-2" />
+                  GitHub
+                </Button>
+              </Link>
+            )}
           </motion.div>
 
           {/* Dashboard Preview */}

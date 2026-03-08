@@ -107,10 +107,10 @@ export default function FAQ() {
           className="max-w-xl mx-auto text-center py-16 border-t border-border/40"
         >
           <h3 className="text-2xl font-bold tracking-tight text-foreground mb-3">
-            Ready to scale your analytics?
+            Ready to understand your users?
           </h3>
           <p className="text-muted-foreground mb-6">
-            Join hundreds of businesses using Seentics to understand their users and grow revenue.
+            Start with the free plan. Set up in 2 minutes. No credit card required.
           </p>
           <div className="flex items-center justify-center gap-3">
             <Link href={isAuthenticated ? '/websites' : '/signup'}>

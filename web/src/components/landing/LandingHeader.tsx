@@ -64,13 +64,13 @@ export default function LandingHeader() {
             ) : (
               <>
                 <Link href="/signin">
-                  <Button variant="ghost" size="sm" className="h-8 px-3 text-xs font-medium">
+                  <Button variant="ghost" size="sm" className="h-8 px-3 text-xs font-medium text-muted-foreground hover:text-foreground">
                     Log in
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button size="sm" className="h-8 px-4 text-xs font-medium rounded-md">
-                    Sign up
+                  <Button size="sm" className="h-8 px-5 text-xs font-semibold rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all">
+                    Get Started Free
                   </Button>
                 </Link>
               </>

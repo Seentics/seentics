@@ -60,6 +60,12 @@ function SignUpFlow() {
     const [newWebsiteId, setNewWebsiteId] = useState<string>('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const [isLocal, setIsLocal] = useState(false);
+
+    useEffect(() => {
+        const h = window.location.hostname;
+        setIsLocal(h === 'localhost' || h === '127.0.0.1');
+    }, []);
 
     // Validate step param — only allow step 2 if authenticated
     useEffect(() => {
@@ -336,7 +342,7 @@ function SignUpFlow() {
                                 </Button>
                             </div>
 
-                            {!isEnterprise && (
+                            {(!isEnterprise || isLocal) && (
                             <>
                             <div className="relative my-8">
                                 <div className="absolute inset-0 flex items-center">
