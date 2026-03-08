@@ -18,7 +18,7 @@ export default function LifetimeBanner() {
 
   return (
     <div
-      className={`fixed top-0 left-0 right-0 z-[110] bg-primary dark:bg-slate-800 text-primary-foreground transition-transform duration-300 ${
+      className={`hidden sm:block fixed top-0 left-0 right-0 z-[110] bg-primary dark:bg-slate-800 text-primary-foreground transition-transform duration-300 ${
         visible ? 'translate-y-0' : '-translate-y-full'
       }`}
     >
