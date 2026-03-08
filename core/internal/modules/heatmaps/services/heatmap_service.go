@@ -63,32 +63,38 @@ func (s *heatmapService) RecordHeatmapData(ctx context.Context, req models.Heatm
 	}
 
 	// 3. Quota Enforcement (Enterprise Mode)
-	// If max_heatmaps is present in context, we must ensure we don't exceed the number of unique URLs.
+	// The check is done under a per-website mutex and uses an in-memory URL set
+	// that is updated immediately when new URLs are admitted. This prevents the
+	// read-check-then-async-write race where two concurrent requests both see the
+	// count as below the limit before either's batch hits Postgres.
 	if limit, ok := ctx.Value("max_heatmaps").(int); ok && limit > 0 {
-		tracked, err := s.repo.GetTrackedURLs(ctx, req.WebsiteID)
-		if err == nil {
-			// Create a map for fast lookup of existing tracked URLs
-			trackedMap := make(map[string]bool)
-			for _, u := range tracked {
-				trackedMap[u] = true
-			}
+		mu := s.getURLMutex(req.WebsiteID)
+		mu.Lock()
+		urlSet := s.loadURLCache(ctx, req.WebsiteID)
 
-			// If we are at or over the limit, we only allow points for ALREADY tracked URLs.
-			if len(tracked) >= limit {
-				// Check if ALL points in this request are for existing URLs.
-				// If any point is for a NEW URL, we must block/filter it.
-				filteredPoints := make([]models.HeatmapPoint, 0, len(req.Points))
-				for _, p := range req.Points {
-					if trackedMap[p.URL] {
-						filteredPoints = append(filteredPoints, p)
-					}
+		if len(urlSet) >= limit {
+			// At or over limit: only allow points for already-tracked URLs.
+			filteredPoints := make([]models.HeatmapPoint, 0, len(req.Points))
+			for _, p := range req.Points {
+				if _, exists := urlSet[p.URL]; exists {
+					filteredPoints = append(filteredPoints, p)
 				}
-
-				if len(filteredPoints) == 0 && len(req.Points) > 0 {
-					return fmt.Errorf("heatmap limit reached (%d/%d). cannot track new pages", len(tracked), limit)
-				}
-				req.Points = filteredPoints
 			}
+			mu.Unlock()
+
+			if len(filteredPoints) == 0 && len(req.Points) > 0 {
+				return fmt.Errorf("heatmap limit reached (%d/%d). cannot track new pages", len(urlSet), limit)
+			}
+			req.Points = filteredPoints
+		} else {
+			// Under the limit: admit new URLs and register them in the cache now,
+			// before releasing the lock, so the next request sees the updated count.
+			for _, p := range req.Points {
+				if p.URL != "" {
+					urlSet[p.URL] = struct{}{}
+				}
+			}
+			mu.Unlock()
 		}
 	}
 
@@ -123,6 +129,36 @@ type heatmapService struct {
 	wg         sync.WaitGroup
 	isShutdown bool
 	shutdownMu sync.RWMutex
+
+	// urlMu serialises the URL-count check per website so concurrent tracker
+	// requests cannot both pass the limit check before either is reflected in DB.
+	urlMu sync.Map // key: websiteID string → *sync.Mutex
+	// urlCache holds the in-memory set of tracked URLs per website.
+	// Updated synchronously (under urlMu) when a new URL is first seen so the
+	// count check is accurate even before the async batch writer hits Postgres.
+	urlCache sync.Map // key: websiteID string → map[string]struct{}
+}
+
+func (s *heatmapService) getURLMutex(websiteID string) *sync.Mutex {
+	mu, _ := s.urlMu.LoadOrStore(websiteID, &sync.Mutex{})
+	return mu.(*sync.Mutex)
+}
+
+// loadURLCache returns the tracked-URL set for a website, initialising it from
+// the DB on first call. Must be called with the website's urlMu held.
+func (s *heatmapService) loadURLCache(ctx context.Context, websiteID string) map[string]struct{} {
+	if cached, ok := s.urlCache.Load(websiteID); ok {
+		return cached.(map[string]struct{})
+	}
+	tracked, err := s.repo.GetTrackedURLs(ctx, websiteID)
+	set := make(map[string]struct{}, len(tracked))
+	if err == nil {
+		for _, u := range tracked {
+			set[u] = struct{}{}
+		}
+	}
+	s.urlCache.Store(websiteID, set)
+	return set
 }
 
 func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger) HeatmapService {

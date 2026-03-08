@@ -41,6 +41,15 @@ type replayService struct {
 	repo     repository.ReplayRepository
 	websites *websiteServicePkg.WebsiteService
 	store    *storage.S3Store
+	// newSessionMu serialises the "session exists? → count → save" pipeline
+	// per user so concurrent tracker requests for different new sessions
+	// cannot both pass the quota check before either is written to DB.
+	newSessionMu sync.Map // key: userID string → *sync.Mutex
+}
+
+func (s *replayService) getUserMutex(userID uuid.UUID) *sync.Mutex {
+	mu, _ := s.newSessionMu.LoadOrStore(userID.String(), &sync.Mutex{})
+	return mu.(*sync.Mutex)
 }
 
 func NewReplayService(repo repository.ReplayRepository, websites *websiteServicePkg.WebsiteService, store *storage.S3Store) ReplayService {
@@ -93,19 +102,32 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 	// Canonicalize website ID
 	req.WebsiteID = website.SiteID
 
-	// 3. Global quota enforcement: count sessions across ALL websites of this user,
-	// not just the current one — prevents limit bypass via multiple websites.
+	// 3. Global quota enforcement: count sessions across ALL websites of this user.
+	// The check-then-save pipeline is serialised per user with a mutex so that
+	// two concurrent requests for new sessions cannot both pass the count check
+	// before either is committed to the database.
 	if limit, ok := ctx.Value("max_replays").(int); ok && limit > 0 {
-		// Only check quota for NEW sessions; existing sessions always get more chunks.
 		exists, err := s.repo.SessionExists(ctx, req.WebsiteID, req.SessionID)
 		if err != nil {
 			return fmt.Errorf("failed to check session existence: %w", err)
 		}
 
 		if !exists {
-			count, err := s.repo.CountSessionsForUser(ctx, website.UserID)
-			if err == nil && count >= int64(limit) {
-				return fmt.Errorf("recording limit reached (%d/%d). cannot start new sessions", count, limit)
+			mu := s.getUserMutex(website.UserID)
+			mu.Lock()
+			defer mu.Unlock()
+
+			// Re-check inside the lock: a concurrent request may have created
+			// this session between our first check and acquiring the lock.
+			exists, err = s.repo.SessionExists(ctx, req.WebsiteID, req.SessionID)
+			if err != nil {
+				return fmt.Errorf("failed to check session existence: %w", err)
+			}
+			if !exists {
+				count, err := s.repo.CountSessionsForUser(ctx, website.UserID)
+				if err == nil && count >= int64(limit) {
+					return fmt.Errorf("recording limit reached (%d/%d). cannot start new sessions", count, limit)
+				}
 			}
 		}
 	}
