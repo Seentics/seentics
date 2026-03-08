@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { isEnterprise } from '@/lib/features';
+import apiClient from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,20 +78,12 @@ export default function SupportWidget() {
         setIsSubmitting(true);
         setError(null);
         try {
-            const res = await fetch('/api/contact', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: formData.name,
-                    email: formData.email,
-                    message: formData.message,
-                    subject: `[Support] Message from ${formData.name}`,
-                }),
+            await apiClient.post('/user/support/contact', {
+                name: formData.name,
+                email: formData.email,
+                message: formData.message,
+                subject: `[Support] Message from ${formData.name}`,
             });
-            if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.error || 'Failed to send message');
-            }
             setIsSuccess(true);
             setFormData({ name: '', email: '', message: '' });
             setTimeout(() => { setIsSuccess(false); setIsOpen(false); }, 3000);

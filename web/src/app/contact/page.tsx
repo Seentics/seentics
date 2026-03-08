@@ -13,6 +13,7 @@ import { Logo } from '@/components/ui/logo';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { isEnterprise } from '@/lib/features';
+import api from '@/lib/api';
 
 export default function ContactPage() {
   const { toast } = useToast();
@@ -46,23 +47,12 @@ export default function ContactPage() {
     try {
       const subjectLine = `[${formData.subject.toUpperCase()}] ${formData.name}${formData.company ? ` (${formData.company})` : ''}`;
 
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          message: formData.message,
-          subject: subjectLine,
-          company: formData.company,
-        }),
+      await api.post('/user/support/contact', {
+        name: formData.name,
+        email: formData.email,
+        message: formData.message,
+        subject: subjectLine,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to send message');
-      }
 
       toast({
         title: "Message Sent!",
