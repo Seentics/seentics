@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import {
   ChevronLeft,
@@ -56,7 +56,7 @@ const DATE_PRESETS: { label: string; days: number }[] = [
   { label: '90 days', days: 90 },
 ];
 
-export default function HeatmapViewPage() {
+function HeatmapViewContent() {
   const { websiteId } = useParams();
   const { subscription } = useSubscription();
   const searchParams = useSearchParams();
@@ -1118,5 +1118,20 @@ function DeviceButton({ active, onClick, icon: Icon, label }: { active: boolean;
         <TooltipContent>{label}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  );
+}
+
+export default function HeatmapViewPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen flex items-center justify-center bg-zinc-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-6 w-6 border-2 border-white/20 border-t-white/70 rounded-full animate-spin" />
+          <span className="text-xs text-zinc-500 uppercase tracking-widest">Loading heatmap...</span>
+        </div>
+      </div>
+    }>
+      <HeatmapViewContent />
+    </Suspense>
   );
 }
