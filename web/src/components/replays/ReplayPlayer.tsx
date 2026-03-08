@@ -87,6 +87,9 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const totalTimeRef = useRef(0);
   const videoAreaRef = useRef<HTMLDivElement>(null);
   const streamAbortRef = useRef<AbortController | null>(null);
+  // Set to true by the player-init effect once rrwebPlayer is created.
+  // Background loading must wait for this before calling player.addEvent().
+  const playerReadyRef = useRef(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -179,6 +182,19 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
         setBackgroundLoading(true);
 
+        // Wait for the player-init effect to create the rrwebPlayer instance.
+        // setInitialEvents/setLoading are async state updates — the player init
+        // useEffect hasn't run yet when we reach this point, so playerInstanceRef
+        // is still null. Calling addEvent() before it's ready silently drops events,
+        // creating gaps that cause playback to freeze.
+        {
+          let waited = 0;
+          while (!playerReadyRef.current && !controller.signal.aborted) {
+            await new Promise(r => setTimeout(r, 30));
+            if ((waited += 30) > 5000) break; // 5s safety timeout
+          }
+        }
+
         for (let i = 0; i < remainingSeqs.length; i += BACKGROUND_BATCH) {
           if (controller.signal.aborted) break;
 
@@ -228,6 +244,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
         // All chunks loaded — disable buffer-ahead guard entirely.
         maxBufferedTimeRef.current = Infinity;
+        streamAbortRef.current = null; // signals guard: no more streaming
         if (pausedForBufferRef.current) {
           pausedForBufferRef.current = false;
           const player = playerInstanceRef.current;
@@ -281,6 +298,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       });
 
       playerInstanceRef.current = player;
+      playerReadyRef.current = true;
 
       let sessionStartTime = 0;
       try {
@@ -353,6 +371,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         cancelAnimationFrame(animFrameRef.current);
         try { (player as any).$destroy(); } catch {}
         playerInstanceRef.current = null;
+        playerReadyRef.current = false;
       };
     }
   }, [loading, initialEvents]);
