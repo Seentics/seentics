@@ -63,10 +63,6 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
-  // Progressive loading: tracks how many chunks remain in the background
-  const [pendingChunks, setPendingChunks] = useState(0);
-  const restoreTimeRef = useRef<number | null>(null);
-  const restorePlayingRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -80,11 +76,11 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
 
-  // ─── Data loading (progressive) ───────────────────────────────────────────
-  // 1. Fetch manifest to get chunk sequence list (fast — DB only)
-  // 2. Load chunk 0 immediately → start player (< 1s to first frame)
-  // 3. Load remaining chunks in background concurrently
-  // 4. When all loaded, save position, recreate player with full event set
+  // ─── Data loading ──────────────────────────────────────────────────────────
+  // 1. Get manifest (DB only, fast) to discover all chunk sequences
+  // 2. Download ALL chunks concurrently — no player recreation, no blank flash
+  // 3. Merge + sort events, create player exactly once
+  // On repeat views the server returns a cached full.json.gz (~100ms).
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
@@ -94,9 +90,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         setLoading(true);
         setError(null);
         setEvents([]);
-        setPendingChunks(0);
 
-        // Step 1: get manifest (seq numbers, fast DB query)
+        // Step 1: get manifest (seq numbers only, no S3 download)
         const manifestRes = await api.get(
           `/replays/manifest/${sessionId}?website_id=${websiteId}`,
           { signal, timeout: 10000 },
@@ -108,24 +103,10 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           return;
         }
 
-        // Step 2: load chunk 0 → start player immediately
-        const chunk0Res = await api.get(
-          `/replays/chunk/${sessionId}?website_id=${websiteId}&seq=${sequences[0]}`,
-          { signal, timeout: 15000 },
-        );
-        const chunk0Events: any[] = Array.isArray(chunk0Res.data) ? chunk0Res.data : [];
-        setEvents(chunk0Events);
-        setLoading(false);
-
-        if (sequences.length === 1) return; // only one chunk — done
-
-        // Step 3: load remaining chunks in background concurrently
-        const remaining = sequences.slice(1);
-        setPendingChunks(remaining.length);
-
+        // Step 2: download all chunks concurrently
         const chunkResults: { seq: number; events: any[] }[] = [];
         await Promise.all(
-          remaining.map(async (seq) => {
+          sequences.map(async (seq) => {
             if (signal.aborted) return;
             try {
               const res = await api.get(
@@ -134,23 +115,17 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
               );
               chunkResults.push({ seq, events: Array.isArray(res.data) ? res.data : [] });
             } catch {
-              // skip failed chunks
-            } finally {
-              if (!signal.aborted) setPendingChunks(prev => Math.max(0, prev - 1));
+              // skip missing/failed chunks
             }
           })
         );
 
         if (signal.aborted) return;
 
-        // Step 4: merge all events, sort by timestamp, recreate player
+        // Step 3: merge + sort by timestamp, set events once → player created once
         chunkResults.sort((a, b) => a.seq - b.seq);
-        const allEvents = [...chunk0Events, ...chunkResults.flatMap(r => r.events)];
+        const allEvents = chunkResults.flatMap(r => r.events);
         allEvents.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
-
-        // Save current playback position so we can restore after player recreation
-        restoreTimeRef.current = currentTimeRef.current;
-        restorePlayingRef.current = isPlayingRef.current;
         setEvents(allEvents);
       } catch (err: any) {
         if (
@@ -158,23 +133,9 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           err?.name === 'AbortError' ||
           err?.name === 'CanceledError'
         ) return;
-        // Fallback: try the full stitched endpoint (server-side cache may already exist)
-        try {
-          const res = await api.get(
-            `/replays/full/${sessionId}?website_id=${websiteId}`,
-            { signal, timeout: 120000 },
-          );
-          setEvents(res.data?.events ?? []);
-        } catch (fallbackErr: any) {
-          if (
-            fallbackErr?.code === 'ERR_CANCELED' ||
-            fallbackErr?.name === 'AbortError' ||
-            fallbackErr?.name === 'CanceledError'
-          ) return;
-          setError(fallbackErr.message || 'Failed to load replay');
-        } finally {
-          if (!signal.aborted) setLoading(false);
-        }
+        setError((err as any).message || 'Failed to load replay');
+      } finally {
+        if (!signal.aborted) setLoading(false);
       }
     };
 
@@ -218,20 +179,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       if (resolved > 0) setTotalTime(resolved);
     } catch {}
 
-    // Restore position after player recreation (progressive chunk loading)
-    if (restoreTimeRef.current !== null && restoreTimeRef.current > 0) {
-      const t = restoreTimeRef.current;
-      const wasPlaying = restorePlayingRef.current;
-      restoreTimeRef.current = null;
-      setTimeout(() => {
-        try { player.goto(t, wasPlaying); } catch {}
-      }, 80);
-      isPlayingRef.current = wasPlaying;
-      setIsPlaying(wasPlaying);
-    } else {
-      setIsPlaying(true);
-      isPlayingRef.current = true;
-    }
+    setIsPlaying(true);
+    isPlayingRef.current = true;
     setSpeed(1);
     setSkipInactive(false);
 
@@ -464,14 +413,6 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
                 style={{ left: `${progress}%` }}
               />
             </div>
-            {/* Background chunk loading indicator */}
-            {pendingChunks > 0 && (
-              <div className="flex items-center gap-1.5 text-[10px] text-white/30">
-                <Loader2 className="h-2.5 w-2.5 animate-spin" />
-                <span>Loading {pendingChunks} more chunk{pendingChunks > 1 ? 's' : ''}...</span>
-              </div>
-            )}
-
             {/* Controls row */}
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-1">
