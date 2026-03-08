@@ -37,6 +37,7 @@ export default function Pricing() {
 
       const response = await api.post('/user/billing/checkout', {
         plan: selection.plan,
+        billing: selection.billing,
       });
 
       if (response.data.success && response.data.data.checkoutUrl) {

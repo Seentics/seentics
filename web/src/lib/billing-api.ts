@@ -7,9 +7,9 @@ export interface CheckoutResponse {
     };
 }
 
-export async function createCheckout(plan: string): Promise<string> {
+export async function createCheckout(plan: string, billing: string = 'monthly'): Promise<string> {
     try {
-        const response = await api.post<CheckoutResponse>('/user/billing/checkout', { plan });
+        const response = await api.post<CheckoutResponse>('/user/billing/checkout', { plan, billing });
         return response.data.data.checkoutUrl;
     } catch (error) {
         console.error('Error creating checkout:', error);

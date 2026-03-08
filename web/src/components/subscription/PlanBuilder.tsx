@@ -34,7 +34,7 @@ const PLANS = [
       '1 Website',
       '10,000 Monthly Events',
       '3 Heatmap Pages',
-      '100 Session Recordings',
+      '5 Session Recordings',
       '1 Funnel',
       '1 Automation',
       '30 Day Data Retention',

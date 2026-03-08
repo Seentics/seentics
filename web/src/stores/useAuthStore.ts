@@ -102,9 +102,10 @@ export const useAuth = create<AuthState>()(
     }),
     {
       name: 'auth-storage',
-      // Only persist user info and auth state — tokens are in httpOnly cookies
       partialize: (state) => ({
         user: state.user,
+        access_token: state.access_token,
+        refresh_token: state.refresh_token,
         isAuthenticated: state.isAuthenticated,
         rememberMe: state.rememberMe,
       }),

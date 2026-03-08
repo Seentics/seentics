@@ -15,8 +15,13 @@ export default function LandingHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
+  const [bannerVisible, setBannerVisible] = useState(true);
+
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+      setBannerVisible(window.scrollY < 200);
+    };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -30,9 +35,9 @@ export default function LandingHeader() {
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${scrolled
-        ? 'bg-background/80 border-b border-border/40 backdrop-blur-md h-16'
-        : 'bg-transparent h-20'
+      className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${scrolled
+        ? 'top-0 bg-background/80 border-b border-border/40 backdrop-blur-md h-16'
+        : `${bannerVisible ? 'top-10' : 'top-0'} bg-transparent h-20`
         }`}
     >
       <div className="container mx-auto px-6 h-full flex items-center justify-between relative">

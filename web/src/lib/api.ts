@@ -1,17 +1,25 @@
 import axios from 'axios';
 import { getApiUrl } from './config';
 
-// Check if user has an active session (Zustand store persists user info)
-function hasActiveSession(): boolean {
-  if (typeof window === 'undefined') return false;
+// Read persisted auth state from localStorage (Zustand store)
+function getPersistedAuth(): { isAuthenticated: boolean; access_token: string | null; refresh_token: string | null } {
+  if (typeof window === 'undefined') return { isAuthenticated: false, access_token: null, refresh_token: null };
   const raw = localStorage.getItem('auth-storage');
-  if (!raw) return false;
+  if (!raw) return { isAuthenticated: false, access_token: null, refresh_token: null };
   try {
     const parsed = JSON.parse(raw);
-    return !!parsed?.state?.isAuthenticated;
+    return {
+      isAuthenticated: !!parsed?.state?.isAuthenticated,
+      access_token: parsed?.state?.access_token || null,
+      refresh_token: parsed?.state?.refresh_token || null,
+    };
   } catch {
-    return false;
+    return { isAuthenticated: false, access_token: null, refresh_token: null };
   }
+}
+
+function hasActiveSession(): boolean {
+  return getPersistedAuth().isAuthenticated;
 }
 
 // Helper function to logout user and clear auth state
@@ -34,6 +42,15 @@ const api = axios.create({
   },
   withCredentials: true,
   timeout: 30000, // 30s timeout
+});
+
+// Request interceptor — attach Authorization header from persisted tokens
+api.interceptors.request.use((config) => {
+  const { access_token } = getPersistedAuth();
+  if (access_token) {
+    config.headers.Authorization = `Bearer ${access_token}`;
+  }
+  return config;
 });
 
 // Track if we're currently refreshing to prevent multiple refresh requests
@@ -85,17 +102,34 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Refresh via cookie — backend reads refresh_token from httpOnly cookie
-        await axios.post(
+        const { refresh_token } = getPersistedAuth();
+        if (!refresh_token) {
+          throw new Error('No refresh token available');
+        }
+
+        const refreshResponse = await axios.post(
           `${getApiUrl()}/auth/refresh`,
-          {},
+          { refresh_token },
           { withCredentials: true, headers: { 'Content-Type': 'application/json' } }
         );
+
+        // Update persisted tokens with the new ones
+        const newTokens = refreshResponse.data;
+        const raw = localStorage.getItem('auth-storage');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed?.state) {
+            parsed.state.access_token = newTokens.access_token;
+            parsed.state.refresh_token = newTokens.refresh_token;
+            localStorage.setItem('auth-storage', JSON.stringify(parsed));
+          }
+        }
 
         isRefreshing = false;
         processQueue();
 
-        // Retry the original request — new access_token cookie is set by backend
+        // Retry with new token
+        originalRequest.headers.Authorization = `Bearer ${newTokens.access_token}`;
         return api(originalRequest);
       } catch (refreshError) {
         isRefreshing = false;

@@ -1,145 +1,212 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Check, Zap, Sparkles, ShieldCheck, Clock, ArrowRight } from "lucide-react";
+import { Check, Zap, Sparkles, ShieldCheck, Clock, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import { useAuth } from "@/stores/useAuthStore";
+import api from "@/lib/api";
+import { toast } from "sonner";
 
-const FEATURES = [
-    "Track unlimited websites",
-    "Lifetime data storage",
-    "Live analytics dashboard",
-    "Track your sales goals",
-    "Automated PDF reports",
-    "Priority technical support",
+const LIMITS = [
+    "3 Websites",
+    "100,000 Monthly Events",
+    "20 Heatmap Pages",
+    "3,000 Session Recordings",
+    "10 Funnels",
+    "10 Automations",
+    "1 Month Recording Retention",
+    "1 Year Analytics Retention",
+    "Email Support",
+];
+
+const PERKS = [
     "All future updates included",
-    "Privacy focused design"
+    "Privacy focused design",
+    "No recurring costs ever",
 ];
 
 export function LifetimeDeal() {
     const { isAuthenticated } = useAuth();
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (window.createLemonSqueezy) {
+            window.createLemonSqueezy();
+        }
+    }, []);
+
+    const handleGrabDeal = async () => {
+        if (!isAuthenticated) {
+            window.location.href = '/signup';
+            return;
+        }
+
+        try {
+            setLoading(true);
+            const response = await api.post('/user/billing/checkout', {
+                plan: 'lifetime',
+                billing: 'lifetime',
+            });
+
+            if (response.data.success && response.data.data.checkoutUrl) {
+                let checkoutUrl = response.data.data.checkoutUrl;
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    if (!checkoutUrl.includes('test=1')) {
+                        checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
+                    }
+                }
+                if (!checkoutUrl.includes('embed=1')) {
+                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
+                }
+                const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
+                if (!checkoutUrl.includes('checkout[success_url]')) {
+                    checkoutUrl += `&checkout[success_url]=${successUrl}`;
+                }
+
+                if (window.LemonSqueezy) {
+                    window.LemonSqueezy.Url.Open(checkoutUrl);
+                } else {
+                    window.location.href = checkoutUrl;
+                }
+            }
+        } catch {
+            toast.error('Failed to initialize checkout. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
-        <section className="py-24 sm:py-48 relative overflow-hidden bg-white dark:bg-[#020617]" id="lifetime-deal">
+        <section className="py-24 md:py-32 bg-background relative overflow-hidden" id="lifetime-deal">
             <div className="container mx-auto px-6">
-                <div className="max-w-6xl mx-auto flex flex-col lg:flex-row items-center gap-16">
-                    
-                    {/* Left Side: Copy */}
-                    <div className="flex-1 text-center lg:text-left">
-                        <motion.div
-                            initial={{ opacity: 0, x: -25 }}
-                            whileInView={{ opacity: 1, x: 0 }}
-                            viewport={{ once: true }}
-                            transition={{ duration: 0.7 }}
-                        >
-                             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold tracking-wider mb-8">
-                                <Sparkles size={14} className="animate-pulse" />
-                                Exclusive Early Adopter Deal
-                            </div>
-                            <h2 className="text-4xl md:text-6xl font-black tracking-tighter mb-6 leading-none text-slate-900 dark:text-white">
-                                One payment. <br />
-                                <span className="text-primary italic">Lifetime access.</span>
-                            </h2>
-                            <p className="text-lg text-slate-600 dark:text-slate-400 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                                Ditch the monthly subscriptions. Lock in lifetime access to the Seentics Analytics Pro stack and never worry about recurring costs again.
-                            </p>
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8 mb-12">
-                                {FEATURES.map((feature, i) => (
-                                    <div key={i} className="flex items-center gap-3 text-sm font-semibold text-slate-700 dark:text-slate-300">
-                                        <div className="h-6 w-6 rounded bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                                            <Check size={16} strokeWidth={3} />
-                                        </div>
-                                        {feature}
-                                    </div>
-                                ))}
-                            </div>
-
-                            <div className="flex flex-wrap justify-center lg:justify-start items-center gap-8">
-                                <div className="flex items-center gap-2 group cursor-help">
-                                    <div className="p-2 rounded-full bg-green-500/10 text-green-600">
-                                        <ShieldCheck size={20} />
-                                    </div>
-                                    <span className="text-sm font-bold text-slate-500 group-hover:text-green-600 transition-colors">30-day guarantee</span>
-                                </div>
-                                <div className="flex items-center gap-2 group cursor-help">
-                                    <div className="p-2 rounded-full bg-orange-500/10 text-orange-600 animate-pulse">
-                                        <Clock size={20} />
-                                    </div>
-                                    <span className="text-sm font-bold text-slate-500 group-hover:text-orange-600 transition-colors">Only 15 slots remaining</span>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </div>
-
-                    {/* Right Side: Pricing Card */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 30 }}
+                {/* Section header */}
+                <div className="text-center max-w-2xl mx-auto mb-16">
+                    <motion.p
+                        initial={{ opacity: 0, y: 12 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        transition={{ duration: 0.7, delay: 0.2 }}
-                        className="w-full lg:w-[450px] shrink-0"
+                        transition={{ duration: 0.5 }}
+                        className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
                     >
-                        <div className="relative group p-1 ring-1 ring-slate-200 dark:ring-slate-800 rounded-[3rem] bg-white dark:bg-slate-900 shadow-2xl">
-                             {/* Floating Elements */}
-                            <div className="absolute -top-6 -right-6 h-12 w-12 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-lg transform rotate-12 z-20 font-black text-xs">
-                                Hot
+                        Limited Time Offer
+                    </motion.p>
+                    <motion.h2
+                        initial={{ opacity: 0, y: 12 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, delay: 0.05 }}
+                        className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
+                    >
+                        One payment. Lifetime access.
+                    </motion.h2>
+                    <motion.p
+                        initial={{ opacity: 0, y: 12 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, delay: 0.1 }}
+                        className="text-muted-foreground text-lg"
+                    >
+                        Skip the monthly bills forever. Get the full Seentics Basic plan with a single payment &mdash; built for early adopters who believe in what we&apos;re building.
+                    </motion.p>
+                </div>
+
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: 0.1 }}
+                    className="max-w-4xl mx-auto"
+                >
+                    <div className="rounded-2xl border border-border bg-card p-8 md:p-12">
+                        <div className="flex flex-col lg:flex-row gap-10 lg:gap-16 items-center">
+
+                            {/* Left: what's included */}
+                            <div className="flex-1 w-full">
+                                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-6">
+                                    <Sparkles size={12} />
+                                    Early Adopter Exclusive
+                                </div>
+
+                                <p className="text-sm font-medium text-muted-foreground mb-4">What&apos;s included:</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                                    {LIMITS.map((item, i) => (
+                                        <div
+                                            key={i}
+                                            className="flex items-center gap-2.5 text-sm text-foreground"
+                                        >
+                                            <div className="h-5 w-5 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                                                <Check size={12} strokeWidth={3} />
+                                            </div>
+                                            {item}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex flex-wrap gap-x-5 gap-y-2 mb-6">
+                                    {PERKS.map((perk, i) => (
+                                        <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
+                                            <Check size={10} strokeWidth={3} className="text-green-600" />
+                                            {perk}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-5 text-muted-foreground">
+                                    <div className="flex items-center gap-2 text-xs font-medium">
+                                        <ShieldCheck size={14} className="text-green-600" />
+                                        30-day money-back guarantee
+                                    </div>
+                                    <div className="flex items-center gap-2 text-xs font-medium">
+                                        <Clock size={14} className="text-orange-500" />
+                                        Only 15 slots remaining
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="relative rounded-[2.8rem] p-10 overflow-hidden border-2 border-transparent">
-                                <div className="flex justify-between items-center mb-8">
-                                    <p className="text-xs font-black tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Lifetime plan</p>
-                                    <div className="px-3 py-1 rounded bg-slate-100 dark:bg-slate-800 text-[10px] font-black text-slate-500">Popular</div>
-                                </div>
+                            {/* Right: price + CTA */}
+                            <div className="w-full lg:w-auto shrink-0">
+                                <div className="rounded-xl border border-border bg-background p-8 text-center lg:w-[280px]">
+                                    <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-4">Lifetime Plan</p>
 
-                                <div className="mb-10 text-center lg:text-left">
-                                    <div className="flex items-baseline justify-center lg:justify-start gap-2">
-                                        <span className="text-7xl font-black tracking-tighter text-slate-900 dark:text-white">$99</span>
-                                        <div className="flex flex-col">
-                                            <span className="text-lg text-slate-400 line-through font-bold decoration-red-500/50 decoration-2">$299</span>
-                                            <span className="text-xs font-bold text-green-500">65% off</span>
+                                    <div className="flex items-baseline justify-center gap-2 mb-1">
+                                        <span className="text-5xl font-black tracking-tight text-foreground">$99</span>
+                                        <div className="flex flex-col items-start">
+                                            <span className="text-base text-muted-foreground line-through">$299</span>
+                                            <span className="text-xs font-semibold text-green-600">67% off</span>
                                         </div>
                                     </div>
-                                    <p className="text-slate-500 text-sm font-medium mt-2">One-time payment, unlimited value</p>
-                                </div>
+                                    <p className="text-muted-foreground text-xs mb-6">One-time payment, forever yours</p>
 
-                                <div className="space-y-4 mb-10">
-                                    <div className="p-5 rounded bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-500/20 flex items-start gap-4">
-                                        <div className="h-10 w-10 rounded bg-indigo-600 flex items-center justify-center text-white shrink-0">
-                                            <Zap size={22} fill="white" />
+                                    <div className="p-3 rounded-lg bg-primary/5 border border-primary/10 flex items-center gap-3 mb-6 text-left">
+                                        <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-primary-foreground shrink-0">
+                                            <Zap size={16} fill="currentColor" />
                                         </div>
                                         <div>
-                                            <p className="font-black text-sm text-slate-900 dark:text-white">Pro perks enabled</p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mt-1">Unlock all current and future pro features without monthly bills.</p>
+                                            <p className="text-xs font-semibold text-foreground">Full Basic plan</p>
+                                            <p className="text-[10px] text-muted-foreground">All features, no recurring costs</p>
                                         </div>
                                     </div>
-                                </div>
 
-                                <Link href={isAuthenticated ? "/websites" : "/signup"} className="w-full">
-                                    <Button variant="brand" className="w-full h-16 px-12 text-lg font-bold rounded-xl active:scale-95 group shadow-2xl shadow-primary/20 transition-all flex items-center justify-center gap-4">
-                                        {isAuthenticated ? "Go to dashboard" : "Grab the deal"}
-                                        <ArrowRight size={24} className="group-hover:translate-x-1 transition-transform" />
+                                    <Button
+                                        onClick={handleGrabDeal}
+                                        disabled={loading}
+                                        className="w-full h-11 text-sm font-semibold rounded-lg group"
+                                    >
+                                        {loading ? (
+                                            <Loader2 size={16} className="animate-spin" />
+                                        ) : (
+                                            <>
+                                                {isAuthenticated ? 'Get Lifetime Access' : 'Sign up & Grab the Deal'}
+                                                <ArrowRight size={16} className="ml-2 group-hover:translate-x-0.5 transition-transform" />
+                                            </>
+                                        )}
                                     </Button>
-                                </Link>
-
-                                <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                                    <div className="flex -space-x-3">
-                                        {[1, 2, 3, 4].map(i => (
-                                            <div key={i} className="h-9 w-9 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                                                <img src={`https://i.pravatar.cc/150?u=${i + 124}`} alt="Avatar" className="grayscale" />
-                                            </div>
-                                        ))}
-                                        <div className="h-9 w-9 rounded-full border-2 border-white dark:border-slate-900 bg-indigo-600 flex items-center justify-center text-[10px] font-black text-white">
-                                            +4k
-                                        </div>
-                                    </div>
-                                    <p className="text-[10px] font-bold text-slate-400 tracking-wide">Trusted worldwide</p>
                                 </div>
                             </div>
                         </div>
-                    </motion.div>
-
-                </div>
+                    </div>
+                </motion.div>
             </div>
         </section>
     );
