@@ -98,11 +98,6 @@ function GlobeView({ data }: { data: TopItem[] }) {
     const [GlobeComponent, setGlobeComponent] = useState<any>(null);
     const [ready, setReady] = useState(false);
     const [canvasBg, setCanvasBg] = useState('rgba(0,0,0,0)');
-    const [tooltip, setTooltip] = useState<{ name: string; count: number; percentage: number } | null>(null);
-    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
-    // Ref so htmlElement callback (which closes over this) always calls the latest setter
-    const onHoverRef = useRef<(item: { name: string; count: number; percentage: number } | null, x: number, y: number) => void>(() => {});
-    onHoverRef.current = (item, x, y) => { setTooltip(item); setTooltipPos({ x, y }); };
 
     useEffect(() => {
         import('react-globe.gl').then(mod => setGlobeComponent(() => mod.default));
@@ -135,15 +130,28 @@ function GlobeView({ data }: { data: TopItem[] }) {
             const fontSize = Math.round(8 + ratio * 4);
             const { bg, ring, glow } = pinColor(ratio);
             const countLabel = item.count > 999 ? `${(item.count / 1000).toFixed(1)}k` : `${item.count}`;
+            const escapedName = item.name.replace(/"/g, '&quot;');
+            const pctLabel = item.percentage > 0 ? item.percentage.toFixed(2) + '%' : '';
             return [{
                 lat: coords[0], lng: coords[1], altitude: 0.02,
                 name: item.name, count: item.count, percentage: item.percentage,
-                __html: `<div data-name="${item.name}" data-count="${item.count}" data-pct="${item.percentage.toFixed(2)}"
-                     style="width:${dotSize}px;height:${dotSize}px;border-radius:50%;background:${bg};
-                            border:2px solid ${ring};box-shadow:0 0 0 4px ${glow},0 2px 8px rgba(0,0,0,0.5);
-                            display:flex;align-items:center;justify-content:center;
-                            cursor:pointer;transition:transform 0.15s;font-family:system-ui,sans-serif">
-                    <span style="color:#fff;font-size:${fontSize}px;font-weight:700;line-height:1;text-align:center">${countLabel}</span>
+                __html: `<div style="position:relative;display:inline-block;">
+                    <div data-name="${escapedName}" data-count="${item.count}" data-pct="${item.percentage.toFixed(2)}"
+                         style="width:${dotSize}px;height:${dotSize}px;border-radius:50%;background:${bg};
+                                border:2px solid ${ring};box-shadow:0 0 0 4px ${glow},0 2px 8px rgba(0,0,0,0.5);
+                                display:flex;align-items:center;justify-content:center;
+                                cursor:pointer;transition:transform 0.15s;font-family:system-ui,sans-serif">
+                        <span style="color:#fff;font-size:${fontSize}px;font-weight:700;line-height:1;text-align:center">${countLabel}</span>
+                    </div>
+                    <div class="sn-globe-tip" style="display:none;position:absolute;bottom:calc(100% + 8px);left:50%;
+                         transform:translateX(-50%);white-space:nowrap;
+                         background:rgba(10,10,20,0.92);color:#fff;padding:5px 10px;
+                         border-radius:7px;font-size:11px;font-family:system-ui,sans-serif;
+                         border:1px solid rgba(255,255,255,0.12);pointer-events:none;z-index:99999;
+                         box-shadow:0 4px 12px rgba(0,0,0,0.5);">
+                        <div style="font-weight:700;margin-bottom:2px;">${escapedName}</div>
+                        <div style="opacity:0.7;">${item.count.toLocaleString()} visitors${pctLabel ? ' · ' + pctLabel : ''}</div>
+                    </div>
                 </div>`,
             }];
         }), [data, maxPct]);
@@ -184,18 +192,19 @@ function GlobeView({ data }: { data: TopItem[] }) {
                     htmlElement={(d: any) => {
                         const el = document.createElement('div');
                         el.innerHTML = d.__html;
-                        const inner = el.firstElementChild as HTMLElement;
-                        inner?.addEventListener('mouseenter', (e: MouseEvent) => {
-                            inner.style.transform = 'scale(1.3)';
-                            onHoverRef.current({ name: d.name, count: d.count, percentage: d.percentage }, e.clientX, e.clientY);
-                        });
-                        inner?.addEventListener('mousemove', (e: MouseEvent) => {
-                            onHoverRef.current({ name: d.name, count: d.count, percentage: d.percentage }, e.clientX, e.clientY);
-                        });
-                        inner?.addEventListener('mouseleave', () => {
-                            inner.style.transform = 'scale(1)';
-                            onHoverRef.current(null, 0, 0);
-                        });
+                        // circle = the blue dot; tip = the built-in label
+                        const circle = el.querySelector('[data-name]') as HTMLElement | null;
+                        const tip = el.querySelector('.sn-globe-tip') as HTMLElement | null;
+                        if (circle) {
+                            circle.addEventListener('mouseenter', () => {
+                                circle.style.transform = 'scale(1.3)';
+                                if (tip) tip.style.display = 'block';
+                            });
+                            circle.addEventListener('mouseleave', () => {
+                                circle.style.transform = 'scale(1)';
+                                if (tip) tip.style.display = 'none';
+                            });
+                        }
                         return el;
                     }}
                     ringsData={rings}
@@ -204,13 +213,6 @@ function GlobeView({ data }: { data: TopItem[] }) {
                     ringColor="color" ringResolution={72}
                     onGlobeReady={() => setReady(true)}
                 />
-            )}
-            {tooltip && (
-                <div className="fixed z-50 pointer-events-none bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs"
-                    style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 52 }}>
-                    <div className="font-semibold">{tooltip.name}</div>
-                    <div className="text-muted-foreground mt-0.5">{tooltip.count.toLocaleString()} visitors · {tooltip.percentage.toFixed(2)}%</div>
-                </div>
             )}
         </div>
     );

@@ -55,6 +55,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const playerInstanceRef = useRef<rrwebPlayer | null>(null);
   const scrubberRef = useRef<HTMLDivElement>(null);
   const isPlayingRef = useRef(false);
+  const finishedRef = useRef(false);   // true when replay reached the end
+  const currentTimeRef = useRef(0);    // mirror of currentTime for callbacks
   const totalTimeRef = useRef(0);
   const videoAreaRef = useRef<HTMLDivElement>(null);
 
@@ -72,6 +74,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
+  useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
 
   // ─── Data loading ──────────────────────────────────────────────────────────
   // Fetch all events in one request. The server stitches all S3 chunks,
@@ -130,6 +133,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     });
 
     playerInstanceRef.current = player;
+    finishedRef.current = false;
+    currentTimeRef.current = 0;
 
     try {
       const meta = player.getMetaData();
@@ -166,6 +171,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         });
         replayer.on('finish', () => {
           isPlayingRef.current = false;
+          finishedRef.current = true;
           setIsPlaying(false);
         });
       }
@@ -193,7 +199,17 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       isPlayingRef.current = false;
       setIsPlaying(false);
     } else {
-      player.play();
+      // If the replay finished, player.play() restarts from the beginning.
+      // Use goto() instead so it resumes from wherever the user seeked to.
+      if (finishedRef.current) {
+        finishedRef.current = false;
+        const resumeAt = currentTimeRef.current >= totalTimeRef.current
+          ? 0
+          : currentTimeRef.current;
+        player.goto(resumeAt, true);
+      } else {
+        player.play();
+      }
       isPlayingRef.current = true;
       setIsPlaying(true);
     }
@@ -213,18 +229,22 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const handleSkipForward = useCallback(() => {
     const player = playerInstanceRef.current;
     if (!player) return;
-    const newTime = Math.min(currentTime + 10000, totalTimeRef.current);
+    const newTime = Math.min(currentTimeRef.current + 10000, totalTimeRef.current);
+    finishedRef.current = false;
     player.goto(newTime, isPlayingRef.current);
+    currentTimeRef.current = newTime;
     setCurrentTime(newTime);
-  }, [currentTime]);
+  }, []);
 
   const handleSkipBack = useCallback(() => {
     const player = playerInstanceRef.current;
     if (!player) return;
-    const newTime = Math.max(currentTime - 10000, 0);
+    const newTime = Math.max(currentTimeRef.current - 10000, 0);
+    finishedRef.current = false;
     player.goto(newTime, isPlayingRef.current);
+    currentTimeRef.current = newTime;
     setCurrentTime(newTime);
-  }, [currentTime]);
+  }, []);
 
   const handleToggleSkipInactive = useCallback(() => {
     const player = playerInstanceRef.current;
@@ -245,7 +265,11 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     const rect = track.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const newTime = Math.floor(ratio * totalTimeRef.current);
+    // Clear finished state: player.play() after a seek should resume from
+    // the new position, not restart from the beginning.
+    finishedRef.current = false;
     player.goto(newTime, isPlayingRef.current);
+    currentTimeRef.current = newTime;
     setCurrentTime(newTime);
   }, []);
 
