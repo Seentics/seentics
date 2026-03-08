@@ -89,7 +89,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         setEvents([]);
         const res = await api.get(
           `/replays/full/${sessionId}?website_id=${websiteId}`,
-          { signal: controller.signal },
+          { signal: controller.signal, timeout: 120000 }, // 2 min — stitching many S3 chunks can be slow
         );
         setEvents(res.data?.events ?? []);
       } catch (err: any) {
