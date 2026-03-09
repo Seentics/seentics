@@ -27,7 +27,8 @@ coverage/
 *.test
 *.out
 *.api
-api
+/core/main
+/core/api
 bin/
 tmp/
 
