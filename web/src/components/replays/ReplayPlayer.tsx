@@ -68,6 +68,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const lastEventCastWallRef = useRef(0);  // wall time of last event-cast (watchdog)
   const smoothTimerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
   const watchdogTimerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastWatchdogPosRef  = useRef(0);   // position where watchdog last fired
+  const watchdogRetryRef    = useRef(0);   // consecutive stalls at same position
 
   useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
@@ -256,17 +258,33 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       }
     } catch {}
 
-    // Watchdog: if no event-cast fires for >5s while "playing", seek forward to unstick
+    // Reset watchdog retry counters on new player init
+    lastWatchdogPosRef.current = 0;
+    watchdogRetryRef.current = 0;
+
+    // Watchdog: if no event-cast fires for >2s while "playing", seek forward to unstick.
+    // Uses escalating jumps (10s → 30s → 60s) when stuck at the same position.
     watchdogTimerRef.current = setInterval(() => {
       if (!isPlayingRef.current || finishedRef.current || !playerInstanceRef.current) return;
       const stale = Date.now() - lastEventCastWallRef.current;
-      if (stale > 5000) {
-        const jumpAmount = Math.min(stale * speedRef.current, 10000); // jump proportional to stall, max 10s
-        const nudge = Math.min(currentTimeRef.current + jumpAmount, totalTimeRef.current - 100);
-        if (nudge > currentTimeRef.current) {
+      if (stale > 2000) {
+        const pos = currentTimeRef.current;
+        const samePos = Math.abs(pos - lastWatchdogPosRef.current) < 500;
+        if (samePos) {
+          watchdogRetryRef.current++;
+        } else {
+          watchdogRetryRef.current = 0;
+          lastWatchdogPosRef.current = pos;
+        }
+        // Escalate jump size on repeated stalls at the same position
+        const maxJump = watchdogRetryRef.current >= 2 ? 60000 : watchdogRetryRef.current >= 1 ? 30000 : 10000;
+        const jumpAmount = Math.min(Math.max(stale * speedRef.current, 5000), maxJump);
+        const nudge = Math.min(pos + jumpAmount, totalTimeRef.current - 100);
+        if (nudge > pos + 100) {
           try { playerInstanceRef.current.goto(nudge, true); } catch {}
           lastEventCastWallRef.current = Date.now();
           lastWallTimeRef.current = Date.now();
+          lastWatchdogPosRef.current = nudge;
         } else {
           // At the very end — force finish
           finishedRef.current = true;

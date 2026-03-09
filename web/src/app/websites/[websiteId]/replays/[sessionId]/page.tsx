@@ -49,7 +49,7 @@ export default function SessionPlaybackPage() {
   const DeviceIcon = session?.device === 'mobile' ? Smartphone : session?.device === 'tablet' ? Tablet : Monitor;
   const formatDuration = (s: number) => {
     const m = Math.floor(s / 60);
-    const sec = s % 60;
+    const sec = Math.floor(s % 60);
     return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
   };
 
@@ -68,8 +68,9 @@ export default function SessionPlaybackPage() {
           </Button>
           <div className="h-4 w-px bg-border shrink-0" />
           <p className="text-sm font-medium shrink-0">Session Replay</p>
+          <div className="flex-1" />
           {session && (
-            <div className="flex items-center gap-2 flex-wrap min-w-0">
+            <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <DeviceIcon className="h-3 w-3 shrink-0" />
                 {session.browser} · {session.device}
