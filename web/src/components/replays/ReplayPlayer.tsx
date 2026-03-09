@@ -167,13 +167,11 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     playerRef.current.innerHTML = '';
     stopSmoothTimer();
 
-    // Use parent container width; fall back to window width so the player
-    // is never accidentally initialised at a narrow (mobile-like) size.
-    const containerW = Math.max(
-      videoAreaRef.current?.offsetWidth || 0,
-      playerRef.current.offsetWidth || 0,
-      typeof window !== 'undefined' ? Math.min(window.innerWidth - 32, 1400) : 1024,
-    ) || 1024;
+    // Read the actual rendered container width. If it's 0 the DOM hasn't
+    // finished layout yet — clamp to a safe desktop default (960px) rather
+    // than using window.innerWidth which can exceed the card's actual width
+    // and cause the right side to be clipped.
+    const containerW = videoAreaRef.current?.offsetWidth || playerRef.current.offsetWidth || 960;
     const containerH = videoAreaRef.current?.offsetHeight || 600;
 
     // Sort events by timestamp — out-of-order events cause "Node not found" warnings
@@ -286,6 +284,22 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       playerInstanceRef.current = null;
     };
   }, [loading, events, startSmoothTimer, stopSmoothTimer]);
+
+  // Resize player when container width changes
+  useEffect(() => {
+    const handleResize = () => {
+      const player = playerInstanceRef.current;
+      if (!player || !videoAreaRef.current) return;
+      const w = videoAreaRef.current.offsetWidth;
+      if (w > 0) {
+        try { (player as any).$set({ width: w }); } catch {}
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    // Also run once shortly after mount in case layout wasn't ready
+    const t = setTimeout(handleResize, 200);
+    return () => { window.removeEventListener('resize', handleResize); clearTimeout(t); };
+  }, []);
 
   // Fullscreen change listener
   useEffect(() => {
