@@ -58,7 +58,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     () => (session?.duration_seconds ?? 0) * 1000
   );
   const [speed, setSpeed] = useState(1);
-  const [skipInactive, setSkipInactive] = useState(false);
+  const [skipInactive, setSkipInactive] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Smooth timer refs — interpolate between event-cast ticks
@@ -96,7 +96,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         try {
           const manifestRes = await api.get(
             `/replays/presigned-manifest/${sessionId}?website_id=${websiteId}`,
-            { signal, timeout: 60000 },
+            { signal, timeout: 20000 },
           );
 
           const fullURL: string | undefined = manifestRes.data?.full_url;
@@ -182,7 +182,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         width: containerW,
         height: containerH,
         showController: false,
-        skipInactive: false,
+        skipInactive: true,
         UNSAFE_replayCanvas: true,
       },
     });
@@ -252,19 +252,26 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       }
     } catch {}
 
-    // Watchdog: if no event-cast fires for >8s while "playing", seek forward to unstick
+    // Watchdog: if no event-cast fires for >5s while "playing", seek forward to unstick
     watchdogTimerRef.current = setInterval(() => {
       if (!isPlayingRef.current || finishedRef.current || !playerInstanceRef.current) return;
       const stale = Date.now() - lastEventCastWallRef.current;
-      if (stale > 8000) {
-        const nudge = Math.min(currentTimeRef.current + 500, totalTimeRef.current - 1);
+      if (stale > 5000) {
+        const jumpAmount = Math.min(stale * speedRef.current, 10000); // jump proportional to stall, max 10s
+        const nudge = Math.min(currentTimeRef.current + jumpAmount, totalTimeRef.current - 100);
         if (nudge > currentTimeRef.current) {
           try { playerInstanceRef.current.goto(nudge, true); } catch {}
           lastEventCastWallRef.current = Date.now();
           lastWallTimeRef.current = Date.now();
+        } else {
+          // At the very end — force finish
+          finishedRef.current = true;
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+          stopSmoothTimer();
         }
       }
-    }, 4000);
+    }, 2000);
 
     return () => {
       stopSmoothTimer();

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Monitor, Smartphone, Tablet, Globe, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import ReplayPlayer from '@/components/replays/ReplayPlayer';
 import api from '@/lib/api';
@@ -46,11 +46,18 @@ export default function SessionPlaybackPage() {
     load();
   }, [websiteId, sessionId]);
 
+  const DeviceIcon = session?.device === 'mobile' ? Smartphone : session?.device === 'tablet' ? Tablet : Monitor;
+  const formatDuration = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Top bar */}
       <div className="sticky top-0 z-40 border-b border-border/60 bg-background/95 backdrop-blur-md">
-        <div className="max-w-[1400px] mx-auto px-4 md:px-8 h-12 flex items-center gap-3">
+        <div className="max-w-[1400px] mx-auto px-4 md:px-8 h-14 flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon"
@@ -60,10 +67,39 @@ export default function SessionPlaybackPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="h-4 w-px bg-border shrink-0" />
-          <p className="text-sm font-medium">Session Replay</p>
-          <p className="text-xs text-muted-foreground font-mono hidden sm:block">
-            {sessionId?.slice(0, 24)}...
-          </p>
+          <p className="text-sm font-medium shrink-0">Session Replay</p>
+          {session && (
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <DeviceIcon className="h-3 w-3 shrink-0" />
+                {session.browser} · {session.device}
+              </span>
+              {session.country && (
+                <>
+                  <span className="text-border">·</span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Globe className="h-3 w-3 shrink-0" />
+                    {session.country}
+                  </span>
+                </>
+              )}
+              {session.duration_seconds > 0 && (
+                <>
+                  <span className="text-border">·</span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3 shrink-0" />
+                    {formatDuration(session.duration_seconds)}
+                  </span>
+                </>
+              )}
+              {session.entry_page && (
+                <>
+                  <span className="text-border hidden md:inline">·</span>
+                  <span className="text-xs text-muted-foreground font-mono hidden md:block truncate max-w-[200px]">{session.entry_page}</span>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
