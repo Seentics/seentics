@@ -29,6 +29,11 @@ type ReplayRepository interface {
 	// CountSessionsForUser counts distinct sessions across ALL websites owned by the given user.
 	// Used for global quota enforcement across multi-website accounts.
 	CountSessionsForUser(ctx context.Context, userID uuid.UUID) (int64, error)
+	// GetUnprocessedSessions returns up to limit sessions whose root chunk (sequence=0)
+	// was recorded before olderThan and has not yet been processed for rage-clicks.
+	GetUnprocessedSessions(ctx context.Context, olderThan time.Time, limit int) ([]models.UnprocessedSession, error)
+	// MarkRageClicksProcessed records the result of rage-click detection for a session.
+	MarkRageClicksProcessed(ctx context.Context, websiteID, sessionID string, hasRageClicks bool) error
 }
 
 type replayRepository struct {
@@ -126,8 +131,8 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 		total = 0
 	}
 
-	// Cursor-based pagination: only sessions whose start_time is before the cursor.
-	// When before is nil, returns the most recent sessions.
+	// has_rage_clicks is aggregated as MAX over the session group — TRUE if any row
+	// (i.e. the sequence=0 root row) has been marked with a rage click.
 	const baseSelect = `
 		SELECT
 			session_id,
@@ -139,7 +144,8 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 			COALESCE(MAX(device)     FILTER (WHERE device     != '' AND device     != 'Unknown'), 'Unknown') AS device,
 			COALESCE(MAX(os)         FILTER (WHERE os         != '' AND os         != 'Unknown'), 'Unknown') AS os,
 			COALESCE(MAX(country)    FILTER (WHERE country    != '' AND country    != 'Unknown'), 'Unknown') AS country,
-			COALESCE(MAX(entry_page) FILTER (WHERE entry_page != '' AND entry_page != 'Unknown'), 'Unknown') AS entry_page
+			COALESCE(MAX(entry_page) FILTER (WHERE entry_page != '' AND entry_page != 'Unknown'), 'Unknown') AS entry_page,
+			BOOL_OR(has_rage_clicks) AS has_rage_clicks
 		FROM session_replays
 		WHERE website_id = $1
 		GROUP BY session_id
@@ -172,7 +178,7 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 		var s models.ReplaySessionMetadata
 		if err := rows.Scan(
 			&s.SessionID, &s.StartTime, &s.EndTime, &s.Duration, &s.ChunkCount,
-			&s.Browser, &s.Device, &s.OS, &s.Country, &s.EntryPage,
+			&s.Browser, &s.Device, &s.OS, &s.Country, &s.EntryPage, &s.HasRageClicks,
 		); err != nil {
 			return nil, total, err
 		}
@@ -210,11 +216,15 @@ func (r *replayRepository) DeleteSessionReplay(ctx context.Context, websiteID, s
 		return nil, err
 	}
 
-	keys := make([]string, 0, len(sequences)*2)
+	keys := make([]string, 0, len(sequences)*2+2)
 	for _, seq := range sequences {
 		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sessionID, seq))
 		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sessionID, seq))
 	}
+	// Also delete the stitched full-replay cache if it exists
+	keys = append(keys,
+		fmt.Sprintf("replays/%s/%s/full.json.gz", websiteID, sessionID),
+	)
 	return keys, nil
 }
 
@@ -260,6 +270,10 @@ func (r *replayRepository) BulkDeleteReplays(ctx context.Context, websiteID stri
 		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sID, seq))
 		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sID, seq))
 	}
+	// Add full-replay cache keys
+	for _, sID := range sessionIDs {
+		keys = append(keys, fmt.Sprintf("replays/%s/%s/full.json.gz", websiteID, sID))
+	}
 
 	deleteQuery := `DELETE FROM session_replays WHERE website_id = $1 AND session_id = ANY($2)`
 	if _, err := r.db.Exec(ctx, deleteQuery, websiteID, sessionIDs); err != nil {
@@ -278,6 +292,7 @@ func (r *replayRepository) DeleteAllByWebsiteID(ctx context.Context, websiteID s
 	defer rows.Close()
 
 	var keys []string
+	seen := map[string]bool{}
 	for rows.Next() {
 		var sID string
 		var seq int
@@ -286,6 +301,10 @@ func (r *replayRepository) DeleteAllByWebsiteID(ctx context.Context, websiteID s
 		}
 		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sID, seq))
 		keys = append(keys, fmt.Sprintf("replays/%s/%s/%d.json", websiteID, sID, seq))
+		if !seen[sID] {
+			seen[sID] = true
+			keys = append(keys, fmt.Sprintf("replays/%s/%s/full.json.gz", websiteID, sID))
+		}
 	}
 
 	_, err = r.db.Exec(ctx, `DELETE FROM session_replays WHERE website_id = $1`, websiteID)
@@ -315,4 +334,47 @@ func (r *replayRepository) CountSessionsForUser(ctx context.Context, userID uuid
 	`
 	err := r.db.QueryRow(ctx, query, userID).Scan(&count)
 	return count, err
+}
+
+// GetUnprocessedSessions returns sessions whose root chunk was recorded before
+// olderThan and has not yet been scanned for rage clicks.
+func (r *replayRepository) GetUnprocessedSessions(ctx context.Context, olderThan time.Time, limit int) ([]models.UnprocessedSession, error) {
+	query := `
+		SELECT website_id, session_id, timestamp
+		FROM session_replays
+		WHERE sequence = 0
+		  AND rage_clicks_processed = FALSE
+		  AND timestamp < $1
+		ORDER BY timestamp ASC
+		LIMIT $2
+	`
+	rows, err := r.db.Query(ctx, query, olderThan, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var sessions []models.UnprocessedSession
+	for rows.Next() {
+		var s models.UnprocessedSession
+		if err := rows.Scan(&s.WebsiteID, &s.SessionID, &s.Timestamp); err != nil {
+			return nil, err
+		}
+		sessions = append(sessions, s)
+	}
+	return sessions, nil
+}
+
+// MarkRageClicksProcessed updates the sequence=0 row for a session with the
+// rage-click detection result and marks it processed so the worker skips it.
+func (r *replayRepository) MarkRageClicksProcessed(ctx context.Context, websiteID, sessionID string, hasRageClicks bool) error {
+	_, err := r.db.Exec(ctx, `
+		UPDATE session_replays
+		SET has_rage_clicks       = $1,
+		    rage_clicks_processed = TRUE
+		WHERE website_id = $2
+		  AND session_id = $3
+		  AND sequence   = 0
+	`, hasRageClicks, websiteID, sessionID)
+	return err
 }

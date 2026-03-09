@@ -19,6 +19,7 @@ import (
 	"github.com/Seentics/seentics/internal/shared/utils"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 )
 
 type ReplayService interface {
@@ -29,18 +30,28 @@ type ReplayService interface {
 	// GetFullReplay downloads all chunks concurrently, merges and sorts events by
 	// timestamp, and returns a single flat JSON array ready for rrweb player.
 	GetFullReplay(ctx context.Context, websiteID, sessionID, userID string) (json.RawMessage, error)
+	// GetPresignedManifest checks for a cached full.json.gz in S3 and returns a
+	// presigned URL so the browser can download directly (no API proxy). Falls back
+	// to stitching all chunks when the cache does not exist yet, then saves and
+	// returns a presigned URL. Individual chunk presigned URLs are included as
+	// well so the caller can implement streaming if desired.
+	GetPresignedManifest(ctx context.Context, websiteID, sessionID, userID string) (*models.PresignedManifest, error)
 	// ListSessions returns sessions ordered by start_time DESC, before the optional cursor time.
 	// Returns the page of sessions, the total session count for the website, and any error.
 	ListSessions(ctx context.Context, websiteID, userID string, limit int, before *time.Time) ([]models.ReplaySessionMetadata, int64, error)
 	DeleteReplay(ctx context.Context, websiteID, sessionID, userID string) error
 	BulkDeleteReplays(ctx context.Context, websiteID string, sessionIDs []string, userID string) error
 	GetPageSnapshot(ctx context.Context, websiteID, url string) (json.RawMessage, error)
+	// StartRageClickWorker launches a background goroutine that periodically scans
+	// recently-finished sessions for rage clicks and updates the DB.
+	StartRageClickWorker(ctx context.Context)
 }
 
 type replayService struct {
 	repo     repository.ReplayRepository
 	websites *websiteServicePkg.WebsiteService
 	store    *storage.S3Store
+	logger   zerolog.Logger
 	// newSessionMu serialises the "session exists? → count → save" pipeline
 	// per user so concurrent tracker requests for different new sessions
 	// cannot both pass the quota check before either is written to DB.
@@ -52,11 +63,12 @@ func (s *replayService) getUserMutex(userID uuid.UUID) *sync.Mutex {
 	return mu.(*sync.Mutex)
 }
 
-func NewReplayService(repo repository.ReplayRepository, websites *websiteServicePkg.WebsiteService, store *storage.S3Store) ReplayService {
+func NewReplayService(repo repository.ReplayRepository, websites *websiteServicePkg.WebsiteService, store *storage.S3Store, logger zerolog.Logger) ReplayService {
 	return &replayService{
 		repo:     repo,
 		websites: websites,
 		store:    store,
+		logger:   logger,
 	}
 }
 
@@ -102,10 +114,7 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 	// Canonicalize website ID
 	req.WebsiteID = website.SiteID
 
-	// 3. Global quota enforcement: count sessions across ALL websites of this user.
-	// The check-then-save pipeline is serialised per user with a mutex so that
-	// two concurrent requests for new sessions cannot both pass the count check
-	// before either is committed to the database.
+	// 3. Global quota enforcement
 	if limit, ok := ctx.Value("max_replays").(int); ok && limit > 0 {
 		exists, err := s.repo.SessionExists(ctx, req.WebsiteID, req.SessionID)
 		if err != nil {
@@ -117,8 +126,6 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 			mu.Lock()
 			defer mu.Unlock()
 
-			// Re-check inside the lock: a concurrent request may have created
-			// this session between our first check and acquiring the lock.
 			exists, err = s.repo.SessionExists(ctx, req.WebsiteID, req.SessionID)
 			if err != nil {
 				return fmt.Errorf("failed to check session existence: %w", err)
@@ -132,7 +139,7 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 		}
 	}
 
-	// 4. Upload events to S3 with Gzip compression
+	// 4. Upload events to S3 with Gzip compression + proper Content headers
 	data, err := json.Marshal(req.Events)
 	if err != nil {
 		return err
@@ -148,14 +155,12 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 	}
 
 	key := fmt.Sprintf("replays/%s/%s/%d.json.gz", req.WebsiteID, req.SessionID, req.Sequence)
-	if err := s.store.Upload(ctx, key, bytes.NewReader(buf.Bytes())); err != nil {
+	// Use UploadCompressed so presigned URLs serve browser-decompressible content
+	if err := s.store.UploadCompressed(ctx, key, bytes.NewReader(buf.Bytes())); err != nil {
 		return fmt.Errorf("failed to upload to s3: %w", err)
 	}
 
 	// 5. Save reference row in DB.
-	// Browser/Device/OS/Country are stored on every chunk for resilience (so metadata
-	// is available even if sequence=0 is missing). EntryPage is ONLY stored on sequence=0
-	// to correctly capture the landing page, not a later navigated page.
 	browser, device, osName := parseUA(userAgent)
 	meta := &models.SessionMeta{
 		Browser: browser,
@@ -182,7 +187,6 @@ func (s *replayService) GetReplay(ctx context.Context, websiteID string, session
 		return nil, err
 	}
 
-	// Fetch all S3 chunks in parallel
 	type result struct {
 		index int
 		data  json.RawMessage
@@ -302,17 +306,64 @@ func (s *replayService) GetFullReplay(ctx context.Context, websiteID, sessionID,
 		return nil, err
 	}
 
-	// ── Cache hit: serve pre-stitched full.json.gz if it already exists ──────
+	merged, err := s.stitchOrCache(ctx, siteID, sessionID)
+	if err != nil {
+		return nil, err
+	}
+	return json.RawMessage(merged), nil
+}
+
+// GetPresignedManifest ensures the full-replay cache exists in S3 (stitching if
+// necessary) then returns a presigned URL the browser can use to download the
+// event array directly — no API proxy, no double bandwidth.
+func (s *replayService) GetPresignedManifest(ctx context.Context, websiteID, sessionID, userID string) (*models.PresignedManifest, error) {
+	siteID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	const urlLifetime = time.Hour
 	cacheKey := fmt.Sprintf("replays/%s/%s/full.json.gz", siteID, sessionID)
+
+	// Ensure cache exists — stitch + save if not.
+	if !s.store.Exists(ctx, cacheKey) {
+		merged, err := s.stitchOrCache(ctx, siteID, sessionID)
+		if err != nil {
+			return nil, err
+		}
+		if len(merged) == 0 {
+			return &models.PresignedManifest{ExpiresAt: time.Now().Add(urlLifetime)}, nil
+		}
+	}
+
+	// Generate presigned URL for the full cache.
+	fullURL, err := s.store.GetPresignedURL(ctx, cacheKey, urlLifetime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate presigned URL: %w", err)
+	}
+
+	return &models.PresignedManifest{
+		FullURL:   fullURL,
+		ExpiresAt: time.Now().Add(urlLifetime),
+	}, nil
+}
+
+// stitchOrCache downloads all chunks concurrently, merges + sorts events, saves
+// the result as full.json.gz (with browser-decompressible headers), and returns
+// the merged JSON bytes. On a cache hit it reads from S3 directly.
+func (s *replayService) stitchOrCache(ctx context.Context, siteID, sessionID string) ([]byte, error) {
+	cacheKey := fmt.Sprintf("replays/%s/%s/full.json.gz", siteID, sessionID)
+
+	// ── Cache hit ────────────────────────────────────────────────────────────
 	if reader, dlErr := s.store.Download(ctx, cacheKey); dlErr == nil {
 		defer reader.Close()
 		if gzr, gzErr := gzip.NewReader(reader); gzErr == nil {
 			defer gzr.Close()
 			if raw, readErr := io.ReadAll(gzr); readErr == nil {
-				return json.RawMessage(raw), nil
+				return raw, nil
 			}
 		}
-		// Cache file corrupt — fall through to re-stitch below
+		// Cache file corrupt — fall through to re-stitch
 	}
 
 	seqs, err := s.repo.GetChunkSequences(ctx, siteID, sessionID)
@@ -320,10 +371,10 @@ func (s *replayService) GetFullReplay(ctx context.Context, websiteID, sessionID,
 		return nil, err
 	}
 	if len(seqs) == 0 {
-		return json.RawMessage("[]"), nil
+		return []byte("[]"), nil
 	}
 
-	// Download all chunks concurrently, capped at 8 parallel S3 requests.
+	// Download all chunks concurrently (max 8 parallel S3 requests).
 	const concurrency = 8
 	sem := make(chan struct{}, concurrency)
 
@@ -383,7 +434,7 @@ func (s *replayService) GetFullReplay(ctx context.Context, websiteID, sessionID,
 		allEvents = append(allEvents, chunkEvents...)
 	}
 
-	// Extract timestamps once, then sort — avoids repeated per-comparison unmarshal.
+	// Sort by timestamp.
 	type tsOnly struct {
 		Timestamp int64 `json:"timestamp"`
 	}
@@ -402,18 +453,18 @@ func (s *replayService) GetFullReplay(ctx context.Context, websiteID, sessionID,
 		return nil, err
 	}
 
-	// ── Cache miss: save stitched result to S3 for future fast lookups ────────
+	// Save cache with proper Content-Type/Content-Encoding so browsers can
+	// decompress it transparently when fetching via presigned URL.
 	go func() {
 		var buf bytes.Buffer
 		gz := gzip.NewWriter(&buf)
 		if _, werr := gz.Write(merged); werr == nil {
 			gz.Close()
-			// Use a background context so a client disconnect doesn't abort the save
-			_ = s.store.Upload(context.Background(), cacheKey, bytes.NewReader(buf.Bytes()))
+			_ = s.store.UploadCompressed(context.Background(), cacheKey, bytes.NewReader(buf.Bytes()))
 		}
 	}()
 
-	return json.RawMessage(merged), nil
+	return merged, nil
 }
 
 func (s *replayService) ListSessions(ctx context.Context, websiteID, userID string, limit int, before *time.Time) ([]models.ReplaySessionMetadata, int64, error) {
@@ -509,4 +560,163 @@ func (s *replayService) GetPageSnapshot(ctx context.Context, websiteID string, u
 	}
 
 	return json.RawMessage(data), nil
+}
+
+// ── Rage-click detection ──────────────────────────────────────────────────────
+
+// StartRageClickWorker launches a background goroutine that scans sessions
+// recorded more than 60s ago for rage clicks. It processes up to 20 sessions
+// per minute and requires no external message queue.
+func (s *replayService) StartRageClickWorker(ctx context.Context) {
+	go func() {
+		// Initial delay so the service can finish starting up before the first scan.
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(30 * time.Second):
+		}
+
+		ticker := time.NewTicker(60 * time.Second)
+		defer ticker.Stop()
+
+		// Run immediately after the initial delay, then on every tick.
+		s.processRageClicks(ctx)
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.processRageClicks(ctx)
+			}
+		}
+	}()
+	s.logger.Info().Msg("Rage-click detection worker started")
+}
+
+func (s *replayService) processRageClicks(ctx context.Context) {
+	// Only process sessions that finished at least 60 s ago (gives the tracker
+	// time to flush the last chunk before we read all chunks).
+	olderThan := time.Now().Add(-60 * time.Second)
+	sessions, err := s.repo.GetUnprocessedSessions(ctx, olderThan, 20)
+	if err != nil {
+		s.logger.Error().Err(err).Msg("rage-click worker: failed to fetch unprocessed sessions")
+		return
+	}
+
+	for _, sess := range sessions {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
+		hasRage := s.detectSessionRageClicks(ctx, sess.WebsiteID, sess.SessionID)
+		if err := s.repo.MarkRageClicksProcessed(ctx, sess.WebsiteID, sess.SessionID, hasRage); err != nil {
+			s.logger.Error().Err(err).
+				Str("session_id", sess.SessionID).
+				Msg("rage-click worker: failed to mark session processed")
+		} else if hasRage {
+			s.logger.Debug().
+				Str("session_id", sess.SessionID).
+				Msg("rage clicks detected")
+		}
+	}
+}
+
+// detectSessionRageClicks downloads all chunks for a session and checks for
+// rage clicks (3+ clicks within 1 000 ms in a 100 px radius).
+func (s *replayService) detectSessionRageClicks(ctx context.Context, websiteID, sessionID string) bool {
+	seqs, err := s.repo.GetChunkSequences(ctx, websiteID, sessionID)
+	if err != nil || len(seqs) == 0 {
+		return false
+	}
+
+	var allEvents []json.RawMessage
+	for _, seq := range seqs {
+		key := fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sessionID, seq)
+		reader, dlErr := s.store.Download(ctx, key)
+		if dlErr != nil {
+			continue
+		}
+		gzr, gzErr := gzip.NewReader(reader)
+		if gzErr != nil {
+			reader.Close()
+			continue
+		}
+		raw, readErr := io.ReadAll(gzr)
+		gzr.Close()
+		reader.Close()
+		if readErr != nil {
+			continue
+		}
+		var evs []json.RawMessage
+		if json.Unmarshal(raw, &evs) == nil {
+			allEvents = append(allEvents, evs...)
+		}
+	}
+
+	return detectRageClicks(allEvents)
+}
+
+// detectRageClicks returns true if the event stream contains 3 or more mouse
+// clicks within 1 000 ms inside a 100 px radius — the classic rage-click signal.
+func detectRageClicks(events []json.RawMessage) bool {
+	type clickEvent struct {
+		ts int64
+		x  int
+		y  int
+	}
+
+	// rrweb IncrementalSnapshot (type=3) MouseInteraction (source=2) Click (type=2)
+	type rrwebData struct {
+		Source int `json:"source"`
+		Type   int `json:"type"`
+		X      int `json:"x"`
+		Y      int `json:"y"`
+	}
+	type rrwebEvent struct {
+		Type      int       `json:"type"`
+		Timestamp int64     `json:"timestamp"`
+		Data      rrwebData `json:"data"`
+	}
+
+	var clicks []clickEvent
+	for _, raw := range events {
+		var ev rrwebEvent
+		if json.Unmarshal(raw, &ev) != nil {
+			continue
+		}
+		if ev.Type == 3 && ev.Data.Source == 2 && ev.Data.Type == 2 {
+			clicks = append(clicks, clickEvent{ev.Timestamp, ev.Data.X, ev.Data.Y})
+		}
+	}
+
+	if len(clicks) < 3 {
+		return false
+	}
+
+	sort.Slice(clicks, func(i, j int) bool { return clicks[i].ts < clicks[j].ts })
+
+	const windowMs = 1000
+	const minClicks = 3
+	const radiusSq = 100 * 100
+
+	for i := 0; i < len(clicks)-minClicks+1; i++ {
+		count := 1
+		for j := i + 1; j < len(clicks); j++ {
+			if clicks[j].ts-clicks[i].ts > windowMs {
+				break
+			}
+			dx := clicks[j].x - clicks[i].x
+			dy := clicks[j].y - clicks[i].y
+			if dx*dx+dy*dy <= radiusSq {
+				count++
+				if count >= minClicks {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

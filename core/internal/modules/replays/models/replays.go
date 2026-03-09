@@ -16,17 +16,18 @@ type SessionReplayChunk struct {
 }
 
 type ReplaySessionMetadata struct {
-	SessionID  string    `json:"session_id"`
-	WebsiteID  string    `json:"website_id"`
-	StartTime  time.Time `json:"start_time"`
-	EndTime    time.Time `json:"end_time"`
-	Duration   float64   `json:"duration_seconds"`
-	ChunkCount int       `json:"chunk_count"`
-	Browser    string    `json:"browser"`
-	Device     string    `json:"device"`
-	OS         string    `json:"os"`
-	Country    string    `json:"country"`
-	EntryPage  string    `json:"entry_page"`
+	SessionID     string    `json:"session_id"`
+	WebsiteID     string    `json:"website_id"`
+	StartTime     time.Time `json:"start_time"`
+	EndTime       time.Time `json:"end_time"`
+	Duration      float64   `json:"duration_seconds"`
+	ChunkCount    int       `json:"chunk_count"`
+	Browser       string    `json:"browser"`
+	Device        string    `json:"device"`
+	OS            string    `json:"os"`
+	Country       string    `json:"country"`
+	EntryPage     string    `json:"entry_page"`
+	HasRageClicks bool      `json:"has_rage_clicks"`
 }
 
 // SessionMeta holds browser/device/OS info captured on the first chunk of a session.
@@ -49,4 +50,29 @@ type RecordReplayRequest struct {
 type BulkDeleteReplaysRequest struct {
 	WebsiteID  string   `json:"website_id" binding:"required"`
 	SessionIDs []string `json:"session_ids" binding:"required"`
+}
+
+// PresignedManifest is returned by GET /replays/presigned-manifest/:session_id.
+// When the full-replay cache exists in S3, only FullURL is set (fastest path).
+// Otherwise Chunks lists presigned URLs for individual gzip chunks.
+type PresignedManifest struct {
+	// FullURL is a presigned URL for the pre-stitched full.json.gz cache (if available).
+	// The browser fetches this and receives a decompressed JSON array of rrweb events.
+	FullURL string `json:"full_url,omitempty"`
+	// Chunks is set when the full cache is not yet available; each entry has a seq
+	// number and a presigned URL pointing directly at the raw gzip chunk in S3.
+	Chunks    []PresignedChunk `json:"chunks,omitempty"`
+	ExpiresAt time.Time        `json:"expires_at"`
+}
+
+type PresignedChunk struct {
+	Seq int    `json:"seq"`
+	URL string `json:"url"`
+}
+
+// UnprocessedSession is returned by the rage-click worker query.
+type UnprocessedSession struct {
+	WebsiteID string
+	SessionID string
+	Timestamp time.Time
 }

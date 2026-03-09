@@ -55,8 +55,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const playerInstanceRef = useRef<rrwebPlayer | null>(null);
   const scrubberRef = useRef<HTMLDivElement>(null);
   const isPlayingRef = useRef(false);
-  const finishedRef = useRef(false);   // true when replay reached the end
-  const currentTimeRef = useRef(0);    // mirror of currentTime for callbacks
+  const finishedRef = useRef(false);
+  const currentTimeRef = useRef(0);
   const totalTimeRef = useRef(0);
   const videoAreaRef = useRef<HTMLDivElement>(null);
 
@@ -77,10 +77,12 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
 
   // ─── Data loading ──────────────────────────────────────────────────────────
-  // 1. Get manifest (DB only, fast) to discover all chunk sequences
-  // 2. Download ALL chunks concurrently — no player recreation, no blank flash
-  // 3. Merge + sort events, create player exactly once
-  // On repeat views the server returns a cached full.json.gz (~100ms).
+  // Strategy (fastest → fallback):
+  //  1. Call /replays/presigned-manifest/:id — server ensures full.json.gz cache
+  //     exists (stitching if needed) and returns a presigned S3 URL.
+  //  2. Browser fetches the gzip file directly from S3 (no API proxy, half the
+  //     bandwidth, browser transparent decompression via Content-Encoding: gzip).
+  //  3. On any error fall back to the legacy /replays/full/:id API endpoint.
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
@@ -91,42 +93,44 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         setError(null);
         setEvents([]);
 
-        // Step 1: get manifest (seq numbers only, no S3 download)
-        const manifestRes = await api.get(
-          `/replays/manifest/${sessionId}?website_id=${websiteId}`,
-          { signal, timeout: 10000 },
-        );
-        const sequences: number[] = manifestRes.data?.sequences ?? [];
+        let allEvents: any[] | null = null;
 
-        if (sequences.length === 0) {
-          setLoading(false);
-          return;
-        }
+        // ── Attempt 1: presigned manifest → direct S3 download ───────────
+        try {
+          const manifestRes = await api.get(
+            `/replays/presigned-manifest/${sessionId}?website_id=${websiteId}`,
+            { signal, timeout: 60000 },
+          );
 
-        // Step 2: download all chunks concurrently
-        const chunkResults: { seq: number; events: any[] }[] = [];
-        await Promise.all(
-          sequences.map(async (seq) => {
-            if (signal.aborted) return;
-            try {
-              const res = await api.get(
-                `/replays/chunk/${sessionId}?website_id=${websiteId}&seq=${seq}`,
-                { signal, timeout: 30000 },
-              );
-              chunkResults.push({ seq, events: Array.isArray(res.data) ? res.data : [] });
-            } catch {
-              // skip missing/failed chunks
+          const fullURL: string | undefined = manifestRes.data?.full_url;
+
+          if (fullURL) {
+            // Direct S3 fetch — no auth headers needed (credentials in URL params)
+            const s3Res = await fetch(fullURL, { signal });
+            if (s3Res.ok) {
+              // Content-Encoding: gzip → browser decompresses transparently
+              const data = await s3Res.json();
+              allEvents = Array.isArray(data) ? data : null;
             }
-          })
-        );
+          }
+        } catch {
+          // Presigned path failed — fall through to legacy API
+        }
 
         if (signal.aborted) return;
 
-        // Step 3: merge + sort by timestamp, set events once → player created once
-        chunkResults.sort((a, b) => a.seq - b.seq);
-        const allEvents = chunkResults.flatMap(r => r.events);
-        allEvents.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
-        setEvents(allEvents);
+        // ── Attempt 2: legacy full-replay API endpoint ────────────────────
+        if (!allEvents) {
+          const fullRes = await api.get(
+            `/replays/full/${sessionId}?website_id=${websiteId}`,
+            { signal, timeout: 180000 },
+          );
+          const payload = fullRes.data?.events ?? fullRes.data;
+          allEvents = Array.isArray(payload) ? payload : [];
+        }
+
+        if (signal.aborted) return;
+        setEvents(allEvents ?? []);
       } catch (err: any) {
         if (
           err?.code === 'ERR_CANCELED' ||
@@ -144,7 +148,6 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   }, [sessionId, websiteId]);
 
   // ─── Player initialisation ─────────────────────────────────────────────────
-  // All events are available upfront — create the player once, no streaming needed.
   useEffect(() => {
     if (loading || events.length === 0 || !playerRef.current) return;
 
@@ -234,8 +237,6 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       isPlayingRef.current = false;
       setIsPlaying(false);
     } else {
-      // If the replay finished, player.play() restarts from the beginning.
-      // Use goto() instead so it resumes from wherever the user seeked to.
       if (finishedRef.current) {
         finishedRef.current = false;
         const resumeAt = currentTimeRef.current >= totalTimeRef.current
@@ -300,8 +301,6 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     const rect = track.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const newTime = Math.floor(ratio * totalTimeRef.current);
-    // Clear finished state: player.play() after a seek should resume from
-    // the new position, not restart from the beginning.
     finishedRef.current = false;
     player.goto(newTime, isPlayingRef.current);
     currentTimeRef.current = newTime;

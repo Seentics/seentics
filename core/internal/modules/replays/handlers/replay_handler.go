@@ -344,3 +344,33 @@ func (h *ReplayHandler) GetPageSnapshot(c *gin.Context) {
 
 	c.Data(http.StatusOK, "application/json", events)
 }
+
+// GetPresignedManifest ensures the full-replay cache exists in S3 (stitching if
+// needed), then returns a presigned URL the browser can use to download the
+// complete rrweb event array directly — no API proxy, no double bandwidth.
+func (h *ReplayHandler) GetPresignedManifest(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Query("website_id")
+	sessionID := c.Param("session_id")
+
+	if websiteID == "" || sessionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id and session_id are required"})
+		return
+	}
+
+	manifest, err := h.service.GetPresignedManifest(c.Request.Context(), websiteID, sessionID, userID)
+	if err != nil {
+		h.logger.Error().Err(err).Str("session_id", sessionID).Msg("Failed to get presigned manifest")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Short cache: presigned URL is valid for 1 h, response cache for 5 min.
+	c.Header("Cache-Control", "private, max-age=300")
+	c.JSON(http.StatusOK, manifest)
+}
