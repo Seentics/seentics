@@ -10,8 +10,6 @@ import {
   Monitor,
   Smartphone,
   Tablet,
-  Download,
-  Share2,
   Info,
   Loader2,
   Ruler,
@@ -25,7 +23,6 @@ import {
   ArrowDownUp,
   Flame,
   MousePointerBan,
-  Columns2
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -90,7 +87,6 @@ function HeatmapViewContent() {
   const [viewSize, setViewSize] = useState({ width: 0, height: 0 });
   const [showHeightControl, setShowHeightControl] = useState(false);
   const [opacity, setOpacity] = useState([70]);
-  const [isSameOrigin, setIsSameOrigin] = useState(false);
   const [iframeError, setIframeError] = useState(false);
   const [showPanel, setShowPanel] = useState(true);
   const [showOverlay, setShowOverlay] = useState(true);
@@ -109,32 +105,11 @@ function HeatmapViewContent() {
   // Top elements
   const [topElements, setTopElements] = useState<{ selector: string; clicks: number }[]>([]);
 
-  // Comparison mode
-  const [compareMode, setCompareMode] = useState(false);
-  const [comparePoints, setComparePoints] = useState<any[]>([]);
-  const [compareFrom, setCompareFrom] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 60); return d.toISOString().split('T')[0];
-  });
-  const [compareTo, setCompareTo] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split('T')[0];
-  });
-
   const normalizeUrl = (raw: string) => {
     const trimmed = raw.trim();
     if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
     return 'http://' + trimmed;
   };
-
-  useEffect(() => {
-    if (!website?.url) return;
-    try {
-      const currentHostname = window.location.hostname;
-      const targetUrl = new URL(normalizeUrl(website.url));
-      setIsSameOrigin(currentHostname === targetUrl.hostname);
-    } catch {
-      setIsSameOrigin(false);
-    }
-  }, [website?.url]);
 
   const isDemo = websiteId === 'demo';
   const isFreePlan = subscription?.plan === 'free';
@@ -304,29 +279,6 @@ function HeatmapViewContent() {
     return () => { cancelled = true; };
   }, [websiteId, url, activeType, showDummy, dateFrom, dateTo, refreshKey]);
 
-  // Fetch comparison data
-  useEffect(() => {
-    if (!compareMode || showDummy) {
-      setComparePoints([]);
-      return;
-    }
-    let cancelled = false;
-    const fetchCompare = async () => {
-      try {
-        const dateParams = buildDateParams(compareFrom, compareTo);
-        const res = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}&device=${device}${dateParams}`);
-        if (!cancelled) {
-          const raw = res.data.points || [];
-          setComparePoints(raw.map((p: any) => ({ ...p, x: p.x_percent ?? p.x, y: p.y_percent ?? p.y })));
-        }
-      } catch {
-        if (!cancelled) setComparePoints([]);
-      }
-    };
-    fetchCompare();
-    return () => { cancelled = true; };
-  }, [compareMode, websiteId, url, activeType, device, compareFrom, compareTo, showDummy]);
-
   // Update view size on mount and resize
   useEffect(() => {
     const updateSize = () => {
@@ -490,25 +442,6 @@ function HeatmapViewContent() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-white/10">
-                  <Share2 className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Share</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-white/10">
-                  <Download className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Export</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <div className="w-px h-5 bg-white/10 mx-0.5" />
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-400 hover:text-white hover:bg-white/10" onClick={() => setShowPanel(!showPanel)}>
                   {showPanel ? <PanelRightClose className="h-3.5 w-3.5" /> : <PanelRightOpen className="h-3.5 w-3.5" />}
                 </Button>
@@ -533,24 +466,16 @@ function HeatmapViewContent() {
       {/* Main content area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Preview area */}
-        <div ref={containerRef} className={cn("flex-1 min-w-0 overflow-hidden flex items-start justify-center pt-6 pb-6 px-4 relative", compareMode && "gap-4")}>
-          {/* Comparison period label */}
-          {compareMode && (
-            <div className="absolute top-2 left-4 z-30 flex gap-4">
-              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px]">Current: {dateFrom} — {dateTo}</Badge>
-              <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[10px]">Compare: {compareFrom} — {compareTo}</Badge>
-            </div>
-          )}
+        <div ref={containerRef} className="flex-1 min-w-0 overflow-hidden flex items-start justify-center pt-6 pb-6 px-4 relative">
           <div
             className="relative transition-all duration-300 ease-out rounded-xl overflow-hidden"
             style={{
-              width: `${compareMode ? Math.min(deviceWidth, (viewSize.width - 100) / 2) : deviceWidth}px`,
-              transform: `scale(${compareMode ? Math.min(1, (viewSize.width - 100) / 2 / deviceWidth) : scale})`,
+              width: `${deviceWidth}px`,
+              transform: `scale(${scale})`,
               transformOrigin: 'top center',
               boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 25px 80px rgba(0,0,0,0.5)',
-              // Compensate for CSS transform not affecting layout flow
-              marginLeft: scale < 1 && !compareMode ? `${-deviceWidth * (1 - scale) / 2}px` : undefined,
-              marginRight: scale < 1 && !compareMode ? `${-deviceWidth * (1 - scale) / 2}px` : undefined,
+              marginLeft: scale < 1 ? `${-deviceWidth * (1 - scale) / 2}px` : undefined,
+              marginRight: scale < 1 ? `${-deviceWidth * (1 - scale) / 2}px` : undefined,
             }}
           >
             {/* Browser chrome */}
@@ -699,56 +624,6 @@ function HeatmapViewContent() {
             </div>
           </div>
 
-          {/* Comparison view panel */}
-          {compareMode && (
-            <div
-              className="relative transition-all duration-300 ease-out rounded-xl overflow-hidden"
-              style={{
-                width: `${Math.min(deviceWidth, (viewSize.width - 100) / 2)}px`,
-                transform: `scale(${Math.min(1, (viewSize.width - 100) / 2 / deviceWidth)})`,
-                transformOrigin: 'top center',
-                boxShadow: '0 0 0 1px rgba(255,255,255,0.06), 0 25px 80px rgba(0,0,0,0.5)',
-              }}
-            >
-              <div className="h-9 bg-zinc-800/90 border-b border-white/[0.06] flex items-center px-3.5 gap-3 select-none">
-                <div className="flex gap-1.5">
-                  <div className="h-2.5 w-2.5 rounded-full bg-blue-500/60" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-blue-500/60" />
-                  <div className="h-2.5 w-2.5 rounded-full bg-blue-500/60" />
-                </div>
-                <div className="flex-1 bg-zinc-900/80 h-5.5 rounded flex items-center px-3 border border-white/[0.04]">
-                  <span className="text-[10px] text-blue-400 truncate font-mono">Compare: {compareFrom} — {compareTo}</span>
-                </div>
-              </div>
-              <div className="bg-white overflow-y-auto overflow-x-hidden hide-scrollbar" style={{ height: 'calc(100vh - 140px)' }}>
-                <div style={{ height: `${dimensions.height}px`, width: `${deviceWidth}px`, position: 'relative' }}>
-                  <HeatmapOverlay
-                    points={comparePoints}
-                    width={deviceWidth}
-                    height={dimensions.height}
-                    totalWidth={deviceWidth}
-                    totalHeight={dimensions.height}
-                    opacity={opacity[0] / 100}
-                    type={activeType}
-                  />
-                  {comparePoints.length === 0 && (
-                    <div className="absolute inset-0 bg-white z-20 flex flex-col items-center justify-center gap-2">
-                      <Crosshair className="h-8 w-8 text-zinc-300" />
-                      <span className="text-sm font-medium text-zinc-400">No data for comparison period</span>
-                    </div>
-                  )}
-                  {siteUrl && (
-                    <iframe
-                      src={siteUrl}
-                      referrerPolicy="same-origin"
-                      className="absolute inset-0 w-full h-full border-none pointer-events-none"
-                    />
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Height calibration popup */}
           {showHeightControl && (
             <div className="fixed bottom-14 left-1/2 -translate-x-1/2 bg-zinc-900 border border-white/10 rounded-xl p-4 shadow-2xl w-72 z-[60]">
@@ -869,43 +744,6 @@ function HeatmapViewContent() {
               </PanelSection>
             </div>
 
-            {/* Comparison Mode */}
-            <div className="p-4 border-b border-white/[0.06]">
-              <PanelSection title="Compare">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "w-full justify-start h-8 text-xs gap-2",
-                    compareMode ? "text-blue-400 bg-blue-500/10 hover:bg-blue-500/20" : "text-zinc-400 hover:text-white hover:bg-white/5"
-                  )}
-                  onClick={() => setCompareMode(!compareMode)}
-                >
-                  <Columns2 className="h-3.5 w-3.5" />
-                  {compareMode ? 'Comparing...' : 'Compare Periods'}
-                </Button>
-                {compareMode && (
-                  <div className="space-y-2 mt-2">
-                    <span className="text-[9px] text-blue-400 uppercase tracking-wider">Compare period</span>
-                    <div className="flex gap-2">
-                      <Input
-                        type="date"
-                        value={compareFrom}
-                        onChange={(e) => setCompareFrom(e.target.value)}
-                        className="h-7 text-[10px] bg-zinc-800/60 border-blue-500/20 text-zinc-300 [color-scheme:dark]"
-                      />
-                      <Input
-                        type="date"
-                        value={compareTo}
-                        onChange={(e) => setCompareTo(e.target.value)}
-                        className="h-7 text-[10px] bg-zinc-800/60 border-blue-500/20 text-zinc-300 [color-scheme:dark]"
-                      />
-                    </div>
-                  </div>
-                )}
-              </PanelSection>
-            </div>
-
             {/* Color scale legend */}
             <div className="p-4 border-b border-white/[0.06]">
               <PanelSection title="Color Scale">
@@ -1003,7 +841,6 @@ function HeatmapViewContent() {
                   <StatRow label="Viewport" value={`${deviceWidth}px`} />
                   <StatRow label="Page Height" value={`${dimensions.height}px`} />
                   <StatRow label="Date Range" value={`${datePreset || 'Custom'}${datePreset ? 'd' : ''}`} />
-                  {compareMode && <StatRow label="Compare Points" value={comparePoints.length.toLocaleString()} />}
                 </div>
               </PanelSection>
             </div>
@@ -1059,7 +896,7 @@ function HeatmapViewContent() {
         <span className="capitalize">{device === 'all' ? 'All Devices' : device} &middot; {deviceWidth}×{dimensions.height}px</span>
         <div className="flex-1" />
         <span className="hidden sm:block">
-          {TYPE_LABELS[activeType]} &middot; {opacity[0]}% opacity{compareMode ? ' · Comparing' : ''}
+          {TYPE_LABELS[activeType]} &middot; {opacity[0]}% opacity
         </span>
       </footer>
     </div>

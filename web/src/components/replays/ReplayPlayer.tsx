@@ -3,11 +3,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import rrwebPlayer from 'rrweb-player';
 import 'rrweb-player/dist/style.css';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
-  Loader2, Monitor, Globe, Clock, Shield, Smartphone, Tablet,
-  RefreshCw, Play, Pause, SkipBack, SkipForward, Maximize, Minimize,
+  Loader2, RefreshCw, Play, Pause, SkipBack, SkipForward, Maximize, Minimize,
   FastForward
 } from 'lucide-react';
 import api from '@/lib/api';
@@ -34,17 +33,6 @@ function formatTime(ms: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function formatDuration(seconds: number): string {
-  const s = Math.round(seconds);
-  if (s < 60) return `${s}s`;
-  return `${Math.floor(s / 60)}m ${s % 60}s`;
-}
-
-function val(v: string | undefined | null, fallback = '—'): string {
-  if (!v || v === 'Unknown') return fallback;
-  return v;
 }
 
 const SPEED_OPTIONS = [1, 2, 4, 8];
@@ -75,9 +63,11 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
   // Smooth timer refs — interpolate between event-cast ticks
   const speedRef = useRef(1);
-  const lastEventTimeRef = useRef(0);   // replay-relative ms at last event-cast
-  const lastWallTimeRef  = useRef(0);   // Date.now() when last event-cast fired
-  const smoothTimerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastEventTimeRef    = useRef(0);   // replay-relative ms at last event-cast
+  const lastWallTimeRef     = useRef(0);   // Date.now() when last event-cast fired
+  const lastEventCastWallRef = useRef(0);  // wall time of last event-cast (watchdog)
+  const smoothTimerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
+  const watchdogTimerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
@@ -202,6 +192,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     currentTimeRef.current = 0;
     lastEventTimeRef.current = 0;
     lastWallTimeRef.current = Date.now();
+    lastEventCastWallRef.current = Date.now();
 
     try {
       const meta = player.getMetaData();
@@ -225,6 +216,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       const replayer = player.getReplayer();
       if (replayer) {
         replayer.on('event-cast', (event: any) => {
+          lastEventCastWallRef.current = Date.now();
           if (typeof event?.timestamp === 'number' && sessionStartTime > 0) {
             const rel = event.timestamp - sessionStartTime;
             if (rel >= 0) {
@@ -255,12 +247,28 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           finishedRef.current = true;
           setIsPlaying(false);
           stopSmoothTimer();
+          if (watchdogTimerRef.current) { clearInterval(watchdogTimerRef.current); watchdogTimerRef.current = null; }
         });
       }
     } catch {}
 
+    // Watchdog: if no event-cast fires for >8s while "playing", seek forward to unstick
+    watchdogTimerRef.current = setInterval(() => {
+      if (!isPlayingRef.current || finishedRef.current || !playerInstanceRef.current) return;
+      const stale = Date.now() - lastEventCastWallRef.current;
+      if (stale > 8000) {
+        const nudge = Math.min(currentTimeRef.current + 500, totalTimeRef.current - 1);
+        if (nudge > currentTimeRef.current) {
+          try { playerInstanceRef.current.goto(nudge, true); } catch {}
+          lastEventCastWallRef.current = Date.now();
+          lastWallTimeRef.current = Date.now();
+        }
+      }
+    }, 4000);
+
     return () => {
       stopSmoothTimer();
+      if (watchdogTimerRef.current) { clearInterval(watchdogTimerRef.current); watchdogTimerRef.current = null; }
       try { (player as any).$destroy(); } catch {}
       playerInstanceRef.current = null;
     };
@@ -381,15 +389,6 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     }
   }, []);
 
-  const getDeviceIcon = () => {
-    if (!session?.device) return Monitor;
-    const d = session.device.toLowerCase();
-    if (d.includes('mobile') || d.includes('phone')) return Smartphone;
-    if (d.includes('tablet') || d.includes('ipad')) return Tablet;
-    return Monitor;
-  };
-
-  const DeviceIcon = getDeviceIcon();
   const progress = totalTime > 0 ? (currentTime / totalTime) * 100 : 0;
 
   // ─── Loading state ─────────────────────────────────────────────────────────
@@ -556,30 +555,6 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         )}
       </Card>
 
-      {session && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MetaCard icon={DeviceIcon} label="Device" value={`${val(session.browser)} · ${val(session.device, 'Desktop')}`} />
-          <MetaCard icon={Globe} label="Location" value={val(session.country)} />
-          <MetaCard icon={Clock} label="Duration" value={session.duration_seconds ? formatDuration(session.duration_seconds) : '—'} />
-          <MetaCard icon={Shield} label="Privacy" value="PII masked at edge" subtle />
-        </div>
-      )}
     </div>
-  );
-}
-
-function MetaCard({ icon: Icon, label, value, subtle }: { icon: any; label: string; value: string; subtle?: boolean }) {
-  return (
-    <Card className="border border-border/60 bg-card shadow-sm">
-      <CardContent className="p-3.5">
-        <div className="flex items-start gap-2.5">
-          <Icon className="h-4 w-4 text-muted-foreground/50 mt-0.5 flex-shrink-0" />
-          <div className="min-w-0">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
-            <p className={cn("text-sm font-medium mt-0.5 truncate", subtle && "text-muted-foreground")}>{value}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }

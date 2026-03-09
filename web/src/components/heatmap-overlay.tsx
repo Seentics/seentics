@@ -307,6 +307,59 @@ export default function HeatmapOverlay({
 
       ctx.putImageData(currentImageData, 0, 0);
     }
+
+    // === PRECISE CLICK MARKERS (click, rage_click, dead_click only) ===
+    // Draw a small dot/crosshair at the exact click position on top of the heatmap
+    if (type === 'click' || type === 'rage_click' || type === 'dead_click') {
+      // Aggregate points to find hot spots — group nearby points (within 6px) and show top clusters
+      type Cluster = { x: number; y: number; count: number };
+      const clusters: Cluster[] = [];
+      const clusterRadius = 10; // px — points within this radius merge into one cluster
+
+      points.forEach(point => {
+        const px = (point.x / 1000) * width;
+        const py = (point.y / 1000) * height;
+        if (isNaN(px) || isNaN(py)) return;
+
+        const existing = clusters.find(c => Math.hypot(c.x - px, c.y - py) < clusterRadius);
+        if (existing) {
+          existing.x = (existing.x * existing.count + px) / (existing.count + 1);
+          existing.y = (existing.y * existing.count + py) / (existing.count + 1);
+          existing.count += 1;
+        } else {
+          clusters.push({ x: px, y: py, count: 1 });
+        }
+      });
+
+      // Sort by count descending, show top clusters with markers
+      clusters.sort((a, b) => b.count - a.count);
+      const topClusters = clusters.slice(0, Math.min(clusters.length, 200));
+      const maxCount = topClusters[0]?.count || 1;
+
+      topClusters.forEach(cluster => {
+        const { x, y, count } = cluster;
+        const prominence = count / maxCount; // 0..1
+
+        // Outer ring
+        const ringRadius = 4 + prominence * 3;
+        ctx.globalAlpha = 0.55 + prominence * 0.3;
+        ctx.strokeStyle = type === 'rage_click' ? '#f97316' : type === 'dead_click' ? '#94a3b8' : '#ffffff';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Inner filled dot
+        const dotRadius = 2 + prominence * 1.5;
+        ctx.globalAlpha = 0.8 + prominence * 0.2;
+        ctx.fillStyle = type === 'rage_click' ? '#f97316' : type === 'dead_click' ? '#94a3b8' : '#ffffff';
+        ctx.beginPath();
+        ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.globalAlpha = 1;
+    }
   }, [points, type, width, height, totalWidth, totalHeight]);
 
   return (
