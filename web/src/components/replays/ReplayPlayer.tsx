@@ -73,8 +73,15 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [skipInactive, setSkipInactive] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Smooth timer refs — interpolate between event-cast ticks
+  const speedRef = useRef(1);
+  const lastEventTimeRef = useRef(0);   // replay-relative ms at last event-cast
+  const lastWallTimeRef  = useRef(0);   // Date.now() when last event-cast fired
+  const smoothTimerRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
+  useEffect(() => { speedRef.current = speed; }, [speed]);
 
   // ─── Data loading ──────────────────────────────────────────────────────────
   // Strategy (fastest → fallback):
@@ -147,19 +154,39 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     return () => controller.abort();
   }, [sessionId, websiteId]);
 
+  // ─── Smooth timer helpers ──────────────────────────────────────────────────
+  const startSmoothTimer = useCallback(() => {
+    if (smoothTimerRef.current) clearInterval(smoothTimerRef.current);
+    smoothTimerRef.current = setInterval(() => {
+      if (!isPlayingRef.current) return;
+      const elapsed = (Date.now() - lastWallTimeRef.current) * speedRef.current;
+      const interpolated = Math.min(lastEventTimeRef.current + elapsed, totalTimeRef.current);
+      currentTimeRef.current = interpolated;
+      setCurrentTime(interpolated);
+    }, 50);
+  }, []);
+
+  const stopSmoothTimer = useCallback(() => {
+    if (smoothTimerRef.current) { clearInterval(smoothTimerRef.current); smoothTimerRef.current = null; }
+  }, []);
+
   // ─── Player initialisation ─────────────────────────────────────────────────
   useEffect(() => {
     if (loading || events.length === 0 || !playerRef.current) return;
 
     playerRef.current.innerHTML = '';
+    stopSmoothTimer();
 
     const containerW = videoAreaRef.current?.offsetWidth || playerRef.current.offsetWidth || 1024;
     const containerH = videoAreaRef.current?.offsetHeight || 600;
 
+    // Sort events by timestamp — out-of-order events cause "Node not found" warnings
+    const sortedEvents = [...events].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+
     const player = new rrwebPlayer({
       target: playerRef.current,
       props: {
-        events,
+        events: sortedEvents,
         autoPlay: true,
         speed: 1,
         width: containerW,
@@ -173,6 +200,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     playerInstanceRef.current = player;
     finishedRef.current = false;
     currentTimeRef.current = 0;
+    lastEventTimeRef.current = 0;
+    lastWallTimeRef.current = Date.now();
 
     try {
       const meta = player.getMetaData();
@@ -185,7 +214,9 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     setIsPlaying(true);
     isPlayingRef.current = true;
     setSpeed(1);
+    speedRef.current = 1;
     setSkipInactive(false);
+    startSmoothTimer();
 
     let sessionStartTime = 0;
     try { sessionStartTime = player.getMetaData().startTime ?? 0; } catch {}
@@ -196,7 +227,13 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         replayer.on('event-cast', (event: any) => {
           if (typeof event?.timestamp === 'number' && sessionStartTime > 0) {
             const rel = event.timestamp - sessionStartTime;
-            if (rel >= 0) setCurrentTime(rel);
+            if (rel >= 0) {
+              // Sync smooth timer anchor to exact event timestamp
+              lastEventTimeRef.current = rel;
+              lastWallTimeRef.current  = Date.now();
+              currentTimeRef.current   = rel;
+              setCurrentTime(rel);
+            }
           }
         });
         replayer.on('state-change', (states: any) => {
@@ -205,21 +242,29 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
             const playing = playerState === 'playing';
             isPlayingRef.current = playing;
             setIsPlaying(playing);
+            if (playing) {
+              lastWallTimeRef.current = Date.now();
+              startSmoothTimer();
+            } else {
+              stopSmoothTimer();
+            }
           }
         });
         replayer.on('finish', () => {
           isPlayingRef.current = false;
           finishedRef.current = true;
           setIsPlaying(false);
+          stopSmoothTimer();
         });
       }
     } catch {}
 
     return () => {
+      stopSmoothTimer();
       try { (player as any).$destroy(); } catch {}
       playerInstanceRef.current = null;
     };
-  }, [loading, events]);
+  }, [loading, events, startSmoothTimer, stopSmoothTimer]);
 
   // Fullscreen change listener
   useEffect(() => {
@@ -259,6 +304,10 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     } catch {
       (player as any).$set({ speed: newSpeed });
     }
+    speedRef.current = newSpeed;
+    // Re-anchor the smooth timer to now so elapsed calc uses new speed
+    lastEventTimeRef.current = currentTimeRef.current;
+    lastWallTimeRef.current  = Date.now();
     setSpeed(newSpeed);
   }, []);
 
@@ -269,6 +318,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     finishedRef.current = false;
     player.goto(newTime, isPlayingRef.current);
     currentTimeRef.current = newTime;
+    lastEventTimeRef.current = newTime;
+    lastWallTimeRef.current  = Date.now();
     setCurrentTime(newTime);
   }, []);
 
@@ -279,6 +330,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     finishedRef.current = false;
     player.goto(newTime, isPlayingRef.current);
     currentTimeRef.current = newTime;
+    lastEventTimeRef.current = newTime;
+    lastWallTimeRef.current  = Date.now();
     setCurrentTime(newTime);
   }, []);
 
@@ -304,6 +357,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     finishedRef.current = false;
     player.goto(newTime, isPlayingRef.current);
     currentTimeRef.current = newTime;
+    lastEventTimeRef.current = newTime;
+    lastWallTimeRef.current  = Date.now();
     setCurrentTime(newTime);
   }, []);
 

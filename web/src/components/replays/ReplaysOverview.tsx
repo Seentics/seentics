@@ -5,10 +5,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   Loader2, Play, Clock, Laptop, Trash2, Monitor, Smartphone,
-  Tablet, ArrowLeft, Settings, Search, RefreshCw, PlayCircle, X, MapPin,
+  Tablet, Settings, Search, RefreshCw, PlayCircle, X, MapPin,
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -17,7 +18,6 @@ import { formatDistanceToNow } from 'date-fns';
 import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
-import ReplayPlayer from './ReplayPlayer';
 import api from '@/lib/api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { DataTable, ColumnDef, SortableHeader, selectionColumn } from '@/components/ui/data-table';
@@ -73,6 +73,7 @@ function getEntryPageLabel(entryPage: string): string {
 }
 
 export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
+  const router = useRouter();
   const [sessions, setSessions] = useState<ReplaySessionMetadata[]>([]);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
@@ -80,7 +81,6 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [selectedSessions, setSelectedSessions] = useState<ReplaySessionMetadata[]>([]);
 
@@ -285,40 +285,18 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
                 <TooltipContent side="left">Delete</TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <Button variant="secondary" size="sm"
-              className="h-7 gap-1.5 px-2.5 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-all shadow-sm border border-primary/10"
-              onClick={() => setSelectedSession(session.session_id)}>
-              <Play className="h-3 w-3 fill-current" /> Play
-            </Button>
+            <Link href={`/websites/${websiteId}/replays/${session.session_id}`}>
+              <Button variant="secondary" size="sm"
+                className="h-7 gap-1.5 px-2.5 text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-all shadow-sm border border-primary/10">
+                <Play className="h-3 w-3 fill-current" /> Play
+              </Button>
+            </Link>
           </div>
         );
       },
     },
   // eslint-disable-next-line react-hooks/exhaustive-deps
   ], [deleting]);
-
-  // ---- Session player view ----
-  if (selectedSession) {
-    const session = sessions.find(s => s.session_id === selectedSession);
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => setSelectedSession(null)} className="h-8 w-8 hover:bg-muted">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="h-4 w-px bg-border" />
-          <div>
-            <h3 className="text-sm font-medium">
-              Session Replay
-              {session && <span className="text-muted-foreground ml-1.5">· {val(session.entry_page, 'Unknown page')}</span>}
-            </h3>
-            <p className="text-xs text-muted-foreground font-mono">{selectedSession.slice(0, 16)}...</p>
-          </div>
-        </div>
-        <ReplayPlayer sessionId={selectedSession} websiteId={websiteId} session={session} />
-      </div>
-    );
-  }
 
   // ---- Loading state ----
   if (loading) {
@@ -380,7 +358,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
             data={filteredSessions}
             enableRowSelection
             onRowSelectionChange={setSelectedSessions}
-            onRowClick={(session) => setSelectedSession(session.session_id)}
+            onRowClick={(session) => router.push(`/websites/${websiteId}/replays/${session.session_id}`)}
             selectionActions={(rows) => (
               <Button
                 variant="destructive"
