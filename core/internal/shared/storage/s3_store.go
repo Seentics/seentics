@@ -15,14 +15,9 @@ import (
 )
 
 type S3Store struct {
-	client           *s3.Client
-	bucket           string
-	// internalEndpoint is the endpoint used for server-side S3 calls (e.g. http://minio:9000).
-	internalEndpoint string
-	// publicEndpoint is the endpoint embedded in presigned URLs so browsers can reach S3
-	// directly (e.g. http://localhost:9000 in Docker dev, or the CDN URL in production).
-	// When empty, presigned URLs use internalEndpoint unchanged.
-	publicEndpoint string
+	client        *s3.Client
+	presignClient *s3.Client // separate client initialized with publicEndpoint for presigning
+	bucket        string
 }
 
 // NewS3Store creates an S3Store. publicEndpoint may be empty, in which case
@@ -44,16 +39,35 @@ func NewS3Store(region, bucket, endpoint, accessKey, secretKey, publicEndpoint s
 		o.UsePathStyle = true // Required for MinIO
 	})
 
+	// Build a separate client for presigning. It must use the public endpoint so
+	// the generated URL's host matches what browsers will send in the request —
+	// AWS V4 includes the host header in the signature, so changing the host after
+	// signing causes a 403.
+	var presignS3Client *s3.Client
 	pub := publicEndpoint
 	if pub == "" {
 		pub = endpoint
 	}
+	if pub != endpoint && pub != "" {
+		pubCfg, err := config.LoadDefaultConfig(context.TODO(),
+			config.WithRegion(region),
+			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("unable to load SDK config for presign client, %v", err)
+		}
+		pubCfg.BaseEndpoint = aws.String(pub)
+		presignS3Client = s3.NewFromConfig(pubCfg, func(o *s3.Options) {
+			o.UsePathStyle = true
+		})
+	} else {
+		presignS3Client = client
+	}
 
 	return &S3Store{
-		client:           client,
-		bucket:           bucket,
-		internalEndpoint: endpoint,
-		publicEndpoint:   pub,
+		client:        client,
+		presignClient: presignS3Client,
+		bucket:        bucket,
 	}, nil
 }
 
@@ -145,11 +159,12 @@ func (s *S3Store) Delete(ctx context.Context, key string) error {
 }
 
 // GetPresignedURL generates a time-limited presigned GET URL for the given key.
-// If a publicEndpoint is configured (different from the internal endpoint), the
-// generated URL's host is rewritten so browsers can reach S3 directly.
+// The URL is signed using the public-endpoint client so browsers can reach S3
+// directly without any post-signing hostname rewriting (which would break the
+// AWS V4 signature).
 func (s *S3Store) GetPresignedURL(ctx context.Context, key string, lifetime time.Duration) (string, error) {
-	presignClient := s3.NewPresignClient(s.client)
-	req, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+	pc := s3.NewPresignClient(s.presignClient)
+	req, err := pc.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
 	}, func(o *s3.PresignOptions) {
@@ -158,10 +173,5 @@ func (s *S3Store) GetPresignedURL(ctx context.Context, key string, lifetime time
 	if err != nil {
 		return "", err
 	}
-	url := req.URL
-	// Rewrite internal hostname → public hostname (Docker: minio:9000 → localhost:9000)
-	if s.publicEndpoint != "" && s.internalEndpoint != "" && s.publicEndpoint != s.internalEndpoint {
-		url = strings.Replace(url, s.internalEndpoint, s.publicEndpoint, 1)
-	}
-	return url, nil
+	return req.URL, nil
 }
