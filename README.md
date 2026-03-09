@@ -67,7 +67,7 @@ You own your data. Deploy it on your own server in minutes with Docker.
 | Analytics DB | ClickHouse |
 | Metadata DB | PostgreSQL 15 |
 | Object Storage | S3-compatible (MinIO for local dev) |
-| Caching | [CacheGrid](https://github.com/skshohagmiah/cachegrid) (embedded Go cache) |
+| Cache & Queue | Redis 7 (caching, rate limiting, event streams) |
 
 ---
 
@@ -175,6 +175,7 @@ cp core/.env.example core/.env   # Edit with your production values
 | `JWT_SECRET` | Secret key for auth tokens | Required |
 | `CLICKHOUSE_HOST` | ClickHouse server address | `localhost` |
 | `CLICKHOUSE_DB` | ClickHouse database name | `seentics` |
+| `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
 | `S3_ENDPOINT` | S3/MinIO endpoint for replays | `http://minio:9000` |
 | `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | `http://localhost:3000` |
 
@@ -189,13 +190,18 @@ Browser ──→ Next.js Frontend (:3000)
                   │
             Go Backend API (:3002)
                   │
-    ┌─────────────┼─────────────┐
-    │             │             │
-ClickHouse    PostgreSQL     MinIO
- (events)     (metadata)   (replays)
+         ┌────────┴────────┐
+         │                 │
+       Redis          ┌────┴────┐
+  (cache, streams,    │         │
+   rate limiting)  ClickHouse  PostgreSQL
+                    (events)   (metadata)
+                        │
+                      MinIO
+                    (replays)
 ```
 
-The tracking script (`seentics.js`) is served by the Go backend and sends events directly to it. The backend processes events into ClickHouse for analytics queries, stores session replay data in S3-compatible storage, and uses PostgreSQL for user accounts, website configs, goals, and automation rules.
+The tracking script (`seentics.js`) is served by the Go backend and sends events directly to it. Events and heatmap points are published to **Redis Streams** and consumed in batches by background workers, which write to ClickHouse. Redis also handles caching, sliding-window rate limiting, and heatmap URL quota enforcement via atomic Lua scripts. Session replay data is stored in S3-compatible storage, and PostgreSQL holds user accounts, website configs, goals, and automation rules.
 
 ---
 

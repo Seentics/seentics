@@ -51,6 +51,7 @@ import (
 	"github.com/Seentics/seentics/internal/shared/cache"
 	ginGzip "github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 )
 
@@ -90,13 +91,22 @@ func main() {
 		logger.Fatal().Err(err).Msg("Failed to run database migrations")
 	}
 
-	// Initialize in-process cache for rate limiting, website caching, geolocation
-	appCache, err := cache.NewDefault()
+	// Initialize Redis (shared connection pool for cache, rate limiting, and event streams)
+	redisOpts, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize cache")
+		logger.Fatal().Err(err).Str("redis_url", cfg.RedisURL).Msg("Invalid Redis URL")
 	}
+	rdb := redis.NewClient(redisOpts)
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		logger.Fatal().Err(err).Msg("Failed to connect to Redis")
+	}
+	defer rdb.Close()
+	logger.Info().Str("redis_url", cfg.RedisURL).Msg("Redis connected")
+
+	// Initialize Redis-backed cache (rate limiting, website caching, geolocation, billing)
+	appCache := cache.NewWithClient(rdb, "sn:")
 	defer appCache.Shutdown()
-	logger.Info().Msg("Cache initialized")
+	logger.Info().Msg("Cache initialized (Redis)")
 
 	// Initialize global geolocation service with cache
 	utils.InitGlobalGeolocationService(appCache)
@@ -120,9 +130,10 @@ func main() {
 	s3Region := getEnvOrDefault("AWS_REGION", "us-east-1")
 	s3Bucket := getEnvOrDefault("S3_BUCKET_REPLAYS", "seentics-replays")
 	s3Endpoint := getEnvOrDefault("S3_ENDPOINT", "http://minio:9000")
+	s3PublicEndpoint := getEnvOrDefault("S3_PUBLIC_ENDPOINT", s3Endpoint)
 	s3Access := getEnvOrDefault("AWS_ACCESS_KEY_ID", "minioadmin")
 	s3Secret := getEnvOrDefault("AWS_SECRET_ACCESS_KEY", "minioadmin")
-	s3Store, err := storage.NewS3Store(s3Region, s3Bucket, s3Endpoint, s3Access, s3Secret)
+	s3Store, err := storage.NewS3Store(s3Region, s3Bucket, s3Endpoint, s3Access, s3Secret, s3PublicEndpoint)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to initialize S3 store")
 	}
@@ -130,6 +141,15 @@ func main() {
 		logger.Warn().Err(err).Str("bucket", s3Bucket).Msg("Failed to ensure S3 bucket exists — uploads may fail")
 	} else {
 		logger.Info().Str("bucket", s3Bucket).Msg("S3 bucket ready")
+	}
+	// Set permissive CORS on the replays bucket so browsers can fetch presigned URLs directly.
+	// Only needed when using a custom S3 endpoint (MinIO in dev / self-hosted).
+	if s3Endpoint != "" {
+		if corsErr := s3Store.EnsureBucketCORS(ctx); corsErr != nil {
+			logger.Warn().Err(corsErr).Msg("Failed to set S3 bucket CORS (presigned direct-download may not work in browser)")
+		} else {
+			logger.Info().Msg("S3 bucket CORS configured for browser presigned URL access")
+		}
 	}
 
 	// Module Repositories
@@ -167,18 +187,19 @@ func main() {
 	autoService := autoServicePkg.NewAutomationService(autoRepo, websiteService)
 	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
 
-	eventService := services.NewEventService(eventRepo, db, websiteService, autoService, logger)
+	eventService := services.NewEventService(eventRepo, db, websiteService, autoService, logger, rdb)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger)
 	privacyService := services.NewPrivacyService(privacyRepo, websiteService, logger)
 
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 
-	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger)
+	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger, rdb)
 	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
 
-	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store)
+	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store, logger)
 	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
+	replayService.StartRageClickWorker(ctx)
 
 	// Handlers
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService, logger)
@@ -430,6 +451,8 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, analyticsHandler *ha
 			// Legacy streaming endpoints (kept for backwards compatibility)
 			replays.GET("/manifest/:session_id", replayHandler.GetReplayManifest)
 			replays.GET("/chunk/:session_id", replayHandler.GetReplayChunk)
+			// Presigned URL manifest: browser downloads directly from S3 (no API proxy)
+			replays.GET("/presigned-manifest/:session_id", replayHandler.GetPresignedManifest)
 			replays.DELETE("/sessions/:session_id", replayHandler.DeleteReplay)
 			replays.DELETE("/bulk-delete", replayHandler.BulkDeleteReplays)
 		}

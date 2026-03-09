@@ -12,6 +12,7 @@ type Config struct {
 	Environment        string
 	Port               string
 	DatabaseURL        string
+	RedisURL           string
 	LogLevel           string
 	JWTSecret          string
 	GlobalAPIKey       string
@@ -37,6 +38,7 @@ func Load() (*Config, error) {
 		Environment:        getEnvOrDefault("ENVIRONMENT", "development"),
 		Port:               getEnvOrDefault("PORT", "3002"),
 		DatabaseURL:        getEnvOrDefault("DATABASE_URL", ""),
+		RedisURL:           getEnvOrDefault("REDIS_URL", "redis://localhost:6379"),
 		LogLevel:           getEnvOrDefault("LOG_LEVEL", "info"),
 		JWTSecret:          getEnvOrDefault("JWT_SECRET", ""),
 		GlobalAPIKey:       getEnvOrDefault("GLOBAL_API_KEY", ""),

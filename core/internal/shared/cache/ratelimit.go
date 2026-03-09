@@ -1,17 +1,19 @@
 package cache
 
 import (
-	"sync"
+	"context"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
-// RateLimitOptions configures token bucket rate limiting.
+// RateLimitOptions configures sliding-window rate limiting.
 type RateLimitOptions struct {
 	Limit  int64
 	Window time.Duration
 }
 
-// RateLimitState is the result of a rate limit check.
+// RateLimitState is the result of a rate-limit check.
 type RateLimitState struct {
 	Allowed   bool
 	Remaining int64
@@ -19,90 +21,72 @@ type RateLimitState struct {
 	ResetsAt  time.Time
 }
 
-// RateLimit checks a token bucket rate limiter for the given key.
+// rateLimitScript implements a Redis sliding-window counter using a sorted set.
+//
+//	KEYS[1] = key
+//	ARGV[1] = now (unix ms)
+//	ARGV[2] = window (ms)
+//	ARGV[3] = limit
+//
+// Returns {allowed (1/0), remaining, limit}.
+var rateLimitScript = redis.NewScript(`
+local key    = KEYS[1]
+local now    = tonumber(ARGV[1])
+local window = tonumber(ARGV[2])
+local limit  = tonumber(ARGV[3])
+local cutoff = now - window
+
+redis.call('ZREMRANGEBYSCORE', key, '-inf', cutoff)
+local count = tonumber(redis.call('ZCARD', key))
+
+if count < limit then
+    local member = now .. ':' .. math.random(999999)
+    redis.call('ZADD', key, now, member)
+    redis.call('PEXPIRE', key, window * 2)
+    return {1, limit - count - 1, limit}
+end
+return {0, 0, limit}
+`)
+
+// RateLimit checks a sliding-window rate limit for the given key.
+// Fails open (allows request) when Redis is unavailable.
 func (c *Cache) RateLimit(key string, opts RateLimitOptions) (bool, RateLimitState) {
-	s := c.rl.allow(key, opts.Limit, opts.Window)
-	return s.Allowed, s
-}
+	ctx := context.Background()
+	nowMs := time.Now().UnixMilli()
+	windowMs := opts.Window.Milliseconds()
+	resetsAt := time.Now().Add(opts.Window)
 
-// --- token bucket implementation ---
+	res, err := rateLimitScript.Run(ctx, c.rdb,
+		[]string{c.k(key)},
+		nowMs, windowMs, opts.Limit,
+	).Slice()
 
-type bucket struct {
-	tokens   float64
-	limit    int64
-	lastFill time.Time
-	window   time.Duration
-}
-
-type tokenBucket struct {
-	mu      sync.Mutex
-	buckets map[string]*bucket
-}
-
-func newTokenBucket() *tokenBucket {
-	return &tokenBucket{
-		buckets: make(map[string]*bucket),
-	}
-}
-
-func (tb *tokenBucket) allow(key string, limit int64, window time.Duration) RateLimitState {
-	tb.mu.Lock()
-	defer tb.mu.Unlock()
-
-	now := time.Now()
-	b, ok := tb.buckets[key]
-	if !ok {
-		b = &bucket{
-			tokens:   float64(limit),
-			limit:    limit,
-			lastFill: now,
-			window:   window,
-		}
-		tb.buckets[key] = b
-	}
-
-	// Update limit/window if changed
-	b.limit = limit
-	b.window = window
-
-	// Refill tokens based on elapsed time
-	elapsed := now.Sub(b.lastFill)
-	refillRate := float64(limit) / window.Seconds()
-	b.tokens += elapsed.Seconds() * refillRate
-	if b.tokens > float64(limit) {
-		b.tokens = float64(limit)
-	}
-	b.lastFill = now
-
-	resetsAt := now.Add(window)
-
-	if b.tokens >= 1 {
-		b.tokens--
-		return RateLimitState{
+	if err != nil || len(res) < 3 {
+		// Fail open: Redis unavailable → allow request
+		return true, RateLimitState{
 			Allowed:   true,
-			Remaining: int64(b.tokens),
-			Limit:     limit,
+			Remaining: opts.Limit,
+			Limit:     opts.Limit,
 			ResetsAt:  resetsAt,
 		}
 	}
 
-	return RateLimitState{
-		Allowed:   false,
-		Remaining: 0,
-		Limit:     limit,
+	allowed := asInt64(res[0]) == 1
+	remaining := asInt64(res[1])
+	return allowed, RateLimitState{
+		Allowed:   allowed,
+		Remaining: remaining,
+		Limit:     opts.Limit,
 		ResetsAt:  resetsAt,
 	}
 }
 
-// cleanup removes stale buckets that haven't been used for 2x their window.
-func (tb *tokenBucket) cleanup() {
-	tb.mu.Lock()
-	defer tb.mu.Unlock()
-
-	now := time.Now()
-	for key, b := range tb.buckets {
-		if now.Sub(b.lastFill) > 2*b.window {
-			delete(tb.buckets, key)
-		}
+func asInt64(v interface{}) int64 {
+	switch x := v.(type) {
+	case int64:
+		return x
+	case int:
+		return int64(x)
 	}
+	return 0
 }
