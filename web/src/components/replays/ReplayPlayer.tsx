@@ -58,7 +58,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     () => (session?.duration_seconds ?? 0) * 1000
   );
   const [speed, setSpeed] = useState(1);
-  const [skipInactive, setSkipInactive] = useState(true);
+  const [skipInactive, setSkipInactive] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Smooth timer refs — interpolate between event-cast ticks
@@ -167,7 +167,13 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     playerRef.current.innerHTML = '';
     stopSmoothTimer();
 
-    const containerW = videoAreaRef.current?.offsetWidth || playerRef.current.offsetWidth || 1024;
+    // Use parent container width; fall back to window width so the player
+    // is never accidentally initialised at a narrow (mobile-like) size.
+    const containerW = Math.max(
+      videoAreaRef.current?.offsetWidth || 0,
+      playerRef.current.offsetWidth || 0,
+      typeof window !== 'undefined' ? Math.min(window.innerWidth - 32, 1400) : 1024,
+    ) || 1024;
     const containerH = videoAreaRef.current?.offsetHeight || 600;
 
     // Sort events by timestamp — out-of-order events cause "Node not found" warnings
@@ -182,7 +188,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         width: containerW,
         height: containerH,
         showController: false,
-        skipInactive: true,
+        skipInactive: false,
         UNSAFE_replayCanvas: true,
       },
     });
