@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useEffect, useState } from 'react';
-import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 
 const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
@@ -83,12 +83,11 @@ function pinColor(ratio: number) {
 }
 
 function choroplethColor(ratio: number): string {
-    if (ratio >= 0.8) return '#1e3a8a';
-    if (ratio >= 0.6) return '#1d4ed8';
-    if (ratio >= 0.4) return '#2563eb';
-    if (ratio >= 0.2) return '#3b82f6';
-    if (ratio >= 0.08) return '#60a5fa';
-    return '#bfdbfe';
+    if (ratio >= 0.75) return '#1d4ed8';
+    if (ratio >= 0.5)  return '#2563eb';
+    if (ratio >= 0.25) return '#3b82f6';
+    if (ratio >= 0.08) return '#93c5fd';
+    return '#dbeafe';
 }
 
 // ── 3D Globe ─────────────────────────────────────────────────────────────────
@@ -247,9 +246,8 @@ function FlatMapView({ data }: { data: TopItem[] }) {
         return () => obs.disconnect();
     }, []);
 
-    const oceanBg      = isDark ? '#0c1628' : '#dbeafe';
-    const noDataFill   = isDark ? '#1e293b' : '#e2e8f0';
-    const borderStroke = isDark ? '#0c1628' : '#f8fafc';
+    const noDataFill   = isDark ? '#2d3748' : '#d1d5db';
+    const borderStroke = isDark ? '#1a202c' : '#ffffff';
 
     const countryMap = useMemo(() => {
         const m: Record<string, TopItem> = {};
@@ -258,10 +256,9 @@ function FlatMapView({ data }: { data: TopItem[] }) {
     }, [data]);
 
     const maxPct = useMemo(() => Math.max(...data.map(d => d.percentage), 0.001), [data]);
-    const top5   = useMemo(() => [...data].sort((a, b) => b.count - a.count).slice(0, 5), [data]);
 
     return (
-        <div className="relative w-full h-full rounded-xl overflow-hidden" style={{ background: oceanBg }}>
+        <div className="relative w-full h-full">
             <ComposableMap
                 projectionConfig={{ scale: 210, center: [0, 15] }}
                 style={{ width: '100%', height: '100%' }}
@@ -284,7 +281,7 @@ function FlatMapView({ data }: { data: TopItem[] }) {
                                         strokeWidth={0.5}
                                         style={{
                                             default: { outline: 'none' },
-                                            hover: { outline: 'none', fill: item ? '#93c5fd' : noDataFill, cursor: item ? 'pointer' : 'default' },
+                                            hover: { outline: 'none', filter: 'brightness(0.88)' },
                                             pressed: { outline: 'none' },
                                         }}
                                         onMouseEnter={e => {
@@ -297,64 +294,14 @@ function FlatMapView({ data }: { data: TopItem[] }) {
                             })
                         }
                     </Geographies>
-
-                    {/* Marker dots on top 5 countries */}
-                    {top5.map((item, i) => {
-                        const coords = COUNTRY_COORDS[item.name];
-                        if (!coords) return null;
-                        const ratio = item.percentage / maxPct;
-                        const r = 4 + ratio * 4;
-                        return (
-                            <Marker key={item.name} coordinates={[coords[1], coords[0]]}>
-                                {/* outer glow ring */}
-                                <circle r={r + 5} fill="rgba(255,255,255,0.12)" />
-                                {/* white dot with blue ring */}
-                                <circle r={r} fill="white" fillOpacity={0.95} stroke="#2563eb" strokeWidth={1.5} />
-                                {/* rank number */}
-                                <text
-                                    textAnchor="middle"
-                                    dominantBaseline="central"
-                                    style={{ fontSize: Math.max(4, r * 0.9), fill: '#1d4ed8', fontWeight: 800, fontFamily: 'system-ui, sans-serif' }}
-                                >
-                                    {i + 1}
-                                </text>
-                            </Marker>
-                        );
-                    })}
                 </ZoomableGroup>
             </ComposableMap>
 
-            {/* Tooltip */}
             {tooltip && (
-                <div
-                    className="fixed z-50 pointer-events-none"
-                    style={{ left: tooltipPos.x + 16, top: tooltipPos.y - 70 }}
-                >
-                    <div className="rounded-xl shadow-2xl px-3.5 py-2.5 text-xs text-white border border-white/10"
-                        style={{ background: 'rgba(10,15,30,0.92)', backdropFilter: 'blur(8px)' }}>
-                        <div className="font-bold text-sm leading-tight">{tooltip.name}</div>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-white/60">{tooltip.count.toLocaleString()} visitors</span>
-                            <span className="text-white/30">·</span>
-                            <span className="text-blue-300 font-semibold">{tooltip.percentage.toFixed(1)}%</span>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Top countries mini leaderboard */}
-            {top5.length > 0 && (
-                <div className="absolute top-3 right-3 bg-background/90 backdrop-blur-md border border-border/50 rounded-xl px-3 py-2.5 shadow-lg min-w-[140px]">
-                    <div className="text-[11px] font-semibold text-foreground mb-2">Top Countries</div>
-                    {top5.map((item, i) => (
-                        <div key={item.name} className="flex items-center justify-between gap-3 py-0.5">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                                <span className="text-[9px] font-bold text-muted-foreground/50 w-3 shrink-0">{i + 1}</span>
-                                <span className="text-[11px] font-medium text-foreground truncate">{item.name}</span>
-                            </div>
-                            <span className="text-[10px] font-bold text-blue-500 shrink-0">{item.percentage.toFixed(1)}%</span>
-                        </div>
-                    ))}
+                <div className="fixed z-50 pointer-events-none bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs"
+                    style={{ left: tooltipPos.x + 14, top: tooltipPos.y - 52 }}>
+                    <div className="font-semibold">{tooltip.name}</div>
+                    <div className="text-muted-foreground mt-0.5">{tooltip.count.toLocaleString()} visitors · {tooltip.percentage.toFixed(2)}%</div>
                 </div>
             )}
         </div>
@@ -364,16 +311,20 @@ function FlatMapView({ data }: { data: TopItem[] }) {
 // ── Legend ────────────────────────────────────────────────────────────────────
 function Legend() {
     return (
-        <div className="absolute bottom-3 left-3 bg-background/90 backdrop-blur-md border border-border/50 rounded-xl px-3 py-2.5 shadow-lg">
-            <div className="text-[11px] font-semibold text-foreground mb-2">Traffic share</div>
-            <div
-                className="w-28 h-2 rounded-full mb-1"
-                style={{ background: 'linear-gradient(to right, #bfdbfe, #60a5fa, #2563eb, #1e3a8a)' }}
-            />
-            <div className="flex justify-between text-[9px] text-muted-foreground">
-                <span>Low</span>
-                <span>High</span>
-            </div>
+        <div className="absolute bottom-3 left-3 flex flex-col gap-1.5 bg-background/90 backdrop-blur-md border border-border/50 rounded-lg px-3 py-2.5 text-[10px]">
+            <div className="font-semibold text-foreground mb-0.5 text-[11px]">Traffic share</div>
+            {[
+                { bg: '#dbeafe', label: '< 8%' },
+                { bg: '#93c5fd', label: '8–25%' },
+                { bg: '#3b82f6', label: '25–50%' },
+                { bg: '#2563eb', label: '50–75%' },
+                { bg: '#1d4ed8', label: '> 75%' },
+            ].map(({ bg, label }) => (
+                <div key={label} className="flex items-center gap-2 text-muted-foreground">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: bg }} />
+                    {label}
+                </div>
+            ))}
         </div>
     );
 }

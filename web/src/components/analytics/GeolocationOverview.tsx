@@ -15,7 +15,7 @@ import { getCountryFlag } from '@/utils/countries';
 const WorldMap = dynamic(() => import('./WorldMap'), {
     ssr: false,
     loading: () => (
-        <div className="h-[480px] rounded flex items-center justify-center">
+        <div className="h-[600px] rounded flex items-center justify-center">
             <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
                 <p className="text-sm text-muted-foreground">Loading map...</p>
@@ -74,7 +74,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     </div>
                 </CardHeader>
                 <CardContent className="p-6">
-                    <div className="animate-pulse h-[480px] bg-accent/5 rounded" />
+                    <div className="animate-pulse h-[600px] bg-accent/5 rounded" />
                 </CardContent>
             </Card>
         );
@@ -100,9 +100,9 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                 </div>
             </CardHeader>
             <CardContent className="p-6 pt-6">
-                <div className="min-h-[480px]">
+                <div className="min-h-[600px]">
                     {geoTab === 'map' && (
-                        <div className="h-[480px] rounded-xl overflow-hidden">
+                        <div className="h-[600px] rounded-xl overflow-hidden">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}
