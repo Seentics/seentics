@@ -364,8 +364,6 @@ function HeatmapViewContent() {
 
   const siteUrl = buildIframeUrl();
 
-  const densityLabel = points.length > 500 ? 'High' : points.length > 100 ? 'Medium' : points.length > 0 ? 'Low' : 'None';
-
   // Derived scroll stats (only meaningful when activeType === 'scroll')
   const scrollStats = (() => {
     if (activeType !== 'scroll' || points.length === 0) return null;
@@ -831,54 +829,21 @@ function HeatmapViewContent() {
               </div>
             )}
 
-            {/* Statistics */}
-            <div className="p-4 border-b border-white/[0.06]">
-              <PanelSection title="Statistics">
-                <div className="space-y-2.5">
-                  <StatRow label="Data Points" value={points.length.toLocaleString()} />
-                  <StatRow label="Overlay" value={TYPE_LABELS[activeType] || activeType} />
-                  <StatRow label="Density" value={densityLabel} />
-                  <StatRow label="Viewport" value={`${deviceWidth}px`} />
-                  <StatRow label="Page Height" value={`${dimensions.height}px`} />
-                  <StatRow label="Date Range" value={`${datePreset || 'Custom'}${datePreset ? 'd' : ''}`} />
-                </div>
-              </PanelSection>
-            </div>
-
             {/* Actions */}
-            <div className="p-4 space-y-2">
-              <PanelSection title="Tools">
-                <div className="space-y-1.5">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start h-8 text-xs text-zinc-400 hover:text-white hover:bg-white/5 gap-2"
-                    onClick={() => setShowOverlay(!showOverlay)}
-                  >
-                    {showOverlay ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    {showOverlay ? 'Hide Overlay' : 'Show Overlay'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start h-8 text-xs text-zinc-400 hover:text-white hover:bg-white/5 gap-2"
-                    onClick={() => setShowHeightControl(!showHeightControl)}
-                  >
-                    <Ruler className="h-3.5 w-3.5" />
-                    Adjust Height
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start h-8 text-xs text-zinc-400 hover:text-white hover:bg-white/5 gap-2"
-                    disabled={loading}
-                    onClick={() => setRefreshKey(k => k + 1)}
-                  >
-                    {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
-                    {loading ? 'Refreshing...' : 'Refresh Data'}
-                  </Button>
-                </div>
-              </PanelSection>
+            <div className="p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-zinc-500">{points.length.toLocaleString()} data points</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-zinc-400 hover:text-white hover:bg-white/5 gap-1.5 px-2"
+                  disabled={loading}
+                  onClick={() => setRefreshKey(k => k + 1)}
+                >
+                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCcw className="h-3.5 w-3.5" />}
+                  {loading ? 'Refreshing...' : 'Refresh'}
+                </Button>
+              </div>
             </div>
           </aside>
         )}
