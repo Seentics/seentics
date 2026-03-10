@@ -86,11 +86,15 @@
     if (p.funnels) buf.funnels = p.funnels.concat(buf.funnels);
     if (p.automations) buf.automations = p.automations.concat(buf.automations);
   };
+  var pendingFlush = false;
   var flush = function () {
-    if (flushing) return;
+    if (flushing) { pendingFlush = true; return; }
     var p = buildPayload(); if (!p) return;
     flushing = true;
-    post('tracker/collect', p).catch(function () { restoreBuf(p); }).finally(function () { flushing = false; });
+    post('tracker/collect', p).catch(function () { restoreBuf(p); }).finally(function () {
+      flushing = false;
+      if (pendingFlush) { pendingFlush = false; flush(); }
+    });
   };
   var beaconFlush = function () {
     var p = buildPayload(); if (!p) return;

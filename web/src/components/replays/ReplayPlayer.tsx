@@ -97,10 +97,16 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     const hasFullSnapshot = (evts: any[]) => evts.some((e: any) => e.type === 2);
 
     const fetchChunk = async (url: string): Promise<any[]> => {
-      const res = await fetch(url, { signal });
-      if (!res.ok) return [];
-      const data = await res.json();
-      return Array.isArray(data) ? data : [];
+      try {
+        const res = await fetch(url, { signal });
+        if (!res.ok) return [];
+        const text = await res.text();
+        if (!text) return [];
+        const data = JSON.parse(text);
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
     };
 
     // Fetch multiple chunks concurrently with bounded concurrency, calling
@@ -498,12 +504,12 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     lastWatchdogPosRef.current = 0;
     watchdogRetryRef.current = 0;
 
-    // Watchdog: if no event-cast fires for >2s while "playing", seek forward to unstick.
+    // Watchdog: if no event-cast fires for >4s while "playing", seek forward to unstick.
     // Uses escalating jumps (10s → 30s → 60s) when stuck at the same position.
     watchdogTimerRef.current = setInterval(() => {
       if (!isPlayingRef.current || finishedRef.current || !playerInstanceRef.current) return;
       const stale = Date.now() - lastEventCastWallRef.current;
-      if (stale > 2000) {
+      if (stale > 4000) {
         const pos = currentTimeRef.current;
         const samePos = Math.abs(pos - lastWatchdogPosRef.current) < 500;
         if (samePos) {
@@ -529,6 +535,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
             playerInstanceRef.current.goto(nudge, true);
             lastEventCastWallRef.current = Date.now();
             lastWallTimeRef.current = Date.now();
+            lastEventTimeRef.current = nudge;  // Sync smooth timer anchor to prevent position reset
             lastWatchdogPosRef.current = nudge;
             currentTimeRef.current = nudge;
           } catch {
@@ -547,7 +554,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           stopSmoothTimer();
         }
       }
-    }, 2000);
+    }, 3000);
 
     return () => {
       stopSmoothTimer();
