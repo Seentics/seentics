@@ -187,8 +187,12 @@ func main() {
 	autoService := autoServicePkg.NewAutomationService(autoRepo, websiteService)
 	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
 
-	eventService := services.NewEventService(eventRepo, db, websiteService, autoService, logger, rdb)
-	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger)
+	// Webhook delivery queue (Redis-backed with retries and DLQ)
+	webhookQueue := autoServicePkg.NewWebhookQueue(appCache, logger)
+	go webhookQueue.StartWorker(ctx)
+
+	eventService := services.NewEventService(eventRepo, db, websiteService, autoService, logger, rdb, webhookQueue)
+	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger, appCache)
 	privacyService := services.NewPrivacyService(privacyRepo, websiteService, logger)
 
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
@@ -197,7 +201,7 @@ func main() {
 	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger, rdb)
 	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
 
-	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store, logger)
+	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store, logger, appCache)
 	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 	replayService.StartRageClickWorker(ctx)
 

@@ -10,6 +10,7 @@ import (
 	"github.com/Seentics/seentics/internal/modules/analytics/models"
 	"github.com/Seentics/seentics/internal/modules/analytics/repository"
 	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
+	"github.com/Seentics/seentics/internal/shared/cache"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -19,15 +20,20 @@ import (
 type AnalyticsService struct {
 	repo     repository.MainAnalyticsRepository
 	websites *websiteServicePkg.WebsiteService
+	cache    *cache.Cache
 	logger   zerolog.Logger
 }
 
-func NewAnalyticsService(repo repository.MainAnalyticsRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger) *AnalyticsService {
-	return &AnalyticsService{
+func NewAnalyticsService(repo repository.MainAnalyticsRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger, appCache ...*cache.Cache) *AnalyticsService {
+	svc := &AnalyticsService{
 		repo:     repo,
 		websites: websites,
 		logger:   logger,
 	}
+	if len(appCache) > 0 {
+		svc.cache = appCache[0]
+	}
+	return svc
 }
 
 // resolveWebsiteID canonicalizes the website ID to its hex SiteID form
@@ -266,6 +272,17 @@ func (s *AnalyticsService) GetLiveVisitors(ctx context.Context, websiteID string
 	if err != nil {
 		return 0, err
 	}
+
+	// Fast path: read from Redis HyperLogLog (sub-ms, no ClickHouse query)
+	if s.cache != nil {
+		hlKey := fmt.Sprintf("active:%s", canonicalID)
+		count, err := s.cache.PFCount(hlKey)
+		if err == nil && count > 0 {
+			return int(count), nil
+		}
+	}
+
+	// Fallback: query ClickHouse
 	return s.repo.GetLiveVisitors(ctx, canonicalID)
 }
 

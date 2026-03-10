@@ -15,6 +15,7 @@ import (
 	"github.com/Seentics/seentics/internal/modules/replays/models"
 	"github.com/Seentics/seentics/internal/modules/replays/repository"
 	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
+	"github.com/Seentics/seentics/internal/shared/cache"
 	"github.com/Seentics/seentics/internal/shared/storage"
 	"github.com/Seentics/seentics/internal/shared/utils"
 
@@ -52,9 +53,8 @@ type replayService struct {
 	websites *websiteServicePkg.WebsiteService
 	store    *storage.S3Store
 	logger   zerolog.Logger
-	// newSessionMu serialises the "session exists? → count → save" pipeline
-	// per user so concurrent tracker requests for different new sessions
-	// cannot both pass the quota check before either is written to DB.
+	cache    *cache.Cache
+	// newSessionMu is the fallback in-process lock when Redis is unavailable.
 	newSessionMu sync.Map // key: userID string → *sync.Mutex
 }
 
@@ -63,13 +63,37 @@ func (s *replayService) getUserMutex(userID uuid.UUID) *sync.Mutex {
 	return mu.(*sync.Mutex)
 }
 
-func NewReplayService(repo repository.ReplayRepository, websites *websiteServicePkg.WebsiteService, store *storage.S3Store, logger zerolog.Logger) ReplayService {
-	return &replayService{
+// sessionKnown checks if a session exists in Redis SET (O(1)),
+// falling back to DB query if Redis is unavailable.
+func (s *replayService) sessionKnown(ctx context.Context, websiteID, sessionID string) (bool, error) {
+	if s.cache != nil {
+		setKey := fmt.Sprintf("replay:sessions:%s", websiteID)
+		if s.cache.SIsMember(setKey, sessionID) {
+			return true, nil
+		}
+	}
+	return s.repo.SessionExists(ctx, websiteID, sessionID)
+}
+
+// markSessionKnown adds a session to the Redis SET so future chunk uploads skip the DB query.
+func (s *replayService) markSessionKnown(websiteID, sessionID string) {
+	if s.cache != nil {
+		setKey := fmt.Sprintf("replay:sessions:%s", websiteID)
+		s.cache.SAdd(setKey, 24*time.Hour, sessionID)
+	}
+}
+
+func NewReplayService(repo repository.ReplayRepository, websites *websiteServicePkg.WebsiteService, store *storage.S3Store, logger zerolog.Logger, appCache ...*cache.Cache) ReplayService {
+	svc := &replayService{
 		repo:     repo,
 		websites: websites,
 		store:    store,
 		logger:   logger,
 	}
+	if len(appCache) > 0 {
+		svc.cache = appCache[0]
+	}
+	return svc
 }
 
 // parseUA extracts browser, device type, and OS from a User-Agent string.
@@ -116,17 +140,29 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 
 	// 3. Global quota enforcement
 	if limit, ok := ctx.Value("max_replays").(int); ok && limit > 0 {
-		exists, err := s.repo.SessionExists(ctx, req.WebsiteID, req.SessionID)
+		exists, err := s.sessionKnown(ctx, req.WebsiteID, req.SessionID)
 		if err != nil {
 			return fmt.Errorf("failed to check session existence: %w", err)
 		}
 
 		if !exists {
-			mu := s.getUserMutex(website.UserID)
-			mu.Lock()
-			defer mu.Unlock()
+			// Distributed lock (Redis) with in-process fallback
+			lockKey := fmt.Sprintf("lock:replay:%s", website.UserID.String())
+			usedDistLock := false
+			if s.cache != nil {
+				if s.cache.AcquireLock(lockKey, 10*time.Second) {
+					usedDistLock = true
+					defer s.cache.ReleaseLock(lockKey)
+				}
+			}
+			if !usedDistLock {
+				mu := s.getUserMutex(website.UserID)
+				mu.Lock()
+				defer mu.Unlock()
+			}
 
-			exists, err = s.repo.SessionExists(ctx, req.WebsiteID, req.SessionID)
+			// Double-check after acquiring lock
+			exists, err = s.sessionKnown(ctx, req.WebsiteID, req.SessionID)
 			if err != nil {
 				return fmt.Errorf("failed to check session existence: %w", err)
 			}
@@ -172,7 +208,13 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 		meta.EntryPage = req.Page
 	}
 
-	return s.repo.SaveChunk(ctx, req.WebsiteID, req.SessionID, json.RawMessage("[]"), req.Sequence, meta)
+	if err := s.repo.SaveChunk(ctx, req.WebsiteID, req.SessionID, json.RawMessage("[]"), req.Sequence, meta); err != nil {
+		return err
+	}
+
+	// Mark session known in Redis so future chunks skip the DB query
+	s.markSessionKnown(req.WebsiteID, req.SessionID)
+	return nil
 }
 
 func (s *replayService) GetReplay(ctx context.Context, websiteID string, sessionID string, userID string) ([]models.SessionReplayChunk, error) {

@@ -133,6 +133,110 @@ func (c *Cache) Incr(key string, delta int64) (int64, error) {
 	return n, err
 }
 
+// PFAdd adds elements to a HyperLogLog key. Sets TTL on first add.
+func (c *Cache) PFAdd(key string, ttl time.Duration, elements ...string) error {
+	ctx := context.Background()
+	k := c.k(key)
+	args := make([]interface{}, len(elements))
+	for i, e := range elements {
+		args[i] = e
+	}
+	added, err := c.rdb.PFAdd(ctx, k, args...).Result()
+	if err != nil {
+		return err
+	}
+	// Set TTL only when the key was first created (added > 0 and no existing TTL)
+	if added > 0 && ttl > 0 {
+		curTTL := c.rdb.TTL(ctx, k).Val()
+		if curTTL < 0 {
+			c.rdb.Expire(ctx, k, ttl)
+		}
+	}
+	return nil
+}
+
+// PFCount returns the approximate cardinality of a HyperLogLog key.
+func (c *Cache) PFCount(key string) (int64, error) {
+	ctx := context.Background()
+	return c.rdb.PFCount(ctx, c.k(key)).Result()
+}
+
+// SAdd adds members to a Redis set. Sets TTL on first add.
+func (c *Cache) SAdd(key string, ttl time.Duration, members ...string) error {
+	ctx := context.Background()
+	k := c.k(key)
+	args := make([]interface{}, len(members))
+	for i, m := range members {
+		args[i] = m
+	}
+	err := c.rdb.SAdd(ctx, k, args...).Err()
+	if err != nil {
+		return err
+	}
+	if ttl > 0 {
+		curTTL := c.rdb.TTL(ctx, k).Val()
+		if curTTL < 0 {
+			c.rdb.Expire(ctx, k, ttl)
+		}
+	}
+	return nil
+}
+
+// SIsMember returns true if member is in the set.
+func (c *Cache) SIsMember(key, member string) bool {
+	ctx := context.Background()
+	val, err := c.rdb.SIsMember(ctx, c.k(key), member).Result()
+	return err == nil && val
+}
+
+// AcquireLock attempts to acquire a distributed lock using SET NX EX.
+// Returns true if the lock was acquired.
+func (c *Cache) AcquireLock(key string, ttl time.Duration) bool {
+	ctx := context.Background()
+	ok, err := c.rdb.SetNX(ctx, c.k(key), "1", ttl).Result()
+	return err == nil && ok
+}
+
+// ReleaseLock releases a distributed lock.
+func (c *Cache) ReleaseLock(key string) {
+	ctx := context.Background()
+	c.rdb.Del(ctx, c.k(key))
+}
+
+// LPush pushes one or more values to the left of a Redis list.
+func (c *Cache) LPush(key string, values ...string) error {
+	ctx := context.Background()
+	args := make([]interface{}, len(values))
+	for i, v := range values {
+		args[i] = v
+	}
+	return c.rdb.LPush(ctx, c.k(key), args...).Err()
+}
+
+// BRPop blocks until an element is available on one of the given lists or timeout expires.
+// Returns the key and value, or empty strings on timeout.
+func (c *Cache) BRPop(timeout time.Duration, keys ...string) (string, string, error) {
+	ctx := context.Background()
+	prefixed := make([]string, len(keys))
+	for i, k := range keys {
+		prefixed[i] = c.k(k)
+	}
+	result, err := c.rdb.BRPop(ctx, timeout, prefixed...).Result()
+	if err != nil {
+		return "", "", err
+	}
+	if len(result) == 2 {
+		return result[0], result[1], nil
+	}
+	return "", "", fmt.Errorf("unexpected BRPop result")
+}
+
+// LLen returns the length of a Redis list.
+func (c *Cache) LLen(key string) (int64, error) {
+	ctx := context.Background()
+	return c.rdb.LLen(ctx, c.k(key)).Result()
+}
+
 // Shutdown closes the underlying Redis client.
 func (c *Cache) Shutdown() error {
 	return c.rdb.Close()

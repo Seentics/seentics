@@ -49,15 +49,20 @@ type EventService struct {
 	shutdownMu sync.RWMutex
 }
 
-func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger, rdb *redis.Client) *EventService {
+func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger, rdb *redis.Client, webhookQueue ...*autoServicePkg.WebhookQueue) *EventService {
 	ctx, cancel := context.WithCancel(context.Background())
+
+	var queue []*autoServicePkg.WebhookQueue
+	if len(webhookQueue) > 0 {
+		queue = webhookQueue
+	}
 
 	service := &EventService{
 		repo:     repo,
 		db:       db,
 		websites: websiteSvc,
 		auto:     autoSvc,
-		engine:   autoServicePkg.NewExecutionEngine(autoSvc, logger),
+		engine:   autoServicePkg.NewExecutionEngine(autoSvc, logger, queue...),
 		logger:   logger,
 		rdb:      rdb,
 		autoSem:  make(chan struct{}, 64),
@@ -150,6 +155,7 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	req.SiteID = website.SiteID
 
 	accepted := 0
+	var liveVisitorIDs []string
 	for i := range req.Events {
 		req.Events[i].WebsiteID = req.SiteID
 		if req.Events[i].EventType == "" {
@@ -173,6 +179,22 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 			continue
 		}
 		accepted++
+
+		// Collect visitor IDs for realtime HyperLogLog tracking
+		if req.Events[i].EventType == "pageview" && req.Events[i].VisitorID != "" {
+			liveVisitorIDs = append(liveVisitorIDs, req.Events[i].VisitorID)
+		}
+	}
+
+	// Batch PFADD for realtime active visitors (5-min sliding window)
+	if len(liveVisitorIDs) > 0 {
+		hlKey := fmt.Sprintf("active:%s", req.SiteID)
+		args := make([]interface{}, len(liveVisitorIDs))
+		for i, v := range liveVisitorIDs {
+			args[i] = v
+		}
+		s.rdb.PFAdd(ctx, "sn:"+hlKey, args...)
+		s.rdb.Expire(ctx, "sn:"+hlKey, 5*time.Minute)
 	}
 
 	return &models.BatchEventResponse{

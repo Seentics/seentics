@@ -17,15 +17,20 @@ import (
 
 // ExecutionEngine handles automation execution
 type ExecutionEngine struct {
-	service *AutomationService
-	logger  zerolog.Logger
+	service      *AutomationService
+	logger       zerolog.Logger
+	webhookQueue *WebhookQueue
 }
 
-func NewExecutionEngine(service *AutomationService, logger zerolog.Logger) *ExecutionEngine {
-	return &ExecutionEngine{
+func NewExecutionEngine(service *AutomationService, logger zerolog.Logger, queue ...*WebhookQueue) *ExecutionEngine {
+	e := &ExecutionEngine{
 		service: service,
 		logger:  logger,
 	}
+	if len(queue) > 0 {
+		e.webhookQueue = queue[0]
+	}
+	return e
 }
 
 // ExecuteAutomation executes an automation for a given trigger event
@@ -179,7 +184,8 @@ func (e *ExecutionEngine) executeEmail(ctx context.Context, action models.Automa
 	return nil
 }
 
-// executeWebhook sends a webhook
+// executeWebhook enqueues a webhook for async delivery via Redis queue,
+// falling back to synchronous HTTP delivery when the queue is unavailable.
 func (e *ExecutionEngine) executeWebhook(ctx context.Context, action models.AutomationAction, data map[string]interface{}) error {
 	url, ok := action.ActionConfig["url"].(string)
 	if !ok || url == "" {
@@ -191,7 +197,7 @@ func (e *ExecutionEngine) executeWebhook(ctx context.Context, action models.Auto
 		method = "POST"
 	}
 
-	headers, _ := action.ActionConfig["headers"].(map[string]interface{})
+	rawHeaders, _ := action.ActionConfig["headers"].(map[string]interface{})
 	body, _ := action.ActionConfig["body"].(map[string]interface{})
 
 	// Merge trigger data with custom body
@@ -203,6 +209,30 @@ func (e *ExecutionEngine) executeWebhook(ctx context.Context, action models.Auto
 		payload[k] = v
 	}
 
+	headers := make(map[string]string)
+	for k, v := range rawHeaders {
+		if sv, ok := v.(string); ok {
+			headers[k] = sv
+		}
+	}
+
+	// Async path: enqueue to Redis for reliable delivery with retries
+	if e.webhookQueue != nil {
+		job := WebhookJob{
+			URL:     url,
+			Method:  method,
+			Headers: headers,
+			Payload: payload,
+		}
+		if err := e.webhookQueue.Enqueue(job); err != nil {
+			e.logger.Warn().Err(err).Msg("Failed to enqueue webhook, falling back to sync")
+		} else {
+			e.logger.Debug().Str("url", url).Msg("Webhook enqueued for async delivery")
+			return nil
+		}
+	}
+
+	// Sync fallback
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("failed to marshal webhook payload: %w", err)
@@ -215,9 +245,7 @@ func (e *ExecutionEngine) executeWebhook(ctx context.Context, action models.Auto
 
 	req.Header.Set("Content-Type", "application/json")
 	for key, value := range headers {
-		if strValue, ok := value.(string); ok {
-			req.Header.Set(key, strValue)
-		}
+		req.Header.Set(key, value)
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
