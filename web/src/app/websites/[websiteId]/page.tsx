@@ -41,13 +41,15 @@ import { useAuth } from '@/stores/useAuthStore';
 import { format } from 'date-fns';
 import { getDemoData, getDemoWebsite } from '@/lib/demo-data';
 import Link from 'next/link';
-import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRight, ArrowDownRight, Clock, Eye, Users, TrendingDown, ChevronRight, Target, X } from 'lucide-react';
+import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRight, ArrowDownRight, Clock, Eye, Users, TrendingDown, ChevronRight, Target, X, Zap, Gauge } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
 import { EventsDetails } from '@/components/analytics/EventsDetails';
 import { GoalConversions } from '@/components/analytics/GoalConversions';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
+import { PagePerformanceTable } from '@/components/analytics/PagePerformanceTable';
+
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
 import { FilterModal } from '@/components/analytics/FilterModal';
@@ -647,6 +649,26 @@ export default function WebsiteDashboardPage() {
           </div>
         </div>
 
+        {/* PAGE PERFORMANCE */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <Gauge className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-bold tracking-tight">Page Performance</h2>
+            <div className="h-px bg-border flex-1 ml-4" />
+          </div>
+
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-8">
+              <ChartErrorBoundary label="Page Performance">
+                <PagePerformanceTable
+                  data={(isDemoMode ? demoData?.topPages : topPages) || { top_pages: [] }}
+                  isLoading={!isDemoMode && pagesLoading}
+                />
+              </ChartErrorBoundary>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* CONVERSION & MARKETING INTELLIGENCE */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
@@ -721,6 +743,40 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* CUSTOM EVENTS TRACKER */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <Zap className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-bold tracking-tight">Custom Events</h2>
+            <div className="h-px bg-border flex-1 ml-4" />
+          </div>
+
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardHeader className="p-8 pb-4 border-b border-border/60">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-base font-semibold tracking-tight">Event Tracker</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">Clicks, form submissions, downloads & custom interactions</p>
+                </div>
+                {transformedCustomEvents.top_events.length > 0 && (
+                  <div className="text-right">
+                    <p className="text-sm font-bold">{transformedCustomEvents.top_events.length}</p>
+                    <p className="text-[10px] text-muted-foreground">event types</p>
+                  </div>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <ChartErrorBoundary label="Custom Events">
+                <EventsDetails
+                  items={transformedCustomEvents.top_events}
+                  isLoading={!isDemoMode && customEventsLoading}
+                />
+              </ChartErrorBoundary>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Detailed Data Modal */}
