@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -261,7 +260,9 @@ func (h *ReplayHandler) ListSessions(c *gin.Context) {
 		nextCursor = &cursor
 	}
 
-	c.Header("Cache-Control", fmt.Sprintf("private, max-age=%d, stale-while-revalidate=%d", 60, 120))
+	// No browser caching — the Redis-backed service cache (2 min TTL) already
+	// handles performance. Browser caching causes stale data after deletions.
+	c.Header("Cache-Control", "no-cache, no-store")
 	c.JSON(http.StatusOK, gin.H{
 		"sessions":    sessions,
 		"total":       total,
