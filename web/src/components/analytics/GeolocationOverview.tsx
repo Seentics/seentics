@@ -100,7 +100,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                 </div>
             </CardHeader>
             <CardContent className="p-6 pt-6">
-                <div className="min-h-[600px]">
+                <div className="min-h-[400px]">
                     {geoTab === 'map' && (
                         <div className="h-[600px] rounded-xl overflow-hidden">
                             <WorldMap

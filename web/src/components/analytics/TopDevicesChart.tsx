@@ -78,7 +78,7 @@ const getBrowserImage = (browser: string) => {
 };
 
 export function TopDevicesChart({ data, osData, screenData, browserData, isLoading, onFilter }: TopDevicesChartProps) {
-  const [activeTab, setActiveTab] = useState('devices');
+  const [activeTab, setActiveTab] = useState('os');
 
   if (isLoading) {
     return (

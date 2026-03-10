@@ -345,17 +345,42 @@ func (r *ClickHouseAnalyticsRepository) GetTopPages(ctx context.Context, website
 	filterClause, filterParams := r.buildFilterClause(filters)
 
 	query := fmt.Sprintf(`
+		WITH page_visits AS (
+			SELECT
+				page,
+				session_id,
+				visitor_id,
+				timestamp,
+				leadInFrame(timestamp, 1, timestamp) OVER (
+					PARTITION BY session_id ORDER BY timestamp
+					ROWS BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING
+				) as next_ts
+			FROM events
+			WHERE website_id = ?
+			AND timestamp >= now() - interval ? day
+			AND event_type = 'pageview'
+			%s
+		),
+		session_stats AS (
+			SELECT session_id, count() as page_count
+			FROM page_visits
+			GROUP BY session_id
+		)
 		SELECT
-			page,
-			COUNT(*) as views,
-			uniq(visitor_id) as unique_visitors,
-			COALESCE(avg(time_on_page), 0) as avg_time
-		FROM events
-		WHERE website_id = ?
-		AND timestamp >= now() - interval ? day
-		AND event_type = 'pageview'
-		%s
-		GROUP BY page
+			pv.page,
+			count() as views,
+			uniq(pv.visitor_id) as unique_visitors,
+			avg(
+				if(
+					pv.next_ts > pv.timestamp AND dateDiff('second', pv.timestamp, pv.next_ts) <= 1800,
+					dateDiff('second', pv.timestamp, pv.next_ts),
+					NULL
+				)
+			) as avg_time,
+			countIf(ss.page_count = 1) * 100.0 / count() as bounce_rate
+		FROM page_visits pv
+		INNER JOIN session_stats ss ON pv.session_id = ss.session_id
+		GROUP BY pv.page
 		ORDER BY views DESC
 		LIMIT ?`, filterClause)
 
@@ -372,13 +397,14 @@ func (r *ClickHouseAnalyticsRepository) GetTopPages(ctx context.Context, website
 	for rows.Next() {
 		var p models.PageStat
 		var views, unique uint64
-		var avgTime float64
-		if err := rows.Scan(&p.Page, &views, &unique, &avgTime); err != nil {
+		var avgTime, bounceRate float64
+		if err := rows.Scan(&p.Page, &views, &unique, &avgTime, &bounceRate); err != nil {
 			continue
 		}
 		p.Views = int(views)
 		p.Unique = int(unique)
 		p.AvgTime = &avgTime
+		p.BounceRate = &bounceRate
 		pages = append(pages, p)
 	}
 

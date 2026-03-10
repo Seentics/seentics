@@ -132,16 +132,24 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 		total = 0
 	}
 
-	// Scan only root chunks (sequence=0) for metadata.
-	// chunk_count is fetched via a single aggregate CTE over the page's
-	// session_ids instead of a per-row correlated subquery.
+	// Use a CTE to compute duration and chunk_count from all chunks per session,
+	// then join with root chunks (sequence=0) for metadata.
 	const baseSelect = `
+		WITH chunk_stats AS (
+			SELECT
+				session_id,
+				EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp)))::float8 AS duration,
+				COUNT(*)::int AS chunk_count
+			FROM session_replays
+			WHERE website_id = $1
+			GROUP BY session_id
+		)
 		SELECT
 			r.session_id,
 			r.timestamp AS start_time,
 			r.timestamp AS end_time,
-			0 AS duration,
-			1 AS chunk_count,
+			COALESCE(cs.duration, 0) AS duration,
+			COALESCE(cs.chunk_count, 1) AS chunk_count,
 			COALESCE(NULLIF(r.browser, ''), 'Unknown') AS browser,
 			COALESCE(NULLIF(r.device, ''), 'Unknown') AS device,
 			COALESCE(NULLIF(r.os, ''), 'Unknown') AS os,
@@ -149,6 +157,7 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 			COALESCE(NULLIF(r.entry_page, ''), 'Unknown') AS entry_page,
 			COALESCE(r.has_rage_clicks, false) AS has_rage_clicks
 		FROM session_replays r
+		LEFT JOIN chunk_stats cs ON r.session_id = cs.session_id
 		WHERE r.website_id = $1 AND r.sequence = 0
 	`
 
