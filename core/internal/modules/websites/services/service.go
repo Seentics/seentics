@@ -221,6 +221,25 @@ func (s *WebsiteService) ListUserWebsites(ctx context.Context, userID uuid.UUID)
 	return s.repo.ListByUserID(ctx, userID)
 }
 
+// ListAllActiveSiteIDs returns site_id for every active website.
+func (s *WebsiteService) ListAllActiveSiteIDs(ctx context.Context) ([]string, error) {
+	return s.repo.ListAllActiveSiteIDs(ctx)
+}
+
+// ListAllActiveWebsiteUUIDs returns the UUID (id column) of every active website.
+// Used by the heatmap cache warmer (heatmaps key by UUID, not site_id).
+func (s *WebsiteService) ListAllActiveWebsiteUUIDs(ctx context.Context) ([]string, error) {
+	websites, err := s.repo.ListAllActiveWebsites(ctx)
+	if err != nil {
+		return nil, err
+	}
+	uuids := make([]string, len(websites))
+	for i, w := range websites {
+		uuids[i] = w.UUID
+	}
+	return uuids, nil
+}
+
 // GetWebsiteBySiteID returns details for a specific site, using cache
 func (s *WebsiteService) GetWebsiteBySiteID(ctx context.Context, siteID string) (*models.Website, error) {
 	cacheKey := fmt.Sprintf("website:site_id:%s", siteID)

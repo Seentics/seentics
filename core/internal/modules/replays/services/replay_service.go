@@ -46,6 +46,9 @@ type ReplayService interface {
 	// StartRageClickWorker launches a background goroutine that periodically scans
 	// recently-finished sessions for rage clicks and updates the DB.
 	StartRageClickWorker(ctx context.Context)
+	// StartCacheWarmer proactively warms the session list cache for all active
+	// websites so that the very first visit to the sessions page is instant.
+	StartCacheWarmer(ctx context.Context)
 }
 
 type replayService struct {
@@ -94,6 +97,26 @@ func NewReplayService(repo repository.ReplayRepository, websites *websiteService
 		svc.cache = appCache[0]
 	}
 	return svc
+}
+
+// countSessionsCached returns the global session count for a user, backed by Redis
+// with a 5-minute TTL so the expensive COUNT(DISTINCT) + JOIN only runs once per window.
+func (s *replayService) countSessionsCached(ctx context.Context, userID uuid.UUID) (int64, error) {
+	cacheKey := fmt.Sprintf("replay:count:user:%s", userID.String())
+	if s.cache != nil {
+		var cached int64
+		if s.cache.Get(cacheKey, &cached) {
+			return cached, nil
+		}
+	}
+	count, err := s.repo.CountSessionsForUser(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	if s.cache != nil {
+		_ = s.cache.Set(cacheKey, count, 5*time.Minute)
+	}
+	return count, nil
 }
 
 // parseUA extracts browser, device type, and OS from a User-Agent string.
@@ -167,7 +190,7 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 				return fmt.Errorf("failed to check session existence: %w", err)
 			}
 			if !exists {
-				count, err := s.repo.CountSessionsForUser(ctx, website.UserID)
+				count, err := s.countSessionsCached(ctx, website.UserID)
 				if err == nil && count >= int64(limit) {
 					return fmt.Errorf("recording limit reached (%d/%d). cannot start new sessions", count, limit)
 				}
@@ -214,6 +237,12 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 
 	// Mark session known in Redis so future chunks skip the DB query
 	s.markSessionKnown(req.WebsiteID, req.SessionID)
+
+	// Bump cached user session count so quota stays accurate without DB round-trip
+	if req.Sequence == 0 && s.cache != nil {
+		countKey := fmt.Sprintf("replay:count:user:%s", website.UserID.String())
+		s.cache.Incr(countKey, 1)
+	}
 	return nil
 }
 
@@ -365,29 +394,50 @@ func (s *replayService) GetPresignedManifest(ctx context.Context, websiteID, ses
 	}
 
 	const urlLifetime = time.Hour
-	cacheKey := fmt.Sprintf("replays/%s/%s/full.json.gz", siteID, sessionID)
 
-	// Ensure cache exists — stitch + save if not.
-	if !s.store.Exists(ctx, cacheKey) {
-		merged, err := s.stitchOrCache(ctx, siteID, sessionID)
-		if err != nil {
-			return nil, err
-		}
-		if len(merged) == 0 {
-			return &models.PresignedManifest{ExpiresAt: time.Now().Add(urlLifetime)}, nil
-		}
-	}
-
-	// Generate presigned URL for the full cache.
-	fullURL, err := s.store.GetPresignedURL(ctx, cacheKey, urlLifetime)
+	// Always return per-chunk presigned URLs so the frontend can start
+	// playback immediately from chunk 0 while fetching the rest in background.
+	seqs, err := s.repo.GetChunkSequences(ctx, siteID, sessionID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate presigned URL: %w", err)
+		return nil, err
+	}
+	if len(seqs) == 0 {
+		return &models.PresignedManifest{ExpiresAt: time.Now().Add(urlLifetime)}, nil
 	}
 
-	return &models.PresignedManifest{
-		FullURL:   fullURL,
-		ExpiresAt: time.Now().Add(urlLifetime),
-	}, nil
+	chunks := make([]models.PresignedChunk, 0, len(seqs))
+	for _, seq := range seqs {
+		key := fmt.Sprintf("replays/%s/%s/%d.json.gz", siteID, sessionID, seq)
+		url, err := s.store.GetPresignedURL(ctx, key, urlLifetime)
+		if err != nil {
+			continue
+		}
+		chunks = append(chunks, models.PresignedChunk{Seq: seq, URL: url})
+	}
+
+	manifest := &models.PresignedManifest{
+		Chunks:      chunks,
+		TotalChunks: len(seqs),
+		ExpiresAt:   time.Now().Add(urlLifetime),
+	}
+
+	// If the stitched full cache exists, include that URL too — the frontend
+	// can use it as a fast single-download alternative for short sessions.
+	cacheKey := fmt.Sprintf("replays/%s/%s/full.json.gz", siteID, sessionID)
+	if s.store.Exists(ctx, cacheKey) {
+		if fullURL, err := s.store.GetPresignedURL(ctx, cacheKey, urlLifetime); err == nil {
+			manifest.FullURL = fullURL
+		}
+	} else {
+		// Stitch in background so it's ready for next visit.
+		go func() {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			_, _ = s.stitchOrCache(bgCtx, siteID, sessionID)
+		}()
+	}
+
+	return manifest, nil
 }
 
 // stitchOrCache downloads all chunks concurrently, merges + sorts events, saves
@@ -514,6 +564,27 @@ func (s *replayService) ListSessions(ctx context.Context, websiteID, userID stri
 	if err != nil {
 		return nil, 0, err
 	}
+
+	// Cache the first page (no cursor) which is the most common request.
+	if before == nil && s.cache != nil {
+		type cachedResult struct {
+			Sessions []models.ReplaySessionMetadata `json:"s"`
+			Total    int64                          `json:"t"`
+		}
+		cacheKey := fmt.Sprintf("replay:list:%s:%d", siteID, limit)
+		var cached cachedResult
+		if s.cache.Get(cacheKey, &cached) {
+			return cached.Sessions, cached.Total, nil
+		}
+
+		sessions, total, err := s.repo.ListSessionsWithMetadata(ctx, siteID, limit, before)
+		if err != nil {
+			return nil, 0, err
+		}
+		_ = s.cache.Set(cacheKey, cachedResult{Sessions: sessions, Total: total}, 2*time.Minute)
+		return sessions, total, nil
+	}
+
 	return s.repo.ListSessionsWithMetadata(ctx, siteID, limit, before)
 }
 
@@ -604,6 +675,89 @@ func (s *replayService) GetPageSnapshot(ctx context.Context, websiteID string, u
 	return json.RawMessage(data), nil
 }
 
+// ── Cache warmer ──────────────────────────────────────────────────────────────
+
+// StartCacheWarmer proactively warms the session list cache for all active
+// websites every 90 seconds so the first visit to the sessions page is instant.
+func (s *replayService) StartCacheWarmer(ctx context.Context) {
+	if s.cache == nil || s.websites == nil {
+		s.logger.Info().Msg("Replay cache warmer: skipped (cache or websites service not available)")
+		return
+	}
+
+	go func() {
+		select {
+		case <-time.After(8 * time.Second):
+		case <-ctx.Done():
+			return
+		}
+
+		s.logger.Info().Msg("Replay cache warmer: started")
+		s.warmReplaySessions(ctx)
+
+		ticker := time.NewTicker(90 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				s.warmReplaySessions(ctx)
+			case <-ctx.Done():
+				s.logger.Info().Msg("Replay cache warmer: stopped")
+				return
+			}
+		}
+	}()
+}
+
+func (s *replayService) warmReplaySessions(ctx context.Context) {
+	siteIDs, err := s.websites.ListAllActiveSiteIDs(ctx)
+	if err != nil {
+		s.logger.Warn().Err(err).Msg("Replay cache warmer: failed to list active sites")
+		return
+	}
+
+	sem := make(chan struct{}, 10)
+	var wg sync.WaitGroup
+
+	for _, id := range siteIDs {
+		select {
+		case <-ctx.Done():
+			break
+		default:
+		}
+
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(siteID string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			const defaultLimit = 50
+			cacheKey := fmt.Sprintf("replay:list:%s:%d", siteID, defaultLimit)
+			if s.cache.Exists(cacheKey) {
+				return
+			}
+
+			warmCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			defer cancel()
+
+			sessions, total, err := s.repo.ListSessionsWithMetadata(warmCtx, siteID, defaultLimit, nil)
+			if err != nil {
+				return
+			}
+
+			type cachedResult struct {
+				Sessions []models.ReplaySessionMetadata `json:"s"`
+				Total    int64                          `json:"t"`
+			}
+			_ = s.cache.Set(cacheKey, cachedResult{Sessions: sessions, Total: total}, 2*time.Minute)
+		}(id)
+	}
+
+	wg.Wait()
+	s.logger.Debug().Int("sites", len(siteIDs)).Msg("Replay cache warmer: cycle complete")
+}
+
 // ── Rage-click detection ──────────────────────────────────────────────────────
 
 // StartRageClickWorker launches a background goroutine that scans sessions
@@ -666,36 +820,56 @@ func (s *replayService) processRageClicks(ctx context.Context) {
 	}
 }
 
-// detectSessionRageClicks downloads all chunks for a session and checks for
-// rage clicks (3+ clicks within 1 000 ms in a 100 px radius).
+// detectSessionRageClicks downloads all chunks for a session concurrently
+// and checks for rage clicks (3+ clicks within 1 000 ms in a 100 px radius).
 func (s *replayService) detectSessionRageClicks(ctx context.Context, websiteID, sessionID string) bool {
 	seqs, err := s.repo.GetChunkSequences(ctx, websiteID, sessionID)
 	if err != nil || len(seqs) == 0 {
 		return false
 	}
 
-	var allEvents []json.RawMessage
-	for _, seq := range seqs {
-		key := fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sessionID, seq)
-		reader, dlErr := s.store.Download(ctx, key)
-		if dlErr != nil {
-			continue
-		}
-		gzr, gzErr := gzip.NewReader(reader)
-		if gzErr != nil {
+	type chunkResult struct {
+		idx  int
+		data []json.RawMessage
+	}
+	results := make([]chunkResult, len(seqs))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 8)
+
+	for i, seq := range seqs {
+		wg.Add(1)
+		go func(idx, seq int) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			key := fmt.Sprintf("replays/%s/%s/%d.json.gz", websiteID, sessionID, seq)
+			reader, dlErr := s.store.Download(ctx, key)
+			if dlErr != nil {
+				return
+			}
+			gzr, gzErr := gzip.NewReader(reader)
+			if gzErr != nil {
+				reader.Close()
+				return
+			}
+			raw, readErr := io.ReadAll(gzr)
+			gzr.Close()
 			reader.Close()
-			continue
-		}
-		raw, readErr := io.ReadAll(gzr)
-		gzr.Close()
-		reader.Close()
-		if readErr != nil {
-			continue
-		}
-		var evs []json.RawMessage
-		if json.Unmarshal(raw, &evs) == nil {
-			allEvents = append(allEvents, evs...)
-		}
+			if readErr != nil {
+				return
+			}
+			var evs []json.RawMessage
+			if json.Unmarshal(raw, &evs) == nil {
+				results[idx] = chunkResult{idx: idx, data: evs}
+			}
+		}(i, seq)
+	}
+	wg.Wait()
+
+	var allEvents []json.RawMessage
+	for _, r := range results {
+		allEvents = append(allEvents, r.data...)
 	}
 
 	return detectRageClicks(allEvents)

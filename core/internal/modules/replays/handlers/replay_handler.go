@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -260,6 +261,7 @@ func (h *ReplayHandler) ListSessions(c *gin.Context) {
 		nextCursor = &cursor
 	}
 
+	c.Header("Cache-Control", fmt.Sprintf("private, max-age=%d, stale-while-revalidate=%d", 60, 120))
 	c.JSON(http.StatusOK, gin.H{
 		"sessions":    sessions,
 		"total":       total,

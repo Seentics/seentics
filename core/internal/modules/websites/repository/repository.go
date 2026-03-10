@@ -110,6 +110,51 @@ func (r *WebsiteRepository) ListByUserID(ctx context.Context, userID uuid.UUID) 
 	return websites, nil
 }
 
+// ListAllActiveSiteIDs returns the site_id of every active website.
+// Used by the analytics cache warmer to proactively populate Redis.
+func (r *WebsiteRepository) ListAllActiveSiteIDs(ctx context.Context) ([]string, error) {
+	rows, err := r.db.Query(ctx, `SELECT site_id FROM websites WHERE is_active = true`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// ActiveWebsite holds both ID formats for cache warming across modules.
+type ActiveWebsite struct {
+	UUID   string // websites.id (UUID) — used by heatmaps
+	SiteID string // websites.site_id — used by replays, analytics
+}
+
+// ListAllActiveWebsites returns UUID + site_id pairs for every active website.
+func (r *WebsiteRepository) ListAllActiveWebsites(ctx context.Context) ([]ActiveWebsite, error) {
+	rows, err := r.db.Query(ctx, `SELECT id, site_id FROM websites WHERE is_active = true`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []ActiveWebsite
+	for rows.Next() {
+		var w ActiveWebsite
+		if err := rows.Scan(&w.UUID, &w.SiteID); err != nil {
+			return nil, err
+		}
+		result = append(result, w)
+	}
+	return result, nil
+}
+
 // GetByID returns a website by internal UUID
 func (r *WebsiteRepository) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Website, error) {
 	query := `
@@ -157,7 +202,7 @@ func (r *WebsiteRepository) GetBySiteID(ctx context.Context, siteID string) (*mo
 	query := `
 		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, heatmap_include_patterns, heatmap_exclude_patterns, replay_enabled, replay_sampling_rate, replay_include_patterns, replay_exclude_patterns, verification_token, created_at, updated_at
 		FROM websites
-		WHERE site_id = $1 OR id::text = $1
+		WHERE site_id = $1
 	`
 
 	var w models.Website

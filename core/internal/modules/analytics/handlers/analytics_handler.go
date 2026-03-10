@@ -16,6 +16,12 @@ import (
 
 const queryTimeout = 15 * time.Second
 
+// setCacheHeaders sets Cache-Control and related headers so browsers and CDN
+// edges serve stale data instantly while revalidating in the background.
+func setCacheHeaders(c *gin.Context, maxAge int) {
+	c.Header("Cache-Control", fmt.Sprintf("private, max-age=%d, stale-while-revalidate=%d", maxAge, maxAge*2))
+}
+
 type AnalyticsHandler struct {
 	service *services.AnalyticsService
 	logger  zerolog.Logger
@@ -131,6 +137,7 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 60)
 	c.JSON(http.StatusOK, data)
 }
 
@@ -161,6 +168,7 @@ func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
 		"top_pages":  pages,
@@ -197,6 +205,7 @@ func (h *AnalyticsHandler) GetPageUTMBreakdown(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, breakdown)
 }
 
@@ -227,6 +236,7 @@ func (h *AnalyticsHandler) GetTopReferrers(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":    websiteID,
 		"top_referrers": referrers,
@@ -260,6 +270,7 @@ func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":  websiteID,
 		"top_sources": sources,
@@ -293,6 +304,7 @@ func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":    websiteID,
 		"top_countries": countries,
@@ -324,6 +336,7 @@ func (h *AnalyticsHandler) GetTopResolutions(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":      websiteID,
 		"top_resolutions": resolutions,
@@ -357,6 +370,7 @@ func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":   websiteID,
 		"top_browsers": browsers,
@@ -390,6 +404,7 @@ func (h *AnalyticsHandler) GetTopDevices(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":  websiteID,
 		"top_devices": devices,
@@ -423,6 +438,7 @@ func (h *AnalyticsHandler) GetTopOS(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
 		"top_os":     osList,
@@ -454,6 +470,7 @@ func (h *AnalyticsHandler) GetTrafficSummary(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, summary)
 }
 
@@ -483,6 +500,7 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 60)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":  websiteID,
 		"daily_stats": stats,
@@ -516,6 +534,7 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 60)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":   websiteID,
 		"timezone":     timezone,
@@ -552,6 +571,7 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 		totalEvents += event.Count
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":      websiteID,
 		"top_events":      result.Events,
@@ -586,6 +606,7 @@ func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
 		"goals":      stats,
@@ -614,6 +635,7 @@ func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 15)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":    websiteID,
 		"live_visitors": liveVisitors,
@@ -645,6 +667,7 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 180)
 	c.JSON(http.StatusOK, breakdown)
 }
 
@@ -673,6 +696,7 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 60)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":       websiteID,
 		"visitor_insights": insights,
@@ -782,6 +806,7 @@ func (h *AnalyticsHandler) GetActivityTrends(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 180)
 	c.JSON(http.StatusOK, data)
 }
 
@@ -809,6 +834,7 @@ func (h *AnalyticsHandler) GetRecentActivity(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 30)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
 		"activities": activities,
@@ -839,5 +865,6 @@ func (h *AnalyticsHandler) GetPathAnalysis(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 180)
 	c.JSON(http.StatusOK, analysis)
 }

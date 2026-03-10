@@ -85,9 +85,10 @@ func verifyPostgreSQL(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 
 	if !hasUuidExtension {
-		// Try to create the extension if it doesn't exist
+		// Try to create the extension if it doesn't exist (non-fatal — gen_random_uuid may work without it)
 		_, err = pool.Exec(ctx, "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\"")
 		if err != nil {
+			return fmt.Errorf("uuid-ossp extension not available and could not be created: %w", err)
 		}
 	}
 

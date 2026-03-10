@@ -154,15 +154,37 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	}
 	req.SiteID = website.SiteID
 
-	accepted := 0
+	// Pre-compute shared enrichment once per batch (all events share the same
+	// client IP + UA from the /collect request) to avoid redundant UA parsing
+	// and GeoIP lookups on every event.
+	var sharedUA *utils.UserAgentInfo
+	var sharedGeo *utils.LocationInfo
+	if req.ClientUA != "" {
+		info := utils.ParseUserAgent(req.ClientUA)
+		sharedUA = &info
+	}
+	if req.ClientIP != "" {
+		geo := utils.GetLocationFromIP(req.ClientIP)
+		sharedGeo = &geo
+	}
+
+	now := time.Now()
 	var liveVisitorIDs []string
+
+	// Prepare all events and collect serialised JSON for pipeline XADD.
+	type preparedEvent struct {
+		data []byte
+		idx  int
+	}
+	prepared := make([]preparedEvent, 0, len(req.Events))
+
 	for i := range req.Events {
 		req.Events[i].WebsiteID = req.SiteID
 		if req.Events[i].EventType == "" {
 			req.Events[i].EventType = "pageview"
 		}
 		if req.Events[i].Timestamp.IsZero() {
-			req.Events[i].Timestamp = time.Now()
+			req.Events[i].Timestamp = now
 		}
 		if req.ClientIP != "" && (req.Events[i].IPAddress == nil || *req.Events[i].IPAddress == "") {
 			ip := req.ClientIP
@@ -172,38 +194,56 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 			ua := req.ClientUA
 			req.Events[i].UserAgent = &ua
 		}
-		s.enrichEventData(ctx, &req.Events[i])
 
-		if err := s.publishEvent(ctx, &req.Events[i]); err != nil {
-			s.logger.Warn().Err(err).Msg("Failed to publish batch event to stream, dropping")
+		// Apply shared enrichment instead of per-event parsing.
+		s.enrichEventShared(ctx, &req.Events[i], sharedUA, sharedGeo)
+
+		data, err := json.Marshal(&req.Events[i])
+		if err != nil {
 			continue
 		}
-		accepted++
+		prepared = append(prepared, preparedEvent{data: data, idx: i})
 
-		// Collect visitor IDs for realtime HyperLogLog tracking
 		if req.Events[i].EventType == "pageview" && req.Events[i].VisitorID != "" {
 			liveVisitorIDs = append(liveVisitorIDs, req.Events[i].VisitorID)
 		}
 	}
 
-	// Batch PFADD for realtime active visitors (5-min sliding window).
-	// Pipelined: single round-trip for both PFADD + EXPIRE.
+	// Single pipeline round-trip for all XADD + PFADD.
+	pipe := s.rdb.Pipeline()
+	for _, p := range prepared {
+		pipe.XAdd(ctx, &redis.XAddArgs{
+			Stream: eventStream,
+			MaxLen: 50000,
+			Approx: true,
+			Values: map[string]interface{}{"d": string(p.data)},
+		})
+	}
 	if len(liveVisitorIDs) > 0 {
 		hlKey := "sn:active:" + req.SiteID
 		args := make([]interface{}, len(liveVisitorIDs))
 		for i, v := range liveVisitorIDs {
 			args[i] = v
 		}
-		pipe := s.rdb.Pipeline()
 		pipe.PFAdd(ctx, hlKey, args...)
 		pipe.Expire(ctx, hlKey, 5*time.Minute)
-		pipe.Exec(ctx)
+	}
+	cmds, err := pipe.Exec(ctx)
+	accepted := 0
+	if err != nil {
+		s.logger.Warn().Err(err).Msg("Batch event pipeline XADD partially failed")
+	}
+	// Count successful XADDs (first len(prepared) commands in the pipeline).
+	for i := 0; i < len(prepared) && i < len(cmds); i++ {
+		if cmds[i].Err() == nil {
+			accepted++
+		}
 	}
 
 	return &models.BatchEventResponse{
 		Status:      "accepted",
 		EventsCount: accepted,
-		ProcessedAt: time.Now().Unix(),
+		ProcessedAt: now.Unix(),
 	}, nil
 }
 
@@ -319,10 +359,15 @@ func (s *EventService) processBatch(batch []models.Event) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Deduplicate: 1 cache lookup per unique site_id, not per event in the batch.
+	siteIDMap := make(map[string]string)
 	for i := range batch {
 		event := &batch[i]
 		if len(event.WebsiteID) > 24 {
-			if website, err := s.websites.GetWebsiteByAnyID(ctx, event.WebsiteID); err == nil {
+			if resolved, ok := siteIDMap[event.WebsiteID]; ok {
+				event.WebsiteID = resolved
+			} else if website, err := s.websites.GetWebsiteByAnyID(ctx, event.WebsiteID); err == nil {
+				siteIDMap[event.WebsiteID] = website.SiteID
 				event.WebsiteID = website.SiteID
 			}
 		}
@@ -426,6 +471,13 @@ func (s *EventService) GetStats() map[string]interface{} {
 }
 
 func (s *EventService) enrichEventData(ctx context.Context, event *models.Event) {
+	s.enrichEventShared(ctx, event, nil, nil)
+}
+
+// enrichEventShared applies UA + GeoIP enrichment to an event. When sharedUA /
+// sharedGeo are provided (pre-computed once for the whole batch) the expensive
+// ParseUserAgent and GetLocationFromIP calls are skipped entirely.
+func (s *EventService) enrichEventShared(_ context.Context, event *models.Event, sharedUA *utils.UserAgentInfo, sharedGeo *utils.LocationInfo) {
 	if event.Page == "" && event.PagePath != "" {
 		event.Page = event.PagePath
 	}
@@ -435,7 +487,12 @@ func (s *EventService) enrichEventData(ctx context.Context, event *models.Event)
 			(event.Device == nil || *event.Device == "") ||
 			(event.OS == nil || *event.OS == "") {
 
-			uaInfo := utils.ParseUserAgent(*event.UserAgent)
+			var uaInfo utils.UserAgentInfo
+			if sharedUA != nil {
+				uaInfo = *sharedUA
+			} else {
+				uaInfo = utils.ParseUserAgent(*event.UserAgent)
+			}
 			if event.Browser == nil || *event.Browser == "" {
 				event.Browser = &uaInfo.Browser
 			}
@@ -451,7 +508,12 @@ func (s *EventService) enrichEventData(ctx context.Context, event *models.Event)
 	if (event.Country == nil || *event.Country == "") &&
 		(event.IPAddress != nil && *event.IPAddress != "") {
 
-		location := utils.GetLocationFromIP(*event.IPAddress)
+		var location utils.LocationInfo
+		if sharedGeo != nil {
+			location = *sharedGeo
+		} else {
+			location = utils.GetLocationFromIP(*event.IPAddress)
+		}
 		if event.Country == nil || *event.Country == "" {
 			if location.Country != "" {
 				event.Country = &location.Country

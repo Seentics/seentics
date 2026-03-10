@@ -13,6 +13,7 @@ import (
 	"github.com/Seentics/seentics/internal/modules/heatmaps/models"
 	"github.com/Seentics/seentics/internal/modules/heatmaps/repository"
 	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
+	"github.com/Seentics/seentics/internal/shared/cache"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -37,6 +38,8 @@ type HeatmapService interface {
 	DeleteHeatmapPage(ctx context.Context, websiteID string, url string, userID string) error
 	BulkDeleteHeatmapPages(ctx context.Context, websiteID string, urls []string, userID string) error
 	Shutdown(timeout time.Duration) error
+	// StartCacheWarmer proactively warms heatmap page lists for all active websites.
+	StartCacheWarmer(ctx context.Context)
 }
 
 // urlAdmitScript atomically checks the URL quota and admits new URLs.
@@ -76,6 +79,7 @@ type heatmapService struct {
 	websites *websiteServicePkg.WebsiteService
 	logger   zerolog.Logger
 	rdb      *redis.Client
+	appCache *cache.Cache
 
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -84,7 +88,7 @@ type heatmapService struct {
 	shutdownMu sync.RWMutex
 }
 
-func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger, rdb *redis.Client) HeatmapService {
+func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger, rdb *redis.Client, appCache ...*cache.Cache) HeatmapService {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	s := &heatmapService{
@@ -94,6 +98,9 @@ func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServi
 		rdb:      rdb,
 		ctx:      ctx,
 		cancel:   cancel,
+	}
+	if len(appCache) > 0 {
+		s.appCache = appCache[0]
 	}
 
 	// Ensure stream consumer group exists
@@ -140,7 +147,8 @@ func (s *heatmapService) RecordHeatmapData(ctx context.Context, req models.Heatm
 		}
 	}
 
-	// Publish each point to the heatmap stream
+	// Publish all points to the heatmap stream in a single pipeline round-trip.
+	pipe := s.rdb.Pipeline()
 	for i := range req.Points {
 		req.Points[i].WebsiteID = req.WebsiteID
 		if req.Points[i].URL == "" {
@@ -150,12 +158,15 @@ func (s *heatmapService) RecordHeatmapData(ctx context.Context, req models.Heatm
 		if err != nil {
 			continue
 		}
-		s.rdb.XAdd(ctx, &redis.XAddArgs{
+		pipe.XAdd(ctx, &redis.XAddArgs{
 			Stream: heatmapStream,
 			MaxLen: 200000,
 			Approx: true,
 			Values: map[string]interface{}{"d": string(data)},
 		})
+	}
+	if _, err := pipe.Exec(ctx); err != nil {
+		s.logger.Warn().Err(err).Msg("Heatmap: pipeline XADD failed")
 	}
 
 	return nil
@@ -390,6 +401,21 @@ func (s *heatmapService) GetHeatmapData(ctx context.Context, websiteID string, u
 	if err != nil {
 		return nil, err
 	}
+
+	if s.appCache != nil {
+		cacheKey := fmt.Sprintf("heatmap:data:%s:%s:%s:%s:%d", canonicalID, url, heatmapType, deviceType, from.Unix())
+		var cached []models.HeatmapPoint
+		if s.appCache.Get(cacheKey, &cached) {
+			return cached, nil
+		}
+		result, err := s.repo.GetHeatmapData(ctx, canonicalID, url, heatmapType, deviceType, from, to)
+		if err != nil {
+			return nil, err
+		}
+		_ = s.appCache.Set(cacheKey, result, 3*time.Minute)
+		return result, nil
+	}
+
 	return s.repo.GetHeatmapData(ctx, canonicalID, url, heatmapType, deviceType, from, to)
 }
 
@@ -398,6 +424,21 @@ func (s *heatmapService) GetHeatmapPages(ctx context.Context, websiteID string, 
 	if err != nil {
 		return nil, err
 	}
+
+	if s.appCache != nil {
+		cacheKey := fmt.Sprintf("heatmap:pages:%s", canonicalID)
+		var cached []models.HeatmapPageStat
+		if s.appCache.Get(cacheKey, &cached) {
+			return cached, nil
+		}
+		result, err := s.repo.GetHeatmapPages(ctx, canonicalID)
+		if err != nil {
+			return nil, err
+		}
+		_ = s.appCache.Set(cacheKey, result, 3*time.Minute)
+		return result, nil
+	}
+
 	return s.repo.GetHeatmapPages(ctx, canonicalID)
 }
 
@@ -410,6 +451,21 @@ func (s *heatmapService) GetTopElements(ctx context.Context, websiteID string, u
 	if err != nil {
 		return nil, err
 	}
+
+	if s.appCache != nil {
+		cacheKey := fmt.Sprintf("heatmap:elements:%s:%s:%s:%d", canonicalID, url, eventType, from.Unix())
+		var cached []models.TopElement
+		if s.appCache.Get(cacheKey, &cached) {
+			return cached, nil
+		}
+		result, err := s.repo.GetTopElements(ctx, canonicalID, url, eventType, from, to)
+		if err != nil {
+			return nil, err
+		}
+		_ = s.appCache.Set(cacheKey, result, 3*time.Minute)
+		return result, nil
+	}
+
 	return s.repo.GetTopElements(ctx, canonicalID, url, eventType, from, to)
 }
 
@@ -436,4 +492,81 @@ func (s *heatmapService) BulkDeleteHeatmapPages(ctx context.Context, websiteID s
 		s.rdb.SRem(ctx, "sn:heatmap:urls:"+canonicalID, members...)
 	}
 	return s.repo.BulkDeleteHeatmapPages(ctx, canonicalID, urls)
+}
+
+// ── Cache warmer ──────────────────────────────────────────────────────────────
+
+// StartCacheWarmer proactively warms the heatmap page list cache for all active
+// websites every 90 seconds so the first visit to the heatmaps page is instant.
+func (s *heatmapService) StartCacheWarmer(ctx context.Context) {
+	if s.appCache == nil || s.websites == nil {
+		s.logger.Info().Msg("Heatmap cache warmer: skipped (cache or websites service not available)")
+		return
+	}
+
+	go func() {
+		select {
+		case <-time.After(10 * time.Second):
+		case <-ctx.Done():
+			return
+		}
+
+		s.logger.Info().Msg("Heatmap cache warmer: started")
+		s.warmHeatmapPages(ctx)
+
+		ticker := time.NewTicker(90 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				s.warmHeatmapPages(ctx)
+			case <-ctx.Done():
+				s.logger.Info().Msg("Heatmap cache warmer: stopped")
+				return
+			}
+		}
+	}()
+}
+
+func (s *heatmapService) warmHeatmapPages(ctx context.Context) {
+	uuids, err := s.websites.ListAllActiveWebsiteUUIDs(ctx)
+	if err != nil {
+		s.logger.Warn().Err(err).Msg("Heatmap cache warmer: failed to list active sites")
+		return
+	}
+
+	sem := make(chan struct{}, 10)
+	var wg sync.WaitGroup
+
+	for _, id := range uuids {
+		select {
+		case <-ctx.Done():
+			break
+		default:
+		}
+
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(websiteUUID string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+
+			cacheKey := fmt.Sprintf("heatmap:pages:%s", websiteUUID)
+			if s.appCache.Exists(cacheKey) {
+				return
+			}
+
+			warmCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			defer cancel()
+
+			pages, err := s.repo.GetHeatmapPages(warmCtx, websiteUUID)
+			if err != nil {
+				return
+			}
+			_ = s.appCache.Set(cacheKey, pages, 3*time.Minute)
+		}(id)
+	}
+
+	wg.Wait()
+	s.logger.Debug().Int("sites", len(uuids)).Msg("Heatmap cache warmer: cycle complete")
 }

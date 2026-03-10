@@ -84,6 +84,7 @@ func main() {
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to connect to ClickHouse — ClickHouse is required for analytics")
 	}
+	defer chConn.Close()
 
 	// Run database migrations
 	migrator := migrations.NewMigrator(db, logger)
@@ -193,17 +194,20 @@ func main() {
 
 	eventService := services.NewEventService(eventRepo, db, websiteService, autoService, logger, rdb, webhookQueue)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger, appCache)
+	analyticsService.StartCacheWarmer(ctx)
 	privacyService := services.NewPrivacyService(privacyRepo, websiteService, logger)
 
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
 	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 
-	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger, rdb)
+	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger, rdb, appCache)
 	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
+	heatmapService.StartCacheWarmer(ctx)
 
 	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store, logger, appCache)
 	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
 	replayService.StartRageClickWorker(ctx)
+	replayService.StartCacheWarmer(ctx)
 
 	// Handlers
 	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService, logger)

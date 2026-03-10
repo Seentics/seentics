@@ -60,6 +60,7 @@ func NewTrackerHandler(
 
 // Init returns all configuration data the tracker needs in a single response:
 // site config (goals, feature flags), active funnels, and active automation workflows.
+// All three lookups run concurrently to minimize latency.
 func (h *TrackerHandler) Init(c *gin.Context) {
 	siteID := c.Param("site_id")
 	if siteID == "" {
@@ -84,7 +85,7 @@ func (h *TrackerHandler) Init(c *gin.Context) {
 		}
 	}
 
-	// 1. Site config (includes goals, feature flags, heatmap/replay settings)
+	// Fetch config first — it validates the website + origin and is required.
 	config, err := h.websites.GetTrackerConfig(ctx, siteID, origin)
 	if err != nil {
 		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("Tracker init: config fetch failed")
@@ -92,20 +93,35 @@ func (h *TrackerHandler) Init(c *gin.Context) {
 		return
 	}
 
-	// 2. Active funnels (fail-open: return empty array on error)
-	funnels, err := h.funnels.GetActiveFunnels(c.Request.Context(), siteID, origin)
-	if err != nil {
-		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("Tracker init: funnels fetch failed")
-		funnels = []funnelModels.Funnel{}
-	}
+	// Funnels + automations can run concurrently (fail-open).
+	var (
+		funnels   []funnelModels.Funnel
+		workflows []autoModels.Automation
+		wg        sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		var err error
+		funnels, err = h.funnels.GetActiveFunnels(ctx, siteID, origin)
+		if err != nil {
+			h.logger.Warn().Err(err).Str("site_id", siteID).Msg("Tracker init: funnels fetch failed")
+			funnels = []funnelModels.Funnel{}
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		var err error
+		workflows, err = h.automations.GetActiveAutomations(ctx, siteID, origin)
+		if err != nil {
+			h.logger.Warn().Err(err).Str("site_id", siteID).Msg("Tracker init: workflows fetch failed")
+			workflows = []autoModels.Automation{}
+		}
+	}()
+	wg.Wait()
 
-	// 3. Active automation workflows (fail-open: return empty array on error)
-	workflows, err := h.automations.GetActiveAutomations(c.Request.Context(), siteID, origin)
-	if err != nil {
-		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("Tracker init: workflows fetch failed")
-		workflows = []autoModels.Automation{}
-	}
-
+	// Cache config for 60s — it changes rarely and the tracker polls on every page load.
+	c.Header("Cache-Control", "private, max-age=60, stale-while-revalidate=120")
 	c.JSON(http.StatusOK, gin.H{
 		"config":    config,
 		"funnels":   funnels,

@@ -59,10 +59,11 @@ type PresignedManifest struct {
 	// FullURL is a presigned URL for the pre-stitched full.json.gz cache (if available).
 	// The browser fetches this and receives a decompressed JSON array of rrweb events.
 	FullURL string `json:"full_url,omitempty"`
-	// Chunks is set when the full cache is not yet available; each entry has a seq
-	// number and a presigned URL pointing directly at the raw gzip chunk in S3.
-	Chunks    []PresignedChunk `json:"chunks,omitempty"`
-	ExpiresAt time.Time        `json:"expires_at"`
+	// Chunks always contains per-chunk presigned URLs so the frontend can start
+	// playback from chunk 0 immediately (progressive streaming).
+	Chunks      []PresignedChunk `json:"chunks,omitempty"`
+	TotalChunks int              `json:"total_chunks"`
+	ExpiresAt   time.Time        `json:"expires_at"`
 }
 
 type PresignedChunk struct {

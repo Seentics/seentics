@@ -51,6 +51,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
+  const [streamProgress, setStreamProgress] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
+  const pendingEventsRef = useRef<any[]>([]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -75,41 +77,133 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
   useEffect(() => { speedRef.current = speed; }, [speed]);
 
-  // ─── Data loading ──────────────────────────────────────────────────────────
-  // Strategy (fastest → fallback):
-  //  1. Call /replays/presigned-manifest/:id — server ensures full.json.gz cache
-  //     exists (stitching if needed) and returns a presigned S3 URL.
-  //  2. Browser fetches the gzip file directly from S3 (no API proxy, half the
-  //     bandwidth, browser transparent decompression via Content-Encoding: gzip).
-  //  3. On any error fall back to the legacy /replays/full/:id API endpoint.
+  // ─── Data loading (progressive streaming) ──────────────────────────────────
+  // Strategy:
+  //  1. Fetch presigned manifest → get per-chunk presigned S3 URLs.
+  //  2. Download chunk 0 (full DOM snapshot) → start playback immediately.
+  //  3. Download remaining chunks in background (3 concurrent) → inject events
+  //     into the running player via replayer.addEvent().
+  //  4. Fallback: if manifest has a full_url and only 1-3 chunks, use the
+  //     stitched file instead (faster for short sessions).
+  //  5. Final fallback: legacy /replays/full/:id API endpoint.
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
+    pendingEventsRef.current = [];
+
+    const fetchChunk = async (url: string): Promise<any[]> => {
+      const res = await fetch(url, { signal });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    };
 
     const load = async () => {
       try {
         setLoading(true);
         setError(null);
         setEvents([]);
+        setStreamProgress({ loaded: 0, total: 0 });
 
-        let allEvents: any[] | null = null;
-
-        // ── Attempt 1: presigned manifest → direct S3 download ───────────
+        // ── Attempt 1: progressive chunk streaming via presigned manifest ──
         try {
           const manifestRes = await api.get(
             `/replays/presigned-manifest/${sessionId}?website_id=${websiteId}`,
             { signal, timeout: 20000 },
           );
 
-          const fullURL: string | undefined = manifestRes.data?.full_url;
+          const manifest = manifestRes.data;
+          const chunks: { seq: number; url: string }[] = manifest?.chunks ?? [];
+          const totalChunks: number = manifest?.total_chunks ?? chunks.length;
+          const fullURL: string | undefined = manifest?.full_url;
 
-          if (fullURL) {
-            // Direct S3 fetch — no auth headers needed (credentials in URL params)
+          if (signal.aborted) return;
+
+          // For very short sessions (≤3 chunks) with a stitched cache, use the
+          // single full download — it's faster than 3 separate requests.
+          if (fullURL && totalChunks <= 3) {
             const s3Res = await fetch(fullURL, { signal });
             if (s3Res.ok) {
-              // Content-Encoding: gzip → browser decompresses transparently
               const data = await s3Res.json();
-              allEvents = Array.isArray(data) ? data : null;
+              if (Array.isArray(data) && data.length > 0) {
+                setEvents(data);
+                setStreamProgress({ loaded: totalChunks, total: totalChunks });
+                return;
+              }
+            }
+          }
+
+          // Progressive streaming: load chunk 0 first, start playback, then
+          // fetch remaining chunks concurrently in the background.
+          if (chunks.length > 0) {
+            setStreamProgress({ loaded: 0, total: totalChunks });
+
+            // Sort by seq to ensure chunk 0 is first
+            const sorted = [...chunks].sort((a, b) => a.seq - b.seq);
+
+            // Fetch chunk 0 — the full DOM snapshot required to start rrweb
+            const firstEvents = await fetchChunk(sorted[0].url);
+            if (signal.aborted) return;
+
+            if (firstEvents.length > 0) {
+              setEvents(firstEvents);
+              setStreamProgress({ loaded: 1, total: totalChunks });
+
+              // Fetch remaining chunks in background with bounded concurrency
+              if (sorted.length > 1) {
+                const remaining = sorted.slice(1);
+                let loadedCount = 1;
+                const concurrency = 3;
+
+                const fetchNext = async (idx: number) => {
+                  while (idx < remaining.length) {
+                    if (signal.aborted) return;
+                    const chunkEvents = await fetchChunk(remaining[idx].url);
+                    if (signal.aborted) return;
+                    if (chunkEvents.length > 0) {
+                      // Sort by timestamp before injecting
+                      chunkEvents.sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+                      pendingEventsRef.current.push(...chunkEvents);
+
+                      // Inject into running player if available
+                      const replayer = playerInstanceRef.current?.getReplayer?.();
+                      if (replayer) {
+                        for (const ev of chunkEvents) {
+                          try { replayer.addEvent(ev); } catch {}
+                        }
+                      } else {
+                        // Player not ready yet — merge into events state
+                        setEvents(prev => [...prev, ...chunkEvents]);
+                      }
+                    }
+                    loadedCount++;
+                    setStreamProgress({ loaded: loadedCount, total: totalChunks });
+                    idx += concurrency;
+                  }
+                };
+
+                // Launch concurrent fetchers
+                const workers = [];
+                for (let w = 0; w < Math.min(concurrency, remaining.length); w++) {
+                  workers.push(fetchNext(w));
+                }
+                // Don't await — let them run in background while playback starts
+                Promise.all(workers).catch(() => {});
+              }
+
+              return; // Playback started with chunk 0
+            }
+          }
+
+          // Chunks approach failed — try full URL if available
+          if (fullURL) {
+            const s3Res = await fetch(fullURL, { signal });
+            if (s3Res.ok) {
+              const data = await s3Res.json();
+              if (Array.isArray(data)) {
+                setEvents(data);
+                return;
+              }
             }
           }
         } catch {
@@ -119,17 +213,12 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         if (signal.aborted) return;
 
         // ── Attempt 2: legacy full-replay API endpoint ────────────────────
-        if (!allEvents) {
-          const fullRes = await api.get(
-            `/replays/full/${sessionId}?website_id=${websiteId}`,
-            { signal, timeout: 180000 },
-          );
-          const payload = fullRes.data?.events ?? fullRes.data;
-          allEvents = Array.isArray(payload) ? payload : [];
-        }
-
-        if (signal.aborted) return;
-        setEvents(allEvents ?? []);
+        const fullRes = await api.get(
+          `/replays/full/${sessionId}?website_id=${websiteId}`,
+          { signal, timeout: 180000 },
+        );
+        const payload = fullRes.data?.events ?? fullRes.data;
+        setEvents(Array.isArray(payload) ? payload : []);
       } catch (err: any) {
         if (
           err?.code === 'ERR_CANCELED' ||
@@ -442,7 +531,11 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       <div className="flex flex-col items-center justify-center p-20 bg-muted/20 rounded-xl border border-border/60">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/40 mb-3" />
         <span className="text-sm font-medium text-muted-foreground">Loading session...</span>
-        <p className="text-xs text-muted-foreground/60 mt-1">Fetching first frame...</p>
+        <p className="text-xs text-muted-foreground/60 mt-1">
+          {streamProgress.total > 0
+            ? `Loading chunk ${streamProgress.loaded + 1} of ${streamProgress.total}...`
+            : 'Fetching first frame...'}
+        </p>
       </div>
     );
   }
@@ -545,6 +638,12 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
                 <span className="text-[11px] font-mono text-white/40 ml-2 tabular-nums select-none">
                   {formatTime(currentTime)} / {formatTime(totalTime)}
                 </span>
+                {streamProgress.total > 0 && streamProgress.loaded < streamProgress.total && (
+                  <span className="text-[10px] text-blue-400/60 ml-2 flex items-center gap-1">
+                    <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                    {streamProgress.loaded}/{streamProgress.total}
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-2">

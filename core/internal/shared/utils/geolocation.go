@@ -347,15 +347,12 @@ func (g *GeolocationService) Close() error {
 	return nil
 }
 
-// isPrivateIP checks if an IP address is private/local
-func isPrivateIP(ip string) bool {
-	parsedIP := net.ParseIP(ip)
-	if parsedIP == nil {
-		return false
-	}
+// privateNets holds pre-parsed private/loopback CIDR ranges.
+// Parsed once at init to avoid repeated allocations on every event.
+var privateNets []*net.IPNet
 
-	// Check for private IP ranges
-	privateRanges := []string{
+func init() {
+	for _, cidr := range []string{
 		"10.0.0.0/8",     // Class A private
 		"172.16.0.0/12",  // Class B private
 		"192.168.0.0/16", // Class C private
@@ -363,18 +360,23 @@ func isPrivateIP(ip string) bool {
 		"::1/128",        // IPv6 loopback
 		"fc00::/7",       // IPv6 unique local
 		"fe80::/10",      // IPv6 link local
+	} {
+		_, network, _ := net.ParseCIDR(cidr)
+		privateNets = append(privateNets, network)
 	}
+}
 
-	for _, cidr := range privateRanges {
-		_, network, err := net.ParseCIDR(cidr)
-		if err != nil {
-			continue
-		}
+// isPrivateIP checks if an IP address is private/local
+func isPrivateIP(ip string) bool {
+	parsedIP := net.ParseIP(ip)
+	if parsedIP == nil {
+		return false
+	}
+	for _, network := range privateNets {
 		if network.Contains(parsedIP) {
 			return true
 		}
 	}
-
 	return false
 }
 
