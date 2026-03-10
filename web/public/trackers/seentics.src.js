@@ -170,8 +170,12 @@
   };
   var hmDev = function () { var ww = w.innerWidth; return ww < 768 ? 'mobile' : ww < 1024 ? 'tablet' : 'desktop'; };
   var hmCoords = function (e) {
-    var dims = hmDims(), bw = dims.w || 1, x;
-    x = ((e.pageX - dims.l) / bw) * 1000;
+    var dims = hmDims(), bw = dims.w || 1, dt = hmDev();
+    // For desktop/tablet, normalize to the target rendering width (1200/768)
+    // using a centering transform so clicks map correctly to the iframe preview.
+    // For mobile, use simple body-width percentage since layouts are full-width.
+    var tw = dt === 'mobile' ? bw : dt === 'tablet' ? 768 : 1200;
+    var x = ((tw / 2) + (e.pageX - dims.l - bw / 2)) / tw * 1000;
     return {
       x: Math.min(1000, Math.max(0, x)),
       y: Math.min(1000, Math.max(0, (e.pageY / (dims.h || 1)) * 1000))
