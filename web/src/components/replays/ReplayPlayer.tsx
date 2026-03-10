@@ -222,23 +222,68 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
             }
 
             // ── Slow path: chunk 0 has no FullSnapshot ──
-            // Eagerly load ALL remaining chunks to find the snapshot.
+            // Load chunks sequentially until we find a FullSnapshot, then
+            // start playback immediately and stream the rest in background.
             if (sorted.length > 1) {
               let allEvents = [...firstEvents];
               const remaining = sorted.slice(1);
-              const moreEvents = await fetchChunksConcurrently(
-                remaining, 3,
-                (_chunkEvts, loaded) => {
-                  setStreamProgress({ loaded: loaded + 1, total: totalChunks });
-                },
-              );
-              if (signal.aborted) return;
-              allEvents.push(...moreEvents);
+              let foundSnapshot = false;
 
+              for (let i = 0; i < remaining.length; i++) {
+                if (signal.aborted) return;
+                const chunkEvents = await fetchChunk(remaining[i].url);
+                if (signal.aborted) return;
+                if (chunkEvents.length > 0) {
+                  chunkEvents.sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+                  allEvents.push(...chunkEvents);
+                }
+                setStreamProgress({ loaded: i + 2, total: totalChunks });
+
+                if (!foundSnapshot && hasFullSnapshot(allEvents)) {
+                  // Found a FullSnapshot — start playback now
+                  foundSnapshot = true;
+                  setEvents([...allEvents]);
+
+                  // Stream remaining chunks in background
+                  const bgRemaining = remaining.slice(i + 1);
+                  if (bgRemaining.length > 0) {
+                    let bgLoaded = i + 2;
+                    const bgFetch = async (idx: number) => {
+                      while (idx < bgRemaining.length) {
+                        if (signal.aborted) return;
+                        const bgEvents = await fetchChunk(bgRemaining[idx].url);
+                        if (signal.aborted) return;
+                        if (bgEvents.length > 0) {
+                          bgEvents.sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+                          pendingEventsRef.current.push(...bgEvents);
+                          const replayer = playerInstanceRef.current?.getReplayer?.();
+                          if (replayer) {
+                            for (const ev of bgEvents) {
+                              try { replayer.addEvent(ev); } catch {}
+                            }
+                          } else {
+                            setEvents(prev => [...prev, ...bgEvents]);
+                          }
+                        }
+                        bgLoaded++;
+                        setStreamProgress({ loaded: bgLoaded, total: totalChunks });
+                        idx += 3;
+                      }
+                    };
+                    const workers = [];
+                    for (let w = 0; w < Math.min(3, bgRemaining.length); w++) {
+                      workers.push(bgFetch(w));
+                    }
+                    Promise.all(workers).catch(() => {});
+                  }
+                  return;
+                }
+              }
+
+              // Loaded all chunks but no FullSnapshot found
               if (allEvents.length > 0) {
                 setEvents(allEvents);
                 setStreamProgress({ loaded: totalChunks, total: totalChunks });
-                if (hasFullSnapshot(allEvents)) return;
               }
             } else if (firstEvents.length > 0) {
               // Only 1 chunk and no snapshot — set events anyway

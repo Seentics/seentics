@@ -133,7 +133,7 @@ func (h *HeatmapHandler) GetHeatmapData(c *gin.Context) {
 	if points == nil {
 		points = []models.HeatmapPoint{}
 	}
-	c.Header("Cache-Control", fmt.Sprintf("private, max-age=%d, stale-while-revalidate=%d", 120, 240))
+	c.Header("Cache-Control", "no-cache, no-store")
 	c.JSON(http.StatusOK, gin.H{"points": points})
 }
 
@@ -159,7 +159,7 @@ func (h *HeatmapHandler) GetHeatmapPages(c *gin.Context) {
 		return
 	}
 
-	c.Header("Cache-Control", fmt.Sprintf("private, max-age=%d, stale-while-revalidate=%d", 120, 240))
+	c.Header("Cache-Control", "no-cache, no-store")
 	c.JSON(http.StatusOK, gin.H{"pages": pages})
 }
 func (h *HeatmapHandler) DeleteHeatmapPage(c *gin.Context) {

@@ -354,6 +354,17 @@ func (s *heatmapService) processBatch(batch []models.HeatmapPoint) {
 	if err := s.repo.RecordHeatmapBatch(ctx, finalBatch); err != nil {
 		s.logger.Error().Err(err).Int("points", len(finalBatch)).Msg("Failed to flush heatmap batch to DB")
 	}
+
+	// Invalidate cached heatmap pages so new data appears immediately
+	if s.appCache != nil {
+		seen := make(map[string]bool)
+		for _, p := range batch {
+			if !seen[p.WebsiteID] {
+				seen[p.WebsiteID] = true
+				s.appCache.Delete(fmt.Sprintf("heatmap:pages:%s", p.WebsiteID))
+			}
+		}
+	}
 }
 
 func (s *heatmapService) Shutdown(timeout time.Duration) error {

@@ -555,9 +555,10 @@
         C._workflows = r.workflows || [];
       }).catch(function () { }).then(function () {
         initSession(); pageview(); setupGoals();
-        // Flush immediately so pageview, session, and any initial data
-        // reach the server without waiting for rrweb's first snapshot
-        // or the 10 s interval.
+        // Init heatmap before flush so the pageview point is included
+        if (C.mod.heatmap) initHeatmap();
+        // Flush immediately so pageview, session, heatmap, and any initial data
+        // reach the server without waiting for the 10 s interval.
         setTimeout(flush, 0);
         setInterval(flush, 10000);
         // On mobile, visibilitychange to 'hidden' is the only reliable unload signal.
@@ -583,7 +584,6 @@
         };
         w.addEventListener('pagehide', onExit);
         w.addEventListener('beforeunload', onExit);
-        if (C.mod.heatmap) initHeatmap();
         if (C.mod.replay) initReplay();
         if (C.mod.funnels) initFunnels();
         if (C.mod.automation) initAutomation();
