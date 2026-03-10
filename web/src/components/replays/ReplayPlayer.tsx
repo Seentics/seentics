@@ -83,22 +83,57 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   // ─── Data loading (progressive streaming) ──────────────────────────────────
   // Strategy:
   //  1. Fetch presigned manifest → get per-chunk presigned S3 URLs.
-  //  2. Download chunk 0 (full DOM snapshot) → start playback immediately.
-  //  3. Download remaining chunks in background (3 concurrent) → inject events
-  //     into the running player via replayer.addEvent().
-  //  4. Fallback: if manifest has a full_url and only 1-3 chunks, use the
-  //     stitched file instead (faster for short sessions).
+  //  2. Download chunk 0 first. If it has a FullSnapshot (type 2), start
+  //     playback immediately and stream remaining chunks in background.
+  //  3. If chunk 0 has NO FullSnapshot, eagerly load ALL remaining chunks
+  //     until a FullSnapshot is found, then start playback.
+  //  4. Fallback: if manifest has a full_url, try the stitched file.
   //  5. Final fallback: legacy /replays/full/:id API endpoint.
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
     pendingEventsRef.current = [];
 
+    const hasFullSnapshot = (evts: any[]) => evts.some((e: any) => e.type === 2);
+
     const fetchChunk = async (url: string): Promise<any[]> => {
       const res = await fetch(url, { signal });
       if (!res.ok) return [];
       const data = await res.json();
       return Array.isArray(data) ? data : [];
+    };
+
+    // Fetch multiple chunks concurrently with bounded concurrency, calling
+    // onChunk for each completed chunk. Returns all fetched events merged.
+    const fetchChunksConcurrently = async (
+      chunks: { seq: number; url: string }[],
+      concurrency: number,
+      onChunk?: (chunkEvents: any[], loadedSoFar: number) => void,
+    ): Promise<any[]> => {
+      const allEvents: any[] = [];
+      let loadedCount = 0;
+
+      const fetchNext = async (idx: number) => {
+        while (idx < chunks.length) {
+          if (signal.aborted) return;
+          const chunkEvents = await fetchChunk(chunks[idx].url);
+          if (signal.aborted) return;
+          if (chunkEvents.length > 0) {
+            chunkEvents.sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+            allEvents.push(...chunkEvents);
+          }
+          loadedCount++;
+          onChunk?.(chunkEvents, loadedCount);
+          idx += concurrency;
+        }
+      };
+
+      const workers = [];
+      for (let w = 0; w < Math.min(concurrency, chunks.length); w++) {
+        workers.push(fetchNext(w));
+      }
+      await Promise.all(workers);
+      return allEvents;
     };
 
     const load = async () => {
@@ -109,6 +144,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         setStreamProgress({ loaded: 0, total: 0 });
 
         // ── Attempt 1: progressive chunk streaming via presigned manifest ──
+        let fullURL: string | undefined;
         try {
           const manifestRes = await api.get(
             `/replays/presigned-manifest/${sessionId}?website_id=${websiteId}`,
@@ -118,7 +154,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           const manifest = manifestRes.data;
           const chunks: { seq: number; url: string }[] = manifest?.chunks ?? [];
           const totalChunks: number = manifest?.total_chunks ?? chunks.length;
-          const fullURL: string | undefined = manifest?.full_url;
+          fullURL = manifest?.full_url;
 
           if (signal.aborted) return;
 
@@ -136,76 +172,89 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
             }
           }
 
-          // Progressive streaming: load chunk 0 first, start playback, then
-          // fetch remaining chunks concurrently in the background.
           if (chunks.length > 0) {
             setStreamProgress({ loaded: 0, total: totalChunks });
-
-            // Sort by seq to ensure chunk 0 is first
             const sorted = [...chunks].sort((a, b) => a.seq - b.seq);
 
-            // Fetch chunk 0 — the full DOM snapshot required to start rrweb
+            // ── Fast path: load chunk 0, check for FullSnapshot ──
             const firstEvents = await fetchChunk(sorted[0].url);
             if (signal.aborted) return;
 
-            if (firstEvents.length > 0) {
+            if (firstEvents.length > 0 && hasFullSnapshot(firstEvents)) {
+              // Chunk 0 has the snapshot — start playback immediately
               setEvents(firstEvents);
               setStreamProgress({ loaded: 1, total: totalChunks });
 
-              // Fetch remaining chunks in background with bounded concurrency
+              // Stream remaining chunks in background
               if (sorted.length > 1) {
                 const remaining = sorted.slice(1);
-                let loadedCount = 1;
-                const concurrency = 3;
-
-                const fetchNext = async (idx: number) => {
+                let bgLoaded = 1;
+                const bgFetch = async (idx: number) => {
                   while (idx < remaining.length) {
                     if (signal.aborted) return;
                     const chunkEvents = await fetchChunk(remaining[idx].url);
                     if (signal.aborted) return;
                     if (chunkEvents.length > 0) {
-                      // Sort by timestamp before injecting
                       chunkEvents.sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
                       pendingEventsRef.current.push(...chunkEvents);
-
-                      // Inject into running player if available
                       const replayer = playerInstanceRef.current?.getReplayer?.();
                       if (replayer) {
                         for (const ev of chunkEvents) {
                           try { replayer.addEvent(ev); } catch {}
                         }
                       } else {
-                        // Player not ready yet — merge into events state
                         setEvents(prev => [...prev, ...chunkEvents]);
                       }
                     }
-                    loadedCount++;
-                    setStreamProgress({ loaded: loadedCount, total: totalChunks });
-                    idx += concurrency;
+                    bgLoaded++;
+                    setStreamProgress({ loaded: bgLoaded, total: totalChunks });
+                    idx += 3;
                   }
                 };
-
-                // Launch concurrent fetchers
                 const workers = [];
-                for (let w = 0; w < Math.min(concurrency, remaining.length); w++) {
-                  workers.push(fetchNext(w));
+                for (let w = 0; w < Math.min(3, remaining.length); w++) {
+                  workers.push(bgFetch(w));
                 }
-                // Don't await — let them run in background while playback starts
                 Promise.all(workers).catch(() => {});
               }
 
               return; // Playback started with chunk 0
             }
+
+            // ── Slow path: chunk 0 has no FullSnapshot ──
+            // Eagerly load ALL remaining chunks to find the snapshot.
+            if (sorted.length > 1) {
+              let allEvents = [...firstEvents];
+              const remaining = sorted.slice(1);
+              const moreEvents = await fetchChunksConcurrently(
+                remaining, 3,
+                (_chunkEvts, loaded) => {
+                  setStreamProgress({ loaded: loaded + 1, total: totalChunks });
+                },
+              );
+              if (signal.aborted) return;
+              allEvents.push(...moreEvents);
+
+              if (allEvents.length > 0) {
+                setEvents(allEvents);
+                setStreamProgress({ loaded: totalChunks, total: totalChunks });
+                if (hasFullSnapshot(allEvents)) return;
+              }
+            } else if (firstEvents.length > 0) {
+              // Only 1 chunk and no snapshot — set events anyway
+              setEvents(firstEvents);
+              setStreamProgress({ loaded: 1, total: totalChunks });
+            }
           }
 
-          // Chunks approach failed — try full URL if available
+          // Chunks didn't yield a FullSnapshot — try full URL
           if (fullURL) {
             const s3Res = await fetch(fullURL, { signal });
             if (s3Res.ok) {
               const data = await s3Res.json();
-              if (Array.isArray(data)) {
+              if (Array.isArray(data) && data.length > 0) {
                 setEvents(data);
-                return;
+                if (hasFullSnapshot(data)) return;
               }
             }
           }
