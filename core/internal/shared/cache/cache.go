@@ -114,6 +114,36 @@ func (c *Cache) Delete(key string) {
 	c.rdb.Del(ctx, c.k(key))
 }
 
+// DeleteByPattern removes all keys matching a glob pattern (e.g. "replay:list:site123:*").
+// Uses SCAN to avoid blocking Redis on large key spaces.
+func (c *Cache) DeleteByPattern(pattern string) {
+	ctx := context.Background()
+	var cursor uint64
+	for {
+		keys, next, err := c.rdb.Scan(ctx, cursor, c.k(pattern), 100).Result()
+		if err != nil {
+			return
+		}
+		if len(keys) > 0 {
+			c.rdb.Del(ctx, keys...)
+		}
+		cursor = next
+		if cursor == 0 {
+			break
+		}
+	}
+}
+
+// SRem removes one or more members from a Redis set.
+func (c *Cache) SRem(key string, members ...string) {
+	ctx := context.Background()
+	args := make([]interface{}, len(members))
+	for i, m := range members {
+		args[i] = m
+	}
+	c.rdb.SRem(ctx, c.k(key), args...)
+}
+
 // Exists returns true if the key is present in Redis.
 func (c *Cache) Exists(key string) bool {
 	ctx := context.Background()

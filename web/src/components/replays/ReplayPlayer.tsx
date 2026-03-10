@@ -256,8 +256,17 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
   // ─── Player initialisation ─────────────────────────────────────────────────
   useEffect(() => {
-    // rrweb requires at least 2 events to initialise the replayer
+    // rrweb requires at least 2 events to initialise the replayer.
+    // Additionally, a FullSnapshot event (type 2) is mandatory — without it the
+    // player iframe renders nothing (progress bar moves but no visual content).
     if (loading || events.length < 2 || !playerRef.current) return;
+
+    const hasSnapshot = events.some((e: any) => e.type === 2);
+    if (!hasSnapshot) {
+      // No DOM snapshot yet — wait for more chunks to arrive
+      console.warn('[ReplayPlayer] No FullSnapshot (type 2) event found in', events.length, 'events — waiting for more data');
+      return;
+    }
 
     playerRef.current.innerHTML = '';
     stopSmoothTimer();
@@ -690,6 +699,23 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
                     <Loader2 className="h-6 w-6 animate-spin text-white/20 mx-auto mb-2" />
                     <p className="text-sm font-medium text-white/30 mb-1">Waiting for more data...</p>
                     <p className="text-xs text-white/15">Session has too few events to replay. Loading additional chunks.</p>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : !events.some((e: any) => e.type === 2) ? (
+            <div className="flex items-center justify-center h-full p-12 text-center">
+              <div>
+                {streamProgress.total > 0 && streamProgress.loaded < streamProgress.total ? (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin text-white/20 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-white/30 mb-1">Loading page snapshot...</p>
+                    <p className="text-xs text-white/15">Chunk {streamProgress.loaded} of {streamProgress.total} loaded. Waiting for DOM snapshot.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-white/30 mb-1">No page snapshot available</p>
+                    <p className="text-xs text-white/15">This session is missing the initial DOM snapshot required for visual playback.</p>
                   </>
                 )}
               </div>

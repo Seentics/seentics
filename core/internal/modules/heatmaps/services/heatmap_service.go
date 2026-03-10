@@ -476,6 +476,7 @@ func (s *heatmapService) DeleteHeatmapPage(ctx context.Context, websiteID string
 	}
 	// Evict from Redis URL set so quota is recalculated
 	s.rdb.SRem(ctx, "sn:heatmap:urls:"+canonicalID, url)
+	s.invalidateHeatmapCache(canonicalID, url)
 	return s.repo.DeleteHeatmapPage(ctx, canonicalID, url)
 }
 
@@ -491,7 +492,23 @@ func (s *heatmapService) BulkDeleteHeatmapPages(ctx context.Context, websiteID s
 		}
 		s.rdb.SRem(ctx, "sn:heatmap:urls:"+canonicalID, members...)
 	}
+	for _, url := range urls {
+		s.invalidateHeatmapCache(canonicalID, url)
+	}
 	return s.repo.BulkDeleteHeatmapPages(ctx, canonicalID, urls)
+}
+
+// invalidateHeatmapCache clears cached page lists and per-URL data/element caches
+// so that deletions are immediately reflected in the UI.
+func (s *heatmapService) invalidateHeatmapCache(canonicalID string, url string) {
+	if s.appCache == nil {
+		return
+	}
+	// Clear the page list cache for this website
+	s.appCache.Delete(fmt.Sprintf("heatmap:pages:%s", canonicalID))
+	// Clear cached heatmap data and element data for the deleted URL
+	s.appCache.DeleteByPattern(fmt.Sprintf("heatmap:data:%s:%s:*", canonicalID, url))
+	s.appCache.DeleteByPattern(fmt.Sprintf("heatmap:elements:%s:%s:*", canonicalID, url))
 }
 
 // ── Cache warmer ──────────────────────────────────────────────────────────────

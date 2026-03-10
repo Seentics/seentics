@@ -324,8 +324,27 @@ func (s *WebsiteService) invalidateCache(ctx context.Context, w *models.Website)
 	if s.cache == nil || w == nil {
 		return
 	}
-	s.cache.Delete(fmt.Sprintf("website:site_id:%s", w.SiteID))
-	s.cache.Delete(fmt.Sprintf("website:site_id:%s", w.ID.String()))
+	siteID := w.SiteID
+	uuidStr := w.ID.String()
+
+	// Website metadata caches
+	s.cache.Delete(fmt.Sprintf("website:site_id:%s", siteID))
+	s.cache.Delete(fmt.Sprintf("website:site_id:%s", uuidStr))
+	s.cache.Delete(fmt.Sprintf("tracker:config:%s", siteID))
+
+	// Replay caches
+	s.cache.DeleteByPattern(fmt.Sprintf("replay:list:%s:*", siteID))
+	s.cache.Delete(fmt.Sprintf("replay:sessions:%s", siteID))
+	s.cache.Delete(fmt.Sprintf("replay:count:user:%s", w.UserID.String()))
+
+	// Heatmap caches
+	s.cache.Delete(fmt.Sprintf("heatmap:pages:%s", uuidStr))
+	s.cache.DeleteByPattern(fmt.Sprintf("heatmap:data:%s:*", uuidStr))
+	s.cache.DeleteByPattern(fmt.Sprintf("heatmap:elements:%s:*", uuidStr))
+
+	// Analytics caches
+	s.cache.DeleteByPattern(fmt.Sprintf("analytics:dashboard:%s:*", siteID))
+	s.cache.DeleteByPattern(fmt.Sprintf("analytics:path_analysis:%s:*", siteID))
 }
 
 // UpdateWebsite updates website settings

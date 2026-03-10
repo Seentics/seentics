@@ -600,6 +600,7 @@ func (s *replayService) DeleteReplay(ctx context.Context, websiteID string, sess
 	}
 
 	s.deleteS3KeysParallel(ctx, keys)
+	s.invalidateReplayCache(siteID, userID, sessionID)
 	return nil
 }
 
@@ -615,7 +616,25 @@ func (s *replayService) BulkDeleteReplays(ctx context.Context, websiteID string,
 	}
 
 	s.deleteS3KeysParallel(ctx, keys)
+	s.invalidateReplayCache(siteID, userID, sessionIDs...)
 	return nil
+}
+
+// invalidateReplayCache clears cached session lists, user count, and session SET entries
+// so that deletions are immediately reflected in the UI.
+func (s *replayService) invalidateReplayCache(siteID string, userID string, sessionIDs ...string) {
+	if s.cache == nil {
+		return
+	}
+	// Clear cached session list pages for this site
+	s.cache.DeleteByPattern(fmt.Sprintf("replay:list:%s:*", siteID))
+	// Clear cached session count for the user so quota recalculates
+	s.cache.Delete(fmt.Sprintf("replay:count:user:%s", userID))
+	// Remove deleted sessions from the Redis SET used for fast existence checks
+	if len(sessionIDs) > 0 {
+		setKey := fmt.Sprintf("replay:sessions:%s", siteID)
+		s.cache.SRem(setKey, sessionIDs...)
+	}
 }
 
 // deleteS3KeysParallel deletes S3 objects concurrently. Failures are non-fatal.

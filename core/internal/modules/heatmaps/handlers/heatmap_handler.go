@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/Seentics/seentics/internal/modules/heatmaps/models"
@@ -11,6 +12,15 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 )
+
+// normalizePath mirrors the tracker's normPath function: strips trailing slashes
+// except for the root path "/". This ensures URL queries match what was stored.
+func normalizePath(p string) string {
+	if p == "" || p == "/" {
+		return "/"
+	}
+	return strings.TrimRight(p, "/")
+}
 
 type HeatmapHandler struct {
 	service services.HeatmapService
@@ -67,7 +77,7 @@ func (h *HeatmapHandler) GetHeatmapData(c *gin.Context) {
 	}
 
 	websiteID := c.Query("website_id")
-	url := c.Query("url")
+	url := normalizePath(c.Query("url"))
 	heatmapType := c.DefaultQuery("type", "click")
 	deviceType := c.DefaultQuery("device", "desktop")
 
@@ -160,7 +170,7 @@ func (h *HeatmapHandler) DeleteHeatmapPage(c *gin.Context) {
 	}
 
 	websiteID := c.Query("website_id")
-	url := c.Query("url")
+	url := normalizePath(c.Query("url"))
 
 	if websiteID == "" || url == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id and url are required"})
@@ -187,7 +197,7 @@ func (h *HeatmapHandler) GetTopElements(c *gin.Context) {
 	}
 
 	websiteID := c.Query("website_id")
-	url := c.Query("url")
+	url := normalizePath(c.Query("url"))
 	eventType := c.DefaultQuery("type", "click")
 
 	if websiteID == "" || url == "" {
