@@ -61,9 +61,11 @@ func (m *Migrator) RunMigrations(ctx context.Context) error {
 	}
 
 	if dirty {
-		m.logger.Warn().Uint("version", version).Msg("Database is in dirty state, forcing version")
-		if err := migrator.Force(int(version)); err != nil {
-			return fmt.Errorf("failed to force version %d: %w", version, err)
+		// Force to previous version so the failed migration is retried on next Up()
+		prev := int(version) - 1
+		m.logger.Warn().Uint("version", version).Int("force_to", prev).Msg("Database is in dirty state, forcing to previous version to retry")
+		if err := migrator.Force(prev); err != nil {
+			return fmt.Errorf("failed to force version %d: %w", prev, err)
 		}
 	}
 

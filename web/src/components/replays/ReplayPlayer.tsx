@@ -62,6 +62,9 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [speed, setSpeed] = useState(1);
   const [skipInactive, setSkipInactive] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [playerInitKey, setPlayerInitKey] = useState(0); // bump to force player re-init
+  const pendingSeekRef = useRef<number | null>(null);    // seek position after re-init
+  const reinitCountRef = useRef(0);                      // guard against infinite re-init loops
 
   // Smooth timer refs — interpolate between event-cast ticks
   const speedRef = useRef(1);
@@ -253,7 +256,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
   // ─── Player initialisation ─────────────────────────────────────────────────
   useEffect(() => {
-    if (loading || events.length === 0 || !playerRef.current) return;
+    // rrweb requires at least 2 events to initialise the replayer
+    if (loading || events.length < 2 || !playerRef.current) return;
 
     playerRef.current.innerHTML = '';
     stopSmoothTimer();
@@ -268,19 +272,26 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     // Sort events by timestamp — out-of-order events cause "Node not found" warnings
     const sortedEvents = [...events].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
 
-    const player = new rrwebPlayer({
-      target: playerRef.current,
-      props: {
-        events: sortedEvents,
-        autoPlay: true,
-        speed: 1,
-        width: containerW,
-        height: containerH,
-        showController: false,
-        skipInactive: false,
-        UNSAFE_replayCanvas: true,
-      },
-    });
+    let player: rrwebPlayer;
+    try {
+      player = new rrwebPlayer({
+        target: playerRef.current,
+        props: {
+          events: sortedEvents,
+          autoPlay: true,
+          speed: 1,
+          width: containerW,
+          height: containerH,
+          showController: false,
+          skipInactive: false,
+          UNSAFE_replayCanvas: true,
+        },
+      });
+    } catch (err) {
+      console.warn('[ReplayPlayer] Failed to initialise rrweb player:', err);
+      setError('Failed to initialise replay player. The session data may be corrupted.');
+      return;
+    }
 
     playerInstanceRef.current = player;
     finishedRef.current = false;
@@ -303,6 +314,39 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     speedRef.current = 1;
     setSkipInactive(false);
     startSmoothTimer();
+
+    // If we're re-initing after a goto failure, seek to the pending position.
+    // Use replayer.play(offset) which is more resilient than player.goto().
+    // If it still fails, give up and play from the beginning.
+    if (pendingSeekRef.current !== null) {
+      const seekTarget = pendingSeekRef.current;
+      pendingSeekRef.current = null;
+      reinitCountRef.current++;
+
+      // After 2 failed re-inits, stop trying to seek — just play from start
+      if (reinitCountRef.current <= 2) {
+        try {
+          const replayer = player.getReplayer();
+          if (replayer) {
+            replayer.play(seekTarget);
+          } else {
+            player.goto(seekTarget, true);
+          }
+          currentTimeRef.current = seekTarget;
+          lastEventTimeRef.current = seekTarget;
+          lastWallTimeRef.current = Date.now();
+          setCurrentTime(seekTarget);
+        } catch {
+          // Seek failed on fresh player — just play from start
+          console.warn('[ReplayPlayer] Seek after re-init failed, playing from start');
+        }
+      } else {
+        // Too many re-inits — reset counter, play from start
+        reinitCountRef.current = 0;
+      }
+    } else {
+      reinitCountRef.current = 0;
+    }
 
     let sessionStartTime = 0;
     try { sessionStartTime = player.getMetaData().startTime ?? 0; } catch {}
@@ -365,15 +409,33 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           watchdogRetryRef.current = 0;
           lastWatchdogPosRef.current = pos;
         }
+        // After 5 consecutive stalls at the same position, give up and finish
+        if (watchdogRetryRef.current >= 5) {
+          finishedRef.current = true;
+          isPlayingRef.current = false;
+          setIsPlaying(false);
+          stopSmoothTimer();
+          return;
+        }
         // Escalate jump size on repeated stalls at the same position
         const maxJump = watchdogRetryRef.current >= 2 ? 60000 : watchdogRetryRef.current >= 1 ? 30000 : 10000;
         const jumpAmount = Math.min(Math.max(stale * speedRef.current, 5000), maxJump);
         const nudge = Math.min(pos + jumpAmount, totalTimeRef.current - 100);
         if (nudge > pos + 100) {
-          try { playerInstanceRef.current.goto(nudge, true); } catch {}
-          lastEventCastWallRef.current = Date.now();
-          lastWallTimeRef.current = Date.now();
-          lastWatchdogPosRef.current = nudge;
+          try {
+            playerInstanceRef.current.goto(nudge, true);
+            lastEventCastWallRef.current = Date.now();
+            lastWallTimeRef.current = Date.now();
+            lastWatchdogPosRef.current = nudge;
+            currentTimeRef.current = nudge;
+          } catch {
+            // goto corrupted player — just force finish, don't loop re-inits
+            finishedRef.current = true;
+            isPlayingRef.current = false;
+            setIsPlaying(false);
+            stopSmoothTimer();
+            if (watchdogTimerRef.current) { clearInterval(watchdogTimerRef.current); watchdogTimerRef.current = null; }
+          }
         } else {
           // At the very end — force finish
           finishedRef.current = true;
@@ -390,7 +452,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       try { (player as any).$destroy(); } catch {}
       playerInstanceRef.current = null;
     };
-  }, [loading, events, startSmoothTimer, stopSmoothTimer]);
+  }, [loading, events, playerInitKey, startSmoothTimer, stopSmoothTimer]);
 
   // Resize player when container width changes
   useEffect(() => {
@@ -415,12 +477,63 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // ─── Safe goto wrapper ─────────────────────────────────────────────────────
+  // player.goto() can throw when seeking past available events or into
+  // unloaded chunks, corrupting rrweb's internal DOM state. When that
+  // happens we destroy the player and re-init from scratch. After 2
+  // consecutive failures we give up seeking and just play from start.
+  const safeGoto = useCallback((timeMs: number, play: boolean) => {
+    const player = playerInstanceRef.current;
+    if (!player) return false;
+    const clamped = Math.max(0, Math.min(timeMs, totalTimeRef.current));
+    try {
+      // Try replayer.play(offset) first — it's more resilient than goto()
+      // because it processes events through the state machine rather than
+      // synchronous DOM rebuild.
+      const replayer = player.getReplayer?.();
+      if (replayer && play) {
+        replayer.play(clamped);
+      } else {
+        player.goto(clamped, play);
+      }
+      reinitCountRef.current = 0;
+      lastEventTimeRef.current = clamped;
+      lastWallTimeRef.current = Date.now();
+      lastEventCastWallRef.current = Date.now();
+      currentTimeRef.current = clamped;
+      setCurrentTime(clamped);
+      return true;
+    } catch (err) {
+      console.warn('[ReplayPlayer] goto failed:', err);
+
+      // If we've already re-inited too many times, just pause — don't loop
+      if (reinitCountRef.current >= 2) {
+        console.warn('[ReplayPlayer] Too many re-init attempts, staying at current position');
+        reinitCountRef.current = 0;
+        isPlayingRef.current = false;
+        setIsPlaying(false);
+        stopSmoothTimer();
+        return false;
+      }
+
+      // Destroy the corrupted player and schedule a full re-init
+      stopSmoothTimer();
+      if (watchdogTimerRef.current) { clearInterval(watchdogTimerRef.current); watchdogTimerRef.current = null; }
+      try { (player as any).$destroy(); } catch {}
+      playerInstanceRef.current = null;
+      if (playerRef.current) playerRef.current.innerHTML = '';
+      pendingSeekRef.current = clamped;
+      setPlayerInitKey(k => k + 1);
+      return false;
+    }
+  }, [stopSmoothTimer]);
+
   // ─── Controls ──────────────────────────────────────────────────────────────
   const handleTogglePlay = useCallback(() => {
     const player = playerInstanceRef.current;
     if (!player) return;
     if (isPlayingRef.current) {
-      player.pause();
+      try { player.pause(); } catch {}
       isPlayingRef.current = false;
       setIsPlaying(false);
     } else {
@@ -429,14 +542,20 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         const resumeAt = currentTimeRef.current >= totalTimeRef.current
           ? 0
           : currentTimeRef.current;
-        player.goto(resumeAt, true);
+        safeGoto(resumeAt, true);
       } else {
-        player.play();
+        try {
+          player.play();
+        } catch {
+          // play() failed (corrupted state) — re-init from current position
+          safeGoto(currentTimeRef.current, true);
+          return;
+        }
       }
       isPlayingRef.current = true;
       setIsPlaying(true);
     }
-  }, []);
+  }, [safeGoto]);
 
   const handleSetSpeed = useCallback((newSpeed: number) => {
     const player = playerInstanceRef.current;
@@ -454,28 +573,18 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   }, []);
 
   const handleSkipForward = useCallback(() => {
-    const player = playerInstanceRef.current;
-    if (!player) return;
+    if (!playerInstanceRef.current) return;
     const newTime = Math.min(currentTimeRef.current + 10000, totalTimeRef.current);
     finishedRef.current = false;
-    player.goto(newTime, isPlayingRef.current);
-    currentTimeRef.current = newTime;
-    lastEventTimeRef.current = newTime;
-    lastWallTimeRef.current  = Date.now();
-    setCurrentTime(newTime);
-  }, []);
+    safeGoto(newTime, isPlayingRef.current);
+  }, [safeGoto]);
 
   const handleSkipBack = useCallback(() => {
-    const player = playerInstanceRef.current;
-    if (!player) return;
+    if (!playerInstanceRef.current) return;
     const newTime = Math.max(currentTimeRef.current - 10000, 0);
     finishedRef.current = false;
-    player.goto(newTime, isPlayingRef.current);
-    currentTimeRef.current = newTime;
-    lastEventTimeRef.current = newTime;
-    lastWallTimeRef.current  = Date.now();
-    setCurrentTime(newTime);
-  }, []);
+    safeGoto(newTime, isPlayingRef.current);
+  }, [safeGoto]);
 
   const handleToggleSkipInactive = useCallback(() => {
     const player = playerInstanceRef.current;
@@ -490,19 +599,14 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   }, [skipInactive]);
 
   const seekTo = useCallback((clientX: number) => {
-    const player = playerInstanceRef.current;
     const track = scrubberRef.current;
-    if (!player || !track || totalTimeRef.current === 0) return;
+    if (!playerInstanceRef.current || !track || totalTimeRef.current === 0) return;
     const rect = track.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const newTime = Math.floor(ratio * totalTimeRef.current);
     finishedRef.current = false;
-    player.goto(newTime, isPlayingRef.current);
-    currentTimeRef.current = newTime;
-    lastEventTimeRef.current = newTime;
-    lastWallTimeRef.current  = Date.now();
-    setCurrentTime(newTime);
-  }, []);
+    safeGoto(newTime, isPlayingRef.current);
+  }, [safeGoto]);
 
   const handleScrubberPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -573,11 +677,21 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
       <Card ref={containerRef} className="border border-border bg-card overflow-hidden shadow-sm">
         <div ref={videoAreaRef} className="bg-zinc-950 relative" style={{ height: '600px' }}>
-          {events.length === 0 ? (
+          {events.length < 2 ? (
             <div className="flex items-center justify-center h-full p-12 text-center">
               <div>
-                <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
-                <p className="text-xs text-white/15">This session contains no replay data.</p>
+                {events.length === 0 ? (
+                  <>
+                    <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
+                    <p className="text-xs text-white/15">This session contains no replay data.</p>
+                  </>
+                ) : (
+                  <>
+                    <Loader2 className="h-6 w-6 animate-spin text-white/20 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-white/30 mb-1">Waiting for more data...</p>
+                    <p className="text-xs text-white/15">Session has too few events to replay. Loading additional chunks.</p>
+                  </>
+                )}
               </div>
             </div>
           ) : (

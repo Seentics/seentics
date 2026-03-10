@@ -105,7 +105,7 @@ export default function SessionPlaybackPage() {
       </div>
 
       {/* Content */}
-      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-6">
+      <div className="max-w-[1400px] mx-auto px-4 md:px-8 py-2">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 className="h-7 w-7 animate-spin text-muted-foreground/40" />

@@ -15,7 +15,7 @@ import { getCountryFlag } from '@/utils/countries';
 const WorldMap = dynamic(() => import('./WorldMap'), {
     ssr: false,
     loading: () => (
-        <div className="h-[600px] rounded flex items-center justify-center">
+        <div className="h-[400px] rounded flex items-center justify-center">
             <div className="text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
                 <p className="text-sm text-muted-foreground">Loading map...</p>
@@ -82,7 +82,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
 
     return (
         <Card className={cn("border border-border/60 bg-card shadow-sm overflow-hidden", className)}>
-            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-6 border-b border-border/40">
+            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-border/40">
                 <div className="space-y-1">
                     <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
                         Geographic Intelligence
@@ -99,10 +99,10 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     </Tabs>
                 </div>
             </CardHeader>
-            <CardContent className="p-6 pt-6">
+            <CardContent className=" pt-6">
                 <div className="min-h-[400px]">
                     {geoTab === 'map' && (
-                        <div className="h-[600px] rounded-xl overflow-hidden">
+                        <div className="h-[450px] rounded-xl overflow-hidden">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}

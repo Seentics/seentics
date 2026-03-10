@@ -80,7 +80,7 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
     
     return utmData
       .map((item: any) => ({
-        name: (item.source || item.medium || item.campaign || item.term || item.content || 'Unknown') === 'None' ? 'Direct' : (item.source || item.medium || item.campaign || item.term || item.content || 'Unknown'),
+        name: capitalize((item.source || item.medium || item.campaign || item.term || item.content || 'Unknown') === 'None' ? 'Direct' : (item.source || item.medium || item.campaign || item.term || item.content || 'Unknown')),
         visitors: Number(item.unique_visitors) || 0,
         events: Number(item.visits || item.pageviews || 0),
       }))
@@ -108,7 +108,7 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
 
   return (
     <div className="h-[400px] overflow-y-auto pr-1 custom-scrollbar">
-      <div className="space-y-0 mt-4">
+      <div className="space-y-0">
         {listData.map((item, idx) => (
           <div key={idx} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
             <div className="flex items-center space-x-4 flex-1 min-w-0">
@@ -152,6 +152,8 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
     </div>
   );
 }
+
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const getImageForName = (name: string, tab: string) => {
   const lower = (name || '').toLowerCase();

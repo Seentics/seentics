@@ -45,7 +45,7 @@ import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRig
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
-import { EventsDetails } from '@/components/analytics/EventsDetails';
+import { EngagementHeatmap } from '@/components/analytics/EngagementHeatmap';
 import { GoalConversions } from '@/components/analytics/GoalConversions';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { PagePerformanceTable } from '@/components/analytics/PagePerformanceTable';
@@ -133,11 +133,6 @@ export default function WebsiteDashboardPage() {
 
   const handleDeleteAnnotation = useCallback((id: string) => {
     setAnnotations(prev => prev.filter(a => a.id !== id));
-  }, []);
-
-  // Click-to-filter handler
-  const handleDashboardFilter = useCallback((filter: Record<string, string>) => {
-    setAdvancedFilters((prev: any) => ({ ...prev, ...filter }));
   }, []);
 
   const removeFilter = useCallback((key: string) => {
@@ -354,8 +349,10 @@ export default function WebsiteDashboardPage() {
     const src = isDemoMode ? demoData?.customEvents : customEvents;
     const emptyUtm = { sources: {}, mediums: {}, campaigns: {}, terms: {}, content: {}, avg_ctr: 0, total_campaigns: 0, total_sources: 0, total_mediums: 0 };
 
+    // Filter out internal tracker events — these are already reflected in other dashboard sections
+    const internalEvents = new Set(['pageview', 'page_view', 'page_exit', 'scroll_depth', 'click']);
     const filteredEvents = (src?.top_events ?? []).filter(
-      (event: any) => event.event_type !== 'pageview' && event.event_type !== 'page_view'
+      (event: any) => !internalEvents.has(event.event_type)
     );
 
     return {
@@ -595,7 +592,6 @@ export default function WebsiteDashboardPage() {
                     entryPages={finalVisitorInsights?.visitor_insights?.top_entry_pages}
                     exitPages={finalVisitorInsights?.visitor_insights?.top_exit_pages}
                     isLoading={pagesLoading || visitorInsightsLoading}
-                    onFilter={handleDashboardFilter}
                   />
                 </ChartErrorBoundary>
               </CardContent>
@@ -604,7 +600,7 @@ export default function WebsiteDashboardPage() {
             <Card className="border border-border/60 bg-card shadow-sm">
               <CardContent className="p-8">
                 <ChartErrorBoundary label="Top Sources">
-                  <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} onFilter={handleDashboardFilter} />
+                  <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
                 </ChartErrorBoundary>
               </CardContent>
             </Card>
@@ -615,7 +611,6 @@ export default function WebsiteDashboardPage() {
             <GeolocationOverview
               data={finalGeolocationData}
               isLoading={!isDemoMode && geolocationLoading}
-              onFilter={handleDashboardFilter}
             />
           </ChartErrorBoundary>
 
@@ -630,7 +625,6 @@ export default function WebsiteDashboardPage() {
                     screenData={transformedTopResolutions}
                     browserData={transformedTopBrowsers}
                     isLoading={devicesLoading || osLoading || resolutionsLoading || browsersLoading}
-                    onFilter={handleDashboardFilter}
                   />
                 </ChartErrorBoundary>
               </CardContent>
@@ -745,34 +739,20 @@ export default function WebsiteDashboardPage() {
           </div>
         </div>
 
-        {/* CUSTOM EVENTS TRACKER */}
+        {/* ENGAGEMENT HEATMAP */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
             <Zap className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Custom Events</h2>
+            <h2 className="text-lg font-bold tracking-tight">Engagement Patterns</h2>
             <div className="h-px bg-border flex-1 ml-4" />
           </div>
 
           <Card className="border border-border/60 bg-card shadow-sm">
-            <CardHeader className="p-8 pb-4 border-b border-border/60">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-semibold tracking-tight">Event Tracker</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Clicks, form submissions, downloads & custom interactions</p>
-                </div>
-                {transformedCustomEvents.top_events.length > 0 && (
-                  <div className="text-right">
-                    <p className="text-sm font-bold">{transformedCustomEvents.top_events.length}</p>
-                    <p className="text-[10px] text-muted-foreground">event types</p>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <ChartErrorBoundary label="Custom Events">
-                <EventsDetails
-                  items={transformedCustomEvents.top_events}
-                  isLoading={!isDemoMode && customEventsLoading}
+            <CardContent className="p-8">
+              <ChartErrorBoundary label="Engagement Heatmap">
+                <EngagementHeatmap
+                  data={finalHourlyStats}
+                  isLoading={!isDemoMode && hourlyLoading}
                 />
               </ChartErrorBoundary>
             </CardContent>

@@ -260,7 +260,7 @@ function FlatMapView({ data }: { data: TopItem[] }) {
     return (
         <div className="relative w-full h-full">
             <ComposableMap
-                projectionConfig={{ scale: 210, center: [0, 15] }}
+                projectionConfig={{ scale: 280, center: [0, 15] }}
                 style={{ width: '100%', height: '100%' }}
             >
                 <ZoomableGroup zoom={1} minZoom={1} maxZoom={8}>

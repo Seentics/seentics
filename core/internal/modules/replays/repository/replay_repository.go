@@ -121,19 +121,19 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 		limit = 50
 	}
 
-	// Total sessions for this website (for pagination UI).
-	// Only count root chunks (sequence=0) — one per session.
+	// Total distinct sessions for this website (for pagination UI).
 	var total int64
 	countErr := r.db.QueryRow(ctx,
-		`SELECT COUNT(*) FROM session_replays WHERE website_id = $1 AND sequence = 0`,
+		`SELECT COUNT(DISTINCT session_id) FROM session_replays WHERE website_id = $1`,
 		websiteID,
 	).Scan(&total)
 	if countErr != nil {
 		total = 0
 	}
 
-	// Use a CTE to compute duration and chunk_count from all chunks per session,
-	// then join with root chunks (sequence=0) for metadata.
+	// Use CTEs to:
+	// 1) compute duration & chunk_count per session
+	// 2) pick the first chunk per session (lowest sequence) for metadata
 	const baseSelect = `
 		WITH chunk_stats AS (
 			SELECT
@@ -143,6 +143,13 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 			FROM session_replays
 			WHERE website_id = $1
 			GROUP BY session_id
+		),
+		first_chunks AS (
+			SELECT DISTINCT ON (session_id)
+				session_id, timestamp, browser, device, os, country, entry_page, has_rage_clicks
+			FROM session_replays
+			WHERE website_id = $1
+			ORDER BY session_id, sequence ASC
 		)
 		SELECT
 			r.session_id,
@@ -156,9 +163,9 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 			COALESCE(NULLIF(r.country, ''), 'Unknown') AS country,
 			COALESCE(NULLIF(r.entry_page, ''), 'Unknown') AS entry_page,
 			COALESCE(r.has_rage_clicks, false) AS has_rage_clicks
-		FROM session_replays r
+		FROM first_chunks r
 		LEFT JOIN chunk_stats cs ON r.session_id = cs.session_id
-		WHERE r.website_id = $1 AND r.sequence = 0
+		WHERE 1=1
 	`
 
 	var (
@@ -246,7 +253,7 @@ func (r *replayRepository) FindSessionIDForPage(ctx context.Context, websiteID, 
 	query := `
 		SELECT session_id
 		FROM session_replays
-		WHERE website_id = $1 AND entry_page = $2 AND sequence = 0
+		WHERE website_id = $1 AND entry_page = $2
 		ORDER BY timestamp DESC
 		LIMIT 1
 	`
@@ -350,12 +357,11 @@ func (r *replayRepository) CountSessionsForUser(ctx context.Context, userID uuid
 // olderThan and has not yet been scanned for rage clicks.
 func (r *replayRepository) GetUnprocessedSessions(ctx context.Context, olderThan time.Time, limit int) ([]models.UnprocessedSession, error) {
 	query := `
-		SELECT website_id, session_id, timestamp
+		SELECT DISTINCT ON (session_id) website_id, session_id, timestamp
 		FROM session_replays
-		WHERE sequence = 0
-		  AND rage_clicks_processed = FALSE
+		WHERE rage_clicks_processed = FALSE
 		  AND timestamp < $1
-		ORDER BY timestamp ASC
+		ORDER BY session_id, timestamp ASC
 		LIMIT $2
 	`
 	rows, err := r.db.Query(ctx, query, olderThan, limit)
@@ -375,8 +381,8 @@ func (r *replayRepository) GetUnprocessedSessions(ctx context.Context, olderThan
 	return sessions, nil
 }
 
-// MarkRageClicksProcessed updates the sequence=0 row for a session with the
-// rage-click detection result and marks it processed so the worker skips it.
+// MarkRageClicksProcessed records the result of rage-click detection for a session.
+// Updates all chunks so the worker skips the entire session on future scans.
 func (r *replayRepository) MarkRageClicksProcessed(ctx context.Context, websiteID, sessionID string, hasRageClicks bool) error {
 	_, err := r.db.Exec(ctx, `
 		UPDATE session_replays
@@ -384,7 +390,6 @@ func (r *replayRepository) MarkRageClicksProcessed(ctx context.Context, websiteI
 		    rage_clicks_processed = TRUE
 		WHERE website_id = $2
 		  AND session_id = $3
-		  AND sequence   = 0
 	`, hasRageClicks, websiteID, sessionID)
 	return err
 }

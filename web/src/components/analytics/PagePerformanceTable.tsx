@@ -102,12 +102,12 @@ export function PagePerformanceTable({ data, isLoading }: PagePerformanceTablePr
   return (
     <div className="space-y-1">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/40">
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Page</span>
-        <div className="flex items-center gap-8">
-          <SortHeader label="Views" field="views" icon={Eye} />
-          <SortHeader label="Time on Page" field="avg_time" icon={Clock} />
-          <SortHeader label="Bounce" field="bounce_rate" icon={TrendingDown} />
+      <div className="flex items-center px-4 py-2 border-b border-border/40">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex-1 min-w-0">Page</span>
+        <div className="flex items-center shrink-0">
+          <div className="w-20 flex justify-end"><SortHeader label="Views" field="views" icon={Eye} /></div>
+          <div className="w-24 flex justify-end"><SortHeader label="Time" field="avg_time" icon={Clock} /></div>
+          <div className="w-20 flex justify-end"><SortHeader label="Bounce" field="bounce_rate" icon={TrendingDown} /></div>
         </div>
       </div>
 
@@ -135,15 +135,15 @@ export function PagePerformanceTable({ data, isLoading }: PagePerformanceTablePr
                 </span>
               </div>
 
-              <div className="relative flex items-center gap-8 shrink-0">
-                <span className="text-sm font-bold tabular-nums w-16 text-right">
+              <div className="relative flex items-center shrink-0">
+                <span className="text-sm font-bold tabular-nums w-20 text-right">
                   {(page.views || 0).toLocaleString()}
                 </span>
-                <span className="text-sm font-bold tabular-nums w-16 text-right">
+                <span className="text-sm font-bold tabular-nums w-24 text-right">
                   {page.avg_time != null ? formatDuration(page.avg_time) : '—'}
                 </span>
                 <span className={cn(
-                  'text-sm font-bold tabular-nums w-16 text-right',
+                  'text-sm font-bold tabular-nums w-20 text-right',
                   page.bounce_rate != null && page.bounce_rate > 50
                     ? 'text-rose-500'
                     : page.bounce_rate != null && page.bounce_rate < 30

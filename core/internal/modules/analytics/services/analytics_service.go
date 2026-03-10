@@ -721,4 +721,27 @@ func (s *AnalyticsService) warmSite(ctx context.Context, siteID string) {
 			_ = s.cache.Set(insightsKey, insights, cacheTTLHeavy)
 		}
 	}
+
+	// Path analysis
+	pathKey := fmt.Sprintf("analytics:path_analysis:%s:%d", siteID, days)
+	if !s.cache.Exists(pathKey) {
+		g, gCtx := errgroup.WithContext(warmCtx)
+		var entryPages, exitPages []models.TopItem
+		var pageFlows []models.PageFlow
+		var avgPathLength float64
+
+		g.Go(func() error { var e error; entryPages, e = s.repo.GetEntryPages(gCtx, siteID, days, 10); return e })
+		g.Go(func() error { var e error; exitPages, e = s.repo.GetExitPages(gCtx, siteID, days, 10); return e })
+		g.Go(func() error { var e error; pageFlows, e = s.repo.GetPageFlows(gCtx, siteID, days, 30); return e })
+		g.Go(func() error { var e error; avgPathLength, e = s.repo.GetAvgPathLength(gCtx, siteID, days); return e })
+
+		if err := g.Wait(); err == nil {
+			_ = s.cache.Set(pathKey, &models.PathAnalysis{
+				TopEntryPages: entryPages,
+				TopExitPages:  exitPages,
+				PageFlows:     pageFlows,
+				AvgPathLength: avgPathLength,
+			}, cacheTTLHeavy)
+		}
+	}
 }

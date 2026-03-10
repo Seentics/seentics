@@ -377,7 +377,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopPages(ctx context.Context, website
 					NULL
 				)
 			) as avg_time,
-			countIf(ss.page_count = 1) * 100.0 / count() as bounce_rate
+			uniqIf(pv.session_id, ss.page_count = 1) * 100.0 / uniq(pv.session_id) as bounce_rate
 		FROM page_visits pv
 		INNER JOIN session_stats ss ON pv.session_id = ss.session_id
 		GROUP BY pv.page
@@ -1354,7 +1354,7 @@ func (r *ClickHouseAnalyticsRepository) GetExitPages(ctx context.Context, websit
 func (r *ClickHouseAnalyticsRepository) GetAvgPathLength(ctx context.Context, websiteID string, days int) (float64, error) {
 	query := `
 		SELECT avg(pages) FROM (
-			SELECT session_id, count(*) as pages
+			SELECT session_id, uniq(page) as pages
 			FROM events
 			WHERE website_id = ?
 			AND event_type = 'pageview'

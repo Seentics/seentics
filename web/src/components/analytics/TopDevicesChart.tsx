@@ -2,7 +2,8 @@
 
 import {
   Layers,
-  Globe
+  Globe,
+  HelpCircle
 } from 'lucide-react';
 import Image from 'next/image';
 import React, { useState } from 'react';
@@ -141,20 +142,26 @@ export function TopDevicesChart({ data, osData, screenData, browserData, isLoadi
             <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={handleClick}>
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
-                  <Image
-                    src={img}
-                    alt=""
-                    aria-hidden="true"
-                    width={20}
-                    height={20}
-                    className="object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLElement;
-                      target.style.display = 'none';
-                      target.nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                  <Globe className="h-4 w-4 text-primary hidden" />
+                  {label === 'Unknown' ? (
+                    <HelpCircle className="h-5 w-5 text-muted-foreground/50" />
+                  ) : (
+                    <>
+                      <Image
+                        src={img}
+                        alt=""
+                        aria-hidden="true"
+                        width={20}
+                        height={20}
+                        className="object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                      <Globe className="h-4 w-4 text-primary hidden" />
+                    </>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{label}</div>
@@ -190,8 +197,8 @@ export function TopDevicesChart({ data, osData, screenData, browserData, isLoadi
               <p className="text-xs text-muted-foreground mt-0.5">Devices, OS & tech specs</p>
            </div>
            <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[220px] bg-muted/50 p-0.5 rounded shrink-0">
-             <TabsTrigger value="devices" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Devices</TabsTrigger>
              <TabsTrigger value="os" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">OS</TabsTrigger>
+             <TabsTrigger value="devices" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Devices</TabsTrigger>
              <TabsTrigger value="browsers" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Browsers</TabsTrigger>
            </TabsList>
         </div>
