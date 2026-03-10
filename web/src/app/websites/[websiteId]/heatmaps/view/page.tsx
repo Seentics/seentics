@@ -346,10 +346,10 @@ function HeatmapViewContent() {
         return fullPath;
       }
 
-      // If we are on localhost, and the target is also localhost but different port (or protocol)
-      // We often want to use the current origin's context if it's the dashboard itself
-      if (isLocal(currentHostname) && isLocal(targetUrl.hostname)) {
-        console.log('[HeatmapView] Localhost origin detected, using current origin for iframe fallback');
+      // On localhost, always use relative path — the user is running the same
+      // app locally, and loading the production URL in an iframe would be
+      // blocked by X-Frame-Options / CSP or show the wrong environment.
+      if (isLocal(currentHostname)) {
         return fullPath;
       }
 

@@ -551,6 +551,10 @@
         C._workflows = r.workflows || [];
       }).catch(function () { }).then(function () {
         initSession(); pageview(); setupGoals();
+        // Flush immediately so pageview, session, and any initial data
+        // reach the server without waiting for rrweb's first snapshot
+        // or the 10 s interval.
+        setTimeout(flush, 0);
         setInterval(flush, 10000);
         // On mobile, visibilitychange to 'hidden' is the only reliable unload signal.
         // Use sendBeacon here (not fetch) because fetch requests are aborted when the
