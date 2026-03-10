@@ -121,34 +121,34 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 		limit = 50
 	}
 
-	// Total distinct sessions for this website (for pagination UI).
+	// Total sessions for this website (for pagination UI).
+	// Only count root chunks (sequence=0) — one per session.
 	var total int64
 	countErr := r.db.QueryRow(ctx,
-		`SELECT COUNT(DISTINCT session_id) FROM session_replays WHERE website_id = $1`,
+		`SELECT COUNT(*) FROM session_replays WHERE website_id = $1 AND sequence = 0`,
 		websiteID,
 	).Scan(&total)
 	if countErr != nil {
 		total = 0
 	}
 
-	// has_rage_clicks is aggregated as MAX over the session group — TRUE if any row
-	// (i.e. the sequence=0 root row) has been marked with a rage click.
+	// Scan only root chunks (sequence=0) for metadata, then use a
+	// correlated subquery for chunk_count to avoid scanning all rows.
 	const baseSelect = `
 		SELECT
-			session_id,
-			MIN(timestamp)  AS start_time,
-			MAX(timestamp)  AS end_time,
-			LEAST(EXTRACT(EPOCH FROM (MAX(timestamp) - MIN(timestamp))), 1800) AS duration,
-			COUNT(id)       AS chunk_count,
-			COALESCE(MAX(browser)    FILTER (WHERE browser    != '' AND browser    != 'Unknown'), 'Unknown') AS browser,
-			COALESCE(MAX(device)     FILTER (WHERE device     != '' AND device     != 'Unknown'), 'Unknown') AS device,
-			COALESCE(MAX(os)         FILTER (WHERE os         != '' AND os         != 'Unknown'), 'Unknown') AS os,
-			COALESCE(MAX(country)    FILTER (WHERE country    != '' AND country    != 'Unknown'), 'Unknown') AS country,
-			COALESCE(MAX(entry_page) FILTER (WHERE entry_page != '' AND entry_page != 'Unknown'), 'Unknown') AS entry_page,
-			BOOL_OR(has_rage_clicks) AS has_rage_clicks
-		FROM session_replays
-		WHERE website_id = $1
-		GROUP BY session_id
+			r.session_id,
+			r.timestamp AS start_time,
+			r.timestamp AS end_time,
+			0 AS duration,
+			(SELECT COUNT(*) FROM session_replays c WHERE c.website_id = r.website_id AND c.session_id = r.session_id) AS chunk_count,
+			COALESCE(NULLIF(r.browser, ''), 'Unknown') AS browser,
+			COALESCE(NULLIF(r.device, ''), 'Unknown') AS device,
+			COALESCE(NULLIF(r.os, ''), 'Unknown') AS os,
+			COALESCE(NULLIF(r.country, ''), 'Unknown') AS country,
+			COALESCE(NULLIF(r.entry_page, ''), 'Unknown') AS entry_page,
+			COALESCE(r.has_rage_clicks, false) AS has_rage_clicks
+		FROM session_replays r
+		WHERE r.website_id = $1 AND r.sequence = 0
 	`
 
 	var (
@@ -158,12 +158,12 @@ func (r *replayRepository) ListSessionsWithMetadata(ctx context.Context, website
 
 	if before != nil {
 		rows, err = r.db.Query(ctx,
-			baseSelect+` HAVING MIN(timestamp) < $2 ORDER BY start_time DESC LIMIT $3`,
+			baseSelect+` AND r.timestamp < $2 ORDER BY r.timestamp DESC LIMIT $3`,
 			websiteID, *before, limit,
 		)
 	} else {
 		rows, err = r.db.Query(ctx,
-			baseSelect+` ORDER BY start_time DESC LIMIT $2`,
+			baseSelect+` ORDER BY r.timestamp DESC LIMIT $2`,
 			websiteID, limit,
 		)
 	}

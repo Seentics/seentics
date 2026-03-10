@@ -186,15 +186,18 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 		}
 	}
 
-	// Batch PFADD for realtime active visitors (5-min sliding window)
+	// Batch PFADD for realtime active visitors (5-min sliding window).
+	// Pipelined: single round-trip for both PFADD + EXPIRE.
 	if len(liveVisitorIDs) > 0 {
-		hlKey := fmt.Sprintf("active:%s", req.SiteID)
+		hlKey := "sn:active:" + req.SiteID
 		args := make([]interface{}, len(liveVisitorIDs))
 		for i, v := range liveVisitorIDs {
 			args[i] = v
 		}
-		s.rdb.PFAdd(ctx, "sn:"+hlKey, args...)
-		s.rdb.Expire(ctx, "sn:"+hlKey, 5*time.Minute)
+		pipe := s.rdb.Pipeline()
+		pipe.PFAdd(ctx, hlKey, args...)
+		pipe.Expire(ctx, hlKey, 5*time.Minute)
+		pipe.Exec(ctx)
 	}
 
 	return &models.BatchEventResponse{

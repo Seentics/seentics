@@ -70,7 +70,17 @@ func NewWebsiteService(
 	}
 }
 
-// GetTrackerConfig returns the configuration for the tracker script
+// trackerConfigCache holds the cacheable portion of tracker config (goals + tracked URLs).
+// Plan limits (max_heatmaps/max_replays) are NOT cached here because they come from
+// the gateway context and vary per request.
+type trackerConfigCache struct {
+	Goals       []map[string]interface{} `json:"goals"`
+	TrackedURLs []string                 `json:"tracked_urls"`
+}
+
+// GetTrackerConfig returns the configuration for the tracker script.
+// Goals and tracked URLs are cached in Redis for 15 minutes to avoid
+// DB queries on every tracker init request.
 func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, origin string) (map[string]interface{}, error) {
 	w, err := s.GetWebsiteBySiteID(ctx, siteID)
 	if err != nil {
@@ -82,42 +92,48 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 		return nil, fmt.Errorf("domain mismatch")
 	}
 
-	goals, err := s.repo.ListGoals(ctx, w.ID)
-	if err != nil {
-		return nil, err
-	}
+	// Try cache for goals + tracked URLs
+	cacheKey := fmt.Sprintf("tracker:config:%s", w.SiteID)
+	var cached trackerConfigCache
+	cacheHit := s.cache != nil && s.cache.Get(cacheKey, &cached)
 
-	// Filter and format goals for the tracker
-	trackerGoals := make([]map[string]interface{}, 0)
-	for _, g := range goals {
-		if g.Type == "event" && g.Selector != nil && *g.Selector != "" {
-			trackerGoals = append(trackerGoals, map[string]interface{}{
-				"id":       g.ID,
-				"name":     g.Identifier, // Use the identifier as the event name
-				"selector": *g.Selector,
-			})
+	if !cacheHit {
+		goals, err := s.repo.ListGoals(ctx, w.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		cached.Goals = make([]map[string]interface{}, 0)
+		for _, g := range goals {
+			if g.Type == "event" && g.Selector != nil && *g.Selector != "" {
+				cached.Goals = append(cached.Goals, map[string]interface{}{
+					"id":       g.ID,
+					"name":     g.Identifier,
+					"selector": *g.Selector,
+				})
+			}
+		}
+
+		cached.TrackedURLs = []string{}
+		if w.HeatmapEnabled {
+			if urls, err := s.heatmapRepo.GetTrackedURLs(ctx, w.ID.String()); err == nil {
+				cached.TrackedURLs = urls
+			}
+		}
+
+		if s.cache != nil {
+			s.cache.Set(cacheKey, cached, 15*time.Minute)
 		}
 	}
 
-	// In OSS mode, heatmaps are unlimited by default.
-	// In Enterprise mode, the gateway can inject a limit into the context.
+	// Plan limits come from gateway context and vary per request — never cached.
 	maxHeatmaps := -1
 	if limit, ok := ctx.Value("max_heatmaps").(int); ok {
 		maxHeatmaps = limit
 	}
-
 	maxReplays := -1
 	if limit, ok := ctx.Value("max_replays").(int); ok {
 		maxReplays = limit
-	}
-
-	trackedURLs := []string{}
-	if w.HeatmapEnabled {
-		// Get already tracked URLs
-		urls, err := s.heatmapRepo.GetTrackedURLs(ctx, w.ID.String())
-		if err == nil {
-			trackedURLs = urls
-		}
 	}
 
 	return map[string]interface{}{
@@ -128,13 +144,13 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 		"heatmap_include_patterns": w.HeatmapIncludePatterns,
 		"heatmap_exclude_patterns": w.HeatmapExcludePatterns,
 		"max_heatmaps":             maxHeatmaps,
-		"tracked_urls":             trackedURLs,
+		"tracked_urls":             cached.TrackedURLs,
 		"replay_enabled":           w.ReplayEnabled,
 		"replay_sampling_rate":     w.ReplaySamplingRate,
 		"replay_include_patterns":  w.ReplayIncludePatterns,
 		"replay_exclude_patterns":  w.ReplayExcludePatterns,
 		"max_replays":              maxReplays,
-		"goals":                    trackerGoals,
+		"goals":                    cached.Goals,
 	}, nil
 }
 

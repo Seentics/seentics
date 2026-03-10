@@ -43,9 +43,9 @@ func ConnectClickHouse(host string, port int, user, password, db string) (driver
 			"max_execution_time": 30,
 		},
 		DialTimeout:     5 * time.Second,
-		MaxOpenConns:    20,
-		MaxIdleConns:    10,
-		ConnMaxLifetime: 10 * time.Minute,
+		MaxOpenConns:    50,
+		MaxIdleConns:    25,
+		ConnMaxLifetime: 30 * time.Minute,
 		Compression: &clickhouse.Compression{
 			Method: clickhouse.CompressionLZ4,
 		},
