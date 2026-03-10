@@ -111,6 +111,15 @@ func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServi
 		}
 	}
 
+	// Clear stale heatmap URL sentinels on startup so Redis sets re-sync with DB.
+	// This prevents deadlocks where Redis thinks the quota is full but the DB is empty.
+	if keys, err := rdb.Keys(bgCtx, "sn:heatmap:seeded:*").Result(); err == nil && len(keys) > 0 {
+		rdb.Del(bgCtx, keys...)
+	}
+	if keys, err := rdb.Keys(bgCtx, "sn:heatmap:urls:*").Result(); err == nil && len(keys) > 0 {
+		rdb.Del(bgCtx, keys...)
+	}
+
 	s.startStreamConsumer()
 	return s
 }
@@ -221,23 +230,32 @@ func (s *heatmapService) admitPoints(ctx context.Context, websiteID string, poin
 	return filtered
 }
 
-// ensureURLSet seeds the Redis set from DB on first use (one-time per website).
+// ensureURLSet seeds the Redis set from DB periodically (every 10 minutes).
+// This prevents stale Redis sets from blocking new heatmap data after a DB reset.
 func (s *heatmapService) ensureURLSet(ctx context.Context, websiteID string) {
 	sentinelKey := "sn:heatmap:seeded:" + websiteID
-	seeded, err := s.rdb.SetNX(ctx, sentinelKey, "1", 0).Result()
+	seeded, err := s.rdb.SetNX(ctx, sentinelKey, "1", 10*time.Minute).Result()
 	if err != nil || !seeded {
-		return // already seeded or Redis error
+		return // recently seeded or Redis error
 	}
+
+	setKey := "sn:heatmap:urls:" + websiteID
 	tracked, err := s.repo.GetTrackedURLs(ctx, websiteID)
-	if err != nil || len(tracked) == 0 {
+	if err != nil {
 		return
 	}
-	setKey := "sn:heatmap:urls:" + websiteID
-	members := make([]interface{}, len(tracked))
-	for i, u := range tracked {
-		members[i] = u
+
+	// Replace the Redis set with current DB state to avoid stale entries
+	pipe := s.rdb.Pipeline()
+	pipe.Del(ctx, setKey)
+	if len(tracked) > 0 {
+		members := make([]interface{}, len(tracked))
+		for i, u := range tracked {
+			members[i] = u
+		}
+		pipe.SAdd(ctx, setKey, members...)
 	}
-	s.rdb.SAdd(ctx, setKey, members...)
+	pipe.Exec(ctx)
 }
 
 // startStreamConsumer reads batches from the heatmap stream, aggregates,
