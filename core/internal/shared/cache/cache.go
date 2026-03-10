@@ -114,6 +114,13 @@ func (c *Cache) Delete(key string) {
 	c.rdb.Del(ctx, c.k(key))
 }
 
+// Exists returns true if the key is present in Redis.
+func (c *Cache) Exists(key string) bool {
+	ctx := context.Background()
+	n, err := c.rdb.Exists(ctx, c.k(key)).Result()
+	return err == nil && n > 0
+}
+
 // Incr atomically increments the integer stored at key by delta.
 // The existing TTL is preserved. Creates the key at 0 if missing.
 func (c *Cache) Incr(key string, delta int64) (int64, error) {
