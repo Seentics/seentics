@@ -2,6 +2,8 @@
 const nextConfig = {
   /* config options here */
   output: 'standalone',
+  // Allow large tracker payloads (replay FullSnapshot events can exceed 10MB)
+  middlewareClientMaxBodySize: '50mb',
   images: {
     remotePatterns: [
       {
