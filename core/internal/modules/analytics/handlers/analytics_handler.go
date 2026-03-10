@@ -16,10 +16,14 @@ import (
 
 const queryTimeout = 15 * time.Second
 
-// setCacheHeaders sets Cache-Control and related headers so browsers and CDN
-// edges serve stale data instantly while revalidating in the background.
+// setCacheHeaders sets Cache-Control headers. Short-lived endpoints (≤30s)
+// use no-cache so browsers always revalidate, keeping dashboards fresh.
 func setCacheHeaders(c *gin.Context, maxAge int) {
-	c.Header("Cache-Control", fmt.Sprintf("private, max-age=%d, stale-while-revalidate=%d", maxAge, maxAge*2))
+	if maxAge <= 30 {
+		c.Header("Cache-Control", "no-cache, no-store")
+	} else {
+		c.Header("Cache-Control", fmt.Sprintf("private, max-age=%d", maxAge))
+	}
 }
 
 type AnalyticsHandler struct {
@@ -137,7 +141,7 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 		return
 	}
 
-	setCacheHeaders(c, 60)
+	setCacheHeaders(c, 15)
 	c.JSON(http.StatusOK, data)
 }
 
@@ -500,7 +504,7 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 		return
 	}
 
-	setCacheHeaders(c, 60)
+	setCacheHeaders(c, 30)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":  websiteID,
 		"daily_stats": stats,
@@ -534,7 +538,7 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 		return
 	}
 
-	setCacheHeaders(c, 60)
+	setCacheHeaders(c, 30)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":   websiteID,
 		"timezone":     timezone,
@@ -696,7 +700,7 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 		return
 	}
 
-	setCacheHeaders(c, 60)
+	setCacheHeaders(c, 30)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":       websiteID,
 		"visitor_insights": insights,

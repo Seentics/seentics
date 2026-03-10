@@ -22,8 +22,8 @@ import (
 
 // Cache TTLs for analytics results.
 const (
-	cacheTTLDashboard = 2 * time.Minute
-	cacheTTLStats     = 2 * time.Minute
+	cacheTTLDashboard = 30 * time.Second
+	cacheTTLStats     = 1 * time.Minute
 	cacheTTLTopN      = 3 * time.Minute
 	cacheTTLHeavy     = 5 * time.Minute
 )

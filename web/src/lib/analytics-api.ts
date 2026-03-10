@@ -234,9 +234,9 @@ export const useDashboardData = (websiteId: string, days: number = 7, filters: A
       return response.data;
     },
     enabled: !!websiteId,
-    refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds
     refetchOnWindowFocus: true,
-    staleTime: 60 * 1000, // Consider data stale after 1 minute
+    staleTime: 15 * 1000, // Consider data stale after 15 seconds
   });
 };
 
