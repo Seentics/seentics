@@ -42,57 +42,30 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const containerRef = useRef<HTMLDivElement>(null);
   const playerInstanceRef = useRef<rrwebPlayer | null>(null);
   const scrubberRef = useRef<HTMLDivElement>(null);
-  const isPlayingRef = useRef(false);
-  const finishedRef = useRef(false);
-  const currentTimeRef = useRef(0);
-  const totalTimeRef = useRef(0);
   const videoAreaRef = useRef<HTMLDivElement>(null);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [streamProgress, setStreamProgress] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
-  const pendingEventsRef = useRef<any[]>([]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [totalTime, setTotalTime] = useState(
-    () => (session?.duration_seconds ?? 0) * 1000
-  );
+  const [totalTime, setTotalTime] = useState(() => (session?.duration_seconds ?? 0) * 1000);
   const [speed, setSpeed] = useState(1);
   const [skipInactive, setSkipInactive] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [playerInitKey, setPlayerInitKey] = useState(0); // bump to force player re-init
-  const pendingSeekRef = useRef<number | null>(null);    // seek position after re-init
-  const reinitCountRef = useRef(0);                      // guard against infinite re-init loops
 
-  // Smooth timer refs — interpolate between event-cast ticks
+  // Refs for timer interpolation (avoids re-renders)
+  const isPlayingRef = useRef(false);
+  const finishedRef = useRef(false);
   const speedRef = useRef(1);
-  const lastEventTimeRef    = useRef(0);   // replay-relative ms at last event-cast
-  const lastWallTimeRef     = useRef(0);   // Date.now() when last event-cast fired
-  const lastEventCastWallRef = useRef(0);  // wall time of last event-cast (watchdog)
-  const smoothTimerRef      = useRef<ReturnType<typeof setInterval> | null>(null);
-  const watchdogTimerRef    = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastWatchdogPosRef  = useRef(0);   // position where watchdog last fired
-  const watchdogRetryRef    = useRef(0);   // consecutive stalls at same position
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => { totalTimeRef.current = totalTime; }, [totalTime]);
-  useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
-  useEffect(() => { speedRef.current = speed; }, [speed]);
-
-  // ─── Data loading (progressive streaming) ──────────────────────────────────
-  // Strategy:
-  //  1. Fetch presigned manifest → get per-chunk presigned S3 URLs.
-  //  2. Download chunk 0 first. If it has a FullSnapshot (type 2), start
-  //     playback immediately and stream remaining chunks in background.
-  //  3. If chunk 0 has NO FullSnapshot, eagerly load ALL remaining chunks
-  //     until a FullSnapshot is found, then start playback.
-  //  4. Fallback: if manifest has a full_url, try the stitched file.
-  //  5. Final fallback: legacy /replays/full/:id API endpoint.
+  // ─── Data loading ───────────────────────────────────────────────────────────
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
-    pendingEventsRef.current = [];
 
     const hasFullSnapshot = (evts: any[]) => evts.some((e: any) => e.type === 2);
 
@@ -109,39 +82,6 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       }
     };
 
-    // Fetch multiple chunks concurrently with bounded concurrency, calling
-    // onChunk for each completed chunk. Returns all fetched events merged.
-    const fetchChunksConcurrently = async (
-      chunks: { seq: number; url: string }[],
-      concurrency: number,
-      onChunk?: (chunkEvents: any[], loadedSoFar: number) => void,
-    ): Promise<any[]> => {
-      const allEvents: any[] = [];
-      let loadedCount = 0;
-
-      const fetchNext = async (idx: number) => {
-        while (idx < chunks.length) {
-          if (signal.aborted) return;
-          const chunkEvents = await fetchChunk(chunks[idx].url);
-          if (signal.aborted) return;
-          if (chunkEvents.length > 0) {
-            chunkEvents.sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
-            allEvents.push(...chunkEvents);
-          }
-          loadedCount++;
-          onChunk?.(chunkEvents, loadedCount);
-          idx += concurrency;
-        }
-      };
-
-      const workers = [];
-      for (let w = 0; w < Math.min(concurrency, chunks.length); w++) {
-        workers.push(fetchNext(w));
-      }
-      await Promise.all(workers);
-      return allEvents;
-    };
-
     const load = async () => {
       try {
         setLoading(true);
@@ -149,165 +89,83 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         setEvents([]);
         setStreamProgress({ loaded: 0, total: 0 });
 
-        // ── Attempt 1: progressive chunk streaming via presigned manifest ──
+        // ── Step 1: Get presigned manifest ──
+        let allEvents: any[] = [];
         let fullURL: string | undefined;
+
         try {
           const manifestRes = await api.get(
             `/replays/presigned-manifest/${sessionId}?website_id=${websiteId}`,
             { signal, timeout: 20000 },
           );
-
           const manifest = manifestRes.data;
           const chunks: { seq: number; url: string }[] = manifest?.chunks ?? [];
-          const totalChunks: number = manifest?.total_chunks ?? chunks.length;
+          const totalChunks = manifest?.total_chunks ?? chunks.length;
           fullURL = manifest?.full_url;
 
           if (signal.aborted) return;
 
-          // For very short sessions (≤3 chunks) with a stitched cache, use the
-          // single full download — it's faster than 3 separate requests.
+          // ── Step 2: Try stitched full URL first (fastest for short sessions) ──
           if (fullURL && totalChunks <= 3) {
-            const s3Res = await fetch(fullURL, { signal });
-            if (s3Res.ok) {
-              const data = await s3Res.json();
-              if (Array.isArray(data) && data.length > 0) {
-                setEvents(data);
-                setStreamProgress({ loaded: totalChunks, total: totalChunks });
-                return;
+            try {
+              const s3Res = await fetch(fullURL, { signal });
+              if (s3Res.ok) {
+                const data = await s3Res.json();
+                if (Array.isArray(data) && data.length > 0 && hasFullSnapshot(data)) {
+                  setEvents(data);
+                  setStreamProgress({ loaded: totalChunks, total: totalChunks });
+                  return;
+                }
               }
-            }
+            } catch {}
           }
 
+          // ── Step 3: Load all chunks with concurrency ──
           if (chunks.length > 0) {
             setStreamProgress({ loaded: 0, total: totalChunks });
             const sorted = [...chunks].sort((a, b) => a.seq - b.seq);
 
-            // ── Fast path: load chunk 0, check for FullSnapshot ──
-            const firstEvents = await fetchChunk(sorted[0].url);
+            // Download all chunks with 4 concurrent workers
+            let loadedCount = 0;
+            const fetchWorker = async (startIdx: number) => {
+              const results: any[] = [];
+              for (let i = startIdx; i < sorted.length; i += 4) {
+                if (signal.aborted) return results;
+                const chunkEvents = await fetchChunk(sorted[i].url);
+                if (chunkEvents.length > 0) results.push(...chunkEvents);
+                loadedCount++;
+                setStreamProgress({ loaded: loadedCount, total: totalChunks });
+              }
+              return results;
+            };
+
+            const workerResults = await Promise.all(
+              Array.from({ length: Math.min(4, sorted.length) }, (_, i) => fetchWorker(i))
+            );
             if (signal.aborted) return;
 
-            if (firstEvents.length > 0 && hasFullSnapshot(firstEvents)) {
-              // Chunk 0 has the snapshot — start playback immediately
-              setEvents(firstEvents);
-              setStreamProgress({ loaded: 1, total: totalChunks });
+            allEvents = workerResults.flat();
+            allEvents.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
 
-              // Stream remaining chunks in background
-              if (sorted.length > 1) {
-                const remaining = sorted.slice(1);
-                let bgLoaded = 1;
-                const bgFetch = async (idx: number) => {
-                  while (idx < remaining.length) {
-                    if (signal.aborted) return;
-                    const chunkEvents = await fetchChunk(remaining[idx].url);
-                    if (signal.aborted) return;
-                    if (chunkEvents.length > 0) {
-                      chunkEvents.sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
-                      pendingEventsRef.current.push(...chunkEvents);
-                      const replayer = playerInstanceRef.current?.getReplayer?.();
-                      if (replayer) {
-                        for (const ev of chunkEvents) {
-                          try { replayer.addEvent(ev); } catch {}
-                        }
-                      } else {
-                        setEvents(prev => [...prev, ...chunkEvents]);
-                      }
-                    }
-                    bgLoaded++;
-                    setStreamProgress({ loaded: bgLoaded, total: totalChunks });
-                    idx += 3;
-                  }
-                };
-                const workers = [];
-                for (let w = 0; w < Math.min(3, remaining.length); w++) {
-                  workers.push(bgFetch(w));
-                }
-                Promise.all(workers).catch(() => {});
-              }
-
-              return; // Playback started with chunk 0
-            }
-
-            // ── Slow path: chunk 0 has no FullSnapshot ──
-            // Load chunks sequentially until we find a FullSnapshot, then
-            // start playback immediately and stream the rest in background.
-            if (sorted.length > 1) {
-              let allEvents = [...firstEvents];
-              const remaining = sorted.slice(1);
-              let foundSnapshot = false;
-
-              for (let i = 0; i < remaining.length; i++) {
-                if (signal.aborted) return;
-                const chunkEvents = await fetchChunk(remaining[i].url);
-                if (signal.aborted) return;
-                if (chunkEvents.length > 0) {
-                  chunkEvents.sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
-                  allEvents.push(...chunkEvents);
-                }
-                setStreamProgress({ loaded: i + 2, total: totalChunks });
-
-                if (!foundSnapshot && hasFullSnapshot(allEvents)) {
-                  // Found a FullSnapshot — start playback now
-                  foundSnapshot = true;
-                  setEvents([...allEvents]);
-
-                  // Stream remaining chunks in background
-                  const bgRemaining = remaining.slice(i + 1);
-                  if (bgRemaining.length > 0) {
-                    let bgLoaded = i + 2;
-                    const bgFetch = async (idx: number) => {
-                      while (idx < bgRemaining.length) {
-                        if (signal.aborted) return;
-                        const bgEvents = await fetchChunk(bgRemaining[idx].url);
-                        if (signal.aborted) return;
-                        if (bgEvents.length > 0) {
-                          bgEvents.sort((a: any, b: any) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
-                          pendingEventsRef.current.push(...bgEvents);
-                          const replayer = playerInstanceRef.current?.getReplayer?.();
-                          if (replayer) {
-                            for (const ev of bgEvents) {
-                              try { replayer.addEvent(ev); } catch {}
-                            }
-                          } else {
-                            setEvents(prev => [...prev, ...bgEvents]);
-                          }
-                        }
-                        bgLoaded++;
-                        setStreamProgress({ loaded: bgLoaded, total: totalChunks });
-                        idx += 3;
-                      }
-                    };
-                    const workers = [];
-                    for (let w = 0; w < Math.min(3, bgRemaining.length); w++) {
-                      workers.push(bgFetch(w));
-                    }
-                    Promise.all(workers).catch(() => {});
-                  }
-                  return;
-                }
-              }
-
-              // Loaded all chunks but no FullSnapshot found
-              if (allEvents.length > 0) {
-                setEvents(allEvents);
-                setStreamProgress({ loaded: totalChunks, total: totalChunks });
-              }
-            } else if (firstEvents.length > 0) {
-              // Only 1 chunk and no snapshot — set events anyway
-              setEvents(firstEvents);
-              setStreamProgress({ loaded: 1, total: totalChunks });
+            if (allEvents.length > 0 && hasFullSnapshot(allEvents)) {
+              setEvents(allEvents);
+              setStreamProgress({ loaded: totalChunks, total: totalChunks });
+              return;
             }
           }
 
-          // Chunks didn't yield a FullSnapshot — try full URL
+          // ── Step 4: Try full URL as fallback ──
           if (fullURL) {
-            const s3Res = await fetch(fullURL, { signal });
-            if (s3Res.ok) {
-              const data = await s3Res.json();
-              if (Array.isArray(data) && data.length > 0) {
-                setEvents(data);
-                if (hasFullSnapshot(data)) return;
+            try {
+              const s3Res = await fetch(fullURL, { signal });
+              if (s3Res.ok) {
+                const data = await s3Res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                  setEvents(data);
+                  if (hasFullSnapshot(data)) return;
+                }
               }
-            }
+            } catch {}
           }
         } catch {
           // Presigned path failed — fall through to legacy API
@@ -315,19 +173,22 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
 
         if (signal.aborted) return;
 
-        // ── Attempt 2: legacy full-replay API endpoint ────────────────────
+        // ── Step 5: Legacy full-replay API endpoint ──
         const fullRes = await api.get(
           `/replays/full/${sessionId}?website_id=${websiteId}`,
           { signal, timeout: 180000 },
         );
         const payload = fullRes.data?.events ?? fullRes.data;
-        setEvents(Array.isArray(payload) ? payload : []);
+        const legacyEvents = Array.isArray(payload) ? payload : [];
+
+        if (legacyEvents.length > 0) {
+          setEvents(legacyEvents);
+        } else if (allEvents.length > 0) {
+          // Use whatever we got from chunks even without FullSnapshot
+          setEvents(allEvents);
+        }
       } catch (err: any) {
-        if (
-          err?.code === 'ERR_CANCELED' ||
-          err?.name === 'AbortError' ||
-          err?.name === 'CanceledError'
-        ) return;
+        if (err?.code === 'ERR_CANCELED' || err?.name === 'AbortError' || err?.name === 'CanceledError') return;
         setError((err as any).message || 'Failed to load replay');
       } finally {
         if (!signal.aborted) setLoading(false);
@@ -338,47 +199,15 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     return () => controller.abort();
   }, [sessionId, websiteId]);
 
-  // ─── Smooth timer helpers ──────────────────────────────────────────────────
-  const startSmoothTimer = useCallback(() => {
-    if (smoothTimerRef.current) clearInterval(smoothTimerRef.current);
-    smoothTimerRef.current = setInterval(() => {
-      if (!isPlayingRef.current) return;
-      const elapsed = (Date.now() - lastWallTimeRef.current) * speedRef.current;
-      const interpolated = Math.min(lastEventTimeRef.current + elapsed, totalTimeRef.current);
-      currentTimeRef.current = interpolated;
-      setCurrentTime(interpolated);
-    }, 50);
-  }, []);
-
-  const stopSmoothTimer = useCallback(() => {
-    if (smoothTimerRef.current) { clearInterval(smoothTimerRef.current); smoothTimerRef.current = null; }
-  }, []);
-
   // ─── Player initialisation ─────────────────────────────────────────────────
   useEffect(() => {
-    // rrweb requires at least 2 events to initialise the replayer.
-    // Additionally, a FullSnapshot event (type 2) is mandatory — without it the
-    // player iframe renders nothing (progress bar moves but no visual content).
     if (loading || events.length < 2 || !playerRef.current) return;
-
-    const hasSnapshot = events.some((e: any) => e.type === 2);
-    if (!hasSnapshot) {
-      // No DOM snapshot yet — wait for more chunks to arrive
-      console.warn('[ReplayPlayer] No FullSnapshot (type 2) event found in', events.length, 'events — waiting for more data');
-      return;
-    }
+    if (!events.some((e: any) => e.type === 2)) return;
 
     playerRef.current.innerHTML = '';
-    stopSmoothTimer();
 
-    // Read the actual rendered container width. If it's 0 the DOM hasn't
-    // finished layout yet — clamp to a safe desktop default (960px) rather
-    // than using window.innerWidth which can exceed the card's actual width
-    // and cause the right side to be clipped.
     const containerW = videoAreaRef.current?.offsetWidth || playerRef.current.offsetWidth || 960;
     const containerH = videoAreaRef.current?.offsetHeight || 600;
-
-    // Sort events by timestamp — out-of-order events cause "Node not found" warnings
     const sortedEvents = [...events].sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
 
     let player: rrwebPlayer;
@@ -397,18 +226,20 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         },
       });
     } catch (err) {
-      console.warn('[ReplayPlayer] Failed to initialise rrweb player:', err);
+      console.warn('[ReplayPlayer] Failed to init:', err);
       setError('Failed to initialise replay player. The session data may be corrupted.');
       return;
     }
 
     playerInstanceRef.current = player;
     finishedRef.current = false;
-    currentTimeRef.current = 0;
-    lastEventTimeRef.current = 0;
-    lastWallTimeRef.current = Date.now();
-    lastEventCastWallRef.current = Date.now();
+    setIsPlaying(true);
+    isPlayingRef.current = true;
+    setSpeed(1);
+    speedRef.current = 1;
+    setSkipInactive(false);
 
+    // Get duration
     try {
       const meta = player.getMetaData();
       const metaDuration = (session?.duration_seconds ?? 0) * 1000;
@@ -417,154 +248,51 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       if (resolved > 0) setTotalTime(resolved);
     } catch {}
 
-    setIsPlaying(true);
-    isPlayingRef.current = true;
-    setSpeed(1);
-    speedRef.current = 1;
-    setSkipInactive(false);
-    startSmoothTimer();
-
-    // If we're re-initing after a goto failure, seek to the pending position.
-    // Use replayer.play(offset) which is more resilient than player.goto().
-    // If it still fails, give up and play from the beginning.
-    if (pendingSeekRef.current !== null) {
-      const seekTarget = pendingSeekRef.current;
-      pendingSeekRef.current = null;
-      reinitCountRef.current++;
-
-      // After 2 failed re-inits, stop trying to seek — just play from start
-      if (reinitCountRef.current <= 2) {
-        try {
-          const replayer = player.getReplayer();
-          if (replayer) {
-            replayer.play(seekTarget);
-          } else {
-            player.goto(seekTarget, true);
+    // Simple time tracker — poll rrweb's internal timer every 100ms
+    // This is much simpler than the event-cast + smooth interpolation approach
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      if (!playerInstanceRef.current || finishedRef.current) return;
+      try {
+        const replayer = playerInstanceRef.current.getReplayer?.();
+        if (replayer) {
+          const meta = playerInstanceRef.current.getMetaData();
+          const t = replayer.getCurrentTime?.() ?? 0;
+          if (typeof t === 'number' && t >= 0) {
+            setCurrentTime(t);
           }
-          currentTimeRef.current = seekTarget;
-          lastEventTimeRef.current = seekTarget;
-          lastWallTimeRef.current = Date.now();
-          setCurrentTime(seekTarget);
-        } catch {
-          // Seek failed on fresh player — just play from start
-          console.warn('[ReplayPlayer] Seek after re-init failed, playing from start');
         }
-      } else {
-        // Too many re-inits — reset counter, play from start
-        reinitCountRef.current = 0;
-      }
-    } else {
-      reinitCountRef.current = 0;
-    }
+      } catch {}
+    }, 100);
 
-    let sessionStartTime = 0;
-    try { sessionStartTime = player.getMetaData().startTime ?? 0; } catch {}
-
+    // Listen for state changes and finish
     try {
       const replayer = player.getReplayer();
       if (replayer) {
-        replayer.on('event-cast', (event: any) => {
-          lastEventCastWallRef.current = Date.now();
-          if (typeof event?.timestamp === 'number' && sessionStartTime > 0) {
-            const rel = event.timestamp - sessionStartTime;
-            if (rel >= 0) {
-              // Sync smooth timer anchor to exact event timestamp
-              lastEventTimeRef.current = rel;
-              lastWallTimeRef.current  = Date.now();
-              currentTimeRef.current   = rel;
-              setCurrentTime(rel);
-            }
-          }
-        });
         replayer.on('state-change', (states: any) => {
           const playerState = states?.player?.value;
           if (playerState) {
             const playing = playerState === 'playing';
             isPlayingRef.current = playing;
             setIsPlaying(playing);
-            if (playing) {
-              lastWallTimeRef.current = Date.now();
-              startSmoothTimer();
-            } else {
-              stopSmoothTimer();
-            }
           }
         });
         replayer.on('finish', () => {
           isPlayingRef.current = false;
           finishedRef.current = true;
           setIsPlaying(false);
-          stopSmoothTimer();
-          if (watchdogTimerRef.current) { clearInterval(watchdogTimerRef.current); watchdogTimerRef.current = null; }
         });
       }
     } catch {}
 
-    // Reset watchdog retry counters on new player init
-    lastWatchdogPosRef.current = 0;
-    watchdogRetryRef.current = 0;
-
-    // Watchdog: if no event-cast fires for >4s while "playing", seek forward to unstick.
-    // Uses escalating jumps (10s → 30s → 60s) when stuck at the same position.
-    watchdogTimerRef.current = setInterval(() => {
-      if (!isPlayingRef.current || finishedRef.current || !playerInstanceRef.current) return;
-      const stale = Date.now() - lastEventCastWallRef.current;
-      if (stale > 4000) {
-        const pos = currentTimeRef.current;
-        const samePos = Math.abs(pos - lastWatchdogPosRef.current) < 500;
-        if (samePos) {
-          watchdogRetryRef.current++;
-        } else {
-          watchdogRetryRef.current = 0;
-          lastWatchdogPosRef.current = pos;
-        }
-        // After 5 consecutive stalls at the same position, give up and finish
-        if (watchdogRetryRef.current >= 5) {
-          finishedRef.current = true;
-          isPlayingRef.current = false;
-          setIsPlaying(false);
-          stopSmoothTimer();
-          return;
-        }
-        // Escalate jump size on repeated stalls at the same position
-        const maxJump = watchdogRetryRef.current >= 2 ? 60000 : watchdogRetryRef.current >= 1 ? 30000 : 10000;
-        const jumpAmount = Math.min(Math.max(stale * speedRef.current, 5000), maxJump);
-        const nudge = Math.min(pos + jumpAmount, totalTimeRef.current - 100);
-        if (nudge > pos + 100) {
-          try {
-            playerInstanceRef.current.goto(nudge, true);
-            lastEventCastWallRef.current = Date.now();
-            lastWallTimeRef.current = Date.now();
-            lastEventTimeRef.current = nudge;  // Sync smooth timer anchor to prevent position reset
-            lastWatchdogPosRef.current = nudge;
-            currentTimeRef.current = nudge;
-          } catch {
-            // goto corrupted player — just force finish, don't loop re-inits
-            finishedRef.current = true;
-            isPlayingRef.current = false;
-            setIsPlaying(false);
-            stopSmoothTimer();
-            if (watchdogTimerRef.current) { clearInterval(watchdogTimerRef.current); watchdogTimerRef.current = null; }
-          }
-        } else {
-          // At the very end — force finish
-          finishedRef.current = true;
-          isPlayingRef.current = false;
-          setIsPlaying(false);
-          stopSmoothTimer();
-        }
-      }
-    }, 3000);
-
     return () => {
-      stopSmoothTimer();
-      if (watchdogTimerRef.current) { clearInterval(watchdogTimerRef.current); watchdogTimerRef.current = null; }
+      if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       try { (player as any).$destroy(); } catch {}
       playerInstanceRef.current = null;
     };
-  }, [loading, events, playerInitKey, startSmoothTimer, stopSmoothTimer]);
+  }, [loading, events, session?.duration_seconds]);
 
-  // Resize player when container width changes
+  // Resize handler
   useEffect(() => {
     const handleResize = () => {
       const player = playerInstanceRef.current;
@@ -575,70 +303,35 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       }
     };
     window.addEventListener('resize', handleResize);
-    // Also run once shortly after mount in case layout wasn't ready
     const t = setTimeout(handleResize, 200);
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(t); };
   }, []);
 
-  // Fullscreen change listener
+  // Fullscreen listener
   useEffect(() => {
-    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
   }, []);
 
-  // ─── Safe goto wrapper ─────────────────────────────────────────────────────
-  // player.goto() can throw when seeking past available events or into
-  // unloaded chunks, corrupting rrweb's internal DOM state. When that
-  // happens we destroy the player and re-init from scratch. After 2
-  // consecutive failures we give up seeking and just play from start.
+  // ─── Controls ──────────────────────────────────────────────────────────────
   const safeGoto = useCallback((timeMs: number, play: boolean) => {
     const player = playerInstanceRef.current;
-    if (!player) return false;
-    const clamped = Math.max(0, Math.min(timeMs, totalTimeRef.current));
+    if (!player) return;
+    const clamped = Math.max(0, Math.min(timeMs, totalTime));
     try {
-      // Try replayer.play(offset) first — it's more resilient than goto()
-      // because it processes events through the state machine rather than
-      // synchronous DOM rebuild.
       const replayer = player.getReplayer?.();
       if (replayer && play) {
         replayer.play(clamped);
       } else {
         player.goto(clamped, play);
       }
-      reinitCountRef.current = 0;
-      lastEventTimeRef.current = clamped;
-      lastWallTimeRef.current = Date.now();
-      lastEventCastWallRef.current = Date.now();
-      currentTimeRef.current = clamped;
       setCurrentTime(clamped);
-      return true;
     } catch (err) {
       console.warn('[ReplayPlayer] goto failed:', err);
-
-      // If we've already re-inited too many times, just pause — don't loop
-      if (reinitCountRef.current >= 2) {
-        console.warn('[ReplayPlayer] Too many re-init attempts, staying at current position');
-        reinitCountRef.current = 0;
-        isPlayingRef.current = false;
-        setIsPlaying(false);
-        stopSmoothTimer();
-        return false;
-      }
-
-      // Destroy the corrupted player and schedule a full re-init
-      stopSmoothTimer();
-      if (watchdogTimerRef.current) { clearInterval(watchdogTimerRef.current); watchdogTimerRef.current = null; }
-      try { (player as any).$destroy(); } catch {}
-      playerInstanceRef.current = null;
-      if (playerRef.current) playerRef.current.innerHTML = '';
-      pendingSeekRef.current = clamped;
-      setPlayerInitKey(k => k + 1);
-      return false;
     }
-  }, [stopSmoothTimer]);
+  }, [totalTime]);
 
-  // ─── Controls ──────────────────────────────────────────────────────────────
   const handleTogglePlay = useCallback(() => {
     const player = playerInstanceRef.current;
     if (!player) return;
@@ -649,18 +342,9 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     } else {
       if (finishedRef.current) {
         finishedRef.current = false;
-        const resumeAt = currentTimeRef.current >= totalTimeRef.current
-          ? 0
-          : currentTimeRef.current;
-        safeGoto(resumeAt, true);
+        safeGoto(0, true);
       } else {
-        try {
-          player.play();
-        } catch {
-          // play() failed (corrupted state) — re-init from current position
-          safeGoto(currentTimeRef.current, true);
-          return;
-        }
+        try { player.play(); } catch {}
       }
       isPlayingRef.current = true;
       setIsPlaying(true);
@@ -670,53 +354,42 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const handleSetSpeed = useCallback((newSpeed: number) => {
     const player = playerInstanceRef.current;
     if (!player) return;
-    try {
-      player.setSpeed(newSpeed);
-    } catch {
-      (player as any).$set({ speed: newSpeed });
+    try { player.setSpeed(newSpeed); } catch {
+      try { (player as any).$set({ speed: newSpeed }); } catch {}
     }
     speedRef.current = newSpeed;
-    // Re-anchor the smooth timer to now so elapsed calc uses new speed
-    lastEventTimeRef.current = currentTimeRef.current;
-    lastWallTimeRef.current  = Date.now();
     setSpeed(newSpeed);
   }, []);
 
   const handleSkipForward = useCallback(() => {
     if (!playerInstanceRef.current) return;
-    const newTime = Math.min(currentTimeRef.current + 10000, totalTimeRef.current);
-    finishedRef.current = false;
-    safeGoto(newTime, isPlayingRef.current);
-  }, [safeGoto]);
+    safeGoto(currentTime + 10000, isPlayingRef.current);
+  }, [currentTime, safeGoto]);
 
   const handleSkipBack = useCallback(() => {
     if (!playerInstanceRef.current) return;
-    const newTime = Math.max(currentTimeRef.current - 10000, 0);
-    finishedRef.current = false;
-    safeGoto(newTime, isPlayingRef.current);
-  }, [safeGoto]);
+    safeGoto(Math.max(currentTime - 10000, 0), isPlayingRef.current);
+  }, [currentTime, safeGoto]);
 
   const handleToggleSkipInactive = useCallback(() => {
     const player = playerInstanceRef.current;
     if (!player) return;
     const next = !skipInactive;
-    try {
-      player.toggleSkipInactive();
-    } catch {
-      (player as any).$set({ skipInactive: next });
+    try { player.toggleSkipInactive(); } catch {
+      try { (player as any).$set({ skipInactive: next }); } catch {}
     }
     setSkipInactive(next);
   }, [skipInactive]);
 
   const seekTo = useCallback((clientX: number) => {
     const track = scrubberRef.current;
-    if (!playerInstanceRef.current || !track || totalTimeRef.current === 0) return;
+    if (!playerInstanceRef.current || !track || totalTime === 0) return;
     const rect = track.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    const newTime = Math.floor(ratio * totalTimeRef.current);
+    const newTime = Math.floor(ratio * totalTime);
     finishedRef.current = false;
     safeGoto(newTime, isPlayingRef.current);
-  }, [safeGoto]);
+  }, [totalTime, safeGoto]);
 
   const handleScrubberPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -747,8 +420,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         <span className="text-sm font-medium text-muted-foreground">Loading session...</span>
         <p className="text-xs text-muted-foreground/60 mt-1">
           {streamProgress.total > 0
-            ? `Loading chunk ${streamProgress.loaded + 1} of ${streamProgress.total}...`
-            : 'Fetching first frame...'}
+            ? `Loading chunk ${streamProgress.loaded} of ${streamProgress.total}...`
+            : 'Fetching replay data...'}
         </p>
       </div>
     );
@@ -790,35 +463,15 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           {events.length < 2 ? (
             <div className="flex items-center justify-center h-full p-12 text-center">
               <div>
-                {events.length === 0 ? (
-                  <>
-                    <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
-                    <p className="text-xs text-white/15">This session contains no replay data.</p>
-                  </>
-                ) : (
-                  <>
-                    <Loader2 className="h-6 w-6 animate-spin text-white/20 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-white/30 mb-1">Waiting for more data...</p>
-                    <p className="text-xs text-white/15">Session has too few events to replay. Loading additional chunks.</p>
-                  </>
-                )}
+                <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
+                <p className="text-xs text-white/15">This session contains no replay data.</p>
               </div>
             </div>
           ) : !events.some((e: any) => e.type === 2) ? (
             <div className="flex items-center justify-center h-full p-12 text-center">
               <div>
-                {streamProgress.total > 0 && streamProgress.loaded < streamProgress.total ? (
-                  <>
-                    <Loader2 className="h-6 w-6 animate-spin text-white/20 mx-auto mb-2" />
-                    <p className="text-sm font-medium text-white/30 mb-1">Loading page snapshot...</p>
-                    <p className="text-xs text-white/15">Chunk {streamProgress.loaded} of {streamProgress.total} loaded. Waiting for DOM snapshot.</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-medium text-white/30 mb-1">No page snapshot available</p>
-                    <p className="text-xs text-white/15">This session is missing the initial DOM snapshot required for visual playback.</p>
-                  </>
-                )}
+                <p className="text-sm font-medium text-white/30 mb-1">No page snapshot available</p>
+                <p className="text-xs text-white/15">This session is missing the initial DOM snapshot required for visual playback.</p>
               </div>
             </div>
           ) : (
@@ -939,7 +592,6 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           </div>
         )}
       </Card>
-
     </div>
   );
 }

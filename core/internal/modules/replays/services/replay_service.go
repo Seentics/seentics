@@ -66,24 +66,9 @@ func (s *replayService) getUserMutex(userID uuid.UUID) *sync.Mutex {
 	return mu.(*sync.Mutex)
 }
 
-// sessionKnown checks if a session exists in Redis SET (O(1)),
-// falling back to DB query if Redis is unavailable.
+// sessionKnown checks if a session already exists in the database.
 func (s *replayService) sessionKnown(ctx context.Context, websiteID, sessionID string) (bool, error) {
-	if s.cache != nil {
-		setKey := fmt.Sprintf("replay:sessions:%s", websiteID)
-		if s.cache.SIsMember(setKey, sessionID) {
-			return true, nil
-		}
-	}
 	return s.repo.SessionExists(ctx, websiteID, sessionID)
-}
-
-// markSessionKnown adds a session to the Redis SET so future chunk uploads skip the DB query.
-func (s *replayService) markSessionKnown(websiteID, sessionID string) {
-	if s.cache != nil {
-		setKey := fmt.Sprintf("replay:sessions:%s", websiteID)
-		s.cache.SAdd(setKey, 24*time.Hour, sessionID)
-	}
 }
 
 func NewReplayService(repo repository.ReplayRepository, websites *websiteServicePkg.WebsiteService, store *storage.S3Store, logger zerolog.Logger, appCache ...*cache.Cache) ReplayService {
@@ -99,24 +84,9 @@ func NewReplayService(repo repository.ReplayRepository, websites *websiteService
 	return svc
 }
 
-// countSessionsCached returns the global session count for a user, backed by Redis
-// with a 5-minute TTL so the expensive COUNT(DISTINCT) + JOIN only runs once per window.
+// countSessionsCached returns the global session count for a user via direct DB query.
 func (s *replayService) countSessionsCached(ctx context.Context, userID uuid.UUID) (int64, error) {
-	cacheKey := fmt.Sprintf("replay:count:user:%s", userID.String())
-	if s.cache != nil {
-		var cached int64
-		if s.cache.Get(cacheKey, &cached) {
-			return cached, nil
-		}
-	}
-	count, err := s.repo.CountSessionsForUser(ctx, userID)
-	if err != nil {
-		return 0, err
-	}
-	if s.cache != nil {
-		_ = s.cache.Set(cacheKey, count, 5*time.Minute)
-	}
-	return count, nil
+	return s.repo.CountSessionsForUser(ctx, userID)
 }
 
 // parseUA extracts browser, device type, and OS from a User-Agent string.
@@ -235,14 +205,6 @@ func (s *replayService) RecordReplay(ctx context.Context, req models.RecordRepla
 		return err
 	}
 
-	// Mark session known in Redis so future chunks skip the DB query
-	s.markSessionKnown(req.WebsiteID, req.SessionID)
-
-	// Bump cached user session count so quota stays accurate without DB round-trip
-	if req.Sequence == 0 && s.cache != nil {
-		countKey := fmt.Sprintf("replay:count:user:%s", website.UserID.String())
-		s.cache.Incr(countKey, 1)
-	}
 	return nil
 }
 
@@ -565,26 +527,6 @@ func (s *replayService) ListSessions(ctx context.Context, websiteID, userID stri
 		return nil, 0, err
 	}
 
-	// Cache the first page (no cursor) which is the most common request.
-	if before == nil && s.cache != nil {
-		type cachedResult struct {
-			Sessions []models.ReplaySessionMetadata `json:"s"`
-			Total    int64                          `json:"t"`
-		}
-		cacheKey := fmt.Sprintf("replay:list:%s:%d", siteID, limit)
-		var cached cachedResult
-		if s.cache.Get(cacheKey, &cached) {
-			return cached.Sessions, cached.Total, nil
-		}
-
-		sessions, total, err := s.repo.ListSessionsWithMetadata(ctx, siteID, limit, before)
-		if err != nil {
-			return nil, 0, err
-		}
-		_ = s.cache.Set(cacheKey, cachedResult{Sessions: sessions, Total: total}, 2*time.Minute)
-		return sessions, total, nil
-	}
-
 	return s.repo.ListSessionsWithMetadata(ctx, siteID, limit, before)
 }
 
@@ -620,21 +562,9 @@ func (s *replayService) BulkDeleteReplays(ctx context.Context, websiteID string,
 	return nil
 }
 
-// invalidateReplayCache clears cached session lists, user count, and session SET entries
-// so that deletions are immediately reflected in the UI.
+// invalidateReplayCache is a no-op now that Redis caching has been removed.
+// Kept as a placeholder in case future cache layers are added.
 func (s *replayService) invalidateReplayCache(siteID string, userID string, sessionIDs ...string) {
-	if s.cache == nil {
-		return
-	}
-	// Clear cached session list pages for this site
-	s.cache.DeleteByPattern(fmt.Sprintf("replay:list:%s:*", siteID))
-	// Clear cached session count for the user so quota recalculates
-	s.cache.Delete(fmt.Sprintf("replay:count:user:%s", userID))
-	// Remove deleted sessions from the Redis SET used for fast existence checks
-	if len(sessionIDs) > 0 {
-		setKey := fmt.Sprintf("replay:sessions:%s", siteID)
-		s.cache.SRem(setKey, sessionIDs...)
-	}
 }
 
 // deleteS3KeysParallel deletes S3 objects concurrently. Failures are non-fatal.
@@ -694,87 +624,10 @@ func (s *replayService) GetPageSnapshot(ctx context.Context, websiteID string, u
 	return json.RawMessage(data), nil
 }
 
-// ── Cache warmer ──────────────────────────────────────────────────────────────
-
-// StartCacheWarmer proactively warms the session list cache for all active
-// websites every 90 seconds so the first visit to the sessions page is instant.
+// StartCacheWarmer is a no-op now that Redis session list caching has been removed.
+// The method is retained to satisfy the ReplayService interface.
 func (s *replayService) StartCacheWarmer(ctx context.Context) {
-	if s.cache == nil || s.websites == nil {
-		s.logger.Info().Msg("Replay cache warmer: skipped (cache or websites service not available)")
-		return
-	}
-
-	go func() {
-		select {
-		case <-time.After(8 * time.Second):
-		case <-ctx.Done():
-			return
-		}
-
-		s.logger.Info().Msg("Replay cache warmer: started")
-		s.warmReplaySessions(ctx)
-
-		ticker := time.NewTicker(90 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				s.warmReplaySessions(ctx)
-			case <-ctx.Done():
-				s.logger.Info().Msg("Replay cache warmer: stopped")
-				return
-			}
-		}
-	}()
-}
-
-func (s *replayService) warmReplaySessions(ctx context.Context) {
-	siteIDs, err := s.websites.ListAllActiveSiteIDs(ctx)
-	if err != nil {
-		s.logger.Warn().Err(err).Msg("Replay cache warmer: failed to list active sites")
-		return
-	}
-
-	sem := make(chan struct{}, 10)
-	var wg sync.WaitGroup
-
-	for _, id := range siteIDs {
-		select {
-		case <-ctx.Done():
-			break
-		default:
-		}
-
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(siteID string) {
-			defer wg.Done()
-			defer func() { <-sem }()
-
-			const defaultLimit = 50
-			cacheKey := fmt.Sprintf("replay:list:%s:%d", siteID, defaultLimit)
-			if s.cache.Exists(cacheKey) {
-				return
-			}
-
-			warmCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-			defer cancel()
-
-			sessions, total, err := s.repo.ListSessionsWithMetadata(warmCtx, siteID, defaultLimit, nil)
-			if err != nil {
-				return
-			}
-
-			type cachedResult struct {
-				Sessions []models.ReplaySessionMetadata `json:"s"`
-				Total    int64                          `json:"t"`
-			}
-			_ = s.cache.Set(cacheKey, cachedResult{Sessions: sessions, Total: total}, 2*time.Minute)
-		}(id)
-	}
-
-	wg.Wait()
-	s.logger.Debug().Int("sites", len(siteIDs)).Msg("Replay cache warmer: cycle complete")
+	s.logger.Info().Msg("Replay cache warmer: disabled (Redis session caching removed)")
 }
 
 // ── Rage-click detection ──────────────────────────────────────────────────────

@@ -2,11 +2,8 @@ package services
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,15 +15,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
-)
-
-const (
-	BatchSize     = 2000
-	FlushInterval = 5 * time.Second
-
-	heatmapStream = "sn:stream:heatmap"
-	heatmapGroup  = "seentics-heatmap"
-	heatmapWorker = "heatmap-worker"
 )
 
 type HeatmapService interface {
@@ -42,38 +30,6 @@ type HeatmapService interface {
 	StartCacheWarmer(ctx context.Context)
 }
 
-// urlAdmitScript atomically checks the URL quota and admits new URLs.
-//
-//	KEYS[1]  = Redis set key  (sn:heatmap:urls:{websiteID})
-//	ARGV[1]  = limit
-//	ARGV[2]  = number of URLs
-//	ARGV[3+] = URL strings
-//
-// Returns the admitted URL list: all URLs if under limit, only existing ones if at/over limit.
-var urlAdmitScript = redis.NewScript(`
-local setKey = KEYS[1]
-local limit  = tonumber(ARGV[1])
-local n      = tonumber(ARGV[2])
-local count  = tonumber(redis.call('SCARD', setKey))
-local result = {}
-
-if count >= limit then
-    for i = 3, 2 + n do
-        if redis.call('SISMEMBER', setKey, ARGV[i]) == 1 then
-            result[#result+1] = ARGV[i]
-        end
-    end
-else
-    for i = 3, 2 + n do
-        if ARGV[i] ~= '' then
-            redis.call('SADD', setKey, ARGV[i])
-            result[#result+1] = ARGV[i]
-        end
-    end
-end
-return result
-`)
-
 type heatmapService struct {
 	repo     repository.HeatmapRepository
 	websites *websiteServicePkg.WebsiteService
@@ -81,46 +37,21 @@ type heatmapService struct {
 	rdb      *redis.Client
 	appCache *cache.Cache
 
-	ctx        context.Context
-	cancel     context.CancelFunc
-	wg         sync.WaitGroup
 	isShutdown bool
 	shutdownMu sync.RWMutex
 }
 
 func NewHeatmapService(repo repository.HeatmapRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger, rdb *redis.Client, appCache ...*cache.Cache) HeatmapService {
-	ctx, cancel := context.WithCancel(context.Background())
-
 	s := &heatmapService{
 		repo:     repo,
 		websites: websites,
 		logger:   logger,
 		rdb:      rdb,
-		ctx:      ctx,
-		cancel:   cancel,
 	}
 	if len(appCache) > 0 {
 		s.appCache = appCache[0]
 	}
 
-	// Ensure stream consumer group exists
-	bgCtx := context.Background()
-	if err := rdb.XGroupCreateMkStream(bgCtx, heatmapStream, heatmapGroup, "$").Err(); err != nil {
-		if !strings.Contains(err.Error(), "BUSYGROUP") {
-			logger.Error().Err(err).Msg("Failed to create heatmap stream consumer group")
-		}
-	}
-
-	// Clear stale heatmap URL sentinels on startup so Redis sets re-sync with DB.
-	// This prevents deadlocks where Redis thinks the quota is full but the DB is empty.
-	if keys, err := rdb.Keys(bgCtx, "sn:heatmap:seeded:*").Result(); err == nil && len(keys) > 0 {
-		rdb.Del(bgCtx, keys...)
-	}
-	if keys, err := rdb.Keys(bgCtx, "sn:heatmap:urls:*").Result(); err == nil && len(keys) > 0 {
-		rdb.Del(bgCtx, keys...)
-	}
-
-	s.startStreamConsumer()
 	return s
 }
 
@@ -148,188 +79,51 @@ func (s *heatmapService) RecordHeatmapData(ctx context.Context, req models.Heatm
 		return fmt.Errorf("heatmap recording is manually disabled for this website. enable it in settings")
 	}
 
-	// Quota enforcement via Redis Set
+	// Quota enforcement via DB query
 	if limit, ok := ctx.Value("max_heatmaps").(int); ok && limit > 0 {
-		req.Points = s.admitPoints(ctx, req.WebsiteID, req.Points, limit)
-		if len(req.Points) == 0 {
-			return fmt.Errorf("heatmap limit reached (%d). cannot track new pages", limit)
+		count, err := s.repo.CountHeatmapPages(ctx, req.WebsiteID)
+		if err != nil {
+			s.logger.Warn().Err(err).Str("website_id", req.WebsiteID).Msg("Heatmap: failed to count pages for quota check")
+			// On error, allow the request through rather than blocking
+		} else if count >= limit {
+			// At or over limit: only allow points for URLs that already exist
+			existingURLs, err := s.repo.GetTrackedURLs(ctx, req.WebsiteID)
+			if err != nil {
+				s.logger.Warn().Err(err).Msg("Heatmap: failed to get tracked URLs for quota filtering")
+			} else {
+				existingSet := make(map[string]struct{}, len(existingURLs))
+				for _, u := range existingURLs {
+					existingSet[u] = struct{}{}
+				}
+				filtered := req.Points[:0]
+				for _, p := range req.Points {
+					if _, ok := existingSet[p.URL]; ok {
+						filtered = append(filtered, p)
+					}
+				}
+				req.Points = filtered
+				if len(req.Points) == 0 {
+					return fmt.Errorf("heatmap limit reached (%d). cannot track new pages", limit)
+				}
+			}
 		}
 	}
 
-	// Publish all points to the heatmap stream in a single pipeline round-trip.
-	pipe := s.rdb.Pipeline()
+	// Filter out points with empty URLs and set website ID
+	validPoints := make([]models.HeatmapPoint, 0, len(req.Points))
 	for i := range req.Points {
 		req.Points[i].WebsiteID = req.WebsiteID
 		if req.Points[i].URL == "" {
 			continue
 		}
-		data, err := json.Marshal(req.Points[i])
-		if err != nil {
-			continue
-		}
-		pipe.XAdd(ctx, &redis.XAddArgs{
-			Stream: heatmapStream,
-			MaxLen: 200000,
-			Approx: true,
-			Values: map[string]interface{}{"d": string(data)},
-		})
-	}
-	if _, err := pipe.Exec(ctx); err != nil {
-		s.logger.Warn().Err(err).Msg("Heatmap: pipeline XADD failed")
+		validPoints = append(validPoints, req.Points[i])
 	}
 
-	return nil
-}
-
-// admitPoints uses a Redis Lua script to atomically check the URL quota
-// and filter req.Points to only admitted URLs.
-func (s *heatmapService) admitPoints(ctx context.Context, websiteID string, points []models.HeatmapPoint, limit int) []models.HeatmapPoint {
-	// Collect unique non-empty URLs
-	seen := make(map[string]struct{}, len(points))
-	urls := make([]string, 0, len(points))
-	for _, p := range points {
-		if p.URL != "" {
-			if _, exists := seen[p.URL]; !exists {
-				seen[p.URL] = struct{}{}
-				urls = append(urls, p.URL)
-			}
-		}
-	}
-	if len(urls) == 0 {
-		return points
+	if len(validPoints) == 0 {
+		return nil
 	}
 
-	// Seed the Redis set from DB on first use (SETNX sentinel)
-	s.ensureURLSet(ctx, websiteID)
-
-	setKey := "sn:heatmap:urls:" + websiteID
-	args := make([]interface{}, 2+len(urls))
-	args[0] = limit
-	args[1] = len(urls)
-	for i, u := range urls {
-		args[2+i] = u
-	}
-
-	admitted, err := urlAdmitScript.Run(ctx, s.rdb, []string{setKey}, args...).StringSlice()
-	if err != nil {
-		// Redis unavailable: fall through and allow all points
-		return points
-	}
-
-	admittedSet := make(map[string]struct{}, len(admitted))
-	for _, u := range admitted {
-		admittedSet[u] = struct{}{}
-	}
-
-	filtered := points[:0]
-	for _, p := range points {
-		if _, ok := admittedSet[p.URL]; ok {
-			filtered = append(filtered, p)
-		}
-	}
-	return filtered
-}
-
-// ensureURLSet seeds the Redis set from DB periodically (every 10 minutes).
-// This prevents stale Redis sets from blocking new heatmap data after a DB reset.
-func (s *heatmapService) ensureURLSet(ctx context.Context, websiteID string) {
-	sentinelKey := "sn:heatmap:seeded:" + websiteID
-	seeded, err := s.rdb.SetNX(ctx, sentinelKey, "1", 10*time.Minute).Result()
-	if err != nil || !seeded {
-		return // recently seeded or Redis error
-	}
-
-	setKey := "sn:heatmap:urls:" + websiteID
-	tracked, err := s.repo.GetTrackedURLs(ctx, websiteID)
-	if err != nil {
-		return
-	}
-
-	// Replace the Redis set with current DB state to avoid stale entries
-	pipe := s.rdb.Pipeline()
-	pipe.Del(ctx, setKey)
-	if len(tracked) > 0 {
-		members := make([]interface{}, len(tracked))
-		for i, u := range tracked {
-			members[i] = u
-		}
-		pipe.SAdd(ctx, setKey, members...)
-	}
-	pipe.Exec(ctx)
-}
-
-// startStreamConsumer reads batches from the heatmap stream, aggregates,
-// writes to the database, and ACKs messages.
-func (s *heatmapService) startStreamConsumer() {
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
-
-		for {
-			select {
-			case <-s.ctx.Done():
-				return
-			default:
-			}
-
-			msgs, err := s.rdb.XReadGroup(s.ctx, &redis.XReadGroupArgs{
-				Group:    heatmapGroup,
-				Consumer: heatmapWorker,
-				Streams:  []string{heatmapStream, ">"},
-				Count:    BatchSize,
-				Block:    FlushInterval,
-			}).Result()
-
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return
-				}
-				if errors.Is(err, redis.Nil) {
-					continue
-				}
-				s.logger.Error().Err(err).Msg("Heatmap stream read error")
-				time.Sleep(time.Second)
-				continue
-			}
-
-			if len(msgs) == 0 || len(msgs[0].Messages) == 0 {
-				continue
-			}
-
-			rawMsgs := msgs[0].Messages
-			batch := make([]models.HeatmapPoint, 0, len(rawMsgs))
-			ids := make([]string, 0, len(rawMsgs))
-
-			for _, msg := range rawMsgs {
-				ids = append(ids, msg.ID)
-				data, ok := msg.Values["d"].(string)
-				if !ok {
-					continue
-				}
-				var point models.HeatmapPoint
-				if err := json.Unmarshal([]byte(data), &point); err != nil {
-					continue
-				}
-				batch = append(batch, point)
-			}
-
-			if len(batch) > 0 {
-				s.processBatch(batch)
-			}
-
-			if len(ids) > 0 {
-				s.rdb.XAck(context.Background(), heatmapStream, heatmapGroup, ids...)
-			}
-		}
-	}()
-}
-
-// processBatch aggregates and flushes a batch of heatmap points to the DB.
-func (s *heatmapService) processBatch(batch []models.HeatmapPoint) {
-	if len(batch) == 0 {
-		return
-	}
-
+	// Aggregate points before writing to DB
 	type aggKey struct {
 		WebsiteID string
 		PagePath  string
@@ -341,7 +135,7 @@ func (s *heatmapService) processBatch(batch []models.HeatmapPoint) {
 	}
 
 	aggregated := make(map[aggKey]int)
-	for _, p := range batch {
+	for _, p := range validPoints {
 		key := aggKey{
 			WebsiteID: p.WebsiteID,
 			PagePath:  p.URL,
@@ -368,21 +162,18 @@ func (s *heatmapService) processBatch(batch []models.HeatmapPoint) {
 		})
 	}
 
-	ctx := context.Background()
+	// Write directly to PostgreSQL
 	if err := s.repo.RecordHeatmapBatch(ctx, finalBatch); err != nil {
-		s.logger.Error().Err(err).Int("points", len(finalBatch)).Msg("Failed to flush heatmap batch to DB")
+		s.logger.Error().Err(err).Int("points", len(finalBatch)).Msg("Failed to write heatmap batch to DB")
+		return fmt.Errorf("failed to record heatmap data")
 	}
 
 	// Invalidate cached heatmap pages so new data appears immediately
 	if s.appCache != nil {
-		seen := make(map[string]bool)
-		for _, p := range batch {
-			if !seen[p.WebsiteID] {
-				seen[p.WebsiteID] = true
-				s.appCache.Delete(fmt.Sprintf("heatmap:pages:%s", p.WebsiteID))
-			}
-		}
+		s.appCache.Delete(fmt.Sprintf("heatmap:pages:%s", req.WebsiteID))
 	}
+
+	return nil
 }
 
 func (s *heatmapService) Shutdown(timeout time.Duration) error {
@@ -390,21 +181,7 @@ func (s *heatmapService) Shutdown(timeout time.Duration) error {
 	s.shutdownMu.Lock()
 	s.isShutdown = true
 	s.shutdownMu.Unlock()
-
-	s.cancel()
-
-	done := make(chan struct{})
-	go func() {
-		s.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		return nil
-	case <-time.After(timeout):
-		return fmt.Errorf("heatmap service shutdown timed out")
-	}
+	return nil
 }
 
 func (s *heatmapService) validateOwnership(ctx context.Context, websiteID string, userID string) (string, string, error) {
@@ -503,8 +280,6 @@ func (s *heatmapService) DeleteHeatmapPage(ctx context.Context, websiteID string
 	if err != nil {
 		return err
 	}
-	// Evict from Redis URL set so quota is recalculated
-	s.rdb.SRem(ctx, "sn:heatmap:urls:"+canonicalID, url)
 	s.invalidateHeatmapCache(canonicalID, url)
 	return s.repo.DeleteHeatmapPage(ctx, canonicalID, url)
 }
@@ -513,13 +288,6 @@ func (s *heatmapService) BulkDeleteHeatmapPages(ctx context.Context, websiteID s
 	canonicalID, _, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return err
-	}
-	if len(urls) > 0 {
-		members := make([]interface{}, len(urls))
-		for i, u := range urls {
-			members[i] = u
-		}
-		s.rdb.SRem(ctx, "sn:heatmap:urls:"+canonicalID, members...)
 	}
 	for _, url := range urls {
 		s.invalidateHeatmapCache(canonicalID, url)
