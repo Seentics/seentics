@@ -318,15 +318,18 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const safeGoto = useCallback((timeMs: number, play: boolean) => {
     const player = playerInstanceRef.current;
     if (!player) return;
-    const clamped = Math.max(0, Math.min(timeMs, totalTime));
+    // Use rrweb metadata as fallback when totalTime state hasn't resolved yet
+    let maxTime = totalTime;
+    if (maxTime <= 0) {
+      try { maxTime = player.getMetaData().totalTime || 0; } catch {}
+    }
+    const clamped = Math.max(0, maxTime > 0 ? Math.min(timeMs, maxTime) : timeMs);
     try {
-      const replayer = player.getReplayer?.();
-      if (replayer && play) {
-        replayer.play(clamped);
-      } else {
-        player.goto(clamped, play);
-      }
+      // Always use player.goto() — it properly syncs rrweb-player state machine
+      // Calling replayer.play() directly causes state desync and breaks seeking
+      player.goto(clamped, play);
       setCurrentTime(clamped);
+      finishedRef.current = false;
     } catch (err) {
       console.warn('[ReplayPlayer] goto failed:', err);
     }
@@ -354,9 +357,17 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const handleSetSpeed = useCallback((newSpeed: number) => {
     const player = playerInstanceRef.current;
     if (!player) return;
-    try { player.setSpeed(newSpeed); } catch {
-      try { (player as any).$set({ speed: newSpeed }); } catch {}
+    try {
+      // rrweb-player Svelte component uses $set for props
+      (player as any).$set({ speed: newSpeed });
+    } catch {
+      try { player.setSpeed?.(newSpeed); } catch {}
     }
+    // Also set on replayer directly as a fallback
+    try {
+      const replayer = player.getReplayer?.();
+      if (replayer) (replayer as any).setConfig?.({ speed: newSpeed });
+    } catch {}
     speedRef.current = newSpeed;
     setSpeed(newSpeed);
   }, []);
@@ -375,8 +386,10 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     const player = playerInstanceRef.current;
     if (!player) return;
     const next = !skipInactive;
-    try { player.toggleSkipInactive(); } catch {
-      try { (player as any).$set({ skipInactive: next }); } catch {}
+    try {
+      (player as any).$set({ skipInactive: next });
+    } catch {
+      try { player.toggleSkipInactive?.(); } catch {}
     }
     setSkipInactive(next);
   }, [skipInactive]);
