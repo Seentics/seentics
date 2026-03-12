@@ -218,21 +218,6 @@ export default function HeatmapsPage() {
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
-      {(isFreePlan || isDemoMode) && (
-        <Alert className="bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20">
-          <Sparkles className="h-4 w-4 text-amber-600" />
-          <AlertTitle className="text-amber-700 dark:text-amber-500 font-semibold">Premium Feature</AlertTitle>
-          <AlertDescription className="text-amber-600/80 dark:text-muted-foreground/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <span>Real heatmap tracking requires a paid plan. Upgrade to start recording live sessions.</span>
-            <Link href={isDemoMode ? '/pricing' : `/websites/${websiteId}/billing`}>
-              <Button size="sm" variant="outline" className="border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-500/10 gap-2 text-xs font-medium">
-                View Plans <ArrowUpRight className="h-3 w-3" />
-              </Button>
-            </Link>
-          </AlertDescription>
-        </Alert>
-      )}
-
       {isHeatmapDisabled && !isFreePlan && !isDemoMode && (
         <Alert className="bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20">
           <MousePointer2 className="h-4 w-4 text-rose-600" />

@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { useRealtimeData, RealtimeMinute } from '@/lib/analytics-api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Activity, Globe, Monitor, ExternalLink, Eye, Users, Layers, Smartphone, Tablet, MonitorSmartphone } from 'lucide-react';
+import { Activity, Globe, Monitor, ExternalLink, Eye, Users, Layers } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useMemo } from 'react';
 import Image from 'next/image';
@@ -42,19 +42,19 @@ function countryToFlag(country: string): string {
 
 // ─── Browser icon ───────────────────────────────────────────────────────────
 function BrowserIcon({ name }: { name: string }) {
-  const n = name.toLowerCase();
-  // Use simple SVG color circles for common browsers
-  const colors: Record<string, string> = {
-    chrome: '#4285F4', firefox: '#FF7139', safari: '#006CFF', edge: '#0078D7',
-    opera: '#FF1B2D', brave: '#FB542B', vivaldi: '#EF3939', samsung: '#1428A0',
-    arc: '#FC4B54',
-  };
-  const match = Object.keys(colors).find(k => n.includes(k));
-  const color = match ? colors[match] : '#888';
+  const n = name.toLowerCase().replace(/\s+/g, '-');
+  const knownBrowsers = [
+    'chrome', 'firefox', 'safari', 'edge', 'opera', 'brave', 'samsung',
+    'ie', 'vivaldi', 'yandexbrowser', 'silk', 'miui', 'kakaotalk',
+    'opera-mini', 'edge-chromium', 'edge-ios', 'chromium-webview',
+    'android-webview', 'ios-webview', 'crios', 'fxios',
+  ];
+  const match = knownBrowsers.find(b => n.includes(b)) ?? 'unknown';
   return (
-    <span
-      className="inline-block w-4 h-4 rounded-full shrink-0"
-      style={{ background: color }}
+    <img
+      src={`/images/browser/${match}.png`}
+      alt={name}
+      className="w-4 h-4 rounded-sm shrink-0 object-contain"
     />
   );
 }
@@ -62,10 +62,17 @@ function BrowserIcon({ name }: { name: string }) {
 // ─── Device icon ────────────────────────────────────────────────────────────
 function DeviceIcon({ name }: { name: string }) {
   const n = name.toLowerCase();
-  if (n.includes('mobile') || n.includes('phone')) return <Smartphone size={15} className="text-blue-500 shrink-0" />;
-  if (n.includes('tablet')) return <Tablet size={15} className="text-violet-500 shrink-0" />;
-  if (n.includes('desktop')) return <Monitor size={15} className="text-emerald-500 shrink-0" />;
-  return <MonitorSmartphone size={15} className="text-muted-foreground shrink-0" />;
+  let type = 'unknown';
+  if (n.includes('mobile') || n.includes('phone')) type = 'mobile';
+  else if (n.includes('tablet')) type = 'tablet';
+  else if (n.includes('desktop') || n.includes('laptop')) type = 'desktop';
+  return (
+    <img
+      src={`/images/device/${type}.png`}
+      alt={name}
+      className="w-4 h-4 rounded-sm shrink-0 object-contain"
+    />
+  );
 }
 
 // ─── Referrer favicon ───────────────────────────────────────────────────────
