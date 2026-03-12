@@ -15,7 +15,6 @@ import {
     Headset,
     MousePointer2,
     Video,
-    Lock,
     Route,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
@@ -30,13 +29,11 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
-import { toast } from 'sonner';
 
 export function HeaderNavigation({ websiteId, floating = false }: { websiteId: string; floating?: boolean }) {
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const { closeMobileMenu } = useLayoutStore();
-    const isDemo = websiteId === 'demo';
     const { subscription } = isEnterprise ? useSubscription() : { subscription: null };
 
     const featureLimitMap: Record<string, string> = {
@@ -48,15 +45,15 @@ export function HeaderNavigation({ websiteId, floating = false }: { websiteId: s
 
     const allLinks = [
         { title: 'Overview', href: `/websites/${websiteId}`, icon: LayoutDashboard, matchExact: true },
-        { title: 'Heatmaps', href: `/websites/${websiteId}/heatmaps`, icon: MousePointer2, isLocked: isDemo },
-        { title: 'Replays', href: `/websites/${websiteId}/replays`, icon: Video, isLocked: isDemo },
-        { title: 'Automations', href: `/websites/${websiteId}/automations`, icon: Workflow, isLocked: isDemo },
-        { title: 'Funnels', href: `/websites/${websiteId}/funnels`, icon: Filter, isLocked: isDemo },
-        { title: 'Paths', href: `/websites/${websiteId}/paths`, icon: Route, isLocked: isDemo, enterpriseOnly: true },
-        { title: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard, isLocked: isDemo, enterpriseOnly: true },
-        { title: 'Privacy', href: `/websites/${websiteId}/privacy`, icon: Shield, isLocked: isDemo, enterpriseOnly: true },
-        { title: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings, isLocked: isDemo },
-        { title: 'Support', href: `/websites/${websiteId}/support`, icon: Headset, isLocked: isDemo, enterpriseOnly: true },
+        { title: 'Heatmaps', href: `/websites/${websiteId}/heatmaps`, icon: MousePointer2 },
+        { title: 'Replays', href: `/websites/${websiteId}/replays`, icon: Video },
+        { title: 'Automations', href: `/websites/${websiteId}/automations`, icon: Workflow },
+        { title: 'Funnels', href: `/websites/${websiteId}/funnels`, icon: Filter },
+        { title: 'Paths', href: `/websites/${websiteId}/paths`, icon: Route, enterpriseOnly: true },
+        { title: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard, enterpriseOnly: true },
+        { title: 'Privacy', href: `/websites/${websiteId}/privacy`, icon: Shield, enterpriseOnly: true },
+        { title: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings },
+        { title: 'Support', href: `/websites/${websiteId}/support`, icon: Headset, enterpriseOnly: true },
     ];
 
     const links = allLinks.filter(link => {
@@ -91,34 +88,21 @@ export function HeaderNavigation({ websiteId, floating = false }: { websiteId: s
                     const isActive = link.matchExact
                         ? pathname === link.href
                         : pathname.startsWith(link.href);
-                    const isDisabled = link.href === '#' || link.isLocked;
-
                     return (
                         <Link
                             key={link.title}
-                            href={isDisabled ? '#' : link.href}
-                            onClick={(e) => {
-                                if (isDisabled) {
-                                    e.preventDefault();
-                                    if (link.isLocked) {
-                                        toast.error("This feature is restricted in the demo environment.");
-                                    }
-                                    return;
-                                }
-                                closeMobileMenu();
-                            }}
+                            href={link.href}
+                            onClick={() => closeMobileMenu()}
                             className={cn(
                                 'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200',
                                 isActive
                                     ? 'bg-primary/10 text-primary'
                                     : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                                isDisabled && 'opacity-50 cursor-not-allowed',
                                 floating ? 'px-2 py-1' : 'px-2.5 py-1.5'
                             )}
                         >
                             <link.icon size={14} />
                             <span className="hidden lg:inline">{link.title}</span>
-                            {link.isLocked && <Lock size={9} className="text-muted-foreground/40" />}
                         </Link>
                     );
                 })}

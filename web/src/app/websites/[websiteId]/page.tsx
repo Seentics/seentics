@@ -41,7 +41,7 @@ import {
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { format } from 'date-fns';
-import { getDemoData, getDemoWebsite } from '@/lib/demo-data';
+import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
 import Link from 'next/link';
 import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRight, ArrowDownRight, Clock, Eye, Users, TrendingDown, ChevronRight, Target, X, Gauge } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
@@ -188,7 +188,7 @@ export default function WebsiteDashboardPage() {
           const data = await getWebsites();
           // Add demo website to the list if in demo mode
           if (isDemoMode) {
-            setWebsites([getDemoWebsite(), ...data]);
+            setWebsites([demoWebsite(), ...data]);
           } else {
             setWebsites(data);
           }
@@ -196,12 +196,12 @@ export default function WebsiteDashboardPage() {
           console.error('Failed to load websites', error);
           // If in demo mode and API fails, still show demo website
           if (isDemoMode) {
-            setWebsites([getDemoWebsite()]);
+            setWebsites([demoWebsite()]);
           }
         }
       } else if (isDemoMode) {
         // Allow demo mode even without authentication
-        setWebsites([getDemoWebsite()]);
+        setWebsites([demoWebsite()]);
       }
     };
     loadWebsites();
@@ -236,8 +236,8 @@ export default function WebsiteDashboardPage() {
   // Previous period data for comparison overlay
   const { data: previousDailyStats } = usePreviousPeriodDailyStats(deferredId, dateRange, showComparison);
 
-  // Memoize demo data so getDemoData() is not called on every render
-  const demoData = useMemo(() => (isDemoMode ? getDemoData() : null), [isDemoMode]);
+  // Memoize demo data so demoAnalyticsData() is not called on every render
+  const demoData = useMemo(() => (isDemoMode ? demoAnalyticsData() : null), [isDemoMode]);
 
   // Use demo data when in demo mode, otherwise use API data
   const finalDashboardData = isDemoMode ? demoData?.dashboardData : dashboardData;

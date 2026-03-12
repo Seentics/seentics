@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { UpgradePlanModal } from '@/components/subscription/UpgradePlanModal';
 import api from '@/lib/api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
+import { isDemo } from '@/lib/demo';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
 
@@ -55,10 +56,12 @@ export default function AccountBillingSettings() {
     const [cancelling, setCancelling] = React.useState(false);
 
     const handleManagePayments = () => {
+        if (isDemo(websiteId)) { toast.info('Demo Mode', { description: 'Billing is not available in demo mode.' }); return; }
         window.open('https://seentics.lemonsqueezy.com/billing', '_blank');
     };
 
     const handleCancel = async () => {
+        if (isDemo(websiteId)) { toast.info('Demo Mode', { description: 'Billing is not available in demo mode.' }); return; }
         if (!window.confirm('Are you sure you want to cancel your subscription? This will revert your account to the Starter plan at the end of the current billing cycle.')) {
             return;
         }

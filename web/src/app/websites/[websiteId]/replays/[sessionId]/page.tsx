@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2, Monitor, Smartphone, Tablet, Globe, Clock } from 'l
 import { Button } from '@/components/ui/button';
 import ReplayPlayer from '@/components/replays/ReplayPlayer';
 import api from '@/lib/api';
+import { isDemo, demoReplays } from '@/lib/demo';
 
 interface SessionMeta {
   session_id: string;
@@ -34,6 +35,16 @@ export default function SessionPlaybackPage() {
     if (!websiteId || !sessionId) return;
     const load = async () => {
       try {
+        if (isDemo(websiteId)) {
+          const demo = demoReplays();
+          setSession((demo.sessions.find((s: any) => s.session_id === sessionId) as any) ?? {
+            session_id: sessionId, website_id: websiteId, browser: 'Chrome', device: 'desktop', os: 'macOS',
+            country: 'United States', entry_page: '/', start_time: new Date().toISOString(),
+            end_time: new Date().toISOString(), duration_seconds: 180, chunk_count: 0,
+          });
+          setLoading(false);
+          return;
+        }
         const res = await api.get(`/replays/sessions?website_id=${websiteId}&limit=200`);
         const list: SessionMeta[] = res.data?.sessions || [];
         setSession(list.find(s => s.session_id === sessionId) ?? null);

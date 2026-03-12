@@ -15,7 +15,6 @@ import {
     Headset,
     MousePointer2,
     Video,
-    Lock,
     Route,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -35,13 +34,11 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { toast } from 'sonner';
 
 export function DockNavigation({ websiteId }: { websiteId: string }) {
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const { closeMobileMenu } = useLayoutStore();
-    const isDemo = websiteId === 'demo';
     const { subscription } = isEnterprise ? useSubscription() : { subscription: null };
 
     const featureLimitMap: Record<string, string> = {
@@ -53,15 +50,15 @@ export function DockNavigation({ websiteId }: { websiteId: string }) {
 
     const allLinks = [
         { title: 'Overview', href: `/websites/${websiteId}`, icon: LayoutDashboard, matchExact: true },
-        { title: 'Heatmaps', href: `/websites/${websiteId}/heatmaps`, icon: MousePointer2, isLocked: isDemo },
-        { title: 'Session Replay', href: `/websites/${websiteId}/replays`, icon: Video, isLocked: isDemo },
-        { title: 'Automations', href: `/websites/${websiteId}/automations`, icon: Workflow, isLocked: isDemo },
-        { title: 'Funnels', href: `/websites/${websiteId}/funnels`, icon: Filter, isLocked: isDemo },
-        { title: 'Paths', href: `/websites/${websiteId}/paths`, icon: Route, isLocked: isDemo, enterpriseOnly: true },
-        { title: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard, isLocked: isDemo, enterpriseOnly: true },
-        { title: 'Privacy', href: `/websites/${websiteId}/privacy`, icon: Shield, isLocked: isDemo, enterpriseOnly: true },
-        { title: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings, isLocked: isDemo },
-        { title: 'Support', href: `/websites/${websiteId}/support`, icon: Headset, isLocked: isDemo, enterpriseOnly: true },
+        { title: 'Heatmaps', href: `/websites/${websiteId}/heatmaps`, icon: MousePointer2 },
+        { title: 'Session Replay', href: `/websites/${websiteId}/replays`, icon: Video },
+        { title: 'Automations', href: `/websites/${websiteId}/automations`, icon: Workflow },
+        { title: 'Funnels', href: `/websites/${websiteId}/funnels`, icon: Filter },
+        { title: 'Paths', href: `/websites/${websiteId}/paths`, icon: Route, enterpriseOnly: true },
+        { title: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard, enterpriseOnly: true },
+        { title: 'Privacy', href: `/websites/${websiteId}/privacy`, icon: Shield, enterpriseOnly: true },
+        { title: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings },
+        { title: 'Support', href: `/websites/${websiteId}/support`, icon: Headset, enterpriseOnly: true },
     ];
 
     const links = allLinks.filter(link => {
@@ -83,37 +80,22 @@ export function DockNavigation({ websiteId }: { websiteId: string }) {
                     const isActive = link.matchExact
                         ? pathname === link.href
                         : pathname.startsWith(link.href);
-                    const isDisabled = link.href === '#' || link.isLocked;
-
                     return (
                         <Tooltip key={link.title}>
                             <TooltipTrigger asChild>
                                 <Link
-                                    href={isDisabled ? '#' : link.href}
-                                    onClick={(e) => {
-                                        if (isDisabled) {
-                                            e.preventDefault();
-                                            if (link.isLocked) {
-                                                toast.error("This feature is restricted in the demo environment.");
-                                            }
-                                            return;
-                                        }
-                                        closeMobileMenu();
-                                    }}
+                                    href={link.href}
+                                    onClick={() => closeMobileMenu()}
                                     className={cn(
                                         'relative flex items-center justify-center h-10 w-10 rounded-xl transition-all duration-200',
                                         isActive
                                             ? 'bg-primary/15 text-primary'
-                                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
-                                        isDisabled && 'opacity-50 cursor-not-allowed'
+                                            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                                     )}
                                 >
                                     <link.icon size={18} />
                                     {isActive && (
                                         <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
-                                    )}
-                                    {link.isLocked && (
-                                        <Lock size={8} className="absolute top-1 right-1 text-muted-foreground/40" />
                                     )}
                                 </Link>
                             </TooltipTrigger>

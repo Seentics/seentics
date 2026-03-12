@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Github, X } from 'lucide-react';
+import { ArrowRight, Play, X } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/stores/useAuthStore';
@@ -93,10 +93,10 @@ export default function Hero() {
                 </Button>
               </Link>
             )}
-            <Link href="https://github.com/Seentics/seentics" target="_blank">
-              <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-semibold rounded-full">
-                <Github className="h-4 w-4 mr-2" />
-                GitHub
+            <Link href="/websites/demo">
+              <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-semibold rounded-full border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary hover:text-primary shadow-sm">
+                <Play className="h-4 w-4 mr-2 fill-primary/30" />
+                Live Demo
               </Button>
             </Link>
           </motion.div>

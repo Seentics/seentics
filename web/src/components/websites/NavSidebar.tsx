@@ -18,8 +18,6 @@ import {
     ChevronRight,
     MousePointer2,
     Video,
-    Lock,
-    Users2,
     Activity,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
@@ -34,14 +32,12 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
-import { toast } from 'sonner';
 
 export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; mobile?: boolean }) {
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const { isSidebarOpen, toggleSidebar, closeMobileMenu } = useLayoutStore();
 
-    const isDemo = websiteId === 'demo';
     const { subscription } = isEnterprise ? useSubscription() : { subscription: null };
 
     // Map nav items to subscription usage keys for limit-based hiding
@@ -71,35 +67,30 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             href: `/websites/${websiteId}/heatmaps`,
             icon: MousePointer2,
             description: 'User Interaction Maps',
-            isLocked: isDemo
         },
         {
             title: 'Session Replay',
             href: `/websites/${websiteId}/replays`,
             icon: Video,
             description: 'Watch User Sessions',
-            isLocked: isDemo
         },
         {
             title: 'Automations',
             href: `/websites/${websiteId}/automations`,
             icon: Workflow,
             description: 'Workflows & Triggers',
-            isLocked: isDemo
         },
         {
             title: 'Funnels',
             href: `/websites/${websiteId}/funnels`,
             icon: Filter,
             description: 'Conversion Journeys',
-            isLocked: isDemo
         },
         {
             title: 'Paths',
             href: `/websites/${websiteId}/paths`,
             icon: Route,
             description: 'User Journey Analysis',
-            isLocked: isDemo,
             enterpriseOnly: true
         },
         {
@@ -107,7 +98,6 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             href: `/websites/${websiteId}/billing`,
             icon: CreditCard,
             description: 'Plan & Payment',
-            isLocked: isDemo,
             enterpriseOnly: true
         },
         {
@@ -115,7 +105,6 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             href: `/websites/${websiteId}/privacy`,
             icon: Shield,
             description: 'GDPR & Privacy',
-            isLocked: isDemo,
             enterpriseOnly: true
         },
         {
@@ -123,14 +112,12 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             href: `/websites/${websiteId}/settings`,
             icon: Settings,
             description: 'General Preferences',
-            isLocked: isDemo
         },
         {
             title: 'Support',
             href: `/websites/${websiteId}/support`,
             icon: Headset,
             description: 'Help & Contact',
-            isLocked: isDemo,
             enterpriseOnly: true
         },
     ];
@@ -189,30 +176,17 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                         ? pathname === link.href
                         : pathname.startsWith(link.href);
 
-                    const isDisabled = link.href === '#' || (link as any).isLocked;
-
                     return (
                         <div key={`${link.title}-${idx}`} className="px-1">
-
                             <Link
-                                href={isDisabled ? '#' : link.href}
-                                onClick={(e) => {
-                                    if (isDisabled) {
-                                        e.preventDefault();
-                                        if ((link as any).isLocked) {
-                                            toast.error("This feature is restricted in the demo environment.");
-                                        }
-                                        return;
-                                    }
-                                    mobile && closeMobileMenu();
-                                }}
+                                href={link.href}
+                                onClick={() => mobile && closeMobileMenu()}
                                 className={cn(
                                     "flex items-center gap-3 px-3.5 py-2.5 rounded-lg group transition-all duration-200 relative",
                                     isActive
                                         ? "bg-accent text-primary font-medium"
                                         : "hover:bg-accent/50 text-muted-foreground font-medium",
-                                    (!isSidebarOpen && !mobile) && "justify-center px-0",
-                                    isDisabled && " cursor-not-allowed"
+                                    (!isSidebarOpen && !mobile) && "justify-center px-0"
                                 )}
                             >
                                 <link.icon size={18} className={cn(
@@ -220,14 +194,7 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                                     isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                                 )} />
                                 {(isSidebarOpen || mobile) && (
-                                    <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-sm tracking-tight">{link.title}</span>
-                                            {(link as any).isLocked && (
-                                                <Lock size={11} className="text-muted-foreground/40" />
-                                            )}
-                                        </div>
-                                    </div>
+                                    <span className="text-sm tracking-tight">{link.title}</span>
                                 )}
                             </Link>
                         </div>

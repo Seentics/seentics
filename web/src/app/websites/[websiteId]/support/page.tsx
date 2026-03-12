@@ -20,6 +20,7 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { isEnterprise } from '@/lib/features';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { isDemo } from '@/lib/demo';
 
 type TabId = 'contact' | 'call';
 
@@ -43,6 +44,10 @@ export default function SupportPage() {
 
   const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isDemo(websiteId)) {
+      toast.info('Demo Mode', { description: 'Messages are not sent in demo mode. Sign up to get started!' });
+      return;
+    }
     setIsLoading(true);
     try {
       await api.post('/user/support/contact', {

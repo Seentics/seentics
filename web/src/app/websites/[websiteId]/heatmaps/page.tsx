@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import Link from 'next/link';
 import api from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
+import { isDemo as checkIsDemo, demoHeatmapPages } from '@/lib/demo';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useSubscription } from '@/hooks/useSubscription';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -62,12 +63,12 @@ export default function HeatmapsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPages, setSelectedPages] = useState<any[]>([]);
 
-  const isDemo = websiteId === 'demo';
+  const isDemoMode = checkIsDemo(websiteId as string);
   const isFreePlan = subscription?.plan === 'free';
   const isHeatmapDisabled = website && website.heatmap_enabled === false;
 
   const fetchPages = async () => {
-    if (isDemo) { setPages([]); setLoading(false); return; }
+    if (isDemoMode) { setPages(demoHeatmapPages()); setLoading(false); return; }
     try {
       const response = await api.get(`/heatmaps/pages?website_id=${websiteId}`);
       const apiPages = (response.data.pages || []).map((page: any) => {
@@ -85,7 +86,7 @@ export default function HeatmapsPage() {
   useEffect(() => { fetchPages(); }, [websiteId]);
 
   const handleDeletePage = async (url: string) => {
-    if (isDemo) { setPages(pages.filter(p => p.url !== url)); return; }
+    if (isDemoMode) { setPages(pages.filter(p => p.url !== url)); return; }
     if (!window.confirm(`Delete heatmap data for ${url}?`)) return;
     try {
       await api.delete(`/heatmaps/pages?website_id=${websiteId}&url=${encodeURIComponent(url)}`);
@@ -99,7 +100,7 @@ export default function HeatmapsPage() {
   const handleBulkDelete = async () => {
     const selectedUrls = selectedPages.map((p: any) => p.url);
     if (selectedUrls.length === 0) return;
-    if (isDemo) {
+    if (isDemoMode) {
       setPages(pages.filter(p => !selectedUrls.includes(p.url)));
       setSelectedPages([]);
       return;
@@ -217,13 +218,13 @@ export default function HeatmapsPage() {
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
-      {(isFreePlan || isDemo) && (
+      {(isFreePlan || isDemoMode) && (
         <Alert className="bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/20">
           <Sparkles className="h-4 w-4 text-amber-600" />
           <AlertTitle className="text-amber-700 dark:text-amber-500 font-semibold">Premium Feature</AlertTitle>
           <AlertDescription className="text-amber-600/80 dark:text-muted-foreground/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <span>Real heatmap tracking requires a paid plan. Upgrade to start recording live sessions.</span>
-            <Link href={isDemo ? '/pricing' : `/websites/${websiteId}/billing`}>
+            <Link href={isDemoMode ? '/pricing' : `/websites/${websiteId}/billing`}>
               <Button size="sm" variant="outline" className="border-amber-300 dark:border-amber-500/30 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-500/10 gap-2 text-xs font-medium">
                 View Plans <ArrowUpRight className="h-3 w-3" />
               </Button>
@@ -232,7 +233,7 @@ export default function HeatmapsPage() {
         </Alert>
       )}
 
-      {isHeatmapDisabled && !isFreePlan && !isDemo && (
+      {isHeatmapDisabled && !isFreePlan && !isDemoMode && (
         <Alert className="bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/20">
           <MousePointer2 className="h-4 w-4 text-rose-600" />
           <AlertTitle className="text-rose-700 dark:text-rose-500 font-semibold">Heatmaps Disabled</AlertTitle>

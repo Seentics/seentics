@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { isEnterprise } from '@/lib/features';
 import api from '@/lib/api';
+import { isDemo, demoPathAnalysis } from '@/lib/demo';
 
 interface PageFlow {
   from_page: string;
@@ -76,10 +77,19 @@ export default function PathsPage() {
   const { data, isLoading } = useQuery<PathAnalysis>({
     queryKey: ['path-analysis', websiteId, days],
     queryFn: async () => {
+      if (isDemo(websiteId)) {
+        const demo = demoPathAnalysis();
+        return {
+          avg_path_length: demo.avg_path_length,
+          top_entry_pages: demo.top_entry_pages.map(p => ({ name: p.page, count: p.count })),
+          top_exit_pages: demo.top_exit_pages.map(p => ({ name: p.page, count: p.count })),
+          page_flows: demo.page_flows.map(f => ({ from_page: f.from, to_page: f.to, count: f.count })),
+        };
+      }
       const response = await api.get(`/analytics/path-analysis/${websiteId}?days=${days}`);
       return response.data;
     },
-    enabled: !!websiteId && isEnterprise,
+    enabled: !!websiteId && (isEnterprise || isDemo(websiteId)),
     staleTime: 60 * 1000,
   });
 

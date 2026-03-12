@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from './api';
+import { isDemo, demoMutationGuard, demoAutomations } from './demo';
 
 // Types
 export interface AutomationAction {
@@ -59,29 +60,8 @@ export interface AutomationsResponse {
 
 // API Functions
 async function fetchAutomations(websiteId: string, limit: number = 10, offset: number = 0): Promise<AutomationsResponse> {
-    if (websiteId === 'demo') {
-        return {
-            automations: [
-                {
-                    id: 'demo-1',
-                    websiteId: 'demo',
-                    userId: 'demo',
-                    name: 'Welcome Email',
-                    description: 'Send welcome email to new newsletter subscribers',
-                    triggerType: 'custom_event',
-                    triggerConfig: { eventName: 'newsletter_signup' },
-                    isActive: true,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    actions: [
-                        { actionType: 'email', actionConfig: { subject: 'Welcome!', template: 'welcome' } }
-                    ]
-                }
-            ],
-            total: 1,
-            limit,
-            offset
-        };
+    if (isDemo(websiteId)) {
+        return demoAutomations() as any;
     }
     const response = await api.get(`/websites/${websiteId}/automations`, {
         params: { limit, offset }
@@ -90,31 +70,47 @@ async function fetchAutomations(websiteId: string, limit: number = 10, offset: n
 }
 
 async function createAutomation(websiteId: string, data: CreateAutomationRequest): Promise<Automation> {
+    if (demoMutationGuard(websiteId)) {
+        return { id: 'demo-new', websiteId, userId: 'demo', ...data, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: data.actions } as Automation;
+    }
     const response = await api.post(`/websites/${websiteId}/automations`, data);
     return response.data;
 }
 
 async function updateAutomation(websiteId: string, automationId: string, data: Partial<CreateAutomationRequest>): Promise<Automation> {
+    if (demoMutationGuard(websiteId)) {
+        return { id: automationId, websiteId, userId: 'demo', name: '', description: '', triggerType: '', triggerConfig: {}, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: [], ...data } as Automation;
+    }
     const response = await api.put(`/websites/${websiteId}/automations/${automationId}`, data);
     return response.data;
 }
 
 async function deleteAutomation(websiteId: string, automationId: string): Promise<void> {
+    if (demoMutationGuard(websiteId)) return;
     await api.delete(`/websites/${websiteId}/automations/${automationId}`);
 }
 
 async function bulkDeleteAutomations(websiteId: string, automationIds: string[]): Promise<void> {
+    if (demoMutationGuard(websiteId)) return;
     await api.delete(`/websites/${websiteId}/automations/bulk-delete`, {
         data: { automationIds }
     });
 }
 
 async function toggleAutomation(websiteId: string, automationId: string): Promise<Automation> {
+    if (demoMutationGuard(websiteId)) {
+        const demo = demoAutomations().automations.find(a => a.id === automationId);
+        return { ...demo, isActive: !demo?.isActive } as any;
+    }
     const response = await api.post(`/websites/${websiteId}/automations/${automationId}/toggle`);
     return response.data;
 }
 
 async function getAutomationStats(websiteId: string, automationId: string): Promise<AutomationStats> {
+    if (isDemo(websiteId)) {
+        const demo = demoAutomations().automations.find(a => a.id === automationId);
+        return demo?.stats || { totalExecutions: 0, successCount: 0, failureCount: 0, successRate: 0, last30Days: 0 };
+    }
     const response = await api.get(`/websites/${websiteId}/automations/${automationId}/stats`);
     return response.data;
 }

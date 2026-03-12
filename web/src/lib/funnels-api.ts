@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from './api';
-import { getDemoData } from './demo-data';
+import { isDemo, demoMutationGuard, demoFunnels } from './demo';
 
 // =============================================================================
 // TYPES & INTERFACES
@@ -71,9 +71,9 @@ export interface ListFunnelsResponse {
 // =============================================================================
 
 export const listFunnels = async (websiteId: string, limit: number = 10, offset: number = 0): Promise<ListFunnelsResponse> => {
-    if (websiteId === 'demo') {
-        const demoFunnels = getDemoData().funnels as any;
-        return { funnels: demoFunnels, total: demoFunnels.length };
+    if (isDemo(websiteId)) {
+        const demo = demoFunnels();
+        return { funnels: demo.funnels as any, total: demo.total };
     }
     const response = await api.get(`/websites/${websiteId}/funnels`, {
         params: { limit, offset }
@@ -82,8 +82,8 @@ export const listFunnels = async (websiteId: string, limit: number = 10, offset:
 };
 
 export const getFunnel = async (websiteId: string, funnelId: string): Promise<Funnel> => {
-    if (websiteId === 'demo') {
-        return getDemoData().funnels.find(f => f.id === funnelId) as any;
+    if (isDemo(websiteId)) {
+        return demoFunnels().funnels.find((f: any) => f.id === funnelId) as any;
     }
     const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}`);
     return response.data;
@@ -93,6 +93,9 @@ export const createFunnel = async (
     websiteId: string,
     data: CreateFunnelRequest
 ): Promise<Funnel> => {
+    if (demoMutationGuard(websiteId)) {
+        return { id: 'demo-new', websiteId, userId: 'demo', name: data.name, description: data.description || '', isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), steps: data.steps as any } as Funnel;
+    }
     const response = await api.post(`/websites/${websiteId}/funnels`, data);
     return response.data;
 };
@@ -102,21 +105,31 @@ export const updateFunnel = async (
     funnelId: string,
     data: UpdateFunnelRequest
 ): Promise<Funnel> => {
+    if (demoMutationGuard(websiteId)) {
+        const existing = demoFunnels().funnels.find((f: any) => f.id === funnelId);
+        return { ...existing, ...data, updatedAt: new Date().toISOString() } as any;
+    }
     const response = await api.put(`/websites/${websiteId}/funnels/${funnelId}`, data);
     return response.data;
 };
 
 export const deleteFunnel = async (websiteId: string, funnelId: string): Promise<void> => {
+    if (demoMutationGuard(websiteId)) return;
     await api.delete(`/websites/${websiteId}/funnels/${funnelId}`);
 };
 
 export const bulkDeleteFunnels = async (websiteId: string, funnelIds: string[]): Promise<void> => {
+    if (demoMutationGuard(websiteId)) return;
     await api.delete(`/websites/${websiteId}/funnels/bulk-delete`, {
         data: { funnelIds }
     });
 };
 
 export const getFunnelStats = async (websiteId: string, funnelId: string): Promise<FunnelStats> => {
+    if (isDemo(websiteId)) {
+        const funnel = demoFunnels().funnels.find((f: any) => f.id === funnelId);
+        return (funnel?.stats as any) || { totalEntries: 0, completions: 0, conversionRate: 0, stepBreakdown: [] };
+    }
     const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}/stats`);
     return response.data;
 };

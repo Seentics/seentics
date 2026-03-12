@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import api from './api'; // Your existing axios instance
-import { getDemoData } from './demo-data';
+import { isDemo, demoAnalyticsData, demoRealtimeData, demoCustomEvents, demoGeolocation, demoMutationGuard } from './demo';
 
 // =============================================================================
 // TIMEZONE UTILITY
@@ -220,9 +221,8 @@ export const useDashboardData = (websiteId: string, days: number = 7, filters: A
   return useQuery({
     queryKey: ['dashboard', websiteId, days, filters],
     queryFn: async () => {
-      if (websiteId === 'demo') {
-        const demo = getDemoData();
-        return demo.dashboardData;
+      if (isDemo(websiteId)) {
+        return demoAnalyticsData().dashboardData;
       }
 
       const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
@@ -257,8 +257,8 @@ export const usePublicDashboardData = (publicId: string, days: number = 7) => {
 
 // Top Pages
 export const getTopPages = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopPagesResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topPages as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topPages as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -268,8 +268,8 @@ export const getTopPages = async (websiteId: string, days: number = 7, filters: 
 
 // Top Referrers
 export const getTopReferrers = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopReferrersResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topReferrers as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topReferrers as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -279,8 +279,8 @@ export const getTopReferrers = async (websiteId: string, days: number = 7, filte
 
 // Top Countries
 export const getTopCountries = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopCountriesResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topCountries as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topCountries as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -290,8 +290,8 @@ export const getTopCountries = async (websiteId: string, days: number = 7, filte
 
 // Top Browsers
 export const getTopBrowsers = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopBrowsersResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topBrowsers as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topBrowsers as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -301,8 +301,8 @@ export const getTopBrowsers = async (websiteId: string, days: number = 7, filter
 
 // Top Devices
 export const getTopDevices = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopDevicesResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topDevices as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topDevices as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -312,8 +312,8 @@ export const getTopDevices = async (websiteId: string, days: number = 7, filters
 
 // Top OS
 export const getTopOS = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopOSResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topOS as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topOS as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -323,16 +323,8 @@ export const getTopOS = async (websiteId: string, days: number = 7, filters: Ana
 
 // Top Resolutions
 export const getTopResolutions = async (websiteId: string, days: number = 7, limit: number = 10): Promise<any> => {
-  if (websiteId === 'demo') {
-    return {
-      top_resolutions: [
-        { name: '1920x1080', count: 4500, percentage: 45.0 },
-        { name: '1366x768', count: 3200, percentage: 32.0 },
-        { name: '375x812', count: 2800, percentage: 28.0 },
-        { name: '1440x900', count: 2100, percentage: 21.0 },
-        { name: '414x896', count: 1500, percentage: 15.0 }
-      ]
-    };
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topResolutions;
   }
   const response = await api.get(`/analytics/top-resolutions/${websiteId}?days=${days}&limit=${limit}&timezone=${getUserTimezone()}`);
   return response.data;
@@ -358,48 +350,8 @@ export interface RealtimeData {
 }
 
 export const getRealtimeData = async (websiteId: string): Promise<RealtimeData> => {
-  if (websiteId === 'demo') {
-    const timeline: RealtimeMinute[] = [];
-    const now = new Date();
-    for (let i = 29; i >= 0; i--) {
-      const d = new Date(now.getTime() - i * 60000);
-      timeline.push({
-        minute: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
-        visitors: Math.floor(Math.random() * 8) + 1,
-        views: Math.floor(Math.random() * 15) + 2,
-      });
-    }
-    return {
-      active_visitors: Math.floor(Math.random() * 30) + 5,
-      pageviews: Math.floor(Math.random() * 100) + 20,
-      sessions: Math.floor(Math.random() * 40) + 10,
-      top_pages: [
-        { page: '/', visitors: 12 },
-        { page: '/pricing', visitors: 8 },
-        { page: '/docs', visitors: 5 },
-        { page: '/blog/getting-started', visitors: 3 },
-      ],
-      top_referrers: [
-        { name: 'google.com', visitors: 15 },
-        { name: '(direct)', visitors: 10 },
-        { name: 'twitter.com', visitors: 4 },
-      ],
-      top_countries: [
-        { name: 'United States', visitors: 12 },
-        { name: 'Germany', visitors: 6 },
-        { name: 'United Kingdom', visitors: 4 },
-      ],
-      top_devices: [
-        { name: 'Desktop', visitors: 20 },
-        { name: 'Mobile', visitors: 8 },
-      ],
-      top_browsers: [
-        { name: 'Chrome', visitors: 18 },
-        { name: 'Firefox', visitors: 6 },
-        { name: 'Safari', visitors: 4 },
-      ],
-      timeline,
-    };
+  if (isDemo(websiteId)) {
+    return demoRealtimeData() as RealtimeData;
   }
   const response = await api.get(`/analytics/realtime/${websiteId}`);
   return response.data;
@@ -417,8 +369,8 @@ export const useRealtimeData = (websiteId: string) => {
 
 // Live Visitors
 export const getLiveVisitors = async (websiteId: string): Promise<number> => {
-  if (websiteId === 'demo') {
-    return Math.floor(Math.random() * 50) + 10; // Random 10-60 for demo
+  if (isDemo(websiteId)) {
+    return Math.floor(Math.random() * 50) + 10;
   }
   const response = await api.get(`/analytics/live-visitors/${websiteId}`);
   return response.data.live_visitors || 0;
@@ -426,16 +378,8 @@ export const getLiveVisitors = async (websiteId: string): Promise<number> => {
 
 // Top Languages
 export const getTopLanguages = async (websiteId: string, days: number = 7): Promise<any> => {
-  if (websiteId === 'demo') {
-    return {
-      top_languages: [
-        { name: 'en-US', count: 4500, percentage: 45.0 },
-        { name: 'en-GB', count: 1200, percentage: 12.0 },
-        { name: 'de-DE', count: 800, percentage: 8.0 },
-        { name: 'fr-FR', count: 600, percentage: 6.0 },
-        { name: 'es-ES', count: 500, percentage: 5.0 },
-      ],
-    };
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topLanguages;
   }
   const response = await api.get(`/analytics/top-languages/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
@@ -452,16 +396,8 @@ export const useTopLanguages = (websiteId: string, days: number = 7) => {
 
 // Top Cities
 export const getTopCities = async (websiteId: string, days: number = 7): Promise<any> => {
-  if (websiteId === 'demo') {
-    return {
-      top_cities: [
-        { name: 'San Francisco', count: 2200, percentage: 22.0 },
-        { name: 'New York', count: 1800, percentage: 18.0 },
-        { name: 'London', count: 1200, percentage: 12.0 },
-        { name: 'Berlin', count: 800, percentage: 8.0 },
-        { name: 'Tokyo', count: 600, percentage: 6.0 },
-      ],
-    };
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topCities;
   }
   const response = await api.get(`/analytics/top-cities/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
@@ -478,8 +414,8 @@ export const useTopCities = (websiteId: string, days: number = 7) => {
 
 // Hourly Stats
 export const getHourlyStats = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetHourlyStatsResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().hourlyStats as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().hourlyStats as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -508,8 +444,8 @@ export const getHourlyStats = async (websiteId: string, days: number = 7, filter
 
 // Daily Stats
 export const getDailyStats = async (websiteId: string, days: number = 30, filters: AnalyticsFilters = {}): Promise<GetDailyStatsResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().dailyStats as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().dailyStats as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -519,8 +455,8 @@ export const getDailyStats = async (websiteId: string, days: number = 30, filter
 
 // Custom Events Stats
 export const getCustomEventsStats = async (websiteId: string, days: number = 7): Promise<any> => {
-  if (websiteId === 'demo') {
-    return getDemoData().customEvents as any;
+  if (isDemo(websiteId)) {
+    return demoCustomEvents() as any;
   }
   // Call backend via gateway to get custom events + UTM performance
   const response = await api.get(`/analytics/custom-events/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
@@ -536,8 +472,8 @@ export const getCustomEventsStats = async (websiteId: string, days: number = 7):
 
 // Visitor Insights
 export const getVisitorInsights = async (websiteId: string, days: number = 7): Promise<GetVisitorInsightsResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().visitorInsights as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().visitorInsights as any;
   }
   const response = await api.get(`/analytics/visitor-insights/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
@@ -685,9 +621,8 @@ export const useGoalStats = (websiteId: string, days: number = 30) => {
   return useQuery({
     queryKey: analyticsKeys.goalStats(websiteId, days),
     queryFn: async () => {
-      if (websiteId === 'demo') {
-        const demo = getDemoData();
-        return demo.goalStats || { goals: [] };
+      if (isDemo(websiteId)) {
+        return demoAnalyticsData().goalStats;
       }
       const response = await api.get(`/analytics/goals-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
       return response.data;
@@ -700,8 +635,8 @@ export const useRecentActivity = (websiteId: string) => {
   return useQuery({
     queryKey: ['recent-activity', websiteId],
     queryFn: async () => {
-      if (websiteId === 'demo') {
-        return { activities: [] };
+      if (isDemo(websiteId)) {
+        return demoAnalyticsData().recentActivity;
       }
       const response = await api.get(`/analytics/recent-activity/${websiteId}?limit=20`);
       return response.data;
@@ -881,6 +816,9 @@ export interface FunnelAnalytics {
 
 // Create a new funnel
 export async function createFunnel(websiteId: string, funnelData: Omit<Funnel, 'id' | 'website_id' | 'created_at' | 'updated_at'>): Promise<Funnel> {
+  if (demoMutationGuard(websiteId)) {
+    return { id: 'demo-new', website_id: websiteId, ...funnelData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as Funnel;
+  }
   try {
     const response = await api.post(`/funnels/`, {
       ...funnelData,
@@ -911,6 +849,10 @@ export async function createFunnel(websiteId: string, funnelData: Omit<Funnel, '
 
 // Get all funnels for a website
 export async function getFunnels(websiteId: string): Promise<Funnel[]> {
+  if (isDemo(websiteId)) {
+    const { demoFunnels } = await import('./demo');
+    return demoFunnels().funnels as any;
+  }
   try {
     const response = await api.get(`/funnels/`, {
       params: { website_id: websiteId }
@@ -1143,6 +1085,9 @@ export interface GeolocationData {
 
 // API Functions
 export const getGeolocationBreakdown = async (websiteId: string, days: number = 7): Promise<GeolocationData> => {
+  if (isDemo(websiteId)) {
+    return demoGeolocation();
+  }
   const response = await api.get(`/analytics/geolocation-breakdown/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
@@ -1163,8 +1108,8 @@ export const usePreviousPeriodDailyStats = (websiteId: string, days: number = 7,
   return useQuery<GetDailyStatsResponse>({
     queryKey: [...analyticsKeys.all, 'previous-daily-stats', websiteId, days],
     queryFn: async () => {
-      if (websiteId === 'demo') {
-        const demo = getDemoData().dailyStats as any;
+      if (isDemo(websiteId)) {
+        const demo = demoAnalyticsData().dailyStats as any;
         const stats = (demo?.daily_stats || []).sort(
           (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
         );

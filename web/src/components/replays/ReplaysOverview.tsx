@@ -19,6 +19,7 @@ import {
   Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import api from '@/lib/api';
+import { isDemo as checkIsDemo, demoReplays, demoMutationGuard } from '@/lib/demo';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { DataTable, ColumnDef, SortableHeader, selectionColumn } from '@/components/ui/data-table';
 
@@ -96,6 +97,16 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
         setError(null);
       }
 
+      if (checkIsDemo(websiteId)) {
+        const demo = demoReplays();
+        setSessions(demo.sessions as any);
+        setTotal(demo.total);
+        setHasMore(false);
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
+
       const params = new URLSearchParams({ website_id: websiteId, limit: '50' });
       if (cursor) params.set('before', cursor);
 
@@ -159,6 +170,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
   );
 
   const handleDelete = async (sessionId: string) => {
+    if (demoMutationGuard(websiteId)) return;
     if (!confirm('Are you sure you want to delete this recording?')) return;
     try {
       setDeleting(sessionId);
@@ -175,6 +187,7 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
 
   const handleBulkDelete = async (rows: ReplaySessionMetadata[]) => {
     if (rows.length === 0) return;
+    if (demoMutationGuard(websiteId)) return;
     if (!confirm(`Are you sure you want to delete ${rows.length} recording${rows.length > 1 ? 's' : ''}?`)) return;
     const ids = rows.map(s => s.session_id);
     try {
