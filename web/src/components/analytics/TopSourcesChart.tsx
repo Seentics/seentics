@@ -47,7 +47,9 @@ const getCanonicalName = (referrer: string): string => {
   if (s.includes('whatsapp')) return 'WhatsApp';
   if (s.includes('telegram')) return 'Telegram';
   if (s.includes('mailchimp') || s.includes('sendgrid') || s.includes('newsletter')) return referrer;
-  return referrer;
+  // Extract domain for unknown referrers instead of showing full URL
+  const domain = s.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+  return domain || referrer;
 };
 
 const getSourceImage = (label: string) => {
@@ -124,12 +126,16 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
 
   const referrers = data?.top_referrers || [];
 
-  const getSourceData = (type: 'overview' | 'search' | 'social') => {
+  const getSourceData = (type: 'overview' | 'search' | 'social' | 'direct') => {
     // For overview: show all referrers grouped by canonical name (Direct, Google, Facebook, etc.)
-    // For search/social: filter to that category then group
+    // For search/social/direct: filter to that category then group
     const filtered = type === 'overview'
       ? referrers
-      : referrers.filter(r => type === 'search' ? isOrganic(r.referrer) : isSocial(r.referrer));
+      : referrers.filter(r =>
+          type === 'search' ? isOrganic(r.referrer)
+          : type === 'social' ? isSocial(r.referrer)
+          : isDirect(r.referrer)
+        );
 
     const grouped: Record<string, number> = {};
     for (const r of filtered) {
@@ -151,14 +157,15 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
     }));
   };
 
-  const PageList = ({ type }: { type: 'overview' | 'search' | 'social' }) => {
+  const PageList = ({ type }: { type: 'overview' | 'search' | 'social' | 'direct' }) => {
     const items = getSourceData(type);
 
     if (items.length === 0) {
-      const emptyMessages = {
+      const emptyMessages: Record<string, string> = {
         overview: 'No traffic data available',
         search: 'No search engine traffic',
-        social: 'No social media traffic'
+        social: 'No social media traffic',
+        direct: 'No direct traffic',
       };
 
       return (
@@ -198,8 +205,21 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
                       <Globe className="h-4 w-4 text-primary hidden" />
                     </>
                   ) : (
-                    <Globe className="h-5 w-5 text-muted-foreground" />
+                    <Image
+                      src={`https://www.google.com/s2/favicons?domain=${item.label}&sz=32`}
+                      alt={item.label}
+                      width={20}
+                      height={20}
+                      className="object-contain"
+                      unoptimized
+                      onError={(e) => {
+                        const target = e.target as HTMLElement;
+                        target.style.display = 'none';
+                        target.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
                   )}
+                  {!directIcon && !sourceImg && <Globe className="h-4 w-4 text-primary hidden" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-bold text-[13px] leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={item.label}>{item.label}</div>
@@ -232,10 +252,11 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
               <h3 className="text-base font-semibold tracking-tight">Traffic Sources</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Main acquisition channels</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted/50 p-0.5 rounded">
+           <TabsList className="grid grid-cols-4 h-8 w-full sm:w-[300px] bg-muted/50 p-0.5 rounded">
              <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
              <TabsTrigger value="search" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Search</TabsTrigger>
              <TabsTrigger value="social" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Social</TabsTrigger>
+             <TabsTrigger value="direct" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Direct</TabsTrigger>
            </TabsList>
         </div>
 
@@ -252,6 +273,11 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
         <TabsContent value="social" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
           <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
             <PageList type="social" />
+          </div>
+        </TabsContent>
+        <TabsContent value="direct" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
+          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
+            <PageList type="direct" />
           </div>
         </TabsContent>
       </Tabs>
