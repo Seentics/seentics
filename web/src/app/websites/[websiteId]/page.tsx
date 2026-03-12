@@ -41,11 +41,10 @@ import { useAuth } from '@/stores/useAuthStore';
 import { format } from 'date-fns';
 import { getDemoData, getDemoWebsite } from '@/lib/demo-data';
 import Link from 'next/link';
-import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRight, ArrowDownRight, Clock, Eye, Users, TrendingDown, ChevronRight, Target, X, Zap, Gauge } from 'lucide-react';
+import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRight, ArrowDownRight, Clock, Eye, Users, TrendingDown, ChevronRight, Target, X, Gauge } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
-import { EngagementHeatmap } from '@/components/analytics/EngagementHeatmap';
 import { GoalConversions } from '@/components/analytics/GoalConversions';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 import { PagePerformanceTable } from '@/components/analytics/PagePerformanceTable';
@@ -211,7 +210,7 @@ export default function WebsiteDashboardPage() {
   // ── PRIORITY: above-the-fold data (SummaryCards + TrafficOverview) ──
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange, advancedFilters);
   const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange, advancedFilters);
-  const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, dateRange, advancedFilters);
+  const { data: hourlyStats } = useHourlyStats(websiteId, dateRange, advancedFilters);
   const { data: visitorInsights, isLoading: visitorInsightsLoading } = useVisitorInsights(websiteId, dateRange);
 
   // ── DEFERRED: below-the-fold data (loads after primary data arrives) ──
@@ -737,26 +736,6 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
-
-        {/* ENGAGEMENT HEATMAP */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <Zap className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Engagement Patterns</h2>
-            <div className="h-px bg-border flex-1 ml-4" />
-          </div>
-
-          <Card className="border border-border/60 bg-card shadow-sm">
-            <CardContent className="p-8">
-              <ChartErrorBoundary label="Engagement Heatmap">
-                <EngagementHeatmap
-                  data={finalHourlyStats}
-                  isLoading={!isDemoMode && hourlyLoading}
-                />
-              </ChartErrorBoundary>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Detailed Data Modal */}
