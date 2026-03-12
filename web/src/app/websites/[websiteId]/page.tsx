@@ -79,7 +79,9 @@ function categorizeReferrer(referrer: string): string {
   if (r.includes('producthunt')) return 'Product Hunt';
   if (r.includes('hackernews')) return 'Hacker News';
   if (r.includes('localhost') || r.includes('127.0.0.1') || r.includes('internal')) return 'Internal Navigation';
-  return referrer;
+  // Extract domain for unknown referrers instead of showing full URL
+  const domain = r.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+  return domain || referrer;
 }
 
 export default function WebsiteDashboardPage() {

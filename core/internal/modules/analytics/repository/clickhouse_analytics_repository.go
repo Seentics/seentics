@@ -454,7 +454,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopReferrers(ctx context.Context, web
 
 	query := fmt.Sprintf(`
 		SELECT
-			COALESCE(referrer, 'direct') as referrer,
+			if(referrer = '', 'direct', referrer) as ref,
 			COUNT(*) as views,
 			uniq(visitor_id) as unique_visitors
 		FROM events
@@ -462,7 +462,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopReferrers(ctx context.Context, web
 		AND timestamp >= now() - interval ? day
 		AND event_type = 'pageview'
 		%s
-		GROUP BY referrer
+		GROUP BY ref
 		ORDER BY views DESC
 		LIMIT ?`, filterClause)
 
