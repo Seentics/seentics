@@ -118,7 +118,7 @@ function RealtimeTimeline({ timeline }: { timeline: RealtimeMinute[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-end gap-[2px] h-32 relative">
+      <div className="flex gap-[2px] h-32 relative">
         {!hasAnyData && (
           <div className="absolute inset-0 flex items-center justify-center z-10">
             <p className="text-xs text-muted-foreground/50">No activity in the last 30 minutes</p>
@@ -129,7 +129,7 @@ function RealtimeTimeline({ timeline }: { timeline: RealtimeMinute[] }) {
           const isRecent = i >= filled.length - 5;
           const hasData = t.views > 0;
           return (
-            <div key={t.minute} className="flex-1 flex flex-col items-center group relative">
+            <div key={t.minute} className="flex-1 h-full flex flex-col justify-end items-center group relative">
               <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                 <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1.5 rounded-md shadow-lg border whitespace-nowrap">
                   <span className="font-bold">{t.minute}</span>

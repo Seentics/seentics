@@ -13,19 +13,6 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Logo } from '@/components/ui/logo';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Sparkles } from 'lucide-react';
-
-function DemoBanner() {
-  return (
-    <div className="bg-gradient-to-r from-violet-600/90 to-primary/90 text-white text-center py-1.5 px-4 text-xs font-medium flex items-center justify-center gap-2 relative z-[60]">
-      <Sparkles className="h-3 w-3 opacity-70" />
-      <span className="opacity-90">Live demo with sample data</span>
-      <Link href="/register" className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold transition-colors">
-        Create free account <ArrowRight className="h-2.5 w-2.5" />
-      </Link>
-    </div>
-  );
-}
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -35,7 +22,6 @@ export default function Layout({ children }: LayoutProps) {
   const params = useParams();
   const pathname = usePathname();
   const websiteId = params?.websiteId as string;
-  const isDemoMode = websiteId === 'demo';
   const { isSidebarOpen, isMobileMenuOpen, toggleMobileMenu, closeMobileMenu, layoutMode } = useLayoutStore();
 
   const isHeatmapView = pathname.includes('/heatmaps/view');
@@ -48,8 +34,6 @@ export default function Layout({ children }: LayoutProps) {
   const isFloatingHeader = layoutMode === 'floating-header';
 
   return (
-    <>
-      {isDemoMode && <DemoBanner />}
     <div className={cn(
       "flex bg-background text-foreground overflow-x-hidden",
       isFullscreenView ? "h-screen overflow-hidden fixed inset-0" : "min-h-screen"
@@ -108,6 +92,5 @@ export default function Layout({ children }: LayoutProps) {
         {children}
       </main>
     </div>
-    </>
   );
 }

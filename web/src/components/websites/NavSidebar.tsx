@@ -167,6 +167,11 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             )}>
                 <Link href="/" className="flex items-center gap-3 group transition-transform">
                     <Logo size={(isSidebarOpen || mobile) ? "xl" : "lg"} showText={isSidebarOpen || mobile} textClassName="text-xl font-bold tracking-tight text-foreground" />
+                    {websiteId === 'demo' && (isSidebarOpen || mobile) && (
+                        <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-500 border border-violet-500/20 leading-none">
+                            Demo
+                        </span>
+                    )}
                 </Link>
             </div>
 
