@@ -460,17 +460,13 @@ func (r *ClickHouseAnalyticsRepository) GetTopReferrers(ctx context.Context, web
 					'/.*$', ''
 				)
 			) as ref_domain,
-			sum(cnt) as views,
-			uniq(vid) as unique_visitors
-		FROM (
-			SELECT referrer, count() as cnt, visitor_id as vid
-			FROM events
-			WHERE website_id = ?
-			AND timestamp >= now() - interval ? day
-			AND event_type = 'pageview'
-			%s
-			GROUP BY referrer, visitor_id
-		)
+			count(*) as views,
+			uniq(visitor_id) as unique_visitors
+		FROM events
+		WHERE website_id = ?
+		AND timestamp >= now() - interval ? day
+		AND event_type = 'pageview'
+		%s
 		GROUP BY ref_domain
 		ORDER BY unique_visitors DESC
 		LIMIT ?`, filterClause)
