@@ -23,6 +23,12 @@ const nextConfig = {
         hostname: 'images.unsplash.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.google.com',
+        port: '',
+        pathname: '/s2/favicons/**',
       }
     ],
   },

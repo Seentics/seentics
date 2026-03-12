@@ -1,44 +1,144 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useRealtimeData } from '@/lib/analytics-api';
+import { useRealtimeData, RealtimeMinute } from '@/lib/analytics-api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Activity, Globe, Monitor, Chrome, ExternalLink, Eye, Users, Layers } from 'lucide-react';
+import { Activity, Globe, Monitor, ExternalLink, Eye, Users, Layers, Smartphone, Tablet, MonitorSmartphone } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useMemo } from 'react';
+import Image from 'next/image';
 
-// ─── 30-Minute Activity Timeline ────────────────────────────────────────────
-function RealtimeTimeline({ timeline }: { timeline: Array<{ minute: string; visitors: number; views: number }> }) {
-  const max = useMemo(() => Math.max(...timeline.map(t => t.views), 1), [timeline]);
+// ─── Country name → flag emoji ──────────────────────────────────────────────
+const COUNTRY_FLAGS: Record<string, string> = {
+  'Afghanistan': 'AF', 'Albania': 'AL', 'Algeria': 'DZ', 'Argentina': 'AR', 'Australia': 'AU',
+  'Austria': 'AT', 'Bangladesh': 'BD', 'Belgium': 'BE', 'Brazil': 'BR', 'Canada': 'CA',
+  'Chile': 'CL', 'China': 'CN', 'Colombia': 'CO', 'Croatia': 'HR', 'Czech Republic': 'CZ',
+  'Czechia': 'CZ', 'Denmark': 'DK', 'Egypt': 'EG', 'Estonia': 'EE', 'Finland': 'FI',
+  'France': 'FR', 'Germany': 'DE', 'Ghana': 'GH', 'Greece': 'GR', 'Hong Kong': 'HK',
+  'Hungary': 'HU', 'India': 'IN', 'Indonesia': 'ID', 'Iran': 'IR', 'Iraq': 'IQ',
+  'Ireland': 'IE', 'Israel': 'IL', 'Italy': 'IT', 'Japan': 'JP', 'Jordan': 'JO',
+  'Kazakhstan': 'KZ', 'Kenya': 'KE', 'Kuwait': 'KW', 'Latvia': 'LV', 'Lebanon': 'LB',
+  'Lithuania': 'LT', 'Luxembourg': 'LU', 'Malaysia': 'MY', 'Mexico': 'MX', 'Morocco': 'MA',
+  'Myanmar': 'MM', 'Nepal': 'NP', 'Netherlands': 'NL', 'New Zealand': 'NZ', 'Nigeria': 'NG',
+  'Norway': 'NO', 'Pakistan': 'PK', 'Peru': 'PE', 'Philippines': 'PH', 'Poland': 'PL',
+  'Portugal': 'PT', 'Qatar': 'QA', 'Romania': 'RO', 'Russia': 'RU', 'Saudi Arabia': 'SA',
+  'Serbia': 'RS', 'Singapore': 'SG', 'Slovakia': 'SK', 'Slovenia': 'SI', 'South Africa': 'ZA',
+  'South Korea': 'KR', 'Spain': 'ES', 'Sri Lanka': 'LK', 'Sweden': 'SE', 'Switzerland': 'CH',
+  'Taiwan': 'TW', 'Thailand': 'TH', 'Turkey': 'TR', 'Ukraine': 'UA',
+  'United Arab Emirates': 'AE', 'United Kingdom': 'GB', 'United States': 'US',
+  'Uruguay': 'UY', 'Uzbekistan': 'UZ', 'Venezuela': 'VE', 'Vietnam': 'VN',
+};
 
-  if (timeline.length === 0) {
+function countryToFlag(country: string): string {
+  const code = COUNTRY_FLAGS[country];
+  if (!code) return '';
+  return code
+    .toUpperCase()
+    .split('')
+    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
+    .join('');
+}
+
+// ─── Browser icon ───────────────────────────────────────────────────────────
+function BrowserIcon({ name }: { name: string }) {
+  const n = name.toLowerCase();
+  // Use simple SVG color circles for common browsers
+  const colors: Record<string, string> = {
+    chrome: '#4285F4', firefox: '#FF7139', safari: '#006CFF', edge: '#0078D7',
+    opera: '#FF1B2D', brave: '#FB542B', vivaldi: '#EF3939', samsung: '#1428A0',
+    arc: '#FC4B54',
+  };
+  const match = Object.keys(colors).find(k => n.includes(k));
+  const color = match ? colors[match] : '#888';
+  return (
+    <span
+      className="inline-block w-4 h-4 rounded-full shrink-0"
+      style={{ background: color }}
+    />
+  );
+}
+
+// ─── Device icon ────────────────────────────────────────────────────────────
+function DeviceIcon({ name }: { name: string }) {
+  const n = name.toLowerCase();
+  if (n.includes('mobile') || n.includes('phone')) return <Smartphone size={15} className="text-blue-500 shrink-0" />;
+  if (n.includes('tablet')) return <Tablet size={15} className="text-violet-500 shrink-0" />;
+  if (n.includes('desktop')) return <Monitor size={15} className="text-emerald-500 shrink-0" />;
+  return <MonitorSmartphone size={15} className="text-muted-foreground shrink-0" />;
+}
+
+// ─── Referrer favicon ───────────────────────────────────────────────────────
+function ReferrerIcon({ name }: { name: string }) {
+  if (!name || name === '(direct)' || name === 'direct' || name === 'Direct') {
     return (
-      <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-        Waiting for activity data...
-      </div>
+      <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-muted text-[9px] font-bold text-muted-foreground shrink-0">
+        D
+      </span>
     );
   }
+  // Extract domain for favicon
+  const domain = name.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  return (
+    <Image
+      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+      alt=""
+      width={16}
+      height={16}
+      className="w-4 h-4 rounded shrink-0"
+      unoptimized
+    />
+  );
+}
+
+// ─── Fill timeline gaps ─────────────────────────────────────────────────────
+function fillTimeline(raw: RealtimeMinute[]): RealtimeMinute[] {
+  if (raw.length === 0) return [];
+
+  const map = new Map<string, RealtimeMinute>();
+  raw.forEach(m => map.set(m.minute, m));
+
+  const filled: RealtimeMinute[] = [];
+  const now = new Date();
+
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 60000);
+    const key = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    filled.push(map.get(key) ?? { minute: key, visitors: 0, views: 0 });
+  }
+
+  return filled;
+}
+
+// ─── 30-Minute Activity Timeline ────────────────────────────────────────────
+function RealtimeTimeline({ timeline }: { timeline: RealtimeMinute[] }) {
+  const filled = useMemo(() => fillTimeline(timeline), [timeline]);
+  const max = useMemo(() => Math.max(...filled.map(t => t.views), 1), [filled]);
 
   return (
     <div className="space-y-3">
-      <div className="flex items-end gap-[3px] h-28">
-        {timeline.map((t, i) => {
-          const height = Math.max((t.views / max) * 100, 4);
-          const isRecent = i >= timeline.length - 5;
+      <div className="flex items-end gap-[2px] h-32">
+        {filled.map((t, i) => {
+          const height = t.views > 0 ? Math.max((t.views / max) * 100, 6) : 3;
+          const isRecent = i >= filled.length - 5;
+          const hasData = t.views > 0;
           return (
             <div key={t.minute} className="flex-1 flex flex-col items-center group relative">
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1 rounded-md shadow-lg border whitespace-nowrap">
-                  {t.minute} &middot; {t.views} views &middot; {t.visitors} visitors
+              <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1.5 rounded-md shadow-lg border whitespace-nowrap">
+                  <span className="font-bold">{t.minute}</span>
+                  <span className="text-muted-foreground"> · </span>
+                  {t.views} views · {t.visitors} visitors
                 </div>
               </div>
               <div
                 className={cn(
-                  "w-full rounded-sm transition-all duration-300",
-                  isRecent
-                    ? "bg-primary/80 hover:bg-primary"
-                    : "bg-primary/30 hover:bg-primary/50"
+                  "w-full rounded-[3px] transition-all duration-300",
+                  hasData
+                    ? isRecent
+                      ? "bg-emerald-500/80 hover:bg-emerald-500"
+                      : "bg-primary/40 hover:bg-primary/60"
+                    : "bg-muted/30"
                 )}
                 style={{ height: `${height}%` }}
               />
@@ -46,10 +146,10 @@ function RealtimeTimeline({ timeline }: { timeline: Array<{ minute: string; visi
           );
         })}
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground/60 px-0.5">
-        <span>{timeline[0]?.minute}</span>
-        <span>30 min ago</span>
-        <span>{timeline[timeline.length - 1]?.minute}</span>
+      <div className="flex justify-between text-[10px] text-muted-foreground/50 px-0.5 tabular-nums">
+        <span>{filled[0]?.minute}</span>
+        <span>{filled[Math.floor(filled.length / 2)]?.minute}</span>
+        <span>{filled[filled.length - 1]?.minute}</span>
       </div>
     </div>
   );
@@ -88,21 +188,50 @@ function StatCard({
   );
 }
 
-// ─── Breakdown List ─────────────────────────────────────────────────────────
+// ─── Breakdown Row ──────────────────────────────────────────────────────────
+function BreakdownRow({
+  icon,
+  label,
+  count,
+  pct,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  count: number;
+  pct: number;
+}) {
+  return (
+    <div className="relative group">
+      {/* Background bar */}
+      <div
+        className="absolute inset-y-0 left-0 bg-primary/[0.05] rounded-md transition-all duration-500"
+        style={{ width: `${Math.max(pct, 3)}%` }}
+      />
+      <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-muted/20 transition-colors">
+        <div className="shrink-0">{icon}</div>
+        <span className="text-sm font-medium text-foreground truncate flex-1">{label || '(unknown)'}</span>
+        <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{pct.toFixed(0)}%</span>
+        <span className="text-sm font-bold text-foreground tabular-nums w-8 text-right shrink-0">{count}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── Breakdown Card ─────────────────────────────────────────────────────────
 function BreakdownCard({
   title,
   icon: Icon,
   items,
   emptyText,
   isLoading,
-  renderLabel,
+  renderRow,
 }: {
   title: string;
   icon: React.ElementType;
   items: Array<{ name: string; visitors: number }>;
   emptyText: string;
   isLoading: boolean;
-  renderLabel?: (name: string) => React.ReactNode;
+  renderRow: (item: { name: string; visitors: number }, pct: number) => React.ReactNode;
 }) {
   const total = useMemo(() => items.reduce((sum, i) => sum + i.visitors, 0), [items]);
 
@@ -114,38 +243,20 @@ function BreakdownCard({
           {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-6">
+      <CardContent className="p-4">
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-7 bg-muted/30 rounded animate-pulse" />
+              <div key={i} className="h-10 bg-muted/30 rounded-md animate-pulse" />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-6 text-center">{emptyText}</p>
+          <p className="text-sm text-muted-foreground py-8 text-center">{emptyText}</p>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-1">
             {items.map((item) => {
               const pct = total > 0 ? (item.visitors / total) * 100 : 0;
-              return (
-                <div key={item.name} className="group">
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-foreground truncate font-medium max-w-[65%]">
-                      {renderLabel ? renderLabel(item.name) : (item.name || '(unknown)')}
-                    </span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-muted-foreground tabular-nums">{pct.toFixed(0)}%</span>
-                      <span className="text-sm font-semibold text-foreground tabular-nums w-8 text-right">{item.visitors}</span>
-                    </div>
-                  </div>
-                  <div className="h-1.5 bg-muted/40 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary/60 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max(pct, 2)}%` }}
-                    />
-                  </div>
-                </div>
-              );
+              return <div key={item.name}>{renderRow(item, pct)}</div>;
             })}
           </div>
         )}
@@ -183,30 +294,27 @@ function ActivePagesTable({
           <p className="text-sm text-muted-foreground py-10 text-center">No active pages right now</p>
         ) : (
           <div>
-            {/* Table header */}
             <div className="grid grid-cols-12 gap-2 px-6 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 border-b border-border/40">
-              <div className="col-span-8">Page</div>
-              <div className="col-span-4 text-right">Visitors</div>
+              <div className="col-span-9">Page</div>
+              <div className="col-span-3 text-right">Visitors</div>
             </div>
-            {/* Table rows */}
             <div className="divide-y divide-border/30">
-              {pages.map((p, i) => {
+              {pages.map((p) => {
                 const barWidth = Math.max((p.visitors / max) * 100, 3);
                 return (
                   <div
                     key={p.page}
-                    className="grid grid-cols-12 gap-2 px-6 py-3 items-center group hover:bg-muted/20 transition-colors relative"
+                    className="grid grid-cols-12 gap-2 px-6 py-3 items-center hover:bg-muted/20 transition-colors relative"
                   >
                     <div
                       className="absolute inset-y-0 left-0 bg-primary/[0.04] transition-all duration-300"
                       style={{ width: `${barWidth}%` }}
                     />
-                    <div className="col-span-8 relative z-10">
-                      <span className="text-sm font-medium text-foreground truncate block">
-                        {p.page}
-                      </span>
+                    <div className="col-span-9 relative z-10 flex items-center gap-2.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="text-sm font-medium text-foreground truncate">{p.page}</span>
                     </div>
-                    <div className="col-span-4 text-right relative z-10">
+                    <div className="col-span-3 text-right relative z-10">
                       <span className="text-sm font-bold tabular-nums text-foreground">{p.visitors}</span>
                     </div>
                   </div>
@@ -288,7 +396,7 @@ export default function RealtimePage() {
             </CardHeader>
             <CardContent className="p-6">
               {isLoading ? (
-                <div className="h-28 bg-muted/20 rounded animate-pulse" />
+                <div className="h-32 bg-muted/20 rounded animate-pulse" />
               ) : (
                 <RealtimeTimeline timeline={data?.timeline ?? []} />
               )}
@@ -306,6 +414,14 @@ export default function RealtimePage() {
               items={data?.top_referrers ?? []}
               emptyText="No referrer data"
               isLoading={isLoading}
+              renderRow={(item, pct) => (
+                <BreakdownRow
+                  icon={<ReferrerIcon name={item.name} />}
+                  label={item.name}
+                  count={item.visitors}
+                  pct={pct}
+                />
+              )}
             />
             <BreakdownCard
               title="Countries"
@@ -313,6 +429,14 @@ export default function RealtimePage() {
               items={data?.top_countries ?? []}
               emptyText="No country data"
               isLoading={isLoading}
+              renderRow={(item, pct) => (
+                <BreakdownRow
+                  icon={<span className="text-base leading-none shrink-0">{countryToFlag(item.name) || '🌍'}</span>}
+                  label={item.name}
+                  count={item.visitors}
+                  pct={pct}
+                />
+              )}
             />
             <BreakdownCard
               title="Devices"
@@ -320,13 +444,29 @@ export default function RealtimePage() {
               items={data?.top_devices ?? []}
               emptyText="No device data"
               isLoading={isLoading}
+              renderRow={(item, pct) => (
+                <BreakdownRow
+                  icon={<DeviceIcon name={item.name} />}
+                  label={item.name.charAt(0).toUpperCase() + item.name.slice(1)}
+                  count={item.visitors}
+                  pct={pct}
+                />
+              )}
             />
             <BreakdownCard
               title="Browsers"
-              icon={Chrome}
+              icon={Globe}
               items={data?.top_browsers ?? []}
               emptyText="No browser data"
               isLoading={isLoading}
+              renderRow={(item, pct) => (
+                <BreakdownRow
+                  icon={<BrowserIcon name={item.name} />}
+                  label={item.name}
+                  count={item.visitors}
+                  pct={pct}
+                />
+              )}
             />
           </div>
 
