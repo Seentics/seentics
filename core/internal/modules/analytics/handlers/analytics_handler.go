@@ -90,6 +90,8 @@ func (h *AnalyticsHandler) parseFilters(c *gin.Context) models.AnalyticsFilters 
 		UTMMedium:   c.Query("utm_medium"),
 		UTMCampaign: c.Query("utm_campaign"),
 		PagePath:    c.Query("page_path"),
+		PropKey:     c.Query("prop_key"),
+		PropValue:   c.Query("prop_value"),
 	}
 }
 
@@ -617,6 +619,32 @@ func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
 	})
 }
 
+func (h *AnalyticsHandler) GetRealtimeData(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
+	data, err := h.service.GetRealtimeData(c.Request.Context(), websiteID, userID)
+	if err != nil {
+		h.handleError(c, err, "Failed to get realtime data")
+		return
+	}
+
+	setCacheHeaders(c, 5)
+	c.JSON(http.StatusOK, data)
+}
+
 func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
 	userID := h.getUserID(c)
 	if userID == "" {
@@ -842,6 +870,70 @@ func (h *AnalyticsHandler) GetRecentActivity(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
 		"activities": activities,
+	})
+}
+
+func (h *AnalyticsHandler) GetTopLanguages(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	days := h.parseDays(c, 7)
+	timezone := h.parseTimezone(c)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
+	items, err := h.service.GetTopLanguages(c.Request.Context(), websiteID, days, timezone, userID)
+	if err != nil {
+		h.handleError(c, err, "Failed to get top languages")
+		return
+	}
+
+	setCacheHeaders(c, 120)
+	c.JSON(http.StatusOK, gin.H{
+		"website_id":    websiteID,
+		"top_languages": items,
+	})
+}
+
+func (h *AnalyticsHandler) GetTopCities(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	days := h.parseDays(c, 7)
+	timezone := h.parseTimezone(c)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
+	items, err := h.service.GetTopCities(c.Request.Context(), websiteID, days, timezone, userID)
+	if err != nil {
+		h.handleError(c, err, "Failed to get top cities")
+		return
+	}
+
+	setCacheHeaders(c, 120)
+	c.JSON(http.StatusOK, gin.H{
+		"website_id": websiteID,
+		"top_cities": items,
 	})
 }
 

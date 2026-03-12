@@ -15,6 +15,7 @@ import (
 
 	heatmapRepoPkg "github.com/Seentics/seentics/internal/modules/heatmaps/repository"
 
+	analyticsModels "github.com/Seentics/seentics/internal/modules/analytics/models"
 	analyticsRepoPkg "github.com/Seentics/seentics/internal/modules/analytics/repository"
 	autoRepoPkg "github.com/Seentics/seentics/internal/modules/automations/repository"
 	funnelRepoPkg "github.com/Seentics/seentics/internal/modules/funnels/repository"
@@ -529,6 +530,8 @@ func (s *WebsiteService) CreateGoal(ctx context.Context, siteID string, req mode
 		Type:       req.Type,
 		Identifier: req.Identifier,
 		Selector:   req.Selector,
+		Revenue:    req.Revenue,
+		Currency:   req.Currency,
 	}
 
 	if err := s.repo.CreateGoal(ctx, goal); err != nil {
@@ -623,6 +626,57 @@ func (s *WebsiteService) UpdateMemberRole(ctx context.Context, siteID string, us
 	}
 
 	return s.repo.UpdateMemberRole(ctx, w.ID, userID, role)
+}
+
+// TogglePublicShare enables or disables public dashboard sharing for a website.
+// Returns the share ID (non-empty when enabled, empty when disabled).
+func (s *WebsiteService) TogglePublicShare(ctx context.Context, siteID string, userID uuid.UUID, enabled bool) (string, error) {
+	w, err := s.GetWebsiteByAnyID(ctx, siteID)
+	if err != nil {
+		return "", err
+	}
+	if w.UserID != userID {
+		return "", fmt.Errorf("unauthorized")
+	}
+
+	var shareID *string
+	if enabled {
+		id := generateID(16) // 32-char hex
+		shareID = &id
+	}
+
+	if err := s.repo.UpdatePublicShareID(ctx, w.ID, shareID); err != nil {
+		return "", err
+	}
+
+	if shareID != nil {
+		return *shareID, nil
+	}
+	return "", nil
+}
+
+// GetPublicDashboard returns dashboard data for a publicly shared website.
+func (s *WebsiteService) GetPublicDashboard(ctx context.Context, publicShareID string, days int) (map[string]interface{}, error) {
+	w, err := s.repo.GetByPublicShareID(ctx, publicShareID)
+	if err != nil {
+		return nil, fmt.Errorf("dashboard not found")
+	}
+
+	// Use the analytics repo to get basic dashboard metrics (no auth required)
+	metrics, err := s.analyticsRepo.GetDashboardMetrics(ctx, w.SiteID, days, "UTC", analyticsModels.AnalyticsFilters{})
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"website_name":    w.Name,
+		"website_url":     w.URL,
+		"total_visitors":  metrics.TotalVisitors,
+		"unique_visitors": metrics.UniqueVisitors,
+		"page_views":      metrics.PageViews,
+		"bounce_rate":     metrics.BounceRate,
+		"session_duration": metrics.AvgSessionTime,
+	}, nil
 }
 
 // Helper to generate secure random identifiers

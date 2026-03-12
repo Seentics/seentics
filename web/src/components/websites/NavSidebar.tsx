@@ -20,6 +20,8 @@ import {
     Video,
     Lock,
     Users2,
+    Activity,
+    Zap,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -58,6 +60,18 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
             icon: LayoutDashboard,
             matchExact: true,
             description: 'Traffic & Summary'
+        },
+        {
+            title: 'Realtime',
+            href: `/websites/${websiteId}/realtime`,
+            icon: Activity,
+            description: 'Live Visitor Activity'
+        },
+        {
+            title: 'Events',
+            href: `/websites/${websiteId}/events`,
+            icon: Zap,
+            description: 'Event Data Explorer'
         },
         {
             title: 'Heatmaps',

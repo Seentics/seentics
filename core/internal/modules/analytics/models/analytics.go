@@ -211,11 +211,35 @@ type AnalyticsFilters struct {
 	UTMMedium   string `json:"utm_medium"`
 	UTMCampaign string `json:"utm_campaign"`
 	PagePath    string `json:"page_path"`
+	PropKey     string `json:"prop_key"`
+	PropValue   string `json:"prop_value"`
 }
 
 func (f *AnalyticsFilters) HasFilters() bool {
 	return f.Country != "" || f.Device != "" || f.Browser != "" || f.OS != "" ||
-		f.UTMSource != "" || f.UTMMedium != "" || f.UTMCampaign != "" || f.PagePath != ""
+		f.UTMSource != "" || f.UTMMedium != "" || f.UTMCampaign != "" || f.PagePath != "" ||
+		(f.PropKey != "" && f.PropValue != "")
+}
+
+// RealtimeData contains all data for the real-time dashboard view
+type RealtimeData struct {
+	ActiveVisitors int              `json:"active_visitors"`
+	PageViews      int              `json:"pageviews"`
+	ActivePages    []RealtimePage   `json:"active_pages"`
+	TopReferrers   []RealtimeItem   `json:"top_referrers"`
+	TopCountries   []RealtimeItem   `json:"top_countries"`
+	TopDevices     []RealtimeItem   `json:"top_devices"`
+	TopBrowsers    []RealtimeItem   `json:"top_browsers"`
+}
+
+type RealtimePage struct {
+	Page     string `json:"page"`
+	Visitors int    `json:"visitors"`
+}
+
+type RealtimeItem struct {
+	Name     string `json:"name"`
+	Visitors int    `json:"visitors"`
 }
 
 // ExportRequest - Request for data export

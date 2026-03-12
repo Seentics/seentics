@@ -352,8 +352,8 @@ func (r *WebsiteRepository) ListGoals(ctx context.Context, websiteID uuid.UUID) 
 }
 
 func (r *WebsiteRepository) CreateGoal(ctx context.Context, goal *models.Goal) error {
-	query := `INSERT INTO goals (website_id, name, type, identifier, selector, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
-	return r.db.QueryRow(ctx, query, goal.WebsiteID, goal.Name, goal.Type, goal.Identifier, goal.Selector, time.Now(), time.Now()).Scan(&goal.ID)
+	query := `INSERT INTO goals (website_id, name, type, identifier, selector, revenue, currency, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
+	return r.db.QueryRow(ctx, query, goal.WebsiteID, goal.Name, goal.Type, goal.Identifier, goal.Selector, goal.Revenue, goal.Currency, time.Now(), time.Now()).Scan(&goal.ID)
 }
 
 func (r *WebsiteRepository) DeleteGoal(ctx context.Context, id uuid.UUID, websiteID uuid.UUID) error {
@@ -417,4 +417,36 @@ func (r *WebsiteRepository) GetMember(ctx context.Context, websiteID, userID uui
 		return nil, err
 	}
 	return &m, nil
+}
+
+// UpdatePublicShareID sets or clears the public share ID for a website.
+func (r *WebsiteRepository) UpdatePublicShareID(ctx context.Context, websiteID uuid.UUID, shareID *string) error {
+	query := `UPDATE websites SET public_share_id = $1, updated_at = $2 WHERE id = $3`
+	_, err := r.db.Exec(ctx, query, shareID, time.Now(), websiteID)
+	return err
+}
+
+// GetByPublicShareID retrieves a website by its public share ID.
+func (r *WebsiteRepository) GetByPublicShareID(ctx context.Context, shareID string) (*models.Website, error) {
+	query := `SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified,
+		automation_enabled, funnel_enabled, heatmap_enabled,
+		heatmap_include_patterns, heatmap_exclude_patterns,
+		replay_enabled, replay_sampling_rate,
+		replay_include_patterns, replay_exclude_patterns,
+		verification_token, public_share_id, created_at, updated_at
+		FROM websites WHERE public_share_id = $1 AND is_active = true`
+
+	var w models.Website
+	err := r.db.QueryRow(ctx, query, shareID).Scan(
+		&w.ID, &w.SiteID, &w.UserID, &w.Name, &w.URL, &w.TrackingID, &w.IsActive, &w.IsVerified,
+		&w.AutomationEnabled, &w.FunnelEnabled, &w.HeatmapEnabled,
+		&w.HeatmapIncludePatterns, &w.HeatmapExcludePatterns,
+		&w.ReplayEnabled, &w.ReplaySamplingRate,
+		&w.ReplayIncludePatterns, &w.ReplayExcludePatterns,
+		&w.VerificationToken, &w.PublicShareID, &w.CreatedAt, &w.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &w, nil
 }

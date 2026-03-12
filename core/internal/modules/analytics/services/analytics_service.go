@@ -509,6 +509,17 @@ func (s *AnalyticsService) ImportWebsiteData(ctx context.Context, websiteID stri
 	return 0, fmt.Errorf("import not implemented")
 }
 
+func (s *AnalyticsService) GetRealtimeData(ctx context.Context, websiteID string, userID string) (*models.RealtimeData, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	cacheKey := fmt.Sprintf("analytics:realtime:%s", canonicalID)
+	return cachedQuery(s.cache, cacheKey, 5*time.Second, func() (*models.RealtimeData, error) {
+		return s.repo.GetRealtimeData(ctx, canonicalID)
+	})
+}
+
 func (s *AnalyticsService) GetRecentActivity(ctx context.Context, websiteID string, limit int, userID string) ([]models.RecentActivity, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
@@ -517,6 +528,28 @@ func (s *AnalyticsService) GetRecentActivity(ctx context.Context, websiteID stri
 	cacheKey := fmt.Sprintf("analytics:recent_activity:%s:%d", canonicalID, limit)
 	return cachedQuery(s.cache, cacheKey, cacheTTLStats, func() ([]models.RecentActivity, error) {
 		return s.repo.GetRecentActivity(ctx, canonicalID, limit)
+	})
+}
+
+func (s *AnalyticsService) GetTopLanguages(ctx context.Context, websiteID string, days int, timezone string, userID string) ([]models.TopItem, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	cacheKey := fmt.Sprintf("analytics:languages:%s:%d:%s", canonicalID, days, timezone)
+	return cachedQuery(s.cache, cacheKey, cacheTTLTopN, func() ([]models.TopItem, error) {
+		return s.repo.GetTopLanguages(ctx, canonicalID, days, timezone, 20)
+	})
+}
+
+func (s *AnalyticsService) GetTopCities(ctx context.Context, websiteID string, days int, timezone string, userID string) ([]models.TopItem, error) {
+	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
+	if err != nil {
+		return nil, err
+	}
+	cacheKey := fmt.Sprintf("analytics:cities:%s:%d:%s", canonicalID, days, timezone)
+	return cachedQuery(s.cache, cacheKey, cacheTTLTopN, func() ([]models.TopItem, error) {
+		return s.repo.GetTopCities(ctx, canonicalID, days, timezone, 20)
 	})
 }
 

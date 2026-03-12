@@ -26,6 +26,7 @@ type Website struct {
 	ReplayIncludePatterns  *string   `json:"replay_include_patterns" db:"replay_include_patterns"`
 	ReplayExcludePatterns  *string   `json:"replay_exclude_patterns" db:"replay_exclude_patterns"`
 	VerificationToken      string    `json:"verification_token" db:"verification_token"`
+	PublicShareID          *string   `json:"public_share_id,omitempty" db:"public_share_id"`
 	CreatedAt              time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt              time.Time `json:"updated_at" db:"updated_at"`
 }

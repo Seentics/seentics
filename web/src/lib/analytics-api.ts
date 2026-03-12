@@ -338,6 +338,63 @@ export const getTopResolutions = async (websiteId: string, days: number = 7, lim
   return response.data;
 };
 
+// Realtime Data
+export interface RealtimeData {
+  active_visitors: number;
+  pageviews: number;
+  active_pages: Array<{ page: string; visitors: number }>;
+  top_referrers: Array<{ name: string; visitors: number }>;
+  top_countries: Array<{ name: string; visitors: number }>;
+  top_devices: Array<{ name: string; visitors: number }>;
+  top_browsers: Array<{ name: string; visitors: number }>;
+}
+
+export const getRealtimeData = async (websiteId: string): Promise<RealtimeData> => {
+  if (websiteId === 'demo') {
+    return {
+      active_visitors: Math.floor(Math.random() * 30) + 5,
+      pageviews: Math.floor(Math.random() * 100) + 20,
+      active_pages: [
+        { page: '/', visitors: 12 },
+        { page: '/pricing', visitors: 8 },
+        { page: '/docs', visitors: 5 },
+        { page: '/blog/getting-started', visitors: 3 },
+      ],
+      top_referrers: [
+        { name: 'google.com', visitors: 15 },
+        { name: '(direct)', visitors: 10 },
+        { name: 'twitter.com', visitors: 4 },
+      ],
+      top_countries: [
+        { name: 'United States', visitors: 12 },
+        { name: 'Germany', visitors: 6 },
+        { name: 'United Kingdom', visitors: 4 },
+      ],
+      top_devices: [
+        { name: 'Desktop', visitors: 20 },
+        { name: 'Mobile', visitors: 8 },
+      ],
+      top_browsers: [
+        { name: 'Chrome', visitors: 18 },
+        { name: 'Firefox', visitors: 6 },
+        { name: 'Safari', visitors: 4 },
+      ],
+    };
+  }
+  const response = await api.get(`/analytics/realtime/${websiteId}`);
+  return response.data;
+};
+
+export const useRealtimeData = (websiteId: string) => {
+  return useQuery<RealtimeData>({
+    queryKey: ['realtime', websiteId],
+    queryFn: () => getRealtimeData(websiteId),
+    enabled: !!websiteId,
+    refetchInterval: 5000,
+    staleTime: 4000,
+  });
+};
+
 // Live Visitors
 export const getLiveVisitors = async (websiteId: string): Promise<number> => {
   if (websiteId === 'demo') {
@@ -345,6 +402,58 @@ export const getLiveVisitors = async (websiteId: string): Promise<number> => {
   }
   const response = await api.get(`/analytics/live-visitors/${websiteId}`);
   return response.data.live_visitors || 0;
+};
+
+// Top Languages
+export const getTopLanguages = async (websiteId: string, days: number = 7): Promise<any> => {
+  if (websiteId === 'demo') {
+    return {
+      top_languages: [
+        { name: 'en-US', count: 4500, percentage: 45.0 },
+        { name: 'en-GB', count: 1200, percentage: 12.0 },
+        { name: 'de-DE', count: 800, percentage: 8.0 },
+        { name: 'fr-FR', count: 600, percentage: 6.0 },
+        { name: 'es-ES', count: 500, percentage: 5.0 },
+      ],
+    };
+  }
+  const response = await api.get(`/analytics/top-languages/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  return response.data;
+};
+
+export const useTopLanguages = (websiteId: string, days: number = 7) => {
+  return useQuery({
+    queryKey: [...analyticsKeys.all, 'top-languages', websiteId, days],
+    queryFn: () => getTopLanguages(websiteId, days),
+    enabled: !!websiteId,
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+// Top Cities
+export const getTopCities = async (websiteId: string, days: number = 7): Promise<any> => {
+  if (websiteId === 'demo') {
+    return {
+      top_cities: [
+        { name: 'San Francisco', count: 2200, percentage: 22.0 },
+        { name: 'New York', count: 1800, percentage: 18.0 },
+        { name: 'London', count: 1200, percentage: 12.0 },
+        { name: 'Berlin', count: 800, percentage: 8.0 },
+        { name: 'Tokyo', count: 600, percentage: 6.0 },
+      ],
+    };
+  }
+  const response = await api.get(`/analytics/top-cities/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  return response.data;
+};
+
+export const useTopCities = (websiteId: string, days: number = 7) => {
+  return useQuery({
+    queryKey: [...analyticsKeys.all, 'top-cities', websiteId, days],
+    queryFn: () => getTopCities(websiteId, days),
+    enabled: !!websiteId,
+    staleTime: 5 * 60 * 1000,
+  });
 };
 
 // Hourly Stats
@@ -1075,4 +1184,6 @@ export interface AnalyticsFilters {
   utm_medium?: string;
   utm_campaign?: string;
   page_path?: string;
+  prop_key?: string;
+  prop_value?: string;
 }

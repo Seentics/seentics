@@ -141,6 +141,40 @@
     emit('form', { id: f.id, cls: f.className, action: f.action });
   }, true);
 
+  // --- Outbound link clicks ---
+  var isOutbound = function (href) {
+    try { var u = new URL(href, loc.origin); return u.hostname !== loc.hostname; } catch (e) { return false; }
+  };
+  // --- File download detection ---
+  var dlExts = /\.(pdf|zip|docx?|xlsx?|pptx?|csv|tar|gz|rar|7z|dmg|exe|msi|apk|ipa|mp3|mp4|mov|avi|mkv|svg|png|jpg|jpeg|gif|webp)$/i;
+
+  d.addEventListener('click', function (e) {
+    var a = e.target.closest('a[href]');
+    if (!a) return;
+    var href = a.href || '';
+    if (isOutbound(href)) {
+      track('outbound_click', { url: href, text: (a.textContent || '').substring(0, 100).trim() || null });
+    }
+    var path = '';
+    try { path = new URL(href, loc.origin).pathname; } catch (x) { path = href; }
+    if (dlExts.test(path)) {
+      track('file_download', { url: href, filename: path.split('/').pop() || href });
+    }
+  }, true);
+
+  // --- 404 error page detection ---
+  // Detect via meta tag, data attribute on body, or HTTP status in document title
+  var detect404 = function () {
+    var meta = d.querySelector('meta[name="seentics-status"]');
+    if (meta && meta.content === '404') return true;
+    if (d.body && d.body.dataset.status === '404') return true;
+    if (/404|not found/i.test(d.title) && d.title.length < 60) return true;
+    return false;
+  };
+  setTimeout(function () {
+    if (detect404()) track('404', { page: loc.pathname, referrer: d.referrer || null });
+  }, 100);
+
   // SPA navigation via History API
   var _path = loc.pathname;
   var onNav = function () {

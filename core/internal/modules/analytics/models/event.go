@@ -35,6 +35,7 @@ type Event struct {
 	UTMCampaign  *string    `json:"utm_campaign,omitempty" db:"utm_campaign"`
 	UTMTerm      *string    `json:"utm_term,omitempty" db:"utm_term"`
 	UTMContent   *string    `json:"utm_content,omitempty" db:"utm_content"`
+	Language     *string    `json:"language,omitempty" db:"language"`
 	TimeOnPage   *int       `json:"time_on_page,omitempty" db:"time_on_page"`
 	ScreenWidth  *int       `json:"screen_width,omitempty" db:"-"`
 	ScreenHeight *int       `json:"screen_height,omitempty" db:"-"`

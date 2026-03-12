@@ -311,3 +311,56 @@ func (h *WebsiteHandler) Delete(c *gin.Context) {
 		"message": "Website deleted successfully",
 	})
 }
+
+// TogglePublicShare enables or disables public sharing for a website
+func (h *WebsiteHandler) TogglePublicShare(c *gin.Context) {
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	siteID := c.Param("id")
+	var req struct {
+		Enabled bool `json:"enabled"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		return
+	}
+
+	shareID, err := h.service.TogglePublicShare(c.Request.Context(), siteID, userID, req.Enabled)
+	if err != nil {
+		h.logger.Error().Err(err).Msg("Failed to toggle public share")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"public_share_id": shareID,
+		"enabled":         req.Enabled,
+	})
+}
+
+// GetPublicDashboard returns dashboard data for a publicly shared website
+func (h *WebsiteHandler) GetPublicDashboard(c *gin.Context) {
+	publicID := c.Param("public_id")
+	if publicID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "public_id is required"})
+		return
+	}
+
+	data, err := h.service.GetPublicDashboard(c.Request.Context(), publicID, 7)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Dashboard not found"})
+		return
+	}
+
+	c.Header("Cache-Control", "public, max-age=60")
+	c.JSON(http.StatusOK, data)
+}

@@ -55,6 +55,7 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 			utm_term Nullable(String),
 			utm_content Nullable(String),
 			time_on_page Int64,
+			language LowCardinality(Nullable(String)),
 			properties String,
 			timestamp DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1)),
 			created_at DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1))
@@ -207,6 +208,7 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 		`ALTER TABLE events MODIFY COLUMN IF EXISTS country_code LowCardinality(Nullable(String))`,
 		`ALTER TABLE events MODIFY COLUMN IF EXISTS utm_source LowCardinality(Nullable(String))`,
 		`ALTER TABLE events MODIFY COLUMN IF EXISTS utm_medium LowCardinality(Nullable(String))`,
+		`ALTER TABLE events ADD COLUMN IF NOT EXISTS language LowCardinality(Nullable(String)) AFTER time_on_page`,
 	}
 	for _, q := range alterQueries {
 		if err := r.conn.Exec(ctx, q); err != nil {
@@ -293,6 +295,7 @@ func (r *ClickHouseEventRepository) CreateBatch(ctx context.Context, events []mo
 			event.UTMTerm,
 			event.UTMContent,
 			timeOnPage,
+			event.Language,
 			propertiesJSON,
 			event.Timestamp,
 			event.CreatedAt,

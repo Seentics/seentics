@@ -287,7 +287,8 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, analyticsHandler *ha
 			strings.HasPrefix(path, "/api/v1/tracker/config/") ||
 			strings.HasPrefix(path, "/api/v1/tracker/init/") ||
 			path == "/api/v1/tracker/collect" ||
-			strings.HasPrefix(path, "/api/v1/internal/") {
+			strings.HasPrefix(path, "/api/v1/internal/") ||
+			strings.HasPrefix(path, "/api/v1/analytics/public/") {
 			c.Next()
 			return
 		}
@@ -318,7 +319,10 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, analyticsHandler *ha
 			analytics.GET("/hourly-stats/:website_id", analyticsHandler.GetHourlyStats)
 			analytics.GET("/goals-stats/:website_id", analyticsHandler.GetGoalStats)
 			analytics.GET("/custom-events/:website_id", analyticsHandler.GetCustomEvents)
+			analytics.GET("/realtime/:website_id", analyticsHandler.GetRealtimeData)
 			analytics.GET("/live-visitors/:website_id", analyticsHandler.GetLiveVisitors)
+			analytics.GET("/top-languages/:website_id", analyticsHandler.GetTopLanguages)
+			analytics.GET("/top-cities/:website_id", analyticsHandler.GetTopCities)
 			analytics.GET("/geolocation-breakdown/:website_id", analyticsHandler.GetGeolocationBreakdown)
 			analytics.GET("/visitor-insights/:website_id", analyticsHandler.GetVisitorInsights)
 			analytics.GET("/recent-activity/:website_id", analyticsHandler.GetRecentActivity)
@@ -439,6 +443,12 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, analyticsHandler *ha
 			websites.DELETE("/:id/members/:user_id", websiteHandler.RemoveMember)
 			websites.PUT("/:id/members/:user_id/role", websiteHandler.UpdateMemberRole)
 		}
+
+		// Public dashboard (no auth required)
+		v1.GET("/analytics/public/dashboard/:public_id", websiteHandler.GetPublicDashboard)
+
+		// Website sharing toggle
+		websites.POST("/:id/share", websiteHandler.TogglePublicShare)
 
 		heatmaps := v1.Group("/heatmaps")
 		{
