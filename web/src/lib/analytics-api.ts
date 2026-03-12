@@ -339,22 +339,41 @@ export const getTopResolutions = async (websiteId: string, days: number = 7, lim
 };
 
 // Realtime Data
+export interface RealtimeMinute {
+  minute: string;
+  visitors: number;
+  views: number;
+}
+
 export interface RealtimeData {
   active_visitors: number;
   pageviews: number;
-  active_pages: Array<{ page: string; visitors: number }>;
+  sessions: number;
+  top_pages: Array<{ page: string; visitors: number }>;
   top_referrers: Array<{ name: string; visitors: number }>;
   top_countries: Array<{ name: string; visitors: number }>;
   top_devices: Array<{ name: string; visitors: number }>;
   top_browsers: Array<{ name: string; visitors: number }>;
+  timeline: RealtimeMinute[];
 }
 
 export const getRealtimeData = async (websiteId: string): Promise<RealtimeData> => {
   if (websiteId === 'demo') {
+    const timeline: RealtimeMinute[] = [];
+    const now = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 60000);
+      timeline.push({
+        minute: `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`,
+        visitors: Math.floor(Math.random() * 8) + 1,
+        views: Math.floor(Math.random() * 15) + 2,
+      });
+    }
     return {
       active_visitors: Math.floor(Math.random() * 30) + 5,
       pageviews: Math.floor(Math.random() * 100) + 20,
-      active_pages: [
+      sessions: Math.floor(Math.random() * 40) + 10,
+      top_pages: [
         { page: '/', visitors: 12 },
         { page: '/pricing', visitors: 8 },
         { page: '/docs', visitors: 5 },
@@ -379,6 +398,7 @@ export const getRealtimeData = async (websiteId: string): Promise<RealtimeData> 
         { name: 'Firefox', visitors: 6 },
         { name: 'Safari', visitors: 4 },
       ],
+      timeline,
     };
   }
   const response = await api.get(`/analytics/realtime/${websiteId}`);

@@ -1373,18 +1373,48 @@ func (r *ClickHouseAnalyticsRepository) GetAvgPathLength(ctx context.Context, we
 
 func (r *ClickHouseAnalyticsRepository) GetRealtimeData(ctx context.Context, websiteID string) (*models.RealtimeData, error) {
 	data := &models.RealtimeData{}
+	const window = "30 minute"
 
-	// Active visitors (unique in last 5 min)
-	q1 := `SELECT uniq(visitor_id), count(*) FROM events WHERE website_id = ? AND timestamp >= now() - interval 5 minute AND event_type = 'pageview'`
-	var uv, pv uint64
-	if err := r.conn.QueryRow(ctx, q1, websiteID).Scan(&uv, &pv); err != nil {
+	// Summary: active visitors, pageviews, sessions in last 30 min
+	q1 := `SELECT uniq(visitor_id), count(*), uniq(session_id)
+		FROM events WHERE website_id = ? AND timestamp >= now() - interval 30 minute AND event_type = 'pageview'`
+	var uv, pv, sess uint64
+	if err := r.conn.QueryRow(ctx, q1, websiteID).Scan(&uv, &pv, &sess); err != nil {
 		return nil, err
 	}
 	data.ActiveVisitors = int(uv)
 	data.PageViews = int(pv)
+	data.Sessions = int(sess)
 
-	// Active pages (last 5 min)
-	q2 := `SELECT page, uniq(visitor_id) as visitors FROM events WHERE website_id = ? AND timestamp >= now() - interval 5 minute AND event_type = 'pageview' GROUP BY page ORDER BY visitors DESC LIMIT 10`
+	// 30-minute timeline (per-minute buckets)
+	qTimeline := `SELECT
+		formatDateTime(toStartOfMinute(timestamp), '%H:%i') as minute,
+		uniq(visitor_id) as visitors,
+		count(*) as views
+		FROM events
+		WHERE website_id = ? AND timestamp >= now() - interval 30 minute AND event_type = 'pageview'
+		GROUP BY minute
+		ORDER BY minute`
+	rowsT, err := r.conn.Query(ctx, qTimeline, websiteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rowsT.Close()
+	for rowsT.Next() {
+		var m models.RealtimeMinute
+		var visitors, views uint64
+		if err := rowsT.Scan(&m.Minute, &visitors, &views); err != nil {
+			continue
+		}
+		m.Visitors = int(visitors)
+		m.Views = int(views)
+		data.Timeline = append(data.Timeline, m)
+	}
+
+	// Top pages (last 30 min)
+	q2 := `SELECT page, uniq(visitor_id) as visitors FROM events
+		WHERE website_id = ? AND timestamp >= now() - interval 30 minute AND event_type = 'pageview'
+		GROUP BY page ORDER BY visitors DESC LIMIT 10`
 	rows, err := r.conn.Query(ctx, q2, websiteID)
 	if err != nil {
 		return nil, err
@@ -1397,11 +1427,13 @@ func (r *ClickHouseAnalyticsRepository) GetRealtimeData(ctx context.Context, web
 			continue
 		}
 		p.Visitors = int(v)
-		data.ActivePages = append(data.ActivePages, p)
+		data.TopPages = append(data.TopPages, p)
 	}
 
-	// Top referrers (last 5 min)
-	q3 := `SELECT COALESCE(referrer, '(direct)') as ref, uniq(visitor_id) as visitors FROM events WHERE website_id = ? AND timestamp >= now() - interval 5 minute AND event_type = 'pageview' GROUP BY ref ORDER BY visitors DESC LIMIT 10`
+	// Top referrers (last 30 min)
+	q3 := `SELECT COALESCE(NULLIF(referrer, ''), '(direct)') as ref, uniq(visitor_id) as visitors
+		FROM events WHERE website_id = ? AND timestamp >= now() - interval 30 minute AND event_type = 'pageview'
+		GROUP BY ref ORDER BY visitors DESC LIMIT 10`
 	rows3, err := r.conn.Query(ctx, q3, websiteID)
 	if err != nil {
 		return nil, err
@@ -1417,8 +1449,10 @@ func (r *ClickHouseAnalyticsRepository) GetRealtimeData(ctx context.Context, web
 		data.TopReferrers = append(data.TopReferrers, item)
 	}
 
-	// Top countries (last 5 min)
-	q4 := `SELECT COALESCE(country, 'Unknown') as c, uniq(visitor_id) as visitors FROM events WHERE website_id = ? AND timestamp >= now() - interval 5 minute AND event_type = 'pageview' GROUP BY c ORDER BY visitors DESC LIMIT 10`
+	// Top countries (last 30 min)
+	q4 := `SELECT COALESCE(NULLIF(country, ''), 'Unknown') as c, uniq(visitor_id) as visitors
+		FROM events WHERE website_id = ? AND timestamp >= now() - interval 30 minute AND event_type = 'pageview'
+		GROUP BY c ORDER BY visitors DESC LIMIT 10`
 	rows4, err := r.conn.Query(ctx, q4, websiteID)
 	if err != nil {
 		return nil, err
@@ -1434,8 +1468,10 @@ func (r *ClickHouseAnalyticsRepository) GetRealtimeData(ctx context.Context, web
 		data.TopCountries = append(data.TopCountries, item)
 	}
 
-	// Top devices (last 5 min)
-	q5 := `SELECT COALESCE(device, 'Unknown') as d, uniq(visitor_id) as visitors FROM events WHERE website_id = ? AND timestamp >= now() - interval 5 minute AND event_type = 'pageview' GROUP BY d ORDER BY visitors DESC LIMIT 10`
+	// Top devices (last 30 min)
+	q5 := `SELECT COALESCE(NULLIF(device, ''), 'Unknown') as d, uniq(visitor_id) as visitors
+		FROM events WHERE website_id = ? AND timestamp >= now() - interval 30 minute AND event_type = 'pageview'
+		GROUP BY d ORDER BY visitors DESC LIMIT 10`
 	rows5, err := r.conn.Query(ctx, q5, websiteID)
 	if err != nil {
 		return nil, err
@@ -1451,8 +1487,10 @@ func (r *ClickHouseAnalyticsRepository) GetRealtimeData(ctx context.Context, web
 		data.TopDevices = append(data.TopDevices, item)
 	}
 
-	// Top browsers (last 5 min)
-	q6 := `SELECT COALESCE(browser, 'Unknown') as b, uniq(visitor_id) as visitors FROM events WHERE website_id = ? AND timestamp >= now() - interval 5 minute AND event_type = 'pageview' GROUP BY b ORDER BY visitors DESC LIMIT 10`
+	// Top browsers (last 30 min)
+	q6 := `SELECT COALESCE(NULLIF(browser, ''), 'Unknown') as b, uniq(visitor_id) as visitors
+		FROM events WHERE website_id = ? AND timestamp >= now() - interval 30 minute AND event_type = 'pageview'
+		GROUP BY b ORDER BY visitors DESC LIMIT 10`
 	rows6, err := r.conn.Query(ctx, q6, websiteID)
 	if err != nil {
 		return nil, err
@@ -1469,8 +1507,8 @@ func (r *ClickHouseAnalyticsRepository) GetRealtimeData(ctx context.Context, web
 	}
 
 	// Ensure non-nil slices for JSON
-	if data.ActivePages == nil {
-		data.ActivePages = []models.RealtimePage{}
+	if data.TopPages == nil {
+		data.TopPages = []models.RealtimePage{}
 	}
 	if data.TopReferrers == nil {
 		data.TopReferrers = []models.RealtimeItem{}
@@ -1483,6 +1521,9 @@ func (r *ClickHouseAnalyticsRepository) GetRealtimeData(ctx context.Context, web
 	}
 	if data.TopBrowsers == nil {
 		data.TopBrowsers = []models.RealtimeItem{}
+	}
+	if data.Timeline == nil {
+		data.Timeline = []models.RealtimeMinute{}
 	}
 
 	return data, nil

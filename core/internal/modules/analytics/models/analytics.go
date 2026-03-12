@@ -223,13 +223,15 @@ func (f *AnalyticsFilters) HasFilters() bool {
 
 // RealtimeData contains all data for the real-time dashboard view
 type RealtimeData struct {
-	ActiveVisitors int              `json:"active_visitors"`
-	PageViews      int              `json:"pageviews"`
-	ActivePages    []RealtimePage   `json:"active_pages"`
-	TopReferrers   []RealtimeItem   `json:"top_referrers"`
-	TopCountries   []RealtimeItem   `json:"top_countries"`
-	TopDevices     []RealtimeItem   `json:"top_devices"`
-	TopBrowsers    []RealtimeItem   `json:"top_browsers"`
+	ActiveVisitors int                `json:"active_visitors"`
+	PageViews      int                `json:"pageviews"`
+	Sessions       int                `json:"sessions"`
+	TopPages       []RealtimePage     `json:"top_pages"`
+	TopReferrers   []RealtimeItem     `json:"top_referrers"`
+	TopCountries   []RealtimeItem     `json:"top_countries"`
+	TopDevices     []RealtimeItem     `json:"top_devices"`
+	TopBrowsers    []RealtimeItem     `json:"top_browsers"`
+	Timeline       []RealtimeMinute   `json:"timeline"`
 }
 
 type RealtimePage struct {
@@ -240,6 +242,12 @@ type RealtimePage struct {
 type RealtimeItem struct {
 	Name     string `json:"name"`
 	Visitors int    `json:"visitors"`
+}
+
+type RealtimeMinute struct {
+	Minute   string `json:"minute"`
+	Visitors int    `json:"visitors"`
+	Views    int    `json:"views"`
 }
 
 // ExportRequest - Request for data export
