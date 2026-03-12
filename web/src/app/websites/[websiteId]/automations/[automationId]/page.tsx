@@ -134,6 +134,7 @@ export default function AutomationDetailsPage() {
                                 {automation.triggerType === 'exit_intent' && 'Triggers when a user is about to leave'}
                                 {automation.triggerType === 'custom_event' && 'Triggers on a custom event'}
                                 {automation.triggerType === 'form_submission' && 'Triggers when a form is submitted'}
+                                {automation.triggerType === 'inactivity' && 'Triggers when a user has been inactive'}
                             </p>
                             {automation.triggerConfig?.targetUrl && (
                                 <Badge variant="outline" className="mt-2 font-mono text-[10px]">{automation.triggerConfig.targetUrl}</Badge>

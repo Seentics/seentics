@@ -90,9 +90,9 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         setEvents([]);
         setStreamProgress({ loaded: 0, total: 0 });
 
-        // Demo mode: no real replay data available
+        // Demo mode: skip loading real data, render placeholder player
         if (isDemo(websiteId)) {
-          setError('Session replays are not available in demo mode. Sign up to record real sessions!');
+          setLoading(false);
           return;
         }
 
@@ -485,8 +485,20 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           {events.length < 2 ? (
             <div className="flex items-center justify-center h-full p-12 text-center">
               <div>
-                <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
-                <p className="text-xs text-white/15">This session contains no replay data.</p>
+                {isDemo(websiteId) ? (
+                  <>
+                    <div className="h-14 w-14 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4">
+                      <Play className="h-6 w-6 text-white/20" />
+                    </div>
+                    <p className="text-sm font-medium text-white/40 mb-1.5">Session Replay Preview</p>
+                    <p className="text-xs text-white/20 max-w-xs">Replays capture every click, scroll, and page interaction. Sign up to start recording real sessions.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-white/30 mb-1">No events recorded</p>
+                    <p className="text-xs text-white/15">This session contains no replay data.</p>
+                  </>
+                )}
               </div>
             </div>
           ) : !events.some((e: any) => e.type === 2) ? (

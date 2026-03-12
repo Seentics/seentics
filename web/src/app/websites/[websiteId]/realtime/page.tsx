@@ -114,12 +114,18 @@ function fillTimeline(raw: RealtimeMinute[]): RealtimeMinute[] {
 function RealtimeTimeline({ timeline }: { timeline: RealtimeMinute[] }) {
   const filled = useMemo(() => fillTimeline(timeline), [timeline]);
   const max = useMemo(() => Math.max(...filled.map(t => t.views), 1), [filled]);
+  const hasAnyData = useMemo(() => filled.some(t => t.views > 0 || t.visitors > 0), [filled]);
 
   return (
     <div className="space-y-3">
-      <div className="flex items-end gap-[2px] h-32">
+      <div className="flex items-end gap-[2px] h-32 relative">
+        {!hasAnyData && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <p className="text-xs text-muted-foreground/50">No activity in the last 30 minutes</p>
+          </div>
+        )}
         {filled.map((t, i) => {
-          const height = t.views > 0 ? Math.max((t.views / max) * 100, 6) : 3;
+          const height = t.views > 0 ? Math.max((t.views / max) * 100, 8) : 4;
           const isRecent = i >= filled.length - 5;
           const hasData = t.views > 0;
           return (
@@ -138,7 +144,7 @@ function RealtimeTimeline({ timeline }: { timeline: RealtimeMinute[] }) {
                     ? isRecent
                       ? "bg-emerald-500/80 hover:bg-emerald-500"
                       : "bg-primary/40 hover:bg-primary/60"
-                    : "bg-muted/30"
+                    : "bg-muted/20"
                 )}
                 style={{ height: `${height}%` }}
               />

@@ -17,12 +17,11 @@ import { ArrowRight, Sparkles } from 'lucide-react';
 
 function DemoBanner() {
   return (
-    <div className="bg-gradient-to-r from-primary/90 to-violet-600/90 text-white text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-2 relative z-[60]">
-      <Sparkles className="h-3.5 w-3.5" />
-      <span>You&apos;re viewing demo data</span>
-      <span className="hidden sm:inline text-white/70">—</span>
-      <Link href="/register" className="hidden sm:inline-flex items-center gap-1 underline underline-offset-2 hover:text-white/90 font-semibold">
-        Sign up to get started <ArrowRight className="h-3 w-3" />
+    <div className="bg-gradient-to-r from-violet-600/90 to-primary/90 text-white text-center py-1.5 px-4 text-xs font-medium flex items-center justify-center gap-2 relative z-[60]">
+      <Sparkles className="h-3 w-3 opacity-70" />
+      <span className="opacity-90">Live demo with sample data</span>
+      <Link href="/register" className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold transition-colors">
+        Create free account <ArrowRight className="h-2.5 w-2.5" />
       </Link>
     </div>
   );
