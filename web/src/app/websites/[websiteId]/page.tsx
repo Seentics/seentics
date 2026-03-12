@@ -61,6 +61,7 @@ import { LayoutDashboard } from 'lucide-react';
 function categorizeReferrer(referrer: string): string {
   if (!referrer || referrer === 'Direct') return 'Direct';
   const r = referrer.toLowerCase();
+  if (r.includes('accounts.google.com')) return 'Google OAuth';
   if (r.includes('google')) return 'Google';
   if (r.includes('bing')) return 'Bing';
   if (r.includes('yahoo')) return 'Yahoo';

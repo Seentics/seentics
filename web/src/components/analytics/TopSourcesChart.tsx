@@ -29,6 +29,7 @@ const CategoryIcons: Record<string, { icon: React.ElementType; color: string }> 
 // Map raw referrer strings to a canonical platform name
 const getCanonicalName = (referrer: string): string => {
   const s = (referrer || '').toLowerCase();
+  if (s.includes('accounts.google.com')) return 'Google OAuth';
   if (s.includes('google')) return 'Google';
   if (s.includes('bing') || s.includes('microsoft')) return 'Bing';
   if (s.includes('yahoo')) return 'Yahoo';

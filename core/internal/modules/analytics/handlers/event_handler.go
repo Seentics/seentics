@@ -6,6 +6,7 @@ import (
 	"github.com/Seentics/seentics/internal/shared/utils"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -184,12 +185,16 @@ func (h *EventHandler) optimizeEventBatch(req *models.BatchEventRequest) {
 			event.UserAgent = nil
 		}
 
-		// Optimize referrer - only keep if it's different from previous
+		// Optimize referrer - strip self-referrals and duplicates
 		if event.Referrer != nil && *event.Referrer != "" {
-			if sessionReferrer == *event.Referrer {
+			ref := *event.Referrer
+			// Strip self-referrals (internal navigation within the same site)
+			if req.Domain != "" && strings.Contains(ref, req.Domain) {
+				event.Referrer = nil
+			} else if sessionReferrer == ref {
 				event.Referrer = nil // Remove duplicate referrer
 			} else {
-				sessionReferrer = *event.Referrer
+				sessionReferrer = ref
 			}
 		}
 
