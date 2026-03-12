@@ -3,7 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 
 interface HeatmapOverlayProps {
-  points: { x: number; y: number; intensity: number }[];
+  points: { x: number; y: number; intensity: number; doc_height?: number }[];
   type?: 'click' | 'move' | 'scroll' | 'rage_click' | 'dead_click';
   width: number;
   height: number;
@@ -247,11 +247,23 @@ export default function HeatmapOverlay({
     // === POINT-BASED HEATMAPS (click, move, rage_click, dead_click) ===
     const radius = type === 'move' ? 34 : 18;
 
+    // Helper: convert a point's Y from 0-1000 normalized range to canvas pixels.
+    // When doc_height is available (recorded page height), we compute the absolute
+    // pixel position first, which stays correct even if the current page height differs.
+    const resolveY = (point: { y: number; doc_height?: number }) => {
+      if (point.doc_height && point.doc_height > 0) {
+        // Absolute pixel Y = (y / 1000) * recorded_page_height
+        // Render at that absolute position (canvas height = current page height)
+        return (point.y / 1000) * point.doc_height;
+      }
+      // Legacy: percentage of current canvas height
+      return (point.y / 1000) * height;
+    };
+
     // Draw density map as grayscale alpha
     points.forEach(point => {
-      // Both X and Y are normalized 0–1000 by the tracker (x / pageWidth * 1000, pageY / pageHeight * 1000)
       const x = (point.x / 1000) * width;
-      const y = (point.y / 1000) * height;
+      const y = resolveY(point);
 
       if (isNaN(x) || isNaN(y)) return;
 
@@ -318,7 +330,7 @@ export default function HeatmapOverlay({
 
       points.forEach(point => {
         const px = (point.x / 1000) * width;
-        const py = (point.y / 1000) * height;
+        const py = resolveY(point);
         if (isNaN(px) || isNaN(py)) return;
 
         const existing = clusters.find(c => Math.hypot(c.x - px, c.y - py) < clusterRadius);

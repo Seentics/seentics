@@ -173,7 +173,7 @@ function HeatmapViewContent() {
         const response = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}&device=${device}${dateParams}`);
         if (cancelled) return;
         const rawPoints = response.data.points || [];
-        setPoints(rawPoints.map((p: any) => ({ ...p, x: p.x_percent ?? p.x, y: p.y_percent ?? p.y })));
+        setPoints(rawPoints.map((p: any) => ({ ...p, x: p.x_percent ?? p.x, y: p.y_percent ?? p.y, doc_height: p.doc_height ?? 0 })));
       } catch (err: any) {
         if (!cancelled) console.error('Failed to fetch heatmap points:', err);
       } finally {

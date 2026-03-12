@@ -44,9 +44,9 @@
     var s0 = ss.getItem('_ss0');
     var now = Date.now();
 
-    // Check for inactivity (30m) OR total session duration (30m)
+    // Check for inactivity (30m) OR total session duration (2h)
     var isInactive = !la || now - parseInt(la) > 1800000;
-    var isTooLong = !s0 || now - parseInt(s0) > 1800000;
+    var isTooLong = !s0 || now - parseInt(s0) > 7200000;
 
     if (!S.sid || isInactive || isTooLong) {
       S.sid = uuid();
@@ -200,7 +200,7 @@
   };
   var hmAdd = function (type, x, y, sel, elX, elY) {
     if (!hm.enabled) return;
-    buf.heatmaps.push({ type: type, x: x, y: y, selector: sel || '', el_x: (elX !== undefined ? elX : -1), el_y: (elY !== undefined ? elY : -1), url: normPath(loc.pathname), device_type: hmDev(), timestamp: Math.floor(Date.now() / 1000) });
+    buf.heatmaps.push({ type: type, x: x, y: y, selector: sel || '', el_x: (elX !== undefined ? elX : -1), el_y: (elY !== undefined ? elY : -1), doc_h: hmDims().h, url: normPath(loc.pathname), device_type: hmDev(), timestamp: Math.floor(Date.now() / 1000) });
   };
 
   var initHeatmap = function () {
@@ -305,7 +305,7 @@
 
     buf.replay = { events: [], seq: parseInt(ss.getItem('_rseq') || '0') };
     var s0 = parseInt(ss.getItem('_ss0') || Date.now() + '');
-    var remaining = 1800000 - (Date.now() - s0);
+    var remaining = 7200000 - (Date.now() - s0);
 
     if (remaining <= 0) return; // Session limit reached
 

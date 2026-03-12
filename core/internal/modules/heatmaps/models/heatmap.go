@@ -21,13 +21,20 @@ type HeatmapPoint struct {
 	// -1 means not recorded (legacy data or non-click event types).
 	ElX int `json:"el_x" db:"el_x"`
 	ElY int `json:"el_y" db:"el_y"`
+	// Document height (pixels) at recording time. Used by the overlay to
+	// convert percentage-based Y back to absolute pixels for accurate
+	// rendering on dynamic pages where content height varies.
+	// 0 means legacy data (no doc_height recorded).
+	DocHeight int `json:"doc_height" db:"doc_height"`
 }
 
-// UnmarshalJSON handles both "x"/"y" and "x_percent"/"y_percent" from frontend
+// UnmarshalJSON handles both "x"/"y" and "x_percent"/"y_percent" from frontend,
+// and "doc_h" (tracker shorthand) mapped to DocHeight.
 func (p *HeatmapPoint) UnmarshalJSON(data []byte) error {
 	type Alias HeatmapPoint
 	aux := &struct {
 		*Alias
+		DocH int `json:"doc_h"`
 	}{
 		Alias: (*Alias)(p),
 	}
@@ -47,6 +54,10 @@ func (p *HeatmapPoint) UnmarshalJSON(data []byte) error {
 	if p.ElX == 0 && p.ElY == 0 {
 		p.ElX = -1
 		p.ElY = -1
+	}
+	// Tracker sends "doc_h" (short name); map to DocHeight
+	if p.DocHeight == 0 && aux.DocH > 0 {
+		p.DocHeight = aux.DocH
 	}
 
 	return nil

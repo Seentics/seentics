@@ -125,27 +125,29 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
             setStreamProgress({ loaded: 0, total: totalChunks });
             const sorted = [...chunks].sort((a, b) => a.seq - b.seq);
 
-            // Download all chunks with 4 concurrent workers
+            // Download all chunks with 4 concurrent workers, preserving sequence order
+            const chunkResults: any[][] = new Array(sorted.length);
             let loadedCount = 0;
             const fetchWorker = async (startIdx: number) => {
-              const results: any[] = [];
               for (let i = startIdx; i < sorted.length; i += 4) {
-                if (signal.aborted) return results;
-                const chunkEvents = await fetchChunk(sorted[i].url);
-                if (chunkEvents.length > 0) results.push(...chunkEvents);
+                if (signal.aborted) return;
+                chunkResults[i] = await fetchChunk(sorted[i].url);
                 loadedCount++;
                 setStreamProgress({ loaded: loadedCount, total: totalChunks });
               }
-              return results;
             };
 
-            const workerResults = await Promise.all(
+            await Promise.all(
               Array.from({ length: Math.min(4, sorted.length) }, (_, i) => fetchWorker(i))
             );
             if (signal.aborted) return;
 
-            allEvents = workerResults.flat();
-            allEvents.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+            // Concatenate in chunk sequence order (NOT timestamp sort)
+            // rrweb events must stay in emission order within and across chunks
+            allEvents = chunkResults.reduce((acc, events) => {
+              if (events?.length) acc.push(...events);
+              return acc;
+            }, [] as any[]);
 
             if (allEvents.length > 0 && hasFullSnapshot(allEvents)) {
               setEvents(allEvents);

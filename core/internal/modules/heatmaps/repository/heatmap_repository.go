@@ -41,14 +41,16 @@ func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string,
 	}
 
 	query := `
-			INSERT INTO heatmap_points (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, el_x, el_y, intensity, last_updated)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+			INSERT INTO heatmap_points (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, el_x, el_y, doc_height, intensity, last_updated)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
 				ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector)
 				DO UPDATE SET
 					intensity = heatmap_points.intensity + EXCLUDED.intensity,
 					-- keep el_x/el_y from the first recorded click (non-negative wins)
 					el_x = CASE WHEN heatmap_points.el_x < 0 THEN EXCLUDED.el_x ELSE heatmap_points.el_x END,
 					el_y = CASE WHEN heatmap_points.el_y < 0 THEN EXCLUDED.el_y ELSE heatmap_points.el_y END,
+					-- keep the largest doc_height seen (best approximation for dynamic pages)
+					doc_height = GREATEST(heatmap_points.doc_height, EXCLUDED.doc_height),
 					last_updated = NOW()
 	`
 
@@ -71,7 +73,7 @@ func (r *heatmapRepository) RecordHeatmap(ctx context.Context, websiteID string,
 		if elY == 0 {
 			elY = -1
 		}
-		batch.Queue(query, websiteID, p.URL, p.Type, deviceType, int32(math.Round(p.XPercent*100)), int32(math.Round(p.YPercent*100)), p.Selector, elX, elY, intensity)
+		batch.Queue(query, websiteID, p.URL, p.Type, deviceType, int32(math.Round(p.XPercent*100)), int32(math.Round(p.YPercent*100)), p.Selector, elX, elY, p.DocHeight, intensity)
 	}
 
 	br := r.db.SendBatch(ctx, batch)
@@ -91,13 +93,14 @@ func (r *heatmapRepository) RecordHeatmapBatch(ctx context.Context, points []mod
 	}
 
 	query := `
-			INSERT INTO heatmap_points (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, el_x, el_y, intensity, last_updated)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+			INSERT INTO heatmap_points (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector, el_x, el_y, doc_height, intensity, last_updated)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
 				ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector)
 				DO UPDATE SET
 					intensity = heatmap_points.intensity + EXCLUDED.intensity,
 					el_x = CASE WHEN heatmap_points.el_x < 0 THEN EXCLUDED.el_x ELSE heatmap_points.el_x END,
 					el_y = CASE WHEN heatmap_points.el_y < 0 THEN EXCLUDED.el_y ELSE heatmap_points.el_y END,
+					doc_height = GREATEST(heatmap_points.doc_height, EXCLUDED.doc_height),
 					last_updated = NOW()
 	`
 
@@ -119,7 +122,7 @@ func (r *heatmapRepository) RecordHeatmapBatch(ctx context.Context, points []mod
 		if elY == 0 {
 			elY = -1
 		}
-		batch.Queue(query, p.WebsiteID, p.URL, p.Type, deviceType, int32(math.Round(p.XPercent*100)), int32(math.Round(p.YPercent*100)), p.Selector, elX, elY, intensity)
+		batch.Queue(query, p.WebsiteID, p.URL, p.Type, deviceType, int32(math.Round(p.XPercent*100)), int32(math.Round(p.YPercent*100)), p.Selector, elX, elY, p.DocHeight, intensity)
 	}
 
 	br := r.db.SendBatch(ctx, batch)
@@ -141,7 +144,7 @@ func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string
 		// No device filter — aggregate across all device types
 		query := `
 			SELECT x_percent, y_percent, SUM(intensity) AS intensity, target_selector,
-			       MAX(el_x) AS el_x, MAX(el_y) AS el_y
+			       MAX(el_x) AS el_x, MAX(el_y) AS el_y, MAX(doc_height) AS doc_height
 			FROM heatmap_points
 			WHERE website_id = $1 AND page_path = $2 AND event_type = $3 AND last_updated BETWEEN $4 AND $5
 			GROUP BY x_percent, y_percent, target_selector
@@ -151,7 +154,7 @@ func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string
 		rows, err = r.db.Query(ctx, query, websiteID, url, heatmapType, from, to)
 	} else {
 		query := `
-			SELECT x_percent, y_percent, intensity, target_selector, el_x, el_y
+			SELECT x_percent, y_percent, intensity, target_selector, el_x, el_y, doc_height
 			FROM heatmap_points
 			WHERE website_id = $1 AND page_path = $2 AND event_type = $3 AND device_type = $4 AND last_updated BETWEEN $5 AND $6
 			ORDER BY intensity DESC
@@ -169,7 +172,7 @@ func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string
 	for rows.Next() {
 		var p models.HeatmapPoint
 		var xInt, yInt int32
-		if err := rows.Scan(&xInt, &yInt, &p.Intensity, &p.Selector, &p.ElX, &p.ElY); err != nil {
+		if err := rows.Scan(&xInt, &yInt, &p.Intensity, &p.Selector, &p.ElX, &p.ElY, &p.DocHeight); err != nil {
 			return nil, err
 		}
 		p.XPercent = float64(xInt) / 100.0
