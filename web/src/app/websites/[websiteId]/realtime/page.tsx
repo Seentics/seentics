@@ -76,16 +76,50 @@ function DeviceIcon({ name }: { name: string }) {
 }
 
 // ─── Referrer favicon ───────────────────────────────────────────────────────
-function ReferrerIcon({ name }: { name: string }) {
-  if (!name || name === '(direct)' || name === 'direct' || name === 'Direct') {
+// ─── Parse referrer URL into a readable source name ─────────────────────────
+const KNOWN_SOURCES: Record<string, string> = {
+  'google': 'Google', 'facebook': 'Facebook', 'twitter': 'Twitter', 'x.com': 'Twitter',
+  'linkedin': 'LinkedIn', 'reddit': 'Reddit', 'youtube': 'YouTube', 'instagram': 'Instagram',
+  'pinterest': 'Pinterest', 'tiktok': 'TikTok', 'duckduckgo': 'DuckDuckGo', 'bing': 'Bing',
+  'yahoo': 'Yahoo', 'github': 'GitHub', 'stackoverflow': 'Stack Overflow',
+  'medium': 'Medium', 'producthunt': 'Product Hunt', 'hackernews': 'Hacker News',
+  'news.ycombinator': 'Hacker News', 'telegram': 'Telegram', 't.me': 'Telegram',
+  'whatsapp': 'WhatsApp', 'snapchat': 'Snapchat', 'baidu': 'Baidu', 'yandex': 'Yandex',
+  'devto': 'DEV.to', 'dev.to': 'DEV.to',
+};
+
+const SOURCE_IMAGES: Record<string, string> = {
+  'Google': 'google', 'Facebook': 'facebook', 'Twitter': 'twitter', 'LinkedIn': 'linkedin',
+  'Reddit': 'reddit', 'YouTube': 'youtube', 'Instagram': 'instagram', 'Pinterest': 'pinterest',
+  'TikTok': 'tiktok', 'DuckDuckGo': 'duckduckgo', 'Bing': 'bing', 'Yahoo': 'yahoo',
+  'GitHub': 'github', 'Stack Overflow': 'stackoverflow', 'Medium': 'medium',
+  'Product Hunt': 'producthunt', 'Hacker News': 'hackernews', 'Telegram': 'telegram',
+  'WhatsApp': 'whatsapp', 'Snapchat': 'snapchat', 'DEV.to': 'devto',
+};
+
+function parseReferrer(raw: string): { label: string; domain: string } {
+  if (!raw || raw === '(direct)' || raw === 'direct' || raw === 'Direct') {
+    return { label: 'Direct', domain: '' };
+  }
+  const domain = raw.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+  for (const [key, label] of Object.entries(KNOWN_SOURCES)) {
+    if (domain.includes(key)) return { label, domain };
+  }
+  return { label: domain, domain };
+}
+
+function ReferrerIcon({ name, domain }: { name: string; domain: string }) {
+  if (name === 'Direct') {
     return (
       <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-muted text-[9px] font-bold text-muted-foreground shrink-0">
         D
       </span>
     );
   }
-  // Extract domain for favicon
-  const domain = name.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  const sourceImg = SOURCE_IMAGES[name];
+  if (sourceImg) {
+    return <img src={`/images/sources/${sourceImg}.png`} alt={name} className="w-4 h-4 rounded-sm shrink-0 object-contain" />;
+  }
   return (
     <Image
       src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
@@ -227,6 +261,55 @@ function BreakdownRow({
         <span className="text-sm font-bold text-foreground tabular-nums w-8 text-right shrink-0">{count}</span>
       </div>
     </div>
+  );
+}
+
+// ─── Referrer Breakdown (with URL parsing + merging) ────────────────────────
+function ReferrerBreakdown({ referrers, isLoading }: { referrers: Array<{ name: string; visitors: number }>; isLoading: boolean }) {
+  const parsed = useMemo(() => {
+    const merged = new Map<string, { label: string; domain: string; visitors: number }>();
+    for (const r of referrers) {
+      const { label, domain } = parseReferrer(r.name);
+      const existing = merged.get(label);
+      if (existing) { existing.visitors += r.visitors; }
+      else { merged.set(label, { label, domain, visitors: r.visitors }); }
+    }
+    return Array.from(merged.values()).sort((a, b) => b.visitors - a.visitors);
+  }, [referrers]);
+
+  const total = useMemo(() => parsed.reduce((sum, i) => sum + i.visitors, 0), [parsed]);
+
+  return (
+    <Card className="border border-border/60 bg-card shadow-sm">
+      <CardHeader className="p-6 pb-4 border-b border-border/60">
+        <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
+          <ExternalLink size={15} className="text-muted-foreground" />
+          Traffic Sources
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4">
+        {isLoading ? (
+          <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-8 bg-muted/20 rounded animate-pulse" />)}</div>
+        ) : parsed.length === 0 ? (
+          <p className="text-xs text-muted-foreground/60 text-center py-6">No referrer data</p>
+        ) : (
+          <div className="space-y-1">
+            {parsed.map((item) => {
+              const pct = total > 0 ? (item.visitors / total) * 100 : 0;
+              return (
+                <BreakdownRow
+                  key={item.label}
+                  icon={<ReferrerIcon name={item.label} domain={item.domain} />}
+                  label={item.label}
+                  count={item.visitors}
+                  pct={pct}
+                />
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -421,21 +504,7 @@ export default function RealtimePage() {
 
           {/* Breakdown Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <BreakdownCard
-              title="Top Referrers"
-              icon={ExternalLink}
-              items={data?.top_referrers ?? []}
-              emptyText="No referrer data"
-              isLoading={isLoading}
-              renderRow={(item, pct) => (
-                <BreakdownRow
-                  icon={<ReferrerIcon name={item.name} />}
-                  label={item.name}
-                  count={item.visitors}
-                  pct={pct}
-                />
-              )}
-            />
+            <ReferrerBreakdown referrers={data?.top_referrers ?? []} isLoading={isLoading} />
             <BreakdownCard
               title="Countries"
               icon={Globe}
