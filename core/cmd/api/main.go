@@ -437,12 +437,21 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, analyticsHandler *ha
 			websites.POST("/:id/goals", websiteHandler.CreateGoal)
 			websites.DELETE("/:id/goals/:goal_id", websiteHandler.DeleteGoal)
 
-			// Team Members
+			// Team Members & Permissions
+			websites.GET("/:id/my-role", websiteHandler.GetMyRole)
 			websites.GET("/:id/members", websiteHandler.ListMembers)
 			websites.POST("/:id/members", websiteHandler.AddMember)
 			websites.DELETE("/:id/members/:user_id", websiteHandler.RemoveMember)
 			websites.PUT("/:id/members/:user_id/role", websiteHandler.UpdateMemberRole)
+
+			// Token-based Invitations
+			websites.POST("/:id/invitations", websiteHandler.InviteMemberByToken)
+			websites.GET("/:id/invitations", websiteHandler.ListPendingInvitations)
+			websites.DELETE("/:id/invitations/:invitation_id", websiteHandler.RevokeInvitation)
 		}
+
+		// Accept invite (outside of /:id group to avoid param conflict)
+		v1.POST("/user/accept-invite", websiteHandler.AcceptInvitation)
 
 		// Public dashboard (no auth required)
 		v1.GET("/analytics/public/dashboard/:public_id", websiteHandler.GetPublicDashboard)

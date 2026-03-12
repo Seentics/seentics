@@ -155,17 +155,25 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-const getImageForName = (name: string, tab: string) => {
+const getImageForName = (name: string, _tab: string) => {
   const lower = (name || '').toLowerCase();
-  if (lower.includes('google')) return '/images/search.png';
-  if (lower.includes('facebook')) return '/images/facebook.png';
-  if (lower.includes('twitter') || lower.includes('x.com')) return '/images/twitter.png';
-  if (lower.includes('linkedin')) return '/images/linkedin.png';
-  if (lower.includes('instagram')) return '/images/instagram.png';
-  if (lower.includes('youtube')) return '/images/search.png';
-  if (lower.includes('tiktok')) return '/images/tiktok.png';
-  if (lower.includes('pinterest')) return '/images/pinterest.png';
-  if (lower.includes('email') || lower.includes('mail')) return '/images/search.png';
-  if (lower.includes('direct')) return '/images/link.png';
-  return '/images/planet-earth.png';
+  if (lower.includes('google')) return '/images/sources/google.png';
+  if (lower.includes('bing') || lower.includes('microsoft')) return '/images/sources/bing.png';
+  if (lower.includes('facebook')) return '/images/sources/facebook.png';
+  if (lower.includes('twitter') || lower.includes('x.com')) return '/images/sources/twitter.png';
+  if (lower.includes('linkedin')) return '/images/sources/linkedin.png';
+  if (lower.includes('instagram')) return '/images/sources/instagram.png';
+  if (lower.includes('youtube')) return '/images/sources/youtube.png';
+  if (lower.includes('tiktok')) return '/images/sources/tiktok.png';
+  if (lower.includes('pinterest')) return '/images/sources/pinterest.png';
+  if (lower.includes('reddit')) return '/images/sources/reddit.png';
+  if (lower.includes('github')) return '/images/sources/github.png';
+  if (lower.includes('producthunt') || lower.includes('product hunt')) return '/images/sources/producthunt.png';
+  if (lower.includes('medium')) return '/images/sources/medium.png';
+  if (lower.includes('stackoverflow') || lower.includes('stack overflow')) return '/images/sources/stackoverflow.png';
+  if (lower.includes('telegram')) return '/images/sources/telegram.png';
+  if (lower.includes('whatsapp')) return '/images/sources/whatsapp.png';
+  if (lower.includes('snapchat')) return '/images/sources/snapchat.png';
+  if (lower.includes('newsletter') || lower.includes('email') || lower.includes('mail')) return '/images/sources/google.png';
+  return '/images/sources/google.png';
 };

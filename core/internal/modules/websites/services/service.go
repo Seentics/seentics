@@ -549,18 +549,69 @@ func (s *WebsiteService) DeleteGoal(ctx context.Context, siteID string, goalID u
 	return s.repo.DeleteGoal(ctx, goalID, w.ID)
 }
 
-// ListMembers returns all members of a website
-func (s *WebsiteService) ListMembers(ctx context.Context, siteID string) ([]models.WebsiteMember, error) {
+// GetUserRole returns the role of a user for a website.
+// The website owner (websites.user_id) always has "owner" role even without a website_members row.
+func (s *WebsiteService) GetUserRole(ctx context.Context, siteID string, userID uuid.UUID) (string, error) {
 	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	if err != nil {
+		return "", err
+	}
+
+	// Website creator is always owner
+	if w.UserID == userID {
+		return "owner", nil
+	}
+
+	role, err := s.repo.GetMemberRole(ctx, w.ID, userID)
+	if err != nil {
+		return "", err
+	}
+	return role, nil
+}
+
+// requireRole checks that requesterID has at least one of the allowed roles for this website.
+// Returns the website and an error if permission is denied.
+func (s *WebsiteService) requireRole(ctx context.Context, siteID string, requesterID uuid.UUID, allowedRoles ...string) (*models.Website, error) {
+	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Website creator is always owner
+	userRole := ""
+	if w.UserID == requesterID {
+		userRole = "owner"
+	} else {
+		userRole, err = s.repo.GetMemberRole(ctx, w.ID, requesterID)
+		if err != nil {
+			return nil, fmt.Errorf("permission check failed")
+		}
+	}
+
+	if userRole == "" {
+		return nil, fmt.Errorf("access denied: not a member of this website")
+	}
+
+	for _, r := range allowedRoles {
+		if userRole == r {
+			return w, nil
+		}
+	}
+	return nil, fmt.Errorf("access denied: requires %v role, you have '%s'", allowedRoles, userRole)
+}
+
+// ListMembers returns all members of a website (any member can view)
+func (s *WebsiteService) ListMembers(ctx context.Context, siteID string, requesterID uuid.UUID) ([]models.WebsiteMember, error) {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin", "viewer")
 	if err != nil {
 		return nil, err
 	}
 	return s.repo.ListMembers(ctx, w.ID)
 }
 
-// AddMember adds a user to a website team
-func (s *WebsiteService) AddMember(ctx context.Context, siteID string, req models.InviteMemberRequest) (*models.WebsiteMember, error) {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+// AddMember adds a user to a website team (owner/admin only)
+func (s *WebsiteService) AddMember(ctx context.Context, siteID string, requesterID uuid.UUID, req models.InviteMemberRequest) (*models.WebsiteMember, error) {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin")
 	if err != nil {
 		return nil, err
 	}
@@ -594,30 +645,38 @@ func (s *WebsiteService) AddMember(ctx context.Context, siteID string, req model
 	return member, nil
 }
 
-// RemoveMember removes a user from a website team
-func (s *WebsiteService) RemoveMember(ctx context.Context, siteID string, userID uuid.UUID) error {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+// RemoveMember removes a user from a website team (owner/admin only)
+func (s *WebsiteService) RemoveMember(ctx context.Context, siteID string, requesterID uuid.UUID, targetUserID uuid.UUID) error {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin")
 	if err != nil {
 		return err
 	}
 
-	// Cannot remove the owner (the user_id in websites table)
-	if w.UserID == userID {
+	// Cannot remove the owner
+	if w.UserID == targetUserID {
 		return fmt.Errorf("cannot remove the website owner from the team")
 	}
 
-	return s.repo.RemoveMember(ctx, w.ID, userID)
+	// Admins cannot remove other admins — only owners can
+	if w.UserID != requesterID {
+		targetRole, _ := s.repo.GetMemberRole(ctx, w.ID, targetUserID)
+		if targetRole == "admin" {
+			return fmt.Errorf("only the website owner can remove admins")
+		}
+	}
+
+	return s.repo.RemoveMember(ctx, w.ID, targetUserID)
 }
 
-// UpdateMemberRole changes a team member's role
-func (s *WebsiteService) UpdateMemberRole(ctx context.Context, siteID string, userID uuid.UUID, role string) error {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+// UpdateMemberRole changes a team member's role (owner only)
+func (s *WebsiteService) UpdateMemberRole(ctx context.Context, siteID string, requesterID uuid.UUID, targetUserID uuid.UUID, role string) error {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner")
 	if err != nil {
 		return err
 	}
 
 	// Cannot change the owner's role
-	if w.UserID == userID {
+	if w.UserID == targetUserID {
 		return fmt.Errorf("cannot change the website owner's role")
 	}
 
@@ -625,7 +684,103 @@ func (s *WebsiteService) UpdateMemberRole(ctx context.Context, siteID string, us
 		return fmt.Errorf("invalid role: must be 'admin' or 'viewer'")
 	}
 
-	return s.repo.UpdateMemberRole(ctx, w.ID, userID, role)
+	return s.repo.UpdateMemberRole(ctx, w.ID, targetUserID, role)
+}
+
+// --- Token-based Invitation Flow ---
+
+// InviteMemberByToken creates a pending invitation with a unique token and returns it.
+// The caller (or an email service) should send the accept URL to the invitee.
+func (s *WebsiteService) InviteMemberByToken(ctx context.Context, siteID string, requesterID uuid.UUID, req models.InviteMemberRequest) (*models.WebsiteInvitation, error) {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin")
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if already a member by email
+	user, _ := s.authRepo.GetByEmail(ctx, req.Email)
+	if user != nil {
+		existing, _ := s.repo.GetMember(ctx, w.ID, user.ID)
+		if existing != nil {
+			return nil, fmt.Errorf("user is already a member of this website")
+		}
+	}
+
+	token := generateID(16) // 32-char hex token
+	inv := &models.WebsiteInvitation{
+		WebsiteID: w.ID,
+		Email:     req.Email,
+		Role:      req.Role,
+		Token:     token,
+		InvitedBy: requesterID,
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.repo.CreateInvitation(ctx, inv); err != nil {
+		return nil, fmt.Errorf("failed to create invitation (may already be pending): %w", err)
+	}
+
+	inv.WebsiteName = w.Name
+	return inv, nil
+}
+
+// AcceptInvitation validates a token and adds the user as a member.
+func (s *WebsiteService) AcceptInvitation(ctx context.Context, token string, userID uuid.UUID, userEmail string) error {
+	inv, err := s.repo.GetInvitationByToken(ctx, token)
+	if err != nil || inv == nil {
+		return fmt.Errorf("invalid invitation token")
+	}
+
+	if inv.AcceptedAt != nil {
+		return fmt.Errorf("invitation already accepted")
+	}
+
+	if time.Now().After(inv.ExpiresAt) {
+		return fmt.Errorf("invitation has expired")
+	}
+
+	// Verify the accepting user's email matches the invitation
+	if strings.EqualFold(inv.Email, userEmail) == false {
+		return fmt.Errorf("this invitation was sent to a different email address")
+	}
+
+	// Check if already a member
+	existing, _ := s.repo.GetMember(ctx, inv.WebsiteID, userID)
+	if existing != nil {
+		// Already a member, just mark accepted
+		return s.repo.AcceptInvitation(ctx, inv.ID)
+	}
+
+	member := &models.WebsiteMember{
+		WebsiteID: inv.WebsiteID,
+		UserID:    userID,
+		Role:      inv.Role,
+	}
+
+	if err := s.repo.AddMember(ctx, member); err != nil {
+		return fmt.Errorf("failed to add member: %w", err)
+	}
+
+	return s.repo.AcceptInvitation(ctx, inv.ID)
+}
+
+// ListPendingInvitations returns pending invitations for a website (owner/admin only).
+func (s *WebsiteService) ListPendingInvitations(ctx context.Context, siteID string, requesterID uuid.UUID) ([]models.WebsiteInvitation, error) {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin")
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.ListPendingInvitations(ctx, w.ID)
+}
+
+// RevokeInvitation cancels a pending invitation (owner/admin only).
+func (s *WebsiteService) RevokeInvitation(ctx context.Context, siteID string, requesterID uuid.UUID, invitationID uuid.UUID) error {
+	_, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin")
+	if err != nil {
+		return err
+	}
+	return s.repo.DeleteInvitation(ctx, invitationID)
 }
 
 // TogglePublicShare enables or disables public dashboard sharing for a website.

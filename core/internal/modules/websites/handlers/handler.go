@@ -1,10 +1,11 @@
 package handlers
 
 import (
+	"net/http"
+	"strings"
+
 	"github.com/Seentics/seentics/internal/modules/websites/models"
 	"github.com/Seentics/seentics/internal/modules/websites/services"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -216,11 +217,53 @@ func (h *WebsiteHandler) DeleteGoal(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Goal deleted successfully"})
 }
 
+// extractUserID is a helper to get the authenticated user's UUID from the gin context.
+func (h *WebsiteHandler) extractUserID(c *gin.Context) (uuid.UUID, bool) {
+	userIDStr, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return uuid.Nil, false
+	}
+	userID, err := uuid.Parse(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID context"})
+		return uuid.Nil, false
+	}
+	return userID, true
+}
+
+// GetMyRole handles GET /api/v1/user/websites/:id/my-role
+func (h *WebsiteHandler) GetMyRole(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
+	id := c.Param("id")
+	role, err := h.service.GetUserRole(c.Request.Context(), id, requesterID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Not a member of this website"})
+		return
+	}
+	if role == "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not a member of this website"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"role": role})
+}
+
 // ListMembers handles GET /api/v1/user/websites/:id/members
 func (h *WebsiteHandler) ListMembers(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
-	members, err := h.service.ListMembers(c.Request.Context(), id)
+	members, err := h.service.ListMembers(c.Request.Context(), id, requesterID)
 	if err != nil {
+		if isPermissionError(err) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list members"})
 		return
 	}
@@ -229,6 +272,10 @@ func (h *WebsiteHandler) ListMembers(c *gin.Context) {
 
 // AddMember handles POST /api/v1/user/websites/:id/members
 func (h *WebsiteHandler) AddMember(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
 	var req models.InviteMemberRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -236,9 +283,13 @@ func (h *WebsiteHandler) AddMember(c *gin.Context) {
 		return
 	}
 
-	member, err := h.service.AddMember(c.Request.Context(), id, req)
+	member, err := h.service.AddMember(c.Request.Context(), id, requesterID, req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if isPermissionError(err) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -247,16 +298,24 @@ func (h *WebsiteHandler) AddMember(c *gin.Context) {
 
 // RemoveMember handles DELETE /api/v1/user/websites/:id/members/:user_id
 func (h *WebsiteHandler) RemoveMember(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
-	userIDStr := c.Param("user_id")
-	userID, err := uuid.Parse(userIDStr)
+	targetUserIDStr := c.Param("user_id")
+	targetUserID, err := uuid.Parse(targetUserIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
 	}
 
-	if err := h.service.RemoveMember(c.Request.Context(), id, userID); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.service.RemoveMember(c.Request.Context(), id, requesterID, targetUserID); err != nil {
+		if isPermissionError(err) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -265,9 +324,13 @@ func (h *WebsiteHandler) RemoveMember(c *gin.Context) {
 
 // UpdateMemberRole handles PUT /api/v1/user/websites/:id/members/:user_id/role
 func (h *WebsiteHandler) UpdateMemberRole(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
-	userIDStr := c.Param("user_id")
-	userID, err := uuid.Parse(userIDStr)
+	targetUserIDStr := c.Param("user_id")
+	targetUserID, err := uuid.Parse(targetUserIDStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
 		return
@@ -279,12 +342,119 @@ func (h *WebsiteHandler) UpdateMemberRole(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UpdateMemberRole(c.Request.Context(), id, userID, req.Role); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+	if err := h.service.UpdateMemberRole(c.Request.Context(), id, requesterID, targetUserID, req.Role); err != nil {
+		if isPermissionError(err) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Member role updated successfully"})
+}
+
+// isPermissionError checks if an error is a permission/access denial error.
+func isPermissionError(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "access denied") || strings.Contains(msg, "insufficient permissions") || strings.Contains(msg, "only the website owner")
+}
+
+// --- Token-based Invitation Endpoints ---
+
+// InviteMemberByToken handles POST /api/v1/user/websites/:id/invitations
+func (h *WebsiteHandler) InviteMemberByToken(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
+	id := c.Param("id")
+	var req models.InviteMemberRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	inv, err := h.service.InviteMemberByToken(c.Request.Context(), id, requesterID, req)
+	if err != nil {
+		if isPermissionError(err) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Invitation created", "data": inv})
+}
+
+// AcceptInvitation handles POST /api/v1/user/websites/accept-invite
+func (h *WebsiteHandler) AcceptInvitation(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
+
+	userEmail, _ := c.Get("user_email")
+	emailStr, _ := userEmail.(string)
+
+	var req models.AcceptInviteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.AcceptInvitation(c.Request.Context(), req.Token, requesterID, emailStr); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Invitation accepted successfully"})
+}
+
+// ListPendingInvitations handles GET /api/v1/user/websites/:id/invitations
+func (h *WebsiteHandler) ListPendingInvitations(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
+	id := c.Param("id")
+	invitations, err := h.service.ListPendingInvitations(c.Request.Context(), id, requesterID)
+	if err != nil {
+		if isPermissionError(err) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list invitations"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": invitations})
+}
+
+// RevokeInvitation handles DELETE /api/v1/user/websites/:id/invitations/:invitation_id
+func (h *WebsiteHandler) RevokeInvitation(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
+	id := c.Param("id")
+	invIDStr := c.Param("invitation_id")
+	invID, err := uuid.Parse(invIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid invitation ID"})
+		return
+	}
+
+	if err := h.service.RevokeInvitation(c.Request.Context(), id, requesterID, invID); err != nil {
+		if isPermissionError(err) {
+			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Invitation revoked"})
 }
 
 // Delete handles the DELETE /api/v1/user/websites/:id request

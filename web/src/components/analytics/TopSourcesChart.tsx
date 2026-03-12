@@ -52,17 +52,26 @@ const getCanonicalName = (referrer: string): string => {
 
 const getSourceImage = (label: string) => {
   const lower = label.toLowerCase();
-  if (lower.includes('google')) return '/images/browser/chrome.png';
-  if (lower.includes('bing') || lower.includes('microsoft')) return '/images/browser/edge.png';
-  if (lower.includes('yahoo')) return '/images/browser/safari.png';
+  if (lower.includes('google')) return '/images/sources/google.png';
+  if (lower.includes('bing') || lower.includes('microsoft')) return '/images/sources/bing.png';
+  if (lower.includes('yahoo')) return '/images/sources/yahoo.png';
   if (lower.includes('yandex')) return '/images/browser/yandexbrowser.png';
-  if (lower.includes('duckduckgo') || lower.includes('baidu')) return '/images/browser/searchbot.png';
-  if (lower.includes('facebook') || lower.includes('fb.')) return '/images/browser/facebook.png';
-  if (lower.includes('instagram')) return '/images/browser/instagram.png';
-  if (lower.includes('twitter') || lower.includes('x.com') || lower.includes('t.co')) return '/images/browser/unknown.png';
-  if (lower.includes('reddit')) return '/images/browser/brave.png';
-  if (lower.includes('youtube')) return '/images/browser/chrome.png';
-  if (lower.includes('pinterest')) return '/images/browser/opera.png';
+  if (lower.includes('duckduckgo')) return '/images/sources/duckduckgo.png';
+  if (lower.includes('facebook') || lower.includes('fb.')) return '/images/sources/facebook.png';
+  if (lower.includes('instagram')) return '/images/sources/instagram.png';
+  if (lower.includes('twitter') || lower.includes('x.com') || lower.includes('t.co')) return '/images/sources/twitter.png';
+  if (lower.includes('reddit')) return '/images/sources/reddit.png';
+  if (lower.includes('youtube')) return '/images/sources/youtube.png';
+  if (lower.includes('pinterest')) return '/images/sources/pinterest.png';
+  if (lower.includes('linkedin')) return '/images/sources/linkedin.png';
+  if (lower.includes('github')) return '/images/sources/github.png';
+  if (lower.includes('producthunt') || lower.includes('product hunt')) return '/images/sources/producthunt.png';
+  if (lower.includes('tiktok')) return '/images/sources/tiktok.png';
+  if (lower.includes('medium')) return '/images/sources/medium.png';
+  if (lower.includes('stackoverflow') || lower.includes('stack overflow')) return '/images/sources/stackoverflow.png';
+  if (lower.includes('telegram')) return '/images/sources/telegram.png';
+  if (lower.includes('whatsapp')) return '/images/sources/whatsapp.png';
+  if (lower.includes('snapchat')) return '/images/sources/snapchat.png';
   return null;
 };
 

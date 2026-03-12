@@ -34,6 +34,7 @@ export const FEATURES: Record<string, boolean> = {
   WHITE_LABEL_OPTIONS: isEnterprise,
   STRIPE_INTEGRATION: isEnterprise,
   USAGE_ANALYTICS: isEnterprise,
+  API_ACCESS: isEnterprise,
 };
 
 // Check if a specific feature is enabled

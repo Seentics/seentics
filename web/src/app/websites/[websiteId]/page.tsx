@@ -12,7 +12,7 @@ import { RecentActivityFeed } from '@/components/analytics/RecentActivityFeed';
 import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -35,8 +35,6 @@ import {
   useGoalStats,
   usePreviousPeriodDailyStats,
   useRecentActivity,
-  useTopLanguages,
-  useTopCities,
 } from '@/lib/analytics-api';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
@@ -230,8 +228,6 @@ export default function WebsiteDashboardPage() {
   const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(deferredId, dateRange);
   const { data: goalStats, isLoading: goalStatsLoading } = useGoalStats(deferredId, dateRange);
   const { data: recentActivity, isLoading: recentActivityLoading } = useRecentActivity(deferredId);
-  const { data: languagesData, isLoading: languagesLoading } = useTopLanguages(deferredId, dateRange);
-  const { data: citiesData, isLoading: citiesLoading } = useTopCities(deferredId, dateRange);
 
   // Previous period data for comparison overlay
   const { data: previousDailyStats } = usePreviousPeriodDailyStats(deferredId, dateRange, showComparison);
@@ -645,62 +641,6 @@ export default function WebsiteDashboardPage() {
             </Card>
           </div>
 
-          {/* Language + City breakdown — 2-col grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <Card className="border border-border/60 bg-card shadow-sm">
-              <CardHeader className="p-8 pb-4 border-b border-border/60">
-                <CardTitle className="text-base font-semibold tracking-tight">Languages</CardTitle>
-              </CardHeader>
-              <CardContent className="p-8">
-                {languagesLoading ? (
-                  <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-6 bg-muted/30 rounded animate-pulse" />)}</div>
-                ) : (languagesData?.top_languages?.length ?? 0) === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">No language data yet</p>
-                ) : (
-                  <div className="space-y-2">
-                    {(languagesData?.top_languages ?? []).slice(0, 8).map((item: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between text-sm">
-                        <span className="text-foreground truncate">{item.name}</span>
-                        <div className="flex items-center gap-3">
-                          <div className="w-24 h-1.5 bg-muted/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full" style={{ width: `${item.percentage}%` }} />
-                          </div>
-                          <span className="text-muted-foreground tabular-nums w-12 text-right">{item.percentage?.toFixed(1)}%</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border/60 bg-card shadow-sm">
-              <CardHeader className="p-8 pb-4 border-b border-border/60">
-                <CardTitle className="text-base font-semibold tracking-tight">Cities</CardTitle>
-              </CardHeader>
-              <CardContent className="p-8">
-                {citiesLoading ? (
-                  <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="h-6 bg-muted/30 rounded animate-pulse" />)}</div>
-                ) : (citiesData?.top_cities?.length ?? 0) === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">No city data yet</p>
-                ) : (
-                  <div className="space-y-2">
-                    {(citiesData?.top_cities ?? []).slice(0, 8).map((item: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between text-sm">
-                        <span className="text-foreground truncate">{item.name}</span>
-                        <div className="flex items-center gap-3">
-                          <div className="w-24 h-1.5 bg-muted/40 rounded-full overflow-hidden">
-                            <div className="h-full bg-primary rounded-full" style={{ width: `${item.percentage}%` }} />
-                          </div>
-                          <span className="text-muted-foreground tabular-nums w-12 text-right">{item.percentage?.toFixed(1)}%</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
         </div>
 
         {/* PAGE PERFORMANCE */}

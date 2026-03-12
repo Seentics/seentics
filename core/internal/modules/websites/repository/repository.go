@@ -419,6 +419,74 @@ func (r *WebsiteRepository) GetMember(ctx context.Context, websiteID, userID uui
 	return &m, nil
 }
 
+// GetMemberRole returns the role of a user in a website (empty string if not a member)
+func (r *WebsiteRepository) GetMemberRole(ctx context.Context, websiteID, userID uuid.UUID) (string, error) {
+	var role string
+	err := r.db.QueryRow(ctx, `SELECT role FROM website_members WHERE website_id = $1 AND user_id = $2`, websiteID, userID).Scan(&role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return role, nil
+}
+
+// --- Invitations ---
+
+func (r *WebsiteRepository) CreateInvitation(ctx context.Context, inv *models.WebsiteInvitation) error {
+	query := `INSERT INTO website_invitations (website_id, email, role, token, invited_by, expires_at, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+	return r.db.QueryRow(ctx, query, inv.WebsiteID, inv.Email, inv.Role, inv.Token, inv.InvitedBy, inv.ExpiresAt, inv.CreatedAt).Scan(&inv.ID)
+}
+
+func (r *WebsiteRepository) GetInvitationByToken(ctx context.Context, token string) (*models.WebsiteInvitation, error) {
+	query := `SELECT i.id, i.website_id, i.email, i.role, i.token, i.invited_by, i.expires_at, i.accepted_at, i.created_at, w.name as website_name
+		FROM website_invitations i
+		JOIN websites w ON i.website_id = w.id
+		WHERE i.token = $1`
+	var inv models.WebsiteInvitation
+	err := r.db.QueryRow(ctx, query, token).Scan(&inv.ID, &inv.WebsiteID, &inv.Email, &inv.Role, &inv.Token, &inv.InvitedBy, &inv.ExpiresAt, &inv.AcceptedAt, &inv.CreatedAt, &inv.WebsiteName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &inv, nil
+}
+
+func (r *WebsiteRepository) AcceptInvitation(ctx context.Context, invID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `UPDATE website_invitations SET accepted_at = $1 WHERE id = $2`, time.Now(), invID)
+	return err
+}
+
+func (r *WebsiteRepository) ListPendingInvitations(ctx context.Context, websiteID uuid.UUID) ([]models.WebsiteInvitation, error) {
+	query := `SELECT id, website_id, email, role, token, invited_by, expires_at, accepted_at, created_at
+		FROM website_invitations WHERE website_id = $1 AND accepted_at IS NULL AND expires_at > NOW()
+		ORDER BY created_at DESC`
+	rows, err := r.db.Query(ctx, query, websiteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var invitations []models.WebsiteInvitation
+	for rows.Next() {
+		var inv models.WebsiteInvitation
+		if err := rows.Scan(&inv.ID, &inv.WebsiteID, &inv.Email, &inv.Role, &inv.Token, &inv.InvitedBy, &inv.ExpiresAt, &inv.AcceptedAt, &inv.CreatedAt); err != nil {
+			return nil, err
+		}
+		invitations = append(invitations, inv)
+	}
+	return invitations, nil
+}
+
+func (r *WebsiteRepository) DeleteInvitation(ctx context.Context, invID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM website_invitations WHERE id = $1`, invID)
+	return err
+}
+
 // UpdatePublicShareID sets or clears the public share ID for a website.
 func (r *WebsiteRepository) UpdatePublicShareID(ctx context.Context, websiteID uuid.UUID, shareID *string) error {
 	query := `UPDATE websites SET public_share_id = $1, updated_at = $2 WHERE id = $3`

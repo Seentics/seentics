@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { isDemo } from '@/lib/demo';
 
 interface ReplayPlayerProps {
   sessionId: string;
@@ -88,6 +89,12 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
         setError(null);
         setEvents([]);
         setStreamProgress({ loaded: 0, total: 0 });
+
+        // Demo mode: no real replay data available
+        if (isDemo(websiteId)) {
+          setError('Session replays are not available in demo mode. Sign up to record real sessions!');
+          return;
+        }
 
         // ── Step 1: Get presigned manifest ──
         let allEvents: any[] = [];

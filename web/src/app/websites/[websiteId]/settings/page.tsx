@@ -3,59 +3,54 @@
 import React, { useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import {
-    User,
-    Globe,
     Zap,
     MousePointer2,
     Video,
     Target,
-    Palette,
     PanelLeft,
+    Key,
+    Users,
 } from 'lucide-react';
 
-import { ProfileSettings } from '@/components/profile-settings';
-import { WebsitesSettingsComponent } from '@/components/settings/WebsitesSettingsComponent';
 import { ScriptSettingsComponent } from '@/components/settings/ScriptSettingsComponent';
 import { HeatmapSettingsComponent } from '@/components/settings/HeatmapSettingsComponent';
 import { ReplaySettingsComponent } from '@/components/settings/ReplaySettingsComponent';
 import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
-import { CustomizationSettingsComponent } from '@/components/settings/CustomizationSettingsComponent';
 import { LayoutSettingsComponent } from '@/components/settings/LayoutSettingsComponent';
 import { AlertsSettingsComponent } from '@/components/settings/AlertsSettingsComponent';
 import { ReportsSettingsComponent } from '@/components/settings/ReportsSettingsComponent';
+import { ApiKeysSettingsComponent } from '@/components/settings/ApiKeysSettingsComponent';
+import { TeamSettingsComponent } from '@/components/settings/TeamSettingsComponent';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { cn } from '@/lib/utils';
 import { Bell, FileText } from 'lucide-react';
+import { isEnterprise } from '@/lib/features';
 
 const sectionGroups = [
     {
-        label: 'Account',
-        items: [
-            { id: 'profile',       label: 'Profile',        icon: User,          description: 'Your personal info' },
-            { id: 'websites',      label: 'Websites',       icon: Globe,         description: 'Manage tracked sites' },
-        ],
-    },
-    {
         label: 'Features',
         items: [
-            { id: 'goals',         label: 'Goals',          icon: Target,        description: 'Conversion tracking' },
-            { id: 'heatmaps',      label: 'Heatmaps',       icon: MousePointer2, description: 'Click & scroll maps' },
-            { id: 'replays',       label: 'Replays',        icon: Video,         description: 'Session recordings' },
-            { id: 'scripts',       label: 'Scripts',        icon: Zap,           description: 'Tracking snippet' },
+            { id: 'goals',    label: 'Goals',    icon: Target,        description: 'Conversion tracking' },
+            { id: 'heatmaps', label: 'Heatmaps', icon: MousePointer2, description: 'Click & scroll maps' },
+            { id: 'replays',  label: 'Replays',  icon: Video,         description: 'Session recordings' },
+            { id: 'scripts',  label: 'Scripts',   icon: Zap,           description: 'Tracking snippet' },
         ],
     },
     {
         label: 'Automation',
         items: [
-            { id: 'alerts',        label: 'Alerts',         icon: Bell,          description: 'Traffic notifications' },
-            { id: 'reports',       label: 'Reports',        icon: FileText,      description: 'Scheduled email reports' },
+            { id: 'alerts',   label: 'Alerts',   icon: Bell,     description: 'Traffic notifications' },
+            { id: 'reports',  label: 'Reports',  icon: FileText, description: 'Scheduled email reports' },
         ],
     },
     {
-        label: 'Appearance',
+        label: 'Advanced',
         items: [
-            { id: 'customization', label: 'Customization',  icon: Palette,       description: 'Branding & theme' },
-            { id: 'layout',        label: 'Layout',         icon: PanelLeft,     description: 'Dashboard layout' },
+            { id: 'layout',   label: 'Layout',    icon: PanelLeft, description: 'Dashboard layout' },
+            ...(isEnterprise ? [
+                { id: 'api-keys', label: 'API Keys', icon: Key,      description: 'Raw data API access' },
+                { id: 'team',     label: 'Team',     icon: Users,    description: 'Manage members & roles' },
+            ] : []),
         ],
     },
 ];
@@ -63,31 +58,29 @@ const sectionGroups = [
 const allTabs = sectionGroups.flatMap(g => g.items);
 
 const iconColors: Record<string, string> = {
-    profile:       'text-blue-500 bg-blue-500/10',
-    websites:      'text-emerald-500 bg-emerald-500/10',
     goals:         'text-orange-500 bg-orange-500/10',
     heatmaps:      'text-rose-500 bg-rose-500/10',
     replays:       'text-violet-500 bg-violet-500/10',
     scripts:       'text-yellow-500 bg-yellow-500/10',
     alerts:        'text-amber-500 bg-amber-500/10',
     reports:       'text-indigo-500 bg-indigo-500/10',
-    customization: 'text-pink-500 bg-pink-500/10',
     layout:        'text-cyan-500 bg-cyan-500/10',
+    'api-keys':    'text-emerald-500 bg-emerald-500/10',
+    team:          'text-blue-500 bg-blue-500/10',
 };
 
 const renderContent = (activeTab: string, websiteId: string) => {
     switch (activeTab) {
-        case 'profile':       return <ProfileSettings />;
-        case 'websites':      return <WebsitesSettingsComponent />;
         case 'heatmaps':      return <HeatmapSettingsComponent websiteId={websiteId} />;
         case 'replays':       return <ReplaySettingsComponent websiteId={websiteId} />;
         case 'goals':         return <GoalsSettingsComponent websiteId={websiteId} />;
         case 'scripts':       return <ScriptSettingsComponent websiteId={websiteId} />;
         case 'alerts':        return <AlertsSettingsComponent />;
         case 'reports':       return <ReportsSettingsComponent />;
-        case 'customization': return <CustomizationSettingsComponent />;
         case 'layout':        return <LayoutSettingsComponent />;
-        default:              return <ProfileSettings />;
+        case 'api-keys':      return <ApiKeysSettingsComponent websiteId={websiteId} />;
+        case 'team':          return <TeamSettingsComponent websiteId={websiteId} />;
+        default:              return <GoalsSettingsComponent websiteId={websiteId} />;
     }
 };
 
@@ -97,7 +90,7 @@ export default function SettingsPage() {
     const websiteId = params?.websiteId as string;
     const tabParam = searchParams.get('tab');
     const isValidTab = allTabs.some(t => t.id === tabParam);
-    const [activeTab, setActiveTab] = useState(isValidTab ? tabParam! : 'profile');
+    const [activeTab, setActiveTab] = useState(isValidTab ? tabParam! : 'goals');
 
     const activeItem = allTabs.find(t => t.id === activeTab);
     const ActiveIcon = activeItem?.icon;
@@ -108,7 +101,7 @@ export default function SettingsPage() {
             <div className="mb-6">
                 <DashboardPageHeader
                     title="Settings"
-                    description="Manage your account, features, and appearance."
+                    description="Configure features, automation, and advanced options."
                 />
             </div>
 
