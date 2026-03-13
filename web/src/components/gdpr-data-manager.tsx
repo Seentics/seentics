@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
@@ -14,12 +13,10 @@ import {
   Trash2, 
   Eye, 
   Shield, 
-  FileText, 
-  Mail, 
+  FileText,
   AlertTriangle,
   CheckCircle,
   Clock,
-  User,
   Database,
   Settings
 } from 'lucide-react';
@@ -53,33 +50,33 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
   // Data requests state
   const [dataRequests, setDataRequests] = useState<DataRequest[]>([]);
 
-  // Load existing requests on component mount
-  useEffect(() => {
-    const loadExistingRequests = async () => {
-      if (!userId) return;
-      
-      setIsLoadingRequests(true);
-      try {
-        const response = await privacyAPI.getPrivacyRequests();
-        if (response.success && response.data.requests) {
-          const requests = response.data.requests.map((req: any) => ({
-            id: req.id || req._id,
-            type: req.type,
-            status: req.status,
-            createdAt: new Date(req.createdAt),
-            completedAt: req.completedAt ? new Date(req.completedAt) : undefined,
-            description: req.reason || req.details
-          }));
-          setDataRequests(requests);
-        }
-      } catch (error) {
-        console.error('Failed to load existing requests:', error);
-      } finally {
-        setIsLoadingRequests(false);
-      }
-    };
+  // Load existing GDPR requests on component mount
+  const loadGDPRRequests = async () => {
+    if (!userId) return;
 
-    loadExistingRequests();
+    setIsLoadingRequests(true);
+    try {
+      const response = await privacyAPI.getGDPRRequests();
+      if (response.success && response.data) {
+        const requests = response.data.map((req) => ({
+          id: req.id,
+          type: (req.requestType === 'erasure' ? 'deletion' : req.requestType) as DataRequest['type'],
+          status: req.status as DataRequest['status'],
+          createdAt: new Date(req.createdAt),
+          completedAt: req.processedAt ? new Date(req.processedAt) : undefined,
+          description: req.notes
+        }));
+        setDataRequests(requests);
+      }
+    } catch (error) {
+      console.error('Failed to load GDPR requests:', error);
+    } finally {
+      setIsLoadingRequests(false);
+    }
+  };
+
+  useEffect(() => {
+    loadGDPRRequests();
   }, [userId]);
 
   // Check if user has pending requests of a specific type
@@ -91,7 +88,7 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
     setIsProcessing(true);
     try {
       // Direct export - get data immediately
-      const response = await privacyAPI.exportUserData();
+      const response = await privacyAPI.exportAnalyticsData(userId);
       
       if (response.success) {
         // Create downloadable file
@@ -149,8 +146,8 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
     setIsProcessing(true);
     try {
       // Direct deletion using the delete endpoint
-      const response = await privacyAPI.processDataDeletion(deletionReason);
-      
+      const response = await privacyAPI.deleteAnalyticsData(userId);
+
       if (response.success) {
         toast({
           title: "Account Deleted",
@@ -204,51 +201,18 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
       return;
     }
 
-    setIsProcessing(true);
-    try {
-      // Create privacy request for data correction
-      const response = await privacyAPI.createPrivacyRequest({
-        type: 'correction',
-        details: correctionDetails
-      });
-      
-      // Add to requests history
-      const newRequest: DataRequest = {
-        id: response.data.request.id,
-        type: 'correction',
-        status: response.data.request.status,
-        createdAt: new Date(response.data.request.createdAt),
-        description: correctionDetails
-      };
-      setDataRequests(prev => [newRequest, ...prev]);
+    // Open mailto to Data Protection Officer with correction details
+    const subject = encodeURIComponent('Data Correction Request');
+    const body = encodeURIComponent(`User ID: ${userId}\nEmail: ${userEmail}\n\nCorrection Details:\n${correctionDetails}`);
+    window.open(`mailto:dpo@seentics.com?subject=${subject}&body=${body}`, '_blank');
 
-      toast({
-        title: "Correction Request Submitted",
-        description: "Your data correction request has been submitted. We'll review and process it within 30 days.",
-      });
+    toast({
+      title: "Correction Request",
+      description: "Your email client has been opened to send the correction request to our Data Protection Officer.",
+    });
 
-      setShowCorrectionDialog(false);
-      setCorrectionDetails('');
-    } catch (error: any) {
-      console.error('Correction request error:', error);
-      
-      // Handle specific error cases
-      if (error.message?.includes('already have') || error.message?.includes('in progress')) {
-        toast({
-          title: "Request Already Exists",
-          description: "You already have a correction request in progress. Please wait for it to complete.",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Request Failed",
-          description: error.message || "There was an error submitting your correction request. Please try again.",
-          variant: "destructive"
-        });
-      }
-    } finally {
-      setIsProcessing(false);
-    }
+    setShowCorrectionDialog(false);
+    setCorrectionDetails('');
   };
 
   const getStatusBadge = (status: string) => {
@@ -473,32 +437,7 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                const loadExistingRequests = async () => {
-                  if (!userId) return;
-                  
-                  setIsLoadingRequests(true);
-                  try {
-                    const response = await privacyAPI.getPrivacyRequests();
-                    if (response.success && response.data.requests) {
-                      const requests = response.data.requests.map((req: any) => ({
-                        id: req.id || req._id,
-                        type: req.type,
-                        status: req.status,
-                        createdAt: new Date(req.createdAt),
-                        completedAt: req.completedAt ? new Date(req.completedAt) : undefined,
-                        description: req.reason || req.details
-                      }));
-                      setDataRequests(requests);
-                    }
-                  } catch (error) {
-                    console.error('Failed to load existing requests:', error);
-                  } finally {
-                    setIsLoadingRequests(false);
-                  }
-                };
-                loadExistingRequests();
-              }}
+              onClick={() => loadGDPRRequests()}
               disabled={isLoadingRequests}
             >
               <Settings className="h-4 w-4 mr-2" />
