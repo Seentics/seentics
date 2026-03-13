@@ -97,8 +97,18 @@
     });
   };
   var beaconFlush = function () {
+    // Split replay into its own beacon to stay under sendBeacon's ~64 KB limit.
+    // rrweb events are large; bundling them with heatmap + analytics data often
+    // exceeds the limit, causing the browser to silently drop the entire payload.
+    var url = C.host + '/api/v1/tracker/collect';
+    var send = function (obj) { nav.sendBeacon(url, new Blob([JSON.stringify(obj)], { type: 'application/json' })); };
+    if (buf.replay && buf.replay.events.length) {
+      var rp = { site_id: C.id, domain: loc.hostname, replay: { session_id: S.sid, events: buf.replay.events.splice(0), sequence: buf.replay.seq++, page: loc.pathname } };
+      ss.setItem('_rseq', buf.replay.seq + '');
+      send(rp);
+    }
     var p = buildPayload(); if (!p) return;
-    nav.sendBeacon(C.host + '/api/v1/tracker/collect', new Blob([JSON.stringify(p)], { type: 'application/json' }));
+    send(p);
   };
 
   // --- Event queue ---

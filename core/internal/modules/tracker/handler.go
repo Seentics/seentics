@@ -276,6 +276,10 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 		go func() {
 			bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
+			// Carry plan limits into the background context so quota enforcement works.
+			if limit, ok := ctx.Value("max_replays").(int); ok {
+				bgCtx = context.WithValue(bgCtx, "max_replays", limit)
+			}
 			if err := h.replays.RecordReplay(bgCtx, replayCopy, origin, userAgent, country); err != nil {
 				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: replay processing failed (async)")
 			}
