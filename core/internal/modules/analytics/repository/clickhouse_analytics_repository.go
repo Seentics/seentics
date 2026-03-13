@@ -454,12 +454,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopReferrers(ctx context.Context, web
 
 	query := fmt.Sprintf(`
 		SELECT
-			if(referrer = '', 'direct',
-				replaceRegexpOne(
-					replaceRegexpOne(referrer, '^https?://(www\\.)?', ''),
-					'/.*$', ''
-				)
-			) as ref_domain,
+			if(referrer = '', 'direct', domainWithoutWWW(referrer)) as ref_domain,
 			count(*) as views,
 			uniq(visitor_id) as unique_visitors
 		FROM events
