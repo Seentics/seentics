@@ -195,6 +195,8 @@ export default function EventsExplorerPage() {
                         <div key={event.event_type}>
                           <button
                             onClick={() => setExpandedEvent(isExpanded ? null : event.event_type)}
+                            aria-expanded={isExpanded}
+                            aria-controls={propKeys.length > 0 ? `event-details-${event.event_type}` : undefined}
                             className="grid grid-cols-12 gap-2 px-6 py-3.5 w-full text-left hover:bg-muted/20 transition-colors text-sm items-center"
                           >
                             <div className="col-span-5 flex items-center gap-2.5 min-w-0">
@@ -225,7 +227,7 @@ export default function EventsExplorerPage() {
                             </div>
                           </button>
                           {isExpanded && propKeys.length > 0 && (
-                            <div className="mx-6 mb-4 p-4 bg-muted/10 border border-border/40 rounded-lg text-xs">
+                            <div id={`event-details-${event.event_type}`} className="mx-6 mb-4 p-4 bg-muted/10 border border-border/40 rounded-lg text-xs">
                               <p className="font-semibold text-muted-foreground mb-3 text-[11px] uppercase tracking-wider">
                                 Sample Properties
                               </p>

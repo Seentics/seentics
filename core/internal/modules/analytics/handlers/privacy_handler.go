@@ -1,8 +1,10 @@
 package handlers
 
 import (
-	"github.com/Seentics/seentics/internal/modules/analytics/services"
+	"io"
 	"net/http"
+
+	"github.com/Seentics/seentics/internal/modules/analytics/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -180,5 +182,100 @@ func (h *PrivacyHandler) RunDataRetentionCleanup(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "Data retention cleanup completed successfully",
+	})
+}
+
+// ExportWebsiteAnalytics exports all analytics data for a specific website
+func (h *PrivacyHandler) ExportWebsiteAnalytics(c *gin.Context) {
+	authUserID := h.getUserID(c)
+	if authUserID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Website ID is required"})
+		return
+	}
+
+	exportData, err := h.privacyService.ExportWebsiteAnalytics(websiteID, authUserID)
+	if err != nil {
+		h.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to export website data")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to export website data",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Website data exported successfully",
+		"data":    exportData,
+	})
+}
+
+// ImportWebsiteAnalytics imports analytics data into a specific website from JSON
+func (h *PrivacyHandler) ImportWebsiteAnalytics(c *gin.Context) {
+	authUserID := h.getUserID(c)
+	if authUserID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "Website ID is required"})
+		return
+	}
+
+	// Accept either multipart file upload or raw JSON body
+	var data []byte
+	fileHeader, err := c.FormFile("file")
+	if err == nil {
+		// Multipart upload
+		const maxSize = 100 << 20 // 100MB
+		if fileHeader.Size > maxSize {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "File too large, max 100MB"})
+			return
+		}
+		f, err := fileHeader.Open()
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to open file"})
+			return
+		}
+		defer f.Close()
+		data, err = io.ReadAll(f)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "message": "Failed to read file"})
+			return
+		}
+	} else {
+		// Raw JSON body
+		data, err = io.ReadAll(c.Request.Body)
+		if err != nil || len(data) == 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "message": "File or JSON body is required"})
+			return
+		}
+	}
+
+	counts, err := h.privacyService.ImportWebsiteAnalytics(websiteID, authUserID, data)
+	if err != nil {
+		h.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to import website data")
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"message": "Failed to import data",
+			"error":   err.Error(),
+		})
+		return
+	}
+
+	h.logger.Info().Str("website_id", websiteID).Interface("counts", counts).Msg("Website data imported")
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Data imported successfully",
+		"data":    counts,
 	})
 }

@@ -141,20 +141,20 @@ func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string
 	var err error
 
 	if deviceType == "" || deviceType == "all" {
-		// No device filter — aggregate across all device types
+		// No device filter — keep device_type so the frontend can remap coordinates per device
 		query := `
 			SELECT x_percent, y_percent, SUM(intensity) AS intensity, target_selector,
-			       MAX(el_x) AS el_x, MAX(el_y) AS el_y, MAX(doc_height) AS doc_height
+			       MAX(el_x) AS el_x, MAX(el_y) AS el_y, MAX(doc_height) AS doc_height, device_type
 			FROM heatmap_points
 			WHERE website_id = $1 AND page_path = $2 AND event_type = $3 AND last_updated BETWEEN $4 AND $5
-			GROUP BY x_percent, y_percent, target_selector
+			GROUP BY x_percent, y_percent, target_selector, device_type
 			ORDER BY intensity DESC
 			LIMIT 5000
 		`
 		rows, err = r.db.Query(ctx, query, websiteID, url, heatmapType, from, to)
 	} else {
 		query := `
-			SELECT x_percent, y_percent, intensity, target_selector, el_x, el_y, doc_height
+			SELECT x_percent, y_percent, intensity, target_selector, el_x, el_y, doc_height, device_type
 			FROM heatmap_points
 			WHERE website_id = $1 AND page_path = $2 AND event_type = $3 AND device_type = $4 AND last_updated BETWEEN $5 AND $6
 			ORDER BY intensity DESC
@@ -172,7 +172,7 @@ func (r *heatmapRepository) GetHeatmapData(ctx context.Context, websiteID string
 	for rows.Next() {
 		var p models.HeatmapPoint
 		var xInt, yInt int32
-		if err := rows.Scan(&xInt, &yInt, &p.Intensity, &p.Selector, &p.ElX, &p.ElY, &p.DocHeight); err != nil {
+		if err := rows.Scan(&xInt, &yInt, &p.Intensity, &p.Selector, &p.ElX, &p.ElY, &p.DocHeight, &p.DeviceType); err != nil {
 			return nil, err
 		}
 		p.XPercent = float64(xInt) / 100.0

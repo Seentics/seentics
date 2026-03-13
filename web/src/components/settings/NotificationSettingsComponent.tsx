@@ -96,11 +96,21 @@ export function NotificationSettingsComponent({ websiteId }: { websiteId: string
   const handleCreateChannel = () => {
     let config = {};
     if (newChannelType === 'email') {
-      if (!newChannelConfig.email) return toast.error('Email is required');
-      config = { email: newChannelConfig.email };
+      const email = newChannelConfig.email?.trim();
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return toast.error('Please enter a valid email address');
+      }
+      config = { email };
     } else if (newChannelType === 'slack' || newChannelType === 'webhook') {
-      if (!newChannelConfig.webhook_url) return toast.error('Webhook URL is required');
-      config = { webhook_url: newChannelConfig.webhook_url };
+      const url = newChannelConfig.webhook_url?.trim();
+      if (!url) return toast.error('Webhook URL is required');
+      try {
+        const parsed = new URL(url);
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+      } catch {
+        return toast.error('Please enter a valid webhook URL (https://...)');
+      }
+      config = { webhook_url: url };
     }
     createChannelMutation.mutate({ type: newChannelType, config });
   };

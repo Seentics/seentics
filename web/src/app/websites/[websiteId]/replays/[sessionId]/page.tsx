@@ -30,6 +30,7 @@ export default function SessionPlaybackPage() {
 
   const [session, setSession] = useState<SessionMeta | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!websiteId || !sessionId) return;
@@ -48,8 +49,10 @@ export default function SessionPlaybackPage() {
         const res = await api.get(`/replays/sessions?website_id=${websiteId}&limit=200`);
         const list: SessionMeta[] = res.data?.sessions || [];
         setSession(list.find(s => s.session_id === sessionId) ?? null);
-      } catch {
+      } catch (err) {
+        console.error('Failed to load session:', err);
         setSession(null);
+        setError('Failed to load session replay. Please try again.');
       } finally {
         setLoading(false);
       }
@@ -121,6 +124,13 @@ export default function SessionPlaybackPage() {
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 className="h-7 w-7 animate-spin text-muted-foreground/40" />
             <p className="text-sm text-muted-foreground">Loading session...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <p className="text-sm text-destructive">{error}</p>
+            <Button variant="outline" size="sm" onClick={() => router.push(`/websites/${websiteId}/replays`)}>
+              Back to Replays
+            </Button>
           </div>
         ) : (
           <ReplayPlayer sessionId={sessionId} websiteId={websiteId} session={session} />

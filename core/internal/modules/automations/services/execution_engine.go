@@ -352,6 +352,9 @@ func (e *ExecutionEngine) executeWhatsApp(ctx context.Context, action models.Aut
 	return nil
 }
 
+// processEventSem limits concurrent automation goroutines to avoid unbounded spawning under high event volume.
+var processEventSem = make(chan struct{}, 50)
+
 // ProcessEvent processes an analytics event and triggers matching automations
 func (e *ExecutionEngine) ProcessEvent(ctx context.Context, websiteID string, eventData map[string]interface{}) error {
 	// Get active automations for this website
@@ -365,16 +368,25 @@ func (e *ExecutionEngine) ProcessEvent(ctx context.Context, websiteID string, ev
 	// Find matching automations
 	for _, automation := range automations {
 		if e.matchesTrigger(automation, eventType, eventData) {
-			// Execute in background to not block event processing
-			go func(auto models.Automation) {
-				bgCtx := context.Background()
-				if err := e.ExecuteAutomation(bgCtx, &auto, eventData); err != nil {
-					e.logger.Error().
-						Err(err).
-						Str("automation_id", auto.ID).
-						Msg("Failed to execute automation")
-				}
-			}(automation)
+			select {
+			case processEventSem <- struct{}{}:
+				go func(auto models.Automation) {
+					defer func() { <-processEventSem }()
+					bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+					defer cancel()
+					if err := e.ExecuteAutomation(bgCtx, &auto, eventData); err != nil {
+						e.logger.Error().
+							Err(err).
+							Str("automation_id", auto.ID).
+							Msg("Failed to execute automation")
+					}
+				}(automation)
+			default:
+				e.logger.Warn().
+					Str("automation_id", automation.ID).
+					Str("website_id", websiteID).
+					Msg("ProcessEvent: concurrency limit reached, skipping automation")
+			}
 		}
 	}
 

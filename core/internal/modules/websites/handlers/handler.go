@@ -172,7 +172,17 @@ func (h *WebsiteHandler) Update(c *gin.Context) {
 
 // ListGoals handles GET /api/v1/user/websites/:id/goals
 func (h *WebsiteHandler) ListGoals(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
+	// Verify the user is a member of this website
+	role, err := h.service.GetUserRole(c.Request.Context(), id, requesterID)
+	if err != nil || role == "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not a member of this website"})
+		return
+	}
 	goals, err := h.service.ListGoals(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list goals"})
@@ -183,7 +193,17 @@ func (h *WebsiteHandler) ListGoals(c *gin.Context) {
 
 // CreateGoal handles POST /api/v1/user/websites/:id/goals
 func (h *WebsiteHandler) CreateGoal(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
+	// Verify the user is a member of this website
+	role, err := h.service.GetUserRole(c.Request.Context(), id, requesterID)
+	if err != nil || role == "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not a member of this website"})
+		return
+	}
 	var req models.CreateGoalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -201,7 +221,17 @@ func (h *WebsiteHandler) CreateGoal(c *gin.Context) {
 
 // DeleteGoal handles DELETE /api/v1/user/websites/:id/goals/:goal_id
 func (h *WebsiteHandler) DeleteGoal(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
 	id := c.Param("id")
+	// Verify the user is a member of this website
+	role, err := h.service.GetUserRole(c.Request.Context(), id, requesterID)
+	if err != nil || role == "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not a member of this website"})
+		return
+	}
 	goalIDStr := c.Param("goal_id")
 	goalID, err := uuid.Parse(goalIDStr)
 	if err != nil {

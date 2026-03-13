@@ -159,6 +159,46 @@ func (r *PrivacyRepository) DeleteUserData(userID string) error {
 	return nil
 }
 
+// DeleteSessionsDataForWebsite deletes all session data for a specific website
+func (r *PrivacyRepository) DeleteSessionsDataForWebsite(websiteID string) error {
+	_, err := r.db.Exec(context.Background(), `DELETE FROM sessions WHERE website_id = $1`, websiteID)
+	if err != nil {
+		return fmt.Errorf("failed to delete sessions for website %s: %w", websiteID, err)
+	}
+	return nil
+}
+
+// DeleteHeatmapDataForWebsite deletes all heatmap data for a specific website
+func (r *PrivacyRepository) DeleteHeatmapDataForWebsite(websiteID string) error {
+	_, err := r.db.Exec(context.Background(), `DELETE FROM heatmap_points WHERE website_id::text = $1`, websiteID)
+	if err != nil {
+		return fmt.Errorf("failed to delete heatmap points for website %s: %w", websiteID, err)
+	}
+	_, err = r.db.Exec(context.Background(), `DELETE FROM heatmap_sessions WHERE website_id::text = $1`, websiteID)
+	if err != nil {
+		return fmt.Errorf("failed to delete heatmap sessions for website %s: %w", websiteID, err)
+	}
+	return nil
+}
+
+// DeleteReplayDataForWebsite deletes all session replay data for a specific website
+func (r *PrivacyRepository) DeleteReplayDataForWebsite(websiteID string) error {
+	_, err := r.db.Exec(context.Background(), `DELETE FROM session_replays WHERE website_id = $1`, websiteID)
+	if err != nil {
+		return fmt.Errorf("failed to delete replays for website %s: %w", websiteID, err)
+	}
+	return nil
+}
+
+// DeleteGoalDataForWebsite deletes all goal data for a specific website
+func (r *PrivacyRepository) DeleteGoalDataForWebsite(websiteID string) error {
+	_, err := r.db.Exec(context.Background(), `DELETE FROM goals WHERE website_id::text = $1`, websiteID)
+	if err != nil {
+		return fmt.Errorf("failed to delete goals for website %s: %w", websiteID, err)
+	}
+	return nil
+}
+
 // DeleteWebsiteData deletes all analytics data for a specific website
 func (r *PrivacyRepository) DeleteWebsiteData(websiteID string) error {
 
@@ -175,6 +215,26 @@ func (r *PrivacyRepository) DeleteWebsiteData(websiteID string) error {
 	// Delete funnel data
 	if err := r.DeleteFunnelDataForWebsite(websiteID); err != nil {
 		return fmt.Errorf("failed to delete funnel data for website %s: %w", websiteID, err)
+	}
+
+	// Delete session data
+	if err := r.DeleteSessionsDataForWebsite(websiteID); err != nil {
+		return fmt.Errorf("failed to delete sessions for website %s: %w", websiteID, err)
+	}
+
+	// Delete heatmap data
+	if err := r.DeleteHeatmapDataForWebsite(websiteID); err != nil {
+		return fmt.Errorf("failed to delete heatmaps for website %s: %w", websiteID, err)
+	}
+
+	// Delete replay data
+	if err := r.DeleteReplayDataForWebsite(websiteID); err != nil {
+		return fmt.Errorf("failed to delete replays for website %s: %w", websiteID, err)
+	}
+
+	// Delete goal data
+	if err := r.DeleteGoalDataForWebsite(websiteID); err != nil {
+		return fmt.Errorf("failed to delete goals for website %s: %w", websiteID, err)
 	}
 
 	return nil

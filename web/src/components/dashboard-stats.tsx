@@ -1,9 +1,8 @@
 
 'use client';
 import { useDashboardData } from '@/lib/analytics-api';
-import { getWorkflows, type Workflow } from '@/lib/workflow-api';
+import { useAutomations, type Automation } from '@/lib/automations-api';
 import { useAuth } from '@/stores/useAuthStore';
-import { useQuery } from '@tanstack/react-query';
 import { Activity, CircleCheckBig, Eye, Target, Users, Workflow as WorkflowIcon } from 'lucide-react';
 
 interface DashboardStatsProps {
@@ -16,24 +15,14 @@ export function DashboardStats({ siteId }: DashboardStatsProps) {
   // Fetch analytics data if siteId is provided
   const { data: dashboardData } = useDashboardData(siteId || '', 7);
 
+  const { data: automationsData, isLoading } = useAutomations(siteId || '');
 
-  const { data: workflowsData, isLoading } = useQuery<Workflow[]>({
-    queryKey: ['workflows', user?._id, siteId],
-    queryFn: () => getWorkflows(siteId as string),
-    enabled: !!user && !!siteId,
-  });
+  const workflows = automationsData?.automations || [];
 
-  // Ensure workflows is always an array
-  const workflows = Array.isArray(workflowsData) ? workflowsData :
-    (workflowsData as any)?.workflows ? (workflowsData as any).workflows :
-      (workflowsData as any)?.data ? (workflowsData as any).data :
-        [];
-
-  const activeWorkflows = Array.isArray(workflows) ? workflows.filter(w => w.status === 'Active').length : 0;
-  const totalTriggers = Array.isArray(workflows) ? workflows.reduce((sum, w) => sum + (w.analytics?.totalTriggers || 0), 0) : 0;
-  const totalCompletions = Array.isArray(workflows) ? workflows.reduce((sum, w) => sum + (w.analytics?.totalCompletions || 0), 0) : 0;
-  const rawAvgCompletionRate = totalCompletions > 0 && totalTriggers > 0 ? (totalCompletions / totalTriggers) * 100 : 0;
-  const avgCompletionRate = Math.min(100, rawAvgCompletionRate);
+  const activeWorkflows = workflows.filter(w => w.isActive).length;
+  const totalExecutions = workflows.reduce((sum, w) => sum + (w.stats?.totalExecutions || 0), 0);
+  const totalSuccesses = workflows.reduce((sum, w) => sum + (w.stats?.successCount || 0), 0);
+  const avgSuccessRate = totalExecutions > 0 ? Math.min(100, (totalSuccesses / totalExecutions) * 100) : 0;
 
   const stats = [
     {
@@ -55,28 +44,28 @@ export function DashboardStats({ siteId }: DashboardStatsProps) {
         'No change data',
     },
     {
-      title: 'Total Workflows',
-      value: Array.isArray(workflows) ? workflows.length.toString() : '0',
+      title: 'Total Automations',
+      value: workflows.length.toString(),
       icon: WorkflowIcon,
-      change: '+2 since last month',
+      change: `${activeWorkflows} active`,
     },
     {
-      title: 'Active Workflows',
+      title: 'Active Automations',
       value: activeWorkflows.toString(),
       icon: Activity,
-      change: Array.isArray(workflows) && workflows.length > 0 ? `${Math.round((activeWorkflows / workflows.length) * 100)}% of total` : 'N/A',
+      change: workflows.length > 0 ? `${Math.round((activeWorkflows / workflows.length) * 100)}% of total` : 'N/A',
     },
     {
-      title: 'Total Triggers',
-      value: totalTriggers > 1000 ? `${(totalTriggers / 1000).toFixed(1)}k` : totalTriggers.toString(),
+      title: 'Total Executions',
+      value: totalExecutions > 1000 ? `${(totalExecutions / 1000).toFixed(1)}k` : totalExecutions.toString(),
       icon: Target,
-      change: '+15.2% this week',
+      change: workflows.reduce((sum, w) => sum + (w.stats?.last30Days || 0), 0) + ' last 30d',
     },
     {
-      title: 'Avg. Completion',
-      value: `${avgCompletionRate.toFixed(1)}%`,
+      title: 'Success Rate',
+      value: `${avgSuccessRate.toFixed(1)}%`,
       icon: CircleCheckBig,
-      change: '—',
+      change: totalExecutions > 0 ? `${totalSuccesses}/${totalExecutions}` : '—',
     },
   ];
 

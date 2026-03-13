@@ -5,7 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/Seentics/seentics/internal/shared/cache"
@@ -40,8 +44,55 @@ func NewWebhookQueue(c *cache.Cache, logger zerolog.Logger) *WebhookQueue {
 	return &WebhookQueue{cache: c, logger: logger}
 }
 
+// validateWebhookURL checks that the URL is safe to call (no SSRF).
+func validateWebhookURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL: %w", err)
+	}
+
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("unsupported scheme %q, only http/https allowed", scheme)
+	}
+
+	host := parsed.Hostname()
+	if host == "" {
+		return fmt.Errorf("empty hostname")
+	}
+
+	// Block known internal/private hostnames
+	blockedHosts := []string{"localhost", "127.0.0.1", "0.0.0.0", "::1", "metadata.google.internal", "169.254.169.254"}
+	for _, blocked := range blockedHosts {
+		if strings.EqualFold(host, blocked) {
+			return fmt.Errorf("blocked host: %s", host)
+		}
+	}
+
+	// Resolve and block private/loopback IPs
+	ips, err := net.LookupHost(host)
+	if err != nil {
+		return fmt.Errorf("DNS lookup failed for %s: %w", host, err)
+	}
+	for _, ipStr := range ips {
+		ip := net.ParseIP(ipStr)
+		if ip == nil {
+			continue
+		}
+		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsUnspecified() {
+			return fmt.Errorf("resolved to private/internal IP: %s", ipStr)
+		}
+	}
+
+	return nil
+}
+
 // Enqueue pushes a webhook job onto the queue for async delivery.
 func (q *WebhookQueue) Enqueue(job WebhookJob) error {
+	if err := validateWebhookURL(job.URL); err != nil {
+		return fmt.Errorf("webhook URL rejected: %w", err)
+	}
+
 	data, err := json.Marshal(job)
 	if err != nil {
 		return fmt.Errorf("marshal webhook job: %w", err)
@@ -124,6 +175,8 @@ func (q *WebhookQueue) deliver(job WebhookJob) error {
 		return fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
+	// Drain the body so the underlying TCP connection can be reused by the pool.
+	_, _ = io.Copy(io.Discard, resp.Body)
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("webhook returned status %d", resp.StatusCode)

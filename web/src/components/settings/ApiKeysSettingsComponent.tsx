@@ -75,8 +75,6 @@ const API_SECTIONS = [
 ];
 
 export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponentProps) {
-  if (!isEnterprise) return null;
-
   const { subscription, loading: subLoading } = useSubscription();
   const plan = subscription?.plan?.toLowerCase() || '';
   const hasAccess = ALLOWED_PLANS.includes(plan);
@@ -144,9 +142,13 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success('Copied to clipboard');
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success('Copied to clipboard');
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -159,6 +161,8 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
       minute: '2-digit',
     });
   };
+
+  if (!isEnterprise) return null;
 
   if (subLoading || loading) {
     return (

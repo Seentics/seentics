@@ -790,6 +790,13 @@ func (h *AnalyticsHandler) ImportAnalytics(c *gin.Context) {
 		return
 	}
 
+	// Enforce max file size of 100MB
+	const maxImportSize = 100 << 20
+	if fileHeader.Size > maxImportSize {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file too large, max 100MB"})
+		return
+	}
+
 	file, err := fileHeader.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open file"})

@@ -62,7 +62,7 @@ type UpdateFunnelRequest struct {
 	Name        *string       `json:"name"`
 	Description *string       `json:"description"`
 	IsActive    *bool         `json:"isActive"`
-	Steps       *[]FunnelStep `json:"steps"`
+	Steps       *[]FunnelStep `json:"steps" binding:"omitempty,min=2"`
 }
 
 // TrackFunnelEventRequest represents the payload from the frontend tracker

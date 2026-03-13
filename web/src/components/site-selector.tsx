@@ -63,7 +63,11 @@ export function SiteSelector({ selectedSiteId, onSiteChange }: SiteSelectorProps
 
     setIsAdding(true);
     try {
-      const newWebsite = await addWebsite({ name: newSiteName, url: newSiteUrl }, user!.id);
+      if (!user?.id) {
+        toast({ title: 'Error', description: 'You must be logged in to add a website.', variant: 'destructive' });
+        return;
+      }
+      const newWebsite = await addWebsite({ name: newSiteName, url: newSiteUrl }, user.id);
       toast({ title: 'Website Added!', description: `Successfully created "${newSiteName}".` });
       await refetch(); // Refresh websites list
       setNewSiteName('');

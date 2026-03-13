@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"log"
 	"net/http"
 	"os"
@@ -334,6 +335,8 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, analyticsHandler *ha
 		v1.Group("/privacy")
 		{
 			v1.GET("/privacy/export/:user_id", privacyHandler.ExportUserAnalytics)
+			v1.GET("/privacy/export/website/:website_id", privacyHandler.ExportWebsiteAnalytics)
+			v1.POST("/privacy/import/:website_id", privacyHandler.ImportWebsiteAnalytics)
 			v1.DELETE("/privacy/delete/:user_id", privacyHandler.DeleteUserAnalytics)
 			v1.DELETE("/privacy/delete/website/:website_id", privacyHandler.DeleteWebsiteAnalytics)
 			v1.PUT("/privacy/anonymize/:user_id", privacyHandler.AnonymizeUserAnalytics)
@@ -355,7 +358,8 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, analyticsHandler *ha
 		// Internal endpoints for enterprise gateway (API key protected)
 		internal := v1.Group("/internal", func(c *gin.Context) {
 			expectedKey := os.Getenv("GLOBAL_API_KEY")
-			if expectedKey == "" || c.GetHeader("X-API-Key") != expectedKey {
+			providedKey := c.GetHeader("X-API-Key")
+			if expectedKey == "" || subtle.ConstantTimeCompare([]byte(providedKey), []byte(expectedKey)) != 1 {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
 				c.Abort()
 				return

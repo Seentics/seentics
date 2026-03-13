@@ -1,3 +1,5 @@
+import { config } from './config';
+
 /**
  * Opens a LemonSqueezy checkout URL in the embedded modal overlay.
  * Falls back to a full-page redirect if the SDK hasn't loaded yet.
@@ -27,7 +29,7 @@ export function openCheckout(rawUrl: string) {
   const successUrl = encodeURIComponent(
     typeof window !== 'undefined'
       ? `${window.location.origin}/websites`
-      : 'https://seentics.com/websites'
+      : `${config.frontendUrl}/websites`
   );
   if (!url.includes('checkout[success_url]')) {
     url += `&checkout[success_url]=${successUrl}`;

@@ -10,6 +10,9 @@ import {
     PanelLeft,
     Key,
     Users,
+    Shield,
+    Bell,
+    FileText,
 } from 'lucide-react';
 
 import { ScriptSettingsComponent } from '@/components/settings/ScriptSettingsComponent';
@@ -21,9 +24,9 @@ import { AlertsSettingsComponent } from '@/components/settings/AlertsSettingsCom
 import { ReportsSettingsComponent } from '@/components/settings/ReportsSettingsComponent';
 import { ApiKeysSettingsComponent } from '@/components/settings/ApiKeysSettingsComponent';
 import { TeamSettingsComponent } from '@/components/settings/TeamSettingsComponent';
+import { PrivacySettingsComponent } from '@/components/settings/PrivacySettingsComponent';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { cn } from '@/lib/utils';
-import { Bell, FileText } from 'lucide-react';
 import { isEnterprise } from '@/lib/features';
 
 const sectionGroups = [
@@ -46,6 +49,7 @@ const sectionGroups = [
     {
         label: 'Advanced',
         items: [
+            { id: 'privacy',  label: 'Privacy',   icon: Shield,    description: 'Data protection & GDPR' },
             { id: 'layout',   label: 'Layout',    icon: PanelLeft, description: 'Dashboard layout' },
             ...(isEnterprise ? [
                 { id: 'api-keys', label: 'API Keys', icon: Key,      description: 'Raw data API access' },
@@ -64,6 +68,7 @@ const iconColors: Record<string, string> = {
     scripts:       'text-yellow-500 bg-yellow-500/10',
     alerts:        'text-amber-500 bg-amber-500/10',
     reports:       'text-indigo-500 bg-indigo-500/10',
+    privacy:       'text-emerald-600 bg-emerald-500/10',
     layout:        'text-cyan-500 bg-cyan-500/10',
     'api-keys':    'text-emerald-500 bg-emerald-500/10',
     team:          'text-blue-500 bg-blue-500/10',
@@ -77,6 +82,7 @@ const renderContent = (activeTab: string, websiteId: string) => {
         case 'scripts':       return <ScriptSettingsComponent websiteId={websiteId} />;
         case 'alerts':        return <AlertsSettingsComponent />;
         case 'reports':       return <ReportsSettingsComponent />;
+        case 'privacy':       return <PrivacySettingsComponent websiteId={websiteId} />;
         case 'layout':        return <LayoutSettingsComponent />;
         case 'api-keys':      return <ApiKeysSettingsComponent websiteId={websiteId} />;
         case 'team':          return <TeamSettingsComponent websiteId={websiteId} />;

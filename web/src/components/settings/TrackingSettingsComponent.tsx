@@ -20,10 +20,14 @@ const trackingSnippet = `<!-- Seentics Analytics -->
   src="${origin}/trackers/seentics.js"
 ></script>`;
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(trackingSnippet);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(trackingSnippet);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard API may be unavailable in non-secure contexts
+    }
   };
 
   return (

@@ -506,7 +506,9 @@ func (s *AnalyticsService) ImportWebsiteData(ctx context.Context, websiteID stri
 	if err != nil {
 		return 0, err
 	}
-	return 0, fmt.Errorf("import not implemented")
+	// For now, the import is handled by the privacy service which has full import capability.
+	// This stub returns a helpful error directing callers to use the privacy import endpoint.
+	return 0, fmt.Errorf("use the /privacy/import/:website_id endpoint for full data import")
 }
 
 func (s *AnalyticsService) GetRealtimeData(ctx context.Context, websiteID string, userID string, timezone string) (*models.RealtimeData, error) {

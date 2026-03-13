@@ -38,7 +38,6 @@ interface TeamSettingsComponentProps {
 }
 
 export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps) {
-  if (!isEnterprise) return null;
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -99,6 +98,8 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
       deleteMutation.mutate(memberUserId);
     }
   };
+
+  if (!isEnterprise) return null;
 
   if (permLoading) {
     return (

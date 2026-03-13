@@ -13,10 +13,11 @@ import api from '@/lib/api';
 import { isEnterprise } from '@/lib/features';
 
 export function BillingSettingsComponent() {
-  if (!isEnterprise) return null;
   const { subscription, getUsagePercentage, refetch } = useSubscription();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = React.useState(false);
   const [cancelling, setCancelling] = React.useState(false);
+
+  if (!isEnterprise) return null;
 
   const normalizedPlan = (subscription?.plan || 'Free').toLowerCase();
   const isStarter = normalizedPlan === 'free';

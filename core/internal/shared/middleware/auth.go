@@ -103,7 +103,15 @@ func UnifiedAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			case float64:
 				userID = fmt.Sprintf("%.0f", val)
 			default:
-				userID = fmt.Sprintf("%v", val)
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id claim type"})
+				c.Abort()
+				return
+			}
+
+			if userID == "" {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Empty user_id in token"})
+				c.Abort()
+				return
 			}
 
 			c.Set("user_id", userID)

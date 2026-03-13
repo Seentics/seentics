@@ -69,6 +69,18 @@ async function fetchAutomations(websiteId: string, limit: number = 10, offset: n
     return response.data;
 }
 
+export async function fetchAutomation(websiteId: string, automationId: string): Promise<Automation | null> {
+    if (isDemo(websiteId)) {
+        return demoAutomations().automations.find(a => a.id === automationId) || null;
+    }
+    try {
+        const response = await api.get(`/websites/${websiteId}/automations/${automationId}`);
+        return response.data;
+    } catch {
+        return null;
+    }
+}
+
 async function createAutomation(websiteId: string, data: CreateAutomationRequest): Promise<Automation> {
     if (demoMutationGuard(websiteId)) {
         return { id: 'demo-new', websiteId, userId: 'demo', ...data, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: data.actions } as Automation;

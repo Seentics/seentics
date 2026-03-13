@@ -84,8 +84,14 @@ api.interceptors.response.use(
       requestUrl.includes('websiteId=demo') ||
       requestUrl.match(/\/demo[/?]/) !== null;
 
-    // Handle 401 Unauthorized - attempt token refresh (skip for demo requests)
-    if (error.response?.status === 401 && !originalRequest._retry && !isDemoRequest) {
+    // Demo and secret-verify requests: never redirect on 401
+    const isSecretVerify = requestUrl.includes('/verify-secrets');
+    if (error.response?.status === 401 && (isDemoRequest || isSecretVerify)) {
+      return Promise.reject(error);
+    }
+
+    // Handle 401 Unauthorized - attempt token refresh
+    if (error.response?.status === 401 && !originalRequest._retry) {
       if (!hasActiveSession()) {
         return Promise.reject(error);
       }
@@ -139,20 +145,6 @@ api.interceptors.response.use(
         performLogout();
         return Promise.reject(refreshError);
       }
-    }
-
-    // Handle other 401 errors - but not for demo or secret verification
-    const isSecretVerify = requestUrl.includes('/verify-secrets');
-
-    if (error.response?.status === 401 && !isDemoRequest && !isSecretVerify && hasActiveSession()) {
-      console.error('Unauthorized access - logging out user');
-      performLogout();
-      return Promise.reject(error);
-    }
-
-    // For demo requests with 401, just reject without redirecting
-    if (error.response?.status === 401 && isDemoRequest) {
-      return Promise.reject(error);
     }
 
     // Handle other error messages

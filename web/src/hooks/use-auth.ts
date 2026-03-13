@@ -18,6 +18,13 @@ export function useAuthGuard() {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Refresh token function
+  const refreshToken = useCallback(async () => {
+    // Token refresh functionality removed - no longer needed
+    logout();
+    router.push('/signin');
+  }, [logout, router]);
+
   // Check authentication status on mount
   useEffect(() => {
     const checkAuth = async () => {
@@ -33,15 +40,7 @@ export function useAuthGuard() {
     };
 
     checkAuth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, user]);
-
-  // Refresh token function
-  const refreshToken = useCallback(async () => {
-    // Token refresh functionality removed - no longer needed
-    logout();
-    router.push('/signin');
-  }, [logout, router]);
+  }, [isAuthenticated, user, isTokenExpired, refreshToken, router]);
 
   // Auto-refresh token before it expires
   useEffect(() => {

@@ -53,6 +53,7 @@
       ss.setItem('_ss', S.sid);
       ss.setItem('_ss0', now + ''); // Record absolute start of session
       ss.setItem('_rseq', '0');     // Reset replay sequence
+      ss.removeItem('_fp');         // Clear funnel progress — new session starts fresh
     }
     ss.setItem('_sl', now + '');
   };
@@ -101,7 +102,14 @@
     // rrweb events are large; bundling them with heatmap + analytics data often
     // exceeds the limit, causing the browser to silently drop the entire payload.
     var url = C.host + '/api/v1/tracker/collect';
-    var send = function (obj) { nav.sendBeacon(url, new Blob([JSON.stringify(obj)], { type: 'application/json' })); };
+    var send = function (obj) {
+      var blob = new Blob([JSON.stringify(obj)], { type: 'application/json' });
+      // sendBeacon returns false if the browser rejects the payload (too large, quota exceeded).
+      // Fall back to a keepalive fetch so the data is not silently lost.
+      if (!nav.sendBeacon(url, blob)) {
+        try { fetch(url, { method: 'POST', body: blob, keepalive: true }); } catch (e) { }
+      }
+    };
     if (buf.replay && buf.replay.events.length) {
       var rp = { site_id: C.id, domain: loc.hostname, replay: { session_id: S.sid, events: buf.replay.events.splice(0), sequence: buf.replay.seq++, page: loc.pathname } };
       ss.setItem('_rseq', buf.replay.seq + '');
@@ -242,15 +250,21 @@
     }
     return p.join(' > ');
   };
+  var hmUrlAllowed = function (path) {
+    var tracked = C.tracked_urls || [], maxH = C.max_heatmaps || 0;
+    var np = normPath(path);
+    if (tracked.includes(np)) return true;
+    if (maxH > 0 && tracked.length >= maxH) return false;
+    tracked.push(np);
+    return true;
+  };
   var hmAdd = function (type, x, y, sel, elX, elY) {
     if (!hm.enabled) return;
+    if (!hmUrlAllowed(loc.pathname)) return;
     buf.heatmaps.push({ type: type, x: x, y: y, selector: sel || '', el_x: (elX !== undefined ? elX : -1), el_y: (elY !== undefined ? elY : -1), doc_h: hmDims().h, url: normPath(loc.pathname), device_type: hmDev(), timestamp: Math.floor(Date.now() / 1000) });
   };
 
   var initHeatmap = function () {
-    var tracked = C.tracked_urls || [], maxH = C.max_heatmaps || 0, cp = loc.pathname;
-    if (maxH > 0 && !tracked.includes(cp) && tracked.length >= maxH) { hm.enabled = false; return; }
-    if (!tracked.includes(cp)) tracked.push(cp);
 
     hmAdd('pageview', 0, 0);
 
@@ -408,7 +422,7 @@
     var match = function (step, data) {
       var type = (step.stepType || step.step_type || '').toLowerCase(), m = step.matchType || step.match_type || 'exact';
       if (type === 'page_view' || type === 'pageview') {
-        var tp = step.pagePath || step.page_path, cp = loc.pathname;
+        var tp = normPath(step.pagePath || step.page_path || '/'), cp = normPath(loc.pathname);
         return m === 'contains' ? cp.includes(tp) : m === 'starts_with' ? cp.startsWith(tp) : cp === tp;
       }
       return type === 'event' && data.name === (step.eventType || step.event_type);
@@ -458,21 +472,34 @@
       if (freq === 'once_per_day') localStorage.setItem('_sa' + a.id, Date.now() + '');
     };
     var exec = function (a) {
+      var status = 'success', errMsg = '';
       (a.actions || []).forEach(function (act) {
-        var cfg = act.actionConfig || act.action_config || {}, type = (act.actionType || act.action_type || '').toLowerCase();
-        if (type === 'redirect' && cfg.url) setTimeout(function () { if (cfg.newTab) w.open(cfg.url, '_blank'); else loc.href = cfg.url; }, (parseInt(cfg.delay) || 0) * 1000);
-        else if ((type === 'hide_element' || type === 'hideelement') && cfg.selector) { var el = d.querySelector(cfg.selector); if (el) el.style.display = 'none'; }
-        else if ((type === 'show_element' || type === 'showelement') && cfg.selector) { var el2 = d.querySelector(cfg.selector); if (el2) el2.style.display = cfg.display_type || 'block'; }
-        else if (type === 'modal') showModal(cfg);
-        else if (type === 'banner') showBanner(cfg);
-        else if (type === 'notification') showNotif(cfg);
-        else if ((type === 'script' || type === 'javascript') && cfg.code) { var s = d.createElement('script'); s.textContent = cfg.code; d.body.appendChild(s); }
-        else if ((type === 'track_event' || type === 'trackevent') && cfg.event_name) track(cfg.event_name, {});
-        else if ((type === 'set_cookie' || type === 'setcookie') && (cfg.name || cfg.cookie_name)) ck(cfg.name || cfg.cookie_name, cfg.value !== undefined ? cfg.value : cfg.cookie_value, parseInt(cfg.days || cfg.expiration_days) || 30);
+        try {
+          var cfg = act.actionConfig || act.action_config || {}, type = (act.actionType || act.action_type || '').toLowerCase();
+          if (type === 'redirect' && cfg.url) setTimeout(function () { if (cfg.newTab) w.open(cfg.url, '_blank'); else loc.href = cfg.url; }, (parseInt(cfg.delay) || 0) * 1000);
+          else if ((type === 'hide_element' || type === 'hideelement') && cfg.selector) { var el = d.querySelector(cfg.selector); if (el) el.style.display = 'none'; }
+          else if ((type === 'show_element' || type === 'showelement') && cfg.selector) { var el2 = d.querySelector(cfg.selector); if (el2) el2.style.display = cfg.display_type || 'block'; }
+          else if (type === 'modal') showModal(cfg);
+          else if (type === 'banner') showBanner(cfg);
+          else if (type === 'notification') showNotif(cfg);
+          else if ((type === 'script' || type === 'javascript') && cfg.code) { var s = d.createElement('script'); s.textContent = cfg.code; d.body.appendChild(s); }
+          else if ((type === 'track_event' || type === 'trackevent') && cfg.event_name) track(cfg.event_name, { automation_id: a.id, automation_name: a.name || '' });
+          else if ((type === 'set_cookie' || type === 'setcookie') && (cfg.name || cfg.cookie_name)) ck(cfg.name || cfg.cookie_name, cfg.value !== undefined ? cfg.value : cfg.cookie_value, parseInt(cfg.days || cfg.expiration_days) || 30);
+        } catch (e) { status = 'partial_failure'; errMsg = (errMsg ? errMsg + '; ' : '') + (e.message || 'unknown'); }
       });
-      buf.automations.push({ automationId: a.id, websiteId: C.id, visitorId: S.vid, sessionId: S.sid, status: 'success', executedAt: new Date().toISOString() });
+      buf.automations.push({ automationId: a.id, websiteId: C.id, visitorId: S.vid, sessionId: S.sid, status: status, error: errMsg || undefined, page: loc.pathname, executedAt: new Date().toISOString() });
     };
 
+    // Escape regex special chars except *, then replace * with .*
+    var patternToRegex = function (p) {
+      return new RegExp('^' + p.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+    };
+    var matchUrl = function (tc) {
+      if (!tc.url_pattern || tc.url_pattern === '*') return true;
+      var p = tc.url_pattern, cp = loc.pathname;
+      if (p.includes('*')) return patternToRegex(p).test(cp);
+      return cp === p;
+    };
     var evaluate = function (evType, data) {
       autos.forEach(function (a) {
         var tt = (a.triggerType || a.trigger_type || '').toLowerCase(), tc = a.triggerConfig || a.trigger_config || {}, m = false;
@@ -485,11 +512,7 @@
         else if (tt === 'inactivity' && evType === 'inactivity') m = (data || {}).sec >= (tc.seconds || 30);
         else if (tt === 'funnelcomplete' && evType === 'funnel:done') m = !tc.funnel_id || (data || {}).fid === tc.funnel_id;
         if (!m) return;
-        if (tc.url_pattern && tc.url_pattern !== '*') {
-          var p = tc.url_pattern, cp = loc.pathname;
-          if (p.includes('*')) { if (!new RegExp('^' + p.replace(/\*/g, '.*') + '$').test(cp)) return; }
-          else if (cp !== p) return;
-        }
+        if (!matchUrl(tc)) return;
         if (shouldRun(a)) { exec(a); markRan(a); }
       });
     };
@@ -506,11 +529,7 @@
         clickAutos.forEach(function (a) {
           var tc = a.triggerConfig || a.trigger_config || {};
           if (!tc.selector || !e.target.closest(tc.selector)) return;
-          if (tc.url_pattern && tc.url_pattern !== '*') {
-            var p = tc.url_pattern, cp = loc.pathname;
-            if (p.includes('*')) { if (!new RegExp('^' + p.replace(/\*/g, '.*') + '$').test(cp)) return; }
-            else if (cp !== p) return;
-          }
+          if (!matchUrl(tc)) return;
           if (shouldRun(a)) { exec(a); markRan(a); }
         });
       }, true);

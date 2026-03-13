@@ -82,6 +82,13 @@ export function IntegrationsSettingsComponent() {
 
   const handleCreate = async () => {
     if (!formUrl.trim()) { toast.error('Please enter a webhook URL'); return; }
+    try {
+      const parsed = new URL(formUrl.trim());
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error();
+    } catch {
+      toast.error('Please enter a valid webhook URL (https://...)');
+      return;
+    }
     if (formEvents.length === 0) { toast.error('Please select at least one event'); return; }
 
     try {

@@ -1,4 +1,3 @@
-//@ts-ignore
 'use client';
 
 import { GeolocationOverview } from '@/components/analytics/GeolocationOverview';

@@ -154,7 +154,7 @@ export function ReportsSettingsComponent() {
 
   const addRecipient = () => {
     const email = formRecipientInput.trim();
-    if (!email || !email.includes('@')) { toast.error('Enter a valid email'); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast.error('Enter a valid email address'); return; }
     if (formRecipients.includes(email)) { toast.error('Already added'); return; }
     setFormRecipients((prev) => [...prev, email]);
     setFormRecipientInput('');

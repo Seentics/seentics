@@ -29,11 +29,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   useFunnels,
-  useFunnelAnalytics,
   useDeleteFunnel,
   useUpdateFunnel,
   type Funnel
-} from '@/lib/analytics-api';
+} from '@/lib/funnels-api';
+import { useFunnelAnalytics } from '@/lib/analytics-api';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -203,7 +203,8 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Paused'>('All');
 
-  const { data: funnels = [], isLoading } = useFunnels(siteId);
+  const { data: funnelsResponse, isLoading } = useFunnels(siteId);
+  const funnels = funnelsResponse?.funnels ?? [];
   const deleteFunction = useDeleteFunnel();
   const updateFunnel = useUpdateFunnel();
 
@@ -216,8 +217,8 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
         (funnel.description || '').toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus = statusFilter === 'All' ||
-        (statusFilter === 'Active' && funnel.is_active) ||
-        (statusFilter === 'Paused' && !funnel.is_active);
+        (statusFilter === 'Active' && funnel.isActive) ||
+        (statusFilter === 'Paused' && !funnel.isActive);
 
       return matchesSearch && matchesStatus;
     });
@@ -226,12 +227,13 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
   const handleToggleStatus = async (funnel: Funnel) => {
     try {
       await updateFunnel.mutateAsync({
+        websiteId,
         funnelId: funnel.id,
-        funnelData: { is_active: !funnel.is_active }
+        data: { isActive: !funnel.isActive }
       });
       toast({
         title: "Status Updated",
-        description: `"${funnel.name}" is now ${!funnel.is_active ? 'active' : 'paused'}.`,
+        description: `"${funnel.name}" is now ${!funnel.isActive ? 'active' : 'paused'}.`,
       });
     } catch (error) {
       toast({
@@ -244,7 +246,7 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
 
   const handleDeleteFunnel = async (funnelId: string) => {
     try {
-      await deleteFunction.mutateAsync(funnelId);
+      await deleteFunction.mutateAsync({ websiteId, funnelId });
       toast({
         title: "Funnel Deleted",
         description: "The funnel has been permanently deleted.",
@@ -367,11 +369,11 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
 
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Badge variant={funnel.is_active ? 'default' : 'secondary'} className="font-medium">
-                          {funnel.is_active ? 'Active' : 'Paused'}
+                        <Badge variant={funnel.isActive ? 'default' : 'secondary'} className="font-medium">
+                          {funnel.isActive ? 'Active' : 'Paused'}
                         </Badge>
                         <Switch
-                          checked={funnel.is_active}
+                          checked={funnel.isActive}
                           onCheckedChange={() => handleToggleStatus(funnel)}
                           disabled={updateFunnel.isPending}
                           className="ml-2"
@@ -392,7 +394,7 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <BarChart3 className="h-3 w-3" />
                           <span className="text-xs">
-                            {funnel.steps && funnel.steps.length > 0 ? funnel.steps[0]?.type || 'Custom' : 'Custom'}
+                            {funnel.steps && funnel.steps.length > 0 ? funnel.steps[0]?.stepType || 'Custom' : 'Custom'}
                           </span>
                         </div>
                       </div>
@@ -411,7 +413,7 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-sm font-medium">{formatDate(funnel.created_at)}</span>
+                        <span className="text-sm font-medium">{formatDate(funnel.createdAt)}</span>
                       </div>
                     </TableCell>
 
@@ -433,7 +435,7 @@ export function FunnelsTable({ siteId }: FunnelsTableProps) {
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 hover:bg-muted/50"
-                          onClick={() => window.open(`/websites/${websiteId}/funnels/edit/${funnel.id}`, '_blank')}
+                          onClick={() => window.open(`/websites/${websiteId}/funnels/builder?id=${funnel.id}&mode=edit`, '_blank')}
                         >
                           <Pencil className="h-4 w-4" />
                           <span className="sr-only">Edit Funnel</span>

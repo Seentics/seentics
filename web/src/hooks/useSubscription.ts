@@ -55,6 +55,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const [error, setError] = useState<string | null>(null);
   const { user, isAuthenticated } = useAuth();
 
+  const userId = user?.id;
   const fetchSubscription = useCallback(async () => {
     // Demo Mode logic
     if (typeof window !== 'undefined' && (window.location.pathname.includes('/websites/demo') || !isAuthenticated)) {
@@ -73,7 +74,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, userId]);
 
   useEffect(() => {
     fetchSubscription();

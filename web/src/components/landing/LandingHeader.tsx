@@ -33,11 +33,11 @@ export default function LandingHeader() {
   return (
     <header
       className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${scrolled
-        ? 'top-0 bg-background/80 border-b border-border/40 backdrop-blur-md h-16'
-        : 'top-0 bg-transparent h-20'
+        ? 'top-0 bg-background/80 border-b border-border/40 backdrop-blur-md h-[72px]'
+        : 'top-0 bg-transparent h-24'
         }`}
     >
-      <div className="container mx-auto px-6 h-full flex items-center justify-between relative">
+      <div className="container mx-auto px-8 h-full flex items-center justify-between relative">
         <Link href="/" className="flex items-center gap-2">
           <Logo size="md" />
           <span className="text-base font-semibold text-foreground">Seentics</span>
@@ -55,14 +55,14 @@ export default function LandingHeader() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <Link
             href="https://github.com/Seentics/seentics"
             target="_blank"
             className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
             title="Star us on GitHub"
           >
-            <Github className="h-4 w-4" />
+            <Github className="h-5 w-5" />
           </Link>
           <Link
             href="https://discord.gg/eHNHR82add"
@@ -70,7 +70,7 @@ export default function LandingHeader() {
             className="p-2 rounded-md text-muted-foreground hover:text-[#5865F2] hover:bg-[#5865F2]/10 transition-colors"
             title="Join our Discord"
           >
-            <FaDiscord className="h-4 w-4" />
+            <FaDiscord className="h-5 w-5" />
           </Link>
           <ThemeToggle />
           <div className="hidden sm:flex items-center gap-2">
@@ -99,6 +99,7 @@ export default function LandingHeader() {
           <button
             className="md:hidden p-1.5 rounded-md hover:bg-accent text-foreground transition-colors"
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
           </button>

@@ -76,7 +76,7 @@ export default function CTA() {
                   <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
                 </Button>
               </Link>
-              <Link href="/demo" className="w-full sm:w-auto">
+              <Link href="/websites/demo" className="w-full sm:w-auto">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto px-6 sm:px-8 py-4 sm:py-5 text-base sm:text-lg">
                   Watch Demo
                   <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />

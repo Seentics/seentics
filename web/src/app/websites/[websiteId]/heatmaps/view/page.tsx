@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import {
   ChevronLeft,
@@ -65,6 +65,7 @@ function HeatmapViewContent() {
   const [showOverlay, setShowOverlay] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const onLoadPollerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [datePreset, setDatePreset] = useState(90);
   const [dateFrom, setDateFrom] = useState(() => {
@@ -79,6 +80,13 @@ function HeatmapViewContent() {
 
   useEffect(() => { latestPointsRef.current = points; }, [points]);
   useEffect(() => { latestDimensionsRef.current = dimensions; }, [dimensions]);
+
+  // Cleanup onLoad poller on unmount
+  useEffect(() => {
+    return () => {
+      if (onLoadPollerRef.current) clearInterval(onLoadPollerRef.current);
+    };
+  }, []);
 
   // Listen for messages from the tracker script in the iframe
   useEffect(() => {
@@ -101,7 +109,7 @@ function HeatmapViewContent() {
           if (!rect || rect.width <= 0 || rect.height <= 0) return p;
           const px = rect.left + (p.el_x / 1000) * rect.width;
           const py = rect.top + (p.el_y / 1000) * rect.height;
-          return { ...p, x: (px / dw) * 1000, y: (py / dh) * 1000 };
+          return { ...p, x: (px / dw) * 1000, y: (py / dh) * 1000, doc_height: dh };
         }));
       }
     };
@@ -160,28 +168,28 @@ function HeatmapViewContent() {
 
   // Fetch heatmap points
   useEffect(() => {
-    let cancelled = false;
+    const abortController = new AbortController();
     const fetchPoints = async () => {
       setLoading(true);
       setPoints([]);
       if (showDummy) {
-        if (!cancelled) { setPoints(generateDummyPoints(activeType)); setLoading(false); }
+        if (!abortController.signal.aborted) { setPoints(generateDummyPoints(activeType)); setLoading(false); }
         return;
       }
       try {
         const dateParams = buildDateParams(dateFrom, dateTo);
-        const response = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}&device=${device}${dateParams}`);
-        if (cancelled) return;
+        const response = await api.get(`/heatmaps/data?website_id=${websiteId}&url=${encodeURIComponent(url)}&type=${activeType}&device=${device}${dateParams}`, { signal: abortController.signal });
+        if (abortController.signal.aborted) return;
         const rawPoints = response.data.points || [];
         setPoints(rawPoints.map((p: any) => ({ ...p, x: p.x_percent ?? p.x, y: p.y_percent ?? p.y, doc_height: p.doc_height ?? 0 })));
       } catch (err: any) {
-        if (!cancelled) console.error('Failed to fetch heatmap points:', err);
+        if (!abortController.signal.aborted) console.error('Failed to fetch heatmap points:', err);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!abortController.signal.aborted) setLoading(false);
       }
     };
     fetchPoints();
-    return () => { cancelled = true; };
+    return () => { abortController.abort(); };
   }, [websiteId, url, activeType, device, showDummy, dateFrom, dateTo, refreshKey]);
 
   // Update view size
@@ -411,12 +419,20 @@ function HeatmapViewContent() {
                     scanHeight();
                     setTimeout(scanHeight, 1500);
                     setTimeout(scanHeight, 3000);
+                    // Clear any previous poller before starting a new one
+                    if (onLoadPollerRef.current) clearInterval(onLoadPollerRef.current);
                     let attempts = 0;
-                    const poller = setInterval(() => {
+                    onLoadPollerRef.current = setInterval(() => {
                       if (validIframe.contentWindow) {
                         validIframe.contentWindow.postMessage('SEENTICS_GET_DIMENSIONS', '*');
-                        if (++attempts > 10) clearInterval(poller);
-                      } else clearInterval(poller);
+                        if (++attempts > 10) {
+                          if (onLoadPollerRef.current) clearInterval(onLoadPollerRef.current);
+                          onLoadPollerRef.current = null;
+                        }
+                      } else {
+                        if (onLoadPollerRef.current) clearInterval(onLoadPollerRef.current);
+                        onLoadPollerRef.current = null;
+                      }
                     }, 500);
                   }}
                   referrerPolicy="same-origin"

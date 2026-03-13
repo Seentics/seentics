@@ -78,12 +78,17 @@ export default function CookieConsentManager({
 
   useEffect(() => {
     // Check if user has already given consent
-    const savedConsent = localStorage.getItem('seentics_cookie_consent');
-    if (!savedConsent && showBanner) {
-      setShowConsentBanner(true);
-    } else if (savedConsent) {
-      const parsed = JSON.parse(savedConsent);
-      setPreferences(parsed);
+    try {
+      const savedConsent = localStorage.getItem('seentics_cookie_consent');
+      if (!savedConsent && showBanner) {
+        setShowConsentBanner(true);
+      } else if (savedConsent) {
+        const parsed = JSON.parse(savedConsent);
+        setPreferences(parsed);
+      }
+    } catch {
+      // localStorage unavailable or corrupt data — show banner
+      if (showBanner) setShowConsentBanner(true);
     }
   }, [showBanner]);
 

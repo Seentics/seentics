@@ -1,14 +1,18 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/Seentics/seentics/internal/modules/auth/models"
 	"github.com/Seentics/seentics/internal/modules/auth/services"
 	"github.com/Seentics/seentics/internal/shared/config"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
@@ -240,23 +244,38 @@ func (h *AuthHandler) UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	// Create uploads directory if it doesn't exist
-	if _, err := os.Stat("uploads"); os.IsNotExist(err) {
-		os.Mkdir("uploads", 0755)
+	// Validate file size (max 5MB)
+	if file.Size > 5<<20 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file too large, max 5MB"})
+		return
 	}
 
-	// Generate filename: userID_timestamp_filename
-	filename := userID + "_" + file.Filename
-	filepath := "uploads/" + filename
+	// Validate file extension
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
+	if !allowedExts[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid file type, allowed: jpg, jpeg, png, gif, webp"})
+		return
+	}
 
-	if err := c.SaveUploadedFile(file, filepath); err != nil {
+	// Create uploads directory if it doesn't exist
+	uploadsDir, _ := filepath.Abs("uploads")
+	if _, err := os.Stat(uploadsDir); os.IsNotExist(err) {
+		os.MkdirAll(uploadsDir, 0700)
+	}
+
+	// Generate safe filename with UUID to prevent path traversal
+	safeFilename := fmt.Sprintf("%s_%s%s", userID, uuid.New().String(), ext)
+	savePath := filepath.Join(uploadsDir, safeFilename)
+
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
 		h.logger.Error().Err(err).Msg("Failed to save avatar file")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
 		return
 	}
 
 	// Generate public URL (assuming backend is serving /uploads)
-	avatarURL := "/uploads/" + filename
+	avatarURL := "/uploads/" + safeFilename
 
 	if err := h.service.UpdateAvatar(c.Request.Context(), userID, avatarURL); err != nil {
 		h.logger.Error().Err(err).Msg("Failed to update avatar URL in DB")

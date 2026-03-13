@@ -1,18 +1,15 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Activity,
   MousePointer2,
   MousePointerClick,
   Trash2,
-  ArrowUpRight,
   Zap,
-  Sparkles,
   Settings as SettingsIcon,
   Eye,
-  BarChart3,
   Search,
 } from 'lucide-react';
 import { Card, CardContent } from "@/components/ui/card";
@@ -85,17 +82,17 @@ export default function HeatmapsPage() {
 
   useEffect(() => { fetchPages(); }, [websiteId]);
 
-  const handleDeletePage = async (url: string) => {
-    if (isDemoMode) { setPages(pages.filter(p => p.url !== url)); return; }
+  const handleDeletePage = useCallback(async (url: string) => {
+    if (isDemoMode) { setPages(prev => prev.filter(p => p.url !== url)); return; }
     if (!window.confirm(`Delete heatmap data for ${url}?`)) return;
     try {
       await api.delete(`/heatmaps/pages?website_id=${websiteId}&url=${encodeURIComponent(url)}`);
-      setPages(pages.filter(p => p.url !== url));
+      setPages(prev => prev.filter(p => p.url !== url));
     } catch (err) {
       console.error('Failed to delete heatmap page:', err);
       alert('Failed to delete heatmap page data. Please try again.');
     }
-  };
+  }, [isDemoMode, websiteId]);
 
   const handleBulkDelete = async () => {
     const selectedUrls = selectedPages.map((p: any) => p.url);
