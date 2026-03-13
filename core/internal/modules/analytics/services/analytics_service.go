@@ -509,14 +509,14 @@ func (s *AnalyticsService) ImportWebsiteData(ctx context.Context, websiteID stri
 	return 0, fmt.Errorf("import not implemented")
 }
 
-func (s *AnalyticsService) GetRealtimeData(ctx context.Context, websiteID string, userID string) (*models.RealtimeData, error) {
+func (s *AnalyticsService) GetRealtimeData(ctx context.Context, websiteID string, userID string, timezone string) (*models.RealtimeData, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := fmt.Sprintf("analytics:realtime:%s", canonicalID)
+	cacheKey := fmt.Sprintf("analytics:realtime:%s:%s", canonicalID, timezone)
 	return cachedQuery(s.cache, cacheKey, 5*time.Second, func() (*models.RealtimeData, error) {
-		return s.repo.GetRealtimeData(ctx, canonicalID)
+		return s.repo.GetRealtimeData(ctx, canonicalID, timezone)
 	})
 }
 

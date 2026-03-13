@@ -95,17 +95,19 @@ func (h *InternalHandler) GetUserResourceCounts(c *gin.Context) {
 	}
 	counts["heatmaps"] = heatmapCount
 
-	// Replay sessions
+	// Start of current billing month (used for replays + events)
+	startOfMonth := time.Now().UTC().AddDate(0, 0, -time.Now().Day()+1)
+	startOfMonth = time.Date(startOfMonth.Year(), startOfMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
+
+	// Replay sessions (current billing month only)
 	var replayCount int
-	if err := h.db.QueryRow(ctx, "SELECT COUNT(DISTINCT session_id) FROM session_replays WHERE website_id = ANY($1) OR website_id = ANY($2)", siteIDs, uuidStrings).Scan(&replayCount); err != nil {
+	if err := h.db.QueryRow(ctx, "SELECT COUNT(DISTINCT session_id) FROM session_replays WHERE (website_id = ANY($1) OR website_id = ANY($2)) AND timestamp >= $3", siteIDs, uuidStrings, startOfMonth).Scan(&replayCount); err != nil {
 		h.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to count replays")
 	}
 	counts["replays"] = replayCount
 
 	// Monthly events
 	var monthlyEvents int
-	startOfMonth := time.Now().UTC().AddDate(0, 0, -time.Now().Day()+1)
-	startOfMonth = time.Date(startOfMonth.Year(), startOfMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
 
 	if h.ch != nil {
 		var chCount uint64

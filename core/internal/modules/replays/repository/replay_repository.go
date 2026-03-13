@@ -339,17 +339,19 @@ func (r *replayRepository) SessionExists(ctx context.Context, websiteID, session
 	return exists, err
 }
 
-// CountSessionsForUser counts all distinct sessions across every website owned by userID.
-// This gives the true global usage for billing quota enforcement.
+// CountSessionsForUser counts distinct sessions in the current billing month
+// across every website owned by userID for quota enforcement.
 func (r *replayRepository) CountSessionsForUser(ctx context.Context, userID uuid.UUID) (int64, error) {
 	var count int64
+	now := time.Now().UTC()
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	query := `
 		SELECT COUNT(DISTINCT sr.session_id)
 		FROM session_replays sr
 		JOIN websites w ON sr.website_id = w.site_id
-		WHERE w.user_id = $1
+		WHERE w.user_id = $1 AND sr.timestamp >= $2
 	`
-	err := r.db.QueryRow(ctx, query, userID).Scan(&count)
+	err := r.db.QueryRow(ctx, query, userID, startOfMonth).Scan(&count)
 	return count, err
 }
 

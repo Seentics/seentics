@@ -1371,9 +1371,13 @@ func (r *ClickHouseAnalyticsRepository) GetAvgPathLength(ctx context.Context, we
 	return avg, err
 }
 
-func (r *ClickHouseAnalyticsRepository) GetRealtimeData(ctx context.Context, websiteID string) (*models.RealtimeData, error) {
+func (r *ClickHouseAnalyticsRepository) GetRealtimeData(ctx context.Context, websiteID string, timezone string) (*models.RealtimeData, error) {
 	data := &models.RealtimeData{}
 	const window = "30 minute"
+
+	if timezone == "" {
+		timezone = "UTC"
+	}
 
 	// Summary: active visitors, pageviews, sessions in last 30 min
 	q1 := `SELECT uniq(visitor_id), count(*), uniq(session_id)
@@ -1386,16 +1390,16 @@ func (r *ClickHouseAnalyticsRepository) GetRealtimeData(ctx context.Context, web
 	data.PageViews = int(pv)
 	data.Sessions = int(sess)
 
-	// 30-minute timeline (per-minute buckets)
+	// 30-minute timeline (per-minute buckets) in user's timezone
 	qTimeline := `SELECT
-		formatDateTime(toStartOfMinute(timestamp), '%H:%i') as minute,
+		formatDateTime(toStartOfMinute(timestamp), '%H:%i', ?) as minute,
 		uniq(visitor_id) as visitors,
 		count(*) as views
 		FROM events
 		WHERE website_id = ? AND timestamp >= now() - interval 30 minute AND event_type = 'pageview'
 		GROUP BY minute
 		ORDER BY minute`
-	rowsT, err := r.conn.Query(ctx, qTimeline, websiteID)
+	rowsT, err := r.conn.Query(ctx, qTimeline, timezone, websiteID)
 	if err != nil {
 		return nil, err
 	}

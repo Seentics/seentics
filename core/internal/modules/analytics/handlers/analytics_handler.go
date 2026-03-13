@@ -635,7 +635,9 @@ func (h *AnalyticsHandler) GetRealtimeData(c *gin.Context) {
 	cancel := h.withQueryTimeout(c)
 	defer cancel()
 
-	data, err := h.service.GetRealtimeData(c.Request.Context(), websiteID, userID)
+	timezone := c.DefaultQuery("timezone", "UTC")
+
+	data, err := h.service.GetRealtimeData(c.Request.Context(), websiteID, userID, timezone)
 	if err != nil {
 		h.handleError(c, err, "Failed to get realtime data")
 		return

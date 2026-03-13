@@ -353,7 +353,7 @@ export const getRealtimeData = async (websiteId: string): Promise<RealtimeData> 
   if (isDemo(websiteId)) {
     return demoRealtimeData() as RealtimeData;
   }
-  const response = await api.get(`/analytics/realtime/${websiteId}`);
+  const response = await api.get(`/analytics/realtime/${websiteId}?timezone=${getUserTimezone()}`);
   return response.data;
 };
 

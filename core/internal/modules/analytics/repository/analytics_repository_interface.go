@@ -36,7 +36,7 @@ type MainAnalyticsRepository interface {
 	GetEntryPages(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error)
 	GetExitPages(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error)
 	GetAvgPathLength(ctx context.Context, websiteID string, days int) (float64, error)
-	GetRealtimeData(ctx context.Context, websiteID string) (*models.RealtimeData, error)
+	GetRealtimeData(ctx context.Context, websiteID string, timezone string) (*models.RealtimeData, error)
 	GetTopLanguages(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.TopItem, error)
 	GetTopCities(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.TopItem, error)
 	DeleteAllWebsiteData(ctx context.Context, websiteID string) error
