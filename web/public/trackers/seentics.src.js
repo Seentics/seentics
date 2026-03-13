@@ -330,7 +330,7 @@
 
   // ===== SESSION REPLAY =====
   var initReplay = function () {
-    var rate = (typeof C.replay_sampling_rate === 'number' && C.replay_sampling_rate > 0) ? C.replay_sampling_rate : 0.1;
+    var rate = (typeof C.replay_sampling_rate === 'number' && C.replay_sampling_rate > 0) ? C.replay_sampling_rate : 1.0;
     if (Math.random() > rate) return;
 
     var basePath = '/trackers/';

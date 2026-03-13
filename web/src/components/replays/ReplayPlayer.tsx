@@ -49,6 +49,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [streamProgress, setStreamProgress] = useState<{ loaded: number; total: number }>({ loaded: 0, total: 0 });
+  const pendingChunksRef = useRef<any[][]>([]);
+  const appendIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -127,35 +129,82 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
             } catch {}
           }
 
-          // ── Step 3: Load all chunks with concurrency ──
+          // ── Step 3: Load first 3 chunks, start playback, then background-fetch rest ──
           if (chunks.length > 0) {
             setStreamProgress({ loaded: 0, total: totalChunks });
             const sorted = [...chunks].sort((a, b) => a.seq - b.seq);
+            const initialCount = Math.min(3, sorted.length);
 
-            // Download all chunks with 4 concurrent workers, preserving sequence order
-            const chunkResults: any[][] = new Array(sorted.length);
-            let loadedCount = 0;
-            const fetchWorker = async (startIdx: number) => {
-              for (let i = startIdx; i < sorted.length; i += 4) {
-                if (signal.aborted) return;
-                chunkResults[i] = await fetchChunk(sorted[i].url);
-                loadedCount++;
-                setStreamProgress({ loaded: loadedCount, total: totalChunks });
-              }
-            };
+            // Load first 3 chunks sequentially to start playback fast
+            const initialEvents: any[] = [];
+            for (let i = 0; i < initialCount; i++) {
+              if (signal.aborted) return;
+              const chunkEvents = await fetchChunk(sorted[i].url);
+              if (chunkEvents.length) initialEvents.push(...chunkEvents);
+              setStreamProgress({ loaded: i + 1, total: totalChunks });
+            }
 
-            await Promise.all(
-              Array.from({ length: Math.min(4, sorted.length) }, (_, i) => fetchWorker(i))
-            );
             if (signal.aborted) return;
 
-            // Concatenate in chunk sequence order (NOT timestamp sort)
-            // rrweb events must stay in emission order within and across chunks
-            allEvents = chunkResults.reduce((acc, events) => {
-              if (events?.length) acc.push(...events);
-              return acc;
-            }, [] as any[]);
+            if (initialEvents.length > 0 && hasFullSnapshot(initialEvents)) {
+              // Start playback immediately with the first 3 chunks
+              allEvents = initialEvents;
+              pendingChunksRef.current = [];
+              setEvents(initialEvents);
+              setLoading(false);
 
+              // Background-fetch remaining chunks and append them
+              if (sorted.length > initialCount) {
+                const remaining = sorted.slice(initialCount);
+                let bgLoaded = initialCount;
+
+                const bgFetchWorker = async (startIdx: number) => {
+                  for (let i = startIdx; i < remaining.length; i += 4) {
+                    if (signal.aborted) return;
+                    const chunkEvents = await fetchChunk(remaining[i].url);
+                    if (chunkEvents.length) {
+                      pendingChunksRef.current.push(chunkEvents);
+                    }
+                    bgLoaded++;
+                    setStreamProgress({ loaded: bgLoaded, total: totalChunks });
+                  }
+                };
+
+                // Fire-and-forget background download with 4 workers
+                Promise.all(
+                  Array.from({ length: Math.min(4, remaining.length) }, (_, i) => bgFetchWorker(i))
+                ).then(() => {
+                  if (signal.aborted) return;
+                  // Final flush: append any remaining pending chunks
+                  if (pendingChunksRef.current.length > 0) {
+                    const newEvents = pendingChunksRef.current.flat();
+                    pendingChunksRef.current = [];
+                    setEvents(prev => [...prev, ...newEvents]);
+                  }
+                });
+
+                // Periodically append pending chunks to the player (every 2s)
+                appendIntervalRef.current = setInterval(() => {
+                  if (pendingChunksRef.current.length > 0) {
+                    const newEvents = pendingChunksRef.current.flat();
+                    pendingChunksRef.current = [];
+                    setEvents(prev => [...prev, ...newEvents]);
+                  }
+                }, 2000);
+              }
+
+              setStreamProgress({ loaded: sorted.length <= initialCount ? totalChunks : initialCount, total: totalChunks });
+              return; // Player will init via the events useEffect
+            }
+
+            // No full snapshot in first 3 — load all remaining
+            for (let i = initialCount; i < sorted.length; i++) {
+              if (signal.aborted) return;
+              const chunkEvents = await fetchChunk(sorted[i].url);
+              if (chunkEvents.length) initialEvents.push(...chunkEvents);
+              setStreamProgress({ loaded: i + 1, total: totalChunks });
+            }
+            allEvents = initialEvents;
             if (allEvents.length > 0 && hasFullSnapshot(allEvents)) {
               setEvents(allEvents);
               setStreamProgress({ loaded: totalChunks, total: totalChunks });
@@ -205,13 +254,25 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     };
 
     load();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (appendIntervalRef.current) {
+        clearInterval(appendIntervalRef.current);
+        appendIntervalRef.current = null;
+      }
+    };
   }, [sessionId, websiteId]);
 
-  // ─── Player initialisation ─────────────────────────────────────────────────
+  // Track how many events we've fed to the player so we only addEvent() new ones
+  const playerEventCountRef = useRef(0);
+  const playerInitializedRef = useRef(false);
+
+  // ─── Player initialisation (runs once when first events arrive) ───────────
   useEffect(() => {
     if (loading || events.length < 2 || !playerRef.current) return;
     if (!events.some((e: any) => e.type === 2)) return;
+    // Don't re-init if player already exists (progressive loading appends via separate effect)
+    if (playerInstanceRef.current && playerInitializedRef.current) return;
 
     playerRef.current.innerHTML = '';
 
@@ -241,6 +302,8 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     }
 
     playerInstanceRef.current = player;
+    playerInitializedRef.current = true;
+    playerEventCountRef.current = events.length;
     finishedRef.current = false;
     setIsPlaying(true);
     isPlayingRef.current = true;
@@ -258,14 +321,12 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     } catch {}
 
     // Simple time tracker — poll rrweb's internal timer every 100ms
-    // This is much simpler than the event-cast + smooth interpolation approach
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       if (!playerInstanceRef.current || finishedRef.current) return;
       try {
         const replayer = playerInstanceRef.current.getReplayer?.();
         if (replayer) {
-          const meta = playerInstanceRef.current.getMetaData();
           const t = replayer.getCurrentTime?.() ?? 0;
           if (typeof t === 'number' && t >= 0) {
             setCurrentTime(t);
@@ -298,8 +359,35 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
       try { (player as any).$destroy(); } catch {}
       playerInstanceRef.current = null;
+      playerInitializedRef.current = false;
+      playerEventCountRef.current = 0;
     };
-  }, [loading, events, session?.duration_seconds]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, events.length < 2, session?.duration_seconds]);
+
+  // ─── Append new events from background chunk loading ──────────────────────
+  useEffect(() => {
+    if (!playerInitializedRef.current || !playerInstanceRef.current) return;
+    if (events.length <= playerEventCountRef.current) return;
+
+    const replayer = playerInstanceRef.current.getReplayer?.();
+    if (!replayer) return;
+
+    // Add only the new events that haven't been fed to the player yet
+    const newEvents = events.slice(playerEventCountRef.current);
+    for (const event of newEvents) {
+      try {
+        replayer.addEvent(event);
+      } catch {}
+    }
+    playerEventCountRef.current = events.length;
+
+    // Update duration with new events
+    try {
+      const meta = playerInstanceRef.current.getMetaData();
+      if (meta.totalTime > 0) setTotalTime(prev => Math.max(prev, meta.totalTime));
+    } catch {}
+  }, [events]);
 
   // Resize handler
   useEffect(() => {
