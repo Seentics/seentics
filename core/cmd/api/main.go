@@ -23,7 +23,6 @@ import (
 	"github.com/Seentics/seentics/internal/shared/database"
 	"github.com/Seentics/seentics/internal/shared/middleware"
 	"github.com/Seentics/seentics/internal/shared/migrations"
-	"github.com/Seentics/seentics/internal/shared/storage"
 	"github.com/Seentics/seentics/internal/shared/utils"
 
 	// Analytics module
@@ -37,25 +36,10 @@ import (
 	authRepoPkg "github.com/Seentics/seentics/internal/modules/auth/repository"
 	authServicePkg "github.com/Seentics/seentics/internal/modules/auth/services"
 
-	// Automations module
-	autoHandlerPkg "github.com/Seentics/seentics/internal/modules/automations/handlers"
-	autoRepoPkg "github.com/Seentics/seentics/internal/modules/automations/repository"
-	autoServicePkg "github.com/Seentics/seentics/internal/modules/automations/services"
-
 	// Funnels module
 	funnelHandlerPkg "github.com/Seentics/seentics/internal/modules/funnels/handlers"
 	funnelRepoPkg "github.com/Seentics/seentics/internal/modules/funnels/repository"
 	funnelServicePkg "github.com/Seentics/seentics/internal/modules/funnels/services"
-
-	// Heatmaps module
-	heatmapHandlerPkg "github.com/Seentics/seentics/internal/modules/heatmaps/handlers"
-	heatmapRepoPkg "github.com/Seentics/seentics/internal/modules/heatmaps/repository"
-	heatmapServicePkg "github.com/Seentics/seentics/internal/modules/heatmaps/services"
-
-	// Replays module
-	replayHandlerPkg "github.com/Seentics/seentics/internal/modules/replays/handlers"
-	replayRepoPkg "github.com/Seentics/seentics/internal/modules/replays/repository"
-	replayServicePkg "github.com/Seentics/seentics/internal/modules/replays/services"
 
 	// Websites module
 	websiteHandlerPkg "github.com/Seentics/seentics/internal/modules/websites/handlers"
@@ -74,10 +58,7 @@ type appHandlers struct {
 	admin     *handlers.AdminHandler
 	internal  *handlers.InternalHandler
 	auth      *authHandlerPkg.AuthHandler
-	auto      *autoHandlerPkg.AutomationHandler
 	funnel    *funnelHandlerPkg.FunnelHandler
-	heatmap   *heatmapHandlerPkg.HeatmapHandler
-	replay    *replayHandlerPkg.ReplayHandler
 	website   *websiteHandlerPkg.WebsiteHandler
 	tracker   *trackerPkg.TrackerHandler
 }
@@ -118,8 +99,6 @@ func main() {
 
 	utils.InitGlobalGeolocationService(appCache)
 
-	s3Store := initS3(cfg, logger)
-
 	ctx := context.Background()
 
 	// ── Repositories ────────────────────────────────────────────────────────
@@ -136,32 +115,23 @@ func main() {
 
 	authRepo := authRepoPkg.NewAuthRepository(db)
 	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
-	heatmapRepo := heatmapRepoPkg.NewHeatmapRepository(db)
-	autoRepo := autoRepoPkg.NewAutomationRepository(db)
 	funnelRepo := funnelRepoPkg.NewFunnelRepository(db, chConn)
-	replayRepo := replayRepoPkg.NewReplayRepository(db)
 	privacyRepo := privacy.NewPrivacyRepository(db)
 
 	// ── Services ────────────────────────────────────────────────────────────
 
 	websiteService := websiteServicePkg.NewWebsiteService(
-		websiteRepo, authRepo, heatmapRepo, analyticsRepo, eventRepo,
-		autoRepo, funnelRepo, replayRepo, s3Store, appCache,
+		websiteRepo, authRepo, analyticsRepo, eventRepo,
+		funnelRepo, appCache,
 		cfg.Environment, logger,
 	)
 
 	authService := authServicePkg.NewAuthService(authRepo, cfg, logger)
-	autoService := autoServicePkg.NewAutomationService(autoRepo, websiteService)
 
-	webhookQueue := autoServicePkg.NewWebhookQueue(appCache, logger)
-	go webhookQueue.StartWorker(ctx)
-
-	eventService := services.NewEventService(eventRepo, db, websiteService, autoService, logger, rdb, webhookQueue)
+	eventService := services.NewEventService(eventRepo, db, websiteService, logger, rdb)
 	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger, appCache)
 	privacyService := services.NewPrivacyService(privacyRepo, websiteService, logger)
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
-	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger, rdb, appCache)
-	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store, logger, appCache)
 
 	// Start background workers (analytics only — heatmaps/replays moved to standalone apps)
 	analyticsService.StartCacheWarmer(ctx)
@@ -175,12 +145,9 @@ func main() {
 		admin:     handlers.NewAdminHandler(eventRepo, logger),
 		internal:  handlers.NewInternalHandler(db, logger),
 		auth:      authHandlerPkg.NewAuthHandler(authService, logger),
-		auto:      autoHandlerPkg.NewAutomationHandler(autoService),
 		funnel:    funnelHandlerPkg.NewFunnelHandler(funnelService),
-		heatmap:   heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger),
-		replay:    replayHandlerPkg.NewReplayHandler(replayService, logger),
 		website:   websiteHandlerPkg.NewWebsiteHandler(websiteService, logger),
-		tracker:   trackerPkg.NewTrackerHandler(websiteService, eventService, heatmapService, replayService, funnelService, autoService, logger),
+		tracker:   trackerPkg.NewTrackerHandler(websiteService, eventService, funnelService, logger),
 	}
 	h.internal.SetClickHouse(chConn)
 
@@ -236,45 +203,6 @@ func initRedis(cfg *config.Config, logger zerolog.Logger) *redis.Client {
 	}
 	logger.Info().Str("redis_url", cfg.RedisURL).Msg("Redis connected")
 	return rdb
-}
-
-func initS3(cfg *config.Config, logger zerolog.Logger) *storage.S3Store {
-	env := func(key, fallback string) string {
-		if v := os.Getenv(key); v != "" {
-			return v
-		}
-		return fallback
-	}
-
-	region := env("AWS_REGION", "us-east-1")
-	bucket := env("S3_BUCKET_REPLAYS", "seentics-replays")
-	endpoint := env("S3_ENDPOINT", "http://minio:9000")
-	publicEndpoint := env("S3_PUBLIC_ENDPOINT", endpoint)
-	accessKey := env("AWS_ACCESS_KEY_ID", "")
-	secretKey := env("AWS_SECRET_ACCESS_KEY", "")
-
-	store, err := storage.NewS3Store(region, bucket, endpoint, accessKey, secretKey, publicEndpoint)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize S3 store")
-	}
-
-	ctx := context.Background()
-	if err := store.EnsureBucket(ctx); err != nil {
-		logger.Warn().Err(err).Str("bucket", bucket).Msg("Failed to ensure S3 bucket exists — uploads may fail")
-	} else {
-		logger.Info().Str("bucket", bucket).Msg("S3 bucket ready")
-	}
-
-	// Set permissive CORS so browsers can fetch presigned URLs directly (MinIO / self-hosted).
-	if endpoint != "" {
-		if corsErr := store.EnsureBucketCORS(ctx); corsErr != nil {
-			logger.Warn().Err(corsErr).Msg("Failed to set S3 bucket CORS (presigned direct-download may not work in browser)")
-		} else {
-			logger.Info().Msg("S3 bucket CORS configured for browser presigned URL access")
-		}
-	}
-
-	return store
 }
 
 // ── Router ──────────────────────────────────────────────────────────────────
@@ -457,10 +385,6 @@ func registerWebsiteRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	v1.POST("/user/accept-invite", h.website.AcceptInvitation)
 }
 
-// Automation, heatmap, and replay management routes have been moved to their
-// standalone apps (Seentics Automation, Seentics Replays). The tracker still
-// collects data for all modules via the unified /tracker/collect endpoint.
-
 func registerFunnelRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	funnels := v1.Group("/websites/:website_id/funnels")
 	{
@@ -475,7 +399,6 @@ func registerFunnelRoutes(v1 *gin.RouterGroup, h appHandlers) {
 
 	v1.GET("/funnels/active", h.funnel.GetActiveFunnels)
 }
-
 
 func registerAdminRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	admin := v1.Group("/admin", middleware.RoleMiddleware("admin"))

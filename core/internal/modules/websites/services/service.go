@@ -13,15 +13,10 @@ import (
 	"github.com/Seentics/seentics/internal/modules/websites/models"
 	"github.com/Seentics/seentics/internal/modules/websites/repository"
 
-	heatmapRepoPkg "github.com/Seentics/seentics/internal/modules/heatmaps/repository"
-
 	analyticsModels "github.com/Seentics/seentics/internal/modules/analytics/models"
 	analyticsRepoPkg "github.com/Seentics/seentics/internal/modules/analytics/repository"
-	autoRepoPkg "github.com/Seentics/seentics/internal/modules/automations/repository"
 	funnelRepoPkg "github.com/Seentics/seentics/internal/modules/funnels/repository"
-	replayRepoPkg "github.com/Seentics/seentics/internal/modules/replays/repository"
 	"github.com/Seentics/seentics/internal/shared/cache"
-	"github.com/Seentics/seentics/internal/shared/storage"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
@@ -29,13 +24,9 @@ import (
 type WebsiteService struct {
 	repo          *repository.WebsiteRepository
 	authRepo      *authRepoPkg.AuthRepository
-	heatmapRepo   heatmapRepoPkg.HeatmapRepository
 	analyticsRepo analyticsRepoPkg.MainAnalyticsRepository
 	eventRepo     analyticsRepoPkg.EventRepository
-	autoRepo      *autoRepoPkg.AutomationRepository
 	funnelRepo    *funnelRepoPkg.FunnelRepository
-	replayRepo    replayRepoPkg.ReplayRepository
-	s3Store       *storage.S3Store
 	cache         *cache.Cache
 	env           string
 	logger        zerolog.Logger
@@ -44,13 +35,9 @@ type WebsiteService struct {
 func NewWebsiteService(
 	repo *repository.WebsiteRepository,
 	authRepo *authRepoPkg.AuthRepository,
-	heatmapRepo heatmapRepoPkg.HeatmapRepository,
 	analyticsRepo analyticsRepoPkg.MainAnalyticsRepository,
 	eventRepo analyticsRepoPkg.EventRepository,
-	autoRepo *autoRepoPkg.AutomationRepository,
 	funnelRepo *funnelRepoPkg.FunnelRepository,
-	replayRepo replayRepoPkg.ReplayRepository,
-	s3Store *storage.S3Store,
 	cache *cache.Cache,
 	env string,
 	logger zerolog.Logger,
@@ -58,30 +45,22 @@ func NewWebsiteService(
 	return &WebsiteService{
 		repo:          repo,
 		authRepo:      authRepo,
-		heatmapRepo:   heatmapRepo,
 		analyticsRepo: analyticsRepo,
 		eventRepo:     eventRepo,
-		autoRepo:      autoRepo,
 		funnelRepo:    funnelRepo,
-		replayRepo:    replayRepo,
-		s3Store:       s3Store,
 		cache:         cache,
 		env:           env,
 		logger:        logger,
 	}
 }
 
-// trackerConfigCache holds the cacheable portion of tracker config (goals + tracked URLs).
-// Plan limits (max_heatmaps/max_replays) are NOT cached here because they come from
-// the gateway context and vary per request.
+// trackerConfigCache holds the cacheable portion of tracker config (goals).
 type trackerConfigCache struct {
-	Goals       []map[string]interface{} `json:"goals"`
-	TrackedURLs []string                 `json:"tracked_urls"`
+	Goals []map[string]interface{} `json:"goals"`
 }
 
 // GetTrackerConfig returns the configuration for the tracker script.
-// Goals and tracked URLs are cached in Redis for 15 minutes to avoid
-// DB queries on every tracker init request.
+// Goals are cached in Redis for 15 minutes to avoid DB queries on every tracker init request.
 func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, origin string) (map[string]interface{}, error) {
 	w, err := s.GetWebsiteBySiteID(ctx, siteID)
 	if err != nil {
@@ -93,7 +72,7 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 		return nil, fmt.Errorf("domain mismatch")
 	}
 
-	// Try cache for goals + tracked URLs
+	// Try cache for goals
 	cacheKey := fmt.Sprintf("tracker:config:%s", w.SiteID)
 	var cached trackerConfigCache
 	cacheHit := s.cache != nil && s.cache.Get(cacheKey, &cached)
@@ -115,43 +94,15 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 			}
 		}
 
-		cached.TrackedURLs = []string{}
-		if w.HeatmapEnabled {
-			if urls, err := s.heatmapRepo.GetTrackedURLs(ctx, w.ID.String()); err == nil {
-				cached.TrackedURLs = urls
-			}
-		}
-
 		if s.cache != nil {
 			s.cache.Set(cacheKey, cached, 15*time.Minute)
 		}
 	}
 
-	// Plan limits come from gateway context and vary per request — never cached.
-	maxHeatmaps := -1
-	if limit, ok := ctx.Value("max_heatmaps").(int); ok {
-		maxHeatmaps = limit
-	}
-	maxReplays := -1
-	if limit, ok := ctx.Value("max_replays").(int); ok {
-		maxReplays = limit
-	}
-
 	return map[string]interface{}{
-		"site_id":                  w.SiteID,
-		"automation_enabled":       w.AutomationEnabled,
-		"funnel_enabled":           w.FunnelEnabled,
-		"heatmap_enabled":          w.HeatmapEnabled,
-		"heatmap_include_patterns": w.HeatmapIncludePatterns,
-		"heatmap_exclude_patterns": w.HeatmapExcludePatterns,
-		"max_heatmaps":             maxHeatmaps,
-		"tracked_urls":             cached.TrackedURLs,
-		"replay_enabled":           w.ReplayEnabled,
-		"replay_sampling_rate":     w.ReplaySamplingRate,
-		"replay_include_patterns":  w.ReplayIncludePatterns,
-		"replay_exclude_patterns":  w.ReplayExcludePatterns,
-		"max_replays":              maxReplays,
-		"goals":                    cached.Goals,
+		"site_id":        w.SiteID,
+		"funnel_enabled": w.FunnelEnabled,
+		"goals":          cached.Goals,
 	}, nil
 }
 
@@ -228,7 +179,6 @@ func (s *WebsiteService) ListAllActiveSiteIDs(ctx context.Context) ([]string, er
 }
 
 // ListAllActiveWebsiteUUIDs returns the UUID (id column) of every active website.
-// Used by the heatmap cache warmer (heatmaps key by UUID, not site_id).
 func (s *WebsiteService) ListAllActiveWebsiteUUIDs(ctx context.Context) ([]string, error) {
 	websites, err := s.repo.ListAllActiveWebsites(ctx)
 	if err != nil {
@@ -333,16 +283,6 @@ func (s *WebsiteService) invalidateCache(ctx context.Context, w *models.Website)
 	s.cache.Delete(fmt.Sprintf("website:site_id:%s", uuidStr))
 	s.cache.Delete(fmt.Sprintf("tracker:config:%s", siteID))
 
-	// Replay caches
-	s.cache.DeleteByPattern(fmt.Sprintf("replay:list:%s:*", siteID))
-	s.cache.Delete(fmt.Sprintf("replay:sessions:%s", siteID))
-	s.cache.Delete(fmt.Sprintf("replay:count:user:%s", w.UserID.String()))
-
-	// Heatmap caches
-	s.cache.Delete(fmt.Sprintf("heatmap:pages:%s", uuidStr))
-	s.cache.DeleteByPattern(fmt.Sprintf("heatmap:data:%s:*", uuidStr))
-	s.cache.DeleteByPattern(fmt.Sprintf("heatmap:elements:%s:*", uuidStr))
-
 	// Analytics caches
 	s.cache.DeleteByPattern(fmt.Sprintf("analytics:dashboard:%s:*", siteID))
 	s.cache.DeleteByPattern(fmt.Sprintf("analytics:path_analysis:%s:*", siteID))
@@ -378,32 +318,8 @@ func (s *WebsiteService) UpdateWebsite(ctx context.Context, id string, userID uu
 	if req.IsActive != nil {
 		original.IsActive = *req.IsActive
 	}
-	if req.AutomationEnabled != nil {
-		original.AutomationEnabled = *req.AutomationEnabled
-	}
 	if req.FunnelEnabled != nil {
 		original.FunnelEnabled = *req.FunnelEnabled
-	}
-	if req.HeatmapEnabled != nil {
-		original.HeatmapEnabled = *req.HeatmapEnabled
-	}
-	if req.HeatmapIncludePatterns != nil {
-		original.HeatmapIncludePatterns = req.HeatmapIncludePatterns
-	}
-	if req.HeatmapExcludePatterns != nil {
-		original.HeatmapExcludePatterns = req.HeatmapExcludePatterns
-	}
-	if req.ReplayEnabled != nil {
-		original.ReplayEnabled = *req.ReplayEnabled
-	}
-	if req.ReplaySamplingRate != nil {
-		original.ReplaySamplingRate = *req.ReplaySamplingRate
-	}
-	if req.ReplayIncludePatterns != nil {
-		original.ReplayIncludePatterns = req.ReplayIncludePatterns
-	}
-	if req.ReplayExcludePatterns != nil {
-		original.ReplayExcludePatterns = req.ReplayExcludePatterns
 	}
 
 	// 3. Save to database
@@ -431,7 +347,7 @@ func (s *WebsiteService) DeleteWebsite(ctx context.Context, id string, userID uu
 		return fmt.Errorf("unauthorized")
 	}
 
-	// 3. Cascade cleanup for all related data across ClickHouse, Postgres, and S3
+	// 3. Cascade cleanup for all related data across ClickHouse and Postgres
 	s.cleanupAllRelatedData(ctx, w)
 
 	// 4. Delete the main website record from PostgreSQL
@@ -448,9 +364,8 @@ func (s *WebsiteService) DeleteWebsite(ctx context.Context, id string, userID uu
 // cleanupAllRelatedData wipes all associated data for a website across all storage modules.
 func (s *WebsiteService) cleanupAllRelatedData(ctx context.Context, w *models.Website) {
 	siteID := w.SiteID
-	uuidStr := w.ID.String()
 
-	s.logger.Info().Str("site_id", siteID).Str("id", uuidStr).Msg("Performing full data cleanup for website")
+	s.logger.Info().Str("site_id", siteID).Str("id", w.ID.String()).Msg("Performing full data cleanup for website")
 
 	// 1. ClickHouse Analytics Data (Aggregated stats tables)
 	if s.analyticsRepo != nil {
@@ -466,44 +381,10 @@ func (s *WebsiteService) cleanupAllRelatedData(ctx context.Context, w *models.We
 		}
 	}
 
-	// 3. Heatmaps (Postgres heatmap_points and heatmap_sessions)
-	if s.heatmapRepo != nil {
-		if err := s.heatmapRepo.DeleteAllByWebsiteID(ctx, uuidStr); err != nil {
-			s.logger.Error().Err(err).Str("id", uuidStr).Msg("Failed cleanup: heatmap points")
-		}
-	}
-
-	// 4. Funnels (Postgres funnels, steps, and step analytics)
+	// 3. Funnels (Postgres funnels, steps, and step analytics)
 	if s.funnelRepo != nil {
 		if err := s.funnelRepo.DeleteAllByWebsiteID(ctx, siteID); err != nil {
 			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: funnels")
-		}
-	}
-
-	// 5. Automations (Postgres automations, actions, conditions, and executions)
-	if s.autoRepo != nil {
-		if err := s.autoRepo.DeleteAllByWebsiteID(ctx, siteID); err != nil {
-			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: automations")
-		}
-	}
-
-	// 6. Session Replays (Postgres DB metadata + S3 file deletion)
-	if s.replayRepo != nil {
-		s3Keys, err := s.replayRepo.DeleteAllByWebsiteID(ctx, siteID)
-		if err != nil {
-			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: replay metadata")
-		} else if s.s3Store != nil && len(s3Keys) > 0 {
-			// Trigger asynchronous S3 cleanup to avoid blocking the main delete request
-			go func(keys []string, site string) {
-				bgCtx := context.Background()
-				count := 0
-				for _, key := range keys {
-					if err := s.s3Store.Delete(bgCtx, key); err == nil {
-						count++
-					}
-				}
-				s.logger.Info().Int("deleted_count", count).Str("site_id", site).Msg("S3 storage cleanup completed")
-			}(s3Keys, siteID)
 		}
 	}
 }

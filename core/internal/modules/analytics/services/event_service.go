@@ -12,7 +12,6 @@ import (
 	"github.com/Seentics/seentics/internal/modules/analytics/models"
 	"github.com/Seentics/seentics/internal/modules/analytics/repository"
 
-	autoServicePkg "github.com/Seentics/seentics/internal/modules/automations/services"
 	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
 	"github.com/Seentics/seentics/internal/shared/utils"
 
@@ -35,12 +34,7 @@ type EventService struct {
 	db       *pgxpool.Pool
 	logger   zerolog.Logger
 	websites *websiteServicePkg.WebsiteService
-	auto     *autoServicePkg.AutomationService
-	engine   *autoServicePkg.ExecutionEngine
 	rdb      *redis.Client
-
-	// Bounded semaphore: caps concurrent automation goroutines
-	autoSem chan struct{}
 
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -49,23 +43,15 @@ type EventService struct {
 	shutdownMu sync.RWMutex
 }
 
-func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, websiteSvc *websiteServicePkg.WebsiteService, autoSvc *autoServicePkg.AutomationService, logger zerolog.Logger, rdb *redis.Client, webhookQueue ...*autoServicePkg.WebhookQueue) *EventService {
+func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, websiteSvc *websiteServicePkg.WebsiteService, logger zerolog.Logger, rdb *redis.Client) *EventService {
 	ctx, cancel := context.WithCancel(context.Background())
-
-	var queue []*autoServicePkg.WebhookQueue
-	if len(webhookQueue) > 0 {
-		queue = webhookQueue
-	}
 
 	service := &EventService{
 		repo:     repo,
 		db:       db,
 		websites: websiteSvc,
-		auto:     autoSvc,
-		engine:   autoServicePkg.NewExecutionEngine(autoSvc, logger, queue...),
 		logger:   logger,
 		rdb:      rdb,
-		autoSem:  make(chan struct{}, 64),
 		ctx:      ctx,
 		cancel:   cancel,
 	}
@@ -262,7 +248,7 @@ func (s *EventService) publishEvent(ctx context.Context, event *models.Event) er
 }
 
 // startStreamConsumer reads batches from the Redis Stream via a consumer group,
-// triggers automations, writes to ClickHouse, then ACKs processed messages.
+// writes to ClickHouse, then ACKs processed messages.
 func (s *EventService) startStreamConsumer() {
 	s.wg.Add(1)
 	go func() {
@@ -312,26 +298,6 @@ func (s *EventService) startStreamConsumer() {
 				var event models.Event
 				if err := json.Unmarshal([]byte(data), &event); err != nil {
 					continue
-				}
-
-				// Fire automations via bounded goroutine pool (non-blocking)
-				eventData := map[string]interface{}{
-					"event_type": event.EventType,
-					"page":       event.Page,
-					"visitor_id": event.VisitorID,
-					"session_id": event.SessionID,
-					"properties": event.Properties,
-					"timestamp":  event.Timestamp,
-				}
-				websiteID := event.WebsiteID
-				select {
-				case s.autoSem <- struct{}{}:
-					go func() {
-						defer func() { <-s.autoSem }()
-						s.engine.ProcessEvent(s.ctx, websiteID, eventData)
-					}()
-				default:
-					s.logger.Warn().Str("website_id", websiteID).Msg("Automation worker pool full, skipping trigger")
 				}
 
 				batch = append(batch, event)
