@@ -40,7 +40,8 @@ const GrowthBadge = ({ current, previous, inverse = false }: {
   if (current === previous) {
     return <span className="text-[10px] text-muted-foreground/40">0%</span>;
   }
-  const growth = ((current - previous) / previous) * 100;
+  const rawGrowth = ((current - previous) / previous) * 100;
+  const growth = Math.max(-100, Math.min(999, rawGrowth));
   const isGood = inverse ? growth < 0 : growth > 0;
   return (
     <span className={cn(
@@ -51,7 +52,7 @@ const GrowthBadge = ({ current, previous, inverse = false }: {
         ? <ArrowUpRight className="h-2.5 w-2.5" strokeWidth={3} />
         : <ArrowDownRight className="h-2.5 w-2.5" strokeWidth={3} />
       }
-      {Math.abs(growth).toFixed(1)}%
+      {Math.abs(growth) >= 999 ? '999+' : `${Math.abs(growth).toFixed(1)}`}%
     </span>
   );
 };
