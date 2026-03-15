@@ -33,7 +33,7 @@ const API_SECTIONS = [
   {
     title: 'Analytics',
     icon: BarChart3,
-    color: 'text-blue-500',
+    color: 'text-violet-500',
     endpoints: [
       { method: 'GET', path: '/api/v1/raw/analytics/overview', desc: 'Traffic overview (visitors, pageviews, bounce rate)' },
       { method: 'GET', path: '/api/v1/raw/analytics/timeseries', desc: 'Time-bucketed analytics data' },

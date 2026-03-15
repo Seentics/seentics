@@ -95,7 +95,7 @@ export function SiteSelector({ selectedSiteId, onSiteChange }: SiteSelectorProps
       >
         <SelectTrigger className="w-[200px] md:w-[250px] lg:w-[280px]">
           <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4  text-blue-500" />
+            <Globe className="h-4 w-4  text-violet-500" />
             {isLoading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (

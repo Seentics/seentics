@@ -32,7 +32,7 @@ const getBrowserIcon = (browser: string) => {
             target.nextElementSibling?.classList.remove('hidden');
           }}
         />
-        <div className="hidden w-8 h-8 bg-gradient-to-br from-blue-500 via-green-500 to-yellow-500 rounded shadow-sm">
+        <div className="hidden w-8 h-8 bg-gradient-to-br from-violet-500 via-green-500 to-yellow-500 rounded shadow-sm">
           <svg className="w-5 h-5 text-white m-auto" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 0C8.21 0 4.67 1.92 2.25 4.9l4.51 7.8L12 12l5.24 0.7 4.51-7.8C19.33 1.92 15.79 0 12 0zM12 12l-5.24-0.7L2.25 19.1C4.67 22.08 8.21 24 12 24c3.79 0 7.33-1.92 9.75-4.9L17.24 11.3 12 12z" />
           </svg>
@@ -82,7 +82,7 @@ const getBrowserIcon = (browser: string) => {
             target.nextElementSibling?.classList.remove('hidden');
           }}
         />
-        <div className="hidden w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded flex items-center justify-center shadow-sm">
+        <div className="hidden w-8 h-8 bg-gradient-to-br from-violet-400 to-violet-600 rounded flex items-center justify-center shadow-sm">
           <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
           </svg>
@@ -107,7 +107,7 @@ const getBrowserIcon = (browser: string) => {
             target.nextElementSibling?.classList.remove('hidden');
           }}
         />
-        <div className="hidden w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded flex items-center justify-center shadow-sm">
+        <div className="hidden w-8 h-8 bg-gradient-to-br from-violet-500 to-violet-700 rounded flex items-center justify-center shadow-sm">
           <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
           </svg>
@@ -252,7 +252,7 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
                   return (
                     <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded shadow-lg">
                       <p className="font-semibold">{data.name}</p>
-                      <p className="text-blue-600">{data.value}%</p>
+                      <p className="text-violet-600">{data.value}%</p>
                     </div>
                   );
                 }

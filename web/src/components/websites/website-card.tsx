@@ -54,7 +54,7 @@ export function WebsiteCard({ website, stats, onDelete, onShowTrackingCode }: We
 
   const getTrackingColor = (isEnabled: boolean) => {
     return isEnabled
-      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400 border-blue-200 dark:border-blue-800'
+      ? 'bg-violet-100 text-violet-800 dark:bg-violet-900/20 dark:text-violet-400 border-violet-200 dark:border-violet-800'
       : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800';
   };
 

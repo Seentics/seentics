@@ -9,7 +9,7 @@ const features = [
     icon: BarChart3,
     title: 'Real-time Analytics',
     description: 'Live visitor count, pageviews, referrers, and custom events — updated in under a second.',
-    color: 'text-blue-500 bg-blue-500/10',
+    color: 'text-violet-500 bg-violet-500/10',
   },
   {
     icon: MousePointer2,

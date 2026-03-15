@@ -483,8 +483,8 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               </SelectContent>
             </Select>
           </div>
-          <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
-            <p className="text-[10px] text-blue-400">
+          <div className="p-4 rounded-xl border border-violet-500/20 bg-violet-500/5">
+            <p className="text-[10px] text-violet-400">
               💡 Detects when mouse moves towards browser close/back button. Great for exit-intent popups!
             </p>
           </div>
@@ -690,8 +690,8 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
               className="bg-slate-900/50 border-slate-800 min-h-[150px] text-white font-mono text-sm"
             />
           </div>
-          <div className="p-3 rounded-xl border border-blue-500/20 bg-blue-500/5">
-            <p className="text-[10px] text-blue-400 flex items-start gap-2">
+          <div className="p-3 rounded-xl border border-violet-500/20 bg-violet-500/5">
+            <p className="text-[10px] text-violet-400 flex items-start gap-2">
               <Info size={12} className="mt-0.5 flex-shrink-0" />
               <span>All {'{'}{'{'} variables {'}'}{'}'}  will be replaced with real user data when the automation runs.</span>
             </p>
@@ -1154,8 +1154,8 @@ export const NodeConfigModal = ({ node, onClose }: NodeConfigModalProps) => {
             />
             <p className="text-[10px] text-slate-500">The CSS selector of the element to hide (sets display: none).</p>
           </div>
-          <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5">
-            <p className="text-[10px] text-blue-400">
+          <div className="p-4 rounded-xl border border-violet-500/20 bg-violet-500/5">
+            <p className="text-[10px] text-violet-400">
               💡 Useful for hiding annoying elements, ads, or customizing the user experience.
             </p>
           </div>

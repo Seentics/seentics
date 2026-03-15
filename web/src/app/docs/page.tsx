@@ -50,8 +50,8 @@ export default function DocsIntroduction() {
                 </div>
 
                 <div className="space-y-3 p-6 rounded bg-card border border-border/50">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                        <ShieldCheck className="w-5 h-5 text-blue-500" />
+                    <div className="w-10 h-10 rounded-full bg-violet-500/10 flex items-center justify-center">
+                        <ShieldCheck className="w-5 h-5 text-violet-500" />
                     </div>
                     <h3 className="font-semibold text-lg">Privacy by Design</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">

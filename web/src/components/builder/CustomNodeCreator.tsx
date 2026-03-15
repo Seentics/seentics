@@ -334,7 +334,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
 
               <Button
                 onClick={addField}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                className="w-full bg-violet-600 hover:bg-violet-700 text-white"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Field
@@ -377,7 +377,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
             </Button>
             <Button
               onClick={handleSave}
-              className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-bold"
+              className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold"
             >
               Create Custom Node
             </Button>

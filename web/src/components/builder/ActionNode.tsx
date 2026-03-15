@@ -35,20 +35,20 @@ const getActionIcon = (actionType: string) => {
 
 const getActionColor = (actionType: string) => {
   const colors: Record<string, string> = {
-    email: 'bg-blue-500/10 text-blue-500',
+    email: 'bg-violet-500/10 text-violet-500',
     slack: 'bg-purple-500/10 text-purple-500',
     webhook: 'bg-cyan-500/10 text-cyan-500',
     modal: 'bg-pink-500/10 text-pink-500',
     banner: 'bg-rose-500/10 text-rose-500',
     notification: 'bg-orange-500/10 text-orange-500',
-    redirect: 'bg-blue-500/10 text-blue-500',
+    redirect: 'bg-violet-500/10 text-violet-500',
     crm: 'bg-indigo-500/10 text-indigo-600',
     javascript: 'bg-yellow-500/10 text-yellow-500',
     analytics: 'bg-green-500/10 text-green-500',
     wait: 'bg-amber-500/10 text-amber-500',
     delay: 'bg-amber-500/10 text-amber-500',
   };
-  return colors[actionType] || 'bg-blue-500/10 text-blue-500';
+  return colors[actionType] || 'bg-violet-500/10 text-violet-500';
 };
 
 export const ActionNode = memo(({ data, selected, isConnectable }: NodeProps) => {

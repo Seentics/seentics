@@ -218,7 +218,7 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       pending: { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400', icon: Clock },
-      processing: { color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400', icon: Settings },
+      processing: { color: 'bg-violet-100 text-violet-800 dark:bg-violet-900/20 dark:text-violet-400', icon: Settings },
       completed: { color: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400', icon: CheckCircle },
       failed: { color: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400', icon: AlertTriangle }
     };
@@ -248,8 +248,8 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded">
-          <Shield className="h-6 w-6 text-blue-600" />
+        <div className="p-2 bg-violet-100 dark:bg-violet-900/20 rounded">
+          <Shield className="h-6 w-6 text-violet-600" />
         </div>
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
@@ -265,7 +265,7 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5 text-blue-600" />
+            <FileText className="h-5 w-5 text-violet-600" />
             Your Data Rights
           </CardTitle>
         </CardHeader>
@@ -431,7 +431,7 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5 text-blue-600" />
+              <Database className="h-5 w-5 text-violet-600" />
               Request History
             </CardTitle>
             <Button
@@ -496,7 +496,7 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-blue-600" />
+            <Shield className="h-5 w-5 text-violet-600" />
             Compliance Information
           </CardTitle>
         </CardHeader>
@@ -531,7 +531,7 @@ export default function GDPRDataManager({ userId, userEmail }: GDPRDataManagerPr
               </p>
               <p className="mt-1">
                 <strong>Contact:</strong> For urgent requests or questions, contact our Data Protection Officer at{' '}
-                <a href="mailto:dpo@seentics.com" className="text-blue-600 hover:underline">
+                <a href="mailto:dpo@seentics.com" className="text-violet-600 hover:underline">
                   dpo@seentics.com
                 </a>
               </p>

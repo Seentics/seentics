@@ -35,7 +35,7 @@ const getColorClass = (type: string, subtype?: string) => {
     lime: 'bg-lime-500/10 text-lime-500',
     green: 'bg-green-500/10 text-green-500',
     yellow: 'bg-yellow-500/10 text-yellow-500',
-    blue: 'bg-blue-500/10 text-blue-500',
+    blue: 'bg-violet-500/10 text-violet-500',
     purple: 'bg-purple-500/10 text-purple-500',
     cyan: 'bg-cyan-500/10 text-cyan-500',
     pink: 'bg-pink-500/10 text-pink-500',

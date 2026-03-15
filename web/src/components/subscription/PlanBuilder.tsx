@@ -27,9 +27,9 @@ const PLANS = [
     priceYearly: 0,
     description: 'For side projects and personal sites',
     icon: Zap,
-    color: 'text-blue-500',
-    borderColor: 'border-blue-500',
-    bgColor: 'bg-blue-500',
+    color: 'text-violet-500',
+    borderColor: 'border-violet-500',
+    bgColor: 'bg-violet-500',
     features: [
       '1 Website',
       '10,000 Monthly Events',

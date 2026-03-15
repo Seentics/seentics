@@ -160,7 +160,7 @@ export default function HeatmapsPage() {
         <div className="flex flex-col items-center gap-1">
           <span className="text-sm font-semibold tabular-nums">{row.original.views.toLocaleString()}</span>
           <div className="h-1 w-12 bg-muted/60 rounded-full overflow-hidden">
-            <div className="h-full bg-blue-500/60 rounded-full" style={{ width: `${Math.min(100, (row.original.views / maxViews) * 100)}%` }} />
+            <div className="h-full bg-violet-500/60 rounded-full" style={{ width: `${Math.min(100, (row.original.views / maxViews) * 100)}%` }} />
           </div>
         </div>
       ),
@@ -304,13 +304,13 @@ export default function HeatmapsPage() {
 
 function StatsCard({ title, value, icon: Icon, description, color = 'blue' }: any) {
   const bgMap: Record<string, string> = {
-    blue: 'bg-blue-500/10',
+    blue: 'bg-violet-500/10',
     emerald: 'bg-emerald-500/10',
     violet: 'bg-violet-500/10',
     amber: 'bg-amber-500/10',
   };
   const iconMap: Record<string, string> = {
-    blue: 'text-blue-500',
+    blue: 'text-violet-500',
     emerald: 'text-emerald-500',
     violet: 'text-violet-500',
     amber: 'text-amber-500',

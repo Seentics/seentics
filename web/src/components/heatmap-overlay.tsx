@@ -25,7 +25,7 @@ export default function HeatmapOverlay({
 
   // More refined, enterprise-grade gradient (blue → cyan → green → yellow → red)
   const gradientColors: Record<number, string> = {
-    0.0: '#3b82f6',   // blue-500
+    0.0: '#3b82f6',   // violet-500
     0.15: '#22d3ee',   // cyan-400
     0.35: '#a3e635',   // lime-400
     0.55: '#facc15',   // yellow-400

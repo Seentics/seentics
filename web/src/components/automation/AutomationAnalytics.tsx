@@ -24,8 +24,8 @@ export const AutomationAnalytics: React.FC<AutomationAnalyticsProps> = ({ stats 
       label: 'Total Executions',
       value: formatNumber(stats.totalExecutions || 0),
       icon: Activity,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
+      color: 'text-violet-500',
+      bgColor: 'bg-violet-500/10',
     },
     {
       label: 'Success Rate',
@@ -107,7 +107,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ executions
       case 'failed':
         return 'bg-red-500';
       case 'running':
-        return 'bg-blue-500';
+        return 'bg-violet-500';
       default:
         return 'bg-gray-500';
     }
@@ -120,7 +120,7 @@ export const ExecutionTimeline: React.FC<ExecutionTimelineProps> = ({ executions
       case 'failed':
         return <XCircle className="h-4 w-4 text-red-500" />;
       case 'running':
-        return <Clock className="h-4 w-4 text-blue-500" />;
+        return <Clock className="h-4 w-4 text-violet-500" />;
       default:
         return <Activity className="h-4 w-4 text-gray-500" />;
     }

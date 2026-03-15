@@ -22,7 +22,7 @@ import { cn } from '@/lib/utils';
 const FEATURES = [
     {
         icon: Users2,
-        color: 'bg-blue-500/10 text-blue-500',
+        color: 'bg-violet-500/10 text-violet-500',
         title: 'Client Management',
         desc: 'Onboard and manage unlimited client accounts from a single agency dashboard. Invite, suspend, or archive clients instantly.',
     },
@@ -87,7 +87,7 @@ const ENTERPRISE_FEATURES = [
 
 const METHOD_COLOR: Record<string, string> = {
     GET: 'text-emerald-500 bg-emerald-500/10',
-    POST: 'text-blue-500 bg-blue-500/10',
+    POST: 'text-violet-500 bg-violet-500/10',
 };
 
 // The global LemonSqueezy interface is already defined elsewhere in the project.

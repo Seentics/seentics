@@ -616,11 +616,11 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
               onPointerMove={handleScrubberPointerMove}
             >
               <div
-                className="absolute inset-y-0 left-0 bg-blue-500 rounded-full transition-[width] duration-75"
+                className="absolute inset-y-0 left-0 bg-violet-500 rounded-full transition-[width] duration-75"
                 style={{ width: `${progress}%` }}
               />
               <div
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-white rounded-full border-2 border-blue-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 bg-white rounded-full border-2 border-violet-500 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                 style={{ left: `${progress}%` }}
               />
             </div>
@@ -659,7 +659,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
                   {formatTime(currentTime)} / {formatTime(totalTime)}
                 </span>
                 {streamProgress.total > 0 && streamProgress.loaded < streamProgress.total && (
-                  <span className="text-[10px] text-blue-400/60 ml-2 flex items-center gap-1">
+                  <span className="text-[10px] text-violet-400/60 ml-2 flex items-center gap-1">
                     <Loader2 className="h-2.5 w-2.5 animate-spin" />
                     {streamProgress.loaded}/{streamProgress.total}
                   </span>
@@ -675,7 +675,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
                       className={cn(
                         "h-6 px-2 rounded-md text-[11px] font-medium transition-all",
                         speed === s
-                          ? "bg-blue-500 text-white shadow-sm"
+                          ? "bg-violet-500 text-white shadow-sm"
                           : "text-white/50 hover:text-white hover:bg-white/[0.06]"
                       )}
                     >
@@ -691,7 +691,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
                   className={cn(
                     "h-7 px-2.5 rounded-md text-[11px] font-medium flex items-center gap-1.5 transition-all",
                     skipInactive
-                      ? "bg-blue-500/15 text-blue-400 border border-blue-500/20"
+                      ? "bg-violet-500/15 text-violet-400 border border-violet-500/20"
                       : "text-white/40 hover:text-white/70 hover:bg-white/[0.06]"
                   )}
                   title="Skip inactive periods"

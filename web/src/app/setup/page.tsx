@@ -82,7 +82,7 @@ export default function SetupPage() {
             <div className="min-h-screen bg-transparent selection:bg-primary/20 flex items-center justify-center p-6">
                 <div className="absolute inset-0 z-0 pointer-events-none">
                     <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
-                    <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/5 blur-[100px] rounded-full animate-pulse delay-1000" />
+                    <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-violet-500/5 blur-[100px] rounded-full animate-pulse delay-1000" />
                 </div>
 
                 <div className="relative z-10 w-full max-w-lg text-center">
@@ -202,7 +202,7 @@ export default function SetupPage() {
         <div className="min-h-screen bg-transparent selection:bg-primary/20 flex items-center justify-center p-6">
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
-                <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-blue-500/5 blur-[100px] rounded-full animate-pulse delay-1000" />
+                <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-violet-500/5 blur-[100px] rounded-full animate-pulse delay-1000" />
             </div>
 
             <div className="relative z-10 w-full max-w-lg">

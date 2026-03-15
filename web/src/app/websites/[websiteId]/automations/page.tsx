@@ -258,7 +258,7 @@ export default function AutomationsPage() {
                             <DropdownMenuContent align="end" className="w-52 bg-card/98 backdrop-blur-xl border-border/40 shadow-2xl p-1">
                                 <DropdownMenuItem asChild className="cursor-pointer rounded-md focus:bg-primary/5">
                                     <Link href={`/websites/${websiteId}/automations/builder?id=${auto.id}`} className="flex items-center gap-3 w-full py-2.5 px-3">
-                                        <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center"><Edit className="h-4 w-4 text-blue-500" /></div>
+                                        <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center"><Edit className="h-4 w-4 text-violet-500" /></div>
                                         <div className="flex flex-col"><span className="text-xs font-semibold">Edit Workflow</span><span className="text-[10px] text-muted-foreground">Change logic or triggers</span></div>
                                     </Link>
                                 </DropdownMenuItem>
@@ -442,8 +442,8 @@ export default function AutomationsPage() {
 }
 
 function StatsCard({ title, value, icon: Icon, description, color = 'blue' }: any) {
-    const bgMap: Record<string, string> = { blue: 'bg-blue-500/10', emerald: 'bg-emerald-500/10', violet: 'bg-violet-500/10', amber: 'bg-amber-500/10' };
-    const iconMap: Record<string, string> = { blue: 'text-blue-500', emerald: 'text-emerald-500', violet: 'text-violet-500', amber: 'text-amber-500' };
+    const bgMap: Record<string, string> = { blue: 'bg-violet-500/10', emerald: 'bg-emerald-500/10', violet: 'bg-violet-500/10', amber: 'bg-amber-500/10' };
+    const iconMap: Record<string, string> = { blue: 'text-violet-500', emerald: 'text-emerald-500', violet: 'text-violet-500', amber: 'text-amber-500' };
     return (
         <Card className="border border-border/60 bg-card shadow-sm">
             <CardContent className="p-5">

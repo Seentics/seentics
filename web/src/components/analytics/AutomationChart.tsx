@@ -59,7 +59,7 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <CardTitle className="text-lg font-bold tracking-tight">Automation Activity</CardTitle>
-            <Badge variant="outline" className="text-[10px] px-1.5 h-4 font-black border-blue-500 text-blue-500 bg-blue-500/5">AUTO</Badge>
+            <Badge variant="outline" className="text-[10px] px-1.5 h-4 font-black border-violet-500 text-violet-500 bg-violet-500/5">AUTO</Badge>
           </div>
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Triggers vs Actions over time</p>
         </div>
@@ -127,7 +127,7 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
       
       <div className="p-3 border-t border-border bg-muted/5 flex justify-center gap-6 shrink-0">
          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-blue-500" />
+            <div className="h-2 w-2 rounded-full bg-violet-500" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Triggers</span>
          </div>
          <div className="flex items-center gap-2">

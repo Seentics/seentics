@@ -193,7 +193,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                               disabled={member.role === 'admin' || roleMutation.isPending}
                               className="rounded gap-2 cursor-pointer"
                             >
-                              <Shield className="h-4 w-4 text-blue-500" />
+                              <Shield className="h-4 w-4 text-violet-500" />
                               Admin
                               {member.role === 'admin' && <span className="ml-auto text-[10px] text-muted-foreground">Current</span>}
                             </DropdownMenuItem>

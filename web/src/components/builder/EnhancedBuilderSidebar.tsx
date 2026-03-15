@@ -301,7 +301,7 @@ export const EnhancedBuilderSidebar = () => {
     lime: 'bg-lime-500/10 text-lime-500',
     green: 'bg-green-500/10 text-green-500',
     yellow: 'bg-yellow-500/10 text-yellow-500',
-    blue: 'bg-blue-500/10 text-blue-500',
+    blue: 'bg-violet-500/10 text-violet-500',
     purple: 'bg-purple-500/10 text-purple-500',
     cyan: 'bg-cyan-500/10 text-cyan-500',
     pink: 'bg-pink-500/10 text-pink-500',
@@ -378,7 +378,7 @@ export const EnhancedBuilderSidebar = () => {
                       key={trigger.id}
                       draggable
                       onDragStart={(e) => onDragStart(e, 'triggerNode', trigger.name, trigger.description, trigger.id)}
-                      className="group relative cursor-move p-3 rounded-xl border-2 border-slate-800 hover:border-blue-500/40 bg-slate-900/60 hover:bg-slate-900 transition-all duration-200"
+                      className="group relative cursor-move p-3 rounded-xl border-2 border-slate-800 hover:border-violet-500/40 bg-slate-900/60 hover:bg-slate-900 transition-all duration-200"
                     >
                       <div className="flex items-start gap-3">
                         <div className="h-9 w-9 rounded-lg flex items-center justify-center text-2xl" style={{ backgroundColor: trigger.color + '20' }}>

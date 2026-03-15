@@ -44,7 +44,7 @@ const COOKIE_CATEGORIES = {
     title: 'Analytics Cookies',
     description: 'Help us understand how visitors interact with our website.',
     icon: BarChart3,
-    color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400',
+    color: 'bg-violet-100 text-violet-800 dark:bg-violet-900/20 dark:text-violet-400',
     examples: ['Page views', 'User behavior', 'Performance metrics']
   },
   marketing: {
@@ -159,7 +159,7 @@ export default function CookieConsentManager({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <Cookie className="h-5 w-5 text-blue-600" />
+                  <Cookie className="h-5 w-5 text-violet-600" />
                   <h3 className="font-semibold text-slate-900 dark:text-slate-100">
                     We use cookies to enhance your experience
                   </h3>
@@ -206,7 +206,7 @@ export default function CookieConsentManager({
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Cookie className="h-5 w-5 text-blue-600" />
+              <Cookie className="h-5 w-5 text-violet-600" />
               Cookie Preferences
             </DialogTitle>
           </DialogHeader>

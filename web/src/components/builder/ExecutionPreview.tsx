@@ -171,11 +171,11 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                       Passed
                     </div>
                   </div>
-                  <div className="bg-blue-50 dark:bg-blue-950/20 rounded p-3 border border-blue-200 dark:border-blue-900">
-                    <div className="text-sm font-black text-blue-900 dark:text-blue-100">
+                  <div className="bg-violet-50 dark:bg-violet-950/20 rounded p-3 border border-violet-200 dark:border-violet-900">
+                    <div className="text-sm font-black text-violet-900 dark:text-violet-100">
                       {totalDuration}ms
                     </div>
-                    <div className="text-[10px] text-blue-700 dark:text-blue-300 font-semibold">
+                    <div className="text-[10px] text-violet-700 dark:text-violet-300 font-semibold">
                       Total Time
                     </div>
                   </div>

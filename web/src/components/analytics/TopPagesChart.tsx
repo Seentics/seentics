@@ -44,16 +44,16 @@ const getPageIcon = (page: string) => {
   if (!page) return <Globe className="w-4 h-4 text-gray-500" />;
   const path = getPathFromUrl(page).toLowerCase();
 
-  if (path === '/') return <Home className="w-4 h-4 text-blue-500" />;
+  if (path === '/') return <Home className="w-4 h-4 text-violet-500" />;
   if (path.includes('/blog') || path.includes('/post')) return <FileText className="w-4 h-4 text-green-500" />;
   if (path.includes('/about')) return <Info className="w-4 h-4 text-purple-500" />;
   if (path.includes('/contact')) return <Phone className="w-4 h-4 text-orange-500" />;
   if (path.includes('/pricing')) return <DollarSign className="w-4 h-4 text-yellow-500" />;
   if (path.includes('/products') || path.includes('/product/')) return <Package className="w-4 h-4 text-indigo-500" />;
-  if (path.includes('/analytics')) return <BarChart3 className="w-4 h-4 text-blue-500" />;
+  if (path.includes('/analytics')) return <BarChart3 className="w-4 h-4 text-violet-500" />;
   if (path.includes('/auth') || path.includes('/login')) return <LogIn className="w-4 h-4 text-gray-500" />;
   if (path.includes('/settings')) return <Settings className="w-4 h-4 text-gray-600" />;
-  if (path.includes('/cart')) return <ShoppingCart className="w-4 h-4 text-blue-600" />;
+  if (path.includes('/cart')) return <ShoppingCart className="w-4 h-4 text-violet-600" />;
   
   return <Globe className="w-4 h-4 text-purple-500" />;
 };

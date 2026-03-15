@@ -207,7 +207,7 @@ export function EnhancedFunnelChart({
           <div className="mt-6 pt-4 border-t border-border">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
-                <div className="text-xl font-bold text-blue-600">
+                <div className="text-xl font-bold text-violet-600">
                   {analytics.steps?.[analytics.steps?.length - 1]?.count?.toLocaleString() || '0'}
                 </div>
                 <div className="text-xs text-muted-foreground">Final Conversions</div>

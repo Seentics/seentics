@@ -172,7 +172,7 @@ export function TestResultsModal({ isOpen, onClose, result, error }: TestResults
                         className="flex items-start gap-2 text-sm"
                       >
                         {action.wouldRun ? (
-                          <CheckCircle2 className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                          <CheckCircle2 className="h-4 w-4 text-violet-500 flex-shrink-0 mt-0.5" />
                         ) : (
                           <XCircle className="h-4 w-4 text-slate-500 flex-shrink-0 mt-0.5" />
                         )}

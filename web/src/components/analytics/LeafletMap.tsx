@@ -184,7 +184,7 @@ export default function LeafletMap({ data, className = '' }: LeafletMapProps) {
             <span className="text-gray-600 dark:text-gray-400">Low-Medium (20-40%)</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded-full bg-blue-600"></div>
+            <div className="w-3 h-3 rounded-full bg-violet-600"></div>
             <span className="text-gray-600 dark:text-gray-400">Low (0-20%)</span>
           </div>
         </div>

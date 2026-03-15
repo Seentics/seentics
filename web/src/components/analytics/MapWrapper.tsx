@@ -129,9 +129,9 @@ export default function MapWrapper({ data, className = '' }: MapWrapperProps) {
 
   if (!mapComponent) {
     return (
-      <div className={`h-[32rem] bg-gradient-to-br from-blue-50 to-green-50 dark:from-blue-950/20 dark:to-green-950/20 rounded flex items-center justify-center ${className}`}>
+      <div className={`h-[32rem] bg-gradient-to-br from-violet-50 to-green-50 dark:from-violet-950/20 dark:to-green-950/20 rounded flex items-center justify-center ${className}`}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-violet-600 mx-auto mb-4"></div>
           <p className="text-sm text-gray-500">Loading interactive map...</p>
         </div>
       </div>

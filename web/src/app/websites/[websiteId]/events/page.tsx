@@ -119,7 +119,7 @@ export default function EventsExplorerPage() {
               label="Total Occurrences"
               value={totalOccurrences}
               icon={Hash}
-              color="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+              color="bg-violet-500/10 text-violet-600 dark:text-violet-400"
               isLoading={isLoading}
             />
             <StatCard

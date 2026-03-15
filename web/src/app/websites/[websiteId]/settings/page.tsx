@@ -71,7 +71,7 @@ const iconColors: Record<string, string> = {
     privacy:       'text-emerald-600 bg-emerald-500/10',
     layout:        'text-cyan-500 bg-cyan-500/10',
     'api-keys':    'text-emerald-500 bg-emerald-500/10',
-    team:          'text-blue-500 bg-blue-500/10',
+    team:          'text-violet-500 bg-violet-500/10',
 };
 
 const renderContent = (activeTab: string, websiteId: string) => {

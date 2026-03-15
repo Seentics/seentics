@@ -253,8 +253,8 @@ export default function FunnelDetailsPage() {
 }
 
 function DetailStatsCard({ title, value, icon: Icon, description, color }: { title: string; value: string; icon: any; description: string; color: string }) {
-    const bgMap: Record<string, string> = { blue: 'bg-blue-500/10', emerald: 'bg-emerald-500/10', violet: 'bg-violet-500/10', amber: 'bg-amber-500/10' };
-    const iconMap: Record<string, string> = { blue: 'text-blue-500', emerald: 'text-emerald-500', violet: 'text-violet-500', amber: 'text-amber-500' };
+    const bgMap: Record<string, string> = { blue: 'bg-violet-500/10', emerald: 'bg-emerald-500/10', violet: 'bg-violet-500/10', amber: 'bg-amber-500/10' };
+    const iconMap: Record<string, string> = { blue: 'text-violet-500', emerald: 'text-emerald-500', violet: 'text-violet-500', amber: 'text-amber-500' };
     return (
         <Card className="border border-border/60 bg-card shadow-sm">
             <CardContent className="p-5">

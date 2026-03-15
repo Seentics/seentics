@@ -101,8 +101,8 @@ export function VisitorInsightsCard({ data, isLoading, className = '' }: Visitor
       <div className="bg-accent/10 rounded-lg p-4 border border-border/40">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/10 rounded">
-              <Clock className="h-5 w-5 text-blue-500" />
+            <div className="p-2 bg-violet-500/10 rounded">
+              <Clock className="h-5 w-5 text-violet-500" />
             </div>
             <div>
               <p className="text-xs font-medium text-muted-foreground">Avg Session Duration</p>

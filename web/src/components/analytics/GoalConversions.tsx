@@ -85,7 +85,7 @@ export function GoalConversions({ items, totalVisitors = 0, isLoading }: GoalCon
               <div className="flex items-center gap-3 flex-1 min-w-0 relative z-10">
                 <div className="flex-shrink-0 p-2 bg-accent/10 rounded group-hover:bg-primary/10 transition-colors">
                   {isPage ? (
-                    <Eye className="w-4 h-4 text-blue-500" />
+                    <Eye className="w-4 h-4 text-violet-500" />
                   ) : (
                     <MousePointerClick className="w-4 h-4 text-emerald-500" />
                   )}

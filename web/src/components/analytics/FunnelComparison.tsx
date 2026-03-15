@@ -92,7 +92,7 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
     if (score >= 80) {
       return <Badge className="bg-green-100 text-green-700"><Trophy className="h-3 w-3 mr-1" />Excellent</Badge>;
     } else if (score >= 60) {
-      return <Badge className="bg-blue-100 text-blue-700"><CheckCircle className="h-3 w-3 mr-1" />Good</Badge>;
+      return <Badge className="bg-violet-100 text-violet-700"><CheckCircle className="h-3 w-3 mr-1" />Good</Badge>;
     } else if (score >= 40) {
       return <Badge variant="secondary"><TrendingUp className="h-3 w-3 mr-1" />Average</Badge>;
     } else {
@@ -192,10 +192,10 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
 
                   {/* Metrics Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded">
+                    <div className="text-center p-3 bg-violet-50 dark:bg-violet-900/20 rounded">
                       <div className="flex items-center justify-center mb-1">
-                        <Users className="h-4 w-4 text-blue-600 mr-1" />
-                        <span className="text-xs text-blue-600 font-medium">Visitors</span>
+                        <Users className="h-4 w-4 text-violet-600 mr-1" />
+                        <span className="text-xs text-violet-600 font-medium">Visitors</span>
                       </div>
                       <p className="text-lg font-bold">{result.total_starts.toLocaleString()}</p>
                     </div>
@@ -249,12 +249,12 @@ export function FunnelComparison({ websiteId }: FunnelComparisonProps) {
                   </p>
                 </div>
                 
-                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded">
+                <div className="p-4 bg-violet-50 dark:bg-violet-900/20 rounded">
                   <div className="flex items-center gap-2 mb-2">
-                    <BarChart3 className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-700">Performance Gap</span>
+                    <BarChart3 className="h-4 w-4 text-violet-600" />
+                    <span className="text-sm font-medium text-violet-700">Performance Gap</span>
                   </div>
-                  <p className="text-sm text-blue-800">
+                  <p className="text-sm text-violet-800">
                     {comparisonResults.length > 1 ? 
                       `${(comparisonResults[0]?.conversion_rate - comparisonResults[comparisonResults.length - 1]?.conversion_rate).toFixed(1)}% difference between best and worst` :
                       'Only one funnel selected'
