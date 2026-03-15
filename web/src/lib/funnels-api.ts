@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from './api';
-import { isDemo, demoMutationGuard, demoFunnels } from './demo';
+import { isDemo, demoMutationGuard, demoFunnels, demoFunnelStats } from './demo';
 
 // =============================================================================
 // TYPES & INTERFACES
@@ -127,8 +127,7 @@ export const bulkDeleteFunnels = async (websiteId: string, funnelIds: string[]):
 
 export const getFunnelStats = async (websiteId: string, funnelId: string): Promise<FunnelStats> => {
     if (isDemo(websiteId)) {
-        const funnel = demoFunnels().funnels.find((f: any) => f.id === funnelId);
-        return (funnel?.stats as any) || { totalEntries: 0, completions: 0, conversionRate: 0, stepBreakdown: [] };
+        return demoFunnelStats() as any;
     }
     const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}/stats`);
     return response.data;
