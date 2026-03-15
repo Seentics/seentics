@@ -10,13 +10,10 @@ import { UTMPerformanceChart } from '@/components/analytics/UTMPerformanceChart'
 import { RecentActivityFeed } from '@/components/analytics/RecentActivityFeed';
 import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { useToast } from '@/hooks/use-toast';
 import {
   useCustomEvents,
   useDailyStats,
@@ -37,10 +34,8 @@ import {
 } from '@/lib/analytics-api';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
-import { format } from 'date-fns';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
-import Link from 'next/link';
-import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRight, ArrowDownRight, Clock, Eye, Users, TrendingDown, ChevronRight, Target, X, Gauge } from 'lucide-react';
+import { Download, Globe, PlusCircle, Users, Target, X, Gauge } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
@@ -54,7 +49,6 @@ import { FilterModal } from '@/components/analytics/FilterModal';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { LayoutDashboard } from 'lucide-react';
 
 // Pure helper — defined outside component so it's never re-created on render
 function categorizeReferrer(referrer: string): string {
@@ -89,8 +83,6 @@ export default function WebsiteDashboardPage() {
   const websiteId = params?.websiteId as string;
   const router = useRouter();
   const { user } = useAuth();
-  const { toast } = useToast();
-
   const [websites, setWebsites] = useState<Website[]>([]);
   const [selectedModal, setSelectedModal] = useState<string | null>(null);
   const [modalType, setModalType] = useState<string>('');
@@ -683,12 +675,6 @@ export default function WebsiteDashboardPage() {
                     <p className="text-xs text-muted-foreground mt-0.5">Behavioral targets</p>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Link href={`/websites/${websiteId}/settings?tab=goals`}>
-                      <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs font-medium rounded text-muted-foreground hover:text-foreground gap-1.5">
-                        <Settings className="h-3 w-3" />
-                        Manage
-                      </Button>
-                    </Link>
                     <Button
                       onClick={() => setShowAddGoalModal(true)}
                       variant="secondary"
