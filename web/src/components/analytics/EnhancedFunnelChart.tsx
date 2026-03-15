@@ -61,7 +61,7 @@ export function EnhancedFunnelChart({
 
   const getStepColor = (index: number): string => {
     const colors = [
-      '#5243F4', '#5243F4', '#10B981', '#F59E0B', 
+      '#2563EB', '#2563EB', '#10B981', '#F59E0B', 
       '#EC4899', '#06B6D4', '#84CC16', '#F97316'
     ];
     return colors[index % colors.length];

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       text: `Name: ${name}\nEmail: ${email}${companyLine}${websiteLine}\n\nMessage:\n${message}`,
       html: `
         <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 style="color: #1a1a1a; border-bottom: 2px solid #5243f4; padding-bottom: 10px;">
+          <h2 style="color: #1a1a1a; border-bottom: 2px solid #2563eb; padding-bottom: 10px;">
             New Contact Form Submission
           </h2>
           <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
             ${company ? `<tr><td style="padding: 8px 12px; font-weight: 600; color: #555;">Company</td><td style="padding: 8px 12px;">${company}</td></tr>` : ''}
             ${websiteId ? `<tr style="background: #f9fafb;"><td style="padding: 8px 12px; font-weight: 600; color: #555;">Website ID</td><td style="padding: 8px 12px;"><code>${websiteId}</code></td></tr>` : ''}
           </table>
-          <div style="background: #f9fafb; border-left: 3px solid #5243f4; padding: 16px; margin: 16px 0; border-radius: 4px;">
+          <div style="background: #f9fafb; border-left: 3px solid #2563eb; padding: 16px; margin: 16px 0; border-radius: 4px;">
             <p style="margin: 0; color: #555; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">Message</p>
             <p style="margin: 0; color: #1a1a1a; white-space: pre-wrap;">${message}</p>
           </div>

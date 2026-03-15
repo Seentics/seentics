@@ -153,7 +153,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
     return sorted.map(([name, visitors]) => ({
       label: name,
       visitors,
-      color: '#5243f4',
+      color: '#2563eb',
       percentage: (visitors / maxVal) * 100
     }));
   };

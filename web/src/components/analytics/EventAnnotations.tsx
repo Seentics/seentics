@@ -39,13 +39,13 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
   const [date, setDate] = useState<Date>(new Date());
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [color, setColor] = useState('#5243f4');
+  const [color, setColor] = useState('#2563eb');
 
   const colors = [
-    { name: 'Blue', value: '#5243f4' },
+    { name: 'Blue', value: '#2563eb' },
     { name: 'Green', value: '#10b981' },
     { name: 'Red', value: '#ef4444' },
-    { name: 'Purple', value: '#5243f4' },
+    { name: 'Purple', value: '#2563eb' },
     { name: 'Orange', value: '#f97316' },
     { name: 'Pink', value: '#ec4899' },
   ];
@@ -62,7 +62,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
       setTitle('');
       setDescription('');
       setDate(new Date());
-      setColor('#5243f4');
+      setColor('#2563eb');
       setOpen(false);
     }
   };

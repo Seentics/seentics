@@ -96,7 +96,7 @@ export default function LeafletMap({ data, className = '' }: LeafletMapProps) {
     if (intensity > 0.6) return '#EA580C'; // Orange
     if (intensity > 0.4) return '#D97706'; // Amber
     if (intensity > 0.2) return '#059669'; // Emerald
-    return '#5243F4'; // Blue
+    return '#2563EB'; // Blue
   };
 
   return (

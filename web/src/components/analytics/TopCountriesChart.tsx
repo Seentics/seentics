@@ -161,7 +161,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
 
   // Use real data if available, otherwise show empty state
   const countryData = data?.top_countries?.map((item, index) => {
-    const colors = ['#5243F4', '#5243F4', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4'];
+    const colors = ['#2563EB', '#2563EB', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#06B6D4'];
     const totalVisitors = data.top_countries.reduce((sum, c) => sum + c.visitors, 0);
     const percentage = totalVisitors > 0 ? Math.round((item.visitors / totalVisitors) * 100) : 0;
     const countryCode = getCountryCode(item.country);

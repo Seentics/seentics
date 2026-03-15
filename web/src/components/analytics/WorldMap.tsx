@@ -71,7 +71,7 @@ const TOPO_NAME_MAP: Record<string, string> = {
     'macedonia, the former yugoslav republic of': 'north macedonia',
 };
 
-const PRIMARY_RGB = '82,67,244'; // #5243f4 — matches app primary
+const PRIMARY_RGB = '37,99,235'; // #2563eb — matches app primary
 
 function pinColor(ratio: number) {
     const alpha = 0.5 + ratio * 0.5;
@@ -83,11 +83,11 @@ function pinColor(ratio: number) {
 }
 
 function choroplethColor(ratio: number): string {
-    if (ratio >= 0.75) return '#3324b3';
-    if (ratio >= 0.5)  return '#3d2dd4';
-    if (ratio >= 0.25) return '#5243f4';
-    if (ratio >= 0.08) return '#a29bfa';
-    return '#e8e6fe';
+    if (ratio >= 0.75) return '#1e40af';
+    if (ratio >= 0.5)  return '#1d4ed8';
+    if (ratio >= 0.25) return '#2563eb';
+    if (ratio >= 0.08) return '#93c5fd';
+    return '#dbeafe';
 }
 
 // ── 3D Globe ─────────────────────────────────────────────────────────────────
@@ -185,7 +185,7 @@ function GlobeView({ data }: { data: TopItem[] }) {
                     backgroundColor={canvasBg}
                     globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
                     bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
-                    atmosphereColor="#7a6ef7"
+                    atmosphereColor="#60a5fa"
                     atmosphereAltitude={0.18}
                     htmlElementsData={htmlMarkers}
                     htmlLat="lat" htmlLng="lng" htmlAltitude="altitude"
@@ -314,11 +314,11 @@ function Legend() {
         <div className="absolute bottom-3 left-3 flex flex-col gap-1.5 bg-background/90 backdrop-blur-md border border-border/50 rounded-lg px-3 py-2.5 text-[10px]">
             <div className="font-semibold text-foreground mb-0.5 text-[11px]">Traffic share</div>
             {[
-                { bg: '#e8e6fe', label: '< 8%' },
-                { bg: '#a29bfa', label: '8–25%' },
-                { bg: '#5243f4', label: '25–50%' },
-                { bg: '#3d2dd4', label: '50–75%' },
-                { bg: '#3324b3', label: '> 75%' },
+                { bg: '#dbeafe', label: '< 8%' },
+                { bg: '#93c5fd', label: '8–25%' },
+                { bg: '#2563eb', label: '25–50%' },
+                { bg: '#1d4ed8', label: '50–75%' },
+                { bg: '#1e40af', label: '> 75%' },
             ].map(({ bg, label }) => (
                 <div key={label} className="flex items-center gap-2 text-muted-foreground">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: bg }} />

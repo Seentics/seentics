@@ -120,7 +120,7 @@ export function EventsDetails({ items, isLoading }: EventsDetailsProps) {
 		const t = type.toLowerCase();
 		if (t.includes('form_submit') || t.includes('form_submission')) {
 			const formId = props?.form_id || props?.form_name || 'Form';
-			return { label: `Form: ${formId}`, icon: FormInput, color: '#5243F4' };
+			return { label: `Form: ${formId}`, icon: FormInput, color: '#2563EB' };
 		}
 		if (t.includes('click')) {
 			const target = props?.element_text || props?.element_id || props?.element_tag || 'Element';
@@ -130,10 +130,10 @@ export function EventsDetails({ items, isLoading }: EventsDetailsProps) {
 		if (t.includes('file_download')) return { label: 'File Download', icon: FileDown, color: '#F59E0B' };
 		if (t.includes('search')) return { label: 'Search', icon: Search, color: '#10B981' };
 		if (t.includes('video')) return { label: 'Video Activity', icon: PlayCircle, color: '#D946EF' };
-		if (t.includes('conversion')) return { label: 'Goal Conversion', icon: Target, color: '#5243F4' };
+		if (t.includes('conversion')) return { label: 'Goal Conversion', icon: Target, color: '#2563EB' };
 		if (t.includes('scroll_depth')) {
 			const depth = props?.depth || '0';
-			return { label: `Scroll: ${depth}%`, icon: Activity, color: '#5243f4' };
+			return { label: `Scroll: ${depth}%`, icon: Activity, color: '#2563eb' };
 		}
 		return { label: type.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), icon: Activity, color: '#64748B' };
 	};
