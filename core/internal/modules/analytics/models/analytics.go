@@ -250,16 +250,3 @@ type RealtimeMinute struct {
 	Views    int    `json:"views"`
 }
 
-// ExportRequest - Request for data export
-type ExportRequest struct {
-	WebsiteID string `json:"website_id"`
-	Days      int    `json:"days"`
-	Format    string `json:"format"` // "json" or "csv"
-}
-
-// ImportRequest - Request for data import
-type ImportRequest struct {
-	WebsiteID string `json:"website_id"`
-	Source    string `json:"source"` // "ga4", "plausible", "umami", "fathom", "seentics"
-	Data      []byte `json:"-"`
-}

@@ -56,7 +56,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
   const [currentTime, setCurrentTime] = useState(0);
   const [totalTime, setTotalTime] = useState(() => (session?.duration_seconds ?? 0) * 1000);
   const [speed, setSpeed] = useState(1);
-  const [skipInactive, setSkipInactive] = useState(false);
+  const [skipInactive, setSkipInactive] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Refs for timer interpolation (avoids re-renders)
@@ -75,12 +75,16 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     const fetchChunk = async (url: string): Promise<any[]> => {
       try {
         const res = await fetch(url, { signal });
-        if (!res.ok) return [];
+        if (!res.ok) {
+          console.warn('[ReplayPlayer] Chunk fetch failed:', res.status, url.slice(0, 80));
+          return [];
+        }
         const text = await res.text();
         if (!text) return [];
         const data = JSON.parse(text);
         return Array.isArray(data) ? data : [];
-      } catch {
+      } catch (err) {
+        console.warn('[ReplayPlayer] Chunk parse error:', err);
         return [];
       }
     };
@@ -291,7 +295,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
           width: containerW,
           height: containerH,
           showController: false,
-          skipInactive: false,
+          skipInactive: true,
           UNSAFE_replayCanvas: true,
         },
       });
@@ -309,7 +313,7 @@ export default function ReplayPlayer({ sessionId, websiteId, session }: ReplayPl
     isPlayingRef.current = true;
     setSpeed(1);
     speedRef.current = 1;
-    setSkipInactive(false);
+    setSkipInactive(true);
 
     // Get duration
     try {
