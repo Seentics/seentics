@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
-import { Menu, X, Play, Github } from 'lucide-react';
-import { FaDiscord } from 'react-icons/fa';
+import { Menu, X, Github } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '../ui/logo';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -25,7 +24,6 @@ export default function LandingHeader() {
 
   const navLinks = [
     { name: 'Features', href: '#features' },
-    { name: 'Automations', href: '#automations' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'FAQ', href: '#faq' },
   ];
@@ -33,14 +31,17 @@ export default function LandingHeader() {
   return (
     <header
       className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${scrolled
-        ? 'top-0 bg-background/80 border-b border-border/40 backdrop-blur-md h-[72px]'
-        : 'top-0 bg-transparent h-24'
+        ? 'top-0 bg-background/80 border-b border-border/40 backdrop-blur-md h-16'
+        : 'top-0 bg-transparent h-20'
         }`}
     >
-      <div className="container mx-auto px-8 h-full flex items-center justify-between relative">
+      <div className="container mx-auto px-6 h-full flex items-center justify-between relative">
         <Link href="/" className="flex items-center gap-2">
           <Logo size="md" />
-          <span className="text-base font-semibold text-foreground">Seentics</span>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-base font-bold text-foreground tracking-tight">Seentics</span>
+            <span className="text-xs font-medium text-muted-foreground">Analytics</span>
+          </div>
         </Link>
 
         <nav className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
@@ -55,25 +56,17 @@ export default function LandingHeader() {
           ))}
         </nav>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <Link
             href="https://github.com/Seentics/seentics"
             target="_blank"
-            className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            title="Star us on GitHub"
+            className="hidden md:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            title="GitHub"
           >
-            <Github className="h-5 w-5" />
-          </Link>
-          <Link
-            href="https://discord.gg/eHNHR82add"
-            target="_blank"
-            className="p-2 rounded-md text-muted-foreground hover:text-[#5865F2] hover:bg-[#5865F2]/10 transition-colors"
-            title="Join our Discord"
-          >
-            <FaDiscord className="h-5 w-5" />
+            <Github className="h-4 w-4" />
           </Link>
           <ThemeToggle />
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2 ml-1">
             {isAuthenticated ? (
               <Link href="/websites">
                 <Button size="sm" className="h-8 px-4 text-xs font-medium rounded-md">
@@ -88,8 +81,8 @@ export default function LandingHeader() {
                   </Button>
                 </Link>
                 <Link href="/signup">
-                  <Button size="sm" className="h-8 px-5 text-xs font-semibold rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all">
-                    Get Started Free
+                  <Button size="sm" className="h-8 px-4 text-xs font-semibold rounded-full">
+                    Get Started
                   </Button>
                 </Link>
               </>
@@ -132,8 +125,11 @@ export default function LandingHeader() {
 
               <div className="pt-2 border-t border-border/40 space-y-2">
                 <Link href="/websites/demo" onClick={() => setMobileOpen(false)}>
-                  <Button variant="outline" className="w-full h-10 text-sm font-medium rounded-lg gap-2 border-primary/30 bg-primary/5 text-primary">
-                    <Play size={14} className="fill-primary/30" />
+                  <Button variant="outline" className="w-full h-10 text-sm font-medium rounded-lg gap-2 border-border/60 text-muted-foreground">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
                     Live Demo
                   </Button>
                 </Link>

@@ -1,37 +1,153 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Play, X } from 'lucide-react';
+import { ArrowRight, Users, Globe, Download, Settings, Sun } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useAuth } from '@/stores/useAuthStore';
+import { useMemo } from 'react';
+import { SummaryCards } from '@/components/analytics/SummaryCards';
+import { TrafficOverview } from '@/components/analytics/TrafficOverview';
+import { TopPagesChart } from '@/components/analytics/TopPagesChart';
+import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
+import { Card, CardContent } from '@/components/ui/card';
+import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
+import { demoAnalyticsData } from '@/lib/demo';
+import { Logo } from '@/components/ui/logo';
+
+/* ─── Real dashboard preview using actual components with demo data ─── */
+function DashboardPreview() {
+  const demoData = useMemo(() => demoAnalyticsData(), []);
+
+  const transformedTopPages = useMemo(() => ({
+    top_pages: demoData.topPages?.top_pages?.map((page: any) => ({
+      page: page.page || '/',
+      views: page.views || 0,
+      unique_visitors: page.unique || 0,
+      avg_time_on_page: page.avg_time || 0,
+      bounce_rate: page.bounce_rate || 0,
+    })) ?? [],
+  }), [demoData]);
+
+  const transformedTopReferrers = useMemo(() => ({
+    top_referrers: demoData.topReferrers?.top_referrers?.map((ref: any) => ({
+      referrer: ref.referrer || 'Direct',
+      visitors: ref.unique || 0,
+      page_views: ref.views || 0,
+      avg_session_duration: 0,
+    })) ?? [],
+  }), [demoData]);
+
+  return (
+    <div
+      className="overflow-hidden relative text-left"
+      style={{ maxHeight: '820px' }}
+    >
+      {/* Scaled-down real dashboard */}
+      <div
+        className="pointer-events-none select-none"
+        style={{
+          transform: 'scale(0.55)',
+          transformOrigin: 'top center',
+          width: `${100 / 0.55}%`,
+          marginLeft: `${-(100 / 0.55 - 100) / 2}%`,
+        }}
+      >
+        {/* ── Dashboard Header ── */}
+        <div className="flex items-center gap-2 px-4 md:px-8 py-2 flex-wrap">
+          <Logo size="sm" showText className="hidden sm:flex" />
+          <Logo size="sm" className="sm:hidden" />
+          <div className="w-px h-5 bg-border/60 mx-1" />
+          <div className="flex items-center gap-1.5 h-8 px-3 bg-card/50 rounded-md border border-border/40 text-xs">
+            <Globe className="h-3 w-3 text-primary shrink-0" />
+            <span className="font-medium text-foreground">Demo Site</span>
+          </div>
+          <div className="flex-1" />
+          <div className="h-8 px-2.5 flex items-center gap-1.5 bg-card/50 rounded-md border border-border/40 text-[11px] font-medium text-muted-foreground">
+            Last 7 days
+          </div>
+          <div className="h-8 px-2.5 flex items-center gap-1.5 bg-card/50 rounded-md border border-border/40 text-[11px] font-medium text-muted-foreground">
+            <Download className="h-3 w-3" />
+            <span className="hidden sm:inline">Export</span>
+          </div>
+          <div className="h-8 w-8 flex items-center justify-center bg-card/50 rounded-md border border-border/40">
+            <Settings className="h-3 w-3 text-muted-foreground" />
+          </div>
+          <div className="h-8 w-8 flex items-center justify-center bg-card/50 rounded-md border border-border/40">
+            <Sun className="h-3.5 w-3.5 text-muted-foreground" />
+          </div>
+        </div>
+
+        {/* ── Dashboard Content ── */}
+        <div className="px-4 md:px-8 pb-8 space-y-6">
+          {/* Real SummaryCards */}
+          <SummaryCards
+            websiteId=""
+            isDemo={true}
+            isLoading={false}
+            data={demoData.dashboardData}
+            dailyStats={demoData.dailyStats}
+            visitorInsights={demoData.visitorInsights}
+          />
+
+          {/* Real TrafficOverview */}
+          <ChartErrorBoundary label="Traffic Overview">
+            <TrafficOverview
+              dailyStats={demoData.dailyStats}
+              hourlyStats={demoData.hourlyStats}
+              isLoading={false}
+              showComparison={false}
+            />
+          </ChartErrorBoundary>
+
+          {/* Audience Intelligence section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 px-1">
+              <Users className="h-4 w-4 text-primary" />
+              <h2 className="text-sm font-semibold tracking-tight">Audience Intelligence</h2>
+              <div className="h-px bg-border flex-1 ml-3" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <Card className="border border-border/60 bg-card shadow-sm">
+                <CardContent className="p-5">
+                  <ChartErrorBoundary label="Top Pages">
+                    <TopPagesChart
+                      data={transformedTopPages}
+                      entryPages={demoData.visitorInsights?.visitor_insights?.top_entry_pages}
+                      exitPages={demoData.visitorInsights?.visitor_insights?.top_exit_pages}
+                      isLoading={false}
+                    />
+                  </ChartErrorBoundary>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border/60 bg-card shadow-sm">
+                <CardContent className="p-5">
+                  <ChartErrorBoundary label="Top Sources">
+                    <TopSourcesChart data={transformedTopReferrers} isLoading={false} />
+                  </ChartErrorBoundary>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom fade — blends preview into page background */}
+      <div className="absolute bottom-0 inset-x-0 h-40 bg-gradient-to-t from-background via-background/80 to-transparent z-10" />
+    </div>
+  );
+}
 
 export default function Hero() {
   const { isAuthenticated } = useAuth();
-  const [isZoomed, setIsZoomed] = useState(false);
-
-  useEffect(() => {
-    if (isZoomed) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isZoomed]);
 
   return (
-    <section className="relative pt-32 pb-16 md:pt-44 md:pb-24 bg-background overflow-hidden">
+    <section className="relative pt-28 pb-16 md:pt-36 md:pb-24 bg-background overflow-hidden">
       {/* Dot pattern background */}
       <div className="absolute inset-0 [background-image:radial-gradient(hsl(var(--border)/0.4)_1px,transparent_1px)] [background-size:24px_24px]" />
-
-      {/* Radial fade so dots don't have hard edges */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,hsl(var(--background))_70%)]" />
-
-      {/* Top glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/[0.07] rounded-full blur-[120px]" />
 
       <div className="container mx-auto px-6 relative z-10">
@@ -42,7 +158,7 @@ export default function Hero() {
             transition={{ duration: 0.5 }}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 border border-border/60 text-xs font-medium text-muted-foreground mb-8"
           >
-            Open Source &middot; No Cookies &middot; EU Hosted
+            Open Source &middot; No Cookies &middot; GDPR Compliant
           </motion.div>
 
           <motion.h1
@@ -52,14 +168,10 @@ export default function Hero() {
             className="mb-6"
           >
             <span className="block text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.2]">
-              The Open Source
+              Simple, Privacy-First
             </span>
             <span className="block text-4xl md:text-6xl font-bold tracking-tight leading-[1.2] mt-1">
-              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Google Analytics</span>{' '}
-              <span className="text-foreground">Alternative</span>
-            </span>
-            <span className="block text-lg md:text-2xl text-muted-foreground font-normal mt-4 tracking-normal">
-              with Session Recording, Heatmaps &amp; Automations
+              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Web Analytics</span>
             </span>
           </motion.h1>
 
@@ -67,104 +179,57 @@ export default function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed"
+            className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            Simple, fast, and privacy-friendly website analytics. No cookies, no consent banners. See your traffic, top pages, referrers, and conversions in one clean dashboard.
+            Know your traffic without compromising privacy. Real-time visitors, top pages, referrers, geo, UTM campaigns, and conversion funnels — no cookies, no consent banners.
           </motion.p>
 
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15 }}
-            className="flex items-center justify-center gap-3 mb-20"
+            className="flex items-center justify-center gap-3 mb-16"
           >
             {isAuthenticated ? (
               <Link href="/websites">
-                <Button size="lg" className="h-12 px-8 text-sm font-semibold rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all">
+                <Button size="lg" className="h-11 px-7 text-sm font-semibold rounded-lg gap-2 shadow-sm">
                   Go to Dashboard
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             ) : (
               <Link href="/signup">
-                <Button size="lg" className="h-12 px-8 text-sm font-semibold rounded-full shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all">
-                  Start for Free
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                <Button size="lg" className="h-11 px-7 text-sm font-semibold rounded-lg gap-2 shadow-sm">
+                  Get Started Free
+                  <ArrowRight className="h-4 w-4" />
                 </Button>
               </Link>
             )}
             <Link href="/websites/demo">
-              <Button variant="outline" size="lg" className="h-12 px-8 text-sm font-semibold rounded-full border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary hover:text-primary shadow-sm">
-                <Play className="h-4 w-4 mr-2 fill-primary/30" />
+              <Button variant="outline" size="lg" className="h-11 px-6 text-sm font-medium rounded-lg gap-2 border-border/60 text-muted-foreground hover:text-foreground hover:bg-accent/50">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
                 Live Demo
               </Button>
             </Link>
           </motion.div>
 
-          {/* Dashboard Preview */}
+          {/* 3D Perspective Dashboard Preview */}
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative max-w-5xl mx-auto"
+            initial={{ opacity: 0, y: 40, rotateX: 8 }}
+            animate={{ opacity: 1, y: 0, rotateX: 0 }}
+            transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
+            className="relative max-w-5xl mx-auto [perspective:1200px]"
           >
-            {/* Glow behind the image */}
-            <div className="absolute -inset-4 bg-primary/[0.04] rounded-2xl blur-2xl" />
-
-            <div
-              className="relative group cursor-zoom-in rounded-xl border border-border/50 bg-card p-1.5 shadow-2xl shadow-black/5"
-              onClick={() => setIsZoomed(true)}
-            >
-              <div className="rounded-lg overflow-hidden">
-                <Image
-                  src="/analytics-dashboard.png"
-                  alt="Seentics Analytics Dashboard"
-                  width={2400}
-                  height={1350}
-                  className="w-full h-auto"
-                  priority
-                />
-              </div>
+            <div className="absolute -inset-8 bg-primary/[0.04] rounded-3xl blur-3xl" />
+            <div className="relative [transform:perspective(1200px)_rotateX(2deg)] origin-bottom">
+              <DashboardPreview />
             </div>
           </motion.div>
         </div>
       </div>
-
-      {/* Zoom Modal */}
-      <AnimatePresence>
-        {isZoomed && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsZoomed(false)}
-            className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 md:p-10"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="relative max-w-7xl w-full max-h-[90vh] rounded-xl overflow-hidden border border-white/10"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={() => setIsZoomed(false)}
-                className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <Image
-                src="/analytics-dashboard.png"
-                alt="Seentics Analytics Dashboard"
-                width={2400}
-                height={1350}
-                className="object-contain w-full h-full"
-              />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </section>
   );
 }

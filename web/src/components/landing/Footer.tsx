@@ -13,7 +13,7 @@ export default function Footer() {
               <Logo size="lg" showText={true} textClassName="text-lg font-semibold text-foreground" className="gap-2.5" />
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              Privacy-first analytics that helps you grow. Cookieless, fast, and easy to use.
+              Open-source, privacy-first web analytics. No cookies, fast, and easy to use.
             </p>
           </div>
 
@@ -21,8 +21,6 @@ export default function Footer() {
             <h3 className="text-sm font-medium text-foreground mb-4">Product</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href="#features" className="hover:text-foreground transition-colors">Features</Link></li>
-              <li><Link href="#automations" className="hover:text-foreground transition-colors">Automations</Link></li>
-              <li><Link href="/agency-solution" className="hover:text-foreground transition-colors">Agency Solution</Link></li>
               <li><Link href="#pricing" className="hover:text-foreground transition-colors">Pricing</Link></li>
               <li><Link href="#faq" className="hover:text-foreground transition-colors">FAQ</Link></li>
             </ul>

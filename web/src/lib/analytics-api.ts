@@ -912,6 +912,10 @@ export async function deleteFunnel(funnelId: string): Promise<void> {
 
 // Get funnel analytics data
 export async function getFunnelAnalytics(funnelId: string, dateRange: number = 7): Promise<FunnelAnalyticsResponse> {
+  if (funnelId.startsWith('demo-')) {
+    const { demoFunnelAnalytics } = await import('./demo');
+    return demoFunnelAnalytics(funnelId);
+  }
   try {
     const response = await api.get(`/funnels/${funnelId}/analytics`, {
       params: { days: dateRange }

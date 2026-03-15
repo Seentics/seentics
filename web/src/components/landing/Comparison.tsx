@@ -7,13 +7,14 @@ import { Logo } from '@/components/ui/logo';
 
 export default function Comparison() {
   const comparisons = [
-    { name: 'Real-time Analytics', seentics: true, ga: true, hotjar: false, plausible: true },
-    { name: 'Visual Heatmaps', seentics: true, ga: false, hotjar: true, plausible: false },
-    { name: 'Session Replays', seentics: true, ga: false, hotjar: true, plausible: false },
-    { name: 'Behavioral Automations', seentics: true, ga: false, hotjar: false, plausible: false },
+    { name: 'Real-time Dashboard', seentics: true, ga: true, hotjar: false, plausible: true },
+    { name: 'UTM Campaign Tracking', seentics: true, ga: true, hotjar: false, plausible: true },
     { name: 'Conversion Funnels', seentics: true, ga: true, hotjar: true, plausible: true },
+    { name: 'Goal Tracking', seentics: true, ga: true, hotjar: false, plausible: true },
+    { name: 'Geographic Map View', seentics: true, ga: true, hotjar: false, plausible: false },
     { name: 'Privacy-First (No Cookies)', seentics: true, ga: false, hotjar: false, plausible: true },
-    { name: 'Self-Hostable (AGPL)', seentics: true, ga: false, hotjar: false, plausible: true },
+    { name: 'Self-Hostable (Open Source)', seentics: true, ga: false, hotjar: false, plausible: true },
+    { name: 'Lightweight Script (<2KB)', seentics: true, ga: false, hotjar: false, plausible: true },
   ];
 
   return (
@@ -44,7 +45,7 @@ export default function Comparison() {
             transition={{ delay: 0.1 }}
             className="text-muted-foreground text-lg max-w-xl mx-auto"
           >
-            Other tools make you choose between analytics, recordings, and privacy. Seentics gives you all three.
+            See how Seentics stacks up against other analytics tools.
           </motion.p>
         </div>
 

@@ -64,7 +64,7 @@ export default function Pricing() {
             transition={{ duration: 0.5, delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
-            Simple, transparent pricing
+            Simple Pricing
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -73,7 +73,7 @@ export default function Pricing() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg"
           >
-            Start free and scale as you grow. No hidden fees, no surprises.
+            Free to start. Upgrade when you need more.
           </motion.p>
         </div>
 

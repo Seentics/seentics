@@ -142,7 +142,7 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, v
   const newPct = Math.round((newVisitors / totalForRatio) * 100);
 
   const cards = [
-    { title: 'Live Visitors',    value: liveVisitors || 0, icon: Radio,        format: 'number' as const },
+    { title: 'Live Visitors',    value: isDemo ? (data.live_visitors || 0) : (liveVisitors || 0), icon: Radio, format: 'number' as const },
     { title: 'Total Visitors',   value: data.total_visitors || 0,   previousValue: data.comparison?.previous_period?.total_visitors,   icon: Users,        format: 'number' as const },
     { title: 'Unique Visitors',  value: data.unique_visitors || 0,  previousValue: data.comparison?.previous_period?.unique_visitors,   icon: Activity,     format: 'number' as const },
     { title: 'Page Views',       value: data.page_views || 0,       previousValue: data.comparison?.previous_period?.page_views,        icon: Eye,          format: 'number' as const },

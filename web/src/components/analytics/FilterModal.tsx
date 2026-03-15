@@ -255,9 +255,9 @@ export function FilterModal({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="h-10 px-4 bg-card/50 backdrop-blur-md hover:bg-card transition-all rounded shadow-sm font-bold text-xs uppercase tracking-widest gap-2 relative border border-border/50 active:scale-95 text-foreground">
-          <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-          Filters
+        <Button className="h-8 px-2.5 bg-card/50 hover:bg-card transition-all rounded-md shadow-sm font-medium text-[11px] gap-1.5 relative border border-border/40 active:scale-95 text-muted-foreground hover:text-foreground">
+          <SlidersHorizontal className="h-3 w-3" />
+          <span className="hidden sm:inline">Filters</span>
           {totalCount > 0 && (
             <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-black shadow-lg shadow-primary/20">
               {totalCount}

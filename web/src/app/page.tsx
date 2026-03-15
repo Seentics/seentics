@@ -3,8 +3,6 @@ import OSSLanding from '@/components/landing/OSSLanding';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
 import Features from '@/components/landing/Features';
-import AutomationWorkflows from '@/components/landing/AutomationWorkflows';
-import Comparison from '@/components/landing/Comparison';
 import Pricing from '@/components/landing/Pricing';
 import FAQ from '@/components/landing/FAQ';
 import Footer from '@/components/landing/Footer';
@@ -22,8 +20,6 @@ export default function LandingPage() {
       <main>
         <Hero />
         <Features />
-        <AutomationWorkflows />
-        <Comparison />
         <Pricing />
         <FAQ />
       </main>

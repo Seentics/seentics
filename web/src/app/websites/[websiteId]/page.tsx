@@ -35,7 +35,7 @@ import {
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
-import { Download, Globe, PlusCircle, Users, Target, X, Gauge } from 'lucide-react';
+import { Download, Globe, PlusCircle, Users, Target, X, Gauge, Settings, GitBranch } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
@@ -47,8 +47,9 @@ import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
 import { FilterModal } from '@/components/analytics/FilterModal';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
+import { FunnelManagement } from '@/components/analytics/FunnelManagement';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { DashboardPageHeader } from '@/components/dashboard-header';
+import { Logo } from '@/components/ui/logo';
 
 // Pure helper — defined outside component so it's never re-created on render
 function categorizeReferrer(referrer: string): string {
@@ -434,43 +435,38 @@ export default function WebsiteDashboardPage() {
       Failed to load analytics data.
     </div>
   ) : (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <DashboardPageHeader
-          title="Overview"
-          description="Track your website visitor behavior in real-time."
-        >
-          <div className="flex items-center gap-3">
-            {/* Demo Mode Badge */}
-            {/* {isDemoMode && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold uppercase tracking-wider border border-indigo-500/20 shadow-sm shadow-indigo-500/5">
-                  DEMO MODE
-                </div>
-              )} */}
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {/* ── Header — single compact row ── */}
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          {/* Logo */}
+          <div className="mr-auto sm:mr-0">
+            <Logo size="sm" showText className="hidden sm:flex" />
+            <Logo size="sm" className="sm:hidden" />
           </div>
 
-          <div className="h-10 w-10 flex items-center justify-center bg-card/50 backdrop-blur-md hover:bg-card transition-colors rounded shadow-sm border border-border/40">
-            <ThemeToggle />
-          </div>
+          {/* Separator */}
+          <div className="hidden sm:block w-px h-5 bg-border/60 mx-1" />
+
           {/* Website Switcher */}
           <Select value={websiteId} onValueChange={handleWebsiteChange}>
-            <SelectTrigger className="w-full sm:w-[220px] h-10 bg-card/50 backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm border border-border/40">
+            <SelectTrigger className="w-[180px] h-8 bg-card/50 hover:bg-card transition-colors rounded-md border border-border/40 text-xs">
               <div className="flex items-center truncate">
-                <Globe className="mr-2 h-4 w-4 text-primary shrink-0" />
-                <span className="truncate font-bold text-sm tracking-tight text-foreground">{currentWebsite?.name || 'Select website'}</span>
+                <Globe className="mr-1.5 h-3 w-3 text-primary shrink-0" />
+                <span className="truncate font-medium text-foreground">{currentWebsite?.name || 'Select website'}</span>
               </div>
             </SelectTrigger>
-            <SelectContent className="rounded shadow-2xl bg-card">
+            <SelectContent className="rounded-md bg-card">
               {websites.map((site) => (
-                <SelectItem key={site.id} value={site.id} className="rounded py-2">
+                <SelectItem key={site.id} value={site.id} className="rounded text-xs py-1.5">
                   <span className="font-medium text-foreground">{site.name}</span>
                 </SelectItem>
               ))}
               {websites.length > 0 && (
                 <>
                   <div className="h-px bg-border my-1 mx-2" />
-                  <SelectItem value="add-new" className="text-primary rounded py-2">
-                    <div className="flex items-center font-bold">
-                      <PlusCircle className="mr-2 h-4 w-4" />
+                  <SelectItem value="add-new" className="text-primary rounded text-xs py-1.5">
+                    <div className="flex items-center font-medium">
+                      <PlusCircle className="mr-1.5 h-3 w-3" />
                       Add Website
                     </div>
                   </SelectItem>
@@ -479,27 +475,45 @@ export default function WebsiteDashboardPage() {
             </SelectContent>
           </Select>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <FilterModal
-              dateRange={dateRange}
-              isCustomRange={isCustomRange}
-              customStartDate={customStartDate}
-              customEndDate={customEndDate}
-              onDateRangeChange={handleDateRangeChange}
-              onCustomDateChange={handleCustomDateChange}
-              onFiltersChange={setAdvancedFilters}
-              activeFiltersCount={Object.keys(advancedFilters).length}
-            />
-            <button
-              onClick={handleExportCSV}
-              className="h-10 px-3 flex items-center gap-2 bg-card/50 backdrop-blur-md hover:bg-card transition-colors rounded shadow-sm border border-border/40 text-xs font-bold text-foreground"
-              title="Export CSV"
-            >
-              <Download className="h-3.5 w-3.5 text-primary" />
-              Export
-            </button>
+          {/* Spacer pushes controls to the right */}
+          <div className="flex-1" />
+
+          {/* Filters */}
+          <FilterModal
+            dateRange={dateRange}
+            isCustomRange={isCustomRange}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onDateRangeChange={handleDateRangeChange}
+            onCustomDateChange={handleCustomDateChange}
+            onFiltersChange={setAdvancedFilters}
+            activeFiltersCount={Object.keys(advancedFilters).length}
+          />
+
+          {/* Export */}
+          <button
+            onClick={handleExportCSV}
+            className="h-8 px-2.5 flex items-center gap-1.5 bg-card/50 hover:bg-card transition-colors rounded-md border border-border/40 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            title="Export CSV"
+          >
+            <Download className="h-3 w-3" />
+            <span className="hidden sm:inline">Export</span>
+          </button>
+
+          {/* Workspace */}
+          <a
+            href={`${process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:3020'}/workspace`}
+            className="h-8 px-2.5 flex items-center gap-1.5 bg-card/50 hover:bg-card transition-colors rounded-md border border-border/40 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+            title="Workspace"
+          >
+            <Settings className="h-3 w-3" />
+          </a>
+
+          {/* Theme */}
+          <div className="h-8 w-8 flex items-center justify-center bg-card/50 hover:bg-card transition-colors rounded-md border border-border/40">
+            <ThemeToggle />
           </div>
-        </DashboardPageHeader>
+        </div>
 
         {/* Stats Grid */}
         {/* Summary Cards */}
@@ -570,15 +584,15 @@ export default function WebsiteDashboardPage() {
         {/* AUDIENCE INTELLIGENCE */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
-            <Users className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Audience Intelligence</h2>
-            <div className="h-px bg-border flex-1 ml-4" />
+            <Users className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold tracking-tight">Audience Intelligence</h2>
+            <div className="h-px bg-border flex-1 ml-3" />
           </div>
 
           {/* Pages & Sources */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-8">
+              <CardContent className="p-5">
                 <ChartErrorBoundary label="Top Pages">
                   <TopPagesChart
                     data={transformedTopPages}
@@ -591,7 +605,7 @@ export default function WebsiteDashboardPage() {
             </Card>
 
             <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-8">
+              <CardContent className="p-5">
                 <ChartErrorBoundary label="Top Sources">
                   <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
                 </ChartErrorBoundary>
@@ -608,9 +622,9 @@ export default function WebsiteDashboardPage() {
           </ChartErrorBoundary>
 
           {/* Devices + Live Activity — 2-col grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-8">
+              <CardContent className="p-5">
                 <ChartErrorBoundary label="Top Devices">
                   <TopDevicesChart
                     data={transformedTopDevices}
@@ -624,7 +638,7 @@ export default function WebsiteDashboardPage() {
             </Card>
 
             <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-8">
+              <CardContent className="p-5">
                 <ChartErrorBoundary label="Live Activity">
                   <RecentActivityFeed
                     data={recentActivity}
@@ -640,13 +654,13 @@ export default function WebsiteDashboardPage() {
         {/* PAGE PERFORMANCE */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
-            <Gauge className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Page Performance</h2>
-            <div className="h-px bg-border flex-1 ml-4" />
+            <Gauge className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold tracking-tight">Page Performance</h2>
+            <div className="h-px bg-border flex-1 ml-3" />
           </div>
 
           <Card className="border border-border/60 bg-card shadow-sm">
-            <CardContent className="p-8">
+            <CardContent className="p-5">
               <ChartErrorBoundary label="Page Performance">
                 <PagePerformanceTable
                   data={(isDemoMode ? demoData?.topPages : topPages) || { top_pages: [] }}
@@ -660,15 +674,15 @@ export default function WebsiteDashboardPage() {
         {/* CONVERSION & MARKETING INTELLIGENCE */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
-            <Target className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Conversion & Marketing</h2>
-            <div className="h-px bg-border flex-1 ml-4" />
+            <Target className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold tracking-tight">Conversion & Marketing</h2>
+            <div className="h-px bg-border flex-1 ml-3" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Goal Conversions */}
             <Card className="border border-border/60 bg-card shadow-sm">
-              <CardHeader className="p-8 pb-4 border-b border-border/60">
+              <CardHeader className="p-5 pb-3 border-b border-border/60">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-semibold tracking-tight">Goal Conversions</h3>
@@ -700,7 +714,7 @@ export default function WebsiteDashboardPage() {
 
             {/* Campaign Intelligence */}
             <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
-              <CardHeader className="p-8 pb-4 border-b border-border/60">
+              <CardHeader className="p-5 pb-3 border-b border-border/60">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="min-w-0 shrink-0">
                     <h3 className="text-base font-semibold tracking-tight whitespace-nowrap">Campaign Intelligence</h3>
@@ -725,6 +739,22 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* FUNNELS / USER JOURNEYS */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <GitBranch className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold tracking-tight">Funnels & User Journeys</h2>
+            <div className="h-px bg-border flex-1 ml-3" />
+          </div>
+
+          <ChartErrorBoundary label="Funnels">
+            <FunnelManagement
+              websiteId={websiteId}
+              dateRange={dateRange}
+            />
+          </ChartErrorBoundary>
         </div>
 
         {/* Detailed Data Modal */}
@@ -758,7 +788,7 @@ export default function WebsiteDashboardPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="p-6 md:p-8 lg:p-10 w-full max-w-[1400px] mx-auto">
+      <main className="p-4 md:p-6 lg:p-8 w-full max-w-[1200px] mx-auto">
         {dashboardContent}
       </main>
 
