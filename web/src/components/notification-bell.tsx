@@ -63,8 +63,8 @@ export function NotificationBell() {
     switch (type) {
       case 'alert': return <AlertCircle className="h-4 w-4 text-destructive" />;
       case 'automation': return <Zap className="h-4 w-4 text-orange-500" />;
-      case 'info': return <Info className="h-4 w-4 text-violet-500" />;
-      case 'support_update': return <MessageSquare className="h-4 w-4 text-violet-500" />;
+      case 'info': return <Info className="h-4 w-4 text-indigo-500" />;
+      case 'support_update': return <MessageSquare className="h-4 w-4 text-indigo-500" />;
       default: return <Bell className="h-4 w-4 text-muted-foreground" />;
     }
   };

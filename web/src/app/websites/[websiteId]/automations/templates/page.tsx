@@ -79,8 +79,8 @@ const templates = [
 ];
 
 const colorMap: Record<string, { bg: string; text: string; icon: string }> = {
-    blue: { bg: 'bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400', icon: 'text-violet-500' },
-    violet: { bg: 'bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400', icon: 'text-violet-500' },
+    blue: { bg: 'bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400', icon: 'text-indigo-500' },
+    violet: { bg: 'bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400', icon: 'text-indigo-500' },
     emerald: { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', icon: 'text-emerald-500' },
     amber: { bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', icon: 'text-amber-500' },
     rose: { bg: 'bg-rose-500/10', text: 'text-rose-600 dark:text-rose-400', icon: 'text-rose-500' },

@@ -241,8 +241,8 @@ export default function AutomationDetailsPage() {
 }
 
 function DetailStatsCard({ title, value, icon: Icon, description, color }: { title: string; value: string; icon: any; description: string; color: string }) {
-    const bgMap: Record<string, string> = { blue: 'bg-violet-500/10', emerald: 'bg-emerald-500/10', rose: 'bg-rose-500/10', violet: 'bg-violet-500/10' };
-    const iconMap: Record<string, string> = { blue: 'text-violet-500', emerald: 'text-emerald-500', rose: 'text-rose-500', violet: 'text-violet-500' };
+    const bgMap: Record<string, string> = { blue: 'bg-indigo-500/10', emerald: 'bg-emerald-500/10', rose: 'bg-rose-500/10', violet: 'bg-indigo-500/10' };
+    const iconMap: Record<string, string> = { blue: 'text-indigo-500', emerald: 'text-emerald-500', rose: 'text-rose-500', violet: 'text-indigo-500' };
     return (
         <Card className="border border-border/60 bg-card shadow-sm">
             <CardContent className="p-5">

@@ -171,19 +171,19 @@ export const ExecutionPreview = ({ workflow, onClose }: ExecutionPreviewProps) =
                       Passed
                     </div>
                   </div>
-                  <div className="bg-violet-50 dark:bg-violet-950/20 rounded p-3 border border-violet-200 dark:border-violet-900">
-                    <div className="text-sm font-black text-violet-900 dark:text-violet-100">
+                  <div className="bg-indigo-50 dark:bg-indigo-950/20 rounded p-3 border border-indigo-200 dark:border-indigo-900">
+                    <div className="text-sm font-black text-indigo-900 dark:text-indigo-100">
                       {totalDuration}ms
                     </div>
-                    <div className="text-[10px] text-violet-700 dark:text-violet-300 font-semibold">
+                    <div className="text-[10px] text-indigo-700 dark:text-indigo-300 font-semibold">
                       Total Time
                     </div>
                   </div>
-                  <div className="bg-purple-50 dark:bg-purple-950/20 rounded p-3 border border-purple-200 dark:border-purple-900">
-                    <div className="text-sm font-black text-purple-900 dark:text-purple-100">
+                  <div className="bg-indigo-50 dark:bg-indigo-950/20 rounded p-3 border border-indigo-200 dark:border-indigo-900">
+                    <div className="text-sm font-black text-indigo-900 dark:text-indigo-100">
                       {workflow.nodes.length}
                     </div>
-                    <div className="text-[10px] text-purple-700 dark:text-purple-300 font-semibold">
+                    <div className="text-[10px] text-indigo-700 dark:text-indigo-300 font-semibold">
                       Nodes
                     </div>
                   </div>

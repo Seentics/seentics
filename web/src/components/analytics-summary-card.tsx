@@ -68,7 +68,7 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
       <Card className="bg-card shadow-sm overflow-hidden">
         <CardHeader className="pb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded">
+            <div className="p-2 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded">
               <BarChart className="h-5 w-5 text-white" />
             </div>
             <div>
@@ -85,8 +85,8 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="group p-4 rounded border border-border/50 hover:border-border hover:shadow-sm transition-all duration-200">
                 <div className="flex items-start gap-4">
-                  <div className="p-3 bg-gradient-to-br from-violet-500/10 to-violet-600/10 rounded flex-shrink-0">
-                    <Users className="h-6 w-6 text-violet-600" />
+                  <div className="p-3 bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 rounded flex-shrink-0">
+                    <Users className="h-6 w-6 text-indigo-600" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-muted-foreground mb-1">Total Visitors</p>
@@ -198,7 +198,7 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
     <Card className="bg-card shadow-sm overflow-hidden">
       <CardHeader className="pb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-violet-500 to-purple-600 rounded">
+          <div className="p-2 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded">
             <BarChart className="h-5 w-5 text-white" />
           </div>
           <div>
@@ -215,8 +215,8 @@ export function AnalyticsSummaryCard({ siteId }: AnalyticsSummaryCardProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="group p-4 rounded border border-border/50 hover:border-border hover:shadow-sm transition-all duration-200">
               <div className="flex items-start gap-4">
-                <div className="p-3 bg-gradient-to-br from-violet-500/10 to-violet-600/10 rounded flex-shrink-0">
-                  <Users className="h-6 w-6 text-violet-600" />
+                <div className="p-3 bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 rounded flex-shrink-0">
+                  <Users className="h-6 w-6 text-indigo-600" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-muted-foreground mb-1">Total Visitors</p>

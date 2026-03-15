@@ -64,14 +64,14 @@ const allTabs = sectionGroups.flatMap(g => g.items);
 const iconColors: Record<string, string> = {
     goals:         'text-orange-500 bg-orange-500/10',
     heatmaps:      'text-rose-500 bg-rose-500/10',
-    replays:       'text-violet-500 bg-violet-500/10',
+    replays:       'text-indigo-500 bg-indigo-500/10',
     scripts:       'text-yellow-500 bg-yellow-500/10',
     alerts:        'text-amber-500 bg-amber-500/10',
     reports:       'text-indigo-500 bg-indigo-500/10',
     privacy:       'text-emerald-600 bg-emerald-500/10',
     layout:        'text-cyan-500 bg-cyan-500/10',
     'api-keys':    'text-emerald-500 bg-emerald-500/10',
-    team:          'text-violet-500 bg-violet-500/10',
+    team:          'text-indigo-500 bg-indigo-500/10',
 };
 
 const renderContent = (activeTab: string, websiteId: string) => {

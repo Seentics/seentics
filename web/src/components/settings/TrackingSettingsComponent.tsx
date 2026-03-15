@@ -39,7 +39,7 @@ const trackingSnippet = `<!-- Seentics Analytics -->
 
       <div className="space-y-6">
         <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-purple-500/20 rounded blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+          <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-indigo-500/20 rounded blur opacity-25 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
           <div className="relative bg-muted/30 p-8 rounded border border-border/50">
             <div className="flex items-center justify-between mb-6">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-60">Main Tracking Snippet</span>

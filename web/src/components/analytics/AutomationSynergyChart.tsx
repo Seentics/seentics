@@ -25,10 +25,10 @@ interface AutomationInsightTableProps {
 }
 
 const workflows = [
-  { id: 1, name: 'Welcome Email Sequence', icon: <Mail className="h-4 w-4 text-violet-500" />, trigger: 'Signup Complete', baseTrigger: 100, baseAction: 98 },
+  { id: 1, name: 'Welcome Email Sequence', icon: <Mail className="h-4 w-4 text-indigo-500" />, trigger: 'Signup Complete', baseTrigger: 100, baseAction: 98 },
   { id: 2, name: 'Slack Alerts: High Value', icon: <Bell className="h-4 w-4 text-orange-500" />, trigger: 'Purchase > $500', baseTrigger: 45, baseAction: 45 },
   { id: 3, name: 'CRM Sync: Lead Score', icon: <Database className="h-4 w-4 text-emerald-500" />, trigger: 'Exit Intent', baseTrigger: 240, baseAction: 235 },
-  { id: 4, name: 'Webhook: Discord Webhook', icon: <Globe className="h-4 w-4 text-violet-600" />, trigger: 'Page View: /pricing', baseTrigger: 850, baseAction: 850 },
+  { id: 4, name: 'Webhook: Discord Webhook', icon: <Globe className="h-4 w-4 text-indigo-600" />, trigger: 'Page View: /pricing', baseTrigger: 850, baseAction: 850 },
   { id: 5, name: 'Abandoned Cart Recovery', icon: <Zap className="h-4 w-4 text-amber-500" />, trigger: 'Cart Inactive 30m', baseTrigger: 120, baseAction: 118 },
 ];
 

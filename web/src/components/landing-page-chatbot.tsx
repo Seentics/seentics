@@ -206,9 +206,9 @@ export function LandingPageChatbot() {
                     className="w-[380px] h-[600px] sm:w-[420px] sm:h-[650px] origin-bottom-right"
                  >
                     <Card className="h-full flex flex-col shadow-2xl border-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl">
-                        <CardHeader className="flex-row items-center justify-between pb-3 bg-gradient-to-r from-slate-50 to-violet-50 dark:from-slate-800 dark:to-violet-900/20 rounded-t-lg">
+                        <CardHeader className="flex-row items-center justify-between pb-3 bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-800 dark:to-indigo-900/20 rounded-t-lg">
                             <div className="flex items-center gap-3">
-                                <div className="p-2.5 bg-gradient-to-r from-violet-500 to-indigo-600 rounded-full shadow-lg">
+                                <div className="p-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full shadow-lg">
                                     <Bot className="h-6 w-6 text-white" />
                                 </div>
                                 <div>
@@ -248,13 +248,13 @@ export function LandingPageChatbot() {
                                                 className={`flex items-start gap-3 ${msg.role === 'user' ? 'justify-end' : ''}`}
                                             >
                                                 {msg.role === 'assistant' && (
-                                                    <div className="p-2 bg-gradient-to-r from-violet-500 to-indigo-600 rounded-full shadow-md">
+                                                    <div className="p-2 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full shadow-md">
                                                         <Bot className="h-4 w-4 text-white" />
                                                     </div>
                                                 )}
                                                 <div className={`rounded p-4 max-w-[85%] text-sm shadow-sm ${
                                                     msg.role === 'user' 
-                                                        ? 'bg-gradient-to-r from-violet-500 to-indigo-600 text-white' 
+                                                        ? 'bg-gradient-to-r from-indigo-500 to-indigo-600 text-white' 
                                                         : 'bg-slate-100 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50'
                                                 }`}>
                                                     <div className="whitespace-pre-line leading-relaxed">
@@ -264,7 +264,7 @@ export function LandingPageChatbot() {
                                                     </div>
                                                     {msg.timestamp && (
                                                         <div className={`text-xs mt-2 ${
-                                                            msg.role === 'user' ? 'text-violet-100' : 'text-slate-500 dark:text-slate-400'
+                                                            msg.role === 'user' ? 'text-indigo-100' : 'text-slate-500 dark:text-slate-400'
                                                         }`}>
                                                             {formatTime(msg.timestamp)}
                                                         </div>
@@ -278,12 +278,12 @@ export function LandingPageChatbot() {
                                                 animate={{ opacity: 1 }}
                                                 className="flex items-start gap-3"
                                             >
-                                                <div className="p-2 bg-gradient-to-r from-violet-500 to-indigo-600 rounded-full shadow-md">
+                                                <div className="p-2 bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full shadow-md">
                                                     <Bot className="h-4 w-4 text-white" />
                                                 </div>
                                                 <div className="rounded p-4 bg-slate-100 dark:bg-slate-800 border border-slate-200/50 dark:border-slate-700/50">
                                                     <div className="flex items-center gap-2">
-                                                        <Loader2 className="h-4 w-4 animate-spin text-violet-500"/>
+                                                        <Loader2 className="h-4 w-4 animate-spin text-indigo-500"/>
                                                         <span className="text-slate-600 dark:text-slate-400">Thinking...</span>
                                                     </div>
                                                 </div>
@@ -306,7 +306,7 @@ export function LandingPageChatbot() {
                                                             className="flex items-center gap-2 text-xs px-3 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded transition-all cursor-pointer border border-slate-200/50 dark:border-slate-700/50 group"
                                                         >
                                                             <span className="text-base">{action.icon}</span>
-                                                            <span className="truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                                                            <span className="truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
                                                                 {action.text}
                                                             </span>
                                                         </button>
@@ -325,13 +325,13 @@ export function LandingPageChatbot() {
                                                 onChange={e => setInput(e.target.value)}
                                                 placeholder="Ask me anything about Seentics..."
                                                 disabled={isLoading}
-                                                className="flex-1 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-violet-500"
+                                                className="flex-1 border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500"
                                             />
                                             <Button 
                                                 type="submit" 
                                                 size="icon" 
                                                 disabled={isLoading || !input.trim()}
-                                                className="bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 shadow-lg"
+                                                className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 shadow-lg"
                                             >
                                                 <Send className="h-4 w-4" />
                                             </Button>
@@ -364,7 +364,7 @@ export function LandingPageChatbot() {
                     <span className="font-semibold text-sm text-slate-800 dark:text-slate-200">Questions or Feedback?</span>
                     <span className="text-xs text-slate-600 dark:text-slate-400">I'm here to help!</span>
                   </div>
-                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-violet-500 to-indigo-600 text-white shadow-lg group-hover:shadow-xl transition-all duration-300">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-indigo-600 text-white shadow-lg group-hover:shadow-xl transition-all duration-300">
                     <MessageCircle className="h-6 w-6" />
                   </div>
                 </button>

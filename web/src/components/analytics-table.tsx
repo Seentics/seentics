@@ -83,7 +83,7 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
       <Card className="bg-card shadow-sm overflow-hidden">
         <CardHeader className="pb-6">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded">
+            <div className="p-2 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded">
               <div className="w-2 h-2 bg-white rounded-full"></div>
             </div>
             <CardTitle className="font-headline text-xl text-foreground">Traffic Breakdown</CardTitle>
@@ -96,7 +96,7 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <div className="w-2 h-2 bg-violet-500 rounded-full"></div>
+                  <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
                   Top Pages
                 </h3>
                 <span className="text-xs text-muted-foreground font-medium">Last 7 days</span>
@@ -106,7 +106,7 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
                 {demoPages.map((row, idx) => (
                   <li key={idx} className="group flex items-center justify-between p-3 rounded bg-muted/30 hover:bg-muted/50 transition-all duration-200">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="p-2 bg-gradient-to-br from-violet-500/10 to-violet-600/10 rounded">
+                      <div className="p-2 bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 rounded">
                         {getPageIcon(row.page)}
                       </div>
                       <span className="truncate font-medium text-foreground" title={getPageLabel(row.page)}>{getPageLabel(row.page)}</span>
@@ -159,7 +159,7 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
     <Card className="bg-card shadow-sm overflow-hidden">
       <CardHeader className="pb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded">
+          <div className="p-2 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded">
             <div className="w-2 h-2 bg-white rounded-full"></div>
           </div>
           <CardTitle className="font-headline text-xl text-foreground">Traffic Breakdown</CardTitle>
@@ -172,7 +172,7 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                <div className="w-2 h-2 bg-violet-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
                 Top Pages
               </h3>
               <span className="text-xs text-muted-foreground font-medium">Last 7 days</span>
@@ -193,7 +193,7 @@ export function AnalyticsTable({ siteId }: AnalyticsTableProps) {
                 {pages.map((row, idx) => (
                   <li key={idx} className="group flex items-center justify-between p-3 rounded bg-muted/30 hover:bg-muted/50 transition-all duration-200">
                     <div className="flex items-center gap-3 min-w-0 flex-1">
-                      <div className="p-2 bg-gradient-to-br from-violet-500/10 to-violet-600/10 rounded">
+                      <div className="p-2 bg-gradient-to-br from-indigo-500/10 to-indigo-600/10 rounded">
                         {getPageIcon(row.page)}
                       </div>
                       <span className="truncate font-medium text-foreground" title={getPageLabel(row.page)}>{getPageLabel(row.page)}</span>

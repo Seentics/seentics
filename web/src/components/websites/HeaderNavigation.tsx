@@ -81,7 +81,7 @@ export function HeaderNavigation({ websiteId, floating = false }: { websiteId: s
             <Link href="/" className="flex items-center gap-2 shrink-0">
                 <Logo size="lg" showText={!floating} textClassName="text-lg font-bold tracking-tight text-foreground" />
                 {websiteId === 'demo' && (
-                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-500 border border-violet-500/20 leading-none">
+                    <span className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-500 border border-indigo-500/20 leading-none">
                         Demo
                     </span>
                 )}

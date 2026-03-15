@@ -96,7 +96,7 @@ export default function LeafletMap({ data, className = '' }: LeafletMapProps) {
     if (intensity > 0.6) return '#EA580C'; // Orange
     if (intensity > 0.4) return '#D97706'; // Amber
     if (intensity > 0.2) return '#059669'; // Emerald
-    return '#3B82F6'; // Blue
+    return '#6366F1'; // Blue
   };
 
   return (
@@ -184,7 +184,7 @@ export default function LeafletMap({ data, className = '' }: LeafletMapProps) {
             <span className="text-gray-600 dark:text-gray-400">Low-Medium (20-40%)</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <div className="w-3 h-3 rounded-full bg-violet-600"></div>
+            <div className="w-3 h-3 rounded-full bg-indigo-600"></div>
             <span className="text-gray-600 dark:text-gray-400">Low (0-20%)</span>
           </div>
         </div>

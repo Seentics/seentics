@@ -35,8 +35,8 @@ const getTriggerColor = (triggerType: string) => {
     scroll: 'bg-lime-500/10 text-lime-500',
     timeOnPage: 'bg-green-500/10 text-green-500',
     webhook: 'bg-cyan-500/10 text-cyan-500',
-    userProperty: 'bg-violet-500/10 text-violet-500',
-    behavior: 'bg-purple-500/10 text-purple-500',
+    userProperty: 'bg-indigo-500/10 text-indigo-500',
+    behavior: 'bg-indigo-500/10 text-indigo-500',
   };
   return colors[triggerType] || 'bg-amber-500/10 text-amber-500';
 };

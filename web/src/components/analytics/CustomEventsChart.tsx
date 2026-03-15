@@ -46,15 +46,15 @@ export const CustomEventsChart: React.FC<Props> = ({ data, isLoading }) => {
                 <AreaChart data={series} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <defs>
                     <linearGradient id="ce" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.05}/>
+                      <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#6366F1" stopOpacity={0.05}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
                   <XAxis dataKey="date" tickFormatter={formatDate} />
                   <YAxis allowDecimals={false} />
                   <Tooltip labelFormatter={(v) => formatDate(v as string)} />
-                  <Area type="monotone" dataKey="count" stroke="#3B82F6" fill="url(#ce)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="count" stroke="#6366F1" fill="url(#ce)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

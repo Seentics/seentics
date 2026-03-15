@@ -467,15 +467,15 @@ export default function ReplaysOverview({ websiteId }: ReplaysOverviewProps) {
 
 function StatsCard({ title, value, icon: Icon, description, color = 'blue' }: { title: string; value: string | number; icon: any; description: string; color?: string }) {
   const bgMap: Record<string, string> = {
-    blue: 'bg-violet-500/10',
+    blue: 'bg-indigo-500/10',
     emerald: 'bg-emerald-500/10',
-    violet: 'bg-violet-500/10',
+    violet: 'bg-indigo-500/10',
     amber: 'bg-amber-500/10',
   };
   const iconMap: Record<string, string> = {
-    blue: 'text-violet-500',
+    blue: 'text-indigo-500',
     emerald: 'text-emerald-500',
-    violet: 'text-violet-500',
+    violet: 'text-indigo-500',
     amber: 'text-amber-500',
   };
   return (

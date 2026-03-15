@@ -74,9 +74,9 @@ export const UsageDashboard: React.FC = () => {
   }
 
   const planColors: Record<string, string> = {
-    starter: 'text-violet-600 dark:text-violet-400',
+    starter: 'text-indigo-600 dark:text-indigo-400',
     growth: 'text-indigo-600 dark:text-indigo-400',
-    pro: 'text-purple-600 dark:text-purple-400',
+    pro: 'text-indigo-600 dark:text-indigo-400',
     enterprise: 'text-amber-600 dark:text-amber-400',
   };
 

@@ -61,7 +61,7 @@ interface PrivacySettingsProps {
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     pending: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
-    processing: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+    processing: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
     completed: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
     cancelled: 'bg-muted text-muted-foreground border-border',
     failed: 'bg-red-500/10 text-red-600 border-red-500/20',
@@ -372,8 +372,8 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
               description="Mask the last octet of visitor IP addresses before storage. Recommended for GDPR compliance."
               checked={ipAnonymization}
               onToggle={(v) => handleOssToggle('ipAnonymization', v)}
-              color="text-violet-500"
-              bgColor="bg-violet-500/10"
+              color="text-indigo-500"
+              bgColor="bg-indigo-500/10"
             />
             <PrivacyToggleCard
               icon={Cookie}
@@ -390,8 +390,8 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
               description="Honor the browser's DNT signal. When enabled, visitors with DNT:1 won't be tracked at all."
               checked={respectDnt}
               onToggle={(v) => handleOssToggle('respectDnt', v)}
-              color="text-purple-500"
-              bgColor="bg-purple-500/10"
+              color="text-indigo-500"
+              bgColor="bg-indigo-500/10"
             />
             <PrivacyToggleCard
               icon={Bot}
@@ -412,7 +412,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-semibold flex items-center gap-1.5">
-                    <EyeOff className="h-3 w-3 text-violet-500" />
+                    <EyeOff className="h-3 w-3 text-indigo-500" />
                     IP Anonymization
                   </Label>
                   <Select
@@ -470,7 +470,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                 <div className="flex items-center justify-between rounded-xl border border-border/60 p-4 bg-card/50">
                   <div>
                     <Label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Globe className="h-3 w-3 text-purple-500" />
+                      <Globe className="h-3 w-3 text-indigo-500" />
                       Respect Do-Not-Track
                     </Label>
                     <p className="text-[10px] text-muted-foreground mt-0.5">Block tracking when browser sends DNT:1</p>
@@ -551,8 +551,8 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
             <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
               <CardContent className="p-5 flex flex-col h-full">
                 <div className="flex items-center gap-2.5 mb-3">
-                  <div className="h-9 w-9 rounded-xl bg-violet-500/10 flex items-center justify-center">
-                    <Globe className="h-4 w-4 text-violet-500" />
+                  <div className="h-9 w-9 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                    <Globe className="h-4 w-4 text-indigo-500" />
                   </div>
                   <div>
                     <h4 className="text-sm font-semibold">Export Website</h4>
@@ -822,7 +822,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       </div>
 
       {/* ====== Privacy Info ====== */}
-      <div className="bg-gradient-to-r from-emerald-500/5 via-transparent to-violet-500/5 border border-border/40 rounded-xl p-5">
+      <div className="bg-gradient-to-r from-emerald-500/5 via-transparent to-indigo-500/5 border border-border/40 rounded-xl p-5">
         <div className="flex gap-4">
           <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
             <Info className="h-4.5 w-4.5 text-emerald-600" />

@@ -116,7 +116,7 @@ declare global {
 
 const colorMap: Record<string, { bg: string; hover: string; check: string; border: string; light: string }> = {
   teal:   { bg: 'bg-teal-500',   hover: 'hover:bg-teal-600',   check: 'text-teal-500',   border: 'border-teal-500',   light: 'bg-teal-500/10' },
-  violet: { bg: 'bg-violet-500', hover: 'hover:bg-violet-600', check: 'text-violet-500', border: 'border-violet-500', light: 'bg-violet-500/10' },
+  violet: { bg: 'bg-indigo-500', hover: 'hover:bg-indigo-600', check: 'text-indigo-500', border: 'border-indigo-500', light: 'bg-indigo-500/10' },
   amber:  { bg: 'bg-amber-500',  hover: 'hover:bg-amber-600',  check: 'text-amber-500',  border: 'border-amber-500',  light: 'bg-amber-500/10' },
 };
 

@@ -50,7 +50,7 @@ export default function TrackerTestDemo() {
         <div className="flex flex-wrap gap-2 mb-4">
           <button
             onClick={() => trackTestEvent('button_click', { button: 'test_button_1' })}
-            className="px-4 py-2 bg-violet-500 text-white rounded hover:bg-violet-600"
+            className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
           >
             Track Button Click
           </button>
@@ -64,7 +64,7 @@ export default function TrackerTestDemo() {
 
           <button
             onClick={() => trackTestEvent('purchase', { product: 'premium_plan', amount: 99.99 })}
-            className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600"
+            className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600"
           >
             Track Purchase
           </button>
@@ -84,7 +84,7 @@ export default function TrackerTestDemo() {
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {events.slice(-5).map((event, index) => (
               <div key={index} className="text-sm bg-gray-100 p-2 rounded">
-                <span className="font-mono text-violet-600">{event.timestamp}</span>
+                <span className="font-mono text-indigo-600">{event.timestamp}</span>
                 {' - '}
                 <span className="font-semibold">{event.name}</span>
                 {Object.keys(event.props).length > 0 && (

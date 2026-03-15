@@ -12,10 +12,10 @@ const nodeColors = {
     line: 'from-amber-500/40',
   },
   condition: {
-    bg: 'bg-violet-500/10 border-violet-500/30',
-    dot: 'bg-violet-500',
-    text: 'text-violet-700 dark:text-violet-400',
-    line: 'from-violet-500/40 to-emerald-500/40',
+    bg: 'bg-indigo-500/10 border-indigo-500/30',
+    dot: 'bg-indigo-500',
+    text: 'text-indigo-700 dark:text-indigo-400',
+    line: 'from-indigo-500/40 to-emerald-500/40',
   },
   action: {
     bg: 'bg-emerald-500/10 border-emerald-500/30',

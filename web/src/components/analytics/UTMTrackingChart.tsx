@@ -38,10 +38,10 @@ export const UTMTrackingChart: React.FC<UTMTrackingChartProps> = ({ data, isLoad
 
   const getSourceIcon = (source: string) => {
     const lowerSource = source.toLowerCase();
-    if (lowerSource.includes('google')) return <Globe className="h-4 w-4 text-violet-500" />;
-    if (lowerSource.includes('facebook')) return <Share2 className="h-4 w-4 text-violet-600" />;
+    if (lowerSource.includes('google')) return <Globe className="h-4 w-4 text-indigo-500" />;
+    if (lowerSource.includes('facebook')) return <Share2 className="h-4 w-4 text-indigo-600" />;
     if (lowerSource.includes('email')) return <Mail className="h-4 w-4 text-green-500" />;
-    if (lowerSource.includes('twitter')) return <TrendingUp className="h-4 w-4 text-violet-400" />;
+    if (lowerSource.includes('twitter')) return <TrendingUp className="h-4 w-4 text-indigo-400" />;
     return <ExternalLink className="h-4 w-4 text-gray-500" />;
   };
 
@@ -99,9 +99,9 @@ export const UTMTrackingChart: React.FC<UTMTrackingChartProps> = ({ data, isLoad
       )}
 
       {sources.length > 0 && (
-        <div className="mt-4 p-4 bg-violet-50 dark:bg-violet-950/20 rounded">
-          <h4 className="font-semibold text-violet-900 dark:text-violet-100 mb-2">UTM Tracking Tips</h4>
-          <ul className="text-sm text-violet-800 dark:text-violet-200 space-y-1">
+        <div className="mt-4 p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded">
+          <h4 className="font-semibold text-indigo-900 dark:text-indigo-100 mb-2">UTM Tracking Tips</h4>
+          <ul className="text-sm text-indigo-800 dark:text-indigo-200 space-y-1">
             <li>• Use consistent UTM parameters across campaigns</li>
             <li>• Track source, medium, and campaign for each link</li>
             <li>• Monitor which sources drive the most engaged visitors</li>

@@ -43,7 +43,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
     description: '',
     category: defaultCategory,
     icon: '⚡',
-    color: '#3b82f6',
+    color: '#6366f1',
     fields: [],
     executionCode: '',
   });
@@ -111,7 +111,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
       description: nodeData.description,
       category: nodeData.category as 'trigger' | 'action',
       icon: nodeData.icon || '⚡',
-      color: nodeData.color || '#3b82f6',
+      color: nodeData.color || '#6366f1',
       fields: nodeData.fields || [],
       executionCode: nodeData.executionCode,
     };
@@ -126,7 +126,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
       description: '',
       category: 'action',
       icon: '⚡',
-      color: '#3b82f6',
+      color: '#6366f1',
       fields: [],
       executionCode: '',
     });
@@ -215,7 +215,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
                 <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Color</Label>
                 <Input
                   type="color"
-                  value={nodeData.color || '#3b82f6'}
+                  value={nodeData.color || '#6366f1'}
                   onChange={(e) => setNodeData({ ...nodeData, color: e.target.value })}
                   className="bg-slate-900/50 border-slate-800 h-11"
                 />
@@ -334,7 +334,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
 
               <Button
                 onClick={addField}
-                className="w-full bg-violet-600 hover:bg-violet-700 text-white"
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Add Field
@@ -377,7 +377,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
             </Button>
             <Button
               onClick={handleSave}
-              className="flex-1 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white font-bold"
+              className="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-600 hover:from-indigo-700 hover:to-indigo-700 text-white font-bold"
             >
               Create Custom Node
             </Button>

@@ -119,14 +119,14 @@ export default function EventsExplorerPage() {
               label="Total Occurrences"
               value={totalOccurrences}
               icon={Hash}
-              color="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+              color="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
               isLoading={isLoading}
             />
             <StatCard
               label="Unique Event Types"
               value={events.length}
               icon={Zap}
-              color="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+              color="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
               isLoading={isLoading}
             />
             <StatCard

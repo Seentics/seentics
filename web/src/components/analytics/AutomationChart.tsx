@@ -59,7 +59,7 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <CardTitle className="text-lg font-bold tracking-tight">Automation Activity</CardTitle>
-            <Badge variant="outline" className="text-[10px] px-1.5 h-4 font-black border-violet-500 text-violet-500 bg-violet-500/5">AUTO</Badge>
+            <Badge variant="outline" className="text-[10px] px-1.5 h-4 font-black border-indigo-500 text-indigo-500 bg-indigo-500/5">AUTO</Badge>
           </div>
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest opacity-50">Triggers vs Actions over time</p>
         </div>
@@ -76,8 +76,8 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                 <linearGradient id="colorTriggers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorActions" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -105,7 +105,7 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
                 <Area
                     type="monotone"
                     dataKey="triggers"
-                    stroke="#3b82f6"
+                    stroke="#6366f1"
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorTriggers)"
@@ -127,7 +127,7 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
       
       <div className="p-3 border-t border-border bg-muted/5 flex justify-center gap-6 shrink-0">
          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-violet-500" />
+            <div className="h-2 w-2 rounded-full bg-indigo-500" />
             <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Triggers</span>
          </div>
          <div className="flex items-center gap-2">

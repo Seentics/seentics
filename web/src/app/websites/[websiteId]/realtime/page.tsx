@@ -460,14 +460,14 @@ export default function RealtimePage() {
               label="Pageviews"
               value={data?.pageviews ?? 0}
               icon={Eye}
-              color="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+              color="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
               isLoading={isLoading}
             />
             <StatCard
               label="Sessions"
               value={data?.sessions ?? 0}
               icon={Activity}
-              color="bg-violet-500/10 text-violet-600 dark:text-violet-400"
+              color="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
               isLoading={isLoading}
             />
             <StatCard

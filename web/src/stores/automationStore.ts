@@ -411,7 +411,7 @@ export const useAutomationStore = create<AutomationStoreState>((set, get) => ({
         name: 'Exit Intent Discount',
         nodes: [
           { id: 't1', type: 'triggerNode', data: { label: 'Exit Intent', config: { triggerType: 'exitIntent' } }, position: { x: 250, y: 100 } },
-          { id: 'a1', type: 'actionNode', data: { label: 'Offer Banner', config: { actionType: 'banner', content: 'Wait! Use code SAVE20 for 20% off your first order! 🏷️', backgroundColor: '#8b5cf6', position: 'top' } }, position: { x: 250, y: 300 } }
+          { id: 'a1', type: 'actionNode', data: { label: 'Offer Banner', config: { actionType: 'banner', content: 'Wait! Use code SAVE20 for 20% off your first order! 🏷️', backgroundColor: '#6366f1', position: 'top' } }, position: { x: 250, y: 300 } }
         ],
         edges: [{ id: 'e1-2', source: 't1', target: 'a1', animated: true }]
       },

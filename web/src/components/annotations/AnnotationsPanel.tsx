@@ -25,11 +25,11 @@ import { annotationsAPI, type Annotation } from '@/lib/annotations-api';
 import { cn } from '@/lib/utils';
 
 const COLOR_OPTIONS = [
-  { value: 'blue', label: 'Blue', class: 'bg-violet-500' },
+  { value: 'blue', label: 'Blue', class: 'bg-indigo-500' },
   { value: 'green', label: 'Green', class: 'bg-green-500' },
   { value: 'red', label: 'Red', class: 'bg-red-500' },
   { value: 'yellow', label: 'Yellow', class: 'bg-yellow-500' },
-  { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
+  { value: 'purple', label: 'Purple', class: 'bg-indigo-500' },
   { value: 'orange', label: 'Orange', class: 'bg-orange-500' },
 ];
 
@@ -114,7 +114,7 @@ export function AnnotationsPanel({ websiteId, from, to }: AnnotationsPanelProps)
   };
 
   const getColorClass = (color: string) => {
-    return COLOR_OPTIONS.find((c) => c.value === color)?.class || 'bg-violet-500';
+    return COLOR_OPTIONS.find((c) => c.value === color)?.class || 'bg-indigo-500';
   };
 
   const formatDate = (dateStr: string) => {

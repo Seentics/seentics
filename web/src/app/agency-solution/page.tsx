@@ -22,13 +22,13 @@ import { cn } from '@/lib/utils';
 const FEATURES = [
     {
         icon: Users2,
-        color: 'bg-violet-500/10 text-violet-500',
+        color: 'bg-indigo-500/10 text-indigo-500',
         title: 'Client Management',
         desc: 'Onboard and manage unlimited client accounts from a single agency dashboard. Invite, suspend, or archive clients instantly.',
     },
     {
         icon: Palette,
-        color: 'bg-violet-500/10 text-violet-500',
+        color: 'bg-indigo-500/10 text-indigo-500',
         title: 'White Label Branding',
         desc: 'Replace Seentics with your own brand name, logo, and primary color. Optional custom domain for a fully branded experience.',
     },
@@ -87,7 +87,7 @@ const ENTERPRISE_FEATURES = [
 
 const METHOD_COLOR: Record<string, string> = {
     GET: 'text-emerald-500 bg-emerald-500/10',
-    POST: 'text-violet-500 bg-violet-500/10',
+    POST: 'text-indigo-500 bg-indigo-500/10',
 };
 
 // The global LemonSqueezy interface is already defined elsewhere in the project.

@@ -162,7 +162,7 @@ export function AutomationTestSandbox({
                       : step.status === 'failed'
                         ? 'bg-red-500/10 border-red-500/20'
                         : step.status === 'running'
-                          ? 'bg-violet-500/10 border-violet-500/20'
+                          ? 'bg-indigo-500/10 border-indigo-500/20'
                           : 'bg-slate-800/50 border-slate-700'
                     }`}
                 >
@@ -174,7 +174,7 @@ export function AutomationTestSandbox({
                       <XCircle className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
                     )}
                     {step.status === 'running' && (
-                      <Loader2 className="h-4 w-4 text-violet-500 flex-shrink-0 mt-0.5 animate-spin" />
+                      <Loader2 className="h-4 w-4 text-indigo-500 flex-shrink-0 mt-0.5 animate-spin" />
                     )}
                     {step.status === 'pending' && (
                       <AlertCircle className="h-4 w-4 text-slate-500 flex-shrink-0 mt-0.5" />

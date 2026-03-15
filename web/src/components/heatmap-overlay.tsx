@@ -25,7 +25,7 @@ export default function HeatmapOverlay({
 
   // More refined, enterprise-grade gradient (blue → cyan → green → yellow → red)
   const gradientColors: Record<number, string> = {
-    0.0: '#3b82f6',   // violet-500
+    0.0: '#6366f1',   // indigo-500
     0.15: '#22d3ee',   // cyan-400
     0.35: '#a3e635',   // lime-400
     0.55: '#facc15',   // yellow-400
@@ -75,7 +75,7 @@ export default function HeatmapOverlay({
       grd.addColorStop(0.25, '#f97316');
       grd.addColorStop(0.5, '#facc15');
       grd.addColorStop(0.75, '#a3e635');
-      grd.addColorStop(1.0, '#3b82f6');
+      grd.addColorStop(1.0, '#6366f1');
       paletteCtx.fillStyle = grd;
       paletteCtx.fillRect(0, 0, 1, 256);
       const paletteData = paletteCtx.getImageData(0, 0, 1, 256).data;

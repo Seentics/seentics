@@ -120,8 +120,8 @@ export default function PathsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Avg Path Length */}
         <Card className="p-5 flex items-center gap-4 border border-border/60 shadow-sm">
-          <div className="w-11 h-11 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
-            <Route className="h-5 w-5 text-violet-500" />
+          <div className="w-11 h-11 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
+            <Route className="h-5 w-5 text-indigo-500" />
           </div>
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground font-medium mb-0.5">Avg. Path Length</p>
@@ -279,8 +279,8 @@ export default function PathsPage() {
       {/* Page Flows */}
       <Card className="overflow-hidden border border-border/60 shadow-sm">
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border/60">
-          <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center">
-            <TrendingUp className="h-3.5 w-3.5 text-violet-500" />
+          <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+            <TrendingUp className="h-3.5 w-3.5 text-indigo-500" />
           </div>
           <div>
             <h3 className="text-sm font-semibold">Page Flows</h3>
@@ -310,7 +310,7 @@ export default function PathsPage() {
                 return (
                   <div key={`${flow.from_page}-${flow.to_page}`} className="group relative rounded-lg overflow-hidden">
                     <div
-                      className="absolute inset-y-0 left-0 bg-violet-500/5 transition-all"
+                      className="absolute inset-y-0 left-0 bg-indigo-500/5 transition-all"
                       style={{ width: `${intensity}%` }}
                     />
                     <div className="relative flex items-center gap-2 px-3 py-2.5">
@@ -323,7 +323,7 @@ export default function PathsPage() {
                       >
                         {flow.from_page}
                       </span>
-                      <div className="flex items-center gap-1 shrink-0 text-violet-500">
+                      <div className="flex items-center gap-1 shrink-0 text-indigo-500">
                         <MoveRight className="h-3.5 w-3.5" />
                       </div>
                       <span
@@ -334,7 +334,7 @@ export default function PathsPage() {
                       </span>
                       <Badge
                         variant="secondary"
-                        className="text-[10px] h-5 px-2 shrink-0 font-semibold bg-violet-500/10 text-violet-700 dark:text-violet-400 border-0 ml-auto"
+                        className="text-[10px] h-5 px-2 shrink-0 font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-0 ml-auto"
                       >
                         {flow.count.toLocaleString()}
                       </Badge>

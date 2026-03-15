@@ -33,7 +33,7 @@ const API_SECTIONS = [
   {
     title: 'Analytics',
     icon: BarChart3,
-    color: 'text-violet-500',
+    color: 'text-indigo-500',
     endpoints: [
       { method: 'GET', path: '/api/v1/raw/analytics/overview', desc: 'Traffic overview (visitors, pageviews, bounce rate)' },
       { method: 'GET', path: '/api/v1/raw/analytics/timeseries', desc: 'Time-bucketed analytics data' },
@@ -57,7 +57,7 @@ const API_SECTIONS = [
   {
     title: 'Session Replays',
     icon: Video,
-    color: 'text-violet-500',
+    color: 'text-indigo-500',
     endpoints: [
       { method: 'GET', path: '/api/v1/raw/replays', desc: 'List recorded sessions' },
       { method: 'GET', path: '/api/v1/raw/replays/:session_id', desc: 'Full replay data for a session' },

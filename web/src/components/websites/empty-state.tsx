@@ -12,7 +12,7 @@ export function EmptyState({ onCreateWebsite }: EmptyStateProps) {
     <div className="text-center py-16 px-4">
       <div className="mx-auto max-w-md">
         <div className="mx-auto h-24 w-24 rounded-full bg-muted/50 flex items-center justify-center mb-6">
-          <Globe className="h-12 w-12 text-violet-600 dark:text-violet-400" />
+          <Globe className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
         </div>
         
         <h3 className="text-xl font-semibold text-foreground mb-2">
@@ -25,8 +25,8 @@ export function EmptyState({ onCreateWebsite }: EmptyStateProps) {
         
         <div className="space-y-3 mb-8 text-left">
           <div className="flex items-center gap-3 p-3 bg-muted/30 rounded">
-            <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center">
-              <BarChart3 className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+            <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/20 flex items-center justify-center">
+              <BarChart3 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             </div>
             <span className="text-sm text-muted-foreground">
               Track visitor behavior and analyze performance
@@ -43,8 +43,8 @@ export function EmptyState({ onCreateWebsite }: EmptyStateProps) {
           </div>
           
           <div className="flex items-center gap-3 p-3 bg-muted/30 rounded">
-            <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900/20 flex items-center justify-center">
-              <Globe className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+            <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900/20 flex items-center justify-center">
+              <Globe className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             </div>
             <span className="text-sm text-muted-foreground">
               Optimize your website based on real data

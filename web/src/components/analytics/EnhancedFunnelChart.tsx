@@ -61,7 +61,7 @@ export function EnhancedFunnelChart({
 
   const getStepColor = (index: number): string => {
     const colors = [
-      '#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', 
+      '#6366F1', '#6366F1', '#10B981', '#F59E0B', 
       '#EC4899', '#06B6D4', '#84CC16', '#F97316'
     ];
     return colors[index % colors.length];
@@ -207,7 +207,7 @@ export function EnhancedFunnelChart({
           <div className="mt-6 pt-4 border-t border-border">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
               <div>
-                <div className="text-xl font-bold text-violet-600">
+                <div className="text-xl font-bold text-indigo-600">
                   {analytics.steps?.[analytics.steps?.length - 1]?.count?.toLocaleString() || '0'}
                 </div>
                 <div className="text-xs text-muted-foreground">Final Conversions</div>
@@ -225,7 +225,7 @@ export function EnhancedFunnelChart({
                 <div className="text-xs text-muted-foreground">Biggest Drop-off</div>
               </div>
               <div>
-                <div className="text-xl font-bold text-purple-600">
+                <div className="text-xl font-bold text-indigo-600">
                   {Math.round(analytics.steps.reduce((acc, step) => acc + step.avgTimeOnStep, 0) / analytics.steps.length)}s
                 </div>
                 <div className="text-xs text-muted-foreground">Avg Time/Step</div>

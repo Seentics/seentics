@@ -244,7 +244,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
                     {funnelAnalytics && funnelAnalytics.analytics && funnelAnalytics.analytics.length > 0 && (
                       <>
                         <div className="text-center">
-                          <div className="text-lg font-bold text-violet-600">
+                          <div className="text-lg font-bold text-indigo-600">
                             {funnelAnalytics.analytics[0].total_starts?.toLocaleString() || '0'}
                           </div>
                           <div className="text-xs text-muted-foreground">Total Visitors</div>

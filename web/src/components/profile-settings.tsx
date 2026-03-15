@@ -45,7 +45,7 @@ export function ProfileSettings() {
   });
 
   const getOAuthProvider = () => {
-    if (user?.googleId) return { name: 'Google', color: 'bg-violet-500' };
+    if (user?.googleId) return { name: 'Google', color: 'bg-indigo-500' };
     if (user?.githubId) return { name: 'GitHub', color: 'bg-gray-800' };
     return null;
   };
@@ -191,7 +191,7 @@ export function ProfileSettings() {
       {/* Profile Identity Banner */}
       <Card className="border border-border/60 overflow-hidden shadow-sm">
         {/* Gradient banner */}
-        <div className="h-24 bg-gradient-to-r from-violet-500/20 via-violet-500/15 to-indigo-500/10 relative">
+        <div className="h-24 bg-gradient-to-r from-indigo-500/20 via-indigo-500/15 to-indigo-500/10 relative">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
         </div>
         <CardContent className="px-6 pb-6">
@@ -200,7 +200,7 @@ export function ProfileSettings() {
             <div className="relative flex-shrink-0">
               <Avatar className="h-20 w-20 ring-4 ring-background shadow-md">
                 <AvatarImage src={user.avatar || undefined} alt={user.name} />
-                <AvatarFallback className="text-lg font-bold bg-gradient-to-br from-violet-500 to-violet-500 text-white">
+                <AvatarFallback className="text-lg font-bold bg-gradient-to-br from-indigo-500 to-indigo-500 text-white">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -254,8 +254,8 @@ export function ProfileSettings() {
         <Card className="border border-border/60 bg-card shadow-sm">
           <CardContent className="p-5">
             <div className="flex items-center gap-2.5 mb-5">
-              <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
-                <User className="h-4 w-4 text-violet-500" />
+              <div className="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center flex-shrink-0">
+                <User className="h-4 w-4 text-indigo-500" />
               </div>
               <div>
                 <h3 className="text-sm font-semibold leading-none">General Information</h3>

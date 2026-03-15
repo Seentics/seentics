@@ -71,7 +71,7 @@ export default function APIDocs() {
 }
 
 function Endpoint({ method, path, desc }: { method: string, path: string, desc: string }) {
-    const color = method === 'GET' ? 'text-violet-500' : 'text-green-500';
+    const color = method === 'GET' ? 'text-indigo-500' : 'text-green-500';
     return (
         <div className="p-6 rounded border bg-card space-y-4">
             <div className="flex items-center gap-3">

@@ -210,9 +210,9 @@ export default function DataRetentionManager({ websiteId }: DataRetentionManager
 
   const getDataTypeColor = (dataType: string) => {
     const colors: Record<string, string> = {
-      'Analytics Events': 'bg-violet-100/50 text-violet-700 dark:bg-violet-900/20 dark:text-violet-400',
+      'Analytics Events': 'bg-indigo-100/50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400',
       'Session Data': 'bg-green-100/50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
-      'Workflow Executions': 'bg-purple-100/50 text-purple-700 dark:bg-purple-900/20 dark:text-purple-400',
+      'Workflow Executions': 'bg-indigo-100/50 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-400',
       'User Profiles': 'bg-orange-100/50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400',
       'IP Addresses': 'bg-red-100/50 text-red-700 dark:bg-red-900/20 dark:text-red-400'
     };
@@ -237,11 +237,11 @@ export default function DataRetentionManager({ websiteId }: DataRetentionManager
       </div>
 
       {/* Compliance Notice */}
-      <Card className="border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-950/20">
+      <Card className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <Info className="h-5 w-5 text-violet-600 mt-0.5" />
-            <div className="text-sm text-violet-800 dark:text-violet-200">
+            <Info className="h-5 w-5 text-indigo-600 mt-0.5" />
+            <div className="text-sm text-indigo-800 dark:text-indigo-200">
               <p className="font-medium mb-1">GDPR & CCPA Compliance</p>
               <p>
                 These retention policies ensure we only keep data for as long as necessary and comply with 
@@ -256,7 +256,7 @@ export default function DataRetentionManager({ websiteId }: DataRetentionManager
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Settings className="h-5 w-5 text-violet-600" />
+            <Settings className="h-5 w-5 text-indigo-600" />
             Current Policies
           </CardTitle>
         </CardHeader>
@@ -384,7 +384,7 @@ export default function DataRetentionManager({ websiteId }: DataRetentionManager
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-violet-600" />
+            <Calendar className="h-5 w-5 text-indigo-600" />
             Cleanup Schedule
           </CardTitle>
         </CardHeader>
@@ -404,12 +404,12 @@ export default function DataRetentionManager({ websiteId }: DataRetentionManager
                 </p>
               </div>
 
-              <div className="bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 rounded p-4">
+              <div className="bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 rounded p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Info className="h-5 w-5 text-violet-600" />
-                  <span className="font-medium text-violet-800 dark:text-violet-200">Data Anonymization</span>
+                  <Info className="h-5 w-5 text-indigo-600" />
+                  <span className="font-medium text-indigo-800 dark:text-indigo-200">Data Anonymization</span>
                 </div>
-                <p className="text-sm text-violet-700 dark:text-violet-300">
+                <p className="text-sm text-indigo-700 dark:text-indigo-300">
                   Before deletion, personal identifiers are anonymized to maintain analytics integrity 
                   while ensuring privacy compliance.
                 </p>

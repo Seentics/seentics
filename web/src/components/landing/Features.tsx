@@ -9,7 +9,7 @@ const features = [
     icon: BarChart3,
     title: 'Real-time Analytics',
     description: 'Live visitor count, pageviews, referrers, and custom events — updated in under a second.',
-    color: 'text-violet-500 bg-violet-500/10',
+    color: 'text-indigo-500 bg-indigo-500/10',
   },
   {
     icon: MousePointer2,
@@ -21,7 +21,7 @@ const features = [
     icon: Play,
     title: 'Session Recordings',
     description: 'Replay real visitor sessions to find UX issues, debug problems, and understand behavior.',
-    color: 'text-purple-500 bg-purple-500/10',
+    color: 'text-indigo-500 bg-indigo-500/10',
   },
   {
     icon: Filter,
