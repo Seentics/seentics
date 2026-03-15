@@ -62,7 +62,7 @@ function AuthCallback() {
               description: "Successfully signed in with Google.",
             });
 
-            router.push('/websites');
+            router.push('/workspace');
           } else {
             throw new Error("Failed to fetch user profile");
           }

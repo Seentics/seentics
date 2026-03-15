@@ -25,8 +25,8 @@ import { isEnterprise } from '@/lib/features';
 
 const features = [
     { icon: BarChart3, text: 'Real-time analytics with sub-second latency' },
-    { icon: MousePointer2, text: 'Heatmaps & session replays to see user behavior' },
-    { icon: Workflow, text: 'Behavioral automations that convert visitors' },
+    { icon: MousePointer2, text: 'Session replays, heatmaps, and user behavior tools' },
+    { icon: Workflow, text: 'Automation, feedback, and status monitoring' },
     { icon: Shield, text: 'Privacy-first, GDPR compliant, no cookies' },
 ];
 
@@ -77,7 +77,7 @@ export default function SignInPage() {
                     rememberMe: false
                 });
             }
-            router.push('/websites');
+            router.push('/workspace');
             toast({ title: "Welcome back!", description: "You have successfully signed in." });
         } catch (error: any) {
             setError(error.message || 'Sign in failed');

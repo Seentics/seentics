@@ -5,7 +5,7 @@ import TrackerScript from '@/components/tracker-script';
 import { NavSidebar } from '@/components/websites/NavSidebar';
 import { DockNavigation } from '@/components/websites/DockNavigation';
 import { HeaderNavigation } from '@/components/websites/HeaderNavigation';
-import { useParams, usePathname } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useLayoutStore } from '@/stores/useLayoutStore';
 import { cn } from '@/lib/utils';
 import { Menu } from 'lucide-react';
@@ -20,13 +20,8 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const params = useParams();
-  const pathname = usePathname();
   const websiteId = params?.websiteId as string;
   const { isSidebarOpen, isMobileMenuOpen, toggleMobileMenu, closeMobileMenu, layoutMode } = useLayoutStore();
-
-  const isHeatmapView = pathname.includes('/heatmaps/view');
-  const isBuilderView = pathname.includes('/automations/builder');
-  const isFullscreenView = isHeatmapView || isBuilderView;
 
   const isSidebar = layoutMode === 'sidebar';
   const isDock = layoutMode === 'dock';
@@ -34,25 +29,22 @@ export default function Layout({ children }: LayoutProps) {
   const isFloatingHeader = layoutMode === 'floating-header';
 
   return (
-    <div className={cn(
-      "flex bg-background text-foreground overflow-x-hidden",
-      isFullscreenView ? "h-screen overflow-hidden fixed inset-0" : "min-h-screen"
-    )}>
+    <div className="flex bg-background text-foreground overflow-x-hidden min-h-screen">
       <TrackerScript />
 
       {/* Sidebar Mode - Desktop */}
-      {!isFullscreenView && isSidebar && <NavSidebar websiteId={websiteId} />}
+      {isSidebar && <NavSidebar websiteId={websiteId} />}
 
       {/* Dock Mode */}
-      {!isFullscreenView && isDock && <DockNavigation websiteId={websiteId} />}
+      {isDock && <DockNavigation websiteId={websiteId} />}
 
       {/* Header / Floating Header Mode */}
-      {!isFullscreenView && (isHeader || isFloatingHeader) && (
+      {(isHeader || isFloatingHeader) && (
         <HeaderNavigation websiteId={websiteId} floating={isFloatingHeader} />
       )}
 
       {/* Mobile Header - sidebar mode only */}
-      {!isFullscreenView && isSidebar && (
+      {isSidebar && (
         <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-background/80 backdrop-blur-md border-b border-border/40 z-40 px-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Logo size="lg" showText={true} textClassName="text-lg font-bold" />
@@ -76,18 +68,16 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
       <main className={cn(
-        "flex-1 w-full relative min-w-0 transition-all duration-300 ease-in-out bg-background text-foreground",
-        isFullscreenView && "overflow-hidden h-full",
+        "flex-1 w-full relative min-w-0 transition-all duration-300 ease-in-out bg-background text-foreground px-0",
         // Sidebar mode
-        (!isFullscreenView && isSidebar) && "pt-16 lg:pt-0",
-        (!isFullscreenView && isSidebar && isSidebarOpen) ? "lg:ml-[260px]" : ((!isFullscreenView && isSidebar) ? "lg:ml-[72px]" : ""),
+        isSidebar && "pt-16 lg:pt-0",
+        (isSidebar && isSidebarOpen) ? "lg:ml-[260px]" : (isSidebar ? "lg:ml-[72px]" : ""),
         // Dock mode - bottom padding for dock
-        (!isFullscreenView && isDock) && "pb-20",
+        isDock && "pb-20",
         // Header mode - top padding
-        (!isFullscreenView && isHeader) && "pt-14",
+        isHeader && "pt-14",
         // Floating header mode - top padding with spacing
-        (!isFullscreenView && isFloatingHeader) && "pt-[72px]",
-        !isFullscreenView && "px-0"
+        isFloatingHeader && "pt-[72px]",
       )}>
         {children}
       </main>

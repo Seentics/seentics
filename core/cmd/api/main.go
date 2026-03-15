@@ -163,11 +163,8 @@ func main() {
 	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger, rdb, appCache)
 	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store, logger, appCache)
 
-	// Start background workers
+	// Start background workers (analytics only — heatmaps/replays moved to standalone apps)
 	analyticsService.StartCacheWarmer(ctx)
-	heatmapService.StartCacheWarmer(ctx)
-	replayService.StartRageClickWorker(ctx)
-	replayService.StartCacheWarmer(ctx)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 
@@ -218,9 +215,6 @@ func main() {
 
 	if err := eventService.Shutdown(10 * time.Second); err != nil {
 		logger.Error().Err(err).Msg("Failed to shutdown event service gracefully")
-	}
-	if err := heatmapService.Shutdown(10 * time.Second); err != nil {
-		logger.Error().Err(err).Msg("Failed to shutdown heatmap service gracefully")
 	}
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error().Err(err).Msg("Server forced to shutdown")
@@ -334,10 +328,7 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, h appHandlers, logge
 		registerAnalyticsRoutes(v1, h)
 		registerPrivacyRoutes(v1, h)
 		registerWebsiteRoutes(v1, h)
-		registerAutomationRoutes(v1, h)
 		registerFunnelRoutes(v1, h)
-		registerHeatmapRoutes(v1, h)
-		registerReplayRoutes(v1, h)
 		registerAdminRoutes(v1, h)
 		registerInternalRoutes(v1, h)
 	}
@@ -466,22 +457,9 @@ func registerWebsiteRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	v1.POST("/user/accept-invite", h.website.AcceptInvitation)
 }
 
-func registerAutomationRoutes(v1 *gin.RouterGroup, h appHandlers) {
-	automations := v1.Group("/websites/:website_id/automations")
-	{
-		automations.GET("", h.auto.ListAutomations)
-		automations.POST("", h.auto.CreateAutomation)
-		automations.DELETE("/bulk-delete", h.auto.DeleteAutomations)
-		automations.GET("/:automation_id", h.auto.GetAutomation)
-		automations.PUT("/:automation_id", h.auto.UpdateAutomation)
-		automations.DELETE("/:automation_id", h.auto.DeleteAutomation)
-		automations.POST("/:automation_id/toggle", h.auto.ToggleAutomation)
-		automations.GET("/:automation_id/stats", h.auto.GetAutomationStats)
-	}
-
-	v1.GET("/workflows/site/:website_id/active", h.auto.GetActiveWorkflows)
-	v1.POST("/automations/test", h.auto.TestAutomation)
-}
+// Automation, heatmap, and replay management routes have been moved to their
+// standalone apps (Seentics Automation, Seentics Replays). The tracker still
+// collects data for all modules via the unified /tracker/collect endpoint.
 
 func registerFunnelRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	funnels := v1.Group("/websites/:website_id/funnels")
@@ -498,31 +476,6 @@ func registerFunnelRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	v1.GET("/funnels/active", h.funnel.GetActiveFunnels)
 }
 
-func registerHeatmapRoutes(v1 *gin.RouterGroup, h appHandlers) {
-	heatmaps := v1.Group("/heatmaps")
-	{
-		heatmaps.GET("/data", h.heatmap.GetHeatmapData)
-		heatmaps.GET("/pages", h.heatmap.GetHeatmapPages)
-		heatmaps.GET("/top-elements", h.heatmap.GetTopElements)
-		heatmaps.DELETE("/pages", h.heatmap.DeleteHeatmapPage)
-		heatmaps.DELETE("/bulk-delete", h.heatmap.BulkDeleteHeatmapPages)
-	}
-}
-
-func registerReplayRoutes(v1 *gin.RouterGroup, h appHandlers) {
-	replays := v1.Group("/replays")
-	{
-		replays.GET("/sessions", h.replay.ListSessions)
-		replays.GET("/snapshot", h.replay.GetPageSnapshot)
-		replays.GET("/data/:session_id", h.replay.GetReplay)
-		replays.GET("/full/:session_id", h.replay.GetFullReplay)
-		replays.GET("/manifest/:session_id", h.replay.GetReplayManifest)
-		replays.GET("/chunk/:session_id", h.replay.GetReplayChunk)
-		replays.GET("/presigned-manifest/:session_id", h.replay.GetPresignedManifest)
-		replays.DELETE("/sessions/:session_id", h.replay.DeleteReplay)
-		replays.DELETE("/bulk-delete", h.replay.BulkDeleteReplays)
-	}
-}
 
 func registerAdminRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	admin := v1.Group("/admin", middleware.RoleMiddleware("admin"))

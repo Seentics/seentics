@@ -57,7 +57,7 @@ function AcceptInviteContent() {
           <p className="text-sm text-muted-foreground">
             You now have access to the website. Go to your dashboard to start viewing analytics.
           </p>
-          <Button onClick={() => router.push('/websites')} className="mt-4">
+          <Button onClick={() => router.push('/workspace')} className="mt-4">
             Go to Dashboard
           </Button>
         </>
@@ -68,7 +68,7 @@ function AcceptInviteContent() {
           <XCircle className="h-12 w-12 text-rose-500 mx-auto" />
           <h1 className="text-xl font-bold">Invitation Failed</h1>
           <p className="text-sm text-muted-foreground">{errorMessage}</p>
-          <Button variant="outline" onClick={() => router.push('/websites')} className="mt-4">
+          <Button variant="outline" onClick={() => router.push('/workspace')} className="mt-4">
             Go to Dashboard
           </Button>
         </>

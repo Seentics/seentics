@@ -1,9 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import React from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
-import AutomationBuilderContainer from '@/components/builder/WorkflowBuilder';
-
-export default function AutomationBuilderPage() {
-    return <AutomationBuilderContainer />;
+export default async function AutomationBuilderPage({ params }: { params: Promise<{ websiteId: string }> }) {
+  const { websiteId } = await params;
+  redirect(`/websites/${websiteId}`);
 }

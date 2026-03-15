@@ -506,7 +506,7 @@ function SignUpFlow() {
                 onOpenChange={(open) => {
                     setShowTrackingModal(open);
                     if (!open) {
-                        router.push('/websites');
+                        router.push('/workspace');
                     }
                 }}
                 siteId={newWebsiteId}

@@ -6,15 +6,12 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
     LayoutDashboard,
-    Workflow,
     Filter,
     CreditCard,
     Settings,
     LogOut,
     Shield,
     Headset,
-    MousePointer2,
-    Video,
     Route,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
@@ -37,17 +34,11 @@ export function HeaderNavigation({ websiteId, floating = false }: { websiteId: s
     const { subscription } = isEnterprise ? useSubscription() : { subscription: null };
 
     const featureLimitMap: Record<string, string> = {
-        'Heatmaps': 'heatmaps',
-        'Session Replay': 'replays',
-        'Automations': 'workflows',
         'Funnels': 'funnels',
     };
 
     const allLinks = [
         { title: 'Overview', href: `/websites/${websiteId}`, icon: LayoutDashboard, matchExact: true },
-        { title: 'Heatmaps', href: `/websites/${websiteId}/heatmaps`, icon: MousePointer2 },
-        { title: 'Replays', href: `/websites/${websiteId}/replays`, icon: Video },
-        { title: 'Automations', href: `/websites/${websiteId}/automations`, icon: Workflow },
         { title: 'Funnels', href: `/websites/${websiteId}/funnels`, icon: Filter },
         { title: 'Paths', href: `/websites/${websiteId}/paths`, icon: Route, enterpriseOnly: true },
         { title: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard, enterpriseOnly: true },
