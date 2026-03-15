@@ -224,7 +224,7 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
             <Pie
               data={sortedData.map((item: any, index: number) => {
                 const percentage = ((item.views / totalViews) * 100).toFixed(1);
-                const colors = ['#4285F4', '#34A853', '#EA4335', '#FBBC05', '#6366F1', '#06B6D4', '#FF6B35'];
+                const colors = ['#4285F4', '#34A853', '#EA4335', '#FBBC05', '#5243F4', '#06B6D4', '#FF6B35'];
                 return {
                   name: getBrowserName(item.browser),
                   value: parseFloat(percentage),
@@ -239,7 +239,7 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
               labelLine={false}
             >
               {sortedData.map((item: any, index: number) => {
-                const colors = ['#4285F4', '#34A853', '#EA4335', '#FBBC05', '#6366F1', '#06B6D4', '#FF6B35'];
+                const colors = ['#4285F4', '#34A853', '#EA4335', '#FBBC05', '#5243F4', '#06B6D4', '#FF6B35'];
                 return (
                   <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
                 );

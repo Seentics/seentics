@@ -20,8 +20,8 @@ interface TrafficChartProps {
   annotations?: EventAnnotation[];
 }
 
-const VISITORS_COLOR = '#6366f1'; // blue — matches app primary
-const PAGEVIEWS_COLOR = '#a5b4fc'; // lighter blue — secondary
+const VISITORS_COLOR = '#5243f4'; // blue — matches app primary
+const PAGEVIEWS_COLOR = '#a29bfa'; // lighter blue — secondary
 
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -148,10 +148,10 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
             <ReferenceLine
               key={annotation.id}
               x={new Date(annotation.date).toISOString().split('T')[0]}
-              stroke={annotation.color || '#6366f1'}
+              stroke={annotation.color || '#5243f4'}
               strokeDasharray="4 3"
               strokeWidth={1.5}
-              label={{ value: annotation.title, position: 'top', fill: annotation.color || '#6366f1', fontSize: 10 }}
+              label={{ value: annotation.title, position: 'top', fill: annotation.color || '#5243f4', fontSize: 10 }}
             />
           ))}
 

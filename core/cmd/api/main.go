@@ -256,8 +256,8 @@ func initS3(cfg *config.Config, logger zerolog.Logger) *storage.S3Store {
 	bucket := env("S3_BUCKET_REPLAYS", "seentics-replays")
 	endpoint := env("S3_ENDPOINT", "http://minio:9000")
 	publicEndpoint := env("S3_PUBLIC_ENDPOINT", endpoint)
-	accessKey := env("AWS_ACCESS_KEY_ID", "minioadmin")
-	secretKey := env("AWS_SECRET_ACCESS_KEY", "minioadmin")
+	accessKey := env("AWS_ACCESS_KEY_ID", "")
+	secretKey := env("AWS_SECRET_ACCESS_KEY", "")
 
 	store, err := storage.NewS3Store(region, bucket, endpoint, accessKey, secretKey, publicEndpoint)
 	if err != nil {

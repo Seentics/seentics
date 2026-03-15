@@ -43,7 +43,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
     description: '',
     category: defaultCategory,
     icon: '⚡',
-    color: '#6366f1',
+    color: '#5243f4',
     fields: [],
     executionCode: '',
   });
@@ -111,7 +111,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
       description: nodeData.description,
       category: nodeData.category as 'trigger' | 'action',
       icon: nodeData.icon || '⚡',
-      color: nodeData.color || '#6366f1',
+      color: nodeData.color || '#5243f4',
       fields: nodeData.fields || [],
       executionCode: nodeData.executionCode,
     };
@@ -126,7 +126,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
       description: '',
       category: 'action',
       icon: '⚡',
-      color: '#6366f1',
+      color: '#5243f4',
       fields: [],
       executionCode: '',
     });
@@ -215,7 +215,7 @@ export const CustomNodeCreator: React.FC<CustomNodeCreatorProps> = ({ isOpen, on
                 <Label className="text-[11px] font-black uppercase tracking-widest text-slate-400">Color</Label>
                 <Input
                   type="color"
-                  value={nodeData.color || '#6366f1'}
+                  value={nodeData.color || '#5243f4'}
                   onChange={(e) => setNodeData({ ...nodeData, color: e.target.value })}
                   className="bg-slate-900/50 border-slate-800 h-11"
                 />

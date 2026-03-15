@@ -277,7 +277,7 @@ const ActionConfig = ({ config, setConfig }: any) => {
             <Field label="Background Color">
               <Input
                 type="color"
-                value={config.backgroundColor || '#4f46e5'}
+                value={config.backgroundColor || '#3d2dd4'}
                 onChange={(e) => setConfig({ ...config, backgroundColor: e.target.value })}
                 className="bg-slate-950 border-slate-800 h-11 p-1"
               />

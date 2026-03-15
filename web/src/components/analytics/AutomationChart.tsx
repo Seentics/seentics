@@ -76,8 +76,8 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <defs>
                 <linearGradient id="colorTriggers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#5243f4" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#5243f4" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorActions" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
@@ -105,7 +105,7 @@ export const AutomationChart: React.FC<AutomationChartProps> = ({ data, isLoadin
                 <Area
                     type="monotone"
                     dataKey="triggers"
-                    stroke="#6366f1"
+                    stroke="#5243f4"
                     strokeWidth={2}
                     fillOpacity={1}
                     fill="url(#colorTriggers)"

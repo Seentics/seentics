@@ -72,7 +72,7 @@ export const HourlyTrafficChart: React.FC<HourlyTrafficChartProps> = ({
           {...commonTooltipProps} 
           formatter={(value: any) => [formatNumber(value)]}
         />
-        <Bar dataKey="views" fill="#6366f1" radius={[4, 4, 0, 0]} name="Page Views" />
+        <Bar dataKey="views" fill="#5243f4" radius={[4, 4, 0, 0]} name="Page Views" />
         <Bar dataKey="unique" fill="#10b981" radius={[4, 4, 0, 0]} name="Unique Visitors" />
       </BarChart>
     </ResponsiveContainer>
