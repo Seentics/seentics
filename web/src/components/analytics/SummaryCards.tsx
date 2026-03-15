@@ -102,7 +102,7 @@ const SummaryCard = ({
       {customContent ?? (
         <div>
           <div className={cn(
-            'text-2xl font-bold tracking-tight leading-none mb-2 text-foreground',
+            'text-lg font-bold tracking-tight leading-none mb-2 text-foreground',
             title === 'Live Visitors' && 'text-emerald-500'
           )}>
             {formatValue(value)}
@@ -165,9 +165,9 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, v
           customContent={
             <div className="space-y-2.5">
               <div className="flex items-baseline gap-1.5">
-                <span className="text-xl font-bold tracking-tight text-foreground">{formatNumber(newVisitors)}</span>
+                <span className="text-base font-bold tracking-tight text-foreground">{formatNumber(newVisitors)}</span>
                 <span className="text-xs text-muted-foreground/40">/</span>
-                <span className="text-xl font-bold tracking-tight text-foreground">{formatNumber(returningVisitors)}</span>
+                <span className="text-base font-bold tracking-tight text-foreground">{formatNumber(returningVisitors)}</span>
               </div>
               <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
                 <div className="h-full rounded-full bg-foreground/60 transition-all duration-700" style={{ width: `${newPct}%` }} />

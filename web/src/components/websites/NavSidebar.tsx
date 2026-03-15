@@ -16,6 +16,16 @@ import {
     ChevronLeft,
     ChevronRight,
     Activity,
+    Building,
+    ArrowUpRight,
+    Video,
+    Zap,
+    MessageSquare,
+    Users,
+    Key,
+    X,
+    BarChart3,
+    Download,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,11 +39,30 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { useState } from 'react';
+
+const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:3020';
+const SUITE_DOMAIN = process.env.NEXT_PUBLIC_SUITE_DOMAIN || 'seentics.com';
+
+const switchProducts = [
+    { name: 'Replays', icon: Video, subdomain: 'replays', port: '3007', color: 'text-purple-500', desc: 'Session recordings' },
+    { name: 'Automation', icon: Zap, subdomain: 'automation', port: '3009', color: 'text-amber-500', desc: 'Workflow automation' },
+    { name: 'Feedback', icon: MessageSquare, subdomain: 'feedback', port: '3005', color: 'text-emerald-500', desc: 'User feedback' },
+    { name: 'Status', icon: Activity, subdomain: 'status', port: '3001', color: 'text-rose-500', desc: 'Uptime monitoring' },
+];
+
+function getSwitchUrl(subdomain: string, port: string) {
+    const target = (SUITE_DOMAIN === 'localhost' || SUITE_DOMAIN.includes('localhost'))
+        ? `http://localhost:${port}` : `https://${subdomain}.${SUITE_DOMAIN}`;
+    return `${AUTH_URL}/switch?to=${encodeURIComponent(target)}`;
+}
 
 export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; mobile?: boolean }) {
     const pathname = usePathname();
     const { user, logout } = useAuth();
     const { isSidebarOpen, toggleSidebar, closeMobileMenu } = useLayoutStore();
+    const [wsModalOpen, setWsModalOpen] = useState(false);
 
     const { subscription } = isEnterprise ? useSubscription() : { subscription: null };
 
@@ -182,6 +211,133 @@ export function NavSidebar({ websiteId, mobile = false }: { websiteId: string; m
                     );
                 })}
             </nav>
+
+            {/* Workspace Button */}
+            <div className={cn(
+                "px-5 pb-3",
+                (!isSidebarOpen && !mobile) && "px-4 flex justify-center"
+            )}>
+                <button
+                    onClick={() => setWsModalOpen(true)}
+                    className={cn(
+                        "flex items-center gap-3 w-full rounded-lg text-sm font-semibold transition-all duration-200 border",
+                        "bg-accent/60 hover:bg-accent border-border/60 text-foreground",
+                        (isSidebarOpen || mobile)
+                            ? "px-3.5 py-2.5"
+                            : "justify-center p-2.5"
+                    )}
+                >
+                    <Building size={18} className="shrink-0" />
+                    {(isSidebarOpen || mobile) && (
+                        <>
+                            <span className="flex-1 text-left tracking-tight">Workspace</span>
+                            <ArrowUpRight size={14} className="text-muted-foreground" />
+                        </>
+                    )}
+                </button>
+            </div>
+
+            {/* Workspace Modal */}
+            {wsModalOpen && (
+                <div className="fixed inset-0 z-[200]" onClick={() => setWsModalOpen(false)}>
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
+                    <div
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] max-w-[95vw] max-h-[88vh] bg-card border border-border/50 rounded-2xl shadow-2xl overflow-hidden"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-4 bg-accent/30">
+                            <div className="flex items-center gap-3">
+                                <Logo size="md" />
+                                <div>
+                                    <h3 className="text-sm font-bold text-foreground">Seentics Analytics</h3>
+                                    <p className="text-[11px] text-muted-foreground">Command center</p>
+                                </div>
+                            </div>
+                            <button onClick={() => setWsModalOpen(false)} className="p-2 rounded-lg hover:bg-accent transition-colors">
+                                <X size={16} className="text-muted-foreground" />
+                            </button>
+                        </div>
+
+                        {/* Two-column body */}
+                        <div className="grid grid-cols-2 divide-x divide-border/40">
+                            {/* Left: Analytics actions */}
+                            <div className="p-4">
+                                <p className="px-2 pb-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Analytics</p>
+                                <div className="space-y-0.5">
+                                    {[
+                                        { name: 'Realtime', icon: Activity, href: `/websites/${websiteId}/realtime`, color: 'text-emerald-500' },
+                                        { name: 'Funnels', icon: Filter, href: `/websites/${websiteId}/funnels`, color: 'text-orange-500' },
+                                        { name: 'User Paths', icon: Route, href: `/websites/${websiteId}/paths`, color: 'text-violet-500' },
+                                        { name: 'Privacy', icon: Shield, href: `/websites/${websiteId}/privacy`, color: 'text-sky-500' },
+                                        { name: 'Site Settings', icon: Settings, href: `/websites/${websiteId}/settings`, color: 'text-gray-500' },
+                                    ].map((item) => (
+                                        <Link
+                                            key={item.href}
+                                            href={item.href}
+                                            onClick={() => { setWsModalOpen(false); mobile && closeMobileMenu(); }}
+                                            className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors"
+                                        >
+                                            <item.icon size={15} className={`shrink-0 ${item.color}`} />
+                                            <span className="text-[13px] font-medium text-foreground">{item.name}</span>
+                                        </Link>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Right: Products + Workspace */}
+                            <div className="p-4 overflow-y-auto max-h-[60vh]">
+                                <p className="px-2 pb-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Switch Product</p>
+                                <div className="grid grid-cols-2 gap-2 mb-4">
+                                    {switchProducts.map((p) => (
+                                        <a
+                                            key={p.subdomain}
+                                            href={getSwitchUrl(p.subdomain, p.port)}
+                                            className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/40 hover:border-border hover:bg-accent/50 transition-all text-center group"
+                                        >
+                                            <div className={cn(
+                                                "w-9 h-9 rounded-lg flex items-center justify-center",
+                                                p.color === 'text-purple-500' && 'bg-purple-500/10',
+                                                p.color === 'text-amber-500' && 'bg-amber-500/10',
+                                                p.color === 'text-emerald-500' && 'bg-emerald-500/10',
+                                                p.color === 'text-rose-500' && 'bg-rose-500/10',
+                                            )}>
+                                                <p.icon size={17} className={cn("shrink-0", p.color)} />
+                                            </div>
+                                            <span className="text-xs font-semibold text-foreground">{p.name}</span>
+                                        </a>
+                                    ))}
+                                </div>
+
+                                <Separator className="my-3" />
+
+                                <p className="px-2 pb-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Workspace</p>
+                                <div className="space-y-0.5">
+                                    {[
+                                        { name: 'Dashboard', icon: Building, href: '/workspace' },
+                                        { name: 'Team', icon: Users, href: '/workspace/members' },
+                                        { name: 'Billing', icon: CreditCard, href: '/workspace/billing' },
+                                        { name: 'API Keys', icon: Key, href: '/workspace/api-keys' },
+                                        { name: 'Settings', icon: Settings, href: '/workspace/settings' },
+                                    ].map((item) => (
+                                        <a
+                                            key={item.href}
+                                            href={`${AUTH_URL}${item.href}`}
+                                            className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-accent transition-colors group/ws"
+                                        >
+                                            <span className="flex items-center gap-2.5">
+                                                <item.icon size={14} className="text-muted-foreground" />
+                                                <span className="text-[13px] font-medium text-foreground">{item.name}</span>
+                                            </span>
+                                            <ArrowUpRight size={11} className="text-muted-foreground/30 group-hover/ws:text-foreground transition-colors" />
+                                        </a>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className={cn(
                 "p-4 border-t border-sidebar-border/20",
