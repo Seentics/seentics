@@ -154,9 +154,29 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                 <div key={city.name} className="flex items-center justify-between py-3 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
-                                        <div className="p-2 rounded bg-accent/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300" >
-                                            <MapPin className="h-4 w-4" />
-                                        </div>
+                                        {city.code ? (
+                                            <div className="relative w-8 h-6 rounded-sm overflow-hidden shadow-sm border border-border/40">
+                                                <Image
+                                                    src={`/images/country/${city.code.toLowerCase()}.png`}
+                                                    alt={`${city.code} flag`}
+                                                    fill
+                                                    className="object-cover"
+                                                    onError={(e) => {
+                                                        const target = e.target as HTMLImageElement;
+                                                        target.style.display = 'none';
+                                                        const fallback = target.parentElement?.querySelector('.flag-fallback') as HTMLElement;
+                                                        if (fallback) fallback.style.display = 'flex';
+                                                    }}
+                                                />
+                                                <div className="flag-fallback hidden absolute inset-0 bg-accent rounded-sm text-[8px] font-bold items-center justify-center">
+                                                    {city.code}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="p-2 rounded bg-accent/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
+                                                <MapPin className="h-4 w-4" />
+                                            </div>
+                                        )}
                                         <div className="min-w-0 flex-1">
                                             <p className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{city.name}</p>
                                             <p className="text-xs text-muted-foreground">{city.percentage.toFixed(1)}% of Traffic</p>

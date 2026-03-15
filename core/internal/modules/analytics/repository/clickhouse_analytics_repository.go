@@ -963,16 +963,17 @@ func (r *ClickHouseAnalyticsRepository) GetGeolocationBreakdown(ctx context.Cont
 
 func (r *ClickHouseAnalyticsRepository) GetTopCitiesByRange(ctx context.Context, websiteID string, startDate, endDate time.Time, limit int) ([]models.TopItem, error) {
 	query := `
-		SELECT name, count, count * 100.0 / SUM(count) OVER () as percentage
+		SELECT name, code, count, count * 100.0 / SUM(count) OVER () as percentage
 		FROM (
 			SELECT
 				COALESCE(city, 'Unknown') as name,
+				COALESCE(country_code, '') as code,
 				uniq(visitor_id) as count
 			FROM events
 			WHERE website_id = ?
 			AND timestamp >= ? AND timestamp <= ?
 			AND event_type = 'pageview'
-			GROUP BY name
+			GROUP BY name, code
 		)
 		ORDER BY count DESC
 		LIMIT ?`
@@ -987,7 +988,7 @@ func (r *ClickHouseAnalyticsRepository) GetTopCitiesByRange(ctx context.Context,
 	for rows.Next() {
 		var item models.TopItem
 		var count uint64
-		if err := rows.Scan(&item.Name, &count, &item.Percentage); err != nil {
+		if err := rows.Scan(&item.Name, &item.Code, &count, &item.Percentage); err != nil {
 			continue
 		}
 		item.Count = int(count)
