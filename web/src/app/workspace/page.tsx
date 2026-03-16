@@ -62,8 +62,8 @@ const products: Product[] = [
     bgColor: 'bg-purple-500/10',
     href: 'http://localhost:3007',
     port: 3007,
-    enabled: true,
-    status: 'active',
+    enabled: false,
+    status: 'coming_soon',
   },
   {
     id: 'automation',
@@ -74,8 +74,8 @@ const products: Product[] = [
     bgColor: 'bg-amber-500/10',
     href: 'http://localhost:3009',
     port: 3009,
-    enabled: true,
-    status: 'active',
+    enabled: false,
+    status: 'coming_soon',
   },
   {
     id: 'feedback',
@@ -86,8 +86,8 @@ const products: Product[] = [
     bgColor: 'bg-emerald-500/10',
     href: 'http://localhost:3005',
     port: 3005,
-    enabled: true,
-    status: 'active',
+    enabled: false,
+    status: 'coming_soon',
   },
   {
     id: 'status',
@@ -98,8 +98,8 @@ const products: Product[] = [
     bgColor: 'bg-rose-500/10',
     href: 'http://localhost:3001',
     port: 3001,
-    enabled: true,
-    status: 'active',
+    enabled: false,
+    status: 'coming_soon',
   },
 ];
 
@@ -132,8 +132,8 @@ export default function WorkspacePage() {
     load();
   }, []);
 
-  const toggleProduct = (productId: string) => {
-    if (productId === 'analytics') return; // Analytics is always on
+  const toggleProduct = (productId: string, status: string) => {
+    if (productId === 'analytics' || status === 'coming_soon') return;
     setProductStates(prev => {
       const next = { ...prev, [productId]: !prev[productId] };
       localStorage.setItem('seentics_product_toggles', JSON.stringify(next));
@@ -281,13 +281,13 @@ export default function WorkspacePage() {
                       <Icon className={cn('h-5 w-5', product.color)} />
                     </div>
                     <button
-                      onClick={() => toggleProduct(product.id)}
-                      disabled={isAnalytics}
+                      onClick={() => toggleProduct(product.id, product.status)}
+                      disabled={isAnalytics || product.status === 'coming_soon'}
                       className={cn(
                         'transition-colors',
-                        isAnalytics && 'cursor-not-allowed opacity-50'
+                        (isAnalytics || product.status === 'coming_soon') && 'cursor-not-allowed opacity-50'
                       )}
-                      title={isAnalytics ? 'Analytics is always enabled' : `Toggle ${product.name}`}
+                      title={isAnalytics ? 'Analytics is always enabled' : product.status === 'coming_soon' ? 'Coming Soon' : `Toggle ${product.name}`}
                     >
                       {isEnabled ? (
                         <ToggleRight className="h-6 w-6 text-primary" />
@@ -297,7 +297,12 @@ export default function WorkspacePage() {
                     </button>
                   </div>
 
-                  <h3 className="font-semibold text-sm mb-1">{product.name}</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold text-sm">{product.name}</h3>
+                    {product.status === 'coming_soon' && (
+                      <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">Soon</span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground mb-4 line-clamp-2">{product.description}</p>
 
                   {isEnabled && (

@@ -26,7 +26,7 @@ describe('Auth Store', () => {
     };
 
     useAuth.getState().setAuth({
-      user: mockUser,
+      user: mockUser as any,
       access_token: 'test-access-token',
       refresh_token: 'test-refresh-token',
       rememberMe: false,
@@ -41,7 +41,7 @@ describe('Auth Store', () => {
 
   it('should clear state on logout', () => {
     useAuth.getState().setAuth({
-      user: { id: '1', name: 'Test', email: 'test@test.com', avatar: '', role: 'user', createdAt: '' },
+      user: { id: '1', name: 'Test', email: 'test@test.com', avatar: '', role: 'user', createdAt: '' } as any,
       access_token: 'token',
       refresh_token: 'refresh',
       rememberMe: true,
@@ -68,7 +68,7 @@ describe('Auth Store', () => {
       createdAt: '',
     };
 
-    useAuth.getState().setUser(mockUser);
+    useAuth.getState().setUser(mockUser as any);
 
     const state = useAuth.getState();
     expect(state.user).toEqual(mockUser);
@@ -76,7 +76,7 @@ describe('Auth Store', () => {
   });
 
   it('should set isAuthenticated to false when user is null', () => {
-    useAuth.getState().setUser(null);
+    useAuth.getState().setUser(null as any);
     expect(useAuth.getState().isAuthenticated).toBe(false);
   });
 

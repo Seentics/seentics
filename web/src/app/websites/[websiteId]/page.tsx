@@ -49,6 +49,7 @@ import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
 import { FilterModal } from '@/components/analytics/FilterModal';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { FunnelManagement } from '@/components/analytics/FunnelManagement';
+import { PathAnalysis } from '@/components/analytics/PathAnalysis';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Logo } from '@/components/ui/logo';
 
@@ -733,11 +734,14 @@ export default function WebsiteDashboardPage() {
           </div>
         </div>
 
+        {/* PATH ANALYSIS */}
+        <PathAnalysis websiteId={websiteId} dateRange={dateRange} />
+
         {/* FUNNELS / USER JOURNEYS */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
             <GitBranch className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold tracking-tight">Funnels & User Journeys</h2>
+            <h2 className="text-sm font-semibold tracking-tight">Funnels</h2>
             <div className="h-px bg-border flex-1 ml-3" />
           </div>
 
@@ -844,8 +848,6 @@ export default function WebsiteDashboardPage() {
 
                     {[
                       { name: 'Realtime', icon: Activity, href: `/websites/${websiteId}/realtime`, color: 'text-emerald-500' },
-                      { name: 'Funnels', icon: Filter, href: `/websites/${websiteId}/funnels`, color: 'text-orange-500' },
-                      { name: 'User Paths', icon: Route, href: `/websites/${websiteId}/paths`, color: 'text-violet-500' },
                       { name: 'Privacy', icon: Shield, href: `/websites/${websiteId}/privacy`, color: 'text-sky-500' },
                       { name: 'Site Settings', icon: Settings, href: `/websites/${websiteId}/settings`, color: 'text-gray-500' },
                     ].map((item) => (
@@ -873,16 +875,16 @@ export default function WebsiteDashboardPage() {
                       { name: 'Feedback', icon: MessageSquare, sub: 'feedback', port: '3005', color: 'bg-emerald-500/10', iconColor: 'text-emerald-500' },
                       { name: 'Status', icon: Activity, sub: 'status', port: '3001', color: 'bg-rose-500/10', iconColor: 'text-rose-500' },
                     ].map((p) => (
-                      <a
+                      <div
                         key={p.sub}
-                        href={mkSwitch(p.sub, p.port)}
-                        className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/40 hover:border-border hover:bg-accent/50 transition-all text-center group"
+                        className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/40 bg-accent/5 opacity-50 cursor-not-allowed group relative"
                       >
                         <div className={`w-9 h-9 rounded-lg ${p.color} flex items-center justify-center`}>
                           <p.icon size={17} className={p.iconColor} />
                         </div>
                         <span className="text-xs font-semibold text-foreground">{p.name}</span>
-                      </a>
+                        <span className="absolute top-1 right-1 text-[8px] font-bold uppercase tracking-tighter bg-background/80 px-1 rounded border border-border/30">Soon</span>
+                      </div>
                     ))}
                   </div>
 

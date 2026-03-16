@@ -12,12 +12,15 @@ export default function TrackingSettings() {
   const websiteId = params?.websiteId as string;
   const [copied, setCopied] = React.useState(false);
 
-  const trackingSnippet = `<!-- Seentics Analytics -->
+  const trackingSnippet = React.useMemo(() => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://analytics.seentics.com';
+    return `<!-- Seentics Analytics -->
 <script
   defer
   data-website-id="${websiteId}"
-  src="https://app.seentics.com/script.js"
+  src="${origin}/trackers/seentics.js"
 ></script>`;
+  }, [websiteId]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(trackingSnippet);

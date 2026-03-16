@@ -1,0 +1,296 @@
+Unused files (104)
+public/trackers/rrweb.min.css                        
+public/trackers/rrweb.min.js                         
+public/trackers/seentics.js                          
+public/trackers/seentics.src.js                      
+src/app/actions/ai.ts                                
+src/components/analytics-summary-card.tsx            
+src/components/analytics-table.tsx                   
+src/components/analytics/AutomationChart.tsx         
+src/components/analytics/AutomationSynergyChart.tsx  
+src/components/analytics/CustomEventsChart.tsx       
+src/components/analytics/DashboardFilters.tsx        
+src/components/analytics/EngagementHeatmap.tsx       
+src/components/analytics/EnhancedFunnelChart.tsx     
+src/components/analytics/EventsDetails.tsx           
+src/components/analytics/FunnelComparison.tsx        
+src/components/analytics/FunnelInsightsCard.tsx      
+src/components/analytics/LeafletMap.tsx              
+src/components/analytics/MapWrapper.tsx              
+src/components/analytics/QuickFilters.tsx            
+src/components/analytics/UTMTrackingChart.tsx        
+src/components/analytics/VisitorInsightsCard.tsx     
+src/components/annotations/AnnotationsPanel.tsx      
+src/components/appearance-settings.tsx               
+src/components/automation/AutomationAnalytics.tsx    
+src/components/builder/ActionNode.tsx                
+src/components/builder/AutomationTestSandbox.tsx     
+src/components/builder/BuilderToolbar.tsx            
+src/components/builder/CanvasBuilder.tsx             
+src/components/builder/CustomNodeCreator.tsx         
+src/components/builder/EnhancedBuilderSidebar.tsx    
+src/components/builder/ExecutionPreview.tsx          
+src/components/builder/FrequencyControl.tsx          
+src/components/builder/InteractionNode.tsx           
+src/components/builder/LinearBuilder.tsx             
+src/components/builder/NodeConfigModal.tsx           
+src/components/builder/NodeConfigPanel.tsx           
+src/components/builder/TestResultsModal.tsx          
+src/components/builder/TriggerNode.tsx               
+src/components/builder/WorkflowBuilder.tsx           
+src/components/command-palette.tsx                   
+src/components/dashboard-stats.tsx                   
+src/components/data-retention-manager.tsx            
+src/components/funnels/builder/ConditionItem.tsx     
+src/components/funnels/builder/FunnelSidebar.tsx     
+src/components/funnels/builder/FunnelToolbar.tsx     
+src/components/funnels/builder/StepItem.tsx          
+src/components/funnels/builder/StepNode.tsx          
+src/components/gdpr-data-manager.tsx                 
+src/components/header.tsx                            
+src/components/heatmap-overlay.tsx                   
+src/components/icons.tsx                             
+src/components/landing-page-chatbot.tsx              
+src/components/landing/AutomationWorkflows.tsx       
+src/components/landing/Comparison.tsx                
+src/components/notification-bell.tsx                 
+src/components/page.tsx                              
+src/components/profile-settings.tsx                  
+src/components/promotion-banner.tsx                  
+src/components/replays/ReplayPlayer.tsx              
+src/components/replays/ReplaysOverview.tsx           
+src/components/settings/TrackingSettingsComponent.tsx
+src/components/site-selector.tsx                     
+src/components/SupportWidget.tsx                     
+src/components/tawk-messenger.tsx                    
+src/components/tracker-test-demo.tsx                 
+src/components/ui/alert-dialog.tsx                   
+src/components/ui/avatar.tsx                         
+src/components/ui/breadcrumb.tsx                     
+src/components/ui/carousel.tsx                       
+src/components/ui/chart.tsx                          
+src/components/ui/code-block.tsx                     
+src/components/ui/collapsible.tsx                    
+src/components/ui/date-range-picker.tsx              
+src/components/ui/form.tsx                           
+src/components/ui/menubar.tsx                        
+src/components/ui/radio-group.tsx                    
+src/components/ui/sheet.tsx                          
+src/components/ui/sidebar.tsx                        
+src/components/ui/tooltip.tsx                        
+src/components/websites/dashboard-footer.tsx         
+src/components/websites/DockNavigation.tsx           
+src/components/websites/EditWebsiteModal.tsx         
+src/components/websites/empty-state.tsx              
+src/components/websites/HeaderNavigation.tsx         
+src/components/websites/modals/BillingModal.tsx      
+src/components/websites/modals/DocsModal.tsx         
+src/components/websites/modals/PrivacyModal.tsx      
+src/components/websites/modals/SettingsModal.tsx     
+src/components/websites/modals/SupportModal.tsx      
+src/components/websites/modals/TeamModal.tsx         
+src/components/websites/NavSidebar.tsx               
+src/components/websites/website-card.tsx             
+src/components/websites/website-modal.tsx            
+src/components/websites/websites-header.tsx          
+src/components/websites/WebsitesManageModal.tsx      
+src/hooks/use-auth.ts                                
+src/hooks/use-mobile.tsx                             
+src/lib/annotations-api.ts                           
+src/lib/dashboards-api.ts                            
+src/lib/integrations-api.ts                          
+src/lib/notifications-api.ts                         
+src/stores/automationStore.ts                        
+src/stores/customNodesStore.ts                       
+src/styles/leaflet.css                               
+Unused dependencies (20)
+@hookform/resolvers           package.json:35:6
+@radix-ui/react-alert-dialog  package.json:37:6
+@radix-ui/react-avatar        package.json:38:6
+@radix-ui/react-collapsible   package.json:40:6
+@radix-ui/react-menubar       package.json:44:6
+@radix-ui/react-radio-group   package.json:47:6
+@radix-ui/react-tooltip       package.json:56:6
+dotenv                        package.json:66:6
+embla-carousel-react          package.json:67:6
+heatmap.js                    package.json:69:6
+jspdf                         package.json:70:6
+jspdf-autotable               package.json:71:6
+nodemailer                    package.json:76:6
+react-hook-form               package.json:81:6
+react-leaflet                 package.json:83:6
+reactflow                     package.json:85:6
+rrweb                         package.json:88:6
+rrweb-player                  package.json:89:6
+sooner                        package.json:91:6
+zod                           package.json:94:6
+Unused devDependencies (4)
+@types/heatmap.js  package.json:101:6
+@types/jspdf       package.json:102:6
+@types/nodemailer  package.json:104:6
+cpx2               package.json:108:6
+Unlisted dependencies (1)
+postcss-load-config  postcss.config.mjs:1:2
+Unused exports (110)
+FunnelBuilder                       src/components/funnels/builder/FunnelBuilder.tsx:37:14 
+useSubscription                     src/components/subscription/index.ts:2:10              
+UpgradePlanModal                    src/components/subscription/index.ts:3:10              
+UsageCard                           src/components/subscription/index.ts:4:10              
+UsageDashboard                      src/components/subscription/index.ts:5:10              
+LimitReachedAlert                   src/components/subscription/index.ts:6:10              
+useUpgradePrompt                    src/components/subscription/index.ts:8:10              
+PlanBuilder                         src/components/subscription/index.ts:9:10              
+LimitReachedAlert                   src/components/subscription/LimitReachedAlert.tsx:29:14
+UsageDashboard                      src/components/subscription/UsageDashboard.tsx:12:14   
+useUpgradePrompt                    src/components/subscription/useUpgradePrompt.tsx:13:14 
+badgeVariants                       src/components/ui/badge.tsx:36:17                      
+CardFooter                          src/components/ui/card.tsx:79:46                       
+DialogPortal                        src/components/ui/dialog.tsx:113:3                     
+DialogOverlay                       src/components/ui/dialog.tsx:114:3                     
+DialogClose                         src/components/ui/dialog.tsx:115:3                     
+DropdownMenuCheckboxItem            src/components/ui/dropdown-menu.tsx:189:3              
+DropdownMenuRadioItem               src/components/ui/dropdown-menu.tsx:190:3              
+DropdownMenuLabel                   src/components/ui/dropdown-menu.tsx:191:3              
+DropdownMenuShortcut                src/components/ui/dropdown-menu.tsx:193:3              
+DropdownMenuGroup                   src/components/ui/dropdown-menu.tsx:194:3              
+DropdownMenuPortal                  src/components/ui/dropdown-menu.tsx:195:3              
+DropdownMenuRadioGroup              src/components/ui/dropdown-menu.tsx:199:3              
+ScrollBar                           src/components/ui/scroll-area.tsx:48:22                
+SelectGroup                         src/components/ui/select.tsx:151:3                     
+SelectLabel                         src/components/ui/select.tsx:155:3                     
+SelectSeparator                     src/components/ui/select.tsx:157:3                     
+SelectScrollUpButton                src/components/ui/select.tsx:158:3                     
+SelectScrollDownButton              src/components/ui/select.tsx:159:3                     
+TableFooter                         src/components/ui/table.tsx:112:3                      
+TableCaption                        src/components/ui/table.tsx:116:3                      
+ToastAction                         src/components/ui/toast.tsx:128:3                      
+reducer                             src/hooks/use-toast.ts:77:14                           
+toast                               src/hooks/use-toast.ts:194:20                          
+getTopPages                         src/lib/analytics-api.ts:259:14                        
+getTopReferrers                     src/lib/analytics-api.ts:270:14                        
+getTopCountries                     src/lib/analytics-api.ts:281:14                        
+getTopBrowsers                      src/lib/analytics-api.ts:292:14                        
+getTopDevices                       src/lib/analytics-api.ts:303:14                        
+getTopOS                            src/lib/analytics-api.ts:314:14                        
+getTopResolutions                   src/lib/analytics-api.ts:325:14                        
+getRealtimeData                     src/lib/analytics-api.ts:352:14                        
+getLiveVisitors                     src/lib/analytics-api.ts:371:14                        
+getTopLanguages                     src/lib/analytics-api.ts:380:14                        
+useTopLanguages                     src/lib/analytics-api.ts:388:14                        
+getTopCities                        src/lib/analytics-api.ts:398:14                        
+useTopCities                        src/lib/analytics-api.ts:406:14                        
+getHourlyStats                      src/lib/analytics-api.ts:416:14                        
+getDailyStats                       src/lib/analytics-api.ts:446:14                        
+getCustomEventsStats                src/lib/analytics-api.ts:457:14                        
+getVisitorInsights                  src/lib/analytics-api.ts:474:14                        
+analyticsKeys                       src/lib/analytics-api.ts:487:14                        
+default                             src/lib/analytics-api.ts:708:16                        
+createFunnel              function  src/lib/analytics-api.ts:818:23                        
+getFunnels                function  src/lib/analytics-api.ts:851:23                        
+getFunnel                 function  src/lib/analytics-api.ts:875:23                        
+updateFunnel              function  src/lib/analytics-api.ts:890:23                        
+deleteFunnel              function  src/lib/analytics-api.ts:905:23                        
+getFunnelAnalytics        function  src/lib/analytics-api.ts:914:23                        
+compareFunnels            function  src/lib/analytics-api.ts:975:23                        
+useFunnel                           src/lib/analytics-api.ts:997:14                        
+useCompareFunnels                   src/lib/analytics-api.ts:1053:14                       
+getGeolocationBreakdown             src/lib/analytics-api.ts:1091:14                       
+useAutomations            function  src/lib/automations-api.ts:131:17                      
+useCreateAutomation       function  src/lib/automations-api.ts:139:17                      
+useUpdateAutomation       function  src/lib/automations-api.ts:151:17                      
+useDeleteAutomation       function  src/lib/automations-api.ts:163:17                      
+useBulkDeleteAutomations  function  src/lib/automations-api.ts:175:17                      
+useToggleAutomation       function  src/lib/automations-api.ts:187:17                      
+useAutomationStats        function  src/lib/automations-api.ts:199:17                      
+isLocalhost                         src/lib/config.ts:61:14                                
+getApiHost                          src/lib/config.ts:69:14                                
+demoAutomationStats                 src/lib/demo/automations.ts:77:14                      
+demoBilling                         src/lib/demo/billing.ts:5:14                           
+demoHeatmapPages                    src/lib/demo/heatmaps.ts:5:14                          
+demoHeatmapPoints                   src/lib/demo/heatmaps.ts:14:14                         
+DEMO_WEBSITE_ID                     src/lib/demo/index.ts:11:14                            
+demoReplays                         src/lib/demo/index.ts:30:10                            
+demoHeatmapPages                    src/lib/demo/index.ts:31:10                            
+demoHeatmapPoints                   src/lib/demo/index.ts:31:28                            
+demoPrivacySettings                 src/lib/demo/index.ts:32:47                            
+demoBilling                         src/lib/demo/index.ts:33:10                            
+demoSupportTickets                  src/lib/demo/index.ts:35:10                            
+demoReplays                         src/lib/demo/replays.ts:11:14                          
+demoReplaySession                   src/lib/demo/replays.ts:41:14                          
+demoPrivacySettings                 src/lib/demo/settings.ts:50:14                         
+demoSupportTickets                  src/lib/demo/support.ts:5:14                           
+FEATURES                            src/lib/features.ts:15:14                              
+LIMITS                              src/lib/features.ts:46:14                              
+getCurrentLimits                    src/lib/features.ts:94:14                              
+listFunnels                         src/lib/funnels-api.ts:73:14                           
+getFunnel                           src/lib/funnels-api.ts:84:14                           
+createFunnel                        src/lib/funnels-api.ts:92:14                           
+updateFunnel                        src/lib/funnels-api.ts:103:14                          
+deleteFunnel                        src/lib/funnels-api.ts:116:14                          
+bulkDeleteFunnels                   src/lib/funnels-api.ts:121:14                          
+getFunnelStats                      src/lib/funnels-api.ts:128:14                          
+funnelKeys                          src/lib/funnels-api.ts:140:14                          
+useFunnelStats                      src/lib/funnels-api.ts:171:14                          
+deleteWebsite             function  src/lib/websites-api.ts:153:23                         
+addMember                           src/lib/websites-api.ts:322:14                         
+COUNTRIES                           src/utils/countries.ts:13:14                           
+getCountryByName                    src/utils/countries.ts:247:14                          
+getCountryByCode                    src/utils/countries.ts:251:14                          
+getCountriesByContinent             src/utils/countries.ts:255:14                          
+getCountriesByRegion                src/utils/countries.ts:259:14                          
+getCountryCoordinates               src/utils/countries.ts:264:14                          
+getCountryCode                      src/utils/countries.ts:269:14                          
+GEOGRAPHY_NAME_MAPPING              src/utils/countries.ts:283:14                          
+getStandardCountryName              src/utils/countries.ts:374:14                          
+Unused exported types (48)
+SubscriptionData            type       src/components/subscription/index.ts:13:3
+SubscriptionUsage           type       src/components/subscription/index.ts:14:3
+UsageStatus                 type       src/components/subscription/index.ts:15:3
+UseSubscriptionReturn       type       src/components/subscription/index.ts:16:3
+BadgeProps                  interface  src/components/ui/badge.tsx:26:18        
+ButtonProps                 interface  src/components/ui/button.tsx:37:18       
+CalendarProps               type       src/components/ui/calendar.tsx:10:13     
+Row                         type       src/components/ui/data-table.tsx:41:26   
+DataTableProps              interface  src/components/ui/data-table.tsx:45:18   
+SubscriptionData            interface  src/hooks/useSubscription.ts:23:18       
+UseSubscriptionReturn       interface  src/hooks/useSubscription.ts:37:18       
+CreateAlertRuleRequest      interface  src/lib/alerts-api.ts:32:18              
+UpdateAlertRuleRequest      interface  src/lib/alerts-api.ts:42:18              
+DashboardData               interface  src/lib/analytics-api.ts:23:18           
+PageStat                    interface  src/lib/analytics-api.ts:61:18           
+ReferrerStat                interface  src/lib/analytics-api.ts:73:18           
+CountryStat                 interface  src/lib/analytics-api.ts:80:18           
+BrowserStat                 interface  src/lib/analytics-api.ts:87:18           
+DeviceStat                  interface  src/lib/analytics-api.ts:94:18           
+OSStat                      interface  src/lib/analytics-api.ts:101:18          
+CustomEventsStats           interface  src/lib/analytics-api.ts:110:18          
+HourlyStat                  interface  src/lib/analytics-api.ts:127:18          
+DailyStat                   interface  src/lib/analytics-api.ts:135:18          
+TopVisitor                  interface  src/lib/analytics-api.ts:142:18          
+VisitorInsightsData         interface  src/lib/analytics-api.ts:149:18          
+GetVisitorInsightsResponse  interface  src/lib/analytics-api.ts:161:18          
+GetTopPagesResponse         interface  src/lib/analytics-api.ts:167:18          
+GetTopReferrersResponse     interface  src/lib/analytics-api.ts:173:18          
+GetTopCountriesResponse     interface  src/lib/analytics-api.ts:179:18          
+GetTopBrowsersResponse      interface  src/lib/analytics-api.ts:185:18          
+GetTopDevicesResponse       interface  src/lib/analytics-api.ts:191:18          
+GetTopOSResponse            interface  src/lib/analytics-api.ts:197:18          
+GetHourlyStatsResponse      interface  src/lib/analytics-api.ts:203:18          
+GetDailyStatsResponse       interface  src/lib/analytics-api.ts:209:18          
+RealtimeData                interface  src/lib/analytics-api.ts:340:18          
+FunnelAnalyticsItem         interface  src/lib/analytics-api.ts:773:18          
+FunnelAnalyticsResponse     interface  src/lib/analytics-api.ts:789:18          
+FunnelAnalytics             interface  src/lib/analytics-api.ts:795:18          
+GeolocationData             interface  src/lib/analytics-api.ts:1067:18         
+AnalyticsFilters            interface  src/lib/analytics-api.ts:1147:18         
+CreateAutomationRequest     interface  src/lib/automations-api.ts:45:18         
+AutomationsResponse         interface  src/lib/automations-api.ts:54:18         
+Funnel                      interface  src/lib/funnels-api.ts:36:18             
+CreateFunnelRequest         interface  src/lib/funnels-api.ts:49:18             
+UpdateFunnelRequest         interface  src/lib/funnels-api.ts:55:18             
+ListFunnelsResponse         interface  src/lib/funnels-api.ts:62:18             
+CreateReportRequest         interface  src/lib/reports-api.ts:24:18             
+CountryInfo                 interface  src/utils/countries.ts:4:18              
+Duplicate exports (1)
+FunnelBuilder|default  src/components/funnels/builder/FunnelBuilder.tsx
+Configuration hints (1)

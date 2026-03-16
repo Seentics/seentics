@@ -44,7 +44,7 @@ func Load() (*Config, error) {
 		GlobalAPIKey:       getEnvOrDefault("GLOBAL_API_KEY", ""),
 		DbMaxConns:         GetEnvAsInt("DB_MAX_CONNS", 100),
 		DbMinConns:         GetEnvAsInt("DB_MIN_CONNS", 25),
-		CORSAllowedOrigins: getEnvOrDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://www.seentics.com,https://seentics.com"),
+		CORSAllowedOrigins: getEnvOrDefault("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000,https://www.seentics.com,https://seentics.com,https://analytics.seentics.com,https://auth.seentics.com,https://replays.seentics.com,https://automation.seentics.com,https://feedback.seentics.com,https://status.seentics.com"),
 		PostalServerURL:    getEnvOrDefault("POSTAL_SERVER_URL", ""),
 		PostalAPIKey:       getEnvOrDefault("POSTAL_API_KEY", ""),
 		PostalFromEmail:    getEnvOrDefault("POSTAL_FROM_EMAIL", ""),
