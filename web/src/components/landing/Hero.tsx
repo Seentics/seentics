@@ -158,7 +158,7 @@ export default function Hero() {
             transition={{ duration: 0.5 }}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 border border-border/60 text-xs font-medium text-muted-foreground mb-8"
           >
-            Open Source &middot; No Cookies &middot; GDPR Compliant
+            Open Source &middot; APIs &amp; SDKs &middot; Self-Hosted
           </motion.div>
 
           <motion.h1
@@ -168,10 +168,10 @@ export default function Hero() {
             className="mb-6"
           >
             <span className="block text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.2]">
-              Simple, Privacy-First
+              Analytics for Developers
             </span>
             <span className="block text-4xl md:text-6xl font-bold tracking-tight leading-[1.2] mt-1">
-              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Web Analytics</span>
+              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">& Product Teams</span>
             </span>
           </motion.h1>
 
@@ -181,7 +181,7 @@ export default function Hero() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            Know your traffic without compromising privacy. Real-time visitors, top pages, referrers, geo, UTM campaigns, and conversion funnels — no cookies, no consent banners.
+            APIs, SDKs, and UI components for developers. A beautiful, powerful dashboard for your team. Self-hosted, open source, complete data ownership.
           </motion.p>
 
           <motion.div

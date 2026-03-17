@@ -1,44 +1,44 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BarChart3, Shield, Filter, Globe, Megaphone, Target } from 'lucide-react';
+import { BarChart3, Code, Zap, Database, Lock, Layers } from 'lucide-react';
 import React from 'react';
 
 const features = [
   {
-    icon: BarChart3,
-    title: 'Real-time Dashboard',
-    description: 'Live visitors, pageviews, bounce rate, and session duration — all updating in real time.',
+    icon: Code,
+    title: 'REST APIs',
+    description: 'Query analytics data programmatically. Events, pageviews, funnels, heatmaps — all accessible via clean, well-documented APIs.',
     color: 'text-indigo-500 bg-indigo-500/10',
   },
   {
-    icon: Globe,
-    title: 'Geographic Insights',
-    description: 'See where your visitors come from with country, region, and city-level breakdowns on an interactive map.',
+    icon: Layers,
+    title: 'React Components',
+    description: 'Pre-built UI components for charts, dashboards, and analytics visualizations. Drop them into your app in minutes.',
     color: 'text-sky-500 bg-sky-500/10',
   },
   {
-    icon: Megaphone,
-    title: 'UTM Campaign Tracking',
-    description: 'Track sources, mediums, and campaigns to know exactly which marketing efforts drive results.',
+    icon: Database,
+    title: 'Raw Data Access',
+    description: 'Access raw events and analytics data. Build custom reports, integrate with BI tools, or export for analysis.',
     color: 'text-orange-500 bg-orange-500/10',
   },
   {
-    icon: Filter,
-    title: 'Conversion Funnels',
-    description: 'Define multi-step funnels and see exactly where users drop off in your signup or checkout flow.',
+    icon: Zap,
+    title: 'Event Tracking',
+    description: 'Track custom events programmatically. Send events from your backend, frontend, or any system — no limitations.',
     color: 'text-emerald-500 bg-emerald-500/10',
   },
   {
-    icon: Target,
-    title: 'Goal Tracking',
-    description: 'Set custom goals for signups, purchases, or any event — measure what matters to your business.',
+    icon: BarChart3,
+    title: 'Custom Dashboards',
+    description: 'Build custom analytics dashboards tailored to your product. Full control over metrics, layout, and design.',
     color: 'text-amber-500 bg-amber-500/10',
   },
   {
-    icon: Shield,
-    title: 'Privacy by Default',
-    description: 'No cookies, no personal data. GDPR, CCPA, and PECR compliant out of the box.',
+    icon: Lock,
+    title: 'Self-Hosted',
+    description: 'Deploy on your own infrastructure. Own your data, control your privacy policy, customize everything.',
     color: 'text-teal-500 bg-teal-500/10',
   },
 ];
@@ -64,7 +64,7 @@ export default function Features() {
             transition={{ duration: 0.5, delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
-            Everything You Need to Understand Your Traffic
+            Built for Developers
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
@@ -73,7 +73,7 @@ export default function Features() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg"
           >
-            One lightweight script. Real-time dashboard. No cookies required.
+            APIs, SDKs, and composable components for complete customization.
           </motion.p>
         </div>
 

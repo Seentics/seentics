@@ -10,29 +10,34 @@ import { useAuth } from '@/stores/useAuthStore';
 
 const faqs = [
   {
-    question: 'Is it really free?',
+    question: 'Can I access raw event data via API?',
     answer:
-      'Yes. Our Starter plan is 100% free for a single website. No credit card required. We believe high-quality analytics should be accessible to everyone.',
+      'Yes. Our REST API gives you access to all raw event data, analytics aggregates, funnels, and more. Perfect for building custom reports or integrating with your data pipeline.',
   },
   {
-    question: 'Will it slow down my site?',
+    question: 'Do you provide SDKs and React components?',
     answer:
-      "No. Our script is under 2KB — it's designed for performance and won't affect your page load speed or SEO.",
+      'Yes. We provide JavaScript/TypeScript SDK, React hooks, and pre-built UI components for charts and dashboards. Drop them into your app or build your own using our APIs.',
   },
   {
-    question: 'Is my data safe and private?',
+    question: 'Can I self-host this on my own servers?',
     answer:
-      "Absolutely. We don't use cookies or collect personal data. Everything is built to be private and compliant with GDPR, CCPA, and PECR.",
+      'Absolutely. Seentics is open source. Deploy to your own infrastructure, on Kubernetes, Docker, or any cloud provider. You own everything.',
   },
   {
-    question: 'Can I import from Google Analytics?',
+    question: 'How do I track custom events programmatically?',
     answer:
-      "Yes. We have a simple import tool for Google Analytics (UA or GA4) so you don't lose your history.",
+      'Use our JavaScript SDK or HTTP API to track custom events from your frontend or backend. No limitations — track whatever you need.',
   },
   {
-    question: 'Do you offer custom plans?',
+    question: 'Can I build a completely custom dashboard?',
     answer:
-      'We do. For high-volume sites or specific needs, we offer custom infrastructure and volume discounts. Contact us to learn more.',
+      'Yes. Access our APIs to query any data, then build custom dashboards with your own design system. Full control over the experience.',
+  },
+  {
+    question: 'What about data privacy and GDPR?',
+    answer:
+      'No cookies, no personal data collection by default. GDPR and CCPA compliant. When self-hosted, you have complete control over compliance.',
   },
 ];
 
@@ -107,26 +112,26 @@ export default function FAQ() {
           className="max-w-xl mx-auto text-center py-16 border-t border-border/40"
         >
           <h3 className="text-2xl font-bold tracking-tight text-foreground mb-3">
-            Ready to understand your users?
+            Ready to build with analytics APIs?
           </h3>
           <p className="text-muted-foreground mb-6">
-            Start with the free plan. Set up in 2 minutes. No credit card required.
+            Get API access. Explore our SDKs and components. Deploy self-hosted. Full developer control.
           </p>
           <div className="flex items-center justify-center gap-3">
             <Link href={isAuthenticated ? '/websites' : '/signup'}>
               <Button className="h-10 px-6 text-sm font-medium rounded-lg">
-                {isAuthenticated ? 'Go to Dashboard' : 'Start for Free'}
+                {isAuthenticated ? 'Go to Dashboard' : 'Get Started'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/websites/demo">
+            <Link href="/docs/api">
               <Button variant="outline" className="h-10 px-6 text-sm font-medium rounded-lg">
-                View Live Demo
+                API Docs
               </Button>
             </Link>
           </div>
           <p className="text-xs text-muted-foreground/60 mt-4">
-            No credit card required &middot; GDPR compliant &middot; Setup in 2 minutes
+            Open Source &middot; Self-Hosted &middot; APIs &amp; SDKs &middot; Full Data Access
           </p>
         </motion.div>
       </div>

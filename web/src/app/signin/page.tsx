@@ -11,8 +11,8 @@ import {
     Mail,
     ArrowRight,
     BarChart3,
-    MousePointer2,
-    Workflow,
+    Globe,
+    Target,
     Shield,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
@@ -25,8 +25,8 @@ import { isEnterprise } from '@/lib/features';
 
 const features = [
     { icon: BarChart3, text: 'Real-time analytics with sub-second latency' },
-    { icon: MousePointer2, text: 'Session replays, heatmaps, and user behavior tools' },
-    { icon: Workflow, text: 'Automation, feedback, and status monitoring' },
+    { icon: Globe, text: 'Traffic sources, countries, devices, and browser insights' },
+    { icon: Target, text: 'Goals, funnels, and conversion-focused reporting' },
     { icon: Shield, text: 'Privacy-first, GDPR compliant, no cookies' },
 ];
 
@@ -77,7 +77,7 @@ export default function SignInPage() {
                     rememberMe: false
                 });
             }
-            router.push('/workspace');
+            router.push('/websites');
             toast({ title: "Welcome back!", description: "You have successfully signed in." });
         } catch (error: any) {
             setError(error.message || 'Sign in failed');
@@ -102,7 +102,7 @@ export default function SignInPage() {
                     Analytics that respect your users.
                 </h1>
                 <p className="text-muted-foreground mb-10 max-w-md leading-relaxed">
-                    Understand every click, scroll, and conversion — without compromising privacy. One platform replaces five tools.
+                    Understand traffic, behavior, and conversions without compromising privacy. Built for focused product analytics.
                 </p>
 
                 <div className="space-y-5">

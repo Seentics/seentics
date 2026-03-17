@@ -1,6 +1,9 @@
 import LandingHeader from './LandingHeader';
 import Hero from './Hero';
 import Features from './Features';
+import APISection from './CodeExamples';
+import UIBlocksSection from './SDKsSection';
+import PricingSection from './PricingSection';
 import FAQ from './FAQ';
 import Footer from './Footer';
 
@@ -11,6 +14,9 @@ export default function OSSLanding() {
       <main>
         <Hero />
         <Features />
+        <APISection />
+        <UIBlocksSection />
+        <PricingSection />
         <FAQ />
       </main>
       <Footer />

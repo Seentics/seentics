@@ -15,8 +15,7 @@ import {
     Sparkles,
     Globe,
     BarChart3,
-    MousePointer2,
-    Workflow,
+    Target,
     Shield,
 } from 'lucide-react';
 import { Logo } from '@/components/ui/logo';
@@ -31,8 +30,8 @@ import { isEnterprise } from '@/lib/features';
 
 const features = [
     { icon: BarChart3, text: 'Real-time analytics with sub-second latency' },
-    { icon: MousePointer2, text: 'Heatmaps & session replays to see user behavior' },
-    { icon: Workflow, text: 'Behavioral automations that convert visitors' },
+    { icon: Globe, text: 'Traffic source, country, device, and browser insights' },
+    { icon: Target, text: 'Goals and funnels to track conversion performance' },
     { icon: Shield, text: 'Privacy-first, GDPR compliant, no cookies' },
 ];
 
@@ -236,7 +235,7 @@ function SignUpFlow() {
                     Start tracking in 2 minutes.
                 </h1>
                 <p className="text-muted-foreground mb-10 max-w-md leading-relaxed">
-                    Create your free account and add your first website. No credit card required. Understand every click, scroll, and conversion.
+                    Create your free account and add your first website. No credit card required. Understand traffic and conversions clearly.
                 </p>
 
                 <div className="space-y-5">
@@ -506,7 +505,7 @@ function SignUpFlow() {
                 onOpenChange={(open) => {
                     setShowTrackingModal(open);
                     if (!open) {
-                        router.push('/workspace');
+                        router.push('/websites');
                     }
                 }}
                 siteId={newWebsiteId}

@@ -24,75 +24,73 @@ export default function LandingHeader() {
 
   const navLinks = [
     { name: 'Features', href: '#features' },
+    { name: 'Docs', href: '/docs' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'FAQ', href: '#faq' },
   ];
 
   return (
     <header
-      className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${scrolled
-        ? 'top-0 bg-background/80 border-b border-border/40 backdrop-blur-md h-16'
-        : 'top-0 bg-transparent h-20'
-        }`}
+      className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${
+        scrolled
+          ? 'top-0 bg-background/70 border-b border-border/30 backdrop-blur-xl h-14'
+          : 'top-0 bg-transparent h-16'
+      }`}
     >
-      <div className="container mx-auto px-6 h-full flex items-center justify-between relative">
-        <Link href="/" className="flex items-center gap-2">
-          <Logo size="md" />
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-base font-bold text-foreground tracking-tight">Seentics</span>
-            <span className="text-xs font-medium text-muted-foreground">Analytics</span>
-          </div>
+      <div className="container mx-auto px-6 h-full flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2 shrink-0">
+          <Logo size="sm" />
+          <span className="font-bold text-sm text-foreground tracking-tight">Seentics</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
+        {/* Desktop Nav */}
+        <nav className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
           {navLinks.map((link) => (
             <Link
               key={link.name}
               href={link.href}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               {link.name}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
+        {/* Right section */}
+        <div className="flex items-center gap-3 ml-auto">
           <Link
             href="https://github.com/Seentics/seentics"
             target="_blank"
-            className="hidden md:flex p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+            className="hidden sm:flex p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
             title="GitHub"
           >
             <Github className="h-4 w-4" />
           </Link>
           <ThemeToggle />
-          <div className="hidden sm:flex items-center gap-2 ml-1">
-            {isAuthenticated ? (
-              <Link href="/websites">
-                <Button size="sm" className="h-8 px-4 text-xs font-medium rounded-md">
-                  Dashboard
+          {isAuthenticated ? (
+            <Link href="/websites">
+              <Button size="sm" className="h-8 px-4 text-xs font-semibold rounded-md">
+                Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <>
+              <Link href="/signin" className="hidden sm:block">
+                <Button variant="ghost" size="sm" className="h-8 px-3 text-xs font-medium">
+                  Sign in
                 </Button>
               </Link>
-            ) : (
-              <>
-                <Link href="/signin">
-                  <Button variant="ghost" size="sm" className="h-8 px-3 text-xs font-medium text-muted-foreground hover:text-foreground">
-                    Log in
-                  </Button>
-                </Link>
-                <Link href="/signup">
-                  <Button size="sm" className="h-8 px-4 text-xs font-semibold rounded-full">
-                    Get Started
-                  </Button>
-                </Link>
-              </>
-            )}
-          </div>
-
+              <Link href="/signup">
+                <Button size="sm" className="h-8 px-4 text-xs font-semibold rounded-md">
+                  Get Started
+                </Button>
+              </Link>
+            </>
+          )}
           <button
-            className="md:hidden p-1.5 rounded-md hover:bg-accent text-foreground transition-colors"
+            className="lg:hidden p-1.5 hover:bg-accent rounded-md transition-colors"
             onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
           </button>

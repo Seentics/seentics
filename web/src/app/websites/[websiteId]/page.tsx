@@ -35,8 +35,7 @@ import {
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
-import { Download, Globe, PlusCircle, Users, Target, X, Gauge, Settings, GitBranch, Building, ArrowUpRight, Video, Zap, MessageSquare, Activity, CreditCard, Key, Filter, Route, Shield, Code, BarChart3, Eye } from 'lucide-react';
-import { Separator } from '@/components/ui/separator';
+import { Download, Globe, PlusCircle, Users, Target, X, Gauge, Settings, GitBranch, Activity, Filter, Route, Shield, Code, BarChart3, Eye } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
@@ -91,7 +90,6 @@ export default function WebsiteDashboardPage() {
   const [modalType, setModalType] = useState<string>('');
   const [showAddWebsiteModal, setShowAddWebsiteModal] = useState(false);
   const [showAddGoalModal, setShowAddGoalModal] = useState(false);
-  const [wsModalOpen, setWsModalOpen] = useState(false);
 
   // Filter state
   const [dateRange, setDateRange] = useState<number>(7);
@@ -493,13 +491,13 @@ export default function WebsiteDashboardPage() {
             activeFiltersCount={Object.keys(advancedFilters).length}
           />
 
-          {/* Workspace */}
+          {/* Settings */}
           <button
-            onClick={() => setWsModalOpen(true)}
-            className="h-8 px-3 flex items-center gap-2 bg-primary/10 hover:bg-primary/15 transition-colors rounded-md border border-primary/20 text-[11px] font-semibold text-primary"
+            onClick={() => router.push(`/websites/${websiteId}/settings`)}
+            className="h-8 px-3 flex items-center gap-2 bg-card/60 hover:bg-card transition-colors rounded-md border border-border/50 text-[11px] font-semibold text-foreground"
           >
-            <Building className="h-3.5 w-3.5" />
-            <span>Workspace</span>
+            <Settings className="h-3.5 w-3.5" />
+            <span>Settings</span>
           </button>
 
           {/* Theme */}
@@ -800,125 +798,6 @@ export default function WebsiteDashboardPage() {
         onOpenChange={setShowAddGoalModal}
         websiteId={websiteId}
       />
-
-      {/* Workspace Modal */}
-      {wsModalOpen && (() => {
-        const AUTH_URL = process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:3020';
-        const SUITE_DOMAIN = process.env.NEXT_PUBLIC_SUITE_DOMAIN || 'seentics.com';
-        const mkSwitch = (sub: string, port: string) => {
-          const t = (SUITE_DOMAIN === 'localhost' || SUITE_DOMAIN.includes('localhost'))
-            ? `http://localhost:${port}` : `https://${sub}.${SUITE_DOMAIN}`;
-          return `${AUTH_URL}/switch?to=${encodeURIComponent(t)}`;
-        };
-        return (
-          <div className="fixed inset-0 z-[200]" onClick={() => setWsModalOpen(false)}>
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
-            <div
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] max-w-[95vw] max-h-[88vh] bg-card border border-border/50 rounded-2xl shadow-2xl overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between px-6 py-4 bg-accent/30">
-                <div className="flex items-center gap-3">
-                  <Logo size="md" />
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground">Seentics Analytics</h3>
-                    <p className="text-[11px] text-muted-foreground">Command center</p>
-                  </div>
-                </div>
-                <button onClick={() => setWsModalOpen(false)} className="p-2 rounded-lg hover:bg-accent transition-colors">
-                  <X size={16} className="text-muted-foreground" />
-                </button>
-              </div>
-
-              {/* Two-column body */}
-              <div className="grid grid-cols-2 divide-x divide-border/40">
-                {/* Left: Analytics actions */}
-                <div className="p-4">
-                  <p className="px-2 pb-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Analytics</p>
-
-                  <div className="space-y-0.5">
-                    <button
-                      onClick={() => { handleExportCSV(); setWsModalOpen(false); }}
-                      className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-accent transition-colors text-left"
-                    >
-                      <Download size={15} className="shrink-0 text-blue-500" />
-                      <span className="text-[13px] font-medium text-foreground">Export CSV</span>
-                    </button>
-
-                    {[
-                      { name: 'Realtime', icon: Activity, href: `/websites/${websiteId}/realtime`, color: 'text-emerald-500' },
-                      { name: 'Privacy', icon: Shield, href: `/websites/${websiteId}/privacy`, color: 'text-sky-500' },
-                      { name: 'Site Settings', icon: Settings, href: `/websites/${websiteId}/settings`, color: 'text-gray-500' },
-                    ].map((item) => (
-                      <a
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setWsModalOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-accent transition-colors"
-                      >
-                        <item.icon size={15} className={`shrink-0 ${item.color}`} />
-                        <span className="text-[13px] font-medium text-foreground">{item.name}</span>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Right: Products + Workspace */}
-                <div className="p-4 overflow-y-auto max-h-[60vh]">
-                  <p className="px-2 pb-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Switch Product</p>
-
-                  <div className="grid grid-cols-2 gap-2 mb-4">
-                    {[
-                      { name: 'Replays', icon: Video, sub: 'replays', port: '3007', color: 'bg-purple-500/10', iconColor: 'text-purple-500' },
-                      { name: 'Automation', icon: Zap, sub: 'automation', port: '3009', color: 'bg-amber-500/10', iconColor: 'text-amber-500' },
-                      { name: 'Feedback', icon: MessageSquare, sub: 'feedback', port: '3005', color: 'bg-emerald-500/10', iconColor: 'text-emerald-500' },
-                      { name: 'Status', icon: Activity, sub: 'status', port: '3001', color: 'bg-rose-500/10', iconColor: 'text-rose-500' },
-                    ].map((p) => (
-                      <div
-                        key={p.sub}
-                        className="flex flex-col items-center gap-2 p-3 rounded-xl border border-border/40 bg-accent/5 opacity-50 cursor-not-allowed group relative"
-                      >
-                        <div className={`w-9 h-9 rounded-lg ${p.color} flex items-center justify-center`}>
-                          <p.icon size={17} className={p.iconColor} />
-                        </div>
-                        <span className="text-xs font-semibold text-foreground">{p.name}</span>
-                        <span className="absolute top-1 right-1 text-[8px] font-bold uppercase tracking-tighter bg-background/80 px-1 rounded border border-border/30">Soon</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <Separator className="my-3" />
-
-                  <p className="px-2 pb-3 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Workspace</p>
-
-                  <div className="space-y-0.5">
-                    {[
-                      { name: 'Dashboard', icon: Building, href: '/workspace' },
-                      { name: 'Team', icon: Users, href: '/workspace/members' },
-                      { name: 'Billing', icon: CreditCard, href: '/workspace/billing' },
-                      { name: 'API Keys', icon: Key, href: '/workspace/api-keys' },
-                      { name: 'Settings', icon: Settings, href: '/workspace/settings' },
-                    ].map((item) => (
-                      <a
-                        key={item.href}
-                        href={`${AUTH_URL}${item.href}`}
-                        className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-accent transition-colors group/ws"
-                      >
-                        <span className="flex items-center gap-2.5">
-                          <item.icon size={14} className="text-muted-foreground" />
-                          <span className="text-[13px] font-medium text-foreground">{item.name}</span>
-                        </span>
-                        <ArrowUpRight size={11} className="text-muted-foreground/30 group-hover/ws:text-foreground transition-colors" />
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }

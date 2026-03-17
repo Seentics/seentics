@@ -46,7 +46,7 @@ function GoogleAuthCallback() {
               description: "Successfully signed in with Google.",
             });
 
-            router.push('/workspace');
+            router.push('/websites');
           } else if (response.status === 307 || response.status === 302) {
             // If the backend returned a redirect (which it shouldn't if called via API, 
             // but just in case it was a direct hit that the proxy handled)
