@@ -5,7 +5,7 @@
 <h1 align="center">Seentics</h1>
 
 <p align="center">
-  Open-source, privacy-first web analytics with heatmaps, session replays, funnels, and behavioral automations.
+  Open-source, privacy-first web analytics for product teams and developers.
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@
 
 ## What is Seentics?
 
-Seentics is a self-hosted web analytics platform that goes beyond page views. It gives you real-time traffic data, visual heatmaps, full session replays, conversion funnels, and the ability to trigger automations based on visitor behavior — all without cookies or fingerprinting.
+Seentics is a self-hosted web analytics platform focused on actionable product and marketing insights. It gives you real-time traffic analytics, audience breakdowns, top pages, sources, goals, funnels, and a developer-friendly API/UI layer — all without cookies or fingerprinting.
 
 You own your data. Deploy it on your own server in minutes with Docker.
 
@@ -44,15 +44,13 @@ You own your data. Deploy it on your own server in minutes with Docker.
 
 **Real-time Analytics** — Live visitors, page views, bounce rate, session duration, traffic sources, devices, browsers, countries, and more. Filter by any date range.
 
-**Heatmaps** — See where users click and how far they scroll. Supports desktop, tablet, and mobile viewports. Works on any page without code changes.
-
-**Session Replays** — Watch full session recordings to understand user behavior, find bugs, and improve UX. Stored in S3-compatible storage with automatic PII masking.
-
 **Funnels** — Build multi-step conversion funnels to see exactly where users drop off in your signup, checkout, or onboarding flow.
 
 **Goal Tracking** — Track custom events and page visit goals. Auto-track clicks on CSS selectors or fire events manually with `seentics.track('event_name')`.
 
-**Behavioral Automations** — Trigger popups, banners, webhooks, or custom JavaScript based on real-time visitor behavior like exit intent, scroll depth, or time on page.
+**Developer APIs** — Query analytics data from REST endpoints and integrate it into your own tools, services, and internal dashboards.
+
+**Reusable UI Components** — Plug analytics components into your frontend quickly for summary cards, trends, and top breakdowns.
 
 **Privacy First** — No cookies. No fingerprinting. No PII collection. GDPR and PECR compliant by design.
 
@@ -66,7 +64,6 @@ You own your data. Deploy it on your own server in minutes with Docker.
 | Frontend | Next.js 14, Tailwind CSS, shadcn/ui |
 | Analytics DB | ClickHouse |
 | Metadata DB | PostgreSQL 15 |
-| Object Storage | S3-compatible (MinIO for local dev) |
 | Cache & Queue | Redis 7 (caching, rate limiting, event streams) |
 
 ---
@@ -130,7 +127,7 @@ seentics/
 ├── core/                   # Go backend API
 │   ├── cmd/api/            # Entry point
 │   ├── internal/
-│   │   ├── modules/        # Analytics, heatmaps, replays, funnels, automations
+│   │   ├── modules/        # Analytics, tracker, funnels, auth, websites
 │   │   └── shared/         # Database, config, middleware
 │   └── data/trackers/      # Tracking scripts served to sites
 ├── web/                    # Next.js frontend
@@ -151,7 +148,7 @@ seentics/
 docker compose up -d --build
 ```
 
-This starts PostgreSQL, ClickHouse, MinIO, and both the backend and frontend in development mode with hot reloading.
+This starts PostgreSQL, ClickHouse, Redis, and both the backend and frontend in development mode with hot reloading.
 
 ### Production
 
@@ -176,7 +173,6 @@ cp core/.env.example core/.env   # Edit with your production values
 | `CLICKHOUSE_HOST` | ClickHouse server address | `localhost` |
 | `CLICKHOUSE_DB` | ClickHouse database name | `seentics` |
 | `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
-| `S3_ENDPOINT` | S3/MinIO endpoint for replays | `http://minio:9000` |
 | `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | `http://localhost:3000` |
 
 See [`core/.env.example`](core/.env.example) for the full list.
@@ -196,12 +192,9 @@ Browser ──→ Next.js Frontend (:3000)
   (cache, streams,    │         │
    rate limiting)  ClickHouse  PostgreSQL
                     (events)   (metadata)
-                        │
-                      MinIO
-                    (replays)
 ```
 
-The tracking script (`seentics.js`) is served by the Go backend and sends events directly to it. Events and heatmap points are published to **Redis Streams** and consumed in batches by background workers, which write to ClickHouse. Redis also handles caching, sliding-window rate limiting, and heatmap URL quota enforcement via atomic Lua scripts. Session replay data is stored in S3-compatible storage, and PostgreSQL holds user accounts, website configs, goals, and automation rules.
+The tracking script (`seentics.js`) is served by the Go backend and sends events directly to it. Events are published to **Redis Streams** and consumed in batches by background workers, which write to ClickHouse. Redis also handles caching and sliding-window rate limiting, while PostgreSQL stores user accounts, website configs, goals, and other metadata.
 
 ---
 
