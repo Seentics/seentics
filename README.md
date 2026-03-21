@@ -5,7 +5,7 @@
 <h1 align="center">Seentics</h1>
 
 <p align="center">
-  Open-source, privacy-first web analytics with heatmaps, session replays, funnels, and behavioral automations.
+  Open-source, privacy-first web analytics with heatmaps, session replays, funnels, behavioral automations, reusable UIs, and robust APIs.
 </p>
 
 <p align="center">
@@ -34,7 +34,7 @@
 
 ## What is Seentics?
 
-Seentics is a self-hosted web analytics platform that goes beyond page views. It gives you real-time traffic data, visual heatmaps, full session replays, conversion funnels, and the ability to trigger automations based on visitor behavior — all without cookies or fingerprinting.
+Seentics is a self-hosted web analytics platform that goes beyond page views. It gives you real-time traffic data, visual heatmaps, full session replays, conversion funnels, and the ability to trigger automations based on visitor behavior — all without cookies or fingerprinting. It also offers reusable UIs and comprehensive APIs for seamless integration.
 
 You own your data. Deploy it on your own server in minutes with Docker.
 
@@ -53,6 +53,10 @@ You own your data. Deploy it on your own server in minutes with Docker.
 **Goal Tracking** — Track custom events and page visit goals. Auto-track clicks on CSS selectors or fire events manually with `seentics.track('event_name')`.
 
 **Behavioral Automations** — Trigger popups, banners, webhooks, or custom JavaScript based on real-time visitor behavior like exit intent, scroll depth, or time on page.
+
+**Reusable UIs** — Ready-to-use, customizable UI components and layout systems to quickly build out your own dashboards and interfaces.
+
+**APIs** — Comprehensive RESTful APIs to integrate analytics data into your own applications and manage settings programmatically.
 
 **Privacy First** — No cookies. No fingerprinting. No PII collection. GDPR and PECR compliant by design.
 
