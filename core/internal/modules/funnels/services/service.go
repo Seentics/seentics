@@ -1,11 +1,12 @@
 package services
 
 import (
+	"context"
+	"fmt"
+
 	"github.com/Seentics/seentics/internal/modules/funnels/models"
 	"github.com/Seentics/seentics/internal/modules/funnels/repository"
 	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
-	"context"
-	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -63,11 +64,19 @@ func (s *FunnelService) ListFunnelsPaginated(ctx context.Context, websiteID stri
 		return nil, 0, fmt.Errorf("failed to list funnels: %w", err)
 	}
 
-	// Enrich with stats
-	for i := range funnels {
-		stats, err := s.repo.GetFunnelStats(ctx, funnels[i].ID, funnels[i].WebsiteID)
+	// Batch load stats for all funnels in one Postgres query
+	if len(funnels) > 0 {
+		funnelIDs := make([]string, len(funnels))
+		for i := range funnels {
+			funnelIDs[i] = funnels[i].ID
+		}
+		statsMap, err := s.repo.GetBatchFunnelSummaryStats(ctx, funnelIDs)
 		if err == nil {
-			funnels[i].Stats = stats
+			for i := range funnels {
+				if stats, ok := statsMap[funnels[i].ID]; ok {
+					funnels[i].Stats = stats
+				}
+			}
 		}
 	}
 
@@ -98,18 +107,36 @@ func (s *FunnelService) TrackFunnelEvent(ctx context.Context, req *models.TrackF
 	if err != nil {
 		return fmt.Errorf("website not found")
 	}
-
 	if !s.websites.ValidateOriginDomain(origin, w.URL) {
 		return fmt.Errorf("domain mismatch")
 	}
-
 	if !w.FunnelEnabled {
 		return fmt.Errorf("funnel tracking is disabled for this website")
 	}
+	return s.repo.TrackFunnelEvent(ctx, req)
+}
 
-	// For now, these events are primarily used for real-time calculation in GetFunnelStats
-	// which looks at the main 'events' table. We could record them separately if needed.
-	return nil
+// TrackFunnelEventBatch validates the website once then batch-inserts all events.
+// Compared to calling TrackFunnelEvent N times this saves N-1 DB round-trips.
+func (s *FunnelService) TrackFunnelEventBatch(ctx context.Context, siteID string, events []models.TrackFunnelEventRequest, origin string) error {
+	if len(events) == 0 {
+		return nil
+	}
+	w, err := s.websites.GetWebsiteBySiteID(ctx, siteID)
+	if err != nil {
+		return fmt.Errorf("website not found")
+	}
+	if !s.websites.ValidateOriginDomain(origin, w.URL) {
+		return fmt.Errorf("domain mismatch")
+	}
+	if !w.FunnelEnabled {
+		return fmt.Errorf("funnel tracking is disabled for this website")
+	}
+	canonicalID := w.SiteID
+	for i := range events {
+		events[i].WebsiteID = canonicalID
+	}
+	return s.repo.BatchTrackFunnelEvents(ctx, events)
 }
 
 // GetFunnel retrieves a funnel by ID
@@ -125,7 +152,7 @@ func (s *FunnelService) GetFunnel(ctx context.Context, id string, userID string)
 	}
 
 	// Enrich with stats
-	stats, err := s.GetFunnelStats(ctx, funnel.ID)
+	stats, err := s.GetFunnelStats(ctx, funnel.ID, funnel.WebsiteID)
 	if err == nil {
 		funnel.Stats = stats
 	}
@@ -186,29 +213,15 @@ func (s *FunnelService) DeleteFunnel(ctx context.Context, id string, userID stri
 
 // DeleteFunnels removes multiple funnels at once
 func (s *FunnelService) DeleteFunnels(ctx context.Context, ids []string, userID string) error {
-	validIDs := []string{}
-	for _, id := range ids {
-		_, err := s.GetFunnel(ctx, id, userID)
-		if err == nil {
-			validIDs = append(validIDs, id)
-		}
+	validIDs, err := s.repo.FilterIDsByUser(ctx, ids, userID)
+	if err != nil || len(validIDs) == 0 {
+		return err
 	}
-
-	if len(validIDs) == 0 {
-		return nil
-	}
-
 	return s.repo.DeleteFunnels(ctx, validIDs)
 }
 
-// GetFunnelStats aggregated funnel performance stats
-func (s *FunnelService) GetFunnelStats(ctx context.Context, id string) (*models.FunnelStats, error) {
-	// Retrieve funnel to get websiteID
-	funnel, err := s.repo.GetFunnelByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	// Call repository for real-time stats
-	return s.repo.GetFunnelStats(ctx, funnel.ID, funnel.WebsiteID)
+// GetFunnelStats returns real-time performance stats for a funnel.
+// websiteID must be the canonical site ID stored on the funnel row.
+func (s *FunnelService) GetFunnelStats(ctx context.Context, id string, websiteID string) (*models.FunnelStats, error) {
+	return s.repo.GetFunnelStats(ctx, id, websiteID)
 }

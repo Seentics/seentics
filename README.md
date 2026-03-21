@@ -34,7 +34,7 @@
 
 ## What is Seentics?
 
-Seentics is a self-hosted web analytics platform that goes beyond page views. It gives you real-time traffic data, visual heatmaps, full session replays, conversion funnels, and the ability to trigger automations based on visitor behavior — all without cookies or fingerprinting. It also offers reusable UIs and comprehensive APIs for seamless integration.
+Seentics is a self-hosted web analytics platform focused on actionable product and marketing insights. It gives you real-time traffic data, visual heatmaps, full session replays, conversion funnels, and the ability to trigger automations based on visitor behavior — all without cookies or fingerprinting. It also offers reusable UI components and robust APIs for seamless integration into your own applications.
 
 You own your data. Deploy it on your own server in minutes with Docker.
 
@@ -54,9 +54,9 @@ You own your data. Deploy it on your own server in minutes with Docker.
 
 **Behavioral Automations** — Trigger popups, banners, webhooks, or custom JavaScript based on real-time visitor behavior like exit intent, scroll depth, or time on page.
 
-**Reusable UIs** — Ready-to-use, customizable UI components and layout systems to quickly build out your own dashboards and interfaces.
+**Reusable UIs** — Plug analytics components into your frontend quickly for summary cards, trends, and top breakdowns. Customizable UI components and layout systems.
 
-**APIs** — Comprehensive RESTful APIs to integrate analytics data into your own applications and manage settings programmatically.
+**Developer APIs** — Comprehensive RESTful APIs to integrate analytics data into your own applications and manage settings programmatically.
 
 **Privacy First** — No cookies. No fingerprinting. No PII collection. GDPR and PECR compliant by design.
 
@@ -71,7 +71,7 @@ You own your data. Deploy it on your own server in minutes with Docker.
 | Analytics DB | ClickHouse |
 | Metadata DB | PostgreSQL 15 |
 | Object Storage | S3-compatible (MinIO for local dev) |
-| Caching | [CacheGrid](https://github.com/skshohagmiah/cachegrid) (embedded Go cache) |
+| Cache & Queue | Redis 7 (caching, rate limiting, event streams) |
 
 ---
 
@@ -155,7 +155,7 @@ seentics/
 docker compose up -d --build
 ```
 
-This starts PostgreSQL, ClickHouse, MinIO, and both the backend and frontend in development mode with hot reloading.
+This starts PostgreSQL, ClickHouse, Redis, MinIO, and both the backend and frontend in development mode with hot reloading.
 
 ### Production
 
@@ -179,6 +179,7 @@ cp core/.env.example core/.env   # Edit with your production values
 | `JWT_SECRET` | Secret key for auth tokens | Required |
 | `CLICKHOUSE_HOST` | ClickHouse server address | `localhost` |
 | `CLICKHOUSE_DB` | ClickHouse database name | `seentics` |
+| `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
 | `S3_ENDPOINT` | S3/MinIO endpoint for replays | `http://minio:9000` |
 | `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | `http://localhost:3000` |
 
@@ -195,11 +196,14 @@ Browser ──→ Next.js Frontend (:3000)
                   │
     ┌─────────────┼─────────────┐
     │             │             │
-ClickHouse    PostgreSQL     MinIO
- (events)     (metadata)   (replays)
+ClickHouse    PostgreSQL      Redis
+ (events)     (metadata)    (cache, streams)
+                  │
+                MinIO
+               (replays)
 ```
 
-The tracking script (`seentics.js`) is served by the Go backend and sends events directly to it. The backend processes events into ClickHouse for analytics queries, stores session replay data in S3-compatible storage, and uses PostgreSQL for user accounts, website configs, goals, and automation rules.
+The tracking script (`seentics.js`) is served by the Go backend and sends events directly to it. Events are published to **Redis Streams** and consumed in batches by background workers, which write to ClickHouse. Redis also handles caching and sliding-window rate limiting, while PostgreSQL stores user accounts, website configs, goals, and other metadata. Session replays are stored in S3-compatible storage (MinIO).
 
 ---
 

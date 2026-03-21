@@ -3,16 +3,17 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Zap, Crown, ArrowRight, X, Sparkles, Rocket } from 'lucide-react';
+import { CheckCircle, Crown, ArrowRight, X, Rocket, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/stores/useAuthStore';
 import api from '@/lib/api';
+import { openCheckout } from '@/lib/checkout';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
 
 interface UpgradePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentPlan: 'free' | 'basic' | 'pro' | 'enterprise';
+  currentPlan: string;
   limitType: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'replays' | 'monthlyEvents';
   currentUsage: number;
   limit: number;
@@ -21,84 +22,103 @@ interface UpgradePlanModalProps {
 const planDetails = {
   basic: {
     name: 'Basic',
-    price: '$15',
-    period: '/mo',
+    priceMonthly: 15,
+    priceYearly: 12,
+    priceYearlyTotal: 144,
     icon: Rocket,
     color: 'teal',
     features: [
-      "3 Websites",
-      "100,000 Monthly Events", 
-      "3,000 Session Recordings",
-      "10 Heatmap Pages",
-      "5 Funnels",
-      "5 Automations",
-      "1 Month Recording Retention",
-      "1 Year Analytics Retention",
-      "Email Support"
+      '3 Websites',
+      '100,000 Monthly Events',
+      '3,000 Session Recordings',
+      '20 Heatmap Pages',
+      '10 Funnels & Automations',
+      '1 Year Analytics Retention',
+      'Email Support',
     ],
-    buttonText: 'Upgrade to Basic'
+    buttonText: 'Get Basic',
+  },
+  growth: {
+    name: 'Growth',
+    priceMonthly: 29,
+    priceYearly: 23,
+    priceYearlyTotal: 276,
+    icon: TrendingUp,
+    color: 'violet',
+    popular: true,
+    features: [
+      '5 Websites',
+      '300,000 Monthly Events',
+      '10,000 Session Recordings',
+      'Unlimited Heatmaps',
+      '10 Funnels & Automations',
+      '2 Year Analytics Retention',
+      'Raw Data API Access',
+      'Email Support',
+    ],
+    buttonText: 'Get Growth',
   },
   pro: {
     name: 'Pro',
-    price: '$49',
-    period: '/mo',
+    priceMonthly: 59,
+    priceYearly: 47,
+    priceYearlyTotal: 564,
     icon: Crown,
-    color: 'purple',
-    features: [
-      "15 Websites",
-      "1,000,000 Monthly Events",
-      "25,000 Session Recordings",
-      "Unlimited Heatmaps",
-      "Unlimited Funnels",
-      "Unlimited Automations",
-      "3 Month Recording Retention",
-      "3 Year Analytics Retention",
-      "Priority Support"
-    ],
-    buttonText: 'Upgrade to Pro'
-  },
-  enterprise: {
-    name: 'Enterprise',
-    price: '$0 base + usage',
-    period: 'Pay-as-you-go',
-    icon: Sparkles,
     color: 'amber',
     features: [
-      'No Base Fee — Pure Pay-As-You-Go',
-      '5 Websites Included, then $2/site/mo',
-      '100K Events Included, then $1.50/1K events',
-      '5K Recordings Included, then $5/1K recordings',
-      "Unlimited Heatmaps",
-      "Unlimited Funnels & Automations",
-      "7 Year Analytics Retention",
-      "3 Month Recording Retention",
-      "White Label & Client Management",
-      "Dedicated Support"
+      '15 Websites',
+      '1,000,000 Monthly Events',
+      '25,000 Session Recordings',
+      'Unlimited Heatmaps',
+      'Unlimited Funnels & Automations',
+      '3 Year Analytics Retention',
+      'Raw Data API Access',
+      'Team Management',
+      'Priority Support',
     ],
-    buttonText: 'Start Usage-Based'
-  }
+    buttonText: 'Get Pro',
+  },
 };
 
 const limitMessages: Record<string, string> = {
-  websites: 'You\'ve reached your website limit',
-  workflows: 'You\'ve reached your automation limit',
-  funnels: 'You\'ve reached your funnel limit',
-  heatmaps: 'You\'ve reached your heatmap limit',
-  replays: 'You\'ve reached your session recording limit',
-  monthlyEvents: 'You\'ve reached your monthly events limit'
+  websites: "You've reached your website limit",
+  workflows: "You've reached your automation limit",
+  funnels: "You've reached your funnel limit",
+  heatmaps: "You've reached your heatmap limit",
+  replays: "You've reached your session recording limit",
+  monthlyEvents: "You've reached your monthly events limit",
+};
+
+const limitLabels: Record<string, string> = {
+  websites: 'websites',
+  workflows: 'automations',
+  funnels: 'funnels',
+  heatmaps: 'heatmap pages',
+  replays: 'session recordings',
+  monthlyEvents: 'monthly events',
+};
+
+const formatNum = (n: number) => {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  return n.toLocaleString();
 };
 
 declare global {
   interface Window {
     createLemonSqueezy?: () => void;
     LemonSqueezy?: {
-      Url: {
-        Open: (url: string) => void;
-      };
+      Url: { Open: (url: string) => void };
       Setup: () => void;
     };
   }
 }
+
+const colorMap: Record<string, { bg: string; hover: string; check: string; border: string; light: string }> = {
+  teal:   { bg: 'bg-teal-500',   hover: 'hover:bg-teal-600',   check: 'text-teal-500',   border: 'border-teal-500',   light: 'bg-teal-500/10' },
+  violet: { bg: 'bg-indigo-500', hover: 'hover:bg-indigo-600', check: 'text-indigo-500', border: 'border-indigo-500', light: 'bg-indigo-500/10' },
+  amber:  { bg: 'bg-amber-500',  hover: 'hover:bg-amber-600',  check: 'text-amber-500',  border: 'border-amber-500',  light: 'bg-amber-500/10' },
+};
 
 export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   isOpen,
@@ -106,22 +126,17 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
   currentPlan,
   limitType,
   currentUsage,
-  limit
+  limit,
 }) => {
   if (!isEnterprise) return null;
 
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = React.useState(false);
+  const [billing, setBilling] = React.useState<'monthly' | 'yearly'>('monthly');
 
-  React.useEffect(() => {
-    if (window.createLemonSqueezy) {
-      window.createLemonSqueezy();
-    }
-  }, [isOpen]);
+  const upgradePlans = (['basic', 'growth', 'pro'] as const).filter(p => p !== currentPlan);
 
-  const upgradePlans = ['basic', 'pro', 'enterprise'] as const;
-
-  const handleUpgrade = async (plan: 'basic' | 'pro' | 'enterprise') => {
+  const handleUpgrade = async (plan: 'basic' | 'growth' | 'pro') => {
     if (!isAuthenticated) {
       window.location.href = '/signin';
       return;
@@ -129,35 +144,11 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
 
     try {
       setLoading(true);
-
-      const response = await api.post('/user/billing/checkout', { plan });
+      const response = await api.post('/user/billing/checkout', { plan, billing });
 
       if (response.data.success && response.data.data.checkoutUrl) {
-        let checkoutUrl = response.data.data.checkoutUrl;
-
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          if (!checkoutUrl.includes('test=1')) {
-            checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
-          }
-        }
-
-        if (!checkoutUrl.includes('embed=1')) {
-          checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
-        }
-
-        const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
-        if (!checkoutUrl.includes('checkout[success_url]')) {
-          checkoutUrl += `&checkout[success_url]=${successUrl}`;
-        }
-
-        if (window.LemonSqueezy) {
-          onClose();
-          setTimeout(() => {
-            window.LemonSqueezy?.Url.Open(checkoutUrl);
-          }, 100);
-        } else {
-          window.location.href = checkoutUrl;
-        }
+        onClose();
+        openCheckout(response.data.data.checkoutUrl);
       } else {
         throw new Error(response.data.message || 'Failed to create checkout session');
       }
@@ -169,17 +160,10 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
     }
   };
 
-  const colorMap: Record<string, { bg: string; hover: string; check: string }> = {
-    teal: { bg: 'bg-teal-500', hover: 'hover:bg-teal-600', check: 'text-teal-500' },
-    indigo: { bg: 'bg-indigo-500', hover: 'hover:bg-indigo-600', check: 'text-indigo-500' },
-    purple: { bg: 'bg-purple-500', hover: 'hover:bg-purple-600', check: 'text-purple-500' },
-    amber: { bg: 'bg-amber-500', hover: 'hover:bg-amber-600', check: 'text-amber-500' },
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto w-[95vw]">
-        <DialogHeader className="relative">
+      <DialogContent className="max-w-4xl max-h-[95vh] overflow-y-auto w-[95vw]">
+        <DialogHeader className="relative pb-0">
           <Button
             variant="ghost"
             size="sm"
@@ -188,54 +172,108 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
           >
             <X className="h-4 w-4" />
           </Button>
-          <DialogTitle className="text-xl font-semibold text-center mb-2">
+          <DialogTitle className="text-xl font-semibold text-center">
             Upgrade Your Plan
           </DialogTitle>
-          <div className="text-center">
+          <div className="text-center mt-1.5">
             <p className="text-sm text-red-500 font-medium mb-1">
               {limitMessages[limitType]}
             </p>
             <p className="text-xs text-muted-foreground">
-              You're using <span className="font-medium text-foreground">{currentUsage} of {limit}</span> {limitType}. Upgrade to continue growing.
+              You're using{' '}
+              <span className="font-medium text-foreground">
+                {formatNum(currentUsage)} of {formatNum(limit)}
+              </span>{' '}
+              {limitLabels[limitType] ?? limitType}. Upgrade to continue growing.
             </p>
           </div>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-6">
+        {/* Billing toggle */}
+        <div className="flex items-center justify-center gap-3 mt-5">
+          <button
+            onClick={() => setBilling('monthly')}
+            className={cn(
+              "text-sm font-medium transition-colors",
+              billing === 'monthly' ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Monthly
+          </button>
+          <button
+            onClick={() => setBilling(billing === 'monthly' ? 'yearly' : 'monthly')}
+            className={cn(
+              "relative w-10 h-5 rounded-full transition-colors focus:outline-none",
+              billing === 'yearly' ? "bg-primary" : "bg-muted"
+            )}
+            aria-label="Toggle billing period"
+          >
+            <span className={cn(
+              "absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+              billing === 'yearly' && "translate-x-5"
+            )} />
+          </button>
+          <button
+            onClick={() => setBilling('yearly')}
+            className={cn(
+              "text-sm font-medium transition-colors flex items-center gap-1.5",
+              billing === 'yearly' ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            Yearly
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+              Save 20%
+            </span>
+          </button>
+        </div>
+
+        <div className={cn(
+          "grid gap-4 mt-5",
+          upgradePlans.length === 3 ? "grid-cols-1 md:grid-cols-3" :
+          upgradePlans.length === 2 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"
+        )}>
           {upgradePlans.map((planKey) => {
             const plan = planDetails[planKey];
             const PlanIcon = plan.icon;
-            const isRecommended = planKey === 'growth';
-            const isCurrent = currentPlan === planKey;
             const colors = colorMap[plan.color];
+            const displayPrice = billing === 'yearly' ? plan.priceYearly : plan.priceMonthly;
 
             return (
               <div key={planKey} className="relative">
-                {isRecommended && (
+                {'popular' in plan && plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
                     <span className={cn("text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full text-white", colors.bg)}>
-                      Recommended
+                      Most Popular
                     </span>
                   </div>
                 )}
 
                 <div className={cn(
-                  "h-full flex flex-col rounded-xl border bg-card p-6 transition-all duration-300",
-                  isCurrent ? 'border-primary/20 bg-primary/5' :
-                  isRecommended ? 'border-2 border-indigo-500 shadow-md' : 'border-border/60'
+                  "h-full flex flex-col rounded-xl border bg-card p-5 transition-all duration-200",
+                  'popular' in plan && plan.popular
+                    ? `border-2 ${colors.border} shadow-md`
+                    : 'border-border/60'
                 )}>
-                  <div className="text-center mb-5">
-                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-3", `${colors.bg}/10`)}>
-                      <PlanIcon className={cn("h-5 w-5", colors.check)} />
+                  <div className="mb-4">
+                    <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center mb-3", colors.light)}>
+                      <PlanIcon className={cn("h-4 w-4", colors.check)} />
                     </div>
-                    <h3 className="text-lg font-semibold mb-1">{plan.name}</h3>
-                    <div className="flex items-baseline justify-center gap-1">
-                      <span className="text-3xl font-bold tracking-tight">{plan.price}</span>
-                      <span className="text-sm text-muted-foreground">{plan.period}</span>
+                    <h3 className="text-base font-semibold">{plan.name}</h3>
+                    <div className="flex items-baseline gap-1 mt-1">
+                      <span className="text-2xl font-bold tracking-tight">${displayPrice}</span>
+                      <span className="text-xs text-muted-foreground">/mo</span>
                     </div>
+                    {billing === 'yearly' && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        ${plan.priceYearlyTotal}/yr
+                        <span className="ml-1 text-emerald-600 font-medium">
+                          Save ${(plan.priceMonthly - plan.priceYearly) * 12}/yr
+                        </span>
+                      </p>
+                    )}
                   </div>
 
-                  <ul className="space-y-2.5 flex-1 mb-6">
+                  <ul className="space-y-2 flex-1 mb-5">
                     {plan.features.map((feature, index) => (
                       <li key={index} className="flex items-start gap-2">
                         <CheckCircle className={cn("h-3.5 w-3.5 mt-0.5 shrink-0", colors.check)} />
@@ -246,14 +284,10 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
 
                   <Button
                     onClick={() => handleUpgrade(planKey)}
-                    disabled={loading || isCurrent}
-                    className={cn(
-                      "w-full gap-1.5 text-xs font-medium",
-                      !isCurrent && `${colors.bg} ${colors.hover} text-white shadow-md`
-                    )}
-                    variant={isCurrent ? "outline" : "default"}
+                    disabled={loading}
+                    className={cn("w-full gap-1.5 text-xs font-medium text-white", colors.bg, colors.hover)}
                   >
-                    {loading ? 'Processing...' : isCurrent ? 'Current Plan' : (
+                    {loading ? 'Processing...' : (
                       <>{plan.buttonText} <ArrowRight className="h-3.5 w-3.5" /></>
                     )}
                   </Button>
@@ -263,7 +297,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
           })}
         </div>
 
-        <div className="mt-6 pt-4 border-t border-border/50 text-center">
+        <div className="mt-5 pt-4 border-t border-border/50 text-center">
           <p className="text-xs text-muted-foreground flex items-center justify-center gap-4 flex-wrap">
             <span>Cancel anytime</span>
             <span className="opacity-30">|</span>

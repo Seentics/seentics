@@ -40,7 +40,10 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
   }, [website]);
 
   const updateMutation = useMutation({
-    mutationFn: (data: any) => updateWebsite(websiteId, data, user?.id || ''),
+    mutationFn: (data: any) => {
+      if (!user?.id) throw new Error('You must be logged in to update settings');
+      return updateWebsite(websiteId, data, user.id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['website', websiteId] });
       toast.success('Heatmap settings updated successfully');

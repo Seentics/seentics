@@ -7,11 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mail, MessageSquare, Phone, MapPin, Clock, Send, ExternalLink, Github, Twitter } from 'lucide-react';
+import { Mail, MessageSquare, MapPin, Clock, Send, ExternalLink, Github } from 'lucide-react';
+import { FaDiscord } from 'react-icons/fa';
 import { Logo } from '@/components/ui/logo';
 import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { isEnterprise } from '@/lib/features';
+import api from '@/lib/api';
 
 export default function ContactPage() {
   const { toast } = useToast();
@@ -45,23 +47,12 @@ export default function ContactPage() {
     try {
       const subjectLine = `[${formData.subject.toUpperCase()}] ${formData.name}${formData.company ? ` (${formData.company})` : ''}`;
 
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          message: formData.message,
-          subject: subjectLine,
-          company: formData.company,
-        }),
+      await api.post('/user/support/contact', {
+        name: formData.name,
+        email: formData.email,
+        message: formData.message,
+        subject: subjectLine,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to send message');
-      }
 
       toast({
         title: "Message Sent!",
@@ -220,18 +211,11 @@ export default function ContactPage() {
                     <Mail className="h-5 w-5 text-primary mt-0.5" />
                     <div>
                       <p className="font-medium">Email</p>
-                      <a href="mailto:hello@seentics.com" className="text-muted-foreground hover:text-primary">
-                        hello@seentics.com
+                      <a href="mailto:seentics@gmail.com" className="text-muted-foreground hover:text-primary block">
+                        seentics@gmail.com
                       </a>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <Phone className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-medium">Phone</p>
-                      <a href="tel:+1-555-123-4567" className="text-muted-foreground hover:text-primary">
-                        +1 (555) 123-4567
+                      <a href="mailto:shohagmiah2100@gmail.com" className="text-muted-foreground hover:text-primary block">
+                        shohagmiah2100@gmail.com
                       </a>
                     </div>
                   </div>
@@ -239,11 +223,9 @@ export default function ContactPage() {
                   <div className="flex items-start gap-3">
                     <MapPin className="h-5 w-5 text-primary mt-0.5" />
                     <div>
-                      <p className="font-medium">Address</p>
+                      <p className="font-medium">Location</p>
                       <p className="text-muted-foreground">
-                        123 Analytics Street<br />
-                        San Francisco, CA 94105<br />
-                        United States
+                        Dhaka, Bangladesh
                       </p>
                     </div>
                   </div>
@@ -251,10 +233,10 @@ export default function ContactPage() {
                   <div className="flex items-start gap-3">
                     <Clock className="h-5 w-5 text-primary mt-0.5" />
                     <div>
-                      <p className="font-medium">Business Hours</p>
+                      <p className="font-medium">Response Time</p>
                       <p className="text-muted-foreground">
-                        Monday - Friday<br />
-                        9:00 AM - 6:00 PM PST
+                        We typically respond<br />
+                        within 24 hours
                       </p>
                     </div>
                   </div>
@@ -286,19 +268,19 @@ export default function ContactPage() {
                 </CardContent>
               </Card>
 
-              {/* Social Links */}
+              {/* Community */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Follow Us</CardTitle>
+                  <CardTitle>Community</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <a href="https://github.com/seentics" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
+                  <a href="https://github.com/Seentics/seentics" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
                     <Github className="h-4 w-4" />
                     GitHub
                   </a>
-                  <a href="https://twitter.com/seentics" className="flex items-center gap-2 text-muted-foreground hover:text-primary">
-                    <Twitter className="h-4 w-4" />
-                    Twitter
+                  <a href="https://discord.gg/eHNHR82add" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-muted-foreground hover:text-[#5865F2]">
+                    <FaDiscord className="h-4 w-4" />
+                    Discord
                   </a>
                 </CardContent>
               </Card>

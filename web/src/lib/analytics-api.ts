@@ -1,7 +1,7 @@
-import type { ChartConfig } from '@/components/ui/chart';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import api from './api'; // Your existing axios instance
-import { getDemoData } from './demo-data';
+import { isDemo, demoAnalyticsData, demoRealtimeData, demoCustomEvents, demoGeolocation, demoMutationGuard } from './demo';
 
 // =============================================================================
 // TIMEZONE UTILITY
@@ -19,67 +19,6 @@ const getUserTimezone = (): string => {
 // =============================================================================
 // TYPES & INTERFACES
 // =============================================================================
-
-export interface EventData {
-  website_id: string;
-  visitor_id: string;
-  page: string;
-  event_type?: string;
-  session_id?: string;
-  referrer?: string;
-  user_id?: string;
-  value?: number;
-  browser?: string;
-  device?: string;
-  country?: string;
-  city?: string;
-  os?: string;
-  // Enhanced tracking fields
-  utm_source?: string;
-  utm_medium?: string;
-  utm_campaign?: string;
-  utm_term?: string;
-  utm_content?: string;
-  properties?: Record<string, any>;
-  scroll_depth?: number;
-  exit_intent?: boolean;
-  time_on_page?: number;
-  session_duration?: number;
-  pages_in_session?: number;
-  is_bounce?: boolean;
-  entry_page?: string;
-  exit_page?: string;
-  screen_width?: number;
-  screen_height?: number;
-  viewport_width?: number;
-  viewport_height?: number;
-  page_load_time?: number;
-  dom_content_loaded?: number;
-  language?: string;
-  timezone?: string;
-  is_bot?: boolean;
-  is_new_user?: boolean;
-  is_returning?: boolean;
-}
-
-export interface BatchEventRequest {
-  siteId: string;
-  domain: string;
-  events: EventData[];
-}
-
-export interface TrackEventResponse {
-  status: string;
-  event_id: string;
-  visitor_id: string;
-  session_id: string;
-}
-
-export interface BatchEventResponse {
-  status: string;
-  events_count: number;
-  processed_at: number;
-}
 
 export interface DashboardData {
   website_id: string;
@@ -166,50 +105,6 @@ export interface OSStat {
   bounce_rate?: number;
 }
 
-// Custom Events
-export interface CustomEventsStatsResponse {
-  website_id: string;
-  date_range: string;
-  timeseries: Array<{ date: string; count: number }>;
-  top_events: Array<{
-    event_type: string;
-    count: number;
-    description?: string;
-    common_properties?: string[];
-    sample_properties?: Record<string, any>;
-    sample_event?: Record<string, any>;
-  }>;
-  total_events?: number;
-  unique_events?: number;
-  utm_performance?: {
-    sources: Array<{
-      source: string;
-      unique_visitors: number;
-      visits: number;
-      sessions: number;
-    }>;
-    mediums: Array<{
-      medium: string;
-      unique_visitors: number;
-      visits: number;
-    }>;
-    campaigns: Array<{
-      campaign: string;
-      unique_visitors: number;
-      visits: number;
-    }>;
-    terms: Array<{
-      term: string;
-      unique_visitors: number;
-      visits: number;
-    }>;
-    content: Array<{
-      content: string;
-      unique_visitors: number;
-      visits: number;
-    }>;
-  };
-}
 
 // New Smart Deduplication Custom Events Stats
 export interface CustomEventsStats {
@@ -243,15 +138,6 @@ export interface DailyStat {
   unique: number;
 }
 
-export interface AnomalyResult {
-  metric: string;
-  current: number;
-  baseline_mean: number;
-  baseline_std: number;
-  z_score: number;
-  status: 'normal' | 'spike' | 'drop';
-  series: Array<{ date: string; value: number }>;
-}
 
 export interface TopVisitor {
   visitor_id: string;
@@ -267,38 +153,6 @@ export interface VisitorInsightsData {
   top_entry_pages?: Array<{ page: string; sessions: number; bounce_rate: number }>;
   top_exit_pages?: Array<{ page: string; sessions: number; exit_rate: number }>;
 }
-
-export interface TrafficSummary {
-  website_id: string;
-  date_range: string;
-  total_page_views: number;
-  unique_visitors: number;
-  total_sessions: number;
-  bounce_rate: number;
-  avg_session_time: number;
-  pages_per_session: number;
-  growth_rate: number;
-  visitors_growth_rate: number;
-  sessions_growth_rate: number;
-  new_visitors: number;
-  returning_visitors: number;
-  engagement_score: number;
-  retention_rate: number;
-  top_traffic_sources: Array<{
-    source: string;
-    visitors: number;
-    page_views: number;
-    bounce_rate: number;
-  }>;
-  utm_performance: {
-    sources: Record<string, number>;
-    mediums: Record<string, number>;
-    campaigns: Record<string, number>;
-    terms: Record<string, number>;
-    content: Record<string, number>;
-  };
-}
-
 
 // =============================================================================
 // NEW INTERFACES FOR WRAPPED RESPONSES
@@ -352,22 +206,6 @@ export interface GetHourlyStatsResponse {
   hourly_stats: HourlyStat[];
 }
 
-export interface GetActivityTrendsResponse {
-  website_id: string;
-  trends: ActivityTrend[];
-}
-
-export interface ActivityTrend {
-  hour: number;
-  timestamp: string;
-  time: string;
-  users: number;
-  events: number;
-  sessions: number;
-  pageViews: number;
-  engagement: number;
-}
-
 export interface GetDailyStatsResponse {
   website_id: string;
   date_range: string;
@@ -378,25 +216,13 @@ export interface GetDailyStatsResponse {
 // API FUNCTIONS - ALL BACKEND ENDPOINTS
 // =============================================================================
 
-// Event Tracking
-export const trackEvent = async (eventData: EventData): Promise<TrackEventResponse> => {
-  const response = await api.post('/analytics/event', eventData);
-  return response.data;
-};
-
-export const trackBatchEvents = async (batchData: BatchEventRequest): Promise<BatchEventResponse> => {
-  const response = await api.post('/analytics/batch', batchData);
-  return response.data;
-};
-
 // Dashboard Data - returns comprehensive data with enhanced metrics
 export const useDashboardData = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
   return useQuery({
     queryKey: ['dashboard', websiteId, days, filters],
     queryFn: async () => {
-      if (websiteId === 'demo') {
-        const demo = getDemoData();
-        return demo.dashboardData;
+      if (isDemo(websiteId)) {
+        return demoAnalyticsData().dashboardData;
       }
 
       const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
@@ -408,9 +234,9 @@ export const useDashboardData = (websiteId: string, days: number = 7, filters: A
       return response.data;
     },
     enabled: !!websiteId,
-    refetchInterval: 2 * 60 * 1000, // Refetch every 2 minutes
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds
     refetchOnWindowFocus: true,
-    staleTime: 60 * 1000, // Consider data stale after 1 minute
+    staleTime: 15 * 1000, // Consider data stale after 15 seconds
   });
 };
 
@@ -431,8 +257,8 @@ export const usePublicDashboardData = (publicId: string, days: number = 7) => {
 
 // Top Pages
 export const getTopPages = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopPagesResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topPages as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topPages as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -442,8 +268,8 @@ export const getTopPages = async (websiteId: string, days: number = 7, filters: 
 
 // Top Referrers
 export const getTopReferrers = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopReferrersResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topReferrers as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topReferrers as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -453,8 +279,8 @@ export const getTopReferrers = async (websiteId: string, days: number = 7, filte
 
 // Top Countries
 export const getTopCountries = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopCountriesResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topCountries as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topCountries as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -464,8 +290,8 @@ export const getTopCountries = async (websiteId: string, days: number = 7, filte
 
 // Top Browsers
 export const getTopBrowsers = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopBrowsersResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topBrowsers as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topBrowsers as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -475,8 +301,8 @@ export const getTopBrowsers = async (websiteId: string, days: number = 7, filter
 
 // Top Devices
 export const getTopDevices = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopDevicesResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topDevices as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topDevices as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -486,8 +312,8 @@ export const getTopDevices = async (websiteId: string, days: number = 7, filters
 
 // Top OS
 export const getTopOS = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetTopOSResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().topOS as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topOS as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -497,89 +323,99 @@ export const getTopOS = async (websiteId: string, days: number = 7, filters: Ana
 
 // Top Resolutions
 export const getTopResolutions = async (websiteId: string, days: number = 7, limit: number = 10): Promise<any> => {
-  if (websiteId === 'demo') {
-    return {
-      top_resolutions: [
-        { name: '1920x1080', count: 4500, percentage: 45.0 },
-        { name: '1366x768', count: 3200, percentage: 32.0 },
-        { name: '375x812', count: 2800, percentage: 28.0 },
-        { name: '1440x900', count: 2100, percentage: 21.0 },
-        { name: '414x896', count: 1500, percentage: 15.0 }
-      ]
-    };
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topResolutions;
   }
   const response = await api.get(`/analytics/top-resolutions/${websiteId}?days=${days}&limit=${limit}&timezone=${getUserTimezone()}`);
   return response.data;
 };
 
+// Realtime Data
+export interface RealtimeMinute {
+  minute: string;
+  visitors: number;
+  views: number;
+}
+
+export interface RealtimeData {
+  active_visitors: number;
+  pageviews: number;
+  sessions: number;
+  top_pages: Array<{ page: string; visitors: number }>;
+  top_referrers: Array<{ name: string; visitors: number }>;
+  top_countries: Array<{ name: string; visitors: number }>;
+  top_devices: Array<{ name: string; visitors: number }>;
+  top_browsers: Array<{ name: string; visitors: number }>;
+  timeline: RealtimeMinute[];
+}
+
+export const getRealtimeData = async (websiteId: string): Promise<RealtimeData> => {
+  if (isDemo(websiteId)) {
+    return demoRealtimeData() as RealtimeData;
+  }
+  const response = await api.get(`/analytics/realtime/${websiteId}?timezone=${getUserTimezone()}`);
+  return response.data;
+};
+
+export const useRealtimeData = (websiteId: string) => {
+  return useQuery<RealtimeData>({
+    queryKey: ['realtime', websiteId],
+    queryFn: () => getRealtimeData(websiteId),
+    enabled: !!websiteId,
+    refetchInterval: 5000,
+    staleTime: 4000,
+  });
+};
+
 // Live Visitors
 export const getLiveVisitors = async (websiteId: string): Promise<number> => {
-  if (websiteId === 'demo') {
-    return Math.floor(Math.random() * 50) + 10; // Random 10-60 for demo
+  if (isDemo(websiteId)) {
+    return Math.floor(Math.random() * 50) + 10;
   }
   const response = await api.get(`/analytics/live-visitors/${websiteId}`);
   return response.data.live_visitors || 0;
 };
 
-// Traffic Summary
-export const getTrafficSummary = async (websiteId: string, days: number = 7): Promise<TrafficSummary> => {
-  if (websiteId === 'demo') {
-    // Return a simplified version for demo
-    const demo = getDemoData();
-    return {
-      website_id: 'demo',
-      date_range: days.toString(),
-      total_page_views: demo.dashboardData.page_views,
-      unique_visitors: demo.dashboardData.unique_visitors,
-      total_sessions: Math.floor(demo.dashboardData.page_views / 1.5),
-      bounce_rate: demo.dashboardData.bounce_rate,
-      avg_session_time: demo.dashboardData.session_duration,
-      pages_per_session: 1.5,
-      growth_rate: 12.5,
-      visitors_growth_rate: 10.2,
-      sessions_growth_rate: 8.5,
-      new_visitors: Math.floor(demo.dashboardData.unique_visitors * 0.7),
-      returning_visitors: Math.floor(demo.dashboardData.unique_visitors * 0.3),
-      engagement_score: 75,
-      retention_rate: 45,
-      top_traffic_sources: demo.customEvents.utm_performance.sources.map(s => ({
-        source: s.source,
-        visitors: s.unique_visitors,
-        page_views: s.visits,
-        bounce_rate: 35 + Math.random() * 10
-      })),
-      utm_performance: {
-        sources: {},
-        mediums: {},
-        campaigns: {},
-        terms: {},
-        content: {}
-      }
-    };
+// Top Languages
+export const getTopLanguages = async (websiteId: string, days: number = 7): Promise<any> => {
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topLanguages;
   }
-  const response = await api.get(`/analytics/traffic-summary/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
-  const data = response.data;
-
-  // Backend returns { website_id, date_range, summary }
-  // Frontend expects the data directly with website_id and date_range included
-  if (data.summary) {
-    return {
-      website_id: data.website_id,
-      date_range: data.date_range,
-      ...data.summary,
-    };
-  }
-
-  return data;
+  const response = await api.get(`/analytics/top-languages/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  return response.data;
 };
 
-// Traffic Summary Chart - NEW: Specifically for charts with accurate pageview counts
+export const useTopLanguages = (websiteId: string, days: number = 7) => {
+  return useQuery({
+    queryKey: [...analyticsKeys.all, 'top-languages', websiteId, days],
+    queryFn: () => getTopLanguages(websiteId, days),
+    enabled: !!websiteId,
+    staleTime: 5 * 60 * 1000,
+  });
+};
 
+// Top Cities
+export const getTopCities = async (websiteId: string, days: number = 7): Promise<any> => {
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().topCities;
+  }
+  const response = await api.get(`/analytics/top-cities/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
+  return response.data;
+};
+
+export const useTopCities = (websiteId: string, days: number = 7) => {
+  return useQuery({
+    queryKey: [...analyticsKeys.all, 'top-cities', websiteId, days],
+    queryFn: () => getTopCities(websiteId, days),
+    enabled: !!websiteId,
+    staleTime: 5 * 60 * 1000,
+  });
+};
 
 // Hourly Stats
 export const getHourlyStats = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<GetHourlyStatsResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().hourlyStats as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().hourlyStats as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -605,16 +441,11 @@ export const getHourlyStats = async (websiteId: string, days: number = 7, filter
   return response.data;
 };
 
-// Activity Trends
-export const getActivityTrends = async (websiteId: string): Promise<GetActivityTrendsResponse> => {
-  const response = await api.get(`/analytics/activity-trends/${websiteId}?timezone=${getUserTimezone()}`);
-  return response.data;
-};
 
 // Daily Stats
 export const getDailyStats = async (websiteId: string, days: number = 30, filters: AnalyticsFilters = {}): Promise<GetDailyStatsResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().dailyStats as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().dailyStats as any;
   }
   const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
@@ -624,8 +455,8 @@ export const getDailyStats = async (websiteId: string, days: number = 30, filter
 
 // Custom Events Stats
 export const getCustomEventsStats = async (websiteId: string, days: number = 7): Promise<any> => {
-  if (websiteId === 'demo') {
-    return getDemoData().customEvents as any;
+  if (isDemo(websiteId)) {
+    return demoCustomEvents() as any;
   }
   // Call backend via gateway to get custom events + UTM performance
   const response = await api.get(`/analytics/custom-events/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
@@ -641,8 +472,8 @@ export const getCustomEventsStats = async (websiteId: string, days: number = 7):
 
 // Visitor Insights
 export const getVisitorInsights = async (websiteId: string, days: number = 7): Promise<GetVisitorInsightsResponse> => {
-  if (websiteId === 'demo') {
-    return getDemoData().visitorInsights as any;
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().visitorInsights as any;
   }
   const response = await api.get(`/analytics/visitor-insights/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
@@ -669,6 +500,7 @@ export const analyticsKeys = {
   dailyStats: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'daily-stats', websiteId, days, filters] as const,
   goalStats: (websiteId: string, days: number) => [...analyticsKeys.all, 'goal-stats', websiteId, days] as const,
   customEvents: (websiteId: string, days: number) => [...analyticsKeys.all, 'custom-events', websiteId, days] as const,
+  topResolutions: (websiteId: string, days: number) => [...analyticsKeys.all, 'top-resolutions', websiteId, days] as const,
   visitorInsights: (websiteId: string, days: number) => [...analyticsKeys.all, 'visitor-insights', websiteId, days] as const,
 };
 
@@ -735,7 +567,7 @@ export const useTopOS = (websiteId: string, days: number = 7, filters: Analytics
 // Top Resolutions Hook
 export const useTopResolutions = (websiteId: string, days: number = 7) => {
   return useQuery<any>({
-    queryKey: ['top-resolutions', websiteId, days],
+    queryKey: analyticsKeys.topResolutions(websiteId, days),
     queryFn: () => getTopResolutions(websiteId, days),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
@@ -753,18 +585,6 @@ export const useLiveVisitors = (websiteId: string) => {
   });
 };
 
-// Traffic Summary Hook
-export const useTrafficSummary = (websiteId: string, days: number = 7) => {
-  return useQuery<TrafficSummary>({
-    queryKey: analyticsKeys.trafficSummary(websiteId, days),
-    queryFn: () => getTrafficSummary(websiteId, days),
-    enabled: !!websiteId,
-    staleTime: 5 * 60 * 1000,
-  });
-};
-
-
-
 // Hourly Stats Hook
 export const useHourlyStats = (websiteId: string, days: number = 1, filters: AnalyticsFilters = {}) => {
   return useQuery<GetHourlyStatsResponse>({
@@ -772,17 +592,6 @@ export const useHourlyStats = (websiteId: string, days: number = 1, filters: Ana
     queryFn: () => getHourlyStats(websiteId, days, filters),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
-  });
-};
-
-// Activity Trends Hook
-export const useActivityTrends = (websiteId: string) => {
-  return useQuery<GetActivityTrendsResponse>({
-    queryKey: analyticsKeys.activityTrends(websiteId),
-    queryFn: () => getActivityTrends(websiteId),
-    enabled: !!websiteId,
-    staleTime: 3 * 60 * 1000, // 3 minutes for real-time trends
-    refetchInterval: 5 * 60 * 1000, // Refresh every 5 minutes
   });
 };
 
@@ -799,13 +608,11 @@ export const useDailyStats = (websiteId: string, days: number = 30, filters: Ana
 // Custom Events Hook
 export const useCustomEvents = (websiteId: string, days: number = 30) => {
   return useQuery({
-    queryKey: ['customEvents', websiteId, days],
-    queryFn: () => {
-      return getCustomEventsStats(websiteId, days);
-    },
+    queryKey: analyticsKeys.customEvents(websiteId, days),
+    queryFn: () => getCustomEventsStats(websiteId, days),
     enabled: !!websiteId,
-    staleTime: 0, // Force refresh immediately to see backend changes
-    gcTime: 10 * 60 * 1000,   // 10 minutes
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 };
 
@@ -814,9 +621,8 @@ export const useGoalStats = (websiteId: string, days: number = 30) => {
   return useQuery({
     queryKey: analyticsKeys.goalStats(websiteId, days),
     queryFn: async () => {
-      if (websiteId === 'demo') {
-        const demo = getDemoData();
-        return demo.goalStats || { goals: [] };
+      if (isDemo(websiteId)) {
+        return demoAnalyticsData().goalStats;
       }
       const response = await api.get(`/analytics/goals-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
       return response.data;
@@ -829,8 +635,8 @@ export const useRecentActivity = (websiteId: string) => {
   return useQuery({
     queryKey: ['recent-activity', websiteId],
     queryFn: async () => {
-      if (websiteId === 'demo') {
-        return { activities: [] };
+      if (isDemo(websiteId)) {
+        return demoAnalyticsData().recentActivity;
       }
       const response = await api.get(`/analytics/recent-activity/${websiteId}?limit=20`);
       return response.data;
@@ -841,16 +647,6 @@ export const useRecentActivity = (websiteId: string) => {
   });
 };
 
-// Anomaly detection hook - REMOVED: Backend doesn't support this endpoint for MVP
-// export const useAnomalies = (websiteId: string, days: number = 14, metric: string = 'page_views') => {
-//   return useQuery<AnomalyResult>({
-//     queryKey: analyticsKeys.anomalies(websiteId, days, metric),
-//     queryFn: () => detectAnomalies(websiteId, days, metric),
-//     enabled: !!websiteId,
-//     staleTime: 5 * 60 * 1000,
-//     refetchInterval: 5 * 60 * 1000,
-//   });
-// };
 
 
 // Visitor Insights Hook
@@ -863,64 +659,6 @@ export const useVisitorInsights = (websiteId: string, days: number = 7) => {
   });
 };
 
-// =============================================================================
-// MUTATION HOOKS
-// =============================================================================
-
-// Track Event Mutation
-export const useTrackEvent = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation<TrackEventResponse, Error, EventData>({
-    mutationFn: trackEvent,
-    onSuccess: (data, variables) => {
-
-
-      // Optionally invalidate dashboard data as well
-      queryClient.invalidateQueries({
-        queryKey: [...analyticsKeys.all, 'dashboard', variables.website_id],
-      });
-    },
-  });
-};
-
-// Track Batch Events Mutation
-export const useTrackBatchEvents = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation<BatchEventResponse, Error, BatchEventRequest>({
-    mutationFn: trackBatchEvents,
-    onSuccess: (data, variables) => {
-      // Get website_id from first event
-      const websiteId = variables.events[0]?.website_id;
-      if (websiteId) {
-
-        queryClient.invalidateQueries({
-          queryKey: [...analyticsKeys.all, 'dashboard', websiteId],
-        });
-      }
-    },
-  });
-};
-
-// =============================================================================
-// UTILITY HOOKS
-// =============================================================================
-
-// Hook to invalidate all analytics data for a website
-export const useInvalidateAnalytics = () => {
-  const queryClient = useQueryClient();
-
-  return (websiteId: string) => {
-    queryClient.invalidateQueries({
-      queryKey: [...analyticsKeys.all],
-      predicate: (query) => {
-        const queryKey = query.queryKey as string[];
-        return queryKey.includes(websiteId);
-      },
-    });
-  };
-};
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -962,27 +700,6 @@ export const formatPercentage = (value: number): string => {
   return `${value.toFixed(1)}%`;
 };
 
-// Helper function to format growth rate with color indication
-export const formatGrowthRate = (rate: number): { value: string; isPositive: boolean; isNeutral: boolean } => {
-  const isPositive = rate > 0;
-  const isNeutral = rate === 0;
-  const formattedRate = Math.abs(rate).toFixed(1);
-
-  return {
-    value: `${isPositive ? '+' : isNeutral ? '' : '-'}${formattedRate}%`,
-    isPositive,
-    isNeutral
-  };
-};
-
-
-// Chart color mapping for Recharts-based ChartContainer
-export const trafficChartConfig: ChartConfig = {
-  pageviews: {
-    label: 'Pageviews',
-    color: 'hsl(var(--chart-1))',
-  },
-};
 
 // =============================================================================
 // EXPORT DEFAULT
@@ -990,20 +707,15 @@ export const trafficChartConfig: ChartConfig = {
 
 export default {
   // API functions
-  trackEvent,
-  trackBatchEvents,
-
   getTopPages,
   getTopReferrers,
   getTopCountries,
   getTopBrowsers,
   getTopDevices,
-  getTrafficSummary,
 
   getHourlyStats,
   getDailyStats,
   getCustomEventsStats,
-  // detectAnomalies, // REMOVED: Backend doesn't support this endpoint for MVP
   getVisitorInsights,
 
   // Hooks
@@ -1015,16 +727,11 @@ export default {
   useTopCountries,
   useTopBrowsers,
   useTopDevices,
-  useTrafficSummary,
 
   useHourlyStats,
   useDailyStats,
   useCustomEvents,
-  // useAnomalies, // REMOVED: Backend doesn't support this endpoint for MVP
   useVisitorInsights,
-  useTrackEvent,
-  useTrackBatchEvents,
-  useInvalidateAnalytics,
 
   // Query Keys
   analyticsKeys,
@@ -1033,7 +740,6 @@ export default {
   formatNumber,
   formatDuration,
   formatPercentage,
-  formatGrowthRate,
 };
 
 // =============================================================================
@@ -1110,6 +816,9 @@ export interface FunnelAnalytics {
 
 // Create a new funnel
 export async function createFunnel(websiteId: string, funnelData: Omit<Funnel, 'id' | 'website_id' | 'created_at' | 'updated_at'>): Promise<Funnel> {
+  if (demoMutationGuard(websiteId)) {
+    return { id: 'demo-new', website_id: websiteId, ...funnelData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as Funnel;
+  }
   try {
     const response = await api.post(`/funnels/`, {
       ...funnelData,
@@ -1140,6 +849,10 @@ export async function createFunnel(websiteId: string, funnelData: Omit<Funnel, '
 
 // Get all funnels for a website
 export async function getFunnels(websiteId: string): Promise<Funnel[]> {
+  if (isDemo(websiteId)) {
+    const { demoFunnels } = await import('./demo');
+    return demoFunnels().funnels as any;
+  }
   try {
     const response = await api.get(`/funnels/`, {
       params: { website_id: websiteId }
@@ -1199,6 +912,10 @@ export async function deleteFunnel(funnelId: string): Promise<void> {
 
 // Get funnel analytics data
 export async function getFunnelAnalytics(funnelId: string, dateRange: number = 7): Promise<FunnelAnalyticsResponse> {
+  if (funnelId.startsWith('demo-')) {
+    const { demoFunnelAnalytics } = await import('./demo');
+    return demoFunnelAnalytics(funnelId);
+  }
   try {
     const response = await api.get(`/funnels/${funnelId}/analytics`, {
       params: { days: dateRange }
@@ -1253,17 +970,6 @@ export async function getFunnelAnalytics(funnelId: string, dateRange: number = 7
   }
 }
 
-// Get detailed funnel analytics with step-by-step data
-export async function getDetailedFunnelAnalytics(funnelId: string, dateRange: number = 7): Promise<any> {
-  try {
-    const response = await api.get(`/funnels/${funnelId}/analytics/detailed`, {
-      params: { days: dateRange }
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-}
 
 // Compare multiple funnels
 export async function compareFunnels(websiteId: string, funnelIds: string[], dateRange: number = 7): Promise<any> {
@@ -1343,15 +1049,6 @@ export const useDeleteFunnel = () => {
   });
 };
 
-// Advanced Analytics Hooks
-export const useDetailedFunnelAnalytics = (funnelId: string, dateRange: number = 7) => {
-  return useQuery({
-    queryKey: [...analyticsKeys.all, 'detailed-funnel-analytics', funnelId, dateRange],
-    queryFn: () => getDetailedFunnelAnalytics(funnelId, dateRange),
-    enabled: !!funnelId,
-    staleTime: 2 * 60 * 1000,
-  });
-};
 
 export const useCompareFunnels = () => {
   return useMutation({
@@ -1392,6 +1089,9 @@ export interface GeolocationData {
 
 // API Functions
 export const getGeolocationBreakdown = async (websiteId: string, days: number = 7): Promise<GeolocationData> => {
+  if (isDemo(websiteId)) {
+    return demoGeolocation();
+  }
   const response = await api.get(`/analytics/geolocation-breakdown/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
   return response.data;
 };
@@ -1412,8 +1112,8 @@ export const usePreviousPeriodDailyStats = (websiteId: string, days: number = 7,
   return useQuery<GetDailyStatsResponse>({
     queryKey: [...analyticsKeys.all, 'previous-daily-stats', websiteId, days],
     queryFn: async () => {
-      if (websiteId === 'demo') {
-        const demo = getDemoData().dailyStats as any;
+      if (isDemo(websiteId)) {
+        const demo = demoAnalyticsData().dailyStats as any;
         const stats = (demo?.daily_stats || []).sort(
           (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
         );
@@ -1453,4 +1153,6 @@ export interface AnalyticsFilters {
   utm_medium?: string;
   utm_campaign?: string;
   page_path?: string;
+  prop_key?: string;
+  prop_value?: string;
 }

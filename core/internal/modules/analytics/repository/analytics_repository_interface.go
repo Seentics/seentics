@@ -12,7 +12,6 @@ type MainAnalyticsRepository interface {
 	GetComparisonMetrics(ctx context.Context, websiteID string, days int, timezone string, filters models.AnalyticsFilters) (*models.ComparisonMetrics, error)
 	GetUTMAnalytics(ctx context.Context, websiteID string, days int) (map[string]interface{}, error)
 	GetTopPages(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.PageStat, error)
-	GetTopPagesWithTimeBucket(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.PageStat, error)
 	GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int) (map[string]interface{}, error)
 	GetTopReferrers(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.ReferrerStat, error)
 	GetTopSources(ctx context.Context, websiteID string, days int, timezone string, limit int, filters models.AnalyticsFilters) ([]models.SourceStat, error)
@@ -37,5 +36,8 @@ type MainAnalyticsRepository interface {
 	GetEntryPages(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error)
 	GetExitPages(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error)
 	GetAvgPathLength(ctx context.Context, websiteID string, days int) (float64, error)
+	GetRealtimeData(ctx context.Context, websiteID string, timezone string) (*models.RealtimeData, error)
+	GetTopLanguages(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.TopItem, error)
+	GetTopCities(ctx context.Context, websiteID string, days int, timezone string, limit int) ([]models.TopItem, error)
 	DeleteAllWebsiteData(ctx context.Context, websiteID string) error
 }

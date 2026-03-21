@@ -1,15 +1,28 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/Seentics/seentics/internal/modules/auth/models"
 	"github.com/Seentics/seentics/internal/modules/auth/services"
+	"github.com/Seentics/seentics/internal/shared/config"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
+
+// setAuthCookies sets httpOnly secure cookies for access and refresh tokens
+func setAuthCookies(c *gin.Context, tokens models.TokenDetails) {
+	secure := config.IsProduction()
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie("access_token", tokens.AccessToken, 86400, "/", "", secure, true)
+	c.SetCookie("refresh_token", tokens.RefreshToken, 604800, "/", "", secure, true)
+}
 
 type AuthHandler struct {
 	service *services.AuthService
@@ -38,6 +51,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
+	setAuthCookies(c, resp.Tokens)
+
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "User registered successfully",
 		"data":    resp,
@@ -59,6 +74,8 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	setAuthCookies(c, resp.Tokens)
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Logged in successfully",
 		"data":    resp,
@@ -68,12 +85,17 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // RefreshToken handles refreshing an expired access token using a refresh token
 func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	var req struct {
-		RefreshToken string `json:"refresh_token" binding:"required"`
+		RefreshToken string `json:"refresh_token"`
 	}
 
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "refresh_token is required"})
-		return
+	// Bind JSON body (may be empty if using cookie-based refresh)
+	_ = c.ShouldBindJSON(&req)
+
+	// Also check cookie for refresh token if body is empty
+	if req.RefreshToken == "" {
+		if cookieToken, err := c.Cookie("refresh_token"); err == nil {
+			req.RefreshToken = cookieToken
+		}
 	}
 
 	tokens, err := h.service.RefreshToken(c.Request.Context(), req.RefreshToken)
@@ -82,6 +104,8 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
 	}
+
+	setAuthCookies(c, *tokens)
 
 	c.JSON(http.StatusOK, tokens)
 }
@@ -220,23 +244,38 @@ func (h *AuthHandler) UploadAvatar(c *gin.Context) {
 		return
 	}
 
-	// Create uploads directory if it doesn't exist
-	if _, err := os.Stat("uploads"); os.IsNotExist(err) {
-		os.Mkdir("uploads", 0755)
+	// Validate file size (max 5MB)
+	if file.Size > 5<<20 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file too large, max 5MB"})
+		return
 	}
 
-	// Generate filename: userID_timestamp_filename
-	filename := userID + "_" + file.Filename
-	filepath := "uploads/" + filename
+	// Validate file extension
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true}
+	if !allowedExts[ext] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid file type, allowed: jpg, jpeg, png, gif, webp"})
+		return
+	}
 
-	if err := c.SaveUploadedFile(file, filepath); err != nil {
+	// Create uploads directory if it doesn't exist
+	uploadsDir, _ := filepath.Abs("uploads")
+	if _, err := os.Stat(uploadsDir); os.IsNotExist(err) {
+		os.MkdirAll(uploadsDir, 0700)
+	}
+
+	// Generate safe filename with UUID to prevent path traversal
+	safeFilename := fmt.Sprintf("%s_%s%s", userID, uuid.New().String(), ext)
+	savePath := filepath.Join(uploadsDir, safeFilename)
+
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
 		h.logger.Error().Err(err).Msg("Failed to save avatar file")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
 		return
 	}
 
 	// Generate public URL (assuming backend is serving /uploads)
-	avatarURL := "/uploads/" + filename
+	avatarURL := "/uploads/" + safeFilename
 
 	if err := h.service.UpdateAvatar(c.Request.Context(), userID, avatarURL); err != nil {
 		h.logger.Error().Err(err).Msg("Failed to update avatar URL in DB")

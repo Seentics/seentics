@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useState } from 'react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { TrafficChart } from './TrafficChart';
 import { HourlyTrafficChart } from './HourlyTrafficChart';
@@ -23,6 +23,8 @@ interface TrafficOverviewProps {
   onDeleteAnnotation?: (id: string) => void;
 }
 
+const TAB_CLS = 'h-7 text-xs font-medium px-3 gap-1.5 rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm';
+
 export function TrafficOverview({
   dailyStats,
   hourlyStats,
@@ -38,13 +40,14 @@ export function TrafficOverview({
   const [view, setView] = useState<'chart' | 'hourly'>('chart');
 
   return (
-    <Card className={cn("col-span-full border border-border/60 bg-card shadow-sm overflow-hidden h-[500px]", className)}>
-      <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 space-y-0 pb-7 shrink-0">
-        <div className="space-y-1">
-          <CardTitle className="text-lg font-bold tracking-tight">Traffic Overview</CardTitle>
-          <p className="text-xs text-muted-foreground">Visitor volume over time</p>
+    <Card className={cn("col-span-full bg-card shadow-sm overflow-hidden pb-4", className)}>
+      <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4 pt-5 px-6 shrink-0 border-b border-border/60">
+        <div>
+          <h2 className="text-base font-semibold tracking-tight">Traffic Overview</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Visitor volume over time</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+
+        <div className="flex items-center gap-2 shrink-0">
           {onComparisonToggle && (
             <ComparisonToggle enabled={showComparison} onToggle={onComparisonToggle} />
           )}
@@ -55,13 +58,15 @@ export function TrafficOverview({
               onDelete={onDeleteAnnotation}
             />
           )}
-          <Tabs value={view} onValueChange={(v) => setView(v as any)} className="w-auto">
-            <TabsList className="grid w-full grid-cols-2 h-9 p-1 rounded">
-              <TabsTrigger value="chart" className="text-xs font-medium px-3 gap-1.5 rounded active:bg-background">
+
+          {/* View tabs */}
+          <Tabs value={view} onValueChange={(v) => setView(v as any)}>
+            <TabsList className="h-8 bg-muted/50 p-0.5 rounded gap-0.5">
+              <TabsTrigger value="chart" className={TAB_CLS}>
                 <BarChart3 className="h-3.5 w-3.5" />
                 Chart
               </TabsTrigger>
-              <TabsTrigger value="hourly" className="text-xs font-medium px-3 gap-1.5 rounded active:bg-background">
+              <TabsTrigger value="hourly" className={TAB_CLS}>
                 <Clock className="h-3.5 w-3.5" />
                 Hourly
               </TabsTrigger>
@@ -70,9 +75,9 @@ export function TrafficOverview({
         </div>
       </CardHeader>
 
-      <CardContent className='p-0 pt-0 border-none outline-none'>
+      <CardContent className="p-0 pt-2">
         {view === 'chart' && (
-          <div className="h-[400px]">
+          <div className="h-[480px]">
             <TrafficChart
               data={dailyStats}
               isLoading={isLoading}
@@ -82,9 +87,8 @@ export function TrafficOverview({
             />
           </div>
         )}
-
         {view === 'hourly' && (
-          <div className="h-[400px]">
+          <div className="h-[480px]">
             <HourlyTrafficChart data={hourlyStats} isLoading={isLoading} />
           </div>
         )}

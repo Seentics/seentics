@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addMember } from '@/lib/websites-api';
+import { inviteMemberByToken } from '@/lib/websites-api';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { isEnterprise } from '@/lib/features';
@@ -39,15 +39,18 @@ export function InviteMemberModal({ open, onOpenChange, websiteId }: InviteMembe
 
   const mutation = useMutation({
     mutationFn: (data: { email: string; role: string }) =>
-      addMember(websiteId, data),
+      inviteMemberByToken(websiteId, data),
     onSuccess: () => {
-      toast.success('Member invited successfully');
+      toast.success('Invitation sent! The user will receive an email to join.');
       queryClient.invalidateQueries({ queryKey: ['members', websiteId] });
+      queryClient.invalidateQueries({ queryKey: ['invitations', websiteId] });
       onOpenChange(false);
       setEmail('');
+      setRole('viewer');
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Failed to invite member. Make sure the user exists.');
+      const msg = error.response?.data?.error || error.message || 'Failed to send invitation';
+      toast.error(msg);
     },
   });
 
@@ -67,7 +70,7 @@ export function InviteMemberModal({ open, onOpenChange, websiteId }: InviteMembe
           <DialogHeader>
             <DialogTitle>Invite Team Member</DialogTitle>
             <DialogDescription>
-              Add a new member to help manage this website.
+              Send an invitation link to add a new member. They'll receive an email to accept.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -92,6 +95,11 @@ export function InviteMemberModal({ open, onOpenChange, websiteId }: InviteMembe
                   <SelectItem value="viewer">Viewer (Read Only)</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {role === 'admin'
+                  ? 'Admins can manage settings, invite members, and view all analytics.'
+                  : 'Viewers have read-only access to all analytics and reports.'}
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -106,7 +114,7 @@ export function InviteMemberModal({ open, onOpenChange, websiteId }: InviteMembe
               {mutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Invite Member
+              Send Invitation
             </Button>
           </DialogFooter>
         </form>

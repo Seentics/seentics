@@ -39,13 +39,13 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
   const [date, setDate] = useState<Date>(new Date());
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [color, setColor] = useState('#3b82f6');
+  const [color, setColor] = useState('#2563eb');
 
   const colors = [
-    { name: 'Blue', value: '#3b82f6' },
+    { name: 'Blue', value: '#2563eb' },
     { name: 'Green', value: '#10b981' },
     { name: 'Red', value: '#ef4444' },
-    { name: 'Purple', value: '#8b5cf6' },
+    { name: 'Purple', value: '#2563eb' },
     { name: 'Orange', value: '#f97316' },
     { name: 'Pink', value: '#ec4899' },
   ];
@@ -62,7 +62,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
       setTitle('');
       setDescription('');
       setDate(new Date());
-      setColor('#3b82f6');
+      setColor('#2563eb');
       setOpen(false);
     }
   };
@@ -71,7 +71,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
     <div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-1.5 h-8 px-3 font-medium text-[11px]">
+          <Button variant="ghost" size="sm" className="gap-1.5 h-7 px-3 font-medium text-xs text-muted-foreground bg-muted/50 hover:bg-muted/70 hover:text-foreground rounded border-0">
             <Tag className="h-3.5 w-3.5" />
             Annotate
           </Button>

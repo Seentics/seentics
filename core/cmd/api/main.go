@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/subtle"
 	"log"
 	"net/http"
 	"os"
@@ -10,191 +11,156 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Seentics/seentics/internal/modules/analytics/handlers"
-	"github.com/Seentics/seentics/internal/modules/analytics/repository"
-	"github.com/Seentics/seentics/internal/modules/analytics/repository/privacy"
-	"github.com/Seentics/seentics/internal/modules/analytics/services"
+	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog"
+
+	ginGzip "github.com/gin-contrib/gzip"
+
+	// Shared infrastructure
+	"github.com/Seentics/seentics/internal/shared/cache"
 	"github.com/Seentics/seentics/internal/shared/config"
 	"github.com/Seentics/seentics/internal/shared/database"
 	"github.com/Seentics/seentics/internal/shared/middleware"
 	"github.com/Seentics/seentics/internal/shared/migrations"
-	"github.com/Seentics/seentics/internal/shared/storage"
+	"github.com/Seentics/seentics/internal/shared/utils"
 
+	// Analytics module
+	"github.com/Seentics/seentics/internal/modules/analytics/handlers"
+	"github.com/Seentics/seentics/internal/modules/analytics/repository"
+	"github.com/Seentics/seentics/internal/modules/analytics/repository/privacy"
+	"github.com/Seentics/seentics/internal/modules/analytics/services"
+
+	// Auth module
 	authHandlerPkg "github.com/Seentics/seentics/internal/modules/auth/handlers"
 	authRepoPkg "github.com/Seentics/seentics/internal/modules/auth/repository"
 	authServicePkg "github.com/Seentics/seentics/internal/modules/auth/services"
 
-	autoHandlerPkg "github.com/Seentics/seentics/internal/modules/automations/handlers"
-	autoRepoPkg "github.com/Seentics/seentics/internal/modules/automations/repository"
-	autoServicePkg "github.com/Seentics/seentics/internal/modules/automations/services"
-
+	// Funnels module
 	funnelHandlerPkg "github.com/Seentics/seentics/internal/modules/funnels/handlers"
 	funnelRepoPkg "github.com/Seentics/seentics/internal/modules/funnels/repository"
 	funnelServicePkg "github.com/Seentics/seentics/internal/modules/funnels/services"
 
+	// Websites module
 	websiteHandlerPkg "github.com/Seentics/seentics/internal/modules/websites/handlers"
 	websiteRepoPkg "github.com/Seentics/seentics/internal/modules/websites/repository"
 	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
 
-	heatmapHandlerPkg "github.com/Seentics/seentics/internal/modules/heatmaps/handlers"
-	heatmapRepoPkg "github.com/Seentics/seentics/internal/modules/heatmaps/repository"
-	heatmapServicePkg "github.com/Seentics/seentics/internal/modules/heatmaps/services"
-	replayHandlerPkg "github.com/Seentics/seentics/internal/modules/replays/handlers"
-	replayRepoPkg "github.com/Seentics/seentics/internal/modules/replays/repository"
-	replayServicePkg "github.com/Seentics/seentics/internal/modules/replays/services"
-
+	// Tracker module
 	trackerPkg "github.com/Seentics/seentics/internal/modules/tracker"
-
-	"github.com/Seentics/seentics/internal/shared/utils"
-
-	"github.com/Seentics/seentics/internal/shared/cache"
-	"github.com/gin-gonic/gin"
-	"github.com/rs/zerolog"
 )
 
-func getEnvOrDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
+// appHandlers bundles all HTTP handlers so setupRouter doesn't need 15 parameters.
+type appHandlers struct {
+	analytics *handlers.AnalyticsHandler
+	privacy   *handlers.PrivacyHandler
+	health    *handlers.HealthHandler
+	admin     *handlers.AdminHandler
+	internal  *handlers.InternalHandler
+	auth      *authHandlerPkg.AuthHandler
+	funnel    *funnelHandlerPkg.FunnelHandler
+	website   *websiteHandlerPkg.WebsiteHandler
+	tracker   *trackerPkg.TrackerHandler
 }
 
 func main() {
-	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal("Failed to load configuration:", err)
 	}
 
-	// Setup logging
 	logger := setupLogger(cfg)
 
-	// Initialize database
+	// ── Infrastructure ──────────────────────────────────────────────────────
+
 	db, err := database.Connect(cfg.DatabaseURL, cfg.DbMaxConns, cfg.DbMinConns)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to connect to database")
 	}
 	defer db.Close()
 
-	// Initialize ClickHouse (required for all analytics)
 	chConn, err := database.ConnectClickHouse(cfg.ClickHouseHost, cfg.ClickHousePort, cfg.ClickHouseUser, cfg.ClickHousePassword, cfg.ClickHouseDB)
 	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to connect to ClickHouse — ClickHouse is required for analytics")
+		logger.Fatal().Err(err).Msg("Failed to connect to ClickHouse")
 	}
+	defer chConn.Close()
 
-	// Run database migrations
 	migrator := migrations.NewMigrator(db, logger)
 	if err := migrator.RunMigrations(context.Background()); err != nil {
 		logger.Fatal().Err(err).Msg("Failed to run database migrations")
 	}
 
-	// Initialize in-process cache for rate limiting, website caching, geolocation
-	appCache, err := cache.NewDefault()
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize cache")
-	}
-	defer appCache.Shutdown()
-	logger.Info().Msg("Cache initialized")
+	rdb := initRedis(cfg, logger)
+	defer rdb.Close()
 
-	// Initialize global geolocation service with cache
+	appCache := cache.NewWithClient(rdb, "sn:")
+	defer appCache.Shutdown()
+	logger.Info().Msg("Cache initialized (Redis)")
+
 	utils.InitGlobalGeolocationService(appCache)
 
 	ctx := context.Background()
 
-	// --- Repositories & Storage Infrastructure ---
+	// ── Repositories ────────────────────────────────────────────────────────
 
-	// ClickHouse Repositories
 	chRepo := repository.NewClickHouseEventRepository(chConn, logger)
 	if err := chRepo.CreateSchema(ctx); err != nil {
 		logger.Fatal().Err(err).Msg("Failed to create ClickHouse schema")
 	}
 	logger.Info().Msg("ClickHouse schema verified/created")
-	var eventRepo repository.EventRepository = chRepo
 
+	var eventRepo repository.EventRepository = chRepo
 	pgAnalyticsRepo := repository.NewPostgresAnalyticsRepository(db)
 	var analyticsRepo repository.MainAnalyticsRepository = repository.NewClickHouseAnalyticsRepository(chConn, pgAnalyticsRepo, logger)
 
-	// S3 Store
-	s3Region := getEnvOrDefault("AWS_REGION", "us-east-1")
-	s3Bucket := getEnvOrDefault("S3_BUCKET_REPLAYS", "seentics-replays")
-	s3Endpoint := getEnvOrDefault("S3_ENDPOINT", "http://minio:9000")
-	s3Access := getEnvOrDefault("AWS_ACCESS_KEY_ID", "minioadmin")
-	s3Secret := getEnvOrDefault("AWS_SECRET_ACCESS_KEY", "minioadmin")
-	s3Store, err := storage.NewS3Store(s3Region, s3Bucket, s3Endpoint, s3Access, s3Secret)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Failed to initialize S3 store")
-	}
-
-	// Module Repositories
 	authRepo := authRepoPkg.NewAuthRepository(db)
-	heatmapRepo := heatmapRepoPkg.NewHeatmapRepository(db)
 	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
-	autoRepo := autoRepoPkg.NewAutomationRepository(db)
 	funnelRepo := funnelRepoPkg.NewFunnelRepository(db, chConn)
-	replayRepo := replayRepoPkg.NewReplayRepository(db)
 	privacyRepo := privacy.NewPrivacyRepository(db)
 
-	// --- Services ---
+	// ── Services ────────────────────────────────────────────────────────────
 
-	// Website Service (Now includes all repos for cleanup)
 	websiteService := websiteServicePkg.NewWebsiteService(
-		websiteRepo,
-		authRepo,
-		heatmapRepo,
-		analyticsRepo,
-		eventRepo,
-		autoRepo,
-		funnelRepo,
-		replayRepo,
-		s3Store,
-		appCache,
-		cfg.Environment,
-		logger,
+		websiteRepo, authRepo, analyticsRepo, eventRepo,
+		funnelRepo, appCache,
+		cfg.Environment, logger,
 	)
-	websiteHandler := websiteHandlerPkg.NewWebsiteHandler(websiteService, logger)
 
-	// Other Services
 	authService := authServicePkg.NewAuthService(authRepo, cfg, logger)
-	authHandler := authHandlerPkg.NewAuthHandler(authService, logger)
 
-	autoService := autoServicePkg.NewAutomationService(autoRepo, websiteService)
-	autoHandler := autoHandlerPkg.NewAutomationHandler(autoService)
-
-	eventService := services.NewEventService(eventRepo, db, websiteService, autoService, logger)
-	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger)
+	eventService := services.NewEventService(eventRepo, db, websiteService, logger, rdb)
+	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger, appCache)
 	privacyService := services.NewPrivacyService(privacyRepo, websiteService, logger)
-
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
-	funnelHandler := funnelHandlerPkg.NewFunnelHandler(funnelService)
 
-	heatmapService := heatmapServicePkg.NewHeatmapService(heatmapRepo, websiteService, logger)
-	heatmapHandler := heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger)
+	// Start background workers (analytics only — heatmaps/replays moved to standalone apps)
+	analyticsService.StartCacheWarmer(ctx)
 
-	replayService := replayServicePkg.NewReplayService(replayRepo, websiteService, s3Store)
-	replayHandler := replayHandlerPkg.NewReplayHandler(replayService, logger)
+	// ── Handlers ────────────────────────────────────────────────────────────
 
-	// Handlers
-	eventHandler := handlers.NewEventHandler(eventService, logger)
-	analyticsHandler := handlers.NewAnalyticsHandler(analyticsService, logger)
-	privacyHandler := handlers.NewPrivacyHandler(privacyService, logger)
-	healthHandler := handlers.NewHealthHandler(db, logger)
-	adminHandler := handlers.NewAdminHandler(eventRepo, logger)
-	internalHandler := handlers.NewInternalHandler(db, logger)
-	internalHandler.SetClickHouse(chConn)
+	h := appHandlers{
+		analytics: handlers.NewAnalyticsHandler(analyticsService, logger),
+		privacy:   handlers.NewPrivacyHandler(privacyService, logger),
+		health:    handlers.NewHealthHandler(db, logger),
+		admin:     handlers.NewAdminHandler(eventRepo, logger),
+		internal:  handlers.NewInternalHandler(db, logger),
+		auth:      authHandlerPkg.NewAuthHandler(authService, logger),
+		funnel:    funnelHandlerPkg.NewFunnelHandler(funnelService),
+		website:   websiteHandlerPkg.NewWebsiteHandler(websiteService, logger),
+		tracker:   trackerPkg.NewTrackerHandler(websiteService, eventService, funnelService, logger),
+	}
+	h.internal.SetClickHouse(chConn)
 
-	// Unified tracker handler (init + collect)
-	trackerHandler := trackerPkg.NewTrackerHandler(websiteService, eventService, heatmapService, replayService, funnelService, autoService, logger)
+	// ── HTTP Server ─────────────────────────────────────────────────────────
 
-	// Setup router
-	router := setupRouter(cfg, appCache, eventService, eventHandler, analyticsHandler, privacyHandler, healthHandler, adminHandler, autoHandler, funnelHandler, authHandler, websiteHandler, heatmapHandler, replayHandler, internalHandler, trackerHandler, logger)
+	router := setupRouter(cfg, appCache, h, logger)
 
-	// Start server
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 180 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
 
 	go func() {
@@ -203,6 +169,8 @@ func main() {
 			logger.Fatal().Err(err).Msg("Server failed to start")
 		}
 	}()
+
+	// ── Graceful Shutdown ───────────────────────────────────────────────────
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
@@ -215,10 +183,6 @@ func main() {
 	if err := eventService.Shutdown(10 * time.Second); err != nil {
 		logger.Error().Err(err).Msg("Failed to shutdown event service gracefully")
 	}
-	if err := heatmapService.Shutdown(10 * time.Second); err != nil {
-		logger.Error().Err(err).Msg("Failed to shutdown heatmap service gracefully")
-	}
-
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error().Err(err).Msg("Server forced to shutdown")
 	} else {
@@ -226,237 +190,262 @@ func main() {
 	}
 }
 
-func setupRouter(cfg *config.Config, appCache *cache.Cache, eventService *services.EventService, eventHandler *handlers.EventHandler, analyticsHandler *handlers.AnalyticsHandler, privacyHandler *handlers.PrivacyHandler, healthHandler *handlers.HealthHandler, adminHandler *handlers.AdminHandler, autoHandler *autoHandlerPkg.AutomationHandler, funnelHandler *funnelHandlerPkg.FunnelHandler, authHandler *authHandlerPkg.AuthHandler, websiteHandler *websiteHandlerPkg.WebsiteHandler, heatmapHandler *heatmapHandlerPkg.HeatmapHandler, replayHandler *replayHandlerPkg.ReplayHandler, internalHandler *handlers.InternalHandler, trackerHandler *trackerPkg.TrackerHandler, logger zerolog.Logger) *gin.Engine {
+// ── Infrastructure Helpers ──────────────────────────────────────────────────
+
+func initRedis(cfg *config.Config, logger zerolog.Logger) *redis.Client {
+	redisOpts, err := redis.ParseURL(cfg.RedisURL)
+	if err != nil {
+		logger.Fatal().Err(err).Str("redis_url", cfg.RedisURL).Msg("Invalid Redis URL")
+	}
+	rdb := redis.NewClient(redisOpts)
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		logger.Fatal().Err(err).Msg("Failed to connect to Redis")
+	}
+	logger.Info().Str("redis_url", cfg.RedisURL).Msg("Redis connected")
+	return rdb
+}
+
+// ── Router ──────────────────────────────────────────────────────────────────
+
+func setupRouter(cfg *config.Config, appCache *cache.Cache, h appHandlers, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.New()
 
-	router.Use(middleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10MB limit
+	// Global middleware
+	router.Use(ginGzip.Gzip(ginGzip.DefaultCompression))
+	router.Use(middleware.RequestSizeLimitMiddleware(10 * 1024 * 1024)) // 10 MB
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	router.Use(middleware.ClientIPMiddleware())
 	router.Use(middleware.Logger(logger))
 	router.Use(middleware.Recovery(logger))
 
-	// Serve static files for avatars
 	router.Static("/uploads", "./uploads")
 
+	// Auth bypass for public endpoints
 	router.Use(func(c *gin.Context) {
 		path := c.Request.URL.Path
 		if path == "/health" || c.Request.Method == "OPTIONS" ||
 			strings.HasPrefix(path, "/api/v1/user/auth/") ||
 			strings.HasPrefix(path, "/api/v1/auth/") ||
 			strings.HasPrefix(path, "/uploads/") ||
-			path == "/api/v1/analytics/event" ||
-			path == "/api/v1/analytics/batch" ||
-			path == "/api/v1/funnels/track" ||
-			path == "/api/v1/funnels/batch" ||
-			path == "/api/v1/funnels/active" ||
-			path == "/api/v1/workflows/execution/action" ||
-			path == "/api/v1/workflows/execution/batch" ||
-			path == "/api/v1/heatmaps/record" ||
-			path == "/api/v1/replays/record" ||
 			strings.HasPrefix(path, "/api/v1/tracker/config/") ||
 			strings.HasPrefix(path, "/api/v1/tracker/init/") ||
 			path == "/api/v1/tracker/collect" ||
-			strings.HasPrefix(path, "/api/v1/workflows/site/") ||
-			strings.HasPrefix(path, "/api/v1/internal/") {
+			strings.HasPrefix(path, "/api/v1/internal/") ||
+			strings.HasPrefix(path, "/api/v1/analytics/public/") {
 			c.Next()
 			return
 		}
 		middleware.UnifiedAuthMiddleware(cfg)(c)
 	})
 
-	// Apply Rate Limiting AFTER Auth so it can identify users by ID
+	// Rate limiting (after auth so it can identify users)
 	router.Use(middleware.RateLimitMiddleware(appCache))
 
-	router.GET("/health", healthHandler.HealthCheck)
+	// ── Routes ──────────────────────────────────────────────────────────────
+
+	router.GET("/health", h.health.HealthCheck)
+
 	v1 := router.Group("/api/v1")
 	{
-		analytics := v1.Group("/analytics")
-		{
-			analytics.POST("/event", eventHandler.TrackEvent)
-			analytics.POST("/batch", eventHandler.TrackBatchEvents)
-			analytics.GET("/dashboard/:website_id", analyticsHandler.GetDashboard)
-			analytics.GET("/top-pages/:website_id", analyticsHandler.GetTopPages)
-			analytics.GET("/page-utm-breakdown/:website_id", analyticsHandler.GetPageUTMBreakdown)
-			analytics.GET("/top-referrers/:website_id", analyticsHandler.GetTopReferrers)
-			analytics.GET("/top-sources/:website_id", analyticsHandler.GetTopSources)
-			analytics.GET("/top-countries/:website_id", analyticsHandler.GetTopCountries)
-			analytics.GET("/top-browsers/:website_id", analyticsHandler.GetTopBrowsers)
-			analytics.GET("/top-devices/:website_id", analyticsHandler.GetTopDevices)
-			analytics.GET("/top-resolutions/:website_id", analyticsHandler.GetTopResolutions)
-			analytics.GET("/top-os/:website_id", analyticsHandler.GetTopOS)
-			analytics.GET("/traffic-summary/:website_id", analyticsHandler.GetTrafficSummary)
-			analytics.GET("/activity-trends/:website_id", analyticsHandler.GetActivityTrends)
-			analytics.GET("/daily-stats/:website_id", analyticsHandler.GetDailyStats)
-			analytics.GET("/hourly-stats/:website_id", analyticsHandler.GetHourlyStats)
-			analytics.GET("/goals-stats/:website_id", analyticsHandler.GetGoalStats)
-			analytics.GET("/custom-events/:website_id", analyticsHandler.GetCustomEvents)
-			analytics.GET("/live-visitors/:website_id", analyticsHandler.GetLiveVisitors)
-			analytics.GET("/geolocation-breakdown/:website_id", analyticsHandler.GetGeolocationBreakdown)
-			analytics.GET("/visitor-insights/:website_id", analyticsHandler.GetVisitorInsights)
-			analytics.GET("/recent-activity/:website_id", analyticsHandler.GetRecentActivity)
-			analytics.GET("/path-analysis/:website_id", analyticsHandler.GetPathAnalysis)
-			analytics.GET("/export/:website_id", analyticsHandler.ExportAnalytics)
-			analytics.POST("/import", analyticsHandler.ImportAnalytics)
-		}
-
-		v1.Group("/privacy")
-		{
-			v1.GET("/privacy/export/:user_id", privacyHandler.ExportUserAnalytics)
-			v1.DELETE("/privacy/delete/:user_id", privacyHandler.DeleteUserAnalytics)
-			v1.DELETE("/privacy/delete/website/:website_id", privacyHandler.DeleteWebsiteAnalytics)
-			v1.PUT("/privacy/anonymize/:user_id", privacyHandler.AnonymizeUserAnalytics)
-			v1.GET("/privacy/retention-policies", privacyHandler.GetDataRetentionPolicies)
-			v1.POST("/privacy/cleanup", privacyHandler.RunDataRetentionCleanup)
-		}
-
-		v1.GET("/tracker/config/:site_id", websiteHandler.GetTrackerConfig)
-
-		// Unified tracker endpoints (init + collect)
-		v1.GET("/tracker/init/:site_id", trackerHandler.Init)
-		v1.POST("/tracker/collect", middleware.DecompressMiddleware(), trackerHandler.Collect)
-
-		admin := v1.Group("/admin", middleware.RoleMiddleware("admin"))
-		{
-			admin.GET("/analytics/stats", adminHandler.GetAnalyticsStats)
-		}
-
-		// Internal endpoints for enterprise gateway (API key protected)
-		internal := v1.Group("/internal", func(c *gin.Context) {
-			expectedKey := os.Getenv("GLOBAL_API_KEY")
-			if expectedKey == "" || c.GetHeader("X-API-Key") != expectedKey {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
-				c.Abort()
-				return
-			}
-			c.Next()
-		})
-		{
-			internal.GET("/user-resource-counts", internalHandler.GetUserResourceCounts)
-			internal.POST("/user/sync", internalHandler.UpsertUser)
-			internal.GET("/system/stats", internalHandler.GetSystemStats)
-			internal.GET("/website-owner", internalHandler.GetWebsiteOwner)
-			internal.POST("/retention-cleanup", internalHandler.RetentionCleanup)
-		}
-
-		automations := v1.Group("/websites/:website_id/automations")
-		{
-			automations.GET("", autoHandler.ListAutomations)
-			automations.POST("", autoHandler.CreateAutomation)
-			automations.DELETE("/bulk-delete", autoHandler.DeleteAutomations)
-			automations.GET("/:automation_id", autoHandler.GetAutomation)
-			automations.PUT("/:automation_id", autoHandler.UpdateAutomation)
-			automations.DELETE("/:automation_id", autoHandler.DeleteAutomation)
-			automations.POST("/:automation_id/toggle", autoHandler.ToggleAutomation)
-			automations.GET("/:automation_id/stats", autoHandler.GetAutomationStats)
-		}
-
-		v1.GET("/workflows/site/:website_id/active", autoHandler.GetActiveWorkflows)
-		v1.POST("/workflows/execution/action", autoHandler.TrackExecution)
-		v1.POST("/workflows/execution/batch", autoHandler.TrackBatchExecutions) // Batch endpoint
-		v1.POST("/automations/test", autoHandler.TestAutomation)
-
-		funnels := v1.Group("/websites/:website_id/funnels")
-		{
-			funnels.GET("", funnelHandler.ListFunnels)
-			funnels.POST("", funnelHandler.CreateFunnel)
-			funnels.DELETE("/bulk-delete", funnelHandler.DeleteFunnels)
-			funnels.GET("/:funnel_id", funnelHandler.GetFunnel)
-			funnels.PUT("/:funnel_id", funnelHandler.UpdateFunnel)
-			funnels.DELETE("/:funnel_id", funnelHandler.DeleteFunnel)
-			funnels.GET("/:funnel_id/stats", funnelHandler.GetFunnelStats)
-		}
-
-		v1.GET("/funnels/active", funnelHandler.GetActiveFunnels)
-		v1.POST("/funnels/track", funnelHandler.TrackFunnelEvent)
-		v1.POST("/funnels/batch", funnelHandler.TrackBatchFunnelEvents) // Batch endpoint
-
-		// Public auth endpoints (no authentication required)
-		publicAuth := v1.Group("/auth")
-		{
-			publicAuth.POST("/register", authHandler.Register)
-			publicAuth.POST("/login", authHandler.Login)
-			publicAuth.POST("/refresh", authHandler.RefreshToken)
-			publicAuth.POST("/forgot-password", authHandler.ForgotPassword)
-			publicAuth.POST("/reset-password", authHandler.ResetPassword)
-		}
-
-		auth := v1.Group("/user/auth")
-		{
-			auth.POST("/register", authHandler.Register)
-			auth.POST("/login", authHandler.Login)
-			auth.POST("/refresh", authHandler.RefreshToken)
-			auth.GET("/setup-status", authHandler.SetupStatus)
-		}
-
-		users := v1.Group("/user/users")
-		{
-			users.PUT("/profile", authHandler.UpdateProfile)
-			users.PUT("/change-password", authHandler.ChangePassword)
-			users.PUT("/avatar", authHandler.UploadAvatar)
-		}
-
-		websites := v1.Group("/user/websites")
-		{
-			websites.GET("", websiteHandler.List)
-			websites.POST("", websiteHandler.Create)
-			websites.GET("/:id", websiteHandler.Get)
-			websites.GET("/by-site-id/:id", websiteHandler.Get)
-			websites.PUT("/:id", websiteHandler.Update)
-			websites.DELETE("/:id", websiteHandler.Delete)
-
-			// Goals
-			websites.GET("/:id/goals", websiteHandler.ListGoals)
-			websites.POST("/:id/goals", websiteHandler.CreateGoal)
-			websites.DELETE("/:id/goals/:goal_id", websiteHandler.DeleteGoal)
-
-			// Team Members
-			websites.GET("/:id/members", websiteHandler.ListMembers)
-			websites.POST("/:id/members", websiteHandler.AddMember)
-			websites.DELETE("/:id/members/:user_id", websiteHandler.RemoveMember)
-			websites.PUT("/:id/members/:user_id/role", websiteHandler.UpdateMemberRole)
-		}
-
-		heatmaps := v1.Group("/heatmaps")
-		{
-			heatmaps.POST("/record", heatmapHandler.RecordHeatmap)
-			heatmaps.GET("/data", heatmapHandler.GetHeatmapData)
-			heatmaps.GET("/pages", heatmapHandler.GetHeatmapPages)
-			heatmaps.GET("/top-elements", heatmapHandler.GetTopElements)
-			heatmaps.DELETE("/pages", heatmapHandler.DeleteHeatmapPage)
-			heatmaps.DELETE("/bulk-delete", heatmapHandler.BulkDeleteHeatmapPages)
-		}
-
-		replays := v1.Group("/replays")
-		{
-			replays.POST("/record", replayHandler.RecordReplay)
-			replays.GET("/sessions", replayHandler.ListSessions)
-			replays.GET("/snapshot", replayHandler.GetPageSnapshot)
-			replays.GET("/data/:session_id", replayHandler.GetReplay)
-			replays.DELETE("/sessions/:session_id", replayHandler.DeleteReplay)
-			replays.DELETE("/bulk-delete", replayHandler.BulkDeleteReplays)
-		}
+		registerAuthRoutes(v1, h)
+		registerTrackerRoutes(v1, h)
+		registerAnalyticsRoutes(v1, h)
+		registerPrivacyRoutes(v1, h)
+		registerWebsiteRoutes(v1, h)
+		registerFunnelRoutes(v1, h)
+		registerAdminRoutes(v1, h)
+		registerInternalRoutes(v1, h)
 	}
 
 	return router
 }
+
+// ── Route Registration ──────────────────────────────────────────────────────
+
+func registerAuthRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	// Public auth (no authentication required)
+	publicAuth := v1.Group("/auth")
+	{
+		publicAuth.POST("/register", h.auth.Register)
+		publicAuth.POST("/login", h.auth.Login)
+		publicAuth.POST("/refresh", h.auth.RefreshToken)
+		publicAuth.POST("/forgot-password", h.auth.ForgotPassword)
+		publicAuth.POST("/reset-password", h.auth.ResetPassword)
+	}
+
+	// Enterprise auth
+	auth := v1.Group("/user/auth")
+	{
+		auth.POST("/register", h.auth.Register)
+		auth.POST("/login", h.auth.Login)
+		auth.POST("/refresh", h.auth.RefreshToken)
+		auth.GET("/setup-status", h.auth.SetupStatus)
+	}
+
+	// User profile
+	users := v1.Group("/user/users")
+	{
+		users.PUT("/profile", h.auth.UpdateProfile)
+		users.PUT("/change-password", h.auth.ChangePassword)
+		users.PUT("/avatar", h.auth.UploadAvatar)
+	}
+}
+
+func registerTrackerRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	v1.GET("/tracker/config/:site_id", h.website.GetTrackerConfig)
+	v1.GET("/tracker/init/:site_id", h.tracker.Init)
+	v1.POST("/tracker/collect", middleware.DecompressMiddleware(), h.tracker.Collect)
+}
+
+func registerAnalyticsRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	analytics := v1.Group("/analytics")
+	{
+		analytics.GET("/dashboard/:website_id", h.analytics.GetDashboard)
+		analytics.GET("/top-pages/:website_id", h.analytics.GetTopPages)
+		analytics.GET("/page-utm-breakdown/:website_id", h.analytics.GetPageUTMBreakdown)
+		analytics.GET("/top-referrers/:website_id", h.analytics.GetTopReferrers)
+		analytics.GET("/top-sources/:website_id", h.analytics.GetTopSources)
+		analytics.GET("/top-countries/:website_id", h.analytics.GetTopCountries)
+		analytics.GET("/top-browsers/:website_id", h.analytics.GetTopBrowsers)
+		analytics.GET("/top-devices/:website_id", h.analytics.GetTopDevices)
+		analytics.GET("/top-resolutions/:website_id", h.analytics.GetTopResolutions)
+		analytics.GET("/top-os/:website_id", h.analytics.GetTopOS)
+		analytics.GET("/top-languages/:website_id", h.analytics.GetTopLanguages)
+		analytics.GET("/top-cities/:website_id", h.analytics.GetTopCities)
+		analytics.GET("/traffic-summary/:website_id", h.analytics.GetTrafficSummary)
+		analytics.GET("/activity-trends/:website_id", h.analytics.GetActivityTrends)
+		analytics.GET("/daily-stats/:website_id", h.analytics.GetDailyStats)
+		analytics.GET("/hourly-stats/:website_id", h.analytics.GetHourlyStats)
+		analytics.GET("/goals-stats/:website_id", h.analytics.GetGoalStats)
+		analytics.GET("/custom-events/:website_id", h.analytics.GetCustomEvents)
+		analytics.GET("/realtime/:website_id", h.analytics.GetRealtimeData)
+		analytics.GET("/live-visitors/:website_id", h.analytics.GetLiveVisitors)
+		analytics.GET("/geolocation-breakdown/:website_id", h.analytics.GetGeolocationBreakdown)
+		analytics.GET("/visitor-insights/:website_id", h.analytics.GetVisitorInsights)
+		analytics.GET("/recent-activity/:website_id", h.analytics.GetRecentActivity)
+		analytics.GET("/path-analysis/:website_id", h.analytics.GetPathAnalysis)
+		analytics.GET("/export/:website_id", h.analytics.ExportAnalytics)
+		analytics.POST("/import", h.analytics.ImportAnalytics)
+
+		// Public dashboard (no auth required — handled by auth bypass middleware)
+		analytics.GET("/public/dashboard/:public_id", h.website.GetPublicDashboard)
+	}
+}
+
+func registerPrivacyRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	priv := v1.Group("/privacy")
+	{
+		priv.GET("/export/:user_id", h.privacy.ExportUserAnalytics)
+		priv.GET("/export/website/:website_id", h.privacy.ExportWebsiteAnalytics)
+		priv.POST("/import/:website_id", h.privacy.ImportWebsiteAnalytics)
+		priv.DELETE("/delete/:user_id", h.privacy.DeleteUserAnalytics)
+		priv.DELETE("/delete/website/:website_id", h.privacy.DeleteWebsiteAnalytics)
+		priv.PUT("/anonymize/:user_id", h.privacy.AnonymizeUserAnalytics)
+		priv.GET("/retention-policies", h.privacy.GetDataRetentionPolicies)
+		priv.POST("/cleanup", h.privacy.RunDataRetentionCleanup)
+	}
+}
+
+func registerWebsiteRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	websites := v1.Group("/user/websites")
+	{
+		websites.GET("", h.website.List)
+		websites.POST("", h.website.Create)
+		websites.GET("/:id", h.website.Get)
+		websites.GET("/by-site-id/:id", h.website.Get)
+		websites.PUT("/:id", h.website.Update)
+		websites.DELETE("/:id", h.website.Delete)
+
+		// Goals
+		websites.GET("/:id/goals", h.website.ListGoals)
+		websites.POST("/:id/goals", h.website.CreateGoal)
+		websites.DELETE("/:id/goals/:goal_id", h.website.DeleteGoal)
+
+		// Team members & permissions
+		websites.GET("/:id/my-role", h.website.GetMyRole)
+		websites.GET("/:id/members", h.website.ListMembers)
+		websites.POST("/:id/members", h.website.AddMember)
+		websites.DELETE("/:id/members/:user_id", h.website.RemoveMember)
+		websites.PUT("/:id/members/:user_id/role", h.website.UpdateMemberRole)
+
+		// Token-based invitations
+		websites.POST("/:id/invitations", h.website.InviteMemberByToken)
+		websites.GET("/:id/invitations", h.website.ListPendingInvitations)
+		websites.DELETE("/:id/invitations/:invitation_id", h.website.RevokeInvitation)
+
+		// Public sharing
+		websites.POST("/:id/share", h.website.TogglePublicShare)
+	}
+
+	// Accept invite (outside /:id group to avoid param conflict)
+	v1.POST("/user/accept-invite", h.website.AcceptInvitation)
+}
+
+func registerFunnelRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	funnels := v1.Group("/websites/:website_id/funnels")
+	{
+		funnels.GET("", h.funnel.ListFunnels)
+		funnels.POST("", h.funnel.CreateFunnel)
+		funnels.DELETE("/bulk-delete", h.funnel.DeleteFunnels)
+		funnels.GET("/:funnel_id", h.funnel.GetFunnel)
+		funnels.PUT("/:funnel_id", h.funnel.UpdateFunnel)
+		funnels.DELETE("/:funnel_id", h.funnel.DeleteFunnel)
+		funnels.GET("/:funnel_id/stats", h.funnel.GetFunnelStats)
+	}
+
+	v1.GET("/funnels/active", h.funnel.GetActiveFunnels)
+}
+
+func registerAdminRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	admin := v1.Group("/admin", middleware.RoleMiddleware("admin"))
+	{
+		admin.GET("/analytics/stats", h.admin.GetAnalyticsStats)
+	}
+}
+
+func registerInternalRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	internal := v1.Group("/internal", func(c *gin.Context) {
+		expectedKey := os.Getenv("GLOBAL_API_KEY")
+		providedKey := c.GetHeader("X-API-Key")
+		if expectedKey == "" || subtle.ConstantTimeCompare([]byte(providedKey), []byte(expectedKey)) != 1 {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid API key"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	})
+	{
+		internal.GET("/user-resource-counts", h.internal.GetUserResourceCounts)
+		internal.POST("/user/sync", h.internal.UpsertUser)
+		internal.GET("/system/stats", h.internal.GetSystemStats)
+		internal.GET("/website-owner", h.internal.GetWebsiteOwner)
+		internal.POST("/retention-cleanup", h.internal.RetentionCleanup)
+	}
+}
+
+// ── Logger ──────────────────────────────────────────────────────────────────
 
 func setupLogger(cfg *config.Config) zerolog.Logger {
 	level, err := zerolog.ParseLevel(cfg.LogLevel)
 	if err != nil {
 		level = zerolog.InfoLevel
 	}
+	zerolog.SetGlobalLevel(level)
+
+	base := zerolog.New(os.Stdout).Level(level).With().Timestamp().
+		Str("service", "analytics").Str("version", "1.0.0")
 
 	if cfg.Environment == "production" {
 		zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-		zerolog.SetGlobalLevel(level)
-		return zerolog.New(os.Stdout).Level(level).With().Timestamp().Str("service", "analytics").Str("version", "1.0.0").Logger()
-	} else {
-		zerolog.TimeFieldFormat = time.RFC3339
-		zerolog.SetGlobalLevel(level)
-		return zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).Level(level).With().Timestamp().Str("service", "analytics").Str("version", "1.0.0").Logger()
+		return base.Logger()
 	}
+
+	zerolog.TimeFieldFormat = time.RFC3339
+	return zerolog.New(zerolog.ConsoleWriter{Out: os.Stdout, TimeFormat: time.RFC3339}).
+		Level(level).With().Timestamp().
+		Str("service", "analytics").Str("version", "1.0.0").Logger()
 }

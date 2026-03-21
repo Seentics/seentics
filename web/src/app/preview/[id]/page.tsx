@@ -1,10 +1,10 @@
 
 'use client';
 import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Loader2, Terminal, RefreshCw } from 'lucide-react';
-import { getWorkflow, type Workflow } from '@/lib/workflow-api';
+import { fetchAutomation, type Automation } from '@/lib/automations-api';
 import Script from 'next/script';
 
 
@@ -42,13 +42,14 @@ function LogViewer({ logs, clearLogs, onRestart }: { logs: string[], clearLogs: 
 
 export default function PreviewPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = params.id as string;
+  const websiteId = searchParams.get('websiteId') || '';
   const [logs, setLogs] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [workflow, setWorkflow] = useState<Workflow | null>(null);
-  const [previewKey, setPreviewKey] = useState(Date.now()); // Used to force-reload the tracker
-  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
-  const highlightSelector = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('highlightSelector') : null;
+  const [workflow, setWorkflow] = useState<Automation | null>(null);
+  const [previewKey, setPreviewKey] = useState(Date.now());
+  const highlightSelector = searchParams.get('highlightSelector');
 
   const restartPreview = () => {
     // Clear session storage specific to the preview
@@ -64,15 +65,18 @@ export default function PreviewPage() {
       setLogs(prevLogs => [...prevLogs, message]);
     };
 
-    const fetchWorkflow = async () => {
+    const fetchWorkflowData = async () => {
       setIsLoading(true);
+      if (!websiteId) {
+        setLogs(prev => [...prev, 'Error: websiteId query parameter is required.']);
+        setIsLoading(false);
+        return;
+      }
       try {
-        const fetchedWorkflow = await getWorkflow(id);
-        if (fetchedWorkflow) {
-          // Force Active status in preview context so triggers fire regardless of stored status
-          const previewWorkflow = { ...fetchedWorkflow, status: 'Active' } as typeof fetchedWorkflow;
+        const fetched = await fetchAutomation(websiteId, id);
+        if (fetched) {
+          const previewWorkflow = { ...fetched, isActive: true };
           setWorkflow(previewWorkflow);
-          // Inject the single workflow into a global object so workflow-tracker can find it
           (window as any).__SEENTICS_PREVIEW_WORKFLOW = previewWorkflow;
         } else {
           setLogs(prev => [...prev, 'Error: Workflow not found.']);
@@ -86,7 +90,7 @@ export default function PreviewPage() {
       }
     };
 
-    fetchWorkflow();
+    fetchWorkflowData();
 
     // Highlight tester: outline matching elements briefly
     if (highlightSelector) {
@@ -108,7 +112,7 @@ export default function PreviewPage() {
       delete (window as any).__SEENTICS_PREVIEW_WORKFLOW;
       delete (window as any).logToPreviewer;
     }
-  }, [id, previewKey, highlightSelector]);
+  }, [id, websiteId, previewKey, highlightSelector]);
 
 
   if (isLoading) {

@@ -6,21 +6,15 @@ import { motion } from 'framer-motion';
 import { isEnterprise } from '@/lib/features';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import api from '@/lib/api';
+import { openCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 export default function Pricing() {
   if (!isEnterprise) return null;
 
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
-
-  // Initialize Lemon Squeezy SDK for modal checkout
-  useEffect(() => {
-    if (window.createLemonSqueezy) {
-      window.createLemonSqueezy();
-    }
-  }, []);
 
   const handleSubscribe = async (selection: PlanSelection) => {
     if (!isAuthenticated) {
@@ -37,29 +31,11 @@ export default function Pricing() {
 
       const response = await api.post('/user/billing/checkout', {
         plan: selection.plan,
+        billing: selection.billing,
       });
 
       if (response.data.success && response.data.data.checkoutUrl) {
-        let checkoutUrl = response.data.data.checkoutUrl;
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-          if (!checkoutUrl.includes('test=1')) {
-            checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
-          }
-        }
-
-        if (!checkoutUrl.includes('embed=1')) {
-          checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
-        }
-        const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
-        if (!checkoutUrl.includes('checkout[success_url]')) {
-          checkoutUrl += `&checkout[success_url]=${successUrl}`;
-        }
-
-        if (window.LemonSqueezy) {
-          window.LemonSqueezy.Url.Open(checkoutUrl);
-        } else {
-          window.location.href = checkoutUrl;
-        }
+        openCheckout(response.data.data.checkoutUrl);
       }
     } catch {
       toast.error('Failed to initialize checkout. Please try again.');
@@ -72,23 +48,32 @@ export default function Pricing() {
     <section id="pricing" className="py-24 md:py-32 bg-background">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <motion.h2
+          <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
+            className="text-xs font-semibold uppercase tracking-widest text-primary mb-3"
+          >
+            Pricing
+          </motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 12 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.05 }}
             className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
           >
-            Simple, transparent pricing
+            Simple Pricing
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.05 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="text-muted-foreground text-lg"
           >
-            Start free and scale as you grow. No hidden fees.
+            Free to start. Upgrade when you need more.
           </motion.p>
         </div>
 

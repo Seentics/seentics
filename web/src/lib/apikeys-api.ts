@@ -10,20 +10,20 @@ export interface APIKey {
 }
 
 class APIKeysAPI {
-  async list(): Promise<APIKey[]> {
-    const response = await api.get('/user/agency/api-keys');
+  async list(websiteId: string): Promise<APIKey[]> {
+    const response = await api.get(`/user/agency/api-keys`, { params: { website_id: websiteId } });
     const data = response.data?.data || response.data || [];
     return Array.isArray(data) ? data.map(this.mapKey) : [];
   }
 
-  async create(name: string): Promise<APIKey> {
-    const response = await api.post('/user/agency/api-keys', { name });
+  async create(websiteId: string, name: string): Promise<APIKey> {
+    const response = await api.post('/user/agency/api-keys', { name, website_id: websiteId });
     const raw = response.data?.data || response.data;
     return this.mapKey(raw);
   }
 
-  async remove(id: string): Promise<void> {
-    await api.delete(`/user/agency/api-keys/${id}`);
+  async remove(websiteId: string, id: string): Promise<void> {
+    await api.delete(`/user/agency/api-keys/${id}`, { params: { website_id: websiteId } });
   }
 
   private mapKey(raw: any): APIKey {

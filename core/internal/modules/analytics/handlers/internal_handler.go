@@ -95,17 +95,19 @@ func (h *InternalHandler) GetUserResourceCounts(c *gin.Context) {
 	}
 	counts["heatmaps"] = heatmapCount
 
-	// Replay sessions
+	// Start of current billing month (used for replays + events)
+	startOfMonth := time.Now().UTC().AddDate(0, 0, -time.Now().Day()+1)
+	startOfMonth = time.Date(startOfMonth.Year(), startOfMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
+
+	// Replay sessions (current billing month only)
 	var replayCount int
-	if err := h.db.QueryRow(ctx, "SELECT COUNT(DISTINCT session_id) FROM session_replays WHERE website_id = ANY($1) OR website_id = ANY($2)", siteIDs, uuidStrings).Scan(&replayCount); err != nil {
+	if err := h.db.QueryRow(ctx, "SELECT COUNT(DISTINCT session_id) FROM session_replays WHERE (website_id = ANY($1) OR website_id = ANY($2)) AND timestamp >= $3", siteIDs, uuidStrings, startOfMonth).Scan(&replayCount); err != nil {
 		h.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to count replays")
 	}
 	counts["replays"] = replayCount
 
 	// Monthly events
 	var monthlyEvents int
-	startOfMonth := time.Now().UTC().AddDate(0, 0, -time.Now().Day()+1)
-	startOfMonth = time.Date(startOfMonth.Year(), startOfMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
 
 	if h.ch != nil {
 		var chCount uint64
@@ -355,7 +357,7 @@ func (h *InternalHandler) RetentionCleanup(c *gin.Context) {
 	// Delete old heatmap points from PostgreSQL
 	if req.RecordingRetentionDays > 0 {
 		tag, err := h.db.Exec(ctx,
-			"DELETE FROM heatmap_points WHERE (website_id::text = ANY($1) OR website_id::text = ANY($2)) AND created_at < NOW() - $3 * INTERVAL '1 day'",
+			"DELETE FROM heatmap_points WHERE (website_id::text = ANY($1) OR website_id::text = ANY($2)) AND last_updated < NOW() - $3 * INTERVAL '1 day'",
 			siteIDs, uuidStrings, req.RecordingRetentionDays,
 		)
 		if err != nil {

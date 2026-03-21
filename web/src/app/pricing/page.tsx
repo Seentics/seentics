@@ -6,6 +6,7 @@ import { isEnterprise } from '@/lib/features';
 import { useRouter } from 'next/navigation';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
 import api from '@/lib/api';
+import { openCheckout } from '@/lib/checkout';
 
 export default function PricingPage() {
     const router = useRouter();
@@ -16,19 +17,6 @@ export default function PricingPage() {
             router.replace('/');
         }
     }, [router]);
-
-    // Initialize Lemon Squeezy SDK for modal checkout (in case layout onLoad hasn't fired yet)
-    useEffect(() => {
-        const init = () => {
-            if (window.createLemonSqueezy) {
-                window.createLemonSqueezy();
-            }
-        };
-        init();
-        // Retry after a short delay in case script is still loading
-        const timer = setTimeout(init, 2000);
-        return () => clearTimeout(timer);
-    }, []);
 
     if (!isEnterprise) return null;
 
@@ -45,28 +33,7 @@ export default function PricingPage() {
             });
 
             if (response.data.success && response.data.data.checkoutUrl) {
-                let checkoutUrl = response.data.data.checkoutUrl;
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    if (!checkoutUrl.includes('test=1')) {
-                        checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
-                    }
-                }
-
-                // Add embed param and success URL for modal checkout
-                if (!checkoutUrl.includes('embed=1')) {
-                    checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
-                }
-                const successUrl = encodeURIComponent(`${window.location.origin}/websites`);
-                if (!checkoutUrl.includes('checkout[success_url]')) {
-                    checkoutUrl += `&checkout[success_url]=${successUrl}`;
-                }
-
-                // Open as modal if LS SDK is loaded, otherwise redirect
-                if (window.LemonSqueezy) {
-                    window.LemonSqueezy.Url.Open(checkoutUrl);
-                } else {
-                    window.location.href = checkoutUrl;
-                }
+                openCheckout(response.data.data.checkoutUrl);
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to create checkout. Please try again.');

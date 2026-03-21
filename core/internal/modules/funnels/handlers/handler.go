@@ -112,7 +112,8 @@ func (h *FunnelHandler) CreateFunnel(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		userID = "system"
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
 	}
 
 	funnel, err := h.service.CreateFunnel(c.Request.Context(), &req, websiteID, userID.(string))
@@ -221,15 +222,22 @@ func (h *FunnelHandler) DeleteFunnels(c *gin.Context) {
 // @Success 200 {object} models.FunnelStats
 // @Router /api/websites/{website_id}/funnels/{funnel_id}/stats [get]
 func (h *FunnelHandler) GetFunnelStats(c *gin.Context) {
-	funnelID := c.Param("funnel_id")
-
-	stats, err := h.service.GetFunnelStats(c.Request.Context(), funnelID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
 
-	c.JSON(http.StatusOK, stats)
+	funnelID := c.Param("funnel_id")
+
+	// GetFunnel verifies ownership and loads stats in one path
+	funnel, err := h.service.GetFunnel(c.Request.Context(), funnelID, userID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Funnel not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, funnel.Stats)
 }
 
 // GetActiveFunnels retrieves only active funnels
@@ -292,15 +300,9 @@ func (h *FunnelHandler) TrackBatchFunnelEvents(c *gin.Context) {
 		origin = c.Request.Header.Get("Referer")
 	}
 
-	// Process each event
-	for _, event := range req.Events {
-		// Ensure website ID matches batch request
-		event.WebsiteID = req.WebsiteID
-
-		err := h.service.TrackFunnelEvent(c.Request.Context(), &event, origin)
-		if err != nil {
-			// Log error or continue
-		}
+	if err := h.service.TrackFunnelEventBatch(c.Request.Context(), req.WebsiteID, req.Events, origin); err != nil {
+		c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"status": "success", "count": len(req.Events)})

@@ -1,4 +1,3 @@
-//@ts-ignore
 'use client';
 
 import { GeolocationOverview } from '@/components/analytics/GeolocationOverview';
@@ -11,13 +10,10 @@ import { UTMPerformanceChart } from '@/components/analytics/UTMPerformanceChart'
 import { RecentActivityFeed } from '@/components/analytics/RecentActivityFeed';
 import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import { useToast } from '@/hooks/use-toast';
 import {
   useCustomEvents,
   useDailyStats,
@@ -38,30 +34,57 @@ import {
 } from '@/lib/analytics-api';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
-import { format } from 'date-fns';
-import { getDemoData, getDemoWebsite } from '@/lib/demo-data';
-import Link from 'next/link';
-import { CalendarIcon, Download, Globe, PlusCircle, Settings, Filter, ArrowUpRight, ArrowDownRight, Clock, Eye, Users, TrendingDown, ChevronRight, Target, X } from 'lucide-react';
+import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
+import { Download, Globe, PlusCircle, Users, Target, X, Gauge, Settings, GitBranch, Activity, Filter, Route, Shield, Code, BarChart3, Eye } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
-import { EventsDetails } from '@/components/analytics/EventsDetails';
 import { GoalConversions } from '@/components/analytics/GoalConversions';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
+import { PagePerformanceTable } from '@/components/analytics/PagePerformanceTable';
+
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
 import { FilterModal } from '@/components/analytics/FilterModal';
+import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
+import { FunnelManagement } from '@/components/analytics/FunnelManagement';
+import { PathAnalysis } from '@/components/analytics/PathAnalysis';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { DashboardPageHeader } from '@/components/dashboard-header';
-import { LayoutDashboard } from 'lucide-react';
+import { Logo } from '@/components/ui/logo';
+
+// Pure helper — defined outside component so it's never re-created on render
+function categorizeReferrer(referrer: string): string {
+  if (!referrer || referrer === 'Direct') return 'Direct';
+  const r = referrer.toLowerCase();
+  if (r.includes('accounts.google.com')) return 'Google OAuth';
+  if (r.includes('google')) return 'Google';
+  if (r.includes('bing')) return 'Bing';
+  if (r.includes('yahoo')) return 'Yahoo';
+  if (r.includes('duckduckgo')) return 'DuckDuckGo';
+  if (r.includes('facebook')) return 'Facebook';
+  if (r.includes('twitter')) return 'Twitter';
+  if (r.includes('linkedin')) return 'LinkedIn';
+  if (r.includes('github')) return 'GitHub';
+  if (r.includes('youtube')) return 'YouTube';
+  if (r.includes('instagram')) return 'Instagram';
+  if (r.includes('reddit')) return 'Reddit';
+  if (r.includes('medium')) return 'Medium';
+  if (r.includes('stackoverflow')) return 'Stack Overflow';
+  if (r.includes('dev.to')) return 'Dev.to';
+  if (r.includes('hashnode')) return 'Hashnode';
+  if (r.includes('producthunt')) return 'Product Hunt';
+  if (r.includes('hackernews')) return 'Hacker News';
+  if (r.includes('localhost') || r.includes('127.0.0.1') || r.includes('internal')) return 'Internal Navigation';
+  // Extract domain for unknown referrers instead of showing full URL
+  const domain = r.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+  return domain || referrer;
+}
 
 export default function WebsiteDashboardPage() {
   const params = useParams();
   const websiteId = params?.websiteId as string;
   const router = useRouter();
   const { user } = useAuth();
-  const { toast } = useToast();
-
   const [websites, setWebsites] = useState<Website[]>([]);
   const [selectedModal, setSelectedModal] = useState<string | null>(null);
   const [modalType, setModalType] = useState<string>('');
@@ -78,19 +101,25 @@ export default function WebsiteDashboardPage() {
 
   // Comparison & Annotations state
   const [showComparison, setShowComparison] = useState(false);
-  const [annotations, setAnnotations] = useState<EventAnnotation[]>(() => {
-    if (typeof window === 'undefined') return [];
+  // Initialize with empty array; load from localStorage once websiteId is known
+  const [annotations, setAnnotations] = useState<EventAnnotation[]>([]);
+
+  // Load annotations from localStorage when websiteId becomes available
+  useEffect(() => {
+    if (!websiteId) return;
     try {
       const stored = localStorage.getItem(`annotations-${websiteId}`);
-      return stored ? JSON.parse(stored, (key, value) => key === 'date' ? new Date(value) : value) : [];
-    } catch { return []; }
-  });
+      if (stored) {
+        setAnnotations(JSON.parse(stored, (key, value) => key === 'date' ? new Date(value) : value));
+      }
+    } catch { /* ignore corrupt data */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [websiteId]);
 
-  // Persist annotations to localStorage
+  // Persist annotations to localStorage whenever they change
   useEffect(() => {
-    if (typeof window !== 'undefined' && websiteId) {
-      localStorage.setItem(`annotations-${websiteId}`, JSON.stringify(annotations));
-    }
+    if (!websiteId) return;
+    localStorage.setItem(`annotations-${websiteId}`, JSON.stringify(annotations));
   }, [annotations, websiteId]);
 
   const handleAddAnnotation = useCallback((annotation: Omit<EventAnnotation, 'id'>) => {
@@ -99,11 +128,6 @@ export default function WebsiteDashboardPage() {
 
   const handleDeleteAnnotation = useCallback((id: string) => {
     setAnnotations(prev => prev.filter(a => a.id !== id));
-  }, []);
-
-  // Click-to-filter handler
-  const handleDashboardFilter = useCallback((filter: Record<string, string>) => {
-    setAdvancedFilters((prev: any) => ({ ...prev, ...filter }));
   }, []);
 
   const removeFilter = useCallback((key: string) => {
@@ -158,7 +182,7 @@ export default function WebsiteDashboardPage() {
           const data = await getWebsites();
           // Add demo website to the list if in demo mode
           if (isDemoMode) {
-            setWebsites([getDemoWebsite(), ...data]);
+            setWebsites([demoWebsite(), ...data]);
           } else {
             setWebsites(data);
           }
@@ -166,12 +190,12 @@ export default function WebsiteDashboardPage() {
           console.error('Failed to load websites', error);
           // If in demo mode and API fails, still show demo website
           if (isDemoMode) {
-            setWebsites([getDemoWebsite()]);
+            setWebsites([demoWebsite()]);
           }
         }
       } else if (isDemoMode) {
         // Allow demo mode even without authentication
-        setWebsites([getDemoWebsite()]);
+        setWebsites([demoWebsite()]);
       }
     };
     loadWebsites();
@@ -179,53 +203,10 @@ export default function WebsiteDashboardPage() {
 
   const currentWebsite = websites.find(w => w.id === websiteId);
 
-  // Helper function to categorize referrers for better display
-  const categorizeReferrer = (referrer: string): string => {
-    if (!referrer || referrer === 'Direct') return 'Direct';
-
-    const lowerReferrer = referrer.toLowerCase();
-
-    // Search engines
-    if (lowerReferrer.includes('google')) return 'Google';
-    if (lowerReferrer.includes('bing')) return 'Bing';
-    if (lowerReferrer.includes('yahoo')) return 'Yahoo';
-    if (lowerReferrer.includes('duckduckgo')) return 'DuckDuckGo';
-
-    // Social media
-    if (lowerReferrer.includes('facebook')) return 'Facebook';
-    if (lowerReferrer.includes('twitter')) return 'Twitter';
-    if (lowerReferrer.includes('linkedin')) return 'LinkedIn';
-    if (lowerReferrer.includes('github')) return 'GitHub';
-    if (lowerReferrer.includes('youtube')) return 'YouTube';
-    if (lowerReferrer.includes('instagram')) return 'Instagram';
-    if (lowerReferrer.includes('reddit')) return 'Reddit';
-
-    // Tech platforms
-    if (lowerReferrer.includes('medium')) return 'Medium';
-    if (lowerReferrer.includes('stackoverflow')) return 'Stack Overflow';
-    if (lowerReferrer.includes('dev.to')) return 'Dev.to';
-    if (lowerReferrer.includes('hashnode')) return 'Hashnode';
-    if (lowerReferrer.includes('producthunt')) return 'Product Hunt';
-    if (lowerReferrer.includes('hackernews')) return 'Hacker News';
-
-    // Internal navigation
-    if (lowerReferrer.includes('localhost') || lowerReferrer.includes('127.0.0.1') || lowerReferrer.includes('internal')) {
-      return 'Internal Navigation';
-    }
-
-    // For other domains, return the referrer as is (it should already be cleaned by backend)
-    return referrer;
-  };
-
-
-  // Data hooks with dynamic date range - using real API data OR demo data
-  // In demo mode, we skip API calls and use static demo data
-  const demoData = isDemoMode ? getDemoData() : null;
-
   // ── PRIORITY: above-the-fold data (SummaryCards + TrafficOverview) ──
   const { data: dashboardData, isLoading: dashboardLoading, error: dashboardError } = useDashboardData(websiteId, dateRange, advancedFilters);
   const { data: dailyStats, isLoading: dailyLoading } = useDailyStats(websiteId, dateRange, advancedFilters);
-  const { data: hourlyStats, isLoading: hourlyLoading } = useHourlyStats(websiteId, dateRange, advancedFilters);
+  const { data: hourlyStats } = useHourlyStats(websiteId, dateRange, advancedFilters);
   const { data: visitorInsights, isLoading: visitorInsightsLoading } = useVisitorInsights(websiteId, dateRange);
 
   // ── DEFERRED: below-the-fold data (loads after primary data arrives) ──
@@ -247,6 +228,9 @@ export default function WebsiteDashboardPage() {
   // Previous period data for comparison overlay
   const { data: previousDailyStats } = usePreviousPeriodDailyStats(deferredId, dateRange, showComparison);
 
+  // Memoize demo data so demoAnalyticsData() is not called on every render
+  const demoData = useMemo(() => (isDemoMode ? demoAnalyticsData() : null), [isDemoMode]);
+
   // Use demo data when in demo mode, otherwise use API data
   const finalDashboardData = isDemoMode ? demoData?.dashboardData : dashboardData;
   const finalTopPages = isDemoMode ? demoData?.topPages : topPages;
@@ -254,205 +238,159 @@ export default function WebsiteDashboardPage() {
   const finalTopCountries = isDemoMode ? demoData?.topCountries : topCountries;
   const finalTopBrowsers = isDemoMode ? demoData?.topBrowsers : topBrowsers;
   const finalTopDevices = isDemoMode ? demoData?.topDevices : topDevices;
-  const finalTopOS = isDemoMode ? demoData?.topOS : topOS;
-  const finalTopResolutions = isDemoMode ? {
-    top_resolutions: [
-      { name: '1920x1080', count: 450, percentage: 45.0 },
-      { name: '1366x768', count: 320, percentage: 32.0 },
-      { name: '375x812', count: 280, percentage: 28.0 },
-      { name: '1440x900', count: 210, percentage: 21.0 },
-      { name: '414x896', count: 150, percentage: 15.0 }
-    ]
-  } : topResolutions;
   const finalDailyStats = isDemoMode ? demoData?.dailyStats : dailyStats;
   const finalHourlyStats = isDemoMode ? demoData?.hourlyStats : hourlyStats;
   const finalGeolocationData = isDemoMode ? demoData?.geolocationData : geolocationData;
   const finalVisitorInsights = isDemoMode ? demoData?.visitorInsights : visitorInsights;
-  const finalCustomEvents = isDemoMode ? demoData?.customEvents : customEvents;
   const finalPreviousDailyStats = isDemoMode ? demoData?.dailyStats : previousDailyStats;
 
-  // Transform API data to match demo component expectations
-  const transformedTopPages = finalTopPages ? {
-    top_pages: finalTopPages.top_pages?.map((page: any) => ({
-      page: page.page || '/',
-      views: page.views || 0,
-      unique_visitors: page.unique || 0,
-      avg_time_on_page: page.avg_time || 0,
-      bounce_rate: page.bounce_rate || 0,
-    })) || []
-  } : {
-    top_pages: []
-  };
+  const transformedTopPages = useMemo(() => {
+    const src = isDemoMode ? demoData?.topPages : topPages;
+    return {
+      top_pages: src?.top_pages?.map((page: any) => ({
+        page: page.page || '/',
+        views: page.views || 0,
+        unique_visitors: page.unique || 0,
+        avg_time_on_page: page.avg_time || 0,
+        bounce_rate: page.bounce_rate || 0,
+      })) ?? [],
+    };
+  }, [isDemoMode, demoData, topPages]);
 
-  const transformedTopReferrers = finalTopReferrers ? {
-    top_referrers: finalTopReferrers.top_referrers?.map((ref: any) => {
-      const referrer = ref.referrer || 'Direct';
-      const categorizedReferrer = categorizeReferrer(referrer);
-      return {
-        referrer: categorizedReferrer,
+  const transformedTopReferrers = useMemo(() => {
+    const src = isDemoMode ? demoData?.topReferrers : topReferrers;
+    return {
+      top_referrers: src?.top_referrers?.map((ref: any) => ({
+        referrer: categorizeReferrer(ref.referrer || 'Direct'),
         visitors: ref.unique || 0,
         page_views: ref.views || 0,
         avg_session_duration: 0,
-      };
-    }) || []
-  } : {
-    top_referrers: []
-  };
+      })) ?? [],
+    };
+  }, [isDemoMode, demoData, topReferrers]);
 
-  const transformedTopCountries = finalTopCountries ? {
-    top_countries: finalTopCountries.top_countries?.map((country: any) => ({
-      country: country.country || 'Unknown',
-      visitors: country.unique || 0,
-      page_views: country.views || 0,
-      avg_session_duration: 0,
-    })) || []
-  } : {
-    top_countries: []
-  };
+  const transformedTopCountries = useMemo(() => {
+    const src = isDemoMode ? demoData?.topCountries : topCountries;
+    return {
+      top_countries: src?.top_countries?.map((country: any) => ({
+        country: country.country || 'Unknown',
+        visitors: country.unique || 0,
+        page_views: country.views || 0,
+        avg_session_duration: 0,
+      })) ?? [],
+    };
+  }, [isDemoMode, demoData, topCountries]);
 
-  const transformedTopBrowsers = finalTopBrowsers ? {
-    top_browsers: finalTopBrowsers.top_browsers?.map((browser: any) => ({
-      browser: browser.browser || 'Unknown',
-      visitors: browser.unique || 0,
-      views: browser.views || 0,
-      market_share: 0,
-      version: 'Unknown',
-    })) || []
-  } : {
-    top_browsers: []
-  };
+  const transformedTopBrowsers = useMemo(() => {
+    const src = isDemoMode ? demoData?.topBrowsers : topBrowsers;
+    return {
+      top_browsers: src?.top_browsers?.map((browser: any) => ({
+        browser: browser.browser || 'Unknown',
+        visitors: browser.unique || 0,
+        views: browser.views || 0,
+        market_share: 0,
+        version: 'Unknown',
+      })) ?? [],
+    };
+  }, [isDemoMode, demoData, topBrowsers]);
 
-  const transformedTopDevices = finalTopDevices ? {
-    top_devices: finalTopDevices.top_devices?.map((device: any) => ({
-      device: device.device || 'Unknown',
-      visitors: device.unique || 0,
-      page_views: device.views || 0,
-      avg_session_duration: 0,
-    })) || []
-  } : {
-    top_devices: []
-  };
+  const transformedTopDevices = useMemo(() => {
+    const src = isDemoMode ? demoData?.topDevices : topDevices;
+    return {
+      top_devices: src?.top_devices?.map((device: any) => ({
+        device: device.device || 'Unknown',
+        visitors: device.unique || 0,
+        page_views: device.views || 0,
+        avg_session_duration: 0,
+      })) ?? [],
+    };
+  }, [isDemoMode, demoData, topDevices]);
 
-  const transformedTopOS = finalTopOS ? {
-    top_os: finalTopOS.top_os?.map((os: any) => ({
-      os: os.os || 'Unknown',
-      visitors: os.unique || 0,
-      page_views: os.views || 0,
-      avg_session_duration: 0,
-    })) || []
-  } : {
-    top_os: []
-  };
+  const transformedTopOS = useMemo(() => {
+    const src = isDemoMode ? demoData?.topOS : topOS;
+    return {
+      top_os: src?.top_os?.map((os: any) => ({
+        os: os.os || 'Unknown',
+        visitors: os.unique || 0,
+        page_views: os.views || 0,
+        avg_session_duration: 0,
+      })) ?? [],
+    };
+  }, [isDemoMode, demoData, topOS]);
 
-  const transformedTopResolutions = finalTopResolutions ? {
-    top_resolutions: finalTopResolutions.top_resolutions?.map((res: any) => ({
-      name: res.name || 'Unknown',
-      count: res.count || 0,
-      percentage: res.percentage || 0,
-    })) || []
-  } : {
-    top_resolutions: []
-  };
+  const transformedTopResolutions = useMemo(() => {
+    const src = isDemoMode
+      ? {
+          top_resolutions: [
+            { name: '1920x1080', count: 450, percentage: 45.0 },
+            { name: '1366x768', count: 320, percentage: 32.0 },
+            { name: '375x812', count: 280, percentage: 28.0 },
+            { name: '1440x900', count: 210, percentage: 21.0 },
+            { name: '414x896', count: 150, percentage: 15.0 },
+          ],
+        }
+      : topResolutions;
+    return {
+      top_resolutions: src?.top_resolutions?.map((res: any) => ({
+        name: res.name || 'Unknown',
+        count: res.count || 0,
+        percentage: res.percentage || 0,
+      })) ?? [],
+    };
+  }, [isDemoMode, topResolutions]);
 
+  // Transform custom events — filter pageview events and compute totals in one pass
+  const transformedCustomEvents = useMemo(() => {
+    const src = isDemoMode ? demoData?.customEvents : customEvents;
+    const emptyUtm = { sources: {}, mediums: {}, campaigns: {}, terms: {}, content: {}, avg_ctr: 0, total_campaigns: 0, total_sources: 0, total_mediums: 0 };
 
-  // Transform custom events data for the component
-  const transformedCustomEvents = finalCustomEvents ? {
-    timeseries: finalCustomEvents.timeseries || [],
-    top_events: finalCustomEvents.top_events || [],
-    total_events: finalCustomEvents.top_events?.reduce((sum: number, event: any) => sum + event.count, 0) || 0,
-    unique_events: finalCustomEvents.top_events?.length || 0,
-    utm_performance: finalCustomEvents.utm_performance || {
-      sources: {},
-      mediums: {},
-      campaigns: {},
-      terms: {},
-      content: {},
-      avg_ctr: 0,
-      total_campaigns: 0,
-      total_sources: 0,
-      total_mediums: 0
-    }
-  } : {
-    timeseries: [],
-    top_events: [],
-    total_events: 0,
-    unique_events: 0,
-    utm_performance: {
-      sources: {}, mediums: {}, campaigns: {}, terms: {}, content: {},
-      avg_ctr: 0, total_campaigns: 0, total_sources: 0, total_mediums: 0
-    }
-  };
-
-  // Check for UTM parameters in URL and create sample data if present
-  React.useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const utmSource = urlParams.get('utm_source');
-    const utmMedium = urlParams.get('utm_medium');
-    const utmCampaign = urlParams.get('utm_campaign');
-
-    if (utmSource || utmMedium || utmCampaign) {
-
-      // If we have UTM parameters but no UTM data, create some sample data
-      if (transformedCustomEvents && (!transformedCustomEvents.utm_performance ||
-        Object.keys(transformedCustomEvents.utm_performance.sources || {}).length === 0)) {
-
-        // Create sample UTM data based on the actual parameters
-        const sampleUTMData = {
-          ...transformedCustomEvents,
-          utm_performance: {
-            sources: {
-              [utmSource || 'direct']: { unique_visitors: 1250, total_events: 3200, sessions: 1800 },
-              'facebook': { unique_visitors: 890, total_events: 2100, sessions: 1200 },
-              'direct': { unique_visitors: 650, total_events: 1800, sessions: 950 }
-            },
-            mediums: {
-              [utmMedium || 'cpc']: { unique_visitors: 1250, total_events: 3200 },
-              'social': { unique_visitors: 890, total_events: 2100 },
-              'email': { unique_visitors: 420, total_events: 1200 }
-            },
-            campaigns: {
-              [utmCampaign || 'organic']: { unique_visitors: 890, total_events: 2200 },
-              'product_launch': { unique_visitors: 650, total_events: 1800 }
-            },
-            terms: {},
-            content: {},
-            avg_ctr: 4.2,
-            total_campaigns: 2,
-            total_sources: 3,
-            total_mediums: 3
-          }
-        };
-
-        // Update the transformed data
-        Object.assign(transformedCustomEvents, sampleUTMData);
-      }
-    }
-  }, [transformedCustomEvents]);
-
-  // Add pageview data from dashboard data to custom events (but don't show in breakdown)
-  if (finalDashboardData?.page_views && transformedCustomEvents) {
-    // Update totals to include pageviews for the summary cards
-    transformedCustomEvents.total_events += finalDashboardData.page_views;
-    // Don't add pageviews to top_events since they're not custom events
-  }
-
-  // CRITICAL FIX: Remove any pageview events from top_events
-  if (transformedCustomEvents && transformedCustomEvents.top_events) {
-    transformedCustomEvents.top_events = transformedCustomEvents.top_events.filter(
-      (event: any) => event.event_type !== 'pageview' && event.event_type !== 'page_view'
+    // Filter out internal tracker events — these are already reflected in other dashboard sections
+    const internalEvents = new Set(['pageview', 'page_view', 'page_exit', 'scroll_depth', 'click']);
+    const filteredEvents = (src?.top_events ?? []).filter(
+      (event: any) => !internalEvents.has(event.event_type)
     );
-    // Update unique_events count after filtering
-    transformedCustomEvents.unique_events = transformedCustomEvents.top_events.length;
-  }
+
+    return {
+      timeseries: src?.timeseries ?? [],
+      top_events: filteredEvents,
+      // Include page_views in total so summary cards reflect full traffic
+      total_events: filteredEvents.reduce((sum: number, e: any) => sum + e.count, 0) + (finalDashboardData?.page_views ?? 0),
+      unique_events: filteredEvents.length,
+      utm_performance: src?.utm_performance ?? emptyUtm,
+    };
+  }, [isDemoMode, demoData, customEvents, finalDashboardData?.page_views]);
 
   // Only show user-defined goals, no fallback to auto-tracked events
-  const finalGoalStats = goalStats?.goals || [];
+  const finalGoalStats = useMemo(() => goalStats?.goals ?? [], [goalStats]);
 
 
-  const handleModalOpen = (type: string) => {
-    setModalType(type);
-    setSelectedModal(type);
-  };
+  const handleExportCSV = useCallback(() => {
+    const rows: string[][] = [
+      ['Metric', 'Value'],
+      ['Total Visitors', String(finalDashboardData?.total_visitors ?? 0)],
+      ['Unique Visitors', String(finalDashboardData?.unique_visitors ?? 0)],
+      ['Page Views', String(finalDashboardData?.page_views ?? 0)],
+      ['Bounce Rate', `${(finalDashboardData?.bounce_rate ?? 0).toFixed(1)}%`],
+      ['Session Duration (s)', String(finalDashboardData?.session_duration ?? 0)],
+      [],
+      ['Date', 'Visitors', 'Page Views'],
+      ...(finalDailyStats?.daily_stats ?? []).map((d: any) => [d.date, String(d.unique ?? 0), String(d.views ?? 0)]),
+      [],
+      ['Page', 'Views', 'Unique Visitors'],
+      ...(finalTopPages?.top_pages ?? []).map((p: any) => [p.page, String(p.views ?? 0), String(p.unique_visitors ?? 0)]),
+      [],
+      ['Country', 'Visitors'],
+      ...(finalTopCountries?.top_countries ?? []).map((c: any) => [c.country, String(c.visitors ?? 0)]),
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analytics-${currentWebsite?.name ?? websiteId}-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [finalDashboardData, finalDailyStats, finalTopPages, finalTopCountries, currentWebsite, websiteId]);
 
   const handleModalClose = () => {
     setSelectedModal(null);
@@ -479,13 +417,6 @@ export default function WebsiteDashboardPage() {
     }
   };
 
-  const handleExport = () => {
-    toast({
-      title: "Export Initiated",
-      description: "Your data export will start shortly.",
-    });
-  };
-
   const handleWebsiteChange = (siteId: string) => {
     if (siteId === 'add-new') {
       setShowAddWebsiteModal(true);
@@ -500,54 +431,43 @@ export default function WebsiteDashboardPage() {
   };
 
 
-  const renderContent = () => {
-    // Handle errors (simplified) - skip in demo mode
-    if (!isDemoMode && dashboardError) {
-      return (
-        <div className="p-8 text-center bg-red-50 text-red-800 rounded">
-          Failed to load analytics data.
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <DashboardPageHeader
-          title="Overview"
-          description="Track your website visitor behavior in real-time."
-        >
-          <div className="flex items-center gap-3">
-            {/* Demo Mode Badge */}
-            {/* {isDemoMode && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-wider border border-blue-500/20 shadow-sm shadow-blue-500/5">
-                  DEMO MODE
-                </div>
-              )} */}
+  const dashboardContent = !isDemoMode && dashboardError ? (
+    <div className="p-8 text-center bg-red-50 text-red-800 rounded">
+      Failed to load analytics data.
+    </div>
+  ) : (
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {/* ── Header — single compact row ── */}
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
+          {/* Logo */}
+          <div className="mr-auto sm:mr-0">
+            <Logo size="sm" showText className="hidden sm:flex" />
+            <Logo size="sm" className="sm:hidden" />
           </div>
 
-          <div className="h-10 w-10 flex items-center justify-center bg-card/50 backdrop-blur-md hover:bg-card transition-colors rounded shadow-sm border border-border/40">
-            <ThemeToggle />
-          </div>
+          {/* Separator */}
+          <div className="hidden sm:block w-px h-5 bg-border/60 mx-1" />
+
           {/* Website Switcher */}
           <Select value={websiteId} onValueChange={handleWebsiteChange}>
-            <SelectTrigger className="w-full sm:w-[220px] h-10 bg-card/50 backdrop-blur-md  hover:bg-card transition-colors rounded shadow-sm border border-border/40">
+            <SelectTrigger className="w-[180px] h-8 bg-card/50 hover:bg-card transition-colors rounded-md border border-border/40 text-xs">
               <div className="flex items-center truncate">
-                <Globe className="mr-2 h-4 w-4 text-primary shrink-0" />
-                <span className="truncate font-bold text-sm tracking-tight text-foreground">{currentWebsite?.name || 'Select website'}</span>
+                <Globe className="mr-1.5 h-3 w-3 text-primary shrink-0" />
+                <span className="truncate font-medium text-foreground">{currentWebsite?.name || 'Select website'}</span>
               </div>
             </SelectTrigger>
-            <SelectContent className="rounded shadow-2xl bg-card">
+            <SelectContent className="rounded-md bg-card">
               {websites.map((site) => (
-                <SelectItem key={site.id} value={site.id} className="rounded py-2">
+                <SelectItem key={site.id} value={site.id} className="rounded text-xs py-1.5">
                   <span className="font-medium text-foreground">{site.name}</span>
                 </SelectItem>
               ))}
               {websites.length > 0 && (
                 <>
                   <div className="h-px bg-border my-1 mx-2" />
-                  <SelectItem value="add-new" className="text-primary rounded py-2">
-                    <div className="flex items-center font-bold">
-                      <PlusCircle className="mr-2 h-4 w-4" />
+                  <SelectItem value="add-new" className="text-primary rounded text-xs py-1.5">
+                    <div className="flex items-center font-medium">
+                      <PlusCircle className="mr-1.5 h-3 w-3" />
                       Add Website
                     </div>
                   </SelectItem>
@@ -556,19 +476,35 @@ export default function WebsiteDashboardPage() {
             </SelectContent>
           </Select>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <FilterModal
-              dateRange={dateRange}
-              isCustomRange={isCustomRange}
-              customStartDate={customStartDate}
-              customEndDate={customEndDate}
-              onDateRangeChange={handleDateRangeChange}
-              onCustomDateChange={handleCustomDateChange}
-              onFiltersChange={setAdvancedFilters}
-              activeFiltersCount={Object.keys(advancedFilters).length}
-            />
+          {/* Spacer pushes controls to the right */}
+          <div className="flex-1" />
+
+          {/* Filters */}
+          <FilterModal
+            dateRange={dateRange}
+            isCustomRange={isCustomRange}
+            customStartDate={customStartDate}
+            customEndDate={customEndDate}
+            onDateRangeChange={handleDateRangeChange}
+            onCustomDateChange={handleCustomDateChange}
+            onFiltersChange={setAdvancedFilters}
+            activeFiltersCount={Object.keys(advancedFilters).length}
+          />
+
+          {/* Settings */}
+          <button
+            onClick={() => router.push(`/websites/${websiteId}/settings`)}
+            className="h-8 px-3 flex items-center gap-2 bg-card/60 hover:bg-card transition-colors rounded-md border border-border/50 text-[11px] font-semibold text-foreground"
+          >
+            <Settings className="h-3.5 w-3.5" />
+            <span>Settings</span>
+          </button>
+
+          {/* Theme */}
+          <div className="h-8 w-8 flex items-center justify-center bg-card/50 hover:bg-card transition-colors rounded-md border border-border/40">
+            <ThemeToggle />
           </div>
-        </DashboardPageHeader>
+        </div>
 
         {/* Stats Grid */}
         {/* Summary Cards */}
@@ -619,17 +555,19 @@ export default function WebsiteDashboardPage() {
 
         {/* Traffic Overview */}
         <section className="">
-          <TrafficOverview
-            dailyStats={finalDailyStats}
-            hourlyStats={finalHourlyStats}
-            previousDailyStats={finalPreviousDailyStats}
-            isLoading={!isDemoMode && (dashboardLoading || dailyLoading)}
-            showComparison={showComparison}
-            onComparisonToggle={setShowComparison}
-            annotations={annotations}
-            onAddAnnotation={handleAddAnnotation}
-            onDeleteAnnotation={handleDeleteAnnotation}
-          />
+          <ChartErrorBoundary label="Traffic Overview">
+            <TrafficOverview
+              dailyStats={finalDailyStats}
+              hourlyStats={finalHourlyStats}
+              previousDailyStats={finalPreviousDailyStats}
+              isLoading={!isDemoMode && (dashboardLoading || dailyLoading)}
+              showComparison={showComparison}
+              onComparisonToggle={setShowComparison}
+              annotations={annotations}
+              onAddAnnotation={handleAddAnnotation}
+              onDeleteAnnotation={handleDeleteAnnotation}
+            />
+          </ChartErrorBoundary>
         </section>
 
 
@@ -637,128 +575,152 @@ export default function WebsiteDashboardPage() {
         {/* AUDIENCE INTELLIGENCE */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
-            <Users className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Audience Intelligence</h2>
-            <div className="h-px bg-border flex-1 ml-4" />
+            <Users className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold tracking-tight">Audience Intelligence</h2>
+            <div className="h-px bg-border flex-1 ml-3" />
           </div>
 
           {/* Pages & Sources */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-8">
-                <TopPagesChart
-                  data={transformedTopPages}
-                  entryPages={finalVisitorInsights?.visitor_insights?.top_entry_pages}
-                  exitPages={finalVisitorInsights?.visitor_insights?.top_exit_pages}
-                  isLoading={pagesLoading || visitorInsightsLoading}
-                  onFilter={handleDashboardFilter}
-                />
+              <CardContent className="p-5">
+                <ChartErrorBoundary label="Top Pages">
+                  <TopPagesChart
+                    data={transformedTopPages}
+                    entryPages={finalVisitorInsights?.visitor_insights?.top_entry_pages}
+                    exitPages={finalVisitorInsights?.visitor_insights?.top_exit_pages}
+                    isLoading={pagesLoading || visitorInsightsLoading}
+                  />
+                </ChartErrorBoundary>
               </CardContent>
             </Card>
 
             <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-8">
-                <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} onFilter={handleDashboardFilter} />
+              <CardContent className="p-5">
+                <ChartErrorBoundary label="Top Sources">
+                  <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
+                </ChartErrorBoundary>
               </CardContent>
             </Card>
           </div>
 
           {/* Geolocation Map — full width */}
-          <GeolocationOverview
-            data={finalGeolocationData}
-            isLoading={!isDemoMode && geolocationLoading}
-            onFilter={handleDashboardFilter}
-          />
+          <ChartErrorBoundary label="Geographic Intelligence">
+            <GeolocationOverview
+              data={finalGeolocationData}
+              isLoading={!isDemoMode && geolocationLoading}
+            />
+          </ChartErrorBoundary>
 
           {/* Devices + Live Activity — 2-col grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-8">
-                <TopDevicesChart
-                  data={transformedTopDevices}
-                  osData={transformedTopOS}
-                  screenData={transformedTopResolutions}
-                  browserData={transformedTopBrowsers}
-                  isLoading={devicesLoading || osLoading || resolutionsLoading || browsersLoading}
-                  onFilter={handleDashboardFilter}
-                />
+              <CardContent className="p-5">
+                <ChartErrorBoundary label="Top Devices">
+                  <TopDevicesChart
+                    data={transformedTopDevices}
+                    osData={transformedTopOS}
+                    screenData={transformedTopResolutions}
+                    browserData={transformedTopBrowsers}
+                    isLoading={devicesLoading || osLoading || resolutionsLoading || browsersLoading}
+                  />
+                </ChartErrorBoundary>
               </CardContent>
             </Card>
 
             <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-8">
-                <RecentActivityFeed
-                  data={recentActivity}
-                  isLoading={!isDemoMode && recentActivityLoading}
-                />
+              <CardContent className="p-5">
+                <ChartErrorBoundary label="Live Activity">
+                  <RecentActivityFeed
+                    data={recentActivity}
+                    isLoading={!isDemoMode && recentActivityLoading}
+                  />
+                </ChartErrorBoundary>
               </CardContent>
             </Card>
           </div>
+
+        </div>
+
+        {/* PAGE PERFORMANCE */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <Gauge className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold tracking-tight">Page Performance</h2>
+            <div className="h-px bg-border flex-1 ml-3" />
+          </div>
+
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardContent className="p-5">
+              <ChartErrorBoundary label="Page Performance">
+                <PagePerformanceTable
+                  data={(isDemoMode ? demoData?.topPages : topPages) || { top_pages: [] }}
+                  isLoading={!isDemoMode && pagesLoading}
+                />
+              </ChartErrorBoundary>
+            </CardContent>
+          </Card>
         </div>
 
         {/* CONVERSION & MARKETING INTELLIGENCE */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-1">
-            <Target className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-bold tracking-tight">Conversion & Marketing</h2>
-            <div className="h-px bg-border flex-1 ml-4" />
+            <Target className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold tracking-tight">Conversion & Marketing</h2>
+            <div className="h-px bg-border flex-1 ml-3" />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Goal Conversions */}
             <Card className="border border-border/60 bg-card shadow-sm">
-              <CardHeader className="p-8 pb-4">
+              <CardHeader className="p-5 pb-3 border-b border-border/60">
                 <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg font-bold tracking-tight">Goal Conversions</CardTitle>
-                    <p className="text-xs text-muted-foreground">Behavioral targets</p>
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight">Goal Conversions</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Behavioral targets</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Link href={`/websites/${websiteId}/settings?tab=goals`}>
-                      <Button variant="ghost" size="sm" className="px-2 py-0 font-medium text-xs rounded text-muted-foreground hover:text-foreground">
-                        <Settings className="h-3.5 w-3.5 mr-1" />
-                        Manage
-                      </Button>
-                    </Link>
+                  <div className="flex items-center gap-1.5">
                     <Button
                       onClick={() => setShowAddGoalModal(true)}
                       variant="secondary"
                       size="sm"
-                      className="px-2 py-0 font-medium text-xs rounded gap-2 shadow-sm transition-transform active:scale-95"
+                      className="h-7 px-2.5 text-xs font-medium rounded gap-1.5 shadow-sm transition-transform active:scale-95"
                     >
-                      <PlusCircle className="h-4 w-4" />
+                      <PlusCircle className="h-3 w-3" />
                       Add Goal
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="pt-4 flex-1">
-                <GoalConversions
-                  items={finalGoalStats}
-                  totalVisitors={finalDashboardData?.unique_visitors || 0}
-                  isLoading={!isDemoMode && goalStatsLoading}
-                />
+                <ChartErrorBoundary label="Goal Conversions">
+                  <GoalConversions
+                    items={finalGoalStats}
+                    totalVisitors={finalDashboardData?.unique_visitors || 0}
+                    isLoading={!isDemoMode && goalStatsLoading}
+                  />
+                </ChartErrorBoundary>
               </CardContent>
             </Card>
 
             {/* Campaign Intelligence */}
             <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
-              <CardHeader className="p-8 pb-6 border-b border-border/40">
+              <CardHeader className="p-5 pb-3 border-b border-border/60">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                  <div className="space-y-1 min-w-0 shrink-0">
-                    <CardTitle className="text-lg font-bold tracking-tight whitespace-nowrap">Campaign Intelligence</CardTitle>
-                    <p className="text-xs text-muted-foreground whitespace-nowrap">UTM source & performance</p>
+                  <div className="min-w-0 shrink-0">
+                    <h3 className="text-base font-semibold tracking-tight whitespace-nowrap">Campaign Intelligence</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">UTM source & performance</p>
                   </div>
                   <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto shrink-0">
-                    <TabsList className="grid w-full grid-cols-3 h-9 bg-accent/10 p-1 rounded">
-                      <TabsTrigger value="sources" className="text-xs font-medium">Sources</TabsTrigger>
-                      <TabsTrigger value="mediums" className="text-xs font-medium">Mediums</TabsTrigger>
-                      <TabsTrigger value="campaigns" className="text-xs font-medium">Campaigns</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-3 h-8 bg-muted/50 p-0.5 rounded">
+                      <TabsTrigger value="sources" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Sources</TabsTrigger>
+                      <TabsTrigger value="mediums" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Mediums</TabsTrigger>
+                      <TabsTrigger value="campaigns" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Campaigns</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>
               </CardHeader>
-              <CardContent className=" pt-6">
+              <CardContent className="pt-4">
                 <UTMPerformanceChart
                   data={transformedCustomEvents.utm_performance as any}
                   isLoading={customEventsLoading}
@@ -768,6 +730,25 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* PATH ANALYSIS */}
+        <PathAnalysis websiteId={websiteId} dateRange={dateRange} />
+
+        {/* FUNNELS / USER JOURNEYS */}
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <GitBranch className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold tracking-tight">Funnels</h2>
+            <div className="h-px bg-border flex-1 ml-3" />
+          </div>
+
+          <ChartErrorBoundary label="Funnels">
+            <FunnelManagement
+              websiteId={websiteId}
+              dateRange={dateRange}
+            />
+          </ChartErrorBoundary>
         </div>
 
         {/* Detailed Data Modal */}
@@ -797,14 +778,12 @@ export default function WebsiteDashboardPage() {
           />
         )}
       </div>
-    );
-  };
-
+  );
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="p-6 md:p-8 lg:p-10 w-full max-w-[1400px] mx-auto">
-        {renderContent()}
+      <main className="p-4 md:p-6 lg:p-8 w-full max-w-[1200px] mx-auto">
+        {dashboardContent}
       </main>
 
       {/* Add Website Modal */}

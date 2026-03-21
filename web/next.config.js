@@ -2,15 +2,8 @@
 const nextConfig = {
   /* config options here */
   output: 'standalone',
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  experimental: {
-    missingSuspenseWithCSRBailout: false,
-  },
+  // Allow large tracker payloads (replay FullSnapshot events can exceed 10MB)
+  middlewareClientMaxBodySize: '50mb',
   images: {
     remotePatterns: [
       {
@@ -30,6 +23,12 @@ const nextConfig = {
         hostname: 'images.unsplash.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.google.com',
+        port: '',
+        pathname: '/s2/favicons/**',
       }
     ],
   },

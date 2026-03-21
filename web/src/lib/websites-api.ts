@@ -1,4 +1,5 @@
 import api from './api';
+import { isDemo, demoMutationGuard, demoWebsite, demoGoals, demoMembers } from './demo';
 
 export type Website = {
   id: string;
@@ -281,16 +282,21 @@ export interface Goal {
 }
 
 export const getGoals = async (websiteId: string): Promise<Goal[]> => {
+  if (isDemo(websiteId)) return demoGoals();
   const response = await api.get(`/user/websites/${websiteId}/goals`);
   return response.data.data || [];
 };
 
 export const addGoal = async (websiteId: string, data: { name: string; type: string; identifier: string; selector?: string }): Promise<Goal> => {
+  if (demoMutationGuard(websiteId)) {
+    return { id: 'demo-goal', websiteId, name: data.name, type: data.type as any, identifier: data.identifier, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+  }
   const response = await api.post(`/user/websites/${websiteId}/goals`, data);
   return response.data;
 };
 
 export const deleteGoal = async (websiteId: string, goalId: string): Promise<void> => {
+  if (demoMutationGuard(websiteId)) return;
   await api.delete(`/user/websites/${websiteId}/goals/${goalId}`);
 };
 
@@ -308,19 +314,77 @@ export interface WebsiteMember {
 }
 
 export const getMembers = async (websiteId: string): Promise<WebsiteMember[]> => {
+  if (isDemo(websiteId)) return demoMembers();
   const response = await api.get(`/user/websites/${websiteId}/members`);
   return response.data.data || [];
 };
 
 export const addMember = async (websiteId: string, data: { email: string; role: string }): Promise<WebsiteMember> => {
+  if (demoMutationGuard(websiteId)) {
+    return { id: 'demo-new', websiteId, userId: 'demo', role: data.role as any, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), userEmail: data.email };
+  }
   const response = await api.post(`/user/websites/${websiteId}/members`, data);
   return response.data.data;
 };
 
 export const removeMember = async (websiteId: string, userId: string): Promise<void> => {
+  if (demoMutationGuard(websiteId)) return;
   await api.delete(`/user/websites/${websiteId}/members/${userId}`);
 };
 
 export const updateMemberRole = async (websiteId: string, userId: string, role: string): Promise<void> => {
+  if (demoMutationGuard(websiteId)) return;
   await api.put(`/user/websites/${websiteId}/members/${userId}/role`, { role });
+};
+
+// --- Permissions ---
+
+export type WebsiteRole = 'owner' | 'admin' | 'viewer' | '';
+
+export const getMyRole = async (websiteId: string): Promise<WebsiteRole> => {
+  if (isDemo(websiteId)) return 'owner'; // demo mode always has full access
+  try {
+    const response = await api.get(`/user/websites/${websiteId}/my-role`);
+    return response.data.role || '';
+  } catch {
+    return '';
+  }
+};
+
+// --- Token-based Invitations ---
+
+export interface WebsiteInvitation {
+  id: string;
+  websiteId: string;
+  email: string;
+  role: string;
+  token: string;
+  invitedBy: string;
+  expiresAt: string;
+  acceptedAt?: string;
+  createdAt: string;
+  websiteName?: string;
+}
+
+export const inviteMemberByToken = async (websiteId: string, data: { email: string; role: string }): Promise<WebsiteInvitation> => {
+  if (demoMutationGuard(websiteId)) {
+    return { id: 'demo-inv', websiteId, email: data.email, role: data.role, token: 'demo-token', invitedBy: 'demo', expiresAt: new Date().toISOString(), createdAt: new Date().toISOString() };
+  }
+  const response = await api.post(`/user/websites/${websiteId}/invitations`, data);
+  return response.data.data;
+};
+
+export const listPendingInvitations = async (websiteId: string): Promise<WebsiteInvitation[]> => {
+  if (isDemo(websiteId)) return [];
+  const response = await api.get(`/user/websites/${websiteId}/invitations`);
+  return response.data.data || [];
+};
+
+export const revokeInvitation = async (websiteId: string, invitationId: string): Promise<void> => {
+  if (demoMutationGuard(websiteId)) return;
+  await api.delete(`/user/websites/${websiteId}/invitations/${invitationId}`);
+};
+
+export const acceptInvitation = async (token: string): Promise<void> => {
+  await api.post(`/user/accept-invite`, { token });
 };

@@ -110,6 +110,51 @@ func (r *WebsiteRepository) ListByUserID(ctx context.Context, userID uuid.UUID) 
 	return websites, nil
 }
 
+// ListAllActiveSiteIDs returns the site_id of every active website.
+// Used by the analytics cache warmer to proactively populate Redis.
+func (r *WebsiteRepository) ListAllActiveSiteIDs(ctx context.Context) ([]string, error) {
+	rows, err := r.db.Query(ctx, `SELECT site_id FROM websites WHERE is_active = true`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
+}
+
+// ActiveWebsite holds both ID formats for cache warming across modules.
+type ActiveWebsite struct {
+	UUID   string // websites.id (UUID) — used by heatmaps
+	SiteID string // websites.site_id — used by replays, analytics
+}
+
+// ListAllActiveWebsites returns UUID + site_id pairs for every active website.
+func (r *WebsiteRepository) ListAllActiveWebsites(ctx context.Context) ([]ActiveWebsite, error) {
+	rows, err := r.db.Query(ctx, `SELECT id, site_id FROM websites WHERE is_active = true`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []ActiveWebsite
+	for rows.Next() {
+		var w ActiveWebsite
+		if err := rows.Scan(&w.UUID, &w.SiteID); err != nil {
+			return nil, err
+		}
+		result = append(result, w)
+	}
+	return result, nil
+}
+
 // GetByID returns a website by internal UUID
 func (r *WebsiteRepository) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*models.Website, error) {
 	query := `
@@ -157,7 +202,7 @@ func (r *WebsiteRepository) GetBySiteID(ctx context.Context, siteID string) (*mo
 	query := `
 		SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified, automation_enabled, funnel_enabled, heatmap_enabled, heatmap_include_patterns, heatmap_exclude_patterns, replay_enabled, replay_sampling_rate, replay_include_patterns, replay_exclude_patterns, verification_token, created_at, updated_at
 		FROM websites
-		WHERE site_id = $1 OR id::text = $1
+		WHERE site_id = $1
 	`
 
 	var w models.Website
@@ -307,8 +352,8 @@ func (r *WebsiteRepository) ListGoals(ctx context.Context, websiteID uuid.UUID) 
 }
 
 func (r *WebsiteRepository) CreateGoal(ctx context.Context, goal *models.Goal) error {
-	query := `INSERT INTO goals (website_id, name, type, identifier, selector, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
-	return r.db.QueryRow(ctx, query, goal.WebsiteID, goal.Name, goal.Type, goal.Identifier, goal.Selector, time.Now(), time.Now()).Scan(&goal.ID)
+	query := `INSERT INTO goals (website_id, name, type, identifier, selector, revenue, currency, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`
+	return r.db.QueryRow(ctx, query, goal.WebsiteID, goal.Name, goal.Type, goal.Identifier, goal.Selector, goal.Revenue, goal.Currency, time.Now(), time.Now()).Scan(&goal.ID)
 }
 
 func (r *WebsiteRepository) DeleteGoal(ctx context.Context, id uuid.UUID, websiteID uuid.UUID) error {
@@ -372,4 +417,104 @@ func (r *WebsiteRepository) GetMember(ctx context.Context, websiteID, userID uui
 		return nil, err
 	}
 	return &m, nil
+}
+
+// GetMemberRole returns the role of a user in a website (empty string if not a member)
+func (r *WebsiteRepository) GetMemberRole(ctx context.Context, websiteID, userID uuid.UUID) (string, error) {
+	var role string
+	err := r.db.QueryRow(ctx, `SELECT role FROM website_members WHERE website_id = $1 AND user_id = $2`, websiteID, userID).Scan(&role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return role, nil
+}
+
+// --- Invitations ---
+
+func (r *WebsiteRepository) CreateInvitation(ctx context.Context, inv *models.WebsiteInvitation) error {
+	query := `INSERT INTO website_invitations (website_id, email, role, token, invited_by, expires_at, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+	return r.db.QueryRow(ctx, query, inv.WebsiteID, inv.Email, inv.Role, inv.Token, inv.InvitedBy, inv.ExpiresAt, inv.CreatedAt).Scan(&inv.ID)
+}
+
+func (r *WebsiteRepository) GetInvitationByToken(ctx context.Context, token string) (*models.WebsiteInvitation, error) {
+	query := `SELECT i.id, i.website_id, i.email, i.role, i.token, i.invited_by, i.expires_at, i.accepted_at, i.created_at, w.name as website_name
+		FROM website_invitations i
+		JOIN websites w ON i.website_id = w.id
+		WHERE i.token = $1`
+	var inv models.WebsiteInvitation
+	err := r.db.QueryRow(ctx, query, token).Scan(&inv.ID, &inv.WebsiteID, &inv.Email, &inv.Role, &inv.Token, &inv.InvitedBy, &inv.ExpiresAt, &inv.AcceptedAt, &inv.CreatedAt, &inv.WebsiteName)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &inv, nil
+}
+
+func (r *WebsiteRepository) AcceptInvitation(ctx context.Context, invID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `UPDATE website_invitations SET accepted_at = $1 WHERE id = $2`, time.Now(), invID)
+	return err
+}
+
+func (r *WebsiteRepository) ListPendingInvitations(ctx context.Context, websiteID uuid.UUID) ([]models.WebsiteInvitation, error) {
+	query := `SELECT id, website_id, email, role, token, invited_by, expires_at, accepted_at, created_at
+		FROM website_invitations WHERE website_id = $1 AND accepted_at IS NULL AND expires_at > NOW()
+		ORDER BY created_at DESC`
+	rows, err := r.db.Query(ctx, query, websiteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var invitations []models.WebsiteInvitation
+	for rows.Next() {
+		var inv models.WebsiteInvitation
+		if err := rows.Scan(&inv.ID, &inv.WebsiteID, &inv.Email, &inv.Role, &inv.Token, &inv.InvitedBy, &inv.ExpiresAt, &inv.AcceptedAt, &inv.CreatedAt); err != nil {
+			return nil, err
+		}
+		invitations = append(invitations, inv)
+	}
+	return invitations, nil
+}
+
+func (r *WebsiteRepository) DeleteInvitation(ctx context.Context, invID uuid.UUID) error {
+	_, err := r.db.Exec(ctx, `DELETE FROM website_invitations WHERE id = $1`, invID)
+	return err
+}
+
+// UpdatePublicShareID sets or clears the public share ID for a website.
+func (r *WebsiteRepository) UpdatePublicShareID(ctx context.Context, websiteID uuid.UUID, shareID *string) error {
+	query := `UPDATE websites SET public_share_id = $1, updated_at = $2 WHERE id = $3`
+	_, err := r.db.Exec(ctx, query, shareID, time.Now(), websiteID)
+	return err
+}
+
+// GetByPublicShareID retrieves a website by its public share ID.
+func (r *WebsiteRepository) GetByPublicShareID(ctx context.Context, shareID string) (*models.Website, error) {
+	query := `SELECT id, site_id, user_id, name, url, tracking_id, is_active, is_verified,
+		automation_enabled, funnel_enabled, heatmap_enabled,
+		heatmap_include_patterns, heatmap_exclude_patterns,
+		replay_enabled, replay_sampling_rate,
+		replay_include_patterns, replay_exclude_patterns,
+		verification_token, public_share_id, created_at, updated_at
+		FROM websites WHERE public_share_id = $1 AND is_active = true`
+
+	var w models.Website
+	err := r.db.QueryRow(ctx, query, shareID).Scan(
+		&w.ID, &w.SiteID, &w.UserID, &w.Name, &w.URL, &w.TrackingID, &w.IsActive, &w.IsVerified,
+		&w.AutomationEnabled, &w.FunnelEnabled, &w.HeatmapEnabled,
+		&w.HeatmapIncludePatterns, &w.HeatmapExcludePatterns,
+		&w.ReplayEnabled, &w.ReplaySamplingRate,
+		&w.ReplayIncludePatterns, &w.ReplayExcludePatterns,
+		&w.VerificationToken, &w.PublicShareID, &w.CreatedAt, &w.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &w, nil
 }

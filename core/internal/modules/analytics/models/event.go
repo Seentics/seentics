@@ -35,6 +35,7 @@ type Event struct {
 	UTMCampaign  *string    `json:"utm_campaign,omitempty" db:"utm_campaign"`
 	UTMTerm      *string    `json:"utm_term,omitempty" db:"utm_term"`
 	UTMContent   *string    `json:"utm_content,omitempty" db:"utm_content"`
+	Language     *string    `json:"language,omitempty" db:"language"`
 	TimeOnPage   *int       `json:"time_on_page,omitempty" db:"time_on_page"`
 	ScreenWidth  *int       `json:"screen_width,omitempty" db:"-"`
 	ScreenHeight *int       `json:"screen_height,omitempty" db:"-"`
@@ -71,6 +72,10 @@ type BatchEventRequest struct {
 	SiteID string  `json:"siteId"`
 	Domain string  `json:"domain"`
 	Events []Event `json:"events"`
+	// ClientIP and ClientUA are injected by the HTTP handler — not part of the JSON payload.
+	// TrackBatchEvents uses these as fallbacks for events that omit IP/UA.
+	ClientIP string `json:"-"`
+	ClientUA string `json:"-"`
 }
 
 type EventResponse struct {

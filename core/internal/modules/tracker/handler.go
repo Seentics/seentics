@@ -1,24 +1,15 @@
 package tracker
 
 import (
-	"context"
 	"fmt"
 	"net/http"
-	"strconv"
-	"time"
+	"sync"
 
 	analyticsModels "github.com/Seentics/seentics/internal/modules/analytics/models"
 	analyticsSvc "github.com/Seentics/seentics/internal/modules/analytics/services"
-	autoModels "github.com/Seentics/seentics/internal/modules/automations/models"
-	autoSvc "github.com/Seentics/seentics/internal/modules/automations/services"
 	funnelModels "github.com/Seentics/seentics/internal/modules/funnels/models"
 	funnelSvc "github.com/Seentics/seentics/internal/modules/funnels/services"
-	heatmapModels "github.com/Seentics/seentics/internal/modules/heatmaps/models"
-	heatmapSvc "github.com/Seentics/seentics/internal/modules/heatmaps/services"
-	replayModels "github.com/Seentics/seentics/internal/modules/replays/models"
-	replaySvc "github.com/Seentics/seentics/internal/modules/replays/services"
 	websiteSvc "github.com/Seentics/seentics/internal/modules/websites/services"
-	"github.com/Seentics/seentics/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -28,37 +19,28 @@ import (
 // Init (GET) — returns all config data in one call
 // Collect (POST) — receives all tracking data in one payload
 type TrackerHandler struct {
-	websites    *websiteSvc.WebsiteService
-	events      *analyticsSvc.EventService
-	heatmaps    heatmapSvc.HeatmapService
-	replays     replaySvc.ReplayService
-	funnels     *funnelSvc.FunnelService
-	automations *autoSvc.AutomationService
-	logger      zerolog.Logger
+	websites *websiteSvc.WebsiteService
+	events   *analyticsSvc.EventService
+	funnels  *funnelSvc.FunnelService
+	logger   zerolog.Logger
 }
 
 func NewTrackerHandler(
 	websites *websiteSvc.WebsiteService,
 	events *analyticsSvc.EventService,
-	heatmaps heatmapSvc.HeatmapService,
-	replays replaySvc.ReplayService,
 	funnels *funnelSvc.FunnelService,
-	automations *autoSvc.AutomationService,
 	logger zerolog.Logger,
 ) *TrackerHandler {
 	return &TrackerHandler{
-		websites:    websites,
-		events:      events,
-		heatmaps:    heatmaps,
-		replays:     replays,
-		funnels:     funnels,
-		automations: automations,
-		logger:      logger,
+		websites: websites,
+		events:   events,
+		funnels:  funnels,
+		logger:   logger,
 	}
 }
 
 // Init returns all configuration data the tracker needs in a single response:
-// site config (goals, feature flags), active funnels, and active automation workflows.
+// site config (goals, feature flags) and active funnels.
 func (h *TrackerHandler) Init(c *gin.Context) {
 	siteID := c.Param("site_id")
 	if siteID == "" {
@@ -72,18 +54,8 @@ func (h *TrackerHandler) Init(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	if h := c.GetHeader("X-Max-Heatmaps"); h != "" {
-		if limit, err := strconv.Atoi(h); err == nil {
-			ctx = context.WithValue(ctx, "max_heatmaps", limit)
-		}
-	}
-	if h := c.GetHeader("X-Max-Replays"); h != "" {
-		if limit, err := strconv.Atoi(h); err == nil {
-			ctx = context.WithValue(ctx, "max_replays", limit)
-		}
-	}
 
-	// 1. Site config (includes goals, feature flags, heatmap/replay settings)
+	// Fetch config first — it validates the website + origin and is required.
 	config, err := h.websites.GetTrackerConfig(ctx, siteID, origin)
 	if err != nil {
 		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("Tracker init: config fetch failed")
@@ -91,37 +63,28 @@ func (h *TrackerHandler) Init(c *gin.Context) {
 		return
 	}
 
-	// 2. Active funnels (fail-open: return empty array on error)
-	funnels, err := h.funnels.GetActiveFunnels(c.Request.Context(), siteID, origin)
+	// Fetch active funnels (fail-open).
+	funnels, err := h.funnels.GetActiveFunnels(ctx, siteID, origin)
 	if err != nil {
 		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("Tracker init: funnels fetch failed")
 		funnels = []funnelModels.Funnel{}
 	}
 
-	// 3. Active automation workflows (fail-open: return empty array on error)
-	workflows, err := h.automations.GetActiveAutomations(c.Request.Context(), siteID, origin)
-	if err != nil {
-		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("Tracker init: workflows fetch failed")
-		workflows = []autoModels.Automation{}
-	}
-
+	// Cache config for 60s — it changes rarely and the tracker polls on every page load.
+	c.Header("Cache-Control", "private, max-age=60, stale-while-revalidate=120")
 	c.JSON(http.StatusOK, gin.H{
-		"config":    config,
-		"funnels":   funnels,
-		"workflows": workflows,
+		"config":  config,
+		"funnels": funnels,
 	})
 }
 
 // CollectRequest is the unified payload from the tracker script.
 // All fields are optional — only sections with data need to be present.
 type CollectRequest struct {
-	SiteID      string                                 `json:"site_id"`
-	Domain      string                                 `json:"domain"`
-	Events      []analyticsModels.Event                `json:"events,omitempty"`
-	Heatmaps    []heatmapModels.HeatmapPoint           `json:"heatmaps,omitempty"`
-	Replay      *replayModels.RecordReplayRequest      `json:"replay,omitempty"`
-	Funnels     []funnelModels.TrackFunnelEventRequest `json:"funnels,omitempty"`
-	Automations []autoModels.AutomationExecution       `json:"automations,omitempty"`
+	SiteID  string                                 `json:"site_id"`
+	Domain  string                                 `json:"domain"`
+	Events  []analyticsModels.Event                `json:"events,omitempty"`
+	Funnels []funnelModels.TrackFunnelEventRequest `json:"funnels,omitempty"`
 }
 
 // CollectResponse reports how many items were processed per section.
@@ -131,57 +94,31 @@ type CollectResponse struct {
 }
 
 // Collect receives all tracking data from the tracker in a single POST.
-// Each section is processed independently — failure in one doesn't block others.
+// Events and funnels are processed concurrently.
 func (h *TrackerHandler) Collect(c *gin.Context) {
-	// 1. Read limits from gateway headers and inject into context
 	ctx := c.Request.Context()
-	if hLine := c.GetHeader("X-Max-Heatmaps"); hLine != "" {
-		if limit, err := strconv.Atoi(hLine); err == nil {
-			ctx = context.WithValue(ctx, "max_heatmaps", limit)
-		}
-	}
-	if hLine := c.GetHeader("X-Max-Replays"); hLine != "" {
-		if limit, err := strconv.Atoi(hLine); err == nil {
-			ctx = context.WithValue(ctx, "max_replays", limit)
-		}
-	}
 
 	var req CollectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
-
 	if req.SiteID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id is required"})
 		return
 	}
 
-	// Guard against oversized batches to prevent memory/CPU abuse
-	const maxEvents = 500
-	const maxHeatmapPoints = 2000
-	const maxReplayEvents = 5000
-	const maxFunnelEvents = 200
-	const maxAutomations = 100
-
-	if len(req.Events) > maxEvents {
+	// Guard against oversized batches to prevent memory/CPU abuse.
+	const (
+		maxEvents      = 500
+		maxFunnelEvents = 200
+	)
+	switch {
+	case len(req.Events) > maxEvents:
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many events (max %d)", maxEvents)})
 		return
-	}
-	if len(req.Heatmaps) > maxHeatmapPoints {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many heatmap points (max %d)", maxHeatmapPoints)})
-		return
-	}
-	if req.Replay != nil && len(req.Replay.Events) > maxReplayEvents {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many replay events (max %d)", maxReplayEvents)})
-		return
-	}
-	if len(req.Funnels) > maxFunnelEvents {
+	case len(req.Funnels) > maxFunnelEvents:
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many funnel events (max %d)", maxFunnelEvents)})
-		return
-	}
-	if len(req.Automations) > maxAutomations {
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("too many automations (max %d)", maxAutomations)})
 		return
 	}
 
@@ -189,112 +126,55 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 	if origin == "" {
 		origin = c.Request.Header.Get("Referer")
 	}
-
-	// Extract client IP once for all sections
 	clientIP := c.ClientIP()
 	userAgent := c.Request.UserAgent()
 
-	processed := make(map[string]int)
+	// processed collects per-section counts; written only from section goroutines
+	// which are guarded by wg, so a simple map + mu is sufficient.
+	var mu sync.Mutex
+	processed := make(map[string]int, 2)
+	record := func(key string, n int) {
+		mu.Lock()
+		processed[key] = n
+		mu.Unlock()
+	}
 
-	// --- Events ---
+	var wg sync.WaitGroup
+
+	// --- Events (single batch call — IP/UA enrichment happens inside the service) ---
 	if len(req.Events) > 0 {
-		// Set IP and website_id on all events
-		for i := range req.Events {
-			req.Events[i].WebsiteID = req.SiteID
-			if req.Events[i].IPAddress == nil || *req.Events[i].IPAddress == "" {
-				req.Events[i].IPAddress = &clientIP
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			resp, err := h.events.TrackBatchEvents(ctx, &analyticsModels.BatchEventRequest{
+				SiteID:   req.SiteID,
+				Domain:   req.Domain,
+				Events:   req.Events,
+				ClientIP: clientIP,
+				ClientUA: userAgent,
+			})
+			if err != nil {
+				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: events processing failed")
+				return
 			}
-			if req.Events[i].UserAgent == nil || *req.Events[i].UserAgent == "" {
-				req.Events[i].UserAgent = &userAgent
-			}
-		}
-
-		batchReq := &analyticsModels.BatchEventRequest{
-			SiteID: req.SiteID,
-			Domain: req.Domain,
-			Events: req.Events,
-		}
-		resp, err := h.events.TrackBatchEvents(ctx, batchReq)
-		if err != nil {
-			h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: events processing failed")
-		} else {
-			processed["events"] = resp.EventsCount
-		}
+			record("events", resp.EventsCount)
+		}()
 	}
 
-	// --- Heatmaps ---
-	if len(req.Heatmaps) > 0 {
-		for i := range req.Heatmaps {
-			req.Heatmaps[i].WebsiteID = req.SiteID
-		}
-		heatmapReq := heatmapModels.HeatmapRecordRequest{
-			WebsiteID: req.SiteID,
-			Points:    req.Heatmaps,
-		}
-		if err := h.heatmaps.RecordHeatmapData(ctx, heatmapReq, origin); err != nil {
-			h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: heatmap processing failed")
-		} else {
-			processed["heatmaps"] = len(req.Heatmaps)
-		}
-	}
-
-	// --- Replay ---
-	if req.Replay != nil && len(req.Replay.Events) > 0 {
-		req.Replay.WebsiteID = req.SiteID
-
-		// Resolve country from CDN headers or geolocation
-		country := c.Request.Header.Get("CF-IPCountry")
-		if country == "" {
-			country = c.Request.Header.Get("X-Vercel-IP-Country")
-		}
-		if country == "" {
-			country = c.Request.Header.Get("X-Country-Code")
-		}
-		if country == "" {
-			geo := utils.GetLocationFromIP(clientIP)
-			if geo.CountryCode != "" && geo.CountryCode != "XX" {
-				country = geo.CountryCode
-			}
-		}
-
-		if err := h.replays.RecordReplay(ctx, *req.Replay, origin, userAgent, country); err != nil {
-			h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: replay processing failed")
-		} else {
-			processed["replay"] = 1
-		}
-	}
-
-	// --- Funnels ---
+	// --- Funnels (1 DB lookup for all events via batch method) ---
 	if len(req.Funnels) > 0 {
-		count := 0
-		for i := range req.Funnels {
-			req.Funnels[i].WebsiteID = req.SiteID
-			if err := h.funnels.TrackFunnelEvent(ctx, &req.Funnels[i], origin); err != nil {
-				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: funnel event processing failed")
-			} else {
-				count++
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := h.funnels.TrackFunnelEventBatch(ctx, req.SiteID, req.Funnels, origin); err != nil {
+				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: funnel batch processing failed")
+				return
 			}
-		}
-		processed["funnels"] = count
+			record("funnels", len(req.Funnels))
+		}()
 	}
 
-	// --- Automations ---
-	if len(req.Automations) > 0 {
-		count := 0
-		for i := range req.Automations {
-			req.Automations[i].WebsiteID = req.SiteID
-			if req.Automations[i].ExecutedAt.IsZero() {
-				req.Automations[i].ExecutedAt = time.Now()
-			}
-			if err := h.automations.TrackExecution(ctx, &req.Automations[i], origin); err != nil {
-				h.logger.Warn().Err(err).Str("site_id", req.SiteID).Msg("Collect: automation execution processing failed")
-			} else {
-				count++
-			}
-		}
-		processed["automations"] = count
-	}
-
+	wg.Wait()
 	c.JSON(http.StatusOK, CollectResponse{
 		Status:    "ok",
 		Processed: processed,

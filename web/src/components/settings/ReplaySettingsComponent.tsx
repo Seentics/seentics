@@ -46,7 +46,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
 
   const updateMutation = useMutation({
     mutationFn: async (vars: { enabled: boolean; rate: number; include: string; exclude: string }) => {
-      if (!website) return;
+      if (!website) throw new Error('Website data not loaded');
       return updateWebsite(website.id, {
         replayEnabled: vars.enabled,
         replaySamplingRate: vars.rate / 100,

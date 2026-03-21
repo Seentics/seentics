@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/stores/useAuthStore';
 import api from '@/lib/api';
+import { demoSubscription } from '@/lib/demo';
 
 export interface UsageStatus {
   current: number;
@@ -21,13 +22,15 @@ export interface SubscriptionUsage {
 
 export interface SubscriptionData {
   id: string;
-  plan: 'free' | 'basic' | 'pro' | 'enterprise';
+  plan: string;
   status: string;
+  billingInterval?: string;
   usage: SubscriptionUsage;
   features: string[];
   isActive: boolean;
   isCustomPlan?: boolean;
   priceMonthly?: number;
+  priceYearly?: number;
   currentPeriodEnd?: string;
 }
 
@@ -52,25 +55,11 @@ export const useSubscription = (): UseSubscriptionReturn => {
   const [error, setError] = useState<string | null>(null);
   const { user, isAuthenticated } = useAuth();
 
+  const userId = user?.id;
   const fetchSubscription = useCallback(async () => {
     // Demo Mode logic
     if (typeof window !== 'undefined' && (window.location.pathname.includes('/websites/demo') || !isAuthenticated)) {
-      setSubscription({
-        id: 'demo-user',
-        plan: 'pro',
-        status: 'active',
-        usage: {
-          websites: { current: 1, limit: 15, canCreate: true },
-          workflows: { current: 3, limit: -1, canCreate: true },
-          funnels: { current: 2, limit: -1, canCreate: true },
-          heatmaps: { current: 1, limit: -1, canCreate: true },
-          replays: { current: 4, limit: 50000, canCreate: true },
-          monthlyEvents: { current: 45000, limit: 2000000, canCreate: true }
-        },
-        features: ['all'],
-        isActive: true,
-        currentPeriodEnd: new Date(Date.now() + 86400000 * 30).toISOString()
-      });
+      setSubscription(demoSubscription() as SubscriptionData);
       setLoading(false);
       return;
     }
@@ -85,7 +74,7 @@ export const useSubscription = (): UseSubscriptionReturn => {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, userId]);
 
   useEffect(() => {
     fetchSubscription();

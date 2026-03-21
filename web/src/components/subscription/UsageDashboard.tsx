@@ -74,9 +74,9 @@ export const UsageDashboard: React.FC = () => {
   }
 
   const planColors: Record<string, string> = {
-    starter: 'text-blue-600 dark:text-blue-400',
+    starter: 'text-indigo-600 dark:text-indigo-400',
     growth: 'text-indigo-600 dark:text-indigo-400',
-    pro: 'text-purple-600 dark:text-purple-400',
+    pro: 'text-indigo-600 dark:text-indigo-400',
     enterprise: 'text-amber-600 dark:text-amber-400',
   };
 
@@ -99,7 +99,7 @@ export const UsageDashboard: React.FC = () => {
               <PlanIcon className={`h-5 w-5 ${planColors[subscription.plan]}`} />
               <span className="capitalize">{subscription.plan} Plan</span>
             </div>
-            {subscription.plan !== 'enterprise' && (
+            {subscription.plan !== 'pro' && (
               <Button
                 variant="outline"
                 size="sm"
@@ -114,9 +114,9 @@ export const UsageDashboard: React.FC = () => {
         <CardContent>
           <p className="text-sm text-slate-600 dark:text-slate-400">
             {subscription.plan === 'free' && 'Perfect for getting started with basic features'}
+            {subscription.plan === 'basic' && 'For small businesses with essential features'}
             {subscription.plan === 'growth' && 'For growing businesses with advanced features'}
             {subscription.plan === 'pro' && 'For scaling teams with priority support'}
-            {subscription.plan === 'enterprise' && 'Full-featured plan for agencies and large teams'}
           </p>
         </CardContent>
       </Card>

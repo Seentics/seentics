@@ -1,4 +1,6 @@
 import { Logo } from '@/components/ui/logo';
+import { FaDiscord } from 'react-icons/fa';
+import { Github } from 'lucide-react';
 import Link from 'next/link';
 
 export default function Footer() {
@@ -11,7 +13,7 @@ export default function Footer() {
               <Logo size="lg" showText={true} textClassName="text-lg font-semibold text-foreground" className="gap-2.5" />
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
-              Privacy-first analytics that helps you grow. Cookieless, fast, and easy to use.
+              Open-source, privacy-first web analytics. No cookies, fast, and easy to use.
             </p>
           </div>
 
@@ -19,8 +21,6 @@ export default function Footer() {
             <h3 className="text-sm font-medium text-foreground mb-4">Product</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
               <li><Link href="#features" className="hover:text-foreground transition-colors">Features</Link></li>
-              <li><Link href="#automations" className="hover:text-foreground transition-colors">Automations</Link></li>
-              <li><Link href="/agency-solution" className="hover:text-foreground transition-colors">Agency Solution</Link></li>
               <li><Link href="#pricing" className="hover:text-foreground transition-colors">Pricing</Link></li>
               <li><Link href="#faq" className="hover:text-foreground transition-colors">FAQ</Link></li>
             </ul>
@@ -29,9 +29,9 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-medium text-foreground mb-4">Company</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href="/about" className="hover:text-foreground transition-colors">About</Link></li>
-              <li><Link href="/blog" className="hover:text-foreground transition-colors">Blog</Link></li>
               <li><Link href="/contact" className="hover:text-foreground transition-colors">Contact</Link></li>
+              <li><Link href="https://github.com/Seentics/seentics" target="_blank" className="hover:text-foreground transition-colors flex items-center gap-1.5"><Github className="h-3.5 w-3.5" />GitHub</Link></li>
+              <li><Link href="https://discord.gg/eHNHR82add" target="_blank" className="hover:text-[#5865F2] transition-colors flex items-center gap-1.5"><FaDiscord className="h-3.5 w-3.5" />Discord</Link></li>
             </ul>
           </div>
 
@@ -45,10 +45,10 @@ export default function Footer() {
           </div>
 
           <div>
-            <h3 className="text-sm font-medium text-foreground mb-4">Support</h3>
+            <h3 className="text-sm font-medium text-foreground mb-4">Resources</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
-              <li><Link href="/help" className="hover:text-foreground transition-colors">Help Center</Link></li>
-              <li><Link href="/status" className="hover:text-foreground transition-colors">System Status</Link></li>
+              <li><Link href="/websites/demo" className="hover:text-foreground transition-colors">Live Demo</Link></li>
+              <li><Link href="https://github.com/Seentics/seentics/issues" target="_blank" className="hover:text-foreground transition-colors">Support</Link></li>
             </ul>
           </div>
         </div>
@@ -59,6 +59,8 @@ export default function Footer() {
             <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
             <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             <Link href="/refund-policy" className="hover:text-foreground transition-colors">Refund</Link>
+            <Link href="https://github.com/Seentics/seentics" target="_blank" className="hover:text-foreground transition-colors"><Github className="h-4 w-4" /></Link>
+            <Link href="https://discord.gg/eHNHR82add" target="_blank" className="hover:text-[#5865F2] transition-colors"><FaDiscord className="h-4 w-4" /></Link>
           </div>
         </div>
       </div>

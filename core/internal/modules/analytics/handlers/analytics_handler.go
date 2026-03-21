@@ -16,6 +16,16 @@ import (
 
 const queryTimeout = 15 * time.Second
 
+// setCacheHeaders sets Cache-Control headers. Short-lived endpoints (≤30s)
+// use no-cache so browsers always revalidate, keeping dashboards fresh.
+func setCacheHeaders(c *gin.Context, maxAge int) {
+	if maxAge <= 30 {
+		c.Header("Cache-Control", "no-cache, no-store")
+	} else {
+		c.Header("Cache-Control", fmt.Sprintf("private, max-age=%d", maxAge))
+	}
+}
+
 type AnalyticsHandler struct {
 	service *services.AnalyticsService
 	logger  zerolog.Logger
@@ -80,6 +90,8 @@ func (h *AnalyticsHandler) parseFilters(c *gin.Context) models.AnalyticsFilters 
 		UTMMedium:   c.Query("utm_medium"),
 		UTMCampaign: c.Query("utm_campaign"),
 		PagePath:    c.Query("page_path"),
+		PropKey:     c.Query("prop_key"),
+		PropValue:   c.Query("prop_value"),
 	}
 }
 
@@ -131,6 +143,7 @@ func (h *AnalyticsHandler) GetDashboard(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 15)
 	c.JSON(http.StatusOK, data)
 }
 
@@ -161,6 +174,7 @@ func (h *AnalyticsHandler) GetTopPages(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
 		"top_pages":  pages,
@@ -197,6 +211,7 @@ func (h *AnalyticsHandler) GetPageUTMBreakdown(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, breakdown)
 }
 
@@ -227,6 +242,7 @@ func (h *AnalyticsHandler) GetTopReferrers(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":    websiteID,
 		"top_referrers": referrers,
@@ -260,6 +276,7 @@ func (h *AnalyticsHandler) GetTopSources(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":  websiteID,
 		"top_sources": sources,
@@ -293,6 +310,7 @@ func (h *AnalyticsHandler) GetTopCountries(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":    websiteID,
 		"top_countries": countries,
@@ -324,6 +342,7 @@ func (h *AnalyticsHandler) GetTopResolutions(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":      websiteID,
 		"top_resolutions": resolutions,
@@ -357,6 +376,7 @@ func (h *AnalyticsHandler) GetTopBrowsers(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":   websiteID,
 		"top_browsers": browsers,
@@ -390,6 +410,7 @@ func (h *AnalyticsHandler) GetTopDevices(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":  websiteID,
 		"top_devices": devices,
@@ -423,6 +444,7 @@ func (h *AnalyticsHandler) GetTopOS(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
 		"top_os":     osList,
@@ -454,6 +476,7 @@ func (h *AnalyticsHandler) GetTrafficSummary(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, summary)
 }
 
@@ -483,6 +506,7 @@ func (h *AnalyticsHandler) GetDailyStats(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 30)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":  websiteID,
 		"daily_stats": stats,
@@ -503,18 +527,20 @@ func (h *AnalyticsHandler) GetHourlyStats(c *gin.Context) {
 		return
 	}
 
+	days := h.parseDays(c, 1)
 	timezone := h.parseTimezone(c)
 	filters := h.parseFilters(c)
 
 	cancel := h.withQueryTimeout(c)
 	defer cancel()
 
-	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, 1, timezone, filters, userID)
+	stats, err := h.service.GetHourlyStats(c.Request.Context(), websiteID, days, timezone, filters, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get hourly stats")
 		return
 	}
 
+	setCacheHeaders(c, 30)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":   websiteID,
 		"timezone":     timezone,
@@ -540,35 +566,25 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 	cancel := h.withQueryTimeout(c)
 	defer cancel()
 
-	customEvents, err := h.service.GetCustomEvents(c.Request.Context(), websiteID, days, userID)
+	result, err := h.service.GetCustomEventsWithUTM(c.Request.Context(), websiteID, days, userID)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("Failed to get custom events")
-		c.JSON(http.StatusOK, gin.H{
-			"website_id":    websiteID,
-			"top_events":    []interface{}{},
-			"timeseries":    []interface{}{},
-			"total_events":  0,
-			"unique_events": 0,
-		})
+		h.handleError(c, err, "Failed to get custom events")
 		return
 	}
 
 	totalEvents := 0
-	uniqueEvents := 0
-	for _, event := range customEvents {
+	for _, event := range result.Events {
 		totalEvents += event.Count
-		uniqueEvents++
 	}
 
-	utmData, _ := h.service.GetUTMAnalytics(c.Request.Context(), websiteID, days, userID)
-
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":      websiteID,
-		"top_events":      customEvents,
+		"top_events":      result.Events,
 		"timeseries":      []interface{}{},
 		"total_events":    totalEvents,
-		"unique_events":   uniqueEvents,
-		"utm_performance": utmData,
+		"unique_events":   len(result.Events),
+		"utm_performance": result.UTM,
 	})
 }
 
@@ -596,10 +612,39 @@ func (h *AnalyticsHandler) GetGoalStats(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 120)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
 		"goals":      stats,
 	})
+}
+
+func (h *AnalyticsHandler) GetRealtimeData(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
+	timezone := c.DefaultQuery("timezone", "UTC")
+
+	data, err := h.service.GetRealtimeData(c.Request.Context(), websiteID, userID, timezone)
+	if err != nil {
+		h.handleError(c, err, "Failed to get realtime data")
+		return
+	}
+
+	setCacheHeaders(c, 5)
+	c.JSON(http.StatusOK, data)
 }
 
 func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
@@ -624,6 +669,7 @@ func (h *AnalyticsHandler) GetLiveVisitors(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 15)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":    websiteID,
 		"live_visitors": liveVisitors,
@@ -655,6 +701,7 @@ func (h *AnalyticsHandler) GetGeolocationBreakdown(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 180)
 	c.JSON(http.StatusOK, breakdown)
 }
 
@@ -683,6 +730,7 @@ func (h *AnalyticsHandler) GetVisitorInsights(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 30)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id":       websiteID,
 		"visitor_insights": insights,
@@ -742,6 +790,13 @@ func (h *AnalyticsHandler) ImportAnalytics(c *gin.Context) {
 		return
 	}
 
+	// Enforce max file size of 100MB
+	const maxImportSize = 100 << 20
+	if fileHeader.Size > maxImportSize {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "file too large, max 100MB"})
+		return
+	}
+
 	file, err := fileHeader.Open()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open file"})
@@ -792,6 +847,7 @@ func (h *AnalyticsHandler) GetActivityTrends(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 180)
 	c.JSON(http.StatusOK, data)
 }
 
@@ -819,9 +875,74 @@ func (h *AnalyticsHandler) GetRecentActivity(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 30)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
 		"activities": activities,
+	})
+}
+
+func (h *AnalyticsHandler) GetTopLanguages(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	days := h.parseDays(c, 7)
+	timezone := h.parseTimezone(c)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
+	items, err := h.service.GetTopLanguages(c.Request.Context(), websiteID, days, timezone, userID)
+	if err != nil {
+		h.handleError(c, err, "Failed to get top languages")
+		return
+	}
+
+	setCacheHeaders(c, 120)
+	c.JSON(http.StatusOK, gin.H{
+		"website_id":    websiteID,
+		"top_languages": items,
+	})
+}
+
+func (h *AnalyticsHandler) GetTopCities(c *gin.Context) {
+	userID := h.getUserID(c)
+	if userID == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	days := h.parseDays(c, 7)
+	timezone := h.parseTimezone(c)
+
+	cancel := h.withQueryTimeout(c)
+	defer cancel()
+
+	items, err := h.service.GetTopCities(c.Request.Context(), websiteID, days, timezone, userID)
+	if err != nil {
+		h.handleError(c, err, "Failed to get top cities")
+		return
+	}
+
+	setCacheHeaders(c, 120)
+	c.JSON(http.StatusOK, gin.H{
+		"website_id": websiteID,
+		"top_cities": items,
 	})
 }
 
@@ -849,5 +970,6 @@ func (h *AnalyticsHandler) GetPathAnalysis(c *gin.Context) {
 		return
 	}
 
+	setCacheHeaders(c, 180)
 	c.JSON(http.StatusOK, analysis)
 }

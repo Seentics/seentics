@@ -1,123 +1,76 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useParams, useSearchParams } from 'next/navigation';
-import {
-    User,
-    Globe,
-    Zap,
-    MousePointer2,
-    Video,
-    Target,
-    Palette,
-    PanelLeft,
-    Key,
-    Bell,
-    FileText,
-    Plug,
-    LayoutDashboard,
-} from 'lucide-react';
-
-import { ProfileSettings } from '@/components/profile-settings';
-import { WebsitesSettingsComponent } from '@/components/settings/WebsitesSettingsComponent';
-import { ScriptSettingsComponent } from '@/components/settings/ScriptSettingsComponent';
-import { HeatmapSettingsComponent } from '@/components/settings/HeatmapSettingsComponent';
-import { ReplaySettingsComponent } from '@/components/settings/ReplaySettingsComponent';
-import { GoalsSettingsComponent } from '@/components/settings/GoalsSettingsComponent';
-import { CustomizationSettingsComponent } from '@/components/settings/CustomizationSettingsComponent';
-import { LayoutSettingsComponent } from '@/components/settings/LayoutSettingsComponent';
-import { ApiKeysSettingsComponent } from '@/components/settings/ApiKeysSettingsComponent';
-import { AlertsSettingsComponent } from '@/components/settings/AlertsSettingsComponent';
-import { ReportsSettingsComponent } from '@/components/settings/ReportsSettingsComponent';
-import { IntegrationsSettingsComponent } from '@/components/settings/IntegrationsSettingsComponent';
-import { DashboardsSettingsComponent } from '@/components/settings/DashboardsSettingsComponent';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
+import { Code2, CreditCard, Goal, Settings, Shield, Users } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { cn } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
 import { isEnterprise } from '@/lib/features';
 
-const baseTabs = [
-    { id: 'profile', label: 'Profile', icon: User },
-    { id: 'websites', label: 'Websites', icon: Globe },
-    { id: 'goals', label: 'Goals', icon: Target },
-    { id: 'heatmaps', label: 'Heatmaps', icon: MousePointer2 },
-    { id: 'replays', label: 'Replays', icon: Video },
-    { id: 'scripts', label: 'Scripts', icon: Zap },
-    { id: 'customization', label: 'Customization', icon: Palette },
-    { id: 'layout', label: 'Layout', icon: PanelLeft },
-    ...(isEnterprise ? [
-        { id: 'api-keys', label: 'API Keys', icon: Key },
-        { id: 'alerts', label: 'Alerts', icon: Bell },
-        { id: 'reports', label: 'Reports', icon: FileText },
-        { id: 'integrations', label: 'Integrations', icon: Plug },
-        { id: 'dashboards', label: 'Dashboards', icon: LayoutDashboard },
-    ] : []),
-];
-
 export default function SettingsPage() {
-    const params = useParams();
-    const searchParams = useSearchParams();
-    const websiteId = params?.websiteId as string;
-    const tabParam = searchParams.get('tab');
-    const isValidTab = baseTabs.some(t => t.id === tabParam);
-    const [activeTab, setActiveTab] = useState(isValidTab ? tabParam! : 'profile');
+  const params = useParams();
+  const websiteId = params?.websiteId as string;
 
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'profile': return <ProfileSettings />;
-            case 'websites': return <WebsitesSettingsComponent />;
-            case 'heatmaps': return <HeatmapSettingsComponent websiteId={websiteId} />;
-            case 'replays': return <ReplaySettingsComponent websiteId={websiteId} />;
-            case 'goals': return <GoalsSettingsComponent websiteId={websiteId} />;
-            case 'scripts': return <ScriptSettingsComponent websiteId={websiteId} />;
-            case 'customization': return <CustomizationSettingsComponent />;
-            case 'layout': return <LayoutSettingsComponent />;
-            case 'api-keys': return <ApiKeysSettingsComponent />;
-            case 'alerts': return <AlertsSettingsComponent />;
-            case 'reports': return <ReportsSettingsComponent />;
-            case 'integrations': return <IntegrationsSettingsComponent />;
-            case 'dashboards': return <DashboardsSettingsComponent />;
-            default: return <ProfileSettings />;
-        }
-    };
+  const pages = [
+    {
+      title: 'Tracking',
+      description: 'Install and verify your analytics snippet.',
+      href: `/websites/${websiteId}/settings/tracking`,
+      icon: Code2,
+    },
+    {
+      title: 'Goals',
+      description: 'Define and monitor conversion events.',
+      href: `/websites/${websiteId}/settings/goals`,
+      icon: Goal,
+    },
+    {
+      title: 'Privacy',
+      description: 'Control data collection and compliance options.',
+      href: `/websites/${websiteId}/settings/privacy`,
+      icon: Shield,
+    },
+    ...(isEnterprise
+      ? [
+          {
+            title: 'Team',
+            description: 'Manage members and permissions.',
+            href: `/websites/${websiteId}/settings/team`,
+            icon: Users,
+          },
+          {
+            title: 'Billing',
+            description: 'Manage subscription and usage.',
+            href: `/websites/${websiteId}/settings/billing`,
+            icon: CreditCard,
+          },
+        ]
+      : []),
+  ];
 
-    return (
-        <div className="p-4 sm:p-8 space-y-6 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
-            <DashboardPageHeader
-                title="Settings"
-                description="Manage your account, websites, and feature configurations."
-            />
+  return (
+    <div className="p-4 sm:p-8 max-w-[1440px] mx-auto space-y-8 animate-in fade-in duration-500">
+      <DashboardPageHeader
+        title="Settings"
+        description="Choose an analytics settings page from the sidebar or quick links below."
+        icon={Settings}
+      />
 
-            {/* Horizontal Tabs */}
-            <div className="border-b border-border/40">
-                <nav className="flex gap-1 overflow-x-auto pb-px -mb-px">
-                    {baseTabs.map((tab) => {
-                        const isActive = activeTab === tab.id;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={cn(
-                                    'flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 transition-all',
-                                    isActive
-                                        ? 'border-primary text-foreground'
-                                        : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-                                )}
-                            >
-                                <tab.icon className={cn(
-                                    'h-4 w-4',
-                                    isActive ? 'text-primary' : 'text-muted-foreground'
-                                )} />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </nav>
-            </div>
-
-            {/* Tab Content */}
-            <div className="animate-in fade-in duration-300">
-                {renderContent()}
-            </div>
-        </div>
-    );
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {pages.map((item) => (
+          <Link key={item.href} href={item.href}>
+            <Card className="h-full border border-border/60 bg-card shadow-sm transition-colors hover:bg-accent/40">
+              <CardContent className="p-5">
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <item.icon className="h-4 w-4" />
+                </div>
+                <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">{item.description}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
 }

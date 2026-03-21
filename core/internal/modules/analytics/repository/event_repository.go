@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	MaxBatchSize = 2000             // Increased from 1000 for better throughput
-	BatchTimeout = 30 * time.Second // Keep timeout reasonable for reliability
+	MaxBatchSize = 2000            // Increased from 1000 for better throughput
+	BatchTimeout = 5 * time.Second // Fail fast to free connection pool slots
 )
 
 type PostgresEventRepository struct {
@@ -154,7 +154,7 @@ func (r *PostgresEventRepository) CreateBatch(ctx context.Context, events []mode
 
 	for i := range customEvents {
 		event := &customEvents[i]
-		key := fmt.Sprintf("%s:%s", event.WebsiteID, event.EventType)
+		key := fmt.Sprintf("%s:%s:%s", event.WebsiteID, event.EventType, event.Page)
 
 		if agg, exists := aggregation[key]; exists {
 			agg.Count++

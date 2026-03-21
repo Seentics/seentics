@@ -2,6 +2,7 @@ package utils
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/mssola/user_agent"
 )
@@ -13,7 +14,17 @@ type UserAgentInfo struct {
 	OS      string `json:"os"`
 }
 
-// ParseUserAgent parses a user agent string and returns browser, device, and OS information
+// uaCache is an in-memory LRU-ish cache for parsed User-Agent strings.
+// Common UA strings repeat constantly — caching avoids re-parsing the same
+// string thousands of times per minute.
+var (
+	uaCache   = make(map[string]UserAgentInfo, 256)
+	uaCacheMu sync.RWMutex
+	uaCacheMax = 2048
+)
+
+// ParseUserAgent parses a user agent string and returns browser, device, and OS information.
+// Results are cached in-memory since the same UA strings repeat constantly.
 func ParseUserAgent(userAgentString string) UserAgentInfo {
 	if userAgentString == "" {
 		return UserAgentInfo{
@@ -22,6 +33,14 @@ func ParseUserAgent(userAgentString string) UserAgentInfo {
 			OS:      "Unknown",
 		}
 	}
+
+	// Fast path: check cache
+	uaCacheMu.RLock()
+	if info, ok := uaCache[userAgentString]; ok {
+		uaCacheMu.RUnlock()
+		return info
+	}
+	uaCacheMu.RUnlock()
 
 	ua := user_agent.New(userAgentString)
 
@@ -57,11 +76,21 @@ func ParseUserAgent(userAgentString string) UserAgentInfo {
 	// Normalize OS names
 	os = normalizeOSName(os)
 
-	return UserAgentInfo{
+	info := UserAgentInfo{
 		Browser: browser,
 		Device:  device,
 		OS:      os,
 	}
+
+	// Store in cache (evict all if too large — simple but effective)
+	uaCacheMu.Lock()
+	if len(uaCache) >= uaCacheMax {
+		uaCache = make(map[string]UserAgentInfo, 256)
+	}
+	uaCache[userAgentString] = info
+	uaCacheMu.Unlock()
+
+	return info
 }
 
 // normalizeBrowserName normalizes browser names for consistency

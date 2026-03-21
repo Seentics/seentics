@@ -13,9 +13,7 @@ import TrackerScript from '@/components/tracker-script';
 import { Toaster } from '@/components/ui/toaster';
 import { LimitReachedTopBar } from '@/components/subscription';
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
-import Script from 'next/script';
 import LemonSqueezyScript from '@/components/lemon-squeezy-script';
-import SupportWidget from '@/components/SupportWidget';
 
 // Temporarily disable custom fonts for build
 // const fontBody = Inter({
@@ -77,15 +75,13 @@ export default function RootLayout({
             <div className="relative min-h-screen isolate overflow-x-hidden">
               {/* Ambient Background Blobs */}
               <div className="ambient-blob w-[500px] h-[500px] bg-primary/20 -top-24 -left-24 animate-[pulse_8s_infinite]" />
-              <div className="ambient-blob w-[400px] h-[400px] bg-violet-600/10 top-1/2 -right-24 animate-[pulse_10s_infinite] delay-1000" />
+              <div className="ambient-blob w-[400px] h-[400px] bg-indigo-600/10 top-1/2 -right-24 animate-[pulse_10s_infinite] delay-1000" />
               {/* <div className="ambient-blob w-[600px] h-[600px] bg-indigo-500/10 -bottom-48 left-1/4 animate-[pulse_12s_infinite] delay-500" /> */}
 
               <div className="relative z-10">
                 {children}
               </div>
 
-              {/* Floating Support Widget - Enterprise Only */}
-              <SupportWidget />
             </div>
             </ThemeCustomizationProvider>
           </QueryProvider>
@@ -104,21 +100,6 @@ export default function RootLayout({
 
         {/* Global Chat Support */}
         {/* <TawkMessenger /> */}
-
-        {/* Seentics Analytics Tracking */}
-        {process.env.NODE_ENV === 'development' ? (
-          <Script
-            src="http://localhost:3000/trackers/seentics.js"
-            data-website-id="e793786b038fdc87f905adb2"
-            strategy="afterInteractive"
-          />
-        ) : (
-          <Script
-            src="https://www.seentics.com/trackers/seentics.js"
-            data-site-id="066a286d-a288-4a83-aa50-1d2a42e1e396"
-            strategy="afterInteractive"
-          />
-        )}
 
         {/* Lemon Squeezy Checkout Script - Enterprise only */}
         {process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true' && <LemonSqueezyScript />}

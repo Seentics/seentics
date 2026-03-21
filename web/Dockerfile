@@ -11,7 +11,7 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 # Install all dependencies first (including dev deps for postinstall)
 RUN npm ci --legacy-peer-deps
-RUN npm install sharp
+RUN npm install sharp --legacy-peer-deps
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -35,6 +35,14 @@ ENV NEXT_PUBLIC_IS_ENTERPRISE=$NEXT_PUBLIC_IS_ENTERPRISE
 # Gateway URL for Next.js rewrites (baked at build time)
 ARG API_GATEWAY_URL=http://gateway:8080
 ENV API_GATEWAY_URL=$API_GATEWAY_URL
+
+# Seentics self-tracking (baked at build time)
+ARG NEXT_PUBLIC_SEENTICS_SITE_ID
+ENV NEXT_PUBLIC_SEENTICS_SITE_ID=$NEXT_PUBLIC_SEENTICS_SITE_ID
+ARG NEXT_PUBLIC_SEENTICS_TRACKER_URL
+ENV NEXT_PUBLIC_SEENTICS_TRACKER_URL=$NEXT_PUBLIC_SEENTICS_TRACKER_URL
+ARG NEXT_PUBLIC_SEENTICS_API_HOST
+ENV NEXT_PUBLIC_SEENTICS_API_HOST=$NEXT_PUBLIC_SEENTICS_API_HOST
 
 RUN NODE_OPTIONS="--max_old_space_size=2048" npm run build
 

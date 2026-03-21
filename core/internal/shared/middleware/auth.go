@@ -1,12 +1,13 @@
 package middleware
 
 import (
-	"github.com/Seentics/seentics/internal/shared/config"
+	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
 
+	"github.com/Seentics/seentics/internal/shared/config"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -28,8 +29,8 @@ func APIKeyMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Validate API key using simple string comparison
-		if providedAPIKey != expectedAPIKey {
+		// Validate API key using constant-time comparison to prevent timing attacks
+		if subtle.ConstantTimeCompare([]byte(providedAPIKey), []byte(expectedAPIKey)) != 1 {
 			http.Error(w, "Invalid authentication", http.StatusUnauthorized)
 			return
 		}
@@ -44,7 +45,7 @@ func UnifiedAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 		if config.CloudEnabled() {
 			// Validate internal API key from Gateway
 			providedAPIKey := c.GetHeader("X-API-Key")
-			if providedAPIKey == "" || providedAPIKey != cfg.GlobalAPIKey {
+			if providedAPIKey == "" || subtle.ConstantTimeCompare([]byte(providedAPIKey), []byte(cfg.GlobalAPIKey)) != 1 {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized inter-service request"})
 				c.Abort()
 				return
@@ -69,14 +70,18 @@ func UnifiedAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		// Try Authorization header first, then fall back to httpOnly cookie
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+		var tokenString string
+		if authHeader != "" {
+			tokenString = strings.TrimPrefix(authHeader, "Bearer ")
+		} else if cookieToken, err := c.Cookie("access_token"); err == nil && cookieToken != "" {
+			tokenString = cookieToken
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization required"})
 			c.Abort()
 			return
 		}
-
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -98,7 +103,15 @@ func UnifiedAuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			case float64:
 				userID = fmt.Sprintf("%.0f", val)
 			default:
-				userID = fmt.Sprintf("%v", val)
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user_id claim type"})
+				c.Abort()
+				return
+			}
+
+			if userID == "" {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Empty user_id in token"})
+				c.Abort()
+				return
 			}
 
 			c.Set("user_id", userID)

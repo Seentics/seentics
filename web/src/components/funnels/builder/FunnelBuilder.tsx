@@ -225,9 +225,9 @@ export const FunnelBuilder = () => {
                                                 {/* Step number */}
                                                 <div className={cn(
                                                     'h-9 w-9 rounded-md flex items-center justify-center flex-shrink-0 text-sm font-semibold',
-                                                    index === 0 ? 'bg-blue-500/10 text-blue-500' :
+                                                    index === 0 ? 'bg-indigo-500/10 text-indigo-500' :
                                                     index === steps.length - 1 ? 'bg-emerald-500/10 text-emerald-500' :
-                                                    'bg-violet-500/10 text-violet-500'
+                                                    'bg-indigo-500/10 text-indigo-500'
                                                 )}>
                                                     {index + 1}
                                                 </div>

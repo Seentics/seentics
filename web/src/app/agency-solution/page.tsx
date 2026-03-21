@@ -3,9 +3,10 @@
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/stores/useAuthStore';
 import api from '@/lib/api';
+import { openCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
 import {
     Users2, Globe, BarChart2, MousePointer2, Video,
@@ -21,13 +22,13 @@ import { cn } from '@/lib/utils';
 const FEATURES = [
     {
         icon: Users2,
-        color: 'bg-blue-500/10 text-blue-500',
+        color: 'bg-indigo-500/10 text-indigo-500',
         title: 'Client Management',
         desc: 'Onboard and manage unlimited client accounts from a single agency dashboard. Invite, suspend, or archive clients instantly.',
     },
     {
         icon: Palette,
-        color: 'bg-violet-500/10 text-violet-500',
+        color: 'bg-indigo-500/10 text-indigo-500',
         title: 'White Label Branding',
         desc: 'Replace Seentics with your own brand name, logo, and primary color. Optional custom domain for a fully branded experience.',
     },
@@ -86,7 +87,7 @@ const ENTERPRISE_FEATURES = [
 
 const METHOD_COLOR: Record<string, string> = {
     GET: 'text-emerald-500 bg-emerald-500/10',
-    POST: 'text-blue-500 bg-blue-500/10',
+    POST: 'text-indigo-500 bg-indigo-500/10',
 };
 
 // The global LemonSqueezy interface is already defined elsewhere in the project.
@@ -94,21 +95,6 @@ export default function AgencySolutionPage() {
     const router = useRouter();
     const { isAuthenticated } = useAuth();
     const [loading, setLoading] = useState(false);
-
-    // Initialize Lemon Squeezy SDK
-    useEffect(() => {
-        if (window.createLemonSqueezy) {
-            window.createLemonSqueezy();
-        } else {
-            const script = document.createElement('script');
-            script.src = 'https://app.lemonsqueezy.com/js/lemon.js';
-            script.async = true;
-            document.body.appendChild(script);
-            script.onload = () => {
-                if (window.createLemonSqueezy) window.createLemonSqueezy();
-            };
-        }
-    }, []);
 
     const handleSubscribe = async () => {
         if (!isAuthenticated) {
@@ -122,19 +108,7 @@ export default function AgencySolutionPage() {
             });
 
             if (response.data.success && response.data.data.checkoutUrl) {
-                let checkoutUrl = response.data.data.checkoutUrl;
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    if (!checkoutUrl.includes('test=1')) checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'test=1';
-                }
-                if (!checkoutUrl.includes('embed=1')) checkoutUrl += (checkoutUrl.includes('?') ? '&' : '?') + 'embed=1';
-                const successUrl = encodeURIComponent(`${window.location.origin}/agency`);
-                if (!checkoutUrl.includes('checkout[success_url]')) checkoutUrl += `&checkout[success_url]=${successUrl}`;
-
-                if (window.LemonSqueezy) {
-                    window.LemonSqueezy.Url.Open(checkoutUrl);
-                } else {
-                    window.location.href = checkoutUrl;
-                }
+                openCheckout(response.data.data.checkoutUrl);
             }
         } catch {
             toast.error('Failed to initialize checkout. Please try again.');

@@ -6,7 +6,7 @@ export default function PrivacyDocs() {
     return (
         <div className="space-y-12">
             <header className="space-y-4">
-                <div className="flex items-center gap-3 text-blue-500">
+                <div className="flex items-center gap-3 text-indigo-500">
                     <ShieldCheck className="w-8 h-8" />
                     <h1 className="text-3xl font-bold tracking-tight">Privacy & Security</h1>
                 </div>

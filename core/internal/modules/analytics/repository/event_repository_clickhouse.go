@@ -55,6 +55,7 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 			utm_term Nullable(String),
 			utm_content Nullable(String),
 			time_on_page Int64,
+			language LowCardinality(Nullable(String)),
 			properties String,
 			timestamp DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1)),
 			created_at DateTime64(3, 'UTC') CODEC(Delta, ZSTD(1))
@@ -207,6 +208,7 @@ func (r *ClickHouseEventRepository) CreateSchema(ctx context.Context) error {
 		`ALTER TABLE events MODIFY COLUMN IF EXISTS country_code LowCardinality(Nullable(String))`,
 		`ALTER TABLE events MODIFY COLUMN IF EXISTS utm_source LowCardinality(Nullable(String))`,
 		`ALTER TABLE events MODIFY COLUMN IF EXISTS utm_medium LowCardinality(Nullable(String))`,
+		`ALTER TABLE events ADD COLUMN IF NOT EXISTS language LowCardinality(Nullable(String)) AFTER time_on_page`,
 	}
 	for _, q := range alterQueries {
 		if err := r.conn.Exec(ctx, q); err != nil {
@@ -293,6 +295,7 @@ func (r *ClickHouseEventRepository) CreateBatch(ctx context.Context, events []mo
 			event.UTMTerm,
 			event.UTMContent,
 			timeOnPage,
+			event.Language,
 			propertiesJSON,
 			event.Timestamp,
 			event.CreatedAt,
@@ -395,11 +398,17 @@ func (r *ClickHouseEventRepository) GetByWebsiteID(ctx context.Context, websiteI
 }
 
 func (r *ClickHouseEventRepository) DeleteByWebsiteID(ctx context.Context, websiteID string) error {
-	// Mutation in ClickHouse is asynchronous; we only need to issue the command.
+	// Issue the async DELETE mutation.
 	query := `ALTER TABLE events DELETE WHERE website_id = ?`
 	if err := r.conn.Exec(ctx, query, websiteID); err != nil {
 		r.logger.Error().Err(err).Str("website_id", websiteID).Msg("Failed to delete events from ClickHouse")
 		return err
+	}
+	// Force a merge so the mutation is applied immediately and disk space is reclaimed.
+	// Without this, ClickHouse keeps deleted rows on disk until the next background merge.
+	if err := r.conn.Exec(ctx, "OPTIMIZE TABLE events FINAL"); err != nil {
+		// Non-fatal — the mutation will still be applied eventually by background merges.
+		r.logger.Warn().Err(err).Msg("OPTIMIZE TABLE events FINAL failed (non-fatal)")
 	}
 	return nil
 }

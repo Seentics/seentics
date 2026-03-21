@@ -9,7 +9,6 @@ import { TopPagesChart } from '@/components/analytics/TopPagesChart';
 import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { TopCountriesChart } from '@/components/analytics/TopCountriesChart';
 import { TopDevicesChart } from '@/components/analytics/TopDevicesChart';
-import { WebVitalsChart } from '@/components/analytics/WebVitalsChart';
 import { GeolocationOverview } from '@/components/analytics/GeolocationOverview';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -77,14 +76,6 @@ export default function PublicDashboardPage() {
                     <TrafficOverview
                         dailyStats={data?.daily_stats || []}
                         hourlyStats={data?.hourly_stats || []}
-                        isLoading={isLoading}
-                    />
-                </section>
-
-                {/* Web Vitals */}
-                <section>
-                    <WebVitalsChart
-                        data={data?.web_vitals || []}
                         isLoading={isLoading}
                     />
                 </section>

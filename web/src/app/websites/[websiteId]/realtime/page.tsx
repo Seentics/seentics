@@ -1,300 +1,558 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
-import { DashboardPageHeader } from '@/components/dashboard-header';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import {
-  Radio,
-  Globe,
-  Monitor,
-  Smartphone,
-  Tablet,
-  Clock,
-  ArrowRight,
-  Loader2,
-  Eye,
-  Users,
-  Activity,
-  TrendingUp,
-} from 'lucide-react';
+import { useRealtimeData, RealtimeMinute } from '@/lib/analytics-api';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { isEnterprise } from '@/lib/features';
-import api from '@/lib/api';
-import { formatDistanceToNow } from 'date-fns';
+import { Activity, Globe, Monitor, ExternalLink, Eye, Users, Layers } from 'lucide-react';
+import { DashboardPageHeader } from '@/components/dashboard-header';
+import { useMemo } from 'react';
+import Image from 'next/image';
 
-interface RecentActivityItem {
-  page: string;
-  country: string;
-  device: string;
-  browser: string;
-  referrer: string;
-  timestamp: string;
+// ─── Country name → flag emoji ──────────────────────────────────────────────
+const COUNTRY_FLAGS: Record<string, string> = {
+  'Afghanistan': 'AF', 'Albania': 'AL', 'Algeria': 'DZ', 'Argentina': 'AR', 'Australia': 'AU',
+  'Austria': 'AT', 'Bangladesh': 'BD', 'Belgium': 'BE', 'Brazil': 'BR', 'Canada': 'CA',
+  'Chile': 'CL', 'China': 'CN', 'Colombia': 'CO', 'Croatia': 'HR', 'Czech Republic': 'CZ',
+  'Czechia': 'CZ', 'Denmark': 'DK', 'Egypt': 'EG', 'Estonia': 'EE', 'Finland': 'FI',
+  'France': 'FR', 'Germany': 'DE', 'Ghana': 'GH', 'Greece': 'GR', 'Hong Kong': 'HK',
+  'Hungary': 'HU', 'India': 'IN', 'Indonesia': 'ID', 'Iran': 'IR', 'Iraq': 'IQ',
+  'Ireland': 'IE', 'Israel': 'IL', 'Italy': 'IT', 'Japan': 'JP', 'Jordan': 'JO',
+  'Kazakhstan': 'KZ', 'Kenya': 'KE', 'Kuwait': 'KW', 'Latvia': 'LV', 'Lebanon': 'LB',
+  'Lithuania': 'LT', 'Luxembourg': 'LU', 'Malaysia': 'MY', 'Mexico': 'MX', 'Morocco': 'MA',
+  'Myanmar': 'MM', 'Nepal': 'NP', 'Netherlands': 'NL', 'New Zealand': 'NZ', 'Nigeria': 'NG',
+  'Norway': 'NO', 'Pakistan': 'PK', 'Peru': 'PE', 'Philippines': 'PH', 'Poland': 'PL',
+  'Portugal': 'PT', 'Qatar': 'QA', 'Romania': 'RO', 'Russia': 'RU', 'Saudi Arabia': 'SA',
+  'Serbia': 'RS', 'Singapore': 'SG', 'Slovakia': 'SK', 'Slovenia': 'SI', 'South Africa': 'ZA',
+  'South Korea': 'KR', 'Spain': 'ES', 'Sri Lanka': 'LK', 'Sweden': 'SE', 'Switzerland': 'CH',
+  'Taiwan': 'TW', 'Thailand': 'TH', 'Turkey': 'TR', 'Ukraine': 'UA',
+  'United Arab Emirates': 'AE', 'United Kingdom': 'GB', 'United States': 'US',
+  'Uruguay': 'UY', 'Uzbekistan': 'UZ', 'Venezuela': 'VE', 'Vietnam': 'VN',
+};
+
+function countryToFlag(country: string): string {
+  const code = COUNTRY_FLAGS[country];
+  if (!code) return '';
+  return code
+    .toUpperCase()
+    .split('')
+    .map((c) => String.fromCodePoint(0x1f1e6 + c.charCodeAt(0) - 65))
+    .join('');
 }
 
-function getDeviceIcon(device: string) {
-  const d = device.toLowerCase();
-  if (d.includes('mobile') || d.includes('phone')) return <Smartphone className="h-3.5 w-3.5" />;
-  if (d.includes('tablet')) return <Tablet className="h-3.5 w-3.5" />;
-  return <Monitor className="h-3.5 w-3.5" />;
+// ─── Browser icon ───────────────────────────────────────────────────────────
+function BrowserIcon({ name }: { name: string }) {
+  const n = name.toLowerCase().replace(/\s+/g, '-');
+  const knownBrowsers = [
+    'chrome', 'firefox', 'safari', 'edge', 'opera', 'brave', 'samsung',
+    'ie', 'vivaldi', 'yandexbrowser', 'silk', 'miui', 'kakaotalk',
+    'opera-mini', 'edge-chromium', 'edge-ios', 'chromium-webview',
+    'android-webview', 'ios-webview', 'crios', 'fxios',
+  ];
+  const match = knownBrowsers.find(b => n.includes(b)) ?? 'unknown';
+  return (
+    <img
+      src={`/images/browser/${match}.png`}
+      alt={name}
+      className="w-4 h-4 rounded-sm shrink-0 object-contain"
+    />
+  );
 }
 
-function getCountryFlag(country: string) {
-  if (!country) return null;
-  try {
-    const code = country.length === 2 ? country : null;
-    if (!code) return null;
-    const codePoints = code.toUpperCase().split('').map(c => 127397 + c.charCodeAt(0));
-    return String.fromCodePoint(...codePoints);
-  } catch {
-    return null;
+// ─── Device icon ────────────────────────────────────────────────────────────
+function DeviceIcon({ name }: { name: string }) {
+  const n = name.toLowerCase();
+  let type = 'unknown';
+  if (n.includes('mobile') || n.includes('phone')) type = 'mobile';
+  else if (n.includes('tablet')) type = 'tablet';
+  else if (n.includes('desktop') || n.includes('laptop')) type = 'desktop';
+  return (
+    <img
+      src={`/images/device/${type}.png`}
+      alt={name}
+      className="w-4 h-4 rounded-sm shrink-0 object-contain"
+    />
+  );
+}
+
+// ─── Referrer favicon ───────────────────────────────────────────────────────
+// ─── Parse referrer URL into a readable source name ─────────────────────────
+const KNOWN_SOURCES: Record<string, string> = {
+  'google': 'Google', 'facebook': 'Facebook', 'twitter': 'Twitter', 'x.com': 'Twitter',
+  'linkedin': 'LinkedIn', 'reddit': 'Reddit', 'youtube': 'YouTube', 'instagram': 'Instagram',
+  'pinterest': 'Pinterest', 'tiktok': 'TikTok', 'duckduckgo': 'DuckDuckGo', 'bing': 'Bing',
+  'yahoo': 'Yahoo', 'github': 'GitHub', 'stackoverflow': 'Stack Overflow',
+  'medium': 'Medium', 'producthunt': 'Product Hunt', 'hackernews': 'Hacker News',
+  'news.ycombinator': 'Hacker News', 'telegram': 'Telegram', 't.me': 'Telegram',
+  'whatsapp': 'WhatsApp', 'snapchat': 'Snapchat', 'baidu': 'Baidu', 'yandex': 'Yandex',
+  'devto': 'DEV.to', 'dev.to': 'DEV.to',
+};
+
+const SOURCE_IMAGES: Record<string, string> = {
+  'Google': 'google', 'Facebook': 'facebook', 'Twitter': 'twitter', 'LinkedIn': 'linkedin',
+  'Reddit': 'reddit', 'YouTube': 'youtube', 'Instagram': 'instagram', 'Pinterest': 'pinterest',
+  'TikTok': 'tiktok', 'DuckDuckGo': 'duckduckgo', 'Bing': 'bing', 'Yahoo': 'yahoo',
+  'GitHub': 'github', 'Stack Overflow': 'stackoverflow', 'Medium': 'medium',
+  'Product Hunt': 'producthunt', 'Hacker News': 'hackernews', 'Telegram': 'telegram',
+  'WhatsApp': 'whatsapp', 'Snapchat': 'snapchat', 'DEV.to': 'devto',
+};
+
+function parseReferrer(raw: string): { label: string; domain: string } {
+  if (!raw || raw === '(direct)' || raw === 'direct' || raw === 'Direct') {
+    return { label: 'Direct', domain: '' };
   }
+  const domain = raw.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+  for (const [key, label] of Object.entries(KNOWN_SOURCES)) {
+    if (domain.includes(key)) return { label, domain };
+  }
+  return { label: domain, domain };
 }
 
-export default function RealtimePage() {
-  if (!isEnterprise) return null;
-
-  const params = useParams();
-  const websiteId = params?.websiteId as string;
-
-  const [liveVisitors, setLiveVisitors] = useState<number>(0);
-  const [activity, setActivity] = useState<RecentActivityItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [secondsAgo, setSecondsAgo] = useState(0);
-
-  const fetchData = useCallback(async () => {
-    if (!websiteId) return;
-    try {
-      const [liveRes, activityRes] = await Promise.all([
-        api.get(`/analytics/live-visitors/${websiteId}`),
-        api.get(`/analytics/recent-activity/${websiteId}?limit=50`),
-      ]);
-      setLiveVisitors(liveRes.data?.live_visitors || 0);
-      const items = activityRes.data?.data || activityRes.data || [];
-      setActivity(Array.isArray(items) ? items : []);
-      setLastUpdated(new Date());
-      setSecondsAgo(0);
-    } catch {
-      // silently fail on polling
-    } finally {
-      setLoading(false);
-    }
-  }, [websiteId]);
-
-  // Initial fetch + poll every 15s
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
-
-  // Seconds ticker
-  useEffect(() => {
-    const timer = setInterval(() => setSecondsAgo((s) => s + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Derive stats from activity
-  const activePages = new Map<string, number>();
-  const activeCountries = new Map<string, number>();
-  const activeDevices = new Map<string, number>();
-
-  activity.forEach((item) => {
-    activePages.set(item.page, (activePages.get(item.page) || 0) + 1);
-    if (item.country) activeCountries.set(item.country, (activeCountries.get(item.country) || 0) + 1);
-    if (item.device) activeDevices.set(item.device, (activeDevices.get(item.device) || 0) + 1);
-  });
-
-  const topPages = Array.from(activePages.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
-
-  const topCountries = Array.from(activeCountries.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
-
-  const topDevices = Array.from(activeDevices.entries())
-    .sort((a, b) => b[1] - a[1]);
-
-  if (loading) {
+function ReferrerIcon({ name, domain }: { name: string; domain: string }) {
+  if (name === 'Direct') {
     return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+      <span className="inline-flex items-center justify-center w-4 h-4 rounded bg-muted text-[9px] font-bold text-muted-foreground shrink-0">
+        D
+      </span>
     );
   }
+  const sourceImg = SOURCE_IMAGES[name];
+  if (sourceImg) {
+    return <img src={`/images/sources/${sourceImg}.png`} alt={name} className="w-4 h-4 rounded-sm shrink-0 object-contain" />;
+  }
+  return (
+    <Image
+      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+      alt=""
+      width={16}
+      height={16}
+      className="w-4 h-4 rounded shrink-0"
+      unoptimized
+    />
+  );
+}
+
+// ─── Fill timeline gaps ─────────────────────────────────────────────────────
+function fillTimeline(raw: RealtimeMinute[]): RealtimeMinute[] {
+  if (raw.length === 0) return [];
+
+  const map = new Map<string, RealtimeMinute>();
+  raw.forEach(m => map.set(m.minute, m));
+
+  const filled: RealtimeMinute[] = [];
+  const now = new Date();
+
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 60000);
+    const key = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
+    filled.push(map.get(key) ?? { minute: key, visitors: 0, views: 0 });
+  }
+
+  return filled;
+}
+
+// ─── 30-Minute Activity Timeline ────────────────────────────────────────────
+function RealtimeTimeline({ timeline }: { timeline: RealtimeMinute[] }) {
+  const filled = useMemo(() => fillTimeline(timeline), [timeline]);
+  const max = useMemo(() => Math.max(...filled.map(t => t.views), 1), [filled]);
+  const hasAnyData = useMemo(() => filled.some(t => t.views > 0 || t.visitors > 0), [filled]);
 
   return (
-    <div className="p-4 sm:p-8 space-y-6 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
-      <div className="flex items-center justify-between">
-        <DashboardPageHeader
-          title="Real-time"
-          description="Live analytics as visitors browse your website."
-        />
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <div className="relative flex h-2.5 w-2.5">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500" />
+    <div className="space-y-3">
+      <div className="flex gap-[2px] h-32 relative">
+        {!hasAnyData && (
+          <div className="absolute inset-0 flex items-center justify-center z-10">
+            <p className="text-xs text-muted-foreground/50">No activity in the last 30 minutes</p>
           </div>
-          Updated {secondsAgo}s ago
-        </div>
+        )}
+        {filled.map((t, i) => {
+          const height = t.views > 0 ? Math.max((t.views / max) * 100, 8) : 4;
+          const isRecent = i >= filled.length - 5;
+          const hasData = t.views > 0;
+          return (
+            <div key={t.minute} className="flex-1 h-full flex flex-col justify-end items-center group relative">
+              <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1.5 rounded-md shadow-lg border whitespace-nowrap">
+                  <span className="font-bold">{t.minute}</span>
+                  <span className="text-muted-foreground"> · </span>
+                  {t.views} views · {t.visitors} visitors
+                </div>
+              </div>
+              <div
+                className={cn(
+                  "w-full rounded-[3px] transition-all duration-300",
+                  hasData
+                    ? isRecent
+                      ? "bg-emerald-500/80 hover:bg-emerald-500"
+                      : "bg-primary/40 hover:bg-primary/60"
+                    : "bg-muted/20"
+                )}
+                style={{ height: `${height}%` }}
+              />
+            </div>
+          );
+        })}
       </div>
+      <div className="flex justify-between text-[10px] text-muted-foreground/50 px-0.5 tabular-nums">
+        <span>{filled[0]?.minute}</span>
+        <span>{filled[Math.floor(filled.length / 2)]?.minute}</span>
+        <span>{filled[filled.length - 1]?.minute}</span>
+      </div>
+    </div>
+  );
+}
 
-      {/* Live Visitors Hero */}
-      <Card className="p-6 bg-gradient-to-br from-primary/5 via-background to-background border-primary/20">
+// ─── Stat Card ──────────────────────────────────────────────────────────────
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+  isLoading,
+}: {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+  color: string;
+  isLoading: boolean;
+}) {
+  return (
+    <Card className="border border-border/60 bg-card shadow-sm">
+      <CardContent className="p-6">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
-            <Radio className="h-8 w-8 text-primary" />
+          <div className={cn("p-2.5 rounded-xl", color)}>
+            <Icon size={18} className="opacity-80" />
           </div>
-          <div>
-            <p className="text-sm text-muted-foreground font-medium">Visitors right now</p>
-            <p className="text-5xl font-black tracking-tight text-foreground">{liveVisitors}</p>
+          <div className="min-w-0">
+            <p className="text-xs text-muted-foreground font-medium">{label}</p>
+            <p className={cn("text-2xl font-bold tabular-nums tracking-tight", isLoading && "animate-pulse")}>
+              {isLoading ? '--' : value.toLocaleString()}
+            </p>
           </div>
         </div>
-      </Card>
+      </CardContent>
+    </Card>
+  );
+}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Active Pages */}
-        <Card className="p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Eye className="h-4 w-4 text-blue-500" />
-            <h3 className="text-sm font-bold">Active Pages</h3>
-            <Badge variant="outline" className="ml-auto text-[10px] h-4 px-1.5">
-              {topPages.length}
-            </Badge>
-          </div>
-          <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-            {topPages.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">No activity</p>
-            ) : (
-              topPages.map(([page, count]) => (
-                <div key={page} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-muted/50 transition-colors">
-                  <span className="text-xs font-medium truncate flex-1">{page}</span>
-                  <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">{count}</Badge>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
+// ─── Breakdown Row ──────────────────────────────────────────────────────────
+function BreakdownRow({
+  icon,
+  label,
+  count,
+  pct,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  count: number;
+  pct: number;
+}) {
+  return (
+    <div className="relative group">
+      {/* Background bar */}
+      <div
+        className="absolute inset-y-0 left-0 bg-primary/[0.05] rounded-md transition-all duration-500"
+        style={{ width: `${Math.max(pct, 3)}%` }}
+      />
+      <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-muted/20 transition-colors">
+        <div className="shrink-0">{icon}</div>
+        <span className="text-sm font-medium text-foreground truncate flex-1">{label || '(unknown)'}</span>
+        <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{pct.toFixed(0)}%</span>
+        <span className="text-sm font-bold text-foreground tabular-nums w-8 text-right shrink-0">{count}</span>
+      </div>
+    </div>
+  );
+}
 
-        {/* Top Countries */}
-        <Card className="p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-green-500" />
-            <h3 className="text-sm font-bold">Countries</h3>
-            <Badge variant="outline" className="ml-auto text-[10px] h-4 px-1.5">
-              {topCountries.length}
-            </Badge>
-          </div>
-          <div className="space-y-1.5 max-h-[300px] overflow-y-auto">
-            {topCountries.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">No data</p>
-            ) : (
-              topCountries.map(([country, count]) => (
-                <div key={country} className="flex items-center justify-between gap-2 py-1.5 px-2 rounded hover:bg-muted/50 transition-colors">
-                  <span className="text-xs font-medium flex items-center gap-1.5">
-                    <span>{getCountryFlag(country)}</span>
-                    {country}
-                  </span>
-                  <Badge variant="secondary" className="text-[10px] h-5 px-1.5 shrink-0">{count}</Badge>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
+// ─── Referrer Breakdown (with URL parsing + merging) ────────────────────────
+function ReferrerBreakdown({ referrers, isLoading }: { referrers: Array<{ name: string; visitors: number }>; isLoading: boolean }) {
+  const parsed = useMemo(() => {
+    const merged = new Map<string, { label: string; domain: string; visitors: number }>();
+    for (const r of referrers) {
+      const { label, domain } = parseReferrer(r.name);
+      const existing = merged.get(label);
+      if (existing) { existing.visitors += r.visitors; }
+      else { merged.set(label, { label, domain, visitors: r.visitors }); }
+    }
+    return Array.from(merged.values()).sort((a, b) => b.visitors - a.visitors);
+  }, [referrers]);
 
-        {/* Devices */}
-        <Card className="p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Monitor className="h-4 w-4 text-orange-500" />
-            <h3 className="text-sm font-bold">Devices</h3>
+  const total = useMemo(() => parsed.reduce((sum, i) => sum + i.visitors, 0), [parsed]);
+
+  return (
+    <Card className="border border-border/60 bg-card shadow-sm">
+      <CardHeader className="p-6 pb-4 border-b border-border/60">
+        <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
+          <ExternalLink size={15} className="text-muted-foreground" />
+          Traffic Sources
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4">
+        {isLoading ? (
+          <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-8 bg-muted/20 rounded animate-pulse" />)}</div>
+        ) : parsed.length === 0 ? (
+          <p className="text-xs text-muted-foreground/60 text-center py-6">No referrer data</p>
+        ) : (
+          <div className="space-y-1">
+            {parsed.map((item) => {
+              const pct = total > 0 ? (item.visitors / total) * 100 : 0;
+              return (
+                <BreakdownRow
+                  key={item.label}
+                  icon={<ReferrerIcon name={item.label} domain={item.domain} />}
+                  label={item.label}
+                  count={item.visitors}
+                  pct={pct}
+                />
+              );
+            })}
           </div>
-          <div className="space-y-1.5">
-            {topDevices.length === 0 ? (
-              <p className="text-xs text-muted-foreground py-4 text-center">No data</p>
-            ) : (
-              topDevices.map(([device, count]) => {
-                const total = activity.length || 1;
-                const pct = Math.round((count / total) * 100);
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Breakdown Card ─────────────────────────────────────────────────────────
+function BreakdownCard({
+  title,
+  icon: Icon,
+  items,
+  emptyText,
+  isLoading,
+  renderRow,
+}: {
+  title: string;
+  icon: React.ElementType;
+  items: Array<{ name: string; visitors: number }>;
+  emptyText: string;
+  isLoading: boolean;
+  renderRow: (item: { name: string; visitors: number }, pct: number) => React.ReactNode;
+}) {
+  const total = useMemo(() => items.reduce((sum, i) => sum + i.visitors, 0), [items]);
+
+  return (
+    <Card className="border border-border/60 bg-card shadow-sm">
+      <CardHeader className="p-6 pb-4 border-b border-border/60">
+        <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
+          <Icon size={15} className="text-muted-foreground" />
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4">
+        {isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-10 bg-muted/30 rounded-md animate-pulse" />
+            ))}
+          </div>
+        ) : items.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">{emptyText}</p>
+        ) : (
+          <div className="space-y-1">
+            {items.map((item) => {
+              const pct = total > 0 ? (item.visitors / total) * 100 : 0;
+              return <div key={item.name}>{renderRow(item, pct)}</div>;
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Active Pages Table ─────────────────────────────────────────────────────
+function ActivePagesTable({
+  pages,
+  isLoading,
+}: {
+  pages: Array<{ page: string; visitors: number }>;
+  isLoading: boolean;
+}) {
+  const max = pages.length > 0 ? pages[0].visitors : 1;
+
+  return (
+    <Card className="border border-border/60 bg-card shadow-sm">
+      <CardHeader className="p-6 pb-4 border-b border-border/60">
+        <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
+          <Layers size={15} className="text-muted-foreground" />
+          Active Pages
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-0">
+        {isLoading ? (
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-9 bg-muted/30 rounded animate-pulse" />
+            ))}
+          </div>
+        ) : pages.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-10 text-center">No active pages right now</p>
+        ) : (
+          <div>
+            <div className="grid grid-cols-12 gap-2 px-6 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 border-b border-border/40">
+              <div className="col-span-9">Page</div>
+              <div className="col-span-3 text-right">Visitors</div>
+            </div>
+            <div className="divide-y divide-border/30">
+              {pages.map((p) => {
+                const barWidth = Math.max((p.visitors / max) * 100, 3);
                 return (
-                  <div key={device} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-medium flex items-center gap-1.5">
-                        {getDeviceIcon(device)}
-                        {device || 'Unknown'}
-                      </span>
-                      <span className="text-muted-foreground">{pct}%</span>
+                  <div
+                    key={p.page}
+                    className="grid grid-cols-12 gap-2 px-6 py-3 items-center hover:bg-muted/20 transition-colors relative"
+                  >
+                    <div
+                      className="absolute inset-y-0 left-0 bg-primary/[0.04] transition-all duration-300"
+                      style={{ width: `${barWidth}%` }}
+                    />
+                    <div className="col-span-9 relative z-10 flex items-center gap-2.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                      <span className="text-sm font-medium text-foreground truncate">{p.page}</span>
                     </div>
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary/60 rounded-full transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
+                    <div className="col-span-3 text-right relative z-10">
+                      <span className="text-sm font-bold tabular-nums text-foreground">{p.visitors}</span>
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
-        </Card>
-      </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
-      {/* Live Activity Feed */}
-      <Card className="p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-bold">Live Activity Feed</h3>
-          <Badge variant="outline" className="ml-auto text-[10px] h-4 px-1.5">
-            Last {activity.length} events
-          </Badge>
-        </div>
-        <div className="space-y-0.5 max-h-[400px] overflow-y-auto">
-          {activity.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-8 text-center">No recent activity</p>
-          ) : (
-            activity.slice(0, 30).map((item, idx) => (
-              <div
-                key={`${item.timestamp}-${idx}`}
-                className={cn(
-                  'flex items-center gap-3 py-2 px-3 rounded transition-all',
-                  idx === 0 && 'bg-primary/5 border border-primary/10',
-                  idx > 0 && 'hover:bg-muted/30'
-                )}
-              >
-                <div className="shrink-0 text-muted-foreground">
-                  {getDeviceIcon(item.device)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-bold truncate">{item.page}</span>
-                    {item.referrer && (
-                      <>
-                        <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                        <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">{item.referrer}</span>
-                      </>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-0.5">
-                    {item.country && (
-                      <span className="flex items-center gap-0.5">
-                        {getCountryFlag(item.country)} {item.country}
-                      </span>
-                    )}
-                    {item.browser && <span>{item.browser}</span>}
-                  </div>
-                </div>
-                <div className="text-[10px] text-muted-foreground shrink-0 flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {item.timestamp ? formatDistanceToNow(new Date(item.timestamp + 'Z'), { addSuffix: true }) : ''}
-                </div>
+// ─── Main Page ──────────────────────────────────────────────────────────────
+export default function RealtimePage() {
+  const { websiteId } = useParams<{ websiteId: string }>();
+  const { data, isLoading } = useRealtimeData(websiteId);
+
+  return (
+    <div className="p-6 md:p-8 lg:p-10 w-full max-w-[1400px] mx-auto">
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+
+          {/* Header */}
+          <DashboardPageHeader
+            title="Realtime"
+            description="Live visitor activity on your website right now."
+          >
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Live</span>
+            </div>
+          </DashboardPageHeader>
+
+          {/* Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard
+              label="Active Visitors"
+              value={data?.active_visitors ?? 0}
+              icon={Users}
+              color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              isLoading={isLoading}
+            />
+            <StatCard
+              label="Pageviews"
+              value={data?.pageviews ?? 0}
+              icon={Eye}
+              color="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+              isLoading={isLoading}
+            />
+            <StatCard
+              label="Sessions"
+              value={data?.sessions ?? 0}
+              icon={Activity}
+              color="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+              isLoading={isLoading}
+            />
+            <StatCard
+              label="Pages / Visitor"
+              value={data?.active_visitors ? Math.round((data.pageviews / data.active_visitors) * 10) / 10 : 0}
+              icon={Layers}
+              color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
+              isLoading={isLoading}
+            />
+          </div>
+
+          {/* Activity Timeline */}
+          <Card className="border border-border/60 bg-card shadow-sm">
+            <CardHeader className="p-6 pb-4 border-b border-border/60">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
+                  <Activity size={15} className="text-muted-foreground" />
+                  Activity (last 30 minutes)
+                </CardTitle>
+                <span className="text-[11px] text-muted-foreground/60">per minute</span>
               </div>
-            ))
-          )}
+            </CardHeader>
+            <CardContent className="p-6">
+              {isLoading ? (
+                <div className="h-32 bg-muted/20 rounded animate-pulse" />
+              ) : (
+                <RealtimeTimeline timeline={data?.timeline ?? []} />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Active Pages */}
+          <ActivePagesTable pages={data?.top_pages ?? []} isLoading={isLoading} />
+
+          {/* Breakdown Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <ReferrerBreakdown referrers={data?.top_referrers ?? []} isLoading={isLoading} />
+            <BreakdownCard
+              title="Countries"
+              icon={Globe}
+              items={data?.top_countries ?? []}
+              emptyText="No country data"
+              isLoading={isLoading}
+              renderRow={(item, pct) => (
+                <BreakdownRow
+                  icon={<span className="text-base leading-none shrink-0">{countryToFlag(item.name) || '🌍'}</span>}
+                  label={item.name}
+                  count={item.visitors}
+                  pct={pct}
+                />
+              )}
+            />
+            <BreakdownCard
+              title="Devices"
+              icon={Monitor}
+              items={data?.top_devices ?? []}
+              emptyText="No device data"
+              isLoading={isLoading}
+              renderRow={(item, pct) => (
+                <BreakdownRow
+                  icon={<DeviceIcon name={item.name} />}
+                  label={item.name.charAt(0).toUpperCase() + item.name.slice(1)}
+                  count={item.visitors}
+                  pct={pct}
+                />
+              )}
+            />
+            <BreakdownCard
+              title="Browsers"
+              icon={Globe}
+              items={data?.top_browsers ?? []}
+              emptyText="No browser data"
+              isLoading={isLoading}
+              renderRow={(item, pct) => (
+                <BreakdownRow
+                  icon={<BrowserIcon name={item.name} />}
+                  label={item.name}
+                  count={item.visitors}
+                  pct={pct}
+                />
+              )}
+            />
+          </div>
+
         </div>
-      </Card>
     </div>
   );
 }

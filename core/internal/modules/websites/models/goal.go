@@ -13,13 +13,17 @@ type Goal struct {
 	Type       string    `json:"type" db:"type"`             // 'event', 'pageview'
 	Identifier string    `json:"identifier" db:"identifier"` // event name or page path
 	Selector   *string   `json:"selector,omitempty" db:"selector"`
+	Revenue    *float64  `json:"revenue,omitempty" db:"revenue"` // monetary value per conversion
+	Currency   *string   `json:"currency,omitempty" db:"currency"` // e.g. "USD", "EUR"
 	CreatedAt  time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt  time.Time `json:"updatedAt" db:"updated_at"`
 }
 
 type CreateGoalRequest struct {
-	Name       string  `json:"name" binding:"required"`
-	Type       string  `json:"type" binding:"required,oneof=event pageview"`
-	Identifier string  `json:"identifier" binding:"required"`
-	Selector   *string `json:"selector,omitempty"`
+	Name       string   `json:"name" binding:"required"`
+	Type       string   `json:"type" binding:"required,oneof=event pageview"`
+	Identifier string   `json:"identifier" binding:"required"`
+	Selector   *string  `json:"selector,omitempty"`
+	Revenue    *float64 `json:"revenue,omitempty"`
+	Currency   *string  `json:"currency,omitempty"`
 }

@@ -55,11 +55,7 @@ func (s *PrivacyService) ExportUserAnalytics(userID string, authUserID string) (
 	}
 	s.logger.Info().Str("user_id", userID).Msg("Starting analytics data export")
 
-	exportData := map[string]interface{}{
-		"user_id":     userID,
-		"exported_at": time.Now().UTC().Format(time.RFC3339),
-		"data":        make(map[string]interface{}),
-	}
+	data := make(map[string]interface{})
 
 	// Export events data
 	events, err := s.privacyRepo.ExportEventsData(userID)
@@ -67,7 +63,7 @@ func (s *PrivacyService) ExportUserAnalytics(userID string, authUserID string) (
 		s.logger.Error().Err(err).Str("user_id", userID).Msg("Failed to export events data")
 		return nil, err
 	}
-	exportData["data"].(map[string]interface{})["events"] = events
+	data["events"] = events
 
 	// Export analytics data
 	analytics, err := s.privacyRepo.ExportAnalyticsData(userID)
@@ -75,7 +71,7 @@ func (s *PrivacyService) ExportUserAnalytics(userID string, authUserID string) (
 		s.logger.Error().Err(err).Str("user_id", userID).Msg("Failed to export analytics data")
 		return nil, err
 	}
-	exportData["data"].(map[string]interface{})["analytics"] = analytics
+	data["analytics"] = analytics
 
 	// Export funnel data
 	funnels, err := s.privacyRepo.ExportFunnelData(userID)
@@ -83,9 +79,66 @@ func (s *PrivacyService) ExportUserAnalytics(userID string, authUserID string) (
 		s.logger.Error().Err(err).Str("user_id", userID).Msg("Failed to export funnel data")
 		return nil, err
 	}
-	exportData["data"].(map[string]interface{})["funnels"] = funnels
+	data["funnels"] = funnels
+
+	// Export sessions data
+	sessions, err := s.privacyRepo.ExportSessionsData(userID)
+	if err != nil {
+		s.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to export sessions data")
+	} else {
+		data["sessions"] = sessions
+	}
+
+	// Export heatmap data
+	heatmaps, err := s.privacyRepo.ExportHeatmapData(userID)
+	if err != nil {
+		s.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to export heatmap data")
+	} else {
+		data["heatmaps"] = heatmaps
+	}
+
+	// Export replay data
+	replays, err := s.privacyRepo.ExportReplayData(userID)
+	if err != nil {
+		s.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to export replay data")
+	} else {
+		data["replays"] = replays
+	}
+
+	// Export goal data
+	goals, err := s.privacyRepo.ExportGoalData(userID)
+	if err != nil {
+		s.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to export goal data")
+	} else {
+		data["goals"] = goals
+	}
+
+	exportData := map[string]interface{}{
+		"user_id":     userID,
+		"exported_at": time.Now().UTC().Format(time.RFC3339),
+		"data":        data,
+	}
 
 	s.logger.Info().Str("user_id", userID).Msg("Analytics data export completed")
+	return exportData, nil
+}
+
+// ExportWebsiteAnalytics exports all analytics data for a specific website
+func (s *PrivacyService) ExportWebsiteAnalytics(websiteID string, authUserID string) (map[string]interface{}, error) {
+	canonicalID, err := s.validateOwnership(context.Background(), websiteID, authUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	s.logger.Info().Str("website_id", canonicalID).Msg("Starting website data export")
+
+	exportData, err := s.privacyRepo.ExportWebsiteData(canonicalID)
+	if err != nil {
+		s.logger.Error().Err(err).Str("website_id", canonicalID).Msg("Failed to export website data")
+		return nil, err
+	}
+
+	s.logger.Info().Str("website_id", canonicalID).Msg("Website data export completed")
 	return exportData, nil
 }
 
@@ -149,6 +202,25 @@ func (s *PrivacyService) DeleteUserAnalytics(userID string) error {
 
 	s.logger.Info().Str("user_id", userID).Msg("Analytics data deletion completed")
 	return nil
+}
+
+// ImportWebsiteAnalytics imports analytics data from a JSON export into a website
+func (s *PrivacyService) ImportWebsiteAnalytics(websiteID string, authUserID string, data []byte) (map[string]int, error) {
+	canonicalID, err := s.validateOwnership(context.Background(), websiteID, authUserID)
+	if err != nil {
+		return nil, err
+	}
+
+	s.logger.Info().Str("website_id", canonicalID).Msg("Starting website data import")
+
+	counts, err := s.privacyRepo.ImportWebsiteData(canonicalID, data)
+	if err != nil {
+		s.logger.Error().Err(err).Str("website_id", canonicalID).Msg("Failed to import website data")
+		return nil, err
+	}
+
+	s.logger.Info().Str("website_id", canonicalID).Interface("counts", counts).Msg("Website data import completed")
+	return counts, nil
 }
 
 // AnonymizeUserAnalytics anonymizes analytics data for a specific user

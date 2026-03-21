@@ -5,6 +5,12 @@ import (
 	"strings"
 )
 
+// IsProduction returns true when running in production environment
+func IsProduction() bool {
+	val := strings.ToLower(os.Getenv("ENVIRONMENT"))
+	return val == "production"
+}
+
 // IsEnterprise checks if this instance is running in enterprise/cloud mode
 func IsEnterprise() bool {
 	val := strings.ToLower(os.Getenv("IS_ENTERPRISE"))

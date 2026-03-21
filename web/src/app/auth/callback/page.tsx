@@ -25,15 +25,29 @@ function AuthCallback() {
 
       const finalizeAuth = async () => {
         try {
-          // Set initial auth state with tokens
+          // Persist tokens to localStorage immediately so the API interceptor can read them
+          // (Zustand's persist middleware writes asynchronously, causing a race condition)
+          const authData = {
+            state: {
+              user: null,
+              access_token: accessToken,
+              refresh_token: refreshToken,
+              isAuthenticated: true,
+              rememberMe: true,
+            },
+            version: 0,
+          };
+          localStorage.setItem('auth-storage', JSON.stringify(authData));
+
+          // Also update Zustand in-memory state
           setAuth({
-            user: null as any, // Temporary null until we fetch details
+            user: null as any,
             access_token: accessToken,
             refresh_token: refreshToken,
             rememberMe: true
           });
 
-          // Fetch current user details
+          // Fetch current user details (token is now in localStorage for the interceptor)
           const response = await api.get('/user/auth/me');
           if (response.data?.data?.user) {
             setAuth({

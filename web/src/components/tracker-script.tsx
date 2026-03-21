@@ -3,17 +3,12 @@
 import Script from 'next/script';
 import { useEffect, useState } from 'react';
 
-interface TrackerScriptProps {
-  testMode?: boolean;
-  siteId?: string;
-}
-
 /**
  * Unified Seentics tracker script.
- * - Localhost: Uses local dev site_id with local tracker
- * - Production: Uses production tracker with production site_id
+ * Uses environment variables so cloned OSS repos don't inherit production tracking.
+ * Set NEXT_PUBLIC_SEENTICS_SITE_ID and NEXT_PUBLIC_SEENTICS_TRACKER_URL in .env
  */
-export default function TrackerScript({ testMode, siteId }: TrackerScriptProps = {}) {
+export default function TrackerScript() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -22,32 +17,20 @@ export default function TrackerScript({ testMode, siteId }: TrackerScriptProps =
 
   if (!mounted) return null;
 
-  const isLocalhost = typeof window !== 'undefined' && (
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname.includes('localhost')
-  );
+  const siteId = process.env.NEXT_PUBLIC_SEENTICS_SITE_ID;
+  const trackerUrl = process.env.NEXT_PUBLIC_SEENTICS_TRACKER_URL;
+  const apiHost = process.env.NEXT_PUBLIC_SEENTICS_API_HOST;
 
-  const localSiteId = process.env.NEXT_PUBLIC_DEFAULT_SITE_ID || '8a9a0f057175fc7f98d09293';
-
-  if (isLocalhost) {
-    return (
-      <Script
-        async
-        data-website-id={localSiteId}
-        src="http://localhost:3000/trackers/seentics.js"
-        strategy="afterInteractive"
-      />
-    );
-  }
+  // Don't render tracker if env vars are not configured
+  if (!siteId || !trackerUrl) return null;
 
   return (
     <Script
       id="seentics-tracker"
       async
-      src="https://www.seentics.com/trackers/seentics.js"
-      data-site-id="4d3b4215-7e19-495c-8428-6e03dcaaeb86"
-      data-api-host="https://api.seentics.com"
+      src={trackerUrl}
+      data-site-id={siteId}
+      {...(apiHost ? { 'data-api-host': apiHost } : {})}
       strategy="afterInteractive"
     />
   );

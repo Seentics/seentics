@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
-import { Menu, X, Play } from 'lucide-react';
-import { FaDiscord } from 'react-icons/fa';
+import { Menu, X, Github } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '../ui/logo';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -16,79 +15,81 @@ export default function LandingHeader() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const navLinks = [
     { name: 'Features', href: '#features' },
-    { name: 'Comparison', href: '#comparison' },
-    { name: 'Agency', href: '/agency-solution' },
+    { name: 'Docs', href: '/docs' },
     { name: 'Pricing', href: '#pricing' },
     { name: 'FAQ', href: '#faq' },
   ];
 
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 ${scrolled
-        ? 'bg-background/80 border-b border-border/40 backdrop-blur-md h-14'
-        : 'bg-transparent h-16'
-        }`}
+      className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${
+        scrolled
+          ? 'top-0 bg-background/70 border-b border-border/30 backdrop-blur-xl h-14'
+          : 'top-0 bg-transparent h-16'
+      }`}
     >
       <div className="container mx-auto px-6 h-full flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <Logo size="md" />
-          <span className="text-base font-semibold text-foreground">Seentics</span>
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2 shrink-0">
+          <Logo size="sm" />
+          <span className="font-bold text-sm text-foreground tracking-tight">Seentics</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-6">
+        {/* Desktop Nav */}
+        <nav className="hidden lg:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
           {navLinks.map((link) => (
             <Link
               key={link.name}
               href={link.href}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               {link.name}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
-          <a
-            href="https://discord.gg/TYdPvDRA"
+        {/* Right section */}
+        <div className="flex items-center gap-3 ml-auto">
+          <Link
+            href="https://github.com/Seentics/seentics"
             target="_blank"
-            rel="noopener noreferrer"
-            className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="hidden sm:flex p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
+            title="GitHub"
           >
-            <FaDiscord size={15} />
-          </a>
+            <Github className="h-4 w-4" />
+          </Link>
           <ThemeToggle />
-          <div className="hidden sm:flex items-center gap-2">
-            {isAuthenticated ? (
-              <Link href="/websites">
-                <Button size="sm" className="h-8 px-4 text-xs font-medium rounded-md">
-                  Dashboard
+          {isAuthenticated ? (
+            <Link href="/websites">
+              <Button size="sm" className="h-8 px-4 text-xs font-semibold rounded-md">
+                Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <>
+              <Link href="/signin" className="hidden sm:block">
+                <Button variant="ghost" size="sm" className="h-8 px-3 text-xs font-medium">
+                  Sign in
                 </Button>
               </Link>
-            ) : (
-              <>
-                <Link href="/signin">
-                  <Button variant="ghost" size="sm" className="h-8 px-3 text-xs font-medium">
-                    Log in
-                  </Button>
-                </Link>
-                <Link href="/signup">
-                  <Button size="sm" className="h-8 px-4 text-xs font-medium rounded-md">
-                    Sign up
-                  </Button>
-                </Link>
-              </>
-            )}
-          </div>
-
+              <Link href="/signup">
+                <Button size="sm" className="h-8 px-4 text-xs font-semibold rounded-md">
+                  Get Started
+                </Button>
+              </Link>
+            </>
+          )}
           <button
-            className="md:hidden p-1.5 rounded-md hover:bg-accent text-foreground transition-colors"
+            className="lg:hidden p-1.5 hover:bg-accent rounded-md transition-colors"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -118,20 +119,15 @@ export default function LandingHeader() {
                     {link.name}
                   </Link>
                 ))}
-                <a
-                  href="https://discord.gg/TYdPvDRA"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="py-2.5 text-sm font-medium text-foreground hover:text-primary transition-colors flex items-center gap-2"
-                >
-                  <FaDiscord size={15} /> Discord
-                </a>
               </nav>
 
               <div className="pt-2 border-t border-border/40 space-y-2">
                 <Link href="/websites/demo" onClick={() => setMobileOpen(false)}>
-                  <Button variant="outline" className="w-full h-10 text-sm font-medium rounded-lg gap-2 border-primary/30 text-primary">
-                    <Play size={14} className="fill-primary" />
+                  <Button variant="outline" className="w-full h-10 text-sm font-medium rounded-lg gap-2 border-border/60 text-muted-foreground">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
                     Live Demo
                   </Button>
                 </Link>

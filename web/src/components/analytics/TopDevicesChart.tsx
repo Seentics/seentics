@@ -2,7 +2,8 @@
 
 import {
   Layers,
-  Globe
+  Globe,
+  HelpCircle
 } from 'lucide-react';
 import Image from 'next/image';
 import React, { useState } from 'react';
@@ -78,7 +79,7 @@ const getBrowserImage = (browser: string) => {
 };
 
 export function TopDevicesChart({ data, osData, screenData, browserData, isLoading, onFilter }: TopDevicesChartProps) {
-  const [activeTab, setActiveTab] = useState('devices');
+  const [activeTab, setActiveTab] = useState('os');
 
   if (isLoading) {
     return (
@@ -141,20 +142,26 @@ export function TopDevicesChart({ data, osData, screenData, browserData, isLoadi
             <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={handleClick}>
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
-                  <Image
-                    src={img}
-                    alt=""
-                    aria-hidden="true"
-                    width={20}
-                    height={20}
-                    className="object-contain"
-                    onError={(e) => {
-                      const target = e.target as HTMLElement;
-                      target.style.display = 'none';
-                      target.nextElementSibling?.classList.remove('hidden');
-                    }}
-                  />
-                  <Globe className="h-4 w-4 text-primary hidden" />
+                  {label === 'Unknown' ? (
+                    <HelpCircle className="h-5 w-5 text-muted-foreground/50" />
+                  ) : (
+                    <>
+                      <Image
+                        src={img}
+                        alt=""
+                        aria-hidden="true"
+                        width={20}
+                        height={20}
+                        className="object-contain"
+                        onError={(e) => {
+                          const target = e.target as HTMLElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                      <Globe className="h-4 w-4 text-primary hidden" />
+                    </>
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors">{label}</div>
@@ -184,15 +191,15 @@ export function TopDevicesChart({ data, osData, screenData, browserData, isLoadi
   return (
     <div className="h-[400px] flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
-           <div className="space-y-1">
-              <CardTitle className="text-lg font-bold tracking-tight">System Insights</CardTitle>
-              <p className="text-xs text-muted-foreground">Devices, OS & tech specs</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60 shrink-0">
+           <div>
+              <h3 className="text-base font-semibold tracking-tight">System Insights</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Devices, OS & tech specs</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[220px] bg-accent/10 p-1 rounded shrink-0">
-             <TabsTrigger value="devices" className="text-xs font-medium rounded active:bg-background">Devices</TabsTrigger>
-             <TabsTrigger value="os" className="text-xs font-medium rounded active:bg-background">OS</TabsTrigger>
-             <TabsTrigger value="browsers" className="text-xs font-medium rounded active:bg-background">Browsers</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[220px] bg-muted/50 p-0.5 rounded shrink-0">
+             <TabsTrigger value="os" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">OS</TabsTrigger>
+             <TabsTrigger value="devices" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Devices</TabsTrigger>
+             <TabsTrigger value="browsers" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Browsers</TabsTrigger>
            </TabsList>
         </div>
         

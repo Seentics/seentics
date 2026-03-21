@@ -6,7 +6,7 @@ export default function FunnelDocs() {
     return (
         <div className="space-y-12">
             <header className="space-y-4">
-                <div className="flex items-center gap-3 text-violet-500">
+                <div className="flex items-center gap-3 text-indigo-500">
                     <Filter className="w-8 h-8" />
                     <h1 className="text-3xl font-bold tracking-tight">Behavioral Funnels</h1>
                 </div>
@@ -30,8 +30,8 @@ export default function FunnelDocs() {
                             { text: 'Identify loyal user segments', icon: Target },
                         ].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 group">
-                                <div className="mt-1 w-6 h-6 rounded-full bg-violet-500/10 flex items-center justify-center shrink-0">
-                                    <item.icon className="w-3 h-3 text-violet-500" />
+                                <div className="mt-1 w-6 h-6 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
+                                    <item.icon className="w-3 h-3 text-indigo-500" />
                                 </div>
                                 <span className="text-muted-foreground group-hover:text-foreground transition-colors">{item.text}</span>
                             </li>
@@ -53,9 +53,9 @@ export default function FunnelDocs() {
                             <span className="text-xs font-medium">3. Sign Up</span>
                             <span className="text-xs font-bold text-primary">45%</span>
                         </div>
-                        <div className="w-[12%] bg-violet-500/40 h-10 rounded flex items-center justify-between px-4 border border-violet-500/40">
+                        <div className="w-[12%] bg-indigo-500/40 h-10 rounded flex items-center justify-between px-4 border border-indigo-500/40">
                             <span className="text-xs font-medium">4. Payment</span>
-                            <span className="text-xs font-bold text-violet-500">12%</span>
+                            <span className="text-xs font-bold text-indigo-500">12%</span>
                         </div>
                     </div>
                     <p className="text-[10px] text-center text-muted-foreground font-mono">Example Funnel Visualization</p>

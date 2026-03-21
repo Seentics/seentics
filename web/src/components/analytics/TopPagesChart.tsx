@@ -44,18 +44,18 @@ const getPageIcon = (page: string) => {
   if (!page) return <Globe className="w-4 h-4 text-gray-500" />;
   const path = getPathFromUrl(page).toLowerCase();
 
-  if (path === '/') return <Home className="w-4 h-4 text-blue-500" />;
+  if (path === '/') return <Home className="w-4 h-4 text-indigo-500" />;
   if (path.includes('/blog') || path.includes('/post')) return <FileText className="w-4 h-4 text-green-500" />;
-  if (path.includes('/about')) return <Info className="w-4 h-4 text-purple-500" />;
+  if (path.includes('/about')) return <Info className="w-4 h-4 text-indigo-500" />;
   if (path.includes('/contact')) return <Phone className="w-4 h-4 text-orange-500" />;
   if (path.includes('/pricing')) return <DollarSign className="w-4 h-4 text-yellow-500" />;
   if (path.includes('/products') || path.includes('/product/')) return <Package className="w-4 h-4 text-indigo-500" />;
-  if (path.includes('/analytics')) return <BarChart3 className="w-4 h-4 text-blue-500" />;
+  if (path.includes('/analytics')) return <BarChart3 className="w-4 h-4 text-indigo-500" />;
   if (path.includes('/auth') || path.includes('/login')) return <LogIn className="w-4 h-4 text-gray-500" />;
   if (path.includes('/settings')) return <Settings className="w-4 h-4 text-gray-600" />;
-  if (path.includes('/cart')) return <ShoppingCart className="w-4 h-4 text-blue-600" />;
+  if (path.includes('/cart')) return <ShoppingCart className="w-4 h-4 text-indigo-600" />;
   
-  return <Globe className="w-4 h-4 text-purple-500" />;
+  return <Globe className="w-4 h-4 text-indigo-500" />;
 };
 
 const getPageName = (page: string) => {
@@ -176,15 +176,15 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   return (
     <div className="h-[500px] flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40 shrink-0">
-           <div className="space-y-1">
-              <CardTitle className="text-lg font-bold tracking-tight">Top Pages</CardTitle>
-              <p className="text-xs text-muted-foreground">Most visited & landing destinations</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60 shrink-0">
+           <div>
+              <h3 className="text-base font-semibold tracking-tight">Top Pages</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Most visited & landing destinations</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-9 w-full sm:w-[240px] bg-accent/10 p-1 rounded shrink-0">
-             <TabsTrigger value="top" className="text-xs font-medium rounded active:bg-background">Top</TabsTrigger>
-             <TabsTrigger value="entry" className="text-xs font-medium rounded active:bg-background">Entry</TabsTrigger>
-             <TabsTrigger value="exit" className="text-xs font-medium rounded active:bg-background">Exit</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted/50 p-0.5 rounded shrink-0">
+             <TabsTrigger value="top" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Top</TabsTrigger>
+             <TabsTrigger value="entry" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Entry</TabsTrigger>
+             <TabsTrigger value="exit" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Exit</TabsTrigger>
            </TabsList>
         </div>
         

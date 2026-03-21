@@ -13,14 +13,10 @@ import (
 	"github.com/Seentics/seentics/internal/modules/websites/models"
 	"github.com/Seentics/seentics/internal/modules/websites/repository"
 
-	heatmapRepoPkg "github.com/Seentics/seentics/internal/modules/heatmaps/repository"
-
+	analyticsModels "github.com/Seentics/seentics/internal/modules/analytics/models"
 	analyticsRepoPkg "github.com/Seentics/seentics/internal/modules/analytics/repository"
-	autoRepoPkg "github.com/Seentics/seentics/internal/modules/automations/repository"
 	funnelRepoPkg "github.com/Seentics/seentics/internal/modules/funnels/repository"
-	replayRepoPkg "github.com/Seentics/seentics/internal/modules/replays/repository"
 	"github.com/Seentics/seentics/internal/shared/cache"
-	"github.com/Seentics/seentics/internal/shared/storage"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
@@ -28,13 +24,9 @@ import (
 type WebsiteService struct {
 	repo          *repository.WebsiteRepository
 	authRepo      *authRepoPkg.AuthRepository
-	heatmapRepo   heatmapRepoPkg.HeatmapRepository
 	analyticsRepo analyticsRepoPkg.MainAnalyticsRepository
 	eventRepo     analyticsRepoPkg.EventRepository
-	autoRepo      *autoRepoPkg.AutomationRepository
 	funnelRepo    *funnelRepoPkg.FunnelRepository
-	replayRepo    replayRepoPkg.ReplayRepository
-	s3Store       *storage.S3Store
 	cache         *cache.Cache
 	env           string
 	logger        zerolog.Logger
@@ -43,13 +35,9 @@ type WebsiteService struct {
 func NewWebsiteService(
 	repo *repository.WebsiteRepository,
 	authRepo *authRepoPkg.AuthRepository,
-	heatmapRepo heatmapRepoPkg.HeatmapRepository,
 	analyticsRepo analyticsRepoPkg.MainAnalyticsRepository,
 	eventRepo analyticsRepoPkg.EventRepository,
-	autoRepo *autoRepoPkg.AutomationRepository,
 	funnelRepo *funnelRepoPkg.FunnelRepository,
-	replayRepo replayRepoPkg.ReplayRepository,
-	s3Store *storage.S3Store,
 	cache *cache.Cache,
 	env string,
 	logger zerolog.Logger,
@@ -57,20 +45,22 @@ func NewWebsiteService(
 	return &WebsiteService{
 		repo:          repo,
 		authRepo:      authRepo,
-		heatmapRepo:   heatmapRepo,
 		analyticsRepo: analyticsRepo,
 		eventRepo:     eventRepo,
-		autoRepo:      autoRepo,
 		funnelRepo:    funnelRepo,
-		replayRepo:    replayRepo,
-		s3Store:       s3Store,
 		cache:         cache,
 		env:           env,
 		logger:        logger,
 	}
 }
 
-// GetTrackerConfig returns the configuration for the tracker script
+// trackerConfigCache holds the cacheable portion of tracker config (goals).
+type trackerConfigCache struct {
+	Goals []map[string]interface{} `json:"goals"`
+}
+
+// GetTrackerConfig returns the configuration for the tracker script.
+// Goals are cached in Redis for 15 minutes to avoid DB queries on every tracker init request.
 func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, origin string) (map[string]interface{}, error) {
 	w, err := s.GetWebsiteBySiteID(ctx, siteID)
 	if err != nil {
@@ -82,59 +72,37 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 		return nil, fmt.Errorf("domain mismatch")
 	}
 
-	goals, err := s.repo.ListGoals(ctx, w.ID)
-	if err != nil {
-		return nil, err
-	}
+	// Try cache for goals
+	cacheKey := fmt.Sprintf("tracker:config:%s", w.SiteID)
+	var cached trackerConfigCache
+	cacheHit := s.cache != nil && s.cache.Get(cacheKey, &cached)
 
-	// Filter and format goals for the tracker
-	trackerGoals := make([]map[string]interface{}, 0)
-	for _, g := range goals {
-		if g.Type == "event" && g.Selector != nil && *g.Selector != "" {
-			trackerGoals = append(trackerGoals, map[string]interface{}{
-				"id":       g.ID,
-				"name":     g.Identifier, // Use the identifier as the event name
-				"selector": *g.Selector,
-			})
+	if !cacheHit {
+		goals, err := s.repo.ListGoals(ctx, w.ID)
+		if err != nil {
+			return nil, err
 		}
-	}
 
-	// In OSS mode, heatmaps are unlimited by default.
-	// In Enterprise mode, the gateway can inject a limit into the context.
-	maxHeatmaps := -1
-	if limit, ok := ctx.Value("max_heatmaps").(int); ok {
-		maxHeatmaps = limit
-	}
+		cached.Goals = make([]map[string]interface{}, 0)
+		for _, g := range goals {
+			if g.Type == "event" && g.Selector != nil && *g.Selector != "" {
+				cached.Goals = append(cached.Goals, map[string]interface{}{
+					"id":       g.ID,
+					"name":     g.Identifier,
+					"selector": *g.Selector,
+				})
+			}
+		}
 
-	maxReplays := -1
-	if limit, ok := ctx.Value("max_replays").(int); ok {
-		maxReplays = limit
-	}
-
-	trackedURLs := []string{}
-	if w.HeatmapEnabled {
-		// Get already tracked URLs
-		urls, err := s.heatmapRepo.GetTrackedURLs(ctx, w.ID.String())
-		if err == nil {
-			trackedURLs = urls
+		if s.cache != nil {
+			s.cache.Set(cacheKey, cached, 15*time.Minute)
 		}
 	}
 
 	return map[string]interface{}{
-		"site_id":                  w.SiteID,
-		"automation_enabled":       w.AutomationEnabled,
-		"funnel_enabled":           w.FunnelEnabled,
-		"heatmap_enabled":          w.HeatmapEnabled,
-		"heatmap_include_patterns": w.HeatmapIncludePatterns,
-		"heatmap_exclude_patterns": w.HeatmapExcludePatterns,
-		"max_heatmaps":             maxHeatmaps,
-		"tracked_urls":             trackedURLs,
-		"replay_enabled":           w.ReplayEnabled,
-		"replay_sampling_rate":     w.ReplaySamplingRate,
-		"replay_include_patterns":  w.ReplayIncludePatterns,
-		"replay_exclude_patterns":  w.ReplayExcludePatterns,
-		"max_replays":              maxReplays,
-		"goals":                    trackerGoals,
+		"site_id":        w.SiteID,
+		"funnel_enabled": w.FunnelEnabled,
+		"goals":          cached.Goals,
 	}, nil
 }
 
@@ -203,6 +171,24 @@ func (s *WebsiteService) CreateWebsite(ctx context.Context, userID uuid.UUID, re
 // ListUserWebsites returns all websites owned by the user
 func (s *WebsiteService) ListUserWebsites(ctx context.Context, userID uuid.UUID) ([]models.Website, error) {
 	return s.repo.ListByUserID(ctx, userID)
+}
+
+// ListAllActiveSiteIDs returns site_id for every active website.
+func (s *WebsiteService) ListAllActiveSiteIDs(ctx context.Context) ([]string, error) {
+	return s.repo.ListAllActiveSiteIDs(ctx)
+}
+
+// ListAllActiveWebsiteUUIDs returns the UUID (id column) of every active website.
+func (s *WebsiteService) ListAllActiveWebsiteUUIDs(ctx context.Context) ([]string, error) {
+	websites, err := s.repo.ListAllActiveWebsites(ctx)
+	if err != nil {
+		return nil, err
+	}
+	uuids := make([]string, len(websites))
+	for i, w := range websites {
+		uuids[i] = w.UUID
+	}
+	return uuids, nil
 }
 
 // GetWebsiteBySiteID returns details for a specific site, using cache
@@ -289,8 +275,17 @@ func (s *WebsiteService) invalidateCache(ctx context.Context, w *models.Website)
 	if s.cache == nil || w == nil {
 		return
 	}
-	s.cache.Delete(fmt.Sprintf("website:site_id:%s", w.SiteID))
-	s.cache.Delete(fmt.Sprintf("website:site_id:%s", w.ID.String()))
+	siteID := w.SiteID
+	uuidStr := w.ID.String()
+
+	// Website metadata caches
+	s.cache.Delete(fmt.Sprintf("website:site_id:%s", siteID))
+	s.cache.Delete(fmt.Sprintf("website:site_id:%s", uuidStr))
+	s.cache.Delete(fmt.Sprintf("tracker:config:%s", siteID))
+
+	// Analytics caches
+	s.cache.DeleteByPattern(fmt.Sprintf("analytics:dashboard:%s:*", siteID))
+	s.cache.DeleteByPattern(fmt.Sprintf("analytics:path_analysis:%s:*", siteID))
 }
 
 // UpdateWebsite updates website settings
@@ -323,32 +318,8 @@ func (s *WebsiteService) UpdateWebsite(ctx context.Context, id string, userID uu
 	if req.IsActive != nil {
 		original.IsActive = *req.IsActive
 	}
-	if req.AutomationEnabled != nil {
-		original.AutomationEnabled = *req.AutomationEnabled
-	}
 	if req.FunnelEnabled != nil {
 		original.FunnelEnabled = *req.FunnelEnabled
-	}
-	if req.HeatmapEnabled != nil {
-		original.HeatmapEnabled = *req.HeatmapEnabled
-	}
-	if req.HeatmapIncludePatterns != nil {
-		original.HeatmapIncludePatterns = req.HeatmapIncludePatterns
-	}
-	if req.HeatmapExcludePatterns != nil {
-		original.HeatmapExcludePatterns = req.HeatmapExcludePatterns
-	}
-	if req.ReplayEnabled != nil {
-		original.ReplayEnabled = *req.ReplayEnabled
-	}
-	if req.ReplaySamplingRate != nil {
-		original.ReplaySamplingRate = *req.ReplaySamplingRate
-	}
-	if req.ReplayIncludePatterns != nil {
-		original.ReplayIncludePatterns = req.ReplayIncludePatterns
-	}
-	if req.ReplayExcludePatterns != nil {
-		original.ReplayExcludePatterns = req.ReplayExcludePatterns
 	}
 
 	// 3. Save to database
@@ -376,7 +347,7 @@ func (s *WebsiteService) DeleteWebsite(ctx context.Context, id string, userID uu
 		return fmt.Errorf("unauthorized")
 	}
 
-	// 3. Cascade cleanup for all related data across ClickHouse, Postgres, and S3
+	// 3. Cascade cleanup for all related data across ClickHouse and Postgres
 	s.cleanupAllRelatedData(ctx, w)
 
 	// 4. Delete the main website record from PostgreSQL
@@ -393,9 +364,8 @@ func (s *WebsiteService) DeleteWebsite(ctx context.Context, id string, userID uu
 // cleanupAllRelatedData wipes all associated data for a website across all storage modules.
 func (s *WebsiteService) cleanupAllRelatedData(ctx context.Context, w *models.Website) {
 	siteID := w.SiteID
-	uuidStr := w.ID.String()
 
-	s.logger.Info().Str("site_id", siteID).Str("id", uuidStr).Msg("Performing full data cleanup for website")
+	s.logger.Info().Str("site_id", siteID).Str("id", w.ID.String()).Msg("Performing full data cleanup for website")
 
 	// 1. ClickHouse Analytics Data (Aggregated stats tables)
 	if s.analyticsRepo != nil {
@@ -411,44 +381,10 @@ func (s *WebsiteService) cleanupAllRelatedData(ctx context.Context, w *models.We
 		}
 	}
 
-	// 3. Heatmaps (Postgres heatmap_points and heatmap_sessions)
-	if s.heatmapRepo != nil {
-		if err := s.heatmapRepo.DeleteAllByWebsiteID(ctx, uuidStr); err != nil {
-			s.logger.Error().Err(err).Str("id", uuidStr).Msg("Failed cleanup: heatmap points")
-		}
-	}
-
-	// 4. Funnels (Postgres funnels, steps, and step analytics)
+	// 3. Funnels (Postgres funnels, steps, and step analytics)
 	if s.funnelRepo != nil {
 		if err := s.funnelRepo.DeleteAllByWebsiteID(ctx, siteID); err != nil {
 			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: funnels")
-		}
-	}
-
-	// 5. Automations (Postgres automations, actions, conditions, and executions)
-	if s.autoRepo != nil {
-		if err := s.autoRepo.DeleteAllByWebsiteID(ctx, siteID); err != nil {
-			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: automations")
-		}
-	}
-
-	// 6. Session Replays (Postgres DB metadata + S3 file deletion)
-	if s.replayRepo != nil {
-		s3Keys, err := s.replayRepo.DeleteAllByWebsiteID(ctx, siteID)
-		if err != nil {
-			s.logger.Error().Err(err).Str("site_id", siteID).Msg("Failed cleanup: replay metadata")
-		} else if s.s3Store != nil && len(s3Keys) > 0 {
-			// Trigger asynchronous S3 cleanup to avoid blocking the main delete request
-			go func(keys []string, site string) {
-				bgCtx := context.Background()
-				count := 0
-				for _, key := range keys {
-					if err := s.s3Store.Delete(bgCtx, key); err == nil {
-						count++
-					}
-				}
-				s.logger.Info().Int("deleted_count", count).Str("site_id", site).Msg("S3 storage cleanup completed")
-			}(s3Keys, siteID)
 		}
 	}
 }
@@ -475,6 +411,8 @@ func (s *WebsiteService) CreateGoal(ctx context.Context, siteID string, req mode
 		Type:       req.Type,
 		Identifier: req.Identifier,
 		Selector:   req.Selector,
+		Revenue:    req.Revenue,
+		Currency:   req.Currency,
 	}
 
 	if err := s.repo.CreateGoal(ctx, goal); err != nil {
@@ -492,18 +430,69 @@ func (s *WebsiteService) DeleteGoal(ctx context.Context, siteID string, goalID u
 	return s.repo.DeleteGoal(ctx, goalID, w.ID)
 }
 
-// ListMembers returns all members of a website
-func (s *WebsiteService) ListMembers(ctx context.Context, siteID string) ([]models.WebsiteMember, error) {
+// GetUserRole returns the role of a user for a website.
+// The website owner (websites.user_id) always has "owner" role even without a website_members row.
+func (s *WebsiteService) GetUserRole(ctx context.Context, siteID string, userID uuid.UUID) (string, error) {
 	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	if err != nil {
+		return "", err
+	}
+
+	// Website creator is always owner
+	if w.UserID == userID {
+		return "owner", nil
+	}
+
+	role, err := s.repo.GetMemberRole(ctx, w.ID, userID)
+	if err != nil {
+		return "", err
+	}
+	return role, nil
+}
+
+// requireRole checks that requesterID has at least one of the allowed roles for this website.
+// Returns the website and an error if permission is denied.
+func (s *WebsiteService) requireRole(ctx context.Context, siteID string, requesterID uuid.UUID, allowedRoles ...string) (*models.Website, error) {
+	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Website creator is always owner
+	userRole := ""
+	if w.UserID == requesterID {
+		userRole = "owner"
+	} else {
+		userRole, err = s.repo.GetMemberRole(ctx, w.ID, requesterID)
+		if err != nil {
+			return nil, fmt.Errorf("permission check failed")
+		}
+	}
+
+	if userRole == "" {
+		return nil, fmt.Errorf("access denied: not a member of this website")
+	}
+
+	for _, r := range allowedRoles {
+		if userRole == r {
+			return w, nil
+		}
+	}
+	return nil, fmt.Errorf("access denied: requires %v role, you have '%s'", allowedRoles, userRole)
+}
+
+// ListMembers returns all members of a website (any member can view)
+func (s *WebsiteService) ListMembers(ctx context.Context, siteID string, requesterID uuid.UUID) ([]models.WebsiteMember, error) {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin", "viewer")
 	if err != nil {
 		return nil, err
 	}
 	return s.repo.ListMembers(ctx, w.ID)
 }
 
-// AddMember adds a user to a website team
-func (s *WebsiteService) AddMember(ctx context.Context, siteID string, req models.InviteMemberRequest) (*models.WebsiteMember, error) {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+// AddMember adds a user to a website team (owner/admin only)
+func (s *WebsiteService) AddMember(ctx context.Context, siteID string, requesterID uuid.UUID, req models.InviteMemberRequest) (*models.WebsiteMember, error) {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin")
 	if err != nil {
 		return nil, err
 	}
@@ -537,30 +526,38 @@ func (s *WebsiteService) AddMember(ctx context.Context, siteID string, req model
 	return member, nil
 }
 
-// RemoveMember removes a user from a website team
-func (s *WebsiteService) RemoveMember(ctx context.Context, siteID string, userID uuid.UUID) error {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+// RemoveMember removes a user from a website team (owner/admin only)
+func (s *WebsiteService) RemoveMember(ctx context.Context, siteID string, requesterID uuid.UUID, targetUserID uuid.UUID) error {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin")
 	if err != nil {
 		return err
 	}
 
-	// Cannot remove the owner (the user_id in websites table)
-	if w.UserID == userID {
+	// Cannot remove the owner
+	if w.UserID == targetUserID {
 		return fmt.Errorf("cannot remove the website owner from the team")
 	}
 
-	return s.repo.RemoveMember(ctx, w.ID, userID)
+	// Admins cannot remove other admins — only owners can
+	if w.UserID != requesterID {
+		targetRole, _ := s.repo.GetMemberRole(ctx, w.ID, targetUserID)
+		if targetRole == "admin" {
+			return fmt.Errorf("only the website owner can remove admins")
+		}
+	}
+
+	return s.repo.RemoveMember(ctx, w.ID, targetUserID)
 }
 
-// UpdateMemberRole changes a team member's role
-func (s *WebsiteService) UpdateMemberRole(ctx context.Context, siteID string, userID uuid.UUID, role string) error {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+// UpdateMemberRole changes a team member's role (owner only)
+func (s *WebsiteService) UpdateMemberRole(ctx context.Context, siteID string, requesterID uuid.UUID, targetUserID uuid.UUID, role string) error {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner")
 	if err != nil {
 		return err
 	}
 
 	// Cannot change the owner's role
-	if w.UserID == userID {
+	if w.UserID == targetUserID {
 		return fmt.Errorf("cannot change the website owner's role")
 	}
 
@@ -568,7 +565,154 @@ func (s *WebsiteService) UpdateMemberRole(ctx context.Context, siteID string, us
 		return fmt.Errorf("invalid role: must be 'admin' or 'viewer'")
 	}
 
-	return s.repo.UpdateMemberRole(ctx, w.ID, userID, role)
+	return s.repo.UpdateMemberRole(ctx, w.ID, targetUserID, role)
+}
+
+// --- Token-based Invitation Flow ---
+
+// InviteMemberByToken creates a pending invitation with a unique token and returns it.
+// The caller (or an email service) should send the accept URL to the invitee.
+func (s *WebsiteService) InviteMemberByToken(ctx context.Context, siteID string, requesterID uuid.UUID, req models.InviteMemberRequest) (*models.WebsiteInvitation, error) {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin")
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if already a member by email
+	user, _ := s.authRepo.GetByEmail(ctx, req.Email)
+	if user != nil {
+		existing, _ := s.repo.GetMember(ctx, w.ID, user.ID)
+		if existing != nil {
+			return nil, fmt.Errorf("user is already a member of this website")
+		}
+	}
+
+	token := generateID(16) // 32-char hex token
+	inv := &models.WebsiteInvitation{
+		WebsiteID: w.ID,
+		Email:     req.Email,
+		Role:      req.Role,
+		Token:     token,
+		InvitedBy: requesterID,
+		ExpiresAt: time.Now().Add(7 * 24 * time.Hour),
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.repo.CreateInvitation(ctx, inv); err != nil {
+		return nil, fmt.Errorf("failed to create invitation (may already be pending): %w", err)
+	}
+
+	inv.WebsiteName = w.Name
+	return inv, nil
+}
+
+// AcceptInvitation validates a token and adds the user as a member.
+func (s *WebsiteService) AcceptInvitation(ctx context.Context, token string, userID uuid.UUID, userEmail string) error {
+	inv, err := s.repo.GetInvitationByToken(ctx, token)
+	if err != nil || inv == nil {
+		return fmt.Errorf("invalid invitation token")
+	}
+
+	if inv.AcceptedAt != nil {
+		return fmt.Errorf("invitation already accepted")
+	}
+
+	if time.Now().After(inv.ExpiresAt) {
+		return fmt.Errorf("invitation has expired")
+	}
+
+	// Verify the accepting user's email matches the invitation
+	if strings.EqualFold(inv.Email, userEmail) == false {
+		return fmt.Errorf("this invitation was sent to a different email address")
+	}
+
+	// Check if already a member
+	existing, _ := s.repo.GetMember(ctx, inv.WebsiteID, userID)
+	if existing != nil {
+		// Already a member, just mark accepted
+		return s.repo.AcceptInvitation(ctx, inv.ID)
+	}
+
+	member := &models.WebsiteMember{
+		WebsiteID: inv.WebsiteID,
+		UserID:    userID,
+		Role:      inv.Role,
+	}
+
+	if err := s.repo.AddMember(ctx, member); err != nil {
+		return fmt.Errorf("failed to add member: %w", err)
+	}
+
+	return s.repo.AcceptInvitation(ctx, inv.ID)
+}
+
+// ListPendingInvitations returns pending invitations for a website (owner/admin only).
+func (s *WebsiteService) ListPendingInvitations(ctx context.Context, siteID string, requesterID uuid.UUID) ([]models.WebsiteInvitation, error) {
+	w, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin")
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.ListPendingInvitations(ctx, w.ID)
+}
+
+// RevokeInvitation cancels a pending invitation (owner/admin only).
+func (s *WebsiteService) RevokeInvitation(ctx context.Context, siteID string, requesterID uuid.UUID, invitationID uuid.UUID) error {
+	_, err := s.requireRole(ctx, siteID, requesterID, "owner", "admin")
+	if err != nil {
+		return err
+	}
+	return s.repo.DeleteInvitation(ctx, invitationID)
+}
+
+// TogglePublicShare enables or disables public dashboard sharing for a website.
+// Returns the share ID (non-empty when enabled, empty when disabled).
+func (s *WebsiteService) TogglePublicShare(ctx context.Context, siteID string, userID uuid.UUID, enabled bool) (string, error) {
+	w, err := s.GetWebsiteByAnyID(ctx, siteID)
+	if err != nil {
+		return "", err
+	}
+	if w.UserID != userID {
+		return "", fmt.Errorf("unauthorized")
+	}
+
+	var shareID *string
+	if enabled {
+		id := generateID(16) // 32-char hex
+		shareID = &id
+	}
+
+	if err := s.repo.UpdatePublicShareID(ctx, w.ID, shareID); err != nil {
+		return "", err
+	}
+
+	if shareID != nil {
+		return *shareID, nil
+	}
+	return "", nil
+}
+
+// GetPublicDashboard returns dashboard data for a publicly shared website.
+func (s *WebsiteService) GetPublicDashboard(ctx context.Context, publicShareID string, days int) (map[string]interface{}, error) {
+	w, err := s.repo.GetByPublicShareID(ctx, publicShareID)
+	if err != nil {
+		return nil, fmt.Errorf("dashboard not found")
+	}
+
+	// Use the analytics repo to get basic dashboard metrics (no auth required)
+	metrics, err := s.analyticsRepo.GetDashboardMetrics(ctx, w.SiteID, days, "UTC", analyticsModels.AnalyticsFilters{})
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"website_name":    w.Name,
+		"website_url":     w.URL,
+		"total_visitors":  metrics.TotalVisitors,
+		"unique_visitors": metrics.UniqueVisitors,
+		"page_views":      metrics.PageViews,
+		"bounce_rate":     metrics.BounceRate,
+		"session_duration": metrics.AvgSessionTime,
+	}, nil
 }
 
 // Helper to generate secure random identifiers
