@@ -48,7 +48,7 @@ You own your data. Deploy in minutes with Docker.
 
 ### Web Analytics
 
-**Overview** — single-page dashboard (Plausible-style): summary cards, traffic chart, top pages, traffic sources, geography, devices, and browsers. Drill into any section via modal — no separate pages needed. Filter by date range, compare any two periods.
+**Overview** — single-page dashboard: summary cards, traffic chart, top pages, traffic sources, geography, devices, and browsers. Drill into any section via modal — no separate pages needed. Filter by date range, compare any two periods.
 
 **Realtime** — live visitor count, currently active pages, live event feed with device and country.
 
@@ -304,6 +304,13 @@ seentics/
 │       ├── lib/                          # API clients (one file per feature)
 │       ├── hooks/                        # Custom React hooks
 │       └── stores/                       # Zustand global state
+│
+├── sdks/                        # Official SDKs (MIT licensed)
+│   ├── node/                    # @seentics/node — Node.js / Next.js
+│   └── go/                      # github.com/seentics/go-sdk
+│
+├── packages/                    # Embeddable UI packages (MIT licensed)
+│   └── components/              # @seentics/components — React components
 │
 ├── docker-compose.yml           # Local dev stack
 └── scripts/                     # Deployment utilities

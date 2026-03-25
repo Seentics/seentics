@@ -1,0 +1,16 @@
+{
+  "name": "@seentics/node",
+  "version": "0.1.0",
+  "description": "Node.js SDK for Seentics — logs, errors, and traces from any Node/Next.js service",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "keywords": ["seentics", "observability", "logging", "tracing", "errors"],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
