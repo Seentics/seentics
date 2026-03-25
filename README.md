@@ -5,12 +5,16 @@
 <h1 align="center">Seentics</h1>
 
 <p align="center">
-  Open-source, privacy-first web analytics with heatmaps, session replays, funnels, behavioral automations, reusable UIs, and robust APIs.
+  Open-source, privacy-first web analytics and observability platform — real-time analytics,
+  session replays, heatmaps, funnels, error tracking, distributed tracing, log management,
+  behavioral automations, embeddable UI components, and robust APIs.
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> ·
   <a href="#features">Features</a> ·
+  <a href="#observability">Observability</a> ·
+  <a href="#embeddable-components">Components</a> ·
   <a href="#self-hosting">Self-Hosting</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="DEPLOYMENT.md">Deploy to Production</a>
@@ -34,44 +38,77 @@
 
 ## What is Seentics?
 
-Seentics is a self-hosted web analytics platform focused on actionable product and marketing insights. It gives you real-time traffic data, visual heatmaps, full session replays, conversion funnels, and the ability to trigger automations based on visitor behavior — all without cookies or fingerprinting. It also offers reusable UI components and robust APIs for seamless integration into your own applications.
+Seentics is a self-hosted platform that combines **web analytics** and **backend observability** in one place. Track your visitors and understand user behavior with heatmaps, replays, and funnels — then monitor your backend services with structured logs, error tracking, and distributed traces. All without cookies, fingerprinting, or sending data to third parties.
 
-You own your data. Deploy it on your own server in minutes with Docker.
+You own your data. Deploy in minutes with Docker.
 
 ---
 
 ## Features
 
-**Real-time Analytics** — Live visitors, page views, bounce rate, session duration, traffic sources, devices, browsers, countries, and more. Filter by any date range.
+### Web Analytics
 
-**Heatmaps** — See where users click and how far they scroll. Supports desktop, tablet, and mobile viewports. Works on any page without code changes.
+**Overview** — single-page dashboard (Plausible-style): summary cards, traffic chart, top pages, traffic sources, geography, devices, and browsers. Drill into any section via modal — no separate pages needed. Filter by date range, compare any two periods.
 
-**Session Replays** — Watch full session recordings to understand user behavior, find bugs, and improve UX. Stored in S3-compatible storage with automatic PII masking.
+**Realtime** — live visitor count, currently active pages, live event feed with device and country.
 
-**Funnels** — Build multi-step conversion funnels to see exactly where users drop off in your signup, checkout, or onboarding flow.
+**Goals** — page visit goals, custom event goals, and CSS selector click goals. See conversion rates and completion trends.
 
-**Goal Tracking** — Track custom events and page visit goals. Auto-track clicks on CSS selectors or fire events manually with `seentics.track('event_name')`.
+**Funnels** — multi-step conversion funnels. Visualize drop-off at each step and see your overall conversion rate.
 
-**Behavioral Automations** — Trigger popups, banners, webhooks, or custom JavaScript based on real-time visitor behavior like exit intent, scroll depth, or time on page.
+**Events** — custom event tracking. View occurrence counts, unique users, and drill into property breakdowns per event.
 
-**Reusable UIs** — Plug analytics components into your frontend quickly for summary cards, trends, and top breakdowns. Customizable UI components and layout systems.
+**Annotations** — mark deploys, campaigns, and incidents directly on your traffic charts.
 
-**Developer APIs** — Comprehensive RESTful APIs to integrate analytics data into your own applications and manage settings programmatically.
+**Alerts** — threshold and anomaly alerts delivered via email or webhook.
 
-**Privacy First** — No cookies. No fingerprinting. No PII collection. GDPR and PECR compliant by design.
+**Scheduled Reports** — automated PDF/email digests on any schedule.
+
+### Behavior
+
+**Heatmaps** — click and scroll overlays for any page. Supports desktop, tablet, and mobile viewports. Live mode shows clicks as they happen.
+
+**Session Replays** — record full user sessions. Automatic PII masking. Stored in S3-compatible storage. Searchable by page, duration, country, device.
+
+**Path Analysis** — visualize user flows between pages. See where users come from and where they go.
+
+**Behavioral Automations** — trigger popups, banners, webhooks, or custom JavaScript based on exit intent, scroll depth, time on page, and more — without code deploys.
+
+### Observability
+
+**Logs** — structured log ingestion (JSON) from any service. Full-text search, filter by service/level/time, volume chart, live tail via SSE. Click any log line to see all attributes and jump to the related trace.
+
+**Error Tracking** — errors are automatically grouped by fingerprint (service + type + message + stack frame). See occurrence counts, first/last seen, affected users. Full stack trace viewer. Mark errors as resolved, ignored, or watch for regressions.
+
+**Distributed Tracing** — OpenTelemetry-compatible span ingestion. Trace list with latency (p50/p95/p99). Waterfall span view shows the full request flow across services. Click any span to see attributes, events, and duration.
+
+**Metrics** — push custom gauges, counters, and histograms. RED metrics (requests, errors, duration) per service. Build charts for any metric in your dashboards.
+
+### Developer Tools
+
+**Tracking Script** — one line of JS. Tracks pageviews, custom events, and goal completions automatically.
+
+**API Keys** — agency-level API keys for server-to-server data access without JWT expiry.
+
+**Webhooks** — push analytics events to any endpoint on configurable triggers.
+
+**`@seentics/components`** — embeddable React components for analytics and observability. Drop into any app with an API key.
+
+**OpenAPI Reference** — full API explorer built into the dashboard.
 
 ---
 
 ## Tech Stack
 
 | Layer | Technology |
-|-------|-----------|
+|---|---|
 | Backend API | Go 1.24 (Gin) |
 | Frontend | Next.js 14, Tailwind CSS, shadcn/ui |
-| Analytics DB | ClickHouse |
+| Analytics & Observability DB | ClickHouse |
 | Metadata DB | PostgreSQL 15 |
+| Event Streaming | NATS |
 | Object Storage | S3-compatible (MinIO for local dev) |
-| Cache & Queue | Redis 7 (caching, rate limiting, event streams) |
+| Cache & Rate Limiting | Redis 7 |
 
 ---
 
@@ -83,19 +120,16 @@ Requirements: [Docker](https://www.docker.com/) and [Docker Compose](https://doc
 git clone https://github.com/Seentics/seentics.git
 cd seentics
 
-# Start everything
 docker compose up -d --build
 ```
 
-That's it. Open [http://localhost:3000](http://localhost:3000) to access the dashboard.
-
-The API runs at [http://localhost:3002](http://localhost:3002).
+Open [http://localhost:3000](http://localhost:3000). The API is at [http://localhost:3002](http://localhost:3002).
 
 ---
 
 ## Add the Tracking Script
 
-After creating a website in the dashboard, add this to your site's `<head>`:
+After creating a site in the dashboard, add to your `<head>`:
 
 ```html
 <script
@@ -105,12 +139,12 @@ After creating a website in the dashboard, add this to your site's `<head>`:
 ></script>
 ```
 
-Replace `localhost:3002` with your server's URL in production.
+Replace `localhost:3002` with your server URL in production.
 
 ### Track Custom Events
 
 ```javascript
-// Basic event
+// Basic
 seentics.track('signup_click')
 
 // With properties
@@ -119,11 +153,110 @@ seentics.track('purchase', { value: 49.99, plan: 'pro' })
 
 ### Goal Tracking
 
-Create goals in **Settings > Goals** to track conversions:
+Create goals in **Settings → Goals**:
 
-- **Page visit goals** — automatically tracked when a visitor hits a specific URL path (e.g. `/thank-you`)
-- **Custom event goals** — tracked when your code calls `seentics.track('event_name')`
-- **CSS selector goals** — auto-tracked when a visitor clicks a matching element (e.g. `#signup-btn`, `.cta-button`)
+- **Page visit** — fires when a visitor hits a URL path (e.g. `/thank-you`)
+- **Custom event** — fires when your code calls `seentics.track('event_name')`
+- **CSS selector** — auto-fires when a visitor clicks a matching element (e.g. `#signup-btn`)
+
+---
+
+## Observability Setup
+
+### Node.js / Next.js
+
+```bash
+npm install @seentics/node
+```
+
+```typescript
+import { Seentics } from '@seentics/node'
+
+const seentics = new Seentics({
+  apiKey: 'sk_proj_...',
+  service: 'my-api',
+  environment: 'production',
+})
+
+// Auto-captures: unhandled exceptions, unhandled rejections
+
+// Manual
+seentics.log.info('User signed up', { userId: '123' })
+seentics.log.error('Payment failed', { orderId: 'ord_456' })
+seentics.captureError(err, { userId: '123' })
+
+// Express / Next.js middleware — auto request tracing
+app.use(seentics.middleware())
+```
+
+### Go
+
+```bash
+go get github.com/seentics/go-sdk
+```
+
+```go
+client := seentics.New(seentics.Config{
+  APIKey:      "sk_proj_...",
+  Service:     "checkout-service",
+  Environment: "production",
+})
+defer client.Flush()
+
+log := zerolog.New(client.Writer()).With().Timestamp().Logger()
+
+ctx, span := client.StartSpan(ctx, "process-payment")
+defer span.End()
+```
+
+### HTTP (any language)
+
+```bash
+# Logs
+curl http://localhost:3002/api/v1/observability/logs/ingest \
+  -H "Authorization: Bearer sk_proj_..." \
+  -H "Content-Type: application/json" \
+  -d '{"logs":[{"timestamp":"2026-03-25T10:00:00Z","level":"error","service":"auth","message":"Token expired"}]}'
+
+# Errors
+curl http://localhost:3002/api/v1/observability/errors/ingest \
+  -H "Authorization: Bearer sk_proj_..." \
+  -H "Content-Type: application/json" \
+  -d '{"errors":[{"service":"api","error_type":"TypeError","message":"Cannot read properties of undefined","stack_trace":"..."}]}'
+```
+
+---
+
+## Embeddable Components
+
+Drop any chart or view into your own React app.
+
+```bash
+npm install @seentics/components
+```
+
+```tsx
+import {
+  SeenticsProvider,
+  AnalyticsSummary,
+  TrafficChart,
+  FunnelChart,
+  ErrorList,
+  LogExplorer,
+  TraceWaterfall,
+} from '@seentics/components'
+
+<SeenticsProvider apiKey="sk_age_..." baseUrl="https://api.yourdomain.com">
+  {/* In a customer portal, admin panel, or your own product */}
+  <AnalyticsSummary siteId="site_abc" dateRange="last_7_days" />
+  <TrafficChart siteId="site_abc" metric="pageviews" groupBy="day" />
+  <FunnelChart siteId="site_abc" funnelId="funnel_xyz" />
+  <ErrorList projectId="proj_xyz" service="checkout-api" />
+  <LogExplorer projectId="proj_xyz" defaultLevel="error" />
+</SeenticsProvider>
+```
+
+Styled with CSS variables — integrates with any design system.
 
 ---
 
@@ -131,18 +264,49 @@ Create goals in **Settings > Goals** to track conversions:
 
 ```
 seentics/
-├── core/                   # Go backend API
-│   ├── cmd/api/            # Entry point
+├── core/                        # Go backend API
+│   ├── cmd/api/main.go          # Entry point
 │   ├── internal/
-│   │   ├── modules/        # Analytics, heatmaps, replays, funnels, automations
-│   │   └── shared/         # Database, config, middleware
-│   └── data/trackers/      # Tracking scripts served to sites
-├── web/                    # Next.js frontend
-│   ├── src/app/            # Pages (App Router)
-│   ├── src/components/     # UI components
-│   └── src/lib/            # API clients, utilities
-├── docker-compose.yml      # Local development stack
-└── scripts/                # Deployment & utility scripts
+│   │   ├── modules/
+│   │   │   ├── analytics/       # Events, pageviews, goals, realtime
+│   │   │   ├── websites/        # Site management, members
+│   │   │   ├── funnels/         # Funnel steps + conversion tracking
+│   │   │   ├── heatmaps/        # Click + scroll recording + query
+│   │   │   ├── replays/         # Session recording + playback
+│   │   │   ├── workflows/       # Behavioral automations
+│   │   │   ├── tracker/         # seentics.js serving
+│   │   │   └── observability/   # Logs, errors, traces, metrics
+│   │   │       ├── logs/
+│   │   │       ├── errors/
+│   │   │       ├── traces/
+│   │   │       └── metrics/
+│   │   └── shared/
+│   │       ├── database/        # Postgres + ClickHouse connections
+│   │       ├── config/          # Env config + feature flags
+│   │       ├── middleware/      # Auth, CORS, logging, rate limit
+│   │       └── migrations/      # Postgres + ClickHouse schema
+│   └── data/trackers/           # seentics.js tracking scripts
+│
+├── web/                         # Next.js 14 frontend
+│   └── src/
+│       ├── app/
+│       │   └── websites/[websiteId]/
+│       │       ├── page.tsx              # Analytics overview
+│       │       ├── realtime/             # Live dashboard
+│       │       ├── goals/                # Goals page
+│       │       ├── funnels/              # Funnels page
+│       │       ├── events/               # Events page
+│       │       ├── behavior/             # Heatmaps, replays, paths, automations
+│       │       ├── observability/        # Logs, errors, traces, metrics
+│       │       ├── developers/           # API keys, webhooks, components
+│       │       └── settings/             # General, team, integrations, alerts
+│       ├── components/                   # UI components per section
+│       ├── lib/                          # API clients (one file per feature)
+│       ├── hooks/                        # Custom React hooks
+│       └── stores/                       # Zustand global state
+│
+├── docker-compose.yml           # Local dev stack
+└── scripts/                     # Deployment utilities
 ```
 
 ---
@@ -155,35 +319,32 @@ seentics/
 docker compose up -d --build
 ```
 
-This starts PostgreSQL, ClickHouse, Redis, MinIO, and both the backend and frontend in development mode with hot reloading.
+Starts PostgreSQL, ClickHouse, NATS, MinIO, Redis, and both the backend and frontend with hot reloading.
 
 ### Production
 
-See the full [Deployment Guide](DEPLOYMENT.md) for step-by-step instructions on deploying to AWS EC2 (or any Linux server) with Docker, Nginx, and SSL.
-
-Quick overview:
+See [DEPLOYMENT.md](DEPLOYMENT.md) for full instructions (AWS EC2 or any Linux server).
 
 ```bash
-# On your server
 git clone https://github.com/Seentics/seentics.git
 cd seentics
-cp core/.env.example core/.env   # Edit with your production values
+cp core/.env.example core/.env
 ./scripts/deploy.sh
 ```
 
-### Environment Variables
+### Key Environment Variables
 
 | Variable | Description | Default |
-|----------|-------------|---------|
+|---|---|---|
 | `DATABASE_URL` | PostgreSQL connection string | See `.env.example` |
-| `JWT_SECRET` | Secret key for auth tokens | Required |
-| `CLICKHOUSE_HOST` | ClickHouse server address | `localhost` |
-| `CLICKHOUSE_DB` | ClickHouse database name | `seentics` |
-| `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
+| `JWT_SECRET` | Auth token signing key | Required |
+| `CLICKHOUSE_HOST` | ClickHouse host | `localhost` |
+| `CLICKHOUSE_DB` | ClickHouse database | `seentics` |
+| `NATS_URL` | NATS server URL | `nats://localhost:4222` |
 | `S3_ENDPOINT` | S3/MinIO endpoint for replays | `http://minio:9000` |
 | `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | `http://localhost:3000` |
 
-See [`core/.env.example`](core/.env.example) for the full list.
+Full list: [`core/.env.example`](core/.env.example)
 
 ---
 
@@ -194,33 +355,39 @@ Browser ──→ Next.js Frontend (:3000)
                   │
             Go Backend API (:3002)
                   │
-    ┌─────────────┼─────────────┐
-    │             │             │
-ClickHouse    PostgreSQL      Redis
- (events)     (metadata)    (cache, streams)
+    ┌─────────────┼──────────────┬──────────┐
+    │             │              │          │
+ClickHouse    PostgreSQL       NATS       Redis
+(analytics    (metadata,    (event      (cache,
+ + obs data)   users,        streams)    rate limit)
+               sites)
                   │
                 MinIO
-               (replays)
+          (replays + assets)
 ```
 
-The tracking script (`seentics.js`) is served by the Go backend and sends events directly to it. Events are published to **Redis Streams** and consumed in batches by background workers, which write to ClickHouse. Redis also handles caching and sliding-window rate limiting, while PostgreSQL stores user accounts, website configs, goals, and other metadata. Session replays are stored in S3-compatible storage (MinIO).
+Events and logs are published to **NATS** and consumed by background workers that batch-write to **ClickHouse**. Redis handles caching and rate limiting. Session replays are stored in S3-compatible storage.
 
 ---
 
 ## Contributing
 
-We welcome all contributions — bug reports, feature requests, docs improvements, and code.
+We welcome all contributions — bug reports, feature requests, docs, and code.
 
 1. Fork the repo
 2. Create a branch: `git checkout -b my-feature`
 3. Make your changes
 4. Submit a pull request
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed development setup instructions.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup.
+
+---
 
 ## License
 
-Seentics is licensed under [AGPL v3.0](LICENSE). You can self-host it freely. If you modify and distribute the software, your changes must be open-sourced under the same license.
+Seentics is licensed under [AGPL v3.0](LICENSE). You can self-host freely. Modifications must be open-sourced under the same license.
+
+The `@seentics/node`, `@seentics/go-sdk`, and `@seentics/components` packages are MIT licensed.
 
 ---
 
