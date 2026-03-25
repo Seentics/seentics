@@ -48,19 +48,29 @@ import (
 
 	// Tracker module
 	trackerPkg "github.com/Seentics/seentics/internal/modules/tracker"
+
+	// Observability modules
+	obslogs    "github.com/Seentics/seentics/internal/modules/observability/logs"
+	obserrors  "github.com/Seentics/seentics/internal/modules/observability/errors"
+	obstraces  "github.com/Seentics/seentics/internal/modules/observability/traces"
+	obsmetrics "github.com/Seentics/seentics/internal/modules/observability/metrics"
 )
 
 // appHandlers bundles all HTTP handlers so setupRouter doesn't need 15 parameters.
 type appHandlers struct {
-	analytics *handlers.AnalyticsHandler
-	privacy   *handlers.PrivacyHandler
-	health    *handlers.HealthHandler
-	admin     *handlers.AdminHandler
-	internal  *handlers.InternalHandler
-	auth      *authHandlerPkg.AuthHandler
-	funnel    *funnelHandlerPkg.FunnelHandler
-	website   *websiteHandlerPkg.WebsiteHandler
-	tracker   *trackerPkg.TrackerHandler
+	analytics  *handlers.AnalyticsHandler
+	privacy    *handlers.PrivacyHandler
+	health     *handlers.HealthHandler
+	admin      *handlers.AdminHandler
+	internal   *handlers.InternalHandler
+	auth       *authHandlerPkg.AuthHandler
+	funnel     *funnelHandlerPkg.FunnelHandler
+	website    *websiteHandlerPkg.WebsiteHandler
+	tracker    *trackerPkg.TrackerHandler
+	obsLogs    *obslogs.Handler
+	obsErrors  *obserrors.Handler
+	obsTraces  *obstraces.Handler
+	obsMetrics *obsmetrics.Handler
 }
 
 func main() {
@@ -109,6 +119,25 @@ func main() {
 	}
 	logger.Info().Msg("ClickHouse schema verified/created")
 
+	// Observability repositories + ClickHouse schemas
+	obsLogsRepo := obslogs.NewRepository(chConn, logger)
+	if err := obsLogsRepo.CreateSchema(ctx); err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create obs_logs schema")
+	}
+	obsErrorsRepo := obserrors.NewRepository(chConn, db, logger)
+	if err := obsErrorsRepo.CreateSchema(ctx); err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create obs_error_events schema")
+	}
+	obsTracesRepo := obstraces.NewRepository(chConn, logger)
+	if err := obsTracesRepo.CreateSchema(ctx); err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create obs_spans schema")
+	}
+	obsMetricsRepo := obsmetrics.NewRepository(chConn, logger)
+	if err := obsMetricsRepo.CreateSchema(ctx); err != nil {
+		logger.Fatal().Err(err).Msg("Failed to create obs_metrics schema")
+	}
+	logger.Info().Msg("Observability ClickHouse schemas verified/created")
+
 	var eventRepo repository.EventRepository = chRepo
 	pgAnalyticsRepo := repository.NewPostgresAnalyticsRepository(db)
 	var analyticsRepo repository.MainAnalyticsRepository = repository.NewClickHouseAnalyticsRepository(chConn, pgAnalyticsRepo, logger)
@@ -133,21 +162,31 @@ func main() {
 	privacyService := services.NewPrivacyService(privacyRepo, websiteService, logger)
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
 
+	// Observability services (each starts its own Redis Stream consumer goroutine)
+	obsLogsSvc    := obslogs.NewService(obsLogsRepo, rdb, logger)
+	obsErrorsSvc  := obserrors.NewService(obsErrorsRepo, rdb, logger)
+	obsTracesSvc  := obstraces.NewService(obsTracesRepo, rdb, logger)
+	obsMetricsSvc := obsmetrics.NewService(obsMetricsRepo, rdb, logger)
+
 	// Start background workers (analytics only — heatmaps/replays moved to standalone apps)
 	analyticsService.StartCacheWarmer(ctx)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 
 	h := appHandlers{
-		analytics: handlers.NewAnalyticsHandler(analyticsService, logger),
-		privacy:   handlers.NewPrivacyHandler(privacyService, logger),
-		health:    handlers.NewHealthHandler(db, logger),
-		admin:     handlers.NewAdminHandler(eventRepo, logger),
-		internal:  handlers.NewInternalHandler(db, logger),
-		auth:      authHandlerPkg.NewAuthHandler(authService, logger),
-		funnel:    funnelHandlerPkg.NewFunnelHandler(funnelService),
-		website:   websiteHandlerPkg.NewWebsiteHandler(websiteService, logger),
-		tracker:   trackerPkg.NewTrackerHandler(websiteService, eventService, funnelService, logger),
+		analytics:  handlers.NewAnalyticsHandler(analyticsService, logger),
+		privacy:    handlers.NewPrivacyHandler(privacyService, logger),
+		health:     handlers.NewHealthHandler(db, logger),
+		admin:      handlers.NewAdminHandler(eventRepo, logger),
+		internal:   handlers.NewInternalHandler(db, logger),
+		auth:       authHandlerPkg.NewAuthHandler(authService, logger),
+		funnel:     funnelHandlerPkg.NewFunnelHandler(funnelService),
+		website:    websiteHandlerPkg.NewWebsiteHandler(websiteService, logger),
+		tracker:    trackerPkg.NewTrackerHandler(websiteService, eventService, funnelService, logger),
+		obsLogs:    obslogs.NewHandler(obsLogsSvc, logger),
+		obsErrors:  obserrors.NewHandler(obsErrorsSvc, logger),
+		obsTraces:  obstraces.NewHandler(obsTracesSvc, logger),
+		obsMetrics: obsmetrics.NewHandler(obsMetricsSvc, logger),
 	}
 	h.internal.SetClickHouse(chConn)
 
@@ -182,6 +221,18 @@ func main() {
 
 	if err := eventService.Shutdown(10 * time.Second); err != nil {
 		logger.Error().Err(err).Msg("Failed to shutdown event service gracefully")
+	}
+	if err := obsLogsSvc.Shutdown(5 * time.Second); err != nil {
+		logger.Error().Err(err).Msg("obs-logs shutdown error")
+	}
+	if err := obsErrorsSvc.Shutdown(5 * time.Second); err != nil {
+		logger.Error().Err(err).Msg("obs-errors shutdown error")
+	}
+	if err := obsTracesSvc.Shutdown(5 * time.Second); err != nil {
+		logger.Error().Err(err).Msg("obs-spans shutdown error")
+	}
+	if err := obsMetricsSvc.Shutdown(5 * time.Second); err != nil {
+		logger.Error().Err(err).Msg("obs-metrics shutdown error")
 	}
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error().Err(err).Msg("Server forced to shutdown")
@@ -257,6 +308,7 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, h appHandlers, logge
 		registerPrivacyRoutes(v1, h)
 		registerWebsiteRoutes(v1, h)
 		registerFunnelRoutes(v1, h)
+		registerObservabilityRoutes(v1, h)
 		registerAdminRoutes(v1, h)
 		registerInternalRoutes(v1, h)
 	}
@@ -398,6 +450,30 @@ func registerFunnelRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	}
 
 	v1.GET("/funnels/active", h.funnel.GetActiveFunnels)
+}
+
+func registerObservabilityRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	obs := v1.Group("/observability")
+	{
+		// Logs
+		obs.POST("/logs/ingest", h.obsLogs.Ingest)
+		obs.GET("/logs", h.obsLogs.Query)
+
+		// Errors
+		obs.POST("/errors/ingest", h.obsErrors.Ingest)
+		obs.GET("/errors/groups", h.obsErrors.ListGroups)
+		obs.GET("/errors/groups/:fingerprint/events", h.obsErrors.ListEvents)
+		obs.PATCH("/errors/groups/:fingerprint/status", h.obsErrors.UpdateStatus)
+
+		// Traces
+		obs.POST("/traces/ingest", h.obsTraces.Ingest)
+		obs.GET("/traces", h.obsTraces.ListTraces)
+		obs.GET("/traces/:trace_id", h.obsTraces.GetTrace)
+
+		// Metrics
+		obs.POST("/metrics/ingest", h.obsMetrics.Ingest)
+		obs.GET("/metrics", h.obsMetrics.Query)
+	}
 }
 
 func registerAdminRoutes(v1 *gin.RouterGroup, h appHandlers) {
