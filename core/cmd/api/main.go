@@ -50,10 +50,10 @@ import (
 	trackerPkg "github.com/Seentics/seentics/internal/modules/tracker"
 
 	// Observability modules
-	obslogs    "github.com/Seentics/seentics/internal/modules/observability/logs"
-	obserrors  "github.com/Seentics/seentics/internal/modules/observability/errors"
-	obstraces  "github.com/Seentics/seentics/internal/modules/observability/traces"
+	obserrors "github.com/Seentics/seentics/internal/modules/observability/errors"
+	obslogs "github.com/Seentics/seentics/internal/modules/observability/logs"
 	obsmetrics "github.com/Seentics/seentics/internal/modules/observability/metrics"
+	obstraces "github.com/Seentics/seentics/internal/modules/observability/traces"
 )
 
 // appHandlers bundles all HTTP handlers so setupRouter doesn't need 15 parameters.
@@ -163,9 +163,9 @@ func main() {
 	funnelService := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
 
 	// Observability services (each starts its own Redis Stream consumer goroutine)
-	obsLogsSvc    := obslogs.NewService(obsLogsRepo, rdb, logger)
-	obsErrorsSvc  := obserrors.NewService(obsErrorsRepo, rdb, logger)
-	obsTracesSvc  := obstraces.NewService(obsTracesRepo, rdb, logger)
+	obsLogsSvc := obslogs.NewService(obsLogsRepo, rdb, logger)
+	obsErrorsSvc := obserrors.NewService(obsErrorsRepo, rdb, logger)
+	obsTracesSvc := obstraces.NewService(obsTracesRepo, rdb, logger)
 	obsMetricsSvc := obsmetrics.NewService(obsMetricsRepo, rdb, logger)
 
 	// Start background workers (analytics only — heatmaps/replays moved to standalone apps)
