@@ -1,16 +1,25 @@
 {
   "name": "@seentics/node",
   "version": "0.1.0",
-  "description": "Node.js SDK for Seentics — logs, errors, and traces from any Node/Next.js service",
+  "description": "Node.js SDK for Seentics — logs, errors, traces, and metrics from any Node/Next.js service",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types":   "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "engines": { "node": ">=18" },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev":   "tsc --watch"
   },
-  "keywords": ["seentics", "observability", "logging", "tracing", "errors"],
+  "keywords": ["seentics", "observability", "logging", "tracing", "errors", "metrics"],
   "license": "MIT",
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0"
   }
 }

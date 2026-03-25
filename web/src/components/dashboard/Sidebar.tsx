@@ -22,6 +22,8 @@ import {
   ChevronDown,
   ChevronRight,
   PanelLeft,
+  BookOpen,
+  Code2,
 } from 'lucide-react';
 
 interface NavItem {
@@ -76,6 +78,15 @@ function buildGroups(websiteId: string): NavGroup[] {
         { label: 'Errors',  href: `/websites/${websiteId}/observability/errors`,  icon: AlertTriangle },
         { label: 'Traces',  href: `/websites/${websiteId}/observability/traces`,  icon: Network },
         { label: 'Metrics', href: `/websites/${websiteId}/observability/metrics`, icon: Gauge },
+      ],
+    },
+    {
+      id: 'developers',
+      label: 'Developers',
+      icon: Code2,
+      defaultOpen: false,
+      items: [
+        { label: 'Documentation', href: `/websites/${websiteId}/docs`, icon: BookOpen },
       ],
     },
     {
