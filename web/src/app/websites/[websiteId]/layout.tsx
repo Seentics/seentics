@@ -14,10 +14,10 @@ export default function Layout({ children }: LayoutProps) {
   const websiteId = params?.websiteId as string;
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex">
+    <div className="h-screen overflow-hidden bg-background text-foreground flex">
       <TrackerScript />
       {websiteId && <Sidebar websiteId={websiteId} />}
-      <main className="flex-1 min-w-0 overflow-auto">
+      <main className="flex-1 min-w-0 overflow-y-auto h-screen">
         {children}
       </main>
     </div>
