@@ -1,31 +1,18 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useState, useMemo } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useGoalStats } from '@/lib/analytics-api';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { Card, CardContent } from '@/components/ui/card';
+import { DataTable, SortableHeader, ColumnDef } from '@/components/ui/data-table';
+import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Target, PlusCircle } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Target, PlusCircle, Search, TrendingUp, CheckCircle2, BarChart3 } from 'lucide-react';
 import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
-import { cn } from '@/lib/utils';
-
-function conversionBar(rate: number) {
-  return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-        <div
-          className="h-full rounded-full bg-primary transition-all"
-          style={{ width: `${Math.min(rate, 100)}%` }}
-        />
-      </div>
-      <span className="text-xs font-semibold w-10 text-right">{rate.toFixed(1)}%</span>
-    </div>
-  );
-}
 
 const GOAL_TYPE_LABEL: Record<string, string> = {
   pageview: 'Page Visit',
@@ -33,17 +20,93 @@ const GOAL_TYPE_LABEL: Record<string, string> = {
   click:    'CSS Click',
 };
 
+const GOAL_TYPE_COLOR: Record<string, string> = {
+  pageview: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300',
+  event:    'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950 dark:text-purple-300',
+  click:    'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300',
+};
+
 export default function GoalsPage() {
   const params = useParams();
+  const router = useRouter();
   const websiteId = params?.websiteId as string;
 
   const [dateRange, setDateRange] = useState(7);
+  const [search, setSearch] = useState('');
   const [showAddGoal, setShowAddGoal] = useState(false);
 
   const { data: goalData, isLoading } = useGoalStats(websiteId, dateRange);
   const goals = goalData?.goals ?? [];
 
+  const filtered = useMemo(() =>
+    goals.filter((g: any) =>
+      !search || g.name.toLowerCase().includes(search.toLowerCase()) ||
+      (g.target ?? '').toLowerCase().includes(search.toLowerCase())
+    ),
+    [goals, search]
+  );
+
   const totalConversions = goals.reduce((s: number, g: any) => s + (g.completions || 0), 0);
+  const avgRate = goals.length
+    ? (goals.reduce((s: number, g: any) => s + (g.conversion_rate || 0), 0) / goals.length)
+    : 0;
+  const topGoal = [...goals].sort((a: any, b: any) => (b.completions || 0) - (a.completions || 0))[0];
+
+  const columns: ColumnDef<any>[] = [
+    {
+      id: 'name',
+      header: ({ column }) => <SortableHeader column={column}>Goal</SortableHeader>,
+      accessorKey: 'name',
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground truncate">{row.original.name}</p>
+          {row.original.target && (
+            <p className="text-xs text-muted-foreground font-mono truncate">{row.original.target}</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'type',
+      header: 'Type',
+      accessorKey: 'goal_type',
+      size: 120,
+      cell: ({ getValue }) => {
+        const type = getValue() as string;
+        return (
+          <Badge className={`text-xs border whitespace-nowrap ${GOAL_TYPE_COLOR[type] ?? 'bg-muted text-muted-foreground'}`}>
+            {GOAL_TYPE_LABEL[type] ?? type}
+          </Badge>
+        );
+      },
+    },
+    {
+      id: 'completions',
+      header: ({ column }) => <SortableHeader column={column}>Completions</SortableHeader>,
+      accessorKey: 'completions',
+      size: 120,
+      cell: ({ getValue }) => (
+        <span className="text-sm font-semibold text-foreground">
+          {(getValue() as number || 0).toLocaleString()}
+        </span>
+      ),
+    },
+    {
+      id: 'conversion_rate',
+      header: ({ column }) => <SortableHeader column={column}>Conversion</SortableHeader>,
+      accessorKey: 'conversion_rate',
+      size: 160,
+      cell: ({ getValue }) => {
+        const rate = getValue() as number || 0;
+        return (
+          <div className="flex items-center gap-2">
+            <Progress value={Math.min(rate, 100)} className="h-1.5 flex-1" />
+            <span className="text-xs font-semibold w-10 text-right shrink-0">{rate.toFixed(1)}%</span>
+          </div>
+        );
+      },
+    },
+  ];
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto">
@@ -51,104 +114,68 @@ export default function GoalsPage() {
         title="Goals"
         description="Track page visits, custom events, and CSS selector clicks."
         icon={Target}
-      >
-        <Select value={String(dateRange)} onValueChange={v => setDateRange(Number(v))}>
-          <SelectTrigger className="w-[120px] h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {[7, 14, 30, 90].map(d => (
-              <SelectItem key={d} value={String(d)} className="text-xs">Last {d} days</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setShowAddGoal(true)}>
-          <PlusCircle className="h-3.5 w-3.5" />
-          Add Goal
-        </Button>
-      </DashboardPageHeader>
-
-      {/* Summary */}
-      {!isLoading && goals.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="border border-border/60">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Total goals</p>
-              <p className="text-2xl font-bold">{goals.length}</p>
-            </CardContent>
-          </Card>
-          <Card className="border border-border/60">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Completions</p>
-              <p className="text-2xl font-bold">{totalConversions.toLocaleString()}</p>
-            </CardContent>
-          </Card>
-          <Card className="border border-border/60 col-span-2">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Top goal</p>
-              <p className="text-sm font-semibold truncate">
-                {goals.sort((a: any, b: any) => (b.completions || 0) - (a.completions || 0))[0]?.name ?? '—'}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Goals table */}
-      <Card className="border border-border/60">
-        <CardContent className="p-0">
-          <div className="flex items-center gap-4 px-5 py-2.5 border-b border-border/60 bg-muted/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            <span className="flex-1">Goal</span>
-            <span className="w-24">Type</span>
-            <span className="w-24 text-right">Completions</span>
-            <span className="w-32">Conversion</span>
-          </div>
-
-          {isLoading ? (
-            <div>
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-4 border-b border-border/40">
-                  <Skeleton className="h-4 flex-1" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-4 w-32" />
-                </div>
-              ))}
-            </div>
-          ) : goals.length === 0 ? (
-            <div className="py-16 text-center text-muted-foreground text-sm">
-              No goals yet.{' '}
-              <button onClick={() => setShowAddGoal(true)} className="text-primary underline">
-                Add your first goal
-              </button>
-            </div>
-          ) : (
-            goals.map((goal: any, i: number) => (
-              <div key={goal.id ?? i} className="flex items-center gap-4 px-5 py-4 border-b border-border/40 last:border-0 hover:bg-muted/20 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{goal.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{goal.target}</p>
-                </div>
-                <Badge variant="secondary" className="text-xs w-24 justify-center shrink-0">
-                  {GOAL_TYPE_LABEL[goal.goal_type] ?? goal.goal_type}
-                </Badge>
-                <span className="text-sm font-semibold w-24 text-right shrink-0">
-                  {(goal.completions || 0).toLocaleString()}
-                </span>
-                <div className="w-32 shrink-0">
-                  {conversionBar(goal.conversion_rate || 0)}
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      <AddGoalModal
-        open={showAddGoal}
-        onOpenChange={setShowAddGoal}
-        websiteId={websiteId}
       />
+
+      <StatCards
+        isLoading={isLoading}
+        cards={[
+          { label: 'Total Goals',   value: goals.length, icon: Target },
+          { label: 'Completions',   value: totalConversions, icon: CheckCircle2, iconColor: 'text-green-600', valueColor: 'text-green-600' },
+          { label: 'Avg Conv. Rate', value: `${avgRate.toFixed(1)}%`, icon: TrendingUp, iconColor: 'text-blue-600' },
+          { label: 'Top Goal',      value: topGoal?.name ?? '—', icon: BarChart3 },
+        ]}
+      />
+
+      <DataTable
+        data={filtered}
+        columns={columns}
+        isLoading={isLoading}
+        toolbarLeft={
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Goals</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{filtered.length} goal{filtered.length !== 1 ? 's' : ''} configured</p>
+          </div>
+        }
+        toolbarRight={
+          <>
+            <Select value={String(dateRange)} onValueChange={v => setDateRange(Number(v))}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[7, 14, 30, 90].map(d => (
+                  <SelectItem key={d} value={String(d)} className="text-xs">Last {d} days</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                placeholder="Search goals..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="pl-8 h-8 text-xs w-44"
+              />
+            </div>
+            <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setShowAddGoal(true)}>
+              <PlusCircle className="h-3.5 w-3.5" />
+              Add Goal
+            </Button>
+          </>
+        }
+        onRowClick={(row) => router.push(`/websites/${websiteId}/goals/${row.id}`)}
+        emptyIcon={<Target className="h-6 w-6" />}
+        emptyTitle="No goals yet"
+        emptyDescription="Create your first goal to track conversions."
+        emptyAction={
+          <Button size="sm" onClick={() => setShowAddGoal(true)}>
+            <PlusCircle className="h-3.5 w-3.5 mr-1.5" />
+            Add Goal
+          </Button>
+        }
+      />
+
+      <AddGoalModal open={showAddGoal} onOpenChange={setShowAddGoal} websiteId={websiteId} />
     </div>
   );
 }

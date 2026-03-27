@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Copy, Check, Zap, AlertTriangle, Network, Gauge, FileText, Code2 } from 'lucide-react';
+import { BookOpen, Copy, Check, Zap, Code2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -88,130 +88,6 @@ client := seentics.New(seentics.Config{
 defer client.Shutdown(context.Background())`,
 };
 
-const LOGS: Record<Tab, string> = {
-  'Node.js': `// Structured log methods — buffered and batched automatically
-seentics.log.info('User signed up', { userId: '123', plan: 'pro' });
-seentics.log.warn('Rate limit approaching', { endpoint: '/api/upload' });
-seentics.log.error('Payment failed', { orderId: 'ord_42', code: 'card_declined' });
-
-// All levels: debug | info | warn | error | fatal`,
-  'Go': `// Direct log methods
-client.Info("user signed up", seentics.LogOptions{
-    Attributes: map[string]string{"user_id": "123", "plan": "pro"},
-})
-client.Warn("rate limit approaching")
-client.Error("payment failed", seentics.LogOptions{
-    Attributes: map[string]string{"order_id": "ord_42"},
-})
-
-// zerolog integration — logs forwarded as structured entries
-log := zerolog.New(client.Writer()).With().Timestamp().Logger()
-log.Info().Str("user_id", "123").Msg("user signed up")`,
-};
-
-const ERRORS: Record<Tab, string> = {
-  'Node.js': `// Capture any error — stack trace extracted automatically
-try {
-  await processOrder(order);
-} catch (err) {
-  seentics.captureError(err, {
-    userId:  req.user.id,
-    release: process.env.npm_package_version,
-    attributes: { orderId: order.id },
-  });
-  throw err;
-}
-
-// Express error middleware (mount after routes)
-app.use(seentics.errorMiddleware());`,
-  'Go': `// Capture errors with automatic stack trace
-if err := processOrder(ctx, order); err != nil {
-    client.CaptureError(err, seentics.ErrorOptions{
-        UserID:     userID,
-        Release:    version,
-        Attributes: map[string]string{"order_id": order.ID},
-    })
-    return err
-}
-
-// Recover from panics
-defer func() {
-    if r := recover(); r != nil {
-        client.CaptureError(fmt.Errorf("panic: %v", r))
-    }
-}()`,
-};
-
-const TRACES: Record<Tab, string> = {
-  'Node.js': `// Root span (starts a new trace)
-const span = seentics.startSpan('process-order', {
-  attributes: { orderId: order.id },
-});
-try {
-  // Child span (same trace ID)
-  const dbSpan = seentics.startChildSpan(span, 'db.insert-order');
-  await db.insert(order);
-  dbSpan.setStatus('ok').end();
-
-  span.setStatus('ok');
-} catch (err) {
-  span.recordError(err);
-  throw err;
-} finally {
-  span.end();
-}
-
-// Express request tracing middleware
-app.use(seentics.requestMiddleware());`,
-  'Go': `// StartSpan returns an updated context and a span
-ctx, span := client.StartSpan(ctx, "process-order")
-defer span.End()
-
-span.SetAttribute("order_id", order.ID)
-
-// Child span — inherits trace ID from ctx
-ctx, dbSpan := client.StartSpan(ctx, "db.insert-order")
-if err := db.Insert(ctx, order); err != nil {
-    dbSpan.RecordError(err)
-    dbSpan.End()
-    return err
-}
-dbSpan.End()
-
-// Retrieve active span from context anywhere downstream
-if s, ok := seentics.SpanFromContext(ctx); ok {
-    s.SetAttribute("rows_affected", "1")
-}`,
-};
-
-const METRICS: Record<Tab, string> = {
-  'Node.js': `// Gauge   — point-in-time value (memory, connections, queue depth)
-seentics.gauge('server.memory_mb', process.memoryUsage().rss / 1e6);
-
-// Counter — cumulative increment (requests, bytes, errors)
-seentics.counter('api.requests', 1, { method: 'POST', path: '/orders' });
-
-// Histogram — distribution sample (latency, payload size)
-const start = Date.now();
-await handler(req, res);
-seentics.histogram('api.latency_ms', Date.now() - start, { route: '/orders' });`,
-  'Go': `// Gauge — point-in-time value
-client.Gauge("server.goroutines", float64(runtime.NumGoroutine()))
-
-// Counter — cumulative increment
-client.Counter("api.requests", 1, map[string]string{
-    "method": r.Method,
-    "path":   r.URL.Path,
-})
-
-// Histogram — latency distribution
-start := time.Now()
-handler(w, r)
-client.Histogram("api.latency_ms",
-    float64(time.Since(start).Milliseconds()),
-    map[string]string{"route": r.URL.Path},
-)`,
-};
 
 const NEXTJS_SNIPPET = `// instrumentation.ts  (Next.js 14 — placed in the project root)
 import { Seentics } from '@seentics/node';
@@ -307,52 +183,6 @@ export default function DocsPage() {
         <CodeBlock code={QUICKSTART[tab]} lang={tab === 'Go' ? 'go' : 'typescript'} />
       </Section>
 
-      {/* Logs */}
-      <Section title="Structured Logging" icon={FileText}>
-        <p className="text-xs text-muted-foreground">
-          Log entries are buffered and sent in batches every 5 seconds (or immediately when the buffer reaches 100 items).
-          All five severity levels are supported: <code className="font-mono bg-muted px-1 rounded">debug</code>, <code className="font-mono bg-muted px-1 rounded">info</code>, <code className="font-mono bg-muted px-1 rounded">warn</code>, <code className="font-mono bg-muted px-1 rounded">error</code>, <code className="font-mono bg-muted px-1 rounded">fatal</code>.
-        </p>
-        <CodeBlock code={LOGS[tab]} lang={tab === 'Go' ? 'go' : 'typescript'} />
-      </Section>
-
-      {/* Errors */}
-      <Section title="Error Tracking" icon={AlertTriangle}>
-        <p className="text-xs text-muted-foreground">
-          Errors are grouped by a fingerprint derived from <code className="font-mono bg-muted px-1 rounded">service</code> + <code className="font-mono bg-muted px-1 rounded">error_type</code> + message.
-          Each group tracks occurrence count, first/last seen, and can be resolved or ignored from the dashboard.
-        </p>
-        <CodeBlock code={ERRORS[tab]} lang={tab === 'Go' ? 'go' : 'typescript'} />
-      </Section>
-
-      {/* Traces */}
-      <Section title="Distributed Tracing" icon={Network}>
-        <p className="text-xs text-muted-foreground">
-          Spans are correlated via <code className="font-mono bg-muted px-1 rounded">trace_id</code> and visualised as a waterfall in the Traces page.
-          Parent–child relationships are tracked automatically through the context or span references.
-        </p>
-        <CodeBlock code={TRACES[tab]} lang={tab === 'Go' ? 'go' : 'typescript'} />
-      </Section>
-
-      {/* Metrics */}
-      <Section title="Custom Metrics" icon={Gauge}>
-        <div className="grid grid-cols-3 gap-3 mb-3">
-          {[
-            { type: 'gauge',     desc: 'Point-in-time value (memory, connections)' },
-            { type: 'counter',   desc: 'Monotonically increasing count (requests)' },
-            { type: 'histogram', desc: 'Distribution sample (latency, sizes)' },
-          ].map(m => (
-            <Card key={m.type} className="border border-border/60">
-              <CardContent className="p-3">
-                <Badge variant="secondary" className="text-[10px] mb-1">{m.type}</Badge>
-                <p className="text-xs text-muted-foreground">{m.desc}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <CodeBlock code={METRICS[tab]} lang={tab === 'Go' ? 'go' : 'typescript'} />
-      </Section>
-
       {/* Next.js */}
       {tab === 'Node.js' && (
         <Section title="Next.js Integration">
@@ -368,16 +198,13 @@ export default function DocsPage() {
         <Card className="border border-border/60">
           <CardContent className="p-0">
             {[
-              { method: 'POST', path: '/api/v1/observability/logs/ingest',           desc: 'Ingest up to 10,000 log entries per request' },
-              { method: 'POST', path: '/api/v1/observability/errors/ingest',         desc: 'Ingest up to 1,000 error events per request' },
-              { method: 'POST', path: '/api/v1/observability/traces/ingest',         desc: 'Ingest up to 10,000 spans per request' },
-              { method: 'POST', path: '/api/v1/observability/metrics/ingest',        desc: 'Ingest up to 50,000 metric points per request' },
-              { method: 'GET',  path: '/api/v1/observability/logs',                  desc: 'Query logs (project_id, service, level, search, from, to)' },
-              { method: 'GET',  path: '/api/v1/observability/errors/groups',         desc: 'List error groups (project_id, service, status)' },
-              { method: 'GET',  path: '/api/v1/observability/traces',                desc: 'List traces (project_id, service, from, to)' },
-              { method: 'GET',  path: '/api/v1/observability/traces/:trace_id',      desc: 'Get all spans for a trace' },
-              { method: 'GET',  path: '/api/v1/observability/metrics',               desc: 'Query metrics (project_id, name, granularity: minute|hour|day)' },
-              { method: 'PATCH',path: '/api/v1/observability/errors/groups/:fp/status', desc: 'Update error group status (open | resolved | ignored)' },
+              { method: 'POST', path: '/api/v1/collect',                        desc: 'Ingest pageview or custom event' },
+              { method: 'GET',  path: '/api/v1/websites/:id/stats',             desc: 'Summary stats (visitors, pageviews, bounce rate, duration)' },
+              { method: 'GET',  path: '/api/v1/websites/:id/pageviews',         desc: 'Pageview time series (granularity: hour|day|month)' },
+              { method: 'GET',  path: '/api/v1/websites/:id/events',            desc: 'Custom event counts and property breakdowns' },
+              { method: 'GET',  path: '/api/v1/websites/:id/goals',             desc: 'Goal list with conversion rates' },
+              { method: 'GET',  path: '/api/v1/websites/:id/funnels/:funnelId', desc: 'Funnel step-by-step conversion data' },
+              { method: 'GET',  path: '/api/v1/websites/:id/realtime',          desc: 'Live active visitor count and current pages' },
             ].map((r, i) => (
               <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 last:border-0">
                 <Badge
@@ -386,7 +213,6 @@ export default function DocsPage() {
                     'text-[10px] w-12 justify-center shrink-0 font-mono',
                     r.method === 'POST'  && 'border-blue-400/60 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-300',
                     r.method === 'GET'   && 'border-green-400/60 text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-300',
-                    r.method === 'PATCH' && 'border-yellow-400/60 text-yellow-600 bg-yellow-50 dark:bg-yellow-950 dark:text-yellow-300',
                   )}
                 >
                   {r.method}
@@ -400,7 +226,7 @@ export default function DocsPage() {
 
         <p className="text-xs text-muted-foreground mt-3">
           All requests must include <code className="font-mono bg-muted px-1 rounded">Authorization: Bearer &lt;apiKey&gt;</code>.
-          Ingest endpoints respond with <code className="font-mono bg-muted px-1 rounded">202 Accepted</code> — events are durably buffered via Redis Streams before being batch-written to ClickHouse.
+          The full OpenAPI reference is available in the dashboard under <strong>Developers &rarr; Docs</strong>.
         </p>
       </Section>
     </div>

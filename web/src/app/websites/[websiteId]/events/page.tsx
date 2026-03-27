@@ -8,8 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Zap, ChevronDown } from 'lucide-react';
+import { Zap, ChevronDown, Activity, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { StatCards } from '@/components/seentics-ui/StatCards';
 
 function EventRow({ event }: { event: any }) {
   const [open, setOpen] = useState(false);
@@ -92,26 +93,23 @@ export default function EventsPage() {
 
       {/* Summary */}
       {!isLoading && filteredEvents.length > 0 && (
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <Card className="border border-border/60">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Event types</p>
-              <p className="text-2xl font-bold">{filteredEvents.length}</p>
-            </CardContent>
-          </Card>
-          <Card className="border border-border/60">
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Total occurrences</p>
-              <p className="text-2xl font-bold">{totalEvents.toLocaleString()}</p>
-            </CardContent>
-          </Card>
-        </div>
+        <StatCards
+          cards={[
+            { label: 'Event Types', value: filteredEvents.length, icon: Layers, iconColor: 'text-blue-600' },
+            { label: 'Total Occurrences', value: totalEvents, icon: Activity, iconColor: 'text-primary' },
+          ]}
+          cols={2}
+        />
       )}
 
       {/* Events table */}
+      <div className="mb-4 mt-8">
+        <h3 className="text-sm font-semibold text-foreground">Custom Events</h3>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{filteredEvents.length} event type{filteredEvents.length !== 1 ? 's' : ''} tracked</p>
+      </div>
       <Card className="border border-border/60">
         <CardContent className="p-0">
-          <div className="flex items-center gap-4 px-5 py-2.5 border-b border-border/60 bg-muted/30 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+          <div className="flex items-center gap-4 px-5 py-2.5 bg-muted/20 border-b border-border/40 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
             <span className="flex-1">Event</span>
             <span className="w-24 text-right">Count</span>
             <span className="w-28 text-right">Unique users</span>

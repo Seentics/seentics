@@ -87,7 +87,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
 
       <ChartErrorBoundary label="Path Analysis">
         <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Card className="p-5 flex items-center gap-4 border border-border/60 shadow-sm">
               <div className="w-11 h-11 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0">
                 <Route className="h-5 w-5 text-indigo-500" />
@@ -136,7 +136,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
                 )}
               </div>
             </Card>
-          </div>
+          </div> */}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <Card className="overflow-hidden border border-border/60 shadow-sm">

@@ -122,7 +122,7 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, v
   if (isLoading || !data) {
     return (
       <div className="bg-card shadow-sm rounded overflow-hidden mb-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 divide-x divide-border/40">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 divide-x divide-border/40">
           {[...Array(7)].map((_, i) => (
             <div key={i} className="p-5">
               <Skeleton className="h-3 w-20 mb-4 rounded" />
@@ -152,33 +152,11 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, v
 
   return (
     <div className="bg-card shadow-sm rounded overflow-hidden mb-6 border dark:border-none">
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 divide-x divide-border/40">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 divide-x divide-border/40">
         {cards.map((card, i) => (
           <SummaryCard key={i} {...card} />
         ))}
 
-        {/* New vs Returning */}
-        <SummaryCard
-          title="New vs Returning"
-          value={newVisitors}
-          icon={UserCheck}
-          customContent={
-            <div className="space-y-2.5">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-base font-bold tracking-tight text-foreground">{formatNumber(newVisitors)}</span>
-                <span className="text-xs text-muted-foreground/40">/</span>
-                <span className="text-base font-bold tracking-tight text-foreground">{formatNumber(returningVisitors)}</span>
-              </div>
-              <div className="w-full h-1 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full bg-foreground/60 transition-all duration-700" style={{ width: `${newPct}%` }} />
-              </div>
-              <div className="flex justify-between text-[10px] font-medium text-muted-foreground">
-                <span>New {newPct}%</span>
-                <span>Return {100 - newPct}%</span>
-              </div>
-            </div>
-          }
-        />
       </div>
     </div>
   );

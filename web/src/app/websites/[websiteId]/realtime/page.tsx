@@ -8,6 +8,7 @@ import { Activity, Globe, Monitor, ExternalLink, Eye, Users, Layers } from 'luci
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { useMemo } from 'react';
 import Image from 'next/image';
+import { StatCards } from '@/components/seentics-ui/StatCards';
 
 // ─── Country name → flag emoji ──────────────────────────────────────────────
 const COUNTRY_FLAGS: Record<string, string> = {
@@ -448,36 +449,36 @@ export default function RealtimePage() {
           </DashboardPageHeader>
 
           {/* Stat Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              label="Active Visitors"
-              value={data?.active_visitors ?? 0}
-              icon={Users}
-              color="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              isLoading={isLoading}
-            />
-            <StatCard
-              label="Pageviews"
-              value={data?.pageviews ?? 0}
-              icon={Eye}
-              color="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-              isLoading={isLoading}
-            />
-            <StatCard
-              label="Sessions"
-              value={data?.sessions ?? 0}
-              icon={Activity}
-              color="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
-              isLoading={isLoading}
-            />
-            <StatCard
-              label="Pages / Visitor"
-              value={data?.active_visitors ? Math.round((data.pageviews / data.active_visitors) * 10) / 10 : 0}
-              icon={Layers}
-              color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
-              isLoading={isLoading}
-            />
-          </div>
+          <StatCards
+            isLoading={isLoading}
+            cards={[
+              {
+                label: 'Active Visitors',
+                value: data?.active_visitors ?? 0,
+                icon: Users,
+                iconColor: 'text-emerald-600 dark:text-emerald-400',
+                valueColor: 'text-emerald-600 dark:text-emerald-400'
+              },
+              {
+                label: 'Pageviews',
+                value: data?.pageviews ?? 0,
+                icon: Eye,
+                iconColor: 'text-indigo-600 dark:text-indigo-400'
+              },
+              {
+                label: 'Sessions',
+                value: data?.sessions ?? 0,
+                icon: Activity,
+                iconColor: 'text-indigo-600 dark:text-indigo-400'
+              },
+              {
+                label: 'Pages / Visitor',
+                value: data?.active_visitors ? (data.pageviews / data.active_visitors).toFixed(1) : '0.0',
+                icon: Layers,
+                iconColor: 'text-amber-600 dark:text-amber-400'
+              },
+            ]}
+          />
 
           {/* Activity Timeline */}
           <Card className="border border-border/60 bg-card shadow-sm">

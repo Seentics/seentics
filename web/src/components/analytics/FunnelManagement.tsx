@@ -20,6 +20,7 @@ import {
   TrendingDown,
 } from 'lucide-react';
 import { FunnelBuilder } from './FunnelBuilder';
+import { StatCards } from '@/components/seentics-ui/StatCards';
 import {
   useFunnels,
   useFunnelAnalytics,
@@ -116,26 +117,14 @@ function FunnelDetailModal({
             <div className="space-y-5">
               {/* Summary stats */}
               {analytics && (
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-muted/30 border border-border/40 rounded-lg p-3 text-center">
-                    <div className="text-lg font-bold text-foreground">
-                      {analytics.total_starts?.toLocaleString() || '0'}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">Entries</div>
-                  </div>
-                  <div className="bg-muted/30 border border-border/40 rounded-lg p-3 text-center">
-                    <div className="text-lg font-bold text-green-600">
-                      {analytics.conversion_rate?.toFixed(1) || '0'}%
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">Conversion</div>
-                  </div>
-                  <div className="bg-muted/30 border border-border/40 rounded-lg p-3 text-center">
-                    <div className="text-lg font-bold text-orange-600">
-                      {analytics.drop_off_rate?.toFixed(1) || '0'}%
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">Drop-off</div>
-                  </div>
-                </div>
+                <StatCards
+                  cols={3}
+                  cards={[
+                    { label: 'Entries', value: analytics.total_starts || 0, icon: Users },
+                    { label: 'Conversion', value: `${analytics.conversion_rate?.toFixed(1) || '0'}%`, icon: TrendingUp, iconColor: 'text-green-600', valueColor: 'text-green-600' },
+                    { label: 'Drop-off', value: `${analytics.drop_off_rate?.toFixed(1) || '0'}%`, icon: TrendingDown, iconColor: 'text-orange-600', valueColor: 'text-orange-600' },
+                  ]}
+                />
               )}
 
               {/* Step-by-step funnel visualization */}

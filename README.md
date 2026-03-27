@@ -5,15 +5,13 @@
 <h1 align="center">Seentics</h1>
 
 <p align="center">
-  Open-source, privacy-first web analytics and observability platform — real-time analytics,
-  session replays, heatmaps, funnels, error tracking, distributed tracing, log management,
-  behavioral automations, embeddable UI components, and robust APIs.
+  Open-source, privacy-first web analytics platform — real-time dashboards,
+  session replays, heatmaps, funnels, behavioral automations, and embeddable UI components.
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> ·
   <a href="#features">Features</a> ·
-  <a href="#observability">Observability</a> ·
   <a href="#embeddable-components">Components</a> ·
   <a href="#self-hosting">Self-Hosting</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
@@ -38,7 +36,7 @@
 
 ## What is Seentics?
 
-Seentics is a self-hosted platform that combines **web analytics** and **backend observability** in one place. Track your visitors and understand user behavior with heatmaps, replays, and funnels — then monitor your backend services with structured logs, error tracking, and distributed traces. All without cookies, fingerprinting, or sending data to third parties.
+Seentics is a self-hosted web analytics platform that helps you understand your visitors and improve conversions. Track pageviews, custom events, and user behavior with heatmaps, session replays, and funnels — all without cookies, fingerprinting, or sending data to third parties.
 
 You own your data. Deploy in minutes with Docker.
 
@@ -50,7 +48,7 @@ You own your data. Deploy in minutes with Docker.
 
 **Overview** — single-page dashboard: summary cards, traffic chart, top pages, traffic sources, geography, devices, and browsers. Drill into any section via modal — no separate pages needed. Filter by date range, compare any two periods.
 
-**Realtime** — live visitor count, currently active pages, live event feed with device and country.
+**Realtime** — live visitor count, currently active pages, and a live event feed with device and country.
 
 **Goals** — page visit goals, custom event goals, and CSS selector click goals. See conversion rates and completion trends.
 
@@ -64,25 +62,15 @@ You own your data. Deploy in minutes with Docker.
 
 **Scheduled Reports** — automated PDF/email digests on any schedule.
 
-### Behavior
+### Behavior Analytics
 
 **Heatmaps** — click and scroll overlays for any page. Supports desktop, tablet, and mobile viewports. Live mode shows clicks as they happen.
 
-**Session Replays** — record full user sessions. Automatic PII masking. Stored in S3-compatible storage. Searchable by page, duration, country, device.
+**Session Replays** — record full user sessions with automatic PII masking. Stored in S3-compatible storage. Searchable by page, duration, country, and device.
 
-**Path Analysis** — visualize user flows between pages. See where users come from and where they go.
+**Path Analysis** — visualize user flows between pages. See where users come from and where they go next.
 
 **Behavioral Automations** — trigger popups, banners, webhooks, or custom JavaScript based on exit intent, scroll depth, time on page, and more — without code deploys.
-
-### Observability
-
-**Logs** — structured log ingestion (JSON) from any service. Full-text search, filter by service/level/time, volume chart, live tail via SSE. Click any log line to see all attributes and jump to the related trace.
-
-**Error Tracking** — errors are automatically grouped by fingerprint (service + type + message + stack frame). See occurrence counts, first/last seen, affected users. Full stack trace viewer. Mark errors as resolved, ignored, or watch for regressions.
-
-**Distributed Tracing** — OpenTelemetry-compatible span ingestion. Trace list with latency (p50/p95/p99). Waterfall span view shows the full request flow across services. Click any span to see attributes, events, and duration.
-
-**Metrics** — push custom gauges, counters, and histograms. RED metrics (requests, errors, duration) per service. Build charts for any metric in your dashboards.
 
 ### Developer Tools
 
@@ -92,7 +80,7 @@ You own your data. Deploy in minutes with Docker.
 
 **Webhooks** — push analytics events to any endpoint on configurable triggers.
 
-**`@seentics/components`** — embeddable React components for analytics and observability. Drop into any app with an API key.
+**`@seentics/components`** — embeddable React components for analytics. Drop into any app with an API key.
 
 **OpenAPI Reference** — full API explorer built into the dashboard.
 
@@ -104,7 +92,7 @@ You own your data. Deploy in minutes with Docker.
 |---|---|
 | Backend API | Go 1.24 (Gin) |
 | Frontend | Next.js 14, Tailwind CSS, shadcn/ui |
-| Analytics & Observability DB | ClickHouse |
+| Analytics DB | ClickHouse |
 | Metadata DB | PostgreSQL 15 |
 | Event Streaming | NATS |
 | Object Storage | S3-compatible (MinIO for local dev) |
@@ -161,72 +149,6 @@ Create goals in **Settings → Goals**:
 
 ---
 
-## Observability Setup
-
-### Node.js / Next.js
-
-```bash
-npm install @seentics/node
-```
-
-```typescript
-import { Seentics } from '@seentics/node'
-
-const seentics = new Seentics({
-  apiKey: 'sk_proj_...',
-  service: 'my-api',
-  environment: 'production',
-})
-
-// Auto-captures: unhandled exceptions, unhandled rejections
-
-// Manual
-seentics.log.info('User signed up', { userId: '123' })
-seentics.log.error('Payment failed', { orderId: 'ord_456' })
-seentics.captureError(err, { userId: '123' })
-
-// Express / Next.js middleware — auto request tracing
-app.use(seentics.middleware())
-```
-
-### Go
-
-```bash
-go get github.com/seentics/go-sdk
-```
-
-```go
-client := seentics.New(seentics.Config{
-  APIKey:      "sk_proj_...",
-  Service:     "checkout-service",
-  Environment: "production",
-})
-defer client.Flush()
-
-log := zerolog.New(client.Writer()).With().Timestamp().Logger()
-
-ctx, span := client.StartSpan(ctx, "process-payment")
-defer span.End()
-```
-
-### HTTP (any language)
-
-```bash
-# Logs
-curl http://localhost:3002/api/v1/observability/logs/ingest \
-  -H "Authorization: Bearer sk_proj_..." \
-  -H "Content-Type: application/json" \
-  -d '{"logs":[{"timestamp":"2026-03-25T10:00:00Z","level":"error","service":"auth","message":"Token expired"}]}'
-
-# Errors
-curl http://localhost:3002/api/v1/observability/errors/ingest \
-  -H "Authorization: Bearer sk_proj_..." \
-  -H "Content-Type: application/json" \
-  -d '{"errors":[{"service":"api","error_type":"TypeError","message":"Cannot read properties of undefined","stack_trace":"..."}]}'
-```
-
----
-
 ## Embeddable Components
 
 Drop any chart or view into your own React app.
@@ -241,9 +163,6 @@ import {
   AnalyticsSummary,
   TrafficChart,
   FunnelChart,
-  ErrorList,
-  LogExplorer,
-  TraceWaterfall,
 } from '@seentics/components'
 
 <SeenticsProvider apiKey="sk_age_..." baseUrl="https://api.yourdomain.com">
@@ -251,8 +170,6 @@ import {
   <AnalyticsSummary siteId="site_abc" dateRange="last_7_days" />
   <TrafficChart siteId="site_abc" metric="pageviews" groupBy="day" />
   <FunnelChart siteId="site_abc" funnelId="funnel_xyz" />
-  <ErrorList projectId="proj_xyz" service="checkout-api" />
-  <LogExplorer projectId="proj_xyz" defaultLevel="error" />
 </SeenticsProvider>
 ```
 
@@ -274,12 +191,7 @@ seentics/
 │   │   │   ├── heatmaps/        # Click + scroll recording + query
 │   │   │   ├── replays/         # Session recording + playback
 │   │   │   ├── workflows/       # Behavioral automations
-│   │   │   ├── tracker/         # seentics.js serving
-│   │   │   └── observability/   # Logs, errors, traces, metrics
-│   │   │       ├── logs/
-│   │   │       ├── errors/
-│   │   │       ├── traces/
-│   │   │       └── metrics/
+│   │   │   └── tracker/         # seentics.js serving
 │   │   └── shared/
 │   │       ├── database/        # Postgres + ClickHouse connections
 │   │       ├── config/          # Env config + feature flags
@@ -296,18 +208,18 @@ seentics/
 │       │       ├── goals/                # Goals page
 │       │       ├── funnels/              # Funnels page
 │       │       ├── events/               # Events page
-│       │       ├── behavior/             # Heatmaps, replays, paths, automations
-│       │       ├── observability/        # Logs, errors, traces, metrics
-│       │       ├── developers/           # API keys, webhooks, components
+│       │       ├── heatmaps/             # Heatmaps
+│       │       ├── replays/              # Session replays
+│       │       ├── paths/                # Path analysis
+│       │       ├── automations/          # Behavioral automations
+│       │       ├── api-keys/             # API key management
+│       │       ├── ui-blocks/            # Embeddable components
+│       │       ├── docs/                 # API reference
 │       │       └── settings/             # General, team, integrations, alerts
 │       ├── components/                   # UI components per section
 │       ├── lib/                          # API clients (one file per feature)
 │       ├── hooks/                        # Custom React hooks
 │       └── stores/                       # Zustand global state
-│
-├── sdks/                        # Official SDKs (MIT licensed)
-│   ├── node/                    # @seentics/node — Node.js / Next.js
-│   └── go/                      # github.com/seentics/go-sdk
 │
 ├── packages/                    # Embeddable UI packages (MIT licensed)
 │   └── components/              # @seentics/components — React components
@@ -366,14 +278,14 @@ Browser ──→ Next.js Frontend (:3000)
     │             │              │          │
 ClickHouse    PostgreSQL       NATS       Redis
 (analytics    (metadata,    (event      (cache,
- + obs data)   users,        streams)    rate limit)
+ data)         users,        streams)    rate limit)
                sites)
                   │
                 MinIO
           (replays + assets)
 ```
 
-Events and logs are published to **NATS** and consumed by background workers that batch-write to **ClickHouse**. Redis handles caching and rate limiting. Session replays are stored in S3-compatible storage.
+Events are published to **NATS** and consumed by background workers that batch-write to **ClickHouse**. Redis handles caching and rate limiting. Session replays are stored in S3-compatible storage.
 
 ---
 
@@ -394,7 +306,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup.
 
 Seentics is licensed under [AGPL v3.0](LICENSE). You can self-host freely. Modifications must be open-sourced under the same license.
 
-The `@seentics/node`, `@seentics/go-sdk`, and `@seentics/components` packages are MIT licensed.
+The `@seentics/components` package is MIT licensed.
 
 ---
 

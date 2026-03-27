@@ -214,11 +214,11 @@ export const demoAnalyticsData = () => ({
 
   goalStats: {
     goals: [
-      { event_type: 'Signup Completed', count: 4876, sample_properties: { page: '/signup-complete' } },
-      { event_type: 'Newsletter Subscribe', count: 8765, sample_properties: { element_id: 'newsletter-form', form_name: 'newsletter' } },
-      { event_type: 'Pricing Page Visit', count: 12543, sample_properties: { page: '/pricing' } },
-      { event_type: 'Demo Video Watched', count: 6543, sample_properties: { video_id: 'product-demo', element_text: 'Watch Demo' } },
-      { event_type: 'Contact Form Submit', count: 2187, sample_properties: { form_name: 'contact-form', element_id: 'contact-submit' } },
+      { id: 'g1', name: 'Signup Completed', goal_type: 'event', completions: 4876, conversion_rate: 12.4, unique_visitors: 3900, target: 'signup_complete' },
+      { id: 'g2', name: 'Newsletter Subscribe', goal_type: 'event', completions: 8765, conversion_rate: 8.2, unique_visitors: 7200, target: 'newsletter_form' },
+      { id: 'g3', name: 'Pricing Page Visit', goal_type: 'pageview', completions: 12543, conversion_rate: 24.1, unique_visitors: 9800, target: '/pricing' },
+      { id: 'g4', name: 'Demo Video Watched', goal_type: 'click', completions: 6543, conversion_rate: 5.7, unique_visitors: 5100, target: '#demo-video' },
+      { id: 'g5', name: 'Contact Form Submit', goal_type: 'event', completions: 2187, conversion_rate: 3.9, unique_visitors: 1800, target: 'contact_submit' },
     ],
   },
 

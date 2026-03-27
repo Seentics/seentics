@@ -1,26 +1,27 @@
 # Seentics Analytics Frontend
 
-The modern user interface for the Seentics Open Source Analytics platform. Built with Next.js, React, and TypeScript.
+The modern user interface for the Seentics web analytics platform. Built with Next.js, React, and TypeScript.
 
-## 🚀 Features
+## Features
 
-- **📊 Real-time Dashboard**: Live insights into user behavior, sessions, and events.
-- **🎨 Modern UI**: Responsive design with Dark/Light mode support.
-- **⚡ Performance**: Optimized with Next.js App Router and TanStack Query.
-- **🗺️ Geolocation**: Visual breakdown of visitor traffic by country and region.
+- **Web Analytics**: Overview dashboard with traffic charts, top pages, sources, geography, devices, and browsers. Compare any two date ranges.
+- **Realtime**: Live visitor count, active pages, and event feed with device and country context.
+- **Goals & Funnels**: Track page visit goals, custom event goals, and CSS selector click goals. Build multi-step conversion funnels and visualize drop-off.
+- **Events**: Custom event tracking with occurrence counts, unique users, and property breakdowns.
+- **Behavior Analytics**: Heatmaps (click and scroll overlays), session replays with PII masking, path analysis, and behavioral automations.
+- **Developer Tools**: API key management, embeddable UI Blocks, and an integrated API reference.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: [Next.js 14+](https://nextjs.org/)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **Visualization**: [Recharts](https://recharts.org/)
 - **State**: [Zustand](https://zustand-demo.pmnd.rs/)
 
-## 📦 Installation
+## Installation
 
 ### 1. Configure Environment
 ```bash
-# Copy the environment template
 cp .env.example .env.local
 ```
 
@@ -32,9 +33,7 @@ npm run dev
 
 Visit [http://localhost:3000](http://localhost:3000) to access the dashboard.
 
-## 🔧 Environment Configuration
-
-The following variables are required in `.env.local`:
+## Environment Configuration
 
 ```env
 # Point this to your Analytics Backend
@@ -45,7 +44,7 @@ NEXTAUTH_SECRET=your-secure-secret-here
 NEXTAUTH_URL=http://localhost:3000
 ```
 
-## 🧪 Development Scripts
+## Development Scripts
 
 - `npm run dev`: Start development server
 - `npm run build`: Build for production
@@ -54,4 +53,4 @@ NEXTAUTH_URL=http://localhost:3000
 
 ---
 
-Built with ❤️ for the Open Source community.
+Built with care for the open source community.

@@ -35,7 +35,7 @@ import {
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
-import { Download, Globe, PlusCircle, Users, Target, X, Gauge, Settings, GitBranch, Activity, Filter, Route, Shield, Code, BarChart3, Eye } from 'lucide-react';
+import { Download, Globe, PlusCircle, Users, Target, X, Gauge, GitBranch } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
@@ -50,7 +50,6 @@ import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { FunnelManagement } from '@/components/analytics/FunnelManagement';
 import { PathAnalysis } from '@/components/analytics/PathAnalysis';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Logo } from '@/components/ui/logo';
 
 // Pure helper — defined outside component so it's never re-created on render
 function categorizeReferrer(referrer: string): string {
@@ -439,14 +438,6 @@ export default function WebsiteDashboardPage() {
       <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* ── Header — single compact row ── */}
         <div className="flex items-center gap-2 mb-6 flex-wrap">
-          {/* Logo */}
-          <div className="mr-auto sm:mr-0">
-            <Logo size="sm" showText className="hidden sm:flex" />
-            <Logo size="sm" className="sm:hidden" />
-          </div>
-
-          {/* Separator */}
-          <div className="hidden sm:block w-px h-5 bg-border/60 mx-1" />
 
           {/* Website Switcher */}
           <Select value={websiteId} onValueChange={handleWebsiteChange}>
@@ -491,16 +482,7 @@ export default function WebsiteDashboardPage() {
             activeFiltersCount={Object.keys(advancedFilters).length}
           />
 
-          {/* Settings */}
-          <button
-            onClick={() => router.push(`/websites/${websiteId}/settings`)}
-            className="h-8 px-3 flex items-center gap-2 bg-card/60 hover:bg-card transition-colors rounded-md border border-border/50 text-[11px] font-semibold text-foreground"
-          >
-            <Settings className="h-3.5 w-3.5" />
-            <span>Settings</span>
-          </button>
-
-          {/* Theme */}
+{/* Theme */}
           <div className="h-8 w-8 flex items-center justify-center bg-card/50 hover:bg-card transition-colors rounded-md border border-border/40">
             <ThemeToggle />
           </div>
@@ -734,23 +716,7 @@ export default function WebsiteDashboardPage() {
 
         {/* PATH ANALYSIS */}
         <PathAnalysis websiteId={websiteId} dateRange={dateRange} />
-
-        {/* FUNNELS / USER JOURNEYS */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <GitBranch className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold tracking-tight">Funnels</h2>
-            <div className="h-px bg-border flex-1 ml-3" />
-          </div>
-
-          <ChartErrorBoundary label="Funnels">
-            <FunnelManagement
-              websiteId={websiteId}
-              dateRange={dateRange}
-            />
-          </ChartErrorBoundary>
-        </div>
-
+        
         {/* Detailed Data Modal */}
         {selectedModal && (
           <DetailedDataModal
