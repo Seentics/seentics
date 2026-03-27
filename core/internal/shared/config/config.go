@@ -28,6 +28,14 @@ type Config struct {
 	ClickHouseUser     string
 	ClickHousePassword string
 	ClickHouseDB       string
+
+	// S3 / MinIO — session recording storage
+	S3Endpoint  string
+	S3AccessKey string
+	S3SecretKey string
+	S3Bucket    string
+	S3UseSSL    bool
+	S3Region    string
 }
 
 func Load() (*Config, error) {
@@ -54,6 +62,13 @@ func Load() (*Config, error) {
 		ClickHouseUser:     getEnvOrDefault("CLICKHOUSE_USER", "default"),
 		ClickHousePassword: getEnvOrDefault("CLICKHOUSE_PASSWORD", ""),
 		ClickHouseDB:       getEnvOrDefault("CLICKHOUSE_DB", "seentics"),
+
+		S3Endpoint:  getEnvOrDefault("S3_ENDPOINT", "localhost:9000"),
+		S3AccessKey: getEnvOrDefault("S3_ACCESS_KEY", "minioadmin"),
+		S3SecretKey: getEnvOrDefault("S3_SECRET_KEY", "minioadmin"),
+		S3Bucket:    getEnvOrDefault("S3_BUCKET", "seentics-replays"),
+		S3UseSSL:    GetEnvAsBool("S3_USE_SSL", false),
+		S3Region:    getEnvOrDefault("S3_REGION", "us-east-1"),
 	}
 
 	// Validate required fields
@@ -97,4 +112,25 @@ func GetEnvAsInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+// S3Config holds MinIO/S3-compatible storage settings used for session replay data.
+type S3Config struct {
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	Bucket    string
+	UseSSL    bool
+	Region    string
+}
+
+// S3 returns the S3/MinIO config extracted from the main Config.
+func (c *Config) S3() S3Config {
+	return S3Config{
+		Endpoint:  c.S3Endpoint,
+		AccessKey: c.S3AccessKey,
+		SecretKey: c.S3SecretKey,
+		Bucket:    c.S3Bucket,
+		UseSSL:    c.S3UseSSL,
+		Region:    c.S3Region,
+	}
 }

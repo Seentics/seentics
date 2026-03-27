@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 
 	ginGzip "github.com/gin-contrib/gzip"
@@ -16,26 +17,32 @@ import (
 	"github.com/Seentics/seentics/internal/shared/middleware"
 
 	"github.com/Seentics/seentics/internal/modules/analytics/handlers"
-	authHandlerPkg   "github.com/Seentics/seentics/internal/modules/auth/handlers"
-	funnelHandlerPkg "github.com/Seentics/seentics/internal/modules/funnels/handlers"
-	trackerPkg       "github.com/Seentics/seentics/internal/modules/tracker"
-	websiteHandlerPkg "github.com/Seentics/seentics/internal/modules/websites/handlers"
+	authHandlerPkg       "github.com/Seentics/seentics/internal/modules/auth/handlers"
+	automationHandlerPkg "github.com/Seentics/seentics/internal/modules/automations/handlers"
+	funnelHandlerPkg     "github.com/Seentics/seentics/internal/modules/funnels/handlers"
+	heatmapHandlerPkg    "github.com/Seentics/seentics/internal/modules/heatmaps/handlers"
+	replayHandlerPkg     "github.com/Seentics/seentics/internal/modules/replays/handlers"
+	trackerPkg           "github.com/Seentics/seentics/internal/modules/tracker"
+	websiteHandlerPkg    "github.com/Seentics/seentics/internal/modules/websites/handlers"
 )
 
 // appHandlers bundles all HTTP handlers.
 type appHandlers struct {
-	analytics *handlers.AnalyticsHandler
-	privacy   *handlers.PrivacyHandler
-	health    *handlers.HealthHandler
-	admin     *handlers.AdminHandler
-	internal  *handlers.InternalHandler
-	auth      *authHandlerPkg.AuthHandler
-	funnel    *funnelHandlerPkg.FunnelHandler
-	website   *websiteHandlerPkg.WebsiteHandler
-	tracker   *trackerPkg.TrackerHandler
+	analytics  *handlers.AnalyticsHandler
+	privacy    *handlers.PrivacyHandler
+	health     *handlers.HealthHandler
+	admin      *handlers.AdminHandler
+	internal   *handlers.InternalHandler
+	auth       *authHandlerPkg.AuthHandler
+	funnel     *funnelHandlerPkg.FunnelHandler
+	website    *websiteHandlerPkg.WebsiteHandler
+	heatmap    *heatmapHandlerPkg.HeatmapHandler
+	replay     *replayHandlerPkg.ReplayHandler
+	automation *automationHandlerPkg.AutomationHandler
+	tracker    *trackerPkg.TrackerHandler
 }
 
-func setupRouter(cfg *config.Config, appCache *cache.Cache, h appHandlers, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, appCache *cache.Cache, db *pgxpool.Pool, h appHandlers, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -81,9 +88,15 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, h appHandlers, logge
 		registerPrivacyRoutes(v1, h)
 		registerWebsiteRoutes(v1, h)
 		registerFunnelRoutes(v1, h)
+		registerHeatmapRoutes(v1, h)
+		registerReplayRoutes(v1, h)
+		registerAutomationRoutes(v1, h)
 		registerAdminRoutes(v1, h)
 		registerInternalRoutes(v1, h)
+		registerAPIKeyManagementRoutes(v1, db, logger)
 	}
+
+	registerRawAPIRoutes(router, db, h, logger)
 
 	return router
 }
@@ -211,6 +224,34 @@ func registerFunnelRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	}
 
 	v1.GET("/funnels/active", h.funnel.GetActiveFunnels)
+}
+
+func registerHeatmapRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	heatmaps := v1.Group("/heatmaps/:website_id")
+	{
+		heatmaps.GET("/pages", h.heatmap.ListPages)
+		heatmaps.GET("/data", h.heatmap.GetHeatmap)
+	}
+}
+
+func registerReplayRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	replays := v1.Group("/replays/:website_id")
+	{
+		replays.GET("", h.replay.ListSessions)
+		replays.GET("/:session_id", h.replay.GetSession)
+	}
+}
+
+func registerAutomationRoutes(v1 *gin.RouterGroup, h appHandlers) {
+	automations := v1.Group("/websites/:website_id/automations")
+	{
+		automations.GET("", h.automation.List)
+		automations.POST("", h.automation.Create)
+		automations.GET("/:id", h.automation.Get)
+		automations.PUT("/:id", h.automation.Update)
+		automations.DELETE("/:id", h.automation.Delete)
+		automations.GET("/:id/executions", h.automation.ListExecutions)
+	}
 }
 
 func registerAdminRoutes(v1 *gin.RouterGroup, h appHandlers) {

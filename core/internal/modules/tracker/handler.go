@@ -6,38 +6,47 @@ import (
 	"time"
 
 	analyticsModels "github.com/Seentics/seentics/internal/modules/analytics/models"
-	analyticsSvc "github.com/Seentics/seentics/internal/modules/analytics/services"
-	funnelSvc "github.com/Seentics/seentics/internal/modules/funnels/services"
-	websiteSvc "github.com/Seentics/seentics/internal/modules/websites/services"
+	analyticsSvc    "github.com/Seentics/seentics/internal/modules/analytics/services"
+	automationSvc   "github.com/Seentics/seentics/internal/modules/automations/services"
+	funnelModels    "github.com/Seentics/seentics/internal/modules/funnels/models"
+	funnelSvc       "github.com/Seentics/seentics/internal/modules/funnels/services"
+	heatmapSvc      "github.com/Seentics/seentics/internal/modules/heatmaps/services"
+	replaySvc       "github.com/Seentics/seentics/internal/modules/replays/services"
+	websiteSvc      "github.com/Seentics/seentics/internal/modules/websites/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
-// TrackerHandler provides two endpoints for the tracker script:
-//   GET  /tracker/init/:site_id  — returns config + active funnels
-//   POST /tracker/collect        — receives all event types in one flat array
 type TrackerHandler struct {
-	websites *websiteSvc.WebsiteService
-	events   *analyticsSvc.EventService
-	funnels  *funnelSvc.FunnelService
-	logger   zerolog.Logger
+	websites    *websiteSvc.WebsiteService
+	events      *analyticsSvc.EventService
+	funnels     *funnelSvc.FunnelService
+	heatmaps    *heatmapSvc.HeatmapService
+	replays     *replaySvc.ReplayService
+	automations *automationSvc.AutomationService
+	logger      zerolog.Logger
 }
 
 func NewTrackerHandler(
-	websites *websiteSvc.WebsiteService,
-	events *analyticsSvc.EventService,
-	funnels *funnelSvc.FunnelService,
-	logger zerolog.Logger,
+	websites    *websiteSvc.WebsiteService,
+	events      *analyticsSvc.EventService,
+	funnels     *funnelSvc.FunnelService,
+	heatmaps    *heatmapSvc.HeatmapService,
+	replays     *replaySvc.ReplayService,
+	automations *automationSvc.AutomationService,
+	logger      zerolog.Logger,
 ) *TrackerHandler {
-	return &TrackerHandler{websites: websites, events: events, funnels: funnels, logger: logger}
+	return &TrackerHandler{
+		websites: websites, events: events, funnels: funnels,
+		heatmaps: heatmaps, replays: replays, automations: automations,
+		logger: logger,
+	}
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
-// Init returns site config and active funnels in a single response.
-// Cached 60 s on the client to avoid a request on every page load.
 func (h *TrackerHandler) Init(c *gin.Context) {
 	siteID := c.Param("site_id")
 	if siteID == "" {
@@ -46,7 +55,7 @@ func (h *TrackerHandler) Init(c *gin.Context) {
 	}
 
 	origin := originOf(c)
-	ctx := c.Request.Context()
+	ctx    := c.Request.Context()
 
 	config, err := h.websites.GetTrackerConfig(ctx, siteID, origin)
 	if err != nil {
@@ -58,39 +67,45 @@ func (h *TrackerHandler) Init(c *gin.Context) {
 	funnels, err := h.funnels.GetActiveFunnels(ctx, siteID, origin)
 	if err != nil {
 		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("tracker init: funnels fetch failed")
-		funnels = nil
+		funnels = []funnelModels.Funnel{}
+	}
+
+	// Return automations so the tracker script can evaluate conditions client-side
+	automations, err := h.automations.GetActive(ctx, siteID)
+	if err != nil {
+		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("tracker init: automations fetch failed")
+		automations = nil
 	}
 
 	c.Header("Cache-Control", "private, max-age=60, stale-while-revalidate=120")
-	c.JSON(http.StatusOK, gin.H{"config": config, "funnels": funnels})
+	c.JSON(http.StatusOK, gin.H{
+		"config":      config,
+		"funnels":     funnels,
+		"automations": automations,
+	})
 }
 
 // ── Collect ───────────────────────────────────────────────────────────────────
 
-// TrackerEvent is the wire format emitted by seentics.js for a single event.
 type TrackerEvent struct {
 	Type string                 `json:"type"`
 	Data map[string]interface{} `json:"data"`
-	TS   int64                  `json:"ts"`  // Unix milliseconds (client clock)
+	TS   int64                  `json:"ts"`
 	URL  string                 `json:"url"`
-	SID  string                 `json:"sid"` // session id
-	VID  string                 `json:"vid"` // visitor id
+	SID  string                 `json:"sid"`
+	VID  string                 `json:"vid"`
 }
 
-// CollectRequest mirrors the sectioned payload shape the tracker script sends.
-// Only non-empty sections are included, so all fields are optional.
 type CollectRequest struct {
 	SiteID      string         `json:"site_id"`
 	Domain      string         `json:"domain"`
-	Events      []TrackerEvent `json:"events,omitempty"`      // pageview, custom, identify, performance
-	Session     []TrackerEvent `json:"session,omitempty"`     // rec_snapshot, rec_mutation, rec_mouse …
-	Heatmaps    []TrackerEvent `json:"heatmaps,omitempty"`    // heatmap_click, heatmap_scroll
-	Funnels     []TrackerEvent `json:"funnels,omitempty"`     // funnel_step, funnel_complete
-	Automations []TrackerEvent `json:"automations,omitempty"` // automation_trigger
+	Events      []TrackerEvent `json:"events,omitempty"`
+	Session     []TrackerEvent `json:"session,omitempty"`
+	Heatmaps    []TrackerEvent `json:"heatmaps,omitempty"`
+	Funnels     []TrackerEvent `json:"funnels,omitempty"`
+	Automations []TrackerEvent `json:"automations,omitempty"`
 }
 
-// Collect receives all tracking data. Each section of the payload maps directly
-// to a category — no grouping needed. Sections are dispatched concurrently.
 func (h *TrackerHandler) Collect(c *gin.Context) {
 	ctx := c.Request.Context()
 
@@ -103,7 +118,6 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id is required"})
 		return
 	}
-
 	total := len(req.Events) + len(req.Session) + len(req.Heatmaps) + len(req.Funnels) + len(req.Automations)
 	if total == 0 {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "processed": 0})
@@ -114,7 +128,6 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 		return
 	}
 
-	// Validate website once — reused by all goroutines.
 	website, err := h.websites.GetWebsiteByAnyID(ctx, req.SiteID)
 	if err != nil || !website.IsActive {
 		c.JSON(http.StatusNotFound, gin.H{"error": "website not found or inactive"})
@@ -138,43 +151,95 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 	)
 	add := func(n int) { mu.Lock(); processed += n; mu.Unlock() }
 
-	dispatch := func(label string, evs []TrackerEvent) {
-		if len(evs) == 0 {
-			return
-		}
+	// ── Analytics (pageview / custom / identify / performance) ──────────────
+	if len(req.Events) > 0 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			resp, err := h.events.TrackBatchEvents(ctx, &analyticsModels.BatchEventRequest{
 				SiteID:   siteID,
 				Domain:   req.Domain,
-				Events:   toAnalyticsEvents(siteID, evs, now),
+				Events:   toAnalyticsEvents(siteID, req.Events, now),
 				ClientIP: clientIP,
 				ClientUA: clientUA,
 			})
 			if err != nil {
-				h.logger.Warn().Err(err).Str("site_id", siteID).Str("section", label).Msg("collect: dispatch failed")
+				h.logger.Warn().Err(err).Str("section", "events").Msg("collect: dispatch failed")
 				return
 			}
 			add(resp.EventsCount)
 		}()
 	}
 
-	dispatch("events",      req.Events)
-	dispatch("session",     req.Session)
-	dispatch("heatmaps",    req.Heatmaps)
-	dispatch("funnels",     req.Funnels)
-	dispatch("automations", req.Automations)
+	// ── Heatmaps → dedicated heatmap_points table ────────────────────────────
+	if len(req.Heatmaps) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			websiteUUID, err := uuid.Parse(website.ID.String())
+			if err != nil {
+				return
+			}
+			if err := h.heatmaps.ProcessEvents(ctx, websiteUUID, toHeatmapEvents(req.Heatmaps), clientUA); err != nil {
+				h.logger.Warn().Err(err).Str("section", "heatmaps").Msg("collect: dispatch failed")
+				return
+			}
+			add(len(req.Heatmaps))
+		}()
+	}
+
+	// ── Session recording → MinIO/S3 ─────────────────────────────────────────
+	if len(req.Session) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := h.replays.ProcessEvents(ctx, siteID, toReplayEvents(req.Session), clientUA, clientIP); err != nil {
+				h.logger.Warn().Err(err).Str("section", "session").Msg("collect: dispatch failed")
+				return
+			}
+			add(len(req.Session))
+		}()
+	}
+
+	// ── Funnels → analytics events table (event_type=funnel_step/complete) ──
+	if len(req.Funnels) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			resp, err := h.events.TrackBatchEvents(ctx, &analyticsModels.BatchEventRequest{
+				SiteID:   siteID,
+				Domain:   req.Domain,
+				Events:   toAnalyticsEvents(siteID, req.Funnels, now),
+				ClientIP: clientIP,
+				ClientUA: clientUA,
+			})
+			if err != nil {
+				h.logger.Warn().Err(err).Str("section", "funnels").Msg("collect: dispatch failed")
+				return
+			}
+			add(resp.EventsCount)
+		}()
+	}
+
+	// ── Automations → verify + record execution ───────────────────────────────
+	if len(req.Automations) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := h.automations.ProcessTriggers(ctx, siteID, toAutomationEvents(req.Automations)); err != nil {
+				h.logger.Warn().Err(err).Str("section", "automations").Msg("collect: dispatch failed")
+				return
+			}
+			add(len(req.Automations))
+		}()
+	}
 
 	wg.Wait()
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "processed": processed})
 }
 
-// ── Normalization ─────────────────────────────────────────────────────────────
+// ── Type converters ───────────────────────────────────────────────────────────
 
-// toAnalyticsEvents converts tracker wire events to the storage model.
-// Common analytics fields are promoted to top-level columns; everything else
-// is stored in Properties so nothing is lost.
 func toAnalyticsEvents(siteID string, evs []TrackerEvent, now time.Time) []analyticsModels.Event {
 	out := make([]analyticsModels.Event, 0, len(evs))
 	for _, e := range evs {
@@ -183,69 +248,28 @@ func toAnalyticsEvents(siteID string, evs []TrackerEvent, now time.Time) []analy
 	return out
 }
 
-func normalize(siteID string, e TrackerEvent, now time.Time) analyticsModels.Event {
-	ts := now
-	if e.TS > 0 {
-		candidate := time.UnixMilli(e.TS)
-		// Accept timestamps within ±24 h of server time to tolerate clock skew
-		// without accepting obviously bogus far-future or ancient values.
-		if candidate.After(now.Add(-24*time.Hour)) && candidate.Before(now.Add(time.Minute)) {
-			ts = candidate
-		}
+func toHeatmapEvents(evs []TrackerEvent) []heatmapSvc.TrackerEvent {
+	out := make([]heatmapSvc.TrackerEvent, len(evs))
+	for i, e := range evs {
+		out[i] = heatmapSvc.TrackerEvent{Type: e.Type, Data: e.Data, TS: e.TS, URL: e.URL, SID: e.SID, VID: e.VID}
 	}
+	return out
+}
 
-	ev := analyticsModels.Event{
-		ID:        uuid.New(),
-		WebsiteID: siteID,
-		VisitorID: e.VID,
-		SessionID: e.SID,
-		EventType: e.Type,
-		Page:      e.URL,
-		Timestamp: ts,
+func toReplayEvents(evs []TrackerEvent) []replaySvc.TrackerEvent {
+	out := make([]replaySvc.TrackerEvent, len(evs))
+	for i, e := range evs {
+		out[i] = replaySvc.TrackerEvent{Type: e.Type, Data: e.Data, TS: e.TS, URL: e.URL, SID: e.SID, VID: e.VID}
 	}
+	return out
+}
 
-	// Promote well-known data fields to dedicated columns; remainder → Properties.
-	props := make(analyticsModels.Properties)
-	for k, v := range e.Data {
-		switch k {
-		case "referrer":
-			if s, ok := v.(string); ok && s != "" {
-				ev.Referrer = &s
-			}
-		case "lang", "language":
-			if s, ok := v.(string); ok && s != "" {
-				ev.Language = &s
-			}
-		case "sw":
-			if n, ok := toInt(v); ok {
-				ev.ScreenWidth = &n
-			}
-		case "sh":
-			if n, ok := toInt(v); ok {
-				ev.ScreenHeight = &n
-			}
-		case "utm":
-			if m, ok := v.(map[string]interface{}); ok {
-				setStr := func(dst **string, key string) {
-					if s, ok := m[key].(string); ok && s != "" {
-						*dst = &s
-					}
-				}
-				setStr(&ev.UTMSource, "source")
-				setStr(&ev.UTMMedium, "medium")
-				setStr(&ev.UTMCampaign, "campaign")
-				setStr(&ev.UTMTerm, "term")
-				setStr(&ev.UTMContent, "content")
-			}
-		default:
-			props[k] = v
-		}
+func toAutomationEvents(evs []TrackerEvent) []automationSvc.TrackerEvent {
+	out := make([]automationSvc.TrackerEvent, len(evs))
+	for i, e := range evs {
+		out[i] = automationSvc.TrackerEvent{Type: e.Type, Data: e.Data, TS: e.TS, URL: e.URL, SID: e.SID, VID: e.VID}
 	}
-	if len(props) > 0 {
-		ev.Properties = props
-	}
-
-	return ev
+	return out
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -267,4 +291,72 @@ func toInt(v interface{}) (int, bool) {
 		return int(n), true
 	}
 	return 0, false
+}
+
+func normalize(siteID string, e TrackerEvent, now time.Time) analyticsModels.Event {
+	ts := now
+	if e.TS > 0 {
+		candidate := time.UnixMilli(e.TS)
+		if diff := now.Sub(candidate); diff < 24*time.Hour && diff > -24*time.Hour {
+			ts = candidate
+		}
+	}
+
+	ev := analyticsModels.Event{
+		ID:        uuid.New(),
+		WebsiteID: siteID,
+		VisitorID: e.VID,
+		SessionID: e.SID,
+		EventType: e.Type,
+		Page:      e.URL,
+		Timestamp: ts,
+	}
+
+	props := analyticsModels.Properties{}
+	for k, v := range e.Data {
+		switch k {
+		case "referrer":
+			if s, ok := v.(string); ok {
+				ev.Referrer = &s
+			}
+		case "lang", "language":
+			if s, ok := v.(string); ok {
+				ev.Language = &s
+			}
+		case "sw":
+			if n, ok := toInt(v); ok {
+				ev.ScreenWidth = &n
+			}
+		case "sh":
+			if n, ok := toInt(v); ok {
+				ev.ScreenHeight = &n
+			}
+		case "utm_source":
+			if s, ok := v.(string); ok {
+				ev.UTMSource = &s
+			}
+		case "utm_medium":
+			if s, ok := v.(string); ok {
+				ev.UTMMedium = &s
+			}
+		case "utm_campaign":
+			if s, ok := v.(string); ok {
+				ev.UTMCampaign = &s
+			}
+		case "utm_term":
+			if s, ok := v.(string); ok {
+				ev.UTMTerm = &s
+			}
+		case "utm_content":
+			if s, ok := v.(string); ok {
+				ev.UTMContent = &s
+			}
+		default:
+			props[k] = v
+		}
+	}
+	if len(props) > 0 {
+		ev.Properties = props
+	}
+	return ev
 }

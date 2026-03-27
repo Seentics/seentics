@@ -17,6 +17,7 @@ import (
 	"github.com/Seentics/seentics/internal/shared/config"
 	"github.com/Seentics/seentics/internal/shared/database"
 	"github.com/Seentics/seentics/internal/shared/migrations"
+	"github.com/Seentics/seentics/internal/shared/storage"
 	"github.com/Seentics/seentics/internal/shared/utils"
 
 	// Analytics module
@@ -26,19 +27,34 @@ import (
 	"github.com/Seentics/seentics/internal/modules/analytics/services"
 
 	// Auth module
-	authHandlerPkg  "github.com/Seentics/seentics/internal/modules/auth/handlers"
-	authRepoPkg     "github.com/Seentics/seentics/internal/modules/auth/repository"
-	authServicePkg  "github.com/Seentics/seentics/internal/modules/auth/services"
+	authHandlerPkg "github.com/Seentics/seentics/internal/modules/auth/handlers"
+	authRepoPkg    "github.com/Seentics/seentics/internal/modules/auth/repository"
+	authServicePkg "github.com/Seentics/seentics/internal/modules/auth/services"
 
 	// Funnels module
 	funnelHandlerPkg  "github.com/Seentics/seentics/internal/modules/funnels/handlers"
 	funnelRepoPkg     "github.com/Seentics/seentics/internal/modules/funnels/repository"
 	funnelServicePkg  "github.com/Seentics/seentics/internal/modules/funnels/services"
 
+	// Heatmaps module
+	heatmapHandlerPkg  "github.com/Seentics/seentics/internal/modules/heatmaps/handlers"
+	heatmapRepoPkg     "github.com/Seentics/seentics/internal/modules/heatmaps/repository"
+	heatmapServicePkg  "github.com/Seentics/seentics/internal/modules/heatmaps/services"
+
+	// Replays module
+	replayHandlerPkg  "github.com/Seentics/seentics/internal/modules/replays/handlers"
+	replayRepoPkg     "github.com/Seentics/seentics/internal/modules/replays/repository"
+	replayServicePkg  "github.com/Seentics/seentics/internal/modules/replays/services"
+
+	// Automations module
+	automationHandlerPkg  "github.com/Seentics/seentics/internal/modules/automations/handlers"
+	automationRepoPkg     "github.com/Seentics/seentics/internal/modules/automations/repository"
+	automationServicePkg  "github.com/Seentics/seentics/internal/modules/automations/services"
+
 	// Websites module
-	websiteHandlerPkg  "github.com/Seentics/seentics/internal/modules/websites/handlers"
-	websiteRepoPkg     "github.com/Seentics/seentics/internal/modules/websites/repository"
-	websiteServicePkg  "github.com/Seentics/seentics/internal/modules/websites/services"
+	websiteHandlerPkg "github.com/Seentics/seentics/internal/modules/websites/handlers"
+	websiteRepoPkg    "github.com/Seentics/seentics/internal/modules/websites/repository"
+	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
 
 	// Tracker module
 	trackerPkg "github.com/Seentics/seentics/internal/modules/tracker"
@@ -80,6 +96,13 @@ func main() {
 
 	utils.InitGlobalGeolocationService(appCache)
 
+	s3cfg := cfg.S3()
+	s3Client, err := storage.NewS3Client(s3cfg.Endpoint, s3cfg.AccessKey, s3cfg.SecretKey, s3cfg.Bucket, s3cfg.Region, s3cfg.UseSSL)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Failed to connect to MinIO/S3")
+	}
+	logger.Info().Str("endpoint", s3cfg.Endpoint).Str("bucket", s3cfg.Bucket).Msg("S3/MinIO connected")
+
 	ctx := context.Background()
 
 	// ── Repositories ────────────────────────────────────────────────────────
@@ -94,10 +117,13 @@ func main() {
 	pgAnalyticsRepo := repository.NewPostgresAnalyticsRepository(db)
 	var analyticsRepo repository.MainAnalyticsRepository = repository.NewClickHouseAnalyticsRepository(chConn, pgAnalyticsRepo, logger)
 
-	authRepo    := authRepoPkg.NewAuthRepository(db)
-	websiteRepo := websiteRepoPkg.NewWebsiteRepository(db)
-	funnelRepo  := funnelRepoPkg.NewFunnelRepository(db, chConn)
-	privacyRepo := privacy.NewPrivacyRepository(db)
+	authRepo         := authRepoPkg.NewAuthRepository(db)
+	websiteRepo      := websiteRepoPkg.NewWebsiteRepository(db)
+	funnelRepo       := funnelRepoPkg.NewFunnelRepository(db, chConn)
+	privacyRepo      := privacy.NewPrivacyRepository(db)
+	heatmapRepo      := heatmapRepoPkg.NewHeatmapRepository(db)
+	replayRepo       := replayRepoPkg.New(db, s3Client)
+	automationRepo   := automationRepoPkg.NewAutomationRepository(db)
 
 	// ── Services ────────────────────────────────────────────────────────────
 
@@ -107,32 +133,38 @@ func main() {
 		cfg.Environment, logger,
 	)
 
-	authService      := authServicePkg.NewAuthService(authRepo, cfg, logger)
-	eventService     := services.NewEventService(eventRepo, db, websiteService, logger, rdb)
-	analyticsService := services.NewAnalyticsService(analyticsRepo, websiteService, logger, appCache)
-	privacyService   := services.NewPrivacyService(privacyRepo, websiteService, logger)
-	funnelService    := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
+	authService       := authServicePkg.NewAuthService(authRepo, cfg, logger)
+	eventService      := services.NewEventService(eventRepo, db, websiteService, logger, rdb)
+	analyticsService  := services.NewAnalyticsService(analyticsRepo, websiteService, logger, appCache)
+	privacyService    := services.NewPrivacyService(privacyRepo, websiteService, logger)
+	funnelService     := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
+	heatmapService    := heatmapServicePkg.NewHeatmapService(heatmapRepo, logger)
+	replayService     := replayServicePkg.NewReplayService(replayRepo, logger)
+	automationService := automationServicePkg.NewAutomationService(automationRepo, logger)
 
 	analyticsService.StartCacheWarmer(ctx)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 
 	h := appHandlers{
-		analytics: handlers.NewAnalyticsHandler(analyticsService, logger),
-		privacy:   handlers.NewPrivacyHandler(privacyService, logger),
-		health:    handlers.NewHealthHandler(db, logger),
-		admin:     handlers.NewAdminHandler(eventRepo, logger),
-		internal:  handlers.NewInternalHandler(db, logger),
-		auth:      authHandlerPkg.NewAuthHandler(authService, logger),
-		funnel:    funnelHandlerPkg.NewFunnelHandler(funnelService),
-		website:   websiteHandlerPkg.NewWebsiteHandler(websiteService, logger),
-		tracker:   trackerPkg.NewTrackerHandler(websiteService, eventService, funnelService, logger),
+		analytics:  handlers.NewAnalyticsHandler(analyticsService, logger),
+		privacy:    handlers.NewPrivacyHandler(privacyService, logger),
+		health:     handlers.NewHealthHandler(db, logger),
+		admin:      handlers.NewAdminHandler(eventRepo, logger),
+		internal:   handlers.NewInternalHandler(db, logger),
+		auth:       authHandlerPkg.NewAuthHandler(authService, logger),
+		funnel:     funnelHandlerPkg.NewFunnelHandler(funnelService),
+		website:    websiteHandlerPkg.NewWebsiteHandler(websiteService, logger),
+		heatmap:    heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger),
+		replay:     replayHandlerPkg.NewReplayHandler(replayService, logger),
+		automation: automationHandlerPkg.NewAutomationHandler(automationService, logger),
+		tracker:    trackerPkg.NewTrackerHandler(websiteService, eventService, funnelService, heatmapService, replayService, automationService, logger),
 	}
 	h.internal.SetClickHouse(chConn)
 
 	// ── HTTP Server ─────────────────────────────────────────────────────────
 
-	router := setupRouter(cfg, appCache, h, logger)
+	router := setupRouter(cfg, appCache, db, h, logger)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,
