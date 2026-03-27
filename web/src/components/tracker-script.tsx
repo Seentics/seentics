@@ -29,7 +29,7 @@ export default function TrackerScript() {
       id="seentics-tracker"
       async
       src={trackerUrl}
-      data-site-id={siteId}
+      data-website-id={siteId}
       {...(apiHost ? { 'data-api-host': apiHost } : {})}
       strategy="afterInteractive"
     />
