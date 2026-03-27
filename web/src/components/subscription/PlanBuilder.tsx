@@ -8,7 +8,7 @@ import {
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
-  plan: 'free' | 'basic' | 'growth' | 'pro';
+  plan: 'starter' | 'basic' | 'growth' | 'pro';
   price: number;
   billing: 'monthly' | 'yearly';
 }
@@ -21,20 +21,22 @@ interface PlanBuilderProps {
 
 const PLANS = [
   {
-    id: 'free' as const,
+    id: 'starter' as const,
     name: 'Starter',
     priceMonthly: 0,
     priceYearly: 0,
     description: 'For side projects and personal sites',
     icon: Zap,
-    color: 'text-indigo-500',
-    borderColor: 'border-indigo-500',
-    bgColor: 'bg-indigo-500',
+    color: 'text-slate-500',
+    borderColor: 'border-slate-400',
+    bgColor: 'bg-slate-500',
     features: [
       '1 Website',
-      '10,000 Monthly Pageviews',
+      '10,000 Monthly Events',
+      '100 Session Recordings',
+      '3 Heatmap Pages',
       '1 Funnel',
-      '2 Goals',
+      '1 Automation',
       '30 Day Data Retention',
       'Community Support',
     ],
@@ -42,20 +44,21 @@ const PLANS = [
   {
     id: 'basic' as const,
     name: 'Basic',
-    priceMonthly: 7,
-    priceYearly: 5,
-    priceYearlyTotal: 60,
-    description: 'For small businesses',
+    priceMonthly: 15,
+    priceYearly: 12,
+    priceYearlyTotal: 144,
+    description: 'For hobby projects and small sites',
     icon: Rocket,
     color: 'text-teal-500',
     borderColor: 'border-teal-500',
     bgColor: 'bg-teal-500',
     features: [
-      '3 Websites',
-      '100,000 Monthly Pageviews',
+      '2 Websites',
+      '100,000 Monthly Events',
+      '3,000 Session Recordings',
+      '10 Heatmap Pages',
       '5 Funnels',
-      '10 Goals',
-      'UTM Campaign Tracking',
+      '5 Automations',
       '1 Year Data Retention',
       'Email Support',
     ],
@@ -63,9 +66,9 @@ const PLANS = [
   {
     id: 'growth' as const,
     name: 'Growth',
-    priceMonthly: 14,
-    priceYearly: 11,
-    priceYearlyTotal: 132,
+    priceMonthly: 29,
+    priceYearly: 23,
+    priceYearlyTotal: 278,
     description: 'For growing businesses',
     icon: TrendingUp,
     popular: true,
@@ -73,12 +76,12 @@ const PLANS = [
     borderColor: 'border-indigo-500',
     bgColor: 'bg-indigo-500',
     features: [
-      '10 Websites',
-      '500,000 Monthly Pageviews',
-      'Unlimited Funnels',
-      'Unlimited Goals',
-      'UTM Campaign Tracking',
-      'Geographic Map View',
+      '3 Websites',
+      '200,000 Monthly Events',
+      '10,000 Session Recordings',
+      'Unlimited Heatmaps',
+      '10 Funnels',
+      '10 Automations',
       '2 Year Data Retention',
       'API Access',
       'Email Support',
@@ -87,21 +90,21 @@ const PLANS = [
   {
     id: 'pro' as const,
     name: 'Pro',
-    priceMonthly: 29,
-    priceYearly: 23,
-    priceYearlyTotal: 276,
+    priceMonthly: 79,
+    priceYearly: 63,
+    priceYearlyTotal: 758,
     description: 'For scaling teams',
     icon: Crown,
     color: 'text-amber-500',
     borderColor: 'border-amber-500',
     bgColor: 'bg-amber-500',
     features: [
-      'Unlimited Websites',
-      '2,000,000 Monthly Pageviews',
+      '15 Websites',
+      '2,000,000 Monthly Events',
+      '50,000 Session Recordings',
+      'Unlimited Heatmaps',
       'Unlimited Funnels',
-      'Unlimited Goals',
-      'UTM Campaign Tracking',
-      'Geographic Map View',
+      'Unlimited Automations',
       '5 Year Data Retention',
       'API Access',
       'Team Management',
@@ -114,7 +117,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
   const [loadingPlan, setLoadingPlan] = React.useState<string | null>(null);
   const [billing, setBilling] = React.useState<'monthly' | 'yearly'>('monthly');
 
-  const handleSubscribe = (planId: 'free' | 'basic' | 'growth' | 'pro') => {
+  const handleSubscribe = (planId: 'starter' | 'basic' | 'growth' | 'pro') => {
     if (!onSubscribe) return;
     const plan = PLANS.find(p => p.id === planId);
     if (!plan) return;
@@ -195,7 +198,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan }: PlanBuilderPr
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : isCurrent ? (
             'Current Plan'
-          ) : plan.id === 'free' ? (
+          ) : plan.id === 'starter' ? (
             <>Start Free <ArrowRight className="h-3.5 w-3.5" /></>
           ) : (
             <>Get {plan.name} <ArrowRight className="h-3.5 w-3.5" /></>

@@ -20,7 +20,8 @@ const planPriceMap: Record<string, number> = {
     starter: 0,
     basic: 15,
     growth: 29,
-    pro: 59,
+    pro: 79,
+    enterprise: 399,
 };
 
 const planDescriptions: Record<string, string> = {
@@ -32,11 +33,12 @@ const planDescriptions: Record<string, string> = {
 };
 
 const planFeatures: Record<string, string[]> = {
-    free: ['Analytics Dashboard', '10K Monthly Events', '1 Website', '1 Funnel', '1 Automation', '3 Heatmaps', '100 Session Recordings', '30 Day Data Retention', 'Community Support'],
-    starter: ['Analytics Dashboard', '10K Monthly Events', '1 Website', '1 Funnel', '1 Automation', '3 Heatmaps', '100 Session Recordings', '30 Day Data Retention', 'Community Support'],
-    basic: ['Analytics Dashboard', '100K Monthly Events', '3 Websites', '10 Funnels', '10 Automations', '20 Heatmap Pages', '3,000 Session Recordings', '1 Year Analytics Retention', 'Email Support'],
-    growth: ['Analytics Dashboard', '300K Monthly Events', '5 Websites', 'Unlimited Heatmaps', '10,000 Session Recordings', '10 Funnels', '10 Automations', '2 Year Analytics Retention', 'Email Support'],
-    pro: ['Analytics Dashboard', '1M Monthly Events', '15 Websites', 'Unlimited Funnels', 'Unlimited Automations', 'Unlimited Heatmaps', '25,000 Session Recordings', '3 Year Analytics Retention', 'Priority Support'],
+    free:       ['Analytics Dashboard', '10K Monthly Events', '1 Website', '1 Funnel', '1 Automation', '3 Heatmap Pages', '100 Session Recordings', '30 Day Data Retention', 'Community Support'],
+    starter:    ['Analytics Dashboard', '10K Monthly Events', '1 Website', '1 Funnel', '1 Automation', '3 Heatmap Pages', '100 Session Recordings', '30 Day Data Retention', 'Community Support'],
+    basic:      ['Analytics Dashboard', '100K Monthly Events', '2 Websites', '5 Funnels', '5 Automations', '10 Heatmap Pages', '3,000 Session Recordings', '1 Year Analytics Retention', 'Email Support'],
+    growth:     ['Analytics Dashboard', '200K Monthly Events', '3 Websites', 'Unlimited Heatmaps', '10,000 Session Recordings', '10 Funnels', '10 Automations', '2 Year Analytics Retention', 'Email Support'],
+    pro:        ['Analytics Dashboard', '2M Monthly Events', '15 Websites', 'Unlimited Funnels', 'Unlimited Automations', 'Unlimited Heatmaps', '50,000 Session Recordings', '5 Year Analytics Retention', 'Team Management', 'Priority Support'],
+    enterprise: ['Analytics Dashboard', '15M Monthly Events', '100 Websites', 'Unlimited Funnels', 'Unlimited Automations', 'Unlimited Heatmaps', '200K Session Recordings', '7 Year Analytics Retention', 'White Label', 'Client Management', 'Dedicated Support'],
 };
 
 export default function AccountBillingSettings() {
