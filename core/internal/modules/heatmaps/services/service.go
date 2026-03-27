@@ -33,58 +33,40 @@ func NewHeatmapService(repo *repository.HeatmapRepository, logger zerolog.Logger
 	return &HeatmapService{repo: repo, logger: logger}
 }
 
-// ProcessEvents handles a batch of heatmap tracker events for a website
+// ProcessEvents converts all heatmap events to points and writes them in one batch.
 func (s *HeatmapService) ProcessEvents(ctx context.Context, websiteID uuid.UUID, events []TrackerEvent, ua string) error {
+	if len(events) == 0 {
+		return nil
+	}
 	uaInfo := utils.ParseUserAgent(ua)
+	points := make([]models.HeatmapPoint, 0, len(events))
 
 	for _, ev := range events {
 		switch ev.Type {
 		case "heatmap_click":
-			if err := s.processClick(ctx, websiteID, ev, uaInfo.Device); err != nil {
-				s.logger.Warn().Err(err).Str("type", ev.Type).Msg("heatmap: failed to process click")
-			}
+			points = append(points, models.HeatmapPoint{
+				PagePath:       extractPath(ev.URL),
+				EventType:      "click",
+				DeviceType:     uaInfo.Device,
+				XPercent:       int(toFloat(ev.Data["nx"]) * 10000),
+				YPercent:       int(toFloat(ev.Data["ny"]) * 10000),
+				TargetSelector: stringVal(ev.Data["target_selector"]),
+			})
 		case "heatmap_scroll":
-			if err := s.processScroll(ctx, websiteID, ev, uaInfo.Device); err != nil {
-				s.logger.Warn().Err(err).Str("type", ev.Type).Msg("heatmap: failed to process scroll")
-			}
+			points = append(points, models.HeatmapPoint{
+				PagePath:   extractPath(ev.URL),
+				EventType:  "scroll",
+				DeviceType: uaInfo.Device,
+				XPercent:   0,
+				YPercent:   int(toFloat(ev.Data["depth"]) * 100),
+			})
 		}
 	}
+
+	if err := s.repo.BatchUpsertPoints(ctx, websiteID, points); err != nil {
+		return fmt.Errorf("heatmap batch upsert: %w", err)
+	}
 	return nil
-}
-
-func (s *HeatmapService) processClick(ctx context.Context, websiteID uuid.UUID, ev TrackerEvent, deviceType string) error {
-	pagePath := extractPath(ev.URL)
-	nx := toFloat(ev.Data["nx"])
-	ny := toFloat(ev.Data["ny"])
-
-	var targetSelector string
-	if ts, ok := ev.Data["target_selector"].(string); ok {
-		targetSelector = ts
-	}
-
-	point := models.HeatmapPoint{
-		PagePath:       pagePath,
-		EventType:      "click",
-		DeviceType:     deviceType,
-		XPercent:       int(nx * 10000),
-		YPercent:       int(ny * 10000),
-		TargetSelector: targetSelector,
-	}
-	return s.repo.UpsertPoint(ctx, websiteID, point)
-}
-
-func (s *HeatmapService) processScroll(ctx context.Context, websiteID uuid.UUID, ev TrackerEvent, deviceType string) error {
-	pagePath := extractPath(ev.URL)
-	depth := toFloat(ev.Data["depth"]) // 0–100
-
-	point := models.HeatmapPoint{
-		PagePath:   pagePath,
-		EventType:  "scroll",
-		DeviceType: deviceType,
-		XPercent:   0,
-		YPercent:   int(depth * 100),
-	}
-	return s.repo.UpsertPoint(ctx, websiteID, point)
 }
 
 // GetHeatmap returns all heatmap points for a page and event type
@@ -93,10 +75,7 @@ func (s *HeatmapService) GetHeatmap(ctx context.Context, websiteID uuid.UUID, pa
 	if err != nil {
 		return nil, fmt.Errorf("get heatmap: %w", err)
 	}
-	return &models.HeatmapData{
-		PagePath: pagePath,
-		Points:   points,
-	}, nil
+	return &models.HeatmapData{PagePath: pagePath, Points: points}, nil
 }
 
 // ListPages returns a summary of pages with heatmap data for a website
@@ -126,4 +105,11 @@ func toFloat(v interface{}) float64 {
 		return f
 	}
 	return 0
+}
+
+func stringVal(v interface{}) string {
+	if s, ok := v.(string); ok {
+		return s
+	}
+	return ""
 }

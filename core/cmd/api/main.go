@@ -140,10 +140,10 @@ func main() {
 	eventService      := services.NewEventService(eventRepo, db, websiteService, logger, rdb)
 	analyticsService  := services.NewAnalyticsService(analyticsRepo, websiteService, logger, appCache)
 	privacyService    := services.NewPrivacyService(privacyRepo, websiteService, logger)
-	funnelService     := funnelServicePkg.NewFunnelService(funnelRepo, websiteService)
+	funnelService     := funnelServicePkg.NewFunnelService(funnelRepo, websiteService, appCache)
 	heatmapService    := heatmapServicePkg.NewHeatmapService(heatmapRepo, logger)
 	replayService     := replayServicePkg.NewReplayService(replayRepo, logger)
-	automationService := automationServicePkg.NewAutomationService(automationRepo, logger)
+	automationService := automationServicePkg.NewAutomationService(automationRepo, appCache, logger)
 	apiKeyService     := apikeysPkg.NewService(db, appCache, logger)
 
 	analyticsService.StartCacheWarmer(ctx)
