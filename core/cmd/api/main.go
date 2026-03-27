@@ -56,6 +56,9 @@ import (
 	websiteRepoPkg    "github.com/Seentics/seentics/internal/modules/websites/repository"
 	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
 
+	// API Keys module
+	apikeysPkg "github.com/Seentics/seentics/internal/modules/apikeys"
+
 	// Tracker module
 	trackerPkg "github.com/Seentics/seentics/internal/modules/tracker"
 )
@@ -141,6 +144,7 @@ func main() {
 	heatmapService    := heatmapServicePkg.NewHeatmapService(heatmapRepo, logger)
 	replayService     := replayServicePkg.NewReplayService(replayRepo, logger)
 	automationService := automationServicePkg.NewAutomationService(automationRepo, logger)
+	apiKeyService     := apikeysPkg.NewService(db, appCache, logger)
 
 	analyticsService.StartCacheWarmer(ctx)
 
@@ -164,7 +168,7 @@ func main() {
 
 	// ── HTTP Server ─────────────────────────────────────────────────────────
 
-	router := setupRouter(cfg, appCache, db, h, logger)
+	router := setupRouter(cfg, appCache, apiKeyService, h, logger)
 
 	server := &http.Server{
 		Addr:         ":" + cfg.Port,

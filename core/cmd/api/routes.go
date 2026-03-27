@@ -7,11 +7,11 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 
 	ginGzip "github.com/gin-contrib/gzip"
 
+	"github.com/Seentics/seentics/internal/modules/apikeys"
 	"github.com/Seentics/seentics/internal/shared/cache"
 	"github.com/Seentics/seentics/internal/shared/config"
 	"github.com/Seentics/seentics/internal/shared/middleware"
@@ -42,7 +42,7 @@ type appHandlers struct {
 	tracker    *trackerPkg.TrackerHandler
 }
 
-func setupRouter(cfg *config.Config, appCache *cache.Cache, db *pgxpool.Pool, h appHandlers, logger zerolog.Logger) *gin.Engine {
+func setupRouter(cfg *config.Config, appCache *cache.Cache, apiKeySvc *apikeys.Service, h appHandlers, logger zerolog.Logger) *gin.Engine {
 	if cfg.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -93,10 +93,10 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, db *pgxpool.Pool, h 
 		registerAutomationRoutes(v1, h)
 		registerAdminRoutes(v1, h)
 		registerInternalRoutes(v1, h)
-		registerAPIKeyManagementRoutes(v1, db, logger)
+		registerAPIKeyManagementRoutes(v1, apiKeySvc)
 	}
 
-	registerRawAPIRoutes(router, db, h, logger)
+	registerRawAPIRoutes(router, apiKeySvc, h)
 
 	return router
 }
