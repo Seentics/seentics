@@ -10,6 +10,13 @@ export interface AgencyClientFeatures {
   automations: boolean;
 }
 
+export interface ClientLimits {
+  maxMonthlyEvents: number | null;
+  maxReplays: number | null;
+  maxHeatmaps: number | null;
+  maxWebsites: number | null;
+}
+
 export interface AgencyClient {
   id: string;
   agencyId: string;
@@ -20,8 +27,24 @@ export interface AgencyClient {
   status: 'active' | 'suspended' | 'archived';
   note: string;
   featuresEnabled: AgencyClientFeatures;
+  limits: ClientLimits;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ClientWebsite {
+  id: string;
+  clientId: string;
+  websiteId: string;
+  createdAt: string;
+}
+
+export interface PortalToken {
+  id: string;
+  clientId: string;
+  token?: string;
+  expiresAt: string;
+  createdAt: string;
 }
 
 export interface AgencyAPIKey {
@@ -66,6 +89,12 @@ function mapClient(raw: any): AgencyClient {
       funnels: raw.features_enabled?.funnels ?? raw.featuresEnabled?.funnels ?? true,
       automations: raw.features_enabled?.automations ?? raw.featuresEnabled?.automations ?? true,
     },
+    limits: {
+      maxMonthlyEvents: raw.limits?.maxMonthlyEvents ?? null,
+      maxReplays: raw.limits?.maxReplays ?? null,
+      maxHeatmaps: raw.limits?.maxHeatmaps ?? null,
+      maxWebsites: raw.limits?.maxWebsites ?? null,
+    },
     createdAt: raw.created_at || raw.createdAt || '',
     updatedAt: raw.updated_at || raw.updatedAt || '',
   };
@@ -95,12 +124,37 @@ function mapWhiteLabel(raw: any): WhiteLabelSettings {
   };
 }
 
+function mapClientWebsite(raw: any): ClientWebsite {
+  return {
+    id: raw.id,
+    clientId: raw.client_id || raw.clientId || '',
+    websiteId: raw.website_id || raw.websiteId || '',
+    createdAt: raw.created_at || raw.createdAt || '',
+  };
+}
+
+function mapPortalToken(raw: any): PortalToken {
+  return {
+    id: raw.id,
+    clientId: raw.client_id || raw.clientId || '',
+    token: raw.token || undefined,
+    expiresAt: raw.expires_at || raw.expiresAt || '',
+    createdAt: raw.created_at || raw.createdAt || '',
+  };
+}
+
 // ─── Client API ───────────────────────────────────────────────────────────────
 
 export async function listClients(): Promise<AgencyClient[]> {
   const response = await api.get('/user/agency/clients');
   const data = response.data?.clients || response.data?.data || response.data || [];
   return Array.isArray(data) ? data.map(mapClient) : [];
+}
+
+export async function getClient(clientId: string): Promise<AgencyClient> {
+  const response = await api.get(`/user/agency/clients/${clientId}`);
+  const raw = response.data?.client || response.data?.data || response.data;
+  return mapClient(raw);
 }
 
 export async function createClient(req: CreateClientRequest): Promise<AgencyClient> {
@@ -112,6 +166,7 @@ export async function createClient(req: CreateClientRequest): Promise<AgencyClie
     status: req.status,
     note: req.note,
     features_enabled: req.featuresEnabled,
+    limits: req.limits,
   };
   const response = await api.post('/user/agency/clients', payload);
   const raw = response.data?.client || response.data?.data || response.data;
@@ -126,7 +181,8 @@ export async function updateClient(id: string, req: UpdateClientRequest): Promis
   if (req.websiteUrl !== undefined) payload.website_url = req.websiteUrl;
   if (req.status !== undefined) payload.status = req.status;
   if (req.note !== undefined) payload.note = req.note;
-  if (req.featuresEnabled !== undefined) payload.features_enabled = req.featuresEnabled;
+  if (req.featuresEnabled !== undefined) payload.featuresEnabled = req.featuresEnabled;
+  if (req.limits !== undefined) payload.limits = req.limits;
   const response = await api.patch(`/user/agency/clients/${id}`, payload);
   const raw = response.data?.client || response.data?.data || response.data;
   return mapClient(raw);
@@ -134,6 +190,41 @@ export async function updateClient(id: string, req: UpdateClientRequest): Promis
 
 export async function deleteClient(id: string): Promise<void> {
   await api.delete(`/user/agency/clients/${id}`);
+}
+
+// ─── Client Websites ──────────────────────────────────────────────────────────
+
+export async function listClientWebsites(clientId: string): Promise<ClientWebsite[]> {
+  const response = await api.get(`/user/agency/clients/${clientId}/websites`);
+  const data = response.data?.data || response.data || [];
+  return Array.isArray(data) ? data.map(mapClientWebsite) : [];
+}
+
+export async function assignWebsite(clientId: string, websiteId: string): Promise<ClientWebsite> {
+  const response = await api.post(`/user/agency/clients/${clientId}/websites`, { websiteId });
+  const raw = response.data?.data || response.data;
+  return mapClientWebsite(raw);
+}
+
+export async function unassignWebsite(clientId: string, websiteId: string): Promise<void> {
+  await api.delete(`/user/agency/clients/${clientId}/websites/${websiteId}`);
+}
+
+export async function getClientAnalytics(clientId: string): Promise<{ client: AgencyClient; websiteIds: string[] }> {
+  const response = await api.get(`/user/agency/clients/${clientId}/analytics`);
+  const data = response.data?.data || response.data;
+  return {
+    client: mapClient(data.client),
+    websiteIds: data.websiteIds || [],
+  };
+}
+
+// ─── Portal Tokens ────────────────────────────────────────────────────────────
+
+export async function generatePortalToken(clientId: string): Promise<PortalToken> {
+  const response = await api.post(`/user/agency/clients/${clientId}/portal-token`);
+  const raw = response.data?.data || response.data;
+  return mapPortalToken(raw);
 }
 
 // ─── Agency API Keys ──────────────────────────────────────────────────────────

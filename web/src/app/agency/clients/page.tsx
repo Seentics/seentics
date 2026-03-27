@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import Link from 'next/link';
 import {
   Users,
   Plus,
@@ -38,6 +39,7 @@ import {
   Globe,
   Calendar,
   FileText,
+  Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -247,6 +249,15 @@ function ClientCard({ client, onEdit, onDelete, isDeleting }: ClientCardProps) {
             </div>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            <Button
+              variant="ghost" size="sm"
+              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+              asChild
+            >
+              <Link href={`/agency/clients/${client.id}`}>
+                <Eye className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
             <Button
               variant="ghost" size="sm"
               className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
