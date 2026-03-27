@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,45 +13,11 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { apiKeysAPI, type APIKey } from '@/lib/apikeys-api';
 import {
   Code2, KeyRound, Layers, BookOpen, Plus, Copy, Check,
-  Trash2, Clock, Shield, AlertTriangle, Zap, Eye, EyeOff,
+  Clock, Shield, AlertTriangle, Zap,
 } from 'lucide-react';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface ApiKey {
-  id:         string;
-  name:       string;
-  prefix:     string;
-  created_at: string;
-  last_used:  string | null;
-  scopes:     string[];
-  is_active:  boolean;
-}
-
-// ─── Demo data ────────────────────────────────────────────────────────────────
-
-const DEMO_KEYS: ApiKey[] = [
-  {
-    id: 'k1', name: 'Production Ingest', prefix: 'snt_prod_a1b2c3',
-    created_at: new Date(Date.now() - 1000*60*60*24*30).toISOString(),
-    last_used: new Date(Date.now() - 1000*60*4).toISOString(),
-    scopes: ['ingest:write', 'analytics:read'], is_active: true,
-  },
-  {
-    id: 'k2', name: 'CI/CD Checks', prefix: 'snt_ci_d4e5f6',
-    created_at: new Date(Date.now() - 1000*60*60*24*14).toISOString(),
-    last_used: new Date(Date.now() - 1000*60*60*2).toISOString(),
-    scopes: ['analytics:read'], is_active: true,
-  },
-  {
-    id: 'k3', name: 'Legacy Dashboard', prefix: 'snt_leg_g7h8i9',
-    created_at: new Date(Date.now() - 1000*60*60*24*90).toISOString(),
-    last_used: new Date(Date.now() - 1000*60*60*24*7).toISOString(),
-    scopes: ['analytics:read', 'events:write'], is_active: false,
-  },
-];
 
 const SCOPE_LABELS: Record<string, { label: string; color: string }> = {
   'ingest:write':   { label: 'Ingest Write',   color: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950 dark:text-blue-300' },
@@ -73,7 +40,7 @@ function timeAgo(iso: string): string {
 function NewKeyDialog({ open, onOpenChange, onCreated }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onCreated: (key: ApiKey, secret: string) => void;
+  onCreated: (name: string, scopes: string[]) => void;
 }) {
   const [name, setName] = useState('');
   const [scopes, setScopes] = useState<string[]>(['ingest:write']);
@@ -83,14 +50,7 @@ function NewKeyDialog({ open, onOpenChange, onCreated }: {
 
   const create = () => {
     if (!name.trim()) return;
-    const secret = `snt_${Math.random().toString(36).slice(2, 10)}_${Math.random().toString(36).slice(2, 18)}`;
-    const key: ApiKey = {
-      id: `k${Date.now()}`, name: name.trim(),
-      prefix: secret.slice(0, 14) + '...',
-      created_at: new Date().toISOString(), last_used: null,
-      scopes, is_active: true,
-    };
-    onCreated(key, secret);
+    onCreated(name.trim(), scopes);
     setName(''); setScopes(['ingest:write']); onOpenChange(false);
   };
 
@@ -172,21 +132,39 @@ function RevealDialog({ secret, onClose }: { secret: string; onClose: () => void
 
 function ApiKeysTab({ websiteId }: { websiteId: string }) {
   const { toast } = useToast();
-  const [keys, setKeys] = useState<ApiKey[]>(DEMO_KEYS);
+  const qc = useQueryClient();
   const [showNew, setShowNew] = useState(false);
   const [newSecret, setNewSecret] = useState<string | null>(null);
+
+  const { data: keys = [], isLoading } = useQuery({
+    queryKey: ['apikeys', websiteId],
+    queryFn: () => apiKeysAPI.list(websiteId),
+    enabled: !!websiteId,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: ({ name, scopes }: { name: string; scopes: string[] }) =>
+      apiKeysAPI.create(websiteId, name, scopes),
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ['apikeys', websiteId] });
+      if (result.key) setNewSecret(result.key);
+    },
+    onError: () => toast({ title: 'Failed to create API key', variant: 'destructive' }),
+  });
+
+  const revokeMutation = useMutation({
+    mutationFn: (keyId: string) => apiKeysAPI.revoke(websiteId, keyId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['apikeys', websiteId] });
+      toast({ title: 'Key revoked' });
+    },
+    onError: () => toast({ title: 'Failed to revoke key', variant: 'destructive' }),
+  });
 
   const copyPrefix = async (prefix: string) => {
     await navigator.clipboard.writeText(prefix);
     toast({ title: 'Copied to clipboard' });
   };
-  const deleteKey = (id: string) => {
-    if (!confirm('Delete this API key? This cannot be undone.')) return;
-    setKeys(prev => prev.filter(k => k.id !== id));
-    toast({ title: 'Key deleted' });
-  };
-  const revokeKey = (id: string) =>
-    setKeys(prev => prev.map(k => k.id === id ? { ...k, is_active: false } : k));
 
   return (
     <div className="space-y-6">
@@ -206,9 +184,9 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Total Keys', value: keys.length,                         icon: KeyRound, color: 'text-foreground' },
-          { label: 'Active',     value: keys.filter(k => k.is_active).length,  icon: Shield,   color: 'text-green-600' },
-          { label: 'Revoked',    value: keys.filter(k => !k.is_active).length, icon: AlertTriangle, color: 'text-muted-foreground' },
+          { label: 'Total Keys', value: keys.length,                            icon: KeyRound,      color: 'text-foreground' },
+          { label: 'Active',     value: keys.filter(k => k.isActive).length,    icon: Shield,        color: 'text-green-600' },
+          { label: 'Revoked',    value: keys.filter(k => !k.isActive).length,   icon: AlertTriangle, color: 'text-muted-foreground' },
         ].map(s => (
           <Card key={s.label} className="border border-border/60">
             <CardContent className="p-4 flex items-center gap-3">
@@ -228,7 +206,11 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
           <CardTitle className="text-sm font-semibold">Keys</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {keys.length === 0 ? (
+          {isLoading ? (
+            <div className="py-16 text-center">
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            </div>
+          ) : keys.length === 0 ? (
             <div className="py-16 text-center">
               <KeyRound className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">No API keys yet.</p>
@@ -236,22 +218,22 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
           ) : keys.map(key => (
             <div key={key.id} className={cn(
               'flex items-start gap-4 px-5 py-4 border-b border-border/40 last:border-0',
-              !key.is_active && 'opacity-50',
+              !key.isActive && 'opacity-50',
             )}>
               <div className={cn(
                 'mt-1.5 h-2 w-2 rounded-full shrink-0',
-                key.is_active ? 'bg-green-500' : 'bg-muted-foreground/40',
+                key.isActive ? 'bg-green-500' : 'bg-muted-foreground/40',
               )} />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-sm font-semibold text-foreground">{key.name}</span>
-                  {!key.is_active && (
+                  {!key.isActive && (
                     <Badge className="text-[10px] px-1.5 py-0 h-4 bg-muted text-muted-foreground border border-border">revoked</Badge>
                   )}
                 </div>
                 <div className="flex items-center gap-2 mb-2">
-                  <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">{key.prefix}</code>
-                  <button onClick={() => copyPrefix(key.prefix)} className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+                  <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">{key.keyPrefix}...</code>
+                  <button onClick={() => copyPrefix(key.keyPrefix)} className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
                     <Copy className="h-3 w-3" />
                   </button>
                 </div>
@@ -263,19 +245,21 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
                   ))}
                 </div>
                 <div className="flex items-center gap-4 text-[11px] text-muted-foreground">
-                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Created {timeAgo(key.created_at)}</span>
-                  {key.last_used && <span>Last used {timeAgo(key.last_used)}</span>}
+                  <span className="flex items-center gap-1"><Clock className="h-3 w-3" />Created {timeAgo(key.createdAt)}</span>
+                  {key.lastUsedAt && <span>Last used {timeAgo(key.lastUsedAt)}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                {key.is_active && (
-                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground" onClick={() => revokeKey(key.id)}>
+                {key.isActive && (
+                  <Button
+                    variant="ghost" size="sm"
+                    className="h-7 px-2 text-xs text-muted-foreground"
+                    onClick={() => revokeMutation.mutate(key.id)}
+                    disabled={revokeMutation.isPending}
+                  >
                     Revoke
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" className="h-7 px-2 text-xs text-destructive hover:text-destructive" onClick={() => deleteKey(key.id)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
               </div>
             </div>
           ))}
@@ -293,16 +277,18 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
             Pass your API key in the <code className="font-mono bg-muted px-1 py-0.5 rounded">Authorization</code> header:
           </p>
           <pre className="text-xs font-mono bg-muted/60 border border-border/60 rounded-lg px-4 py-3 text-foreground overflow-x-auto">
-{`curl https://api.seentics.com/v1/ingest \\
-  -H "Authorization: Bearer snt_prod_..." \\
-  -H "Content-Type: application/json" \\
-  -d '{"project_id":"${websiteId}","events":[...]}'`}
+{`curl https://api.seentics.com/raw/v1/${websiteId}/analytics/dashboard \\
+  -H "Authorization: Bearer snc_live_..." \\
+  -H "Content-Type: application/json"`}
           </pre>
         </CardContent>
       </Card>
 
-      <NewKeyDialog open={showNew} onOpenChange={setShowNew}
-        onCreated={(key, secret) => { setKeys(prev => [key, ...prev]); setNewSecret(secret); }} />
+      <NewKeyDialog
+        open={showNew}
+        onOpenChange={setShowNew}
+        onCreated={(name, scopes) => createMutation.mutate({ name, scopes })}
+      />
       {newSecret && <RevealDialog secret={newSecret} onClose={() => setNewSecret(null)} />}
     </div>
   );

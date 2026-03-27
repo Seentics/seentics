@@ -30,7 +30,6 @@ import { InviteMemberModal } from '../websites/modals/InviteMemberModal';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { useAuth } from '@/stores/useAuthStore';
-import { isEnterprise } from '@/lib/features';
 import { usePermissions } from '@/hooks/use-permissions';
 
 interface TeamSettingsComponentProps {
@@ -98,8 +97,6 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
       deleteMutation.mutate(memberUserId);
     }
   };
-
-  if (!isEnterprise) return null;
 
   if (permLoading) {
     return (
