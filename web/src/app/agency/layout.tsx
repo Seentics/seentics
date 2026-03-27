@@ -8,6 +8,7 @@ import { isEnterprise } from '@/lib/features';
 import {
   LayoutDashboard,
   Users,
+  UserCheck,
   Paintbrush,
   KeyRound,
   ArrowLeft,
@@ -21,10 +22,11 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Overview',    href: '/agency',             icon: LayoutDashboard },
-  { label: 'Clients',     href: '/agency/clients',     icon: Users },
-  { label: 'White Label', href: '/agency/white-label', icon: Paintbrush },
-  { label: 'API Keys',    href: '/agency/api-keys',    icon: KeyRound },
+  { label: 'Overview',        href: '/agency',                  icon: LayoutDashboard },
+  { label: 'Clients',         href: '/agency/clients',          icon: Users },
+  { label: 'Client Accounts', href: '/agency/client-users',     icon: UserCheck },
+  { label: 'White Label',     href: '/agency/white-label',      icon: Paintbrush },
+  { label: 'API Keys',        href: '/agency/api-keys',         icon: KeyRound },
 ];
 
 function isActive(href: string, pathname: string): boolean {

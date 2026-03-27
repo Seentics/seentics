@@ -2,6 +2,44 @@ import api from './api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface ClientUser {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  company?: string;
+  status: 'active' | 'suspended';
+  featuresEnabled: {
+    analytics: boolean;
+    heatmaps: boolean;
+    replays: boolean;
+    funnels: boolean;
+    automations: boolean;
+  };
+  limits?: {
+    maxMonthlyEvents?: number;
+    maxReplays?: number;
+    maxHeatmaps?: number;
+    maxWebsites?: number;
+  };
+  createdAt: string;
+}
+
+export interface CreateClientUserRequest {
+  name: string;
+  email: string;
+  password?: string;
+  company?: string;
+  features?: Partial<ClientUser['featuresEnabled']>;
+  limits?: ClientUser['limits'];
+}
+
+export interface CreateClientUserResponse {
+  client: ClientUser;
+  user: { id: string; name: string; email: string; role: string; createdAt: string };
+  tempPassword?: string;
+}
+
 export interface AgencyClientFeatures {
   analytics: boolean;
   heatmaps: boolean;
@@ -264,4 +302,58 @@ export async function updateWhiteLabel(req: Partial<WhiteLabelSettings>): Promis
   const response = await api.patch('/user/agency/white-label', payload);
   const raw = response.data?.settings || response.data?.data || response.data;
   return mapWhiteLabel(raw);
+}
+
+// ─── Client Users ─────────────────────────────────────────────────────────────
+
+function mapClientUser(raw: any): ClientUser {
+  return {
+    id: raw.id,
+    userId: raw.user_id || raw.userId || '',
+    name: raw.name || '',
+    email: raw.email || '',
+    company: raw.company || undefined,
+    status: raw.status || 'active',
+    featuresEnabled: {
+      analytics: raw.features_enabled?.analytics ?? raw.featuresEnabled?.analytics ?? true,
+      heatmaps: raw.features_enabled?.heatmaps ?? raw.featuresEnabled?.heatmaps ?? true,
+      replays: raw.features_enabled?.replays ?? raw.featuresEnabled?.replays ?? true,
+      funnels: raw.features_enabled?.funnels ?? raw.featuresEnabled?.funnels ?? true,
+      automations: raw.features_enabled?.automations ?? raw.featuresEnabled?.automations ?? true,
+    },
+    limits: raw.limits || undefined,
+    createdAt: raw.created_at || raw.createdAt || '',
+  };
+}
+
+export async function listClientUsers(): Promise<ClientUser[]> {
+  const response = await api.get('/user/agency/client-users');
+  const data = response.data?.data || response.data || [];
+  return Array.isArray(data) ? data.map(mapClientUser) : [];
+}
+
+export async function createClientUser(req: CreateClientUserRequest): Promise<CreateClientUserResponse> {
+  const response = await api.post('/user/agency/client-users', req);
+  const raw = response.data?.data || response.data;
+  return {
+    client: mapClientUser(raw.client),
+    user: raw.user,
+    tempPassword: raw.tempPassword || raw.temp_password || undefined,
+  };
+}
+
+export async function getClientUser(userId: string): Promise<ClientUser> {
+  const response = await api.get(`/user/agency/client-users/${userId}`);
+  const raw = response.data?.data || response.data;
+  return mapClientUser(raw);
+}
+
+export async function deleteClientUser(userId: string): Promise<void> {
+  await api.delete(`/user/agency/client-users/${userId}`);
+}
+
+export async function resetClientUserPassword(userId: string): Promise<{ tempPassword: string }> {
+  const response = await api.post(`/user/agency/client-users/${userId}/reset-password`);
+  const raw = response.data?.data || response.data;
+  return { tempPassword: raw.tempPassword || raw.temp_password || '' };
 }
