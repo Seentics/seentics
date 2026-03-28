@@ -6,10 +6,11 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Activity, Target, GitBranch,
-  Flame, Video, Bot, Code2, Settings,
+  Flame, Video, Bot, Code2, Settings, CreditCard,
   LogOut, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
+import { isEnterprise, isDemo } from '@/lib/features';
 
 interface NavItem {
   label: string;
@@ -30,10 +31,14 @@ function buildMainNav(websiteId: string): NavItem[] {
 }
 
 function buildSecondaryNav(websiteId: string): NavItem[] {
-  return [
+  const items: NavItem[] = [
     { label: 'Developers', href: `/websites/${websiteId}/developers`, icon: Code2 },
     { label: 'Settings',   href: `/websites/${websiteId}/settings`,   icon: Settings },
   ];
+  if (isEnterprise || isDemo) {
+    items.splice(1, 0, { label: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard });
+  }
+  return items;
 }
 
 function isActive(href: string, pathname: string): boolean {
