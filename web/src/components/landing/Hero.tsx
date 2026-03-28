@@ -179,9 +179,9 @@ export default function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
+            className="text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed"
           >
-            APIs, SDKs, and UI components for developers. A beautiful, powerful dashboard for your team. Self-hosted, open source, complete data ownership.
+           Page analytics, session recordings, heatmaps, funnels, and automations — all in one platform. With APIs, SDKs, and embeddable UI blocks. Self-hosted, open source, complete data ownership.
           </motion.p>
 
           <motion.div
