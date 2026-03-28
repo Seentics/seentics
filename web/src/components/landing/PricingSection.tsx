@@ -6,10 +6,7 @@ import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilde
 import { useState } from 'react';
 import { Users, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { isEnterprise, isDemo } from '@/lib/features';
-
 export default function PricingSection() {
-  if (!isEnterprise && !isDemo) return null;
   const router = useRouter();
   const [mode, setMode] = useState<'individual' | 'agency'>('individual');
   const [loading, setLoading] = useState(false);

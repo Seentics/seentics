@@ -10,7 +10,8 @@ import {
   LogOut, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
-import { isEnterprise, isDemo } from '@/lib/features';
+import { isEnterprise } from '@/lib/features';
+import { isDemo } from '@/lib/demo';
 
 interface NavItem {
   label: string;
@@ -35,7 +36,7 @@ function buildSecondaryNav(websiteId: string): NavItem[] {
     { label: 'Developers', href: `/websites/${websiteId}/developers`, icon: Code2 },
     { label: 'Settings',   href: `/websites/${websiteId}/settings`,   icon: Settings },
   ];
-  if (isEnterprise || isDemo) {
+  if (isEnterprise || isDemo(websiteId)) {
     items.splice(1, 0, { label: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard });
   }
   return items;

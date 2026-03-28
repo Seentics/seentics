@@ -8,13 +8,8 @@
 export const isEnterprise: boolean =
   process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true';
 
-// Demo mode: set NEXT_PUBLIC_IS_DEMO=true to show billing/pricing UI without real checkout
-// Used for hosted demos — billing UI is visible but redirects to /signup instead of checkout
-export const isDemo: boolean =
-  process.env.NEXT_PUBLIC_IS_DEMO === 'true';
-
 // Backward compatibility alias
-export const isOpenSource: boolean = !isEnterprise && !isDemo;
+export const isOpenSource: boolean = !isEnterprise;
 
 // Feature configuration - core features always on, enterprise features gated
 export const FEATURES: Record<string, boolean> = {

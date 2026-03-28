@@ -19,8 +19,8 @@ import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilde
 import api from '@/lib/api';
 import { openCheckout } from '@/lib/checkout';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { isDemo as isDemoWebsite } from '@/lib/demo';
-import { isEnterprise, isDemo } from '@/lib/features';
+import { isDemo } from '@/lib/demo';
+import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
 
 // ─── Plan metadata ─────────────────────────────────────────────────────────
@@ -80,10 +80,10 @@ export default function AccountBillingSettings() {
     const router = useRouter();
 
     useEffect(() => {
-        if (!isEnterprise && !isDemo) router.replace(`/websites/${websiteId}`);
+        if (!isEnterprise && !isDemo(websiteId)) router.replace(`/websites/${websiteId}`);
     }, [router, websiteId]);
 
-    if (!isEnterprise && !isDemo) return null;
+    if (!isEnterprise && !isDemo(websiteId)) return null;
 
     const { subscription, loading, getUsagePercentage } = useSubscription();
     const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
