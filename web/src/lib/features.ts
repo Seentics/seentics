@@ -42,10 +42,10 @@ export const hasFeature = (feature: string): boolean => {
   return FEATURES[feature] === true;
 };
 
-// Usage limits for display based on plan (must match DB: 0002_billing.up.sql)
+// Usage limits for display based on plan
 export const LIMITS = {
   starter: {
-    websites: '1',
+    websites: 'Unlimited',
     events: '10K',
     workflows: '1',
     funnels: '1',
@@ -56,36 +56,36 @@ export const LIMITS = {
     support: 'Community',
   },
   basic: {
-    websites: '2',
+    websites: 'Unlimited',
     events: '100K',
-    workflows: '10',
-    funnels: '10',
-    heatmaps: '20',
-    replays: '3,000',
-    recordingRetention: '1 month',
+    workflows: 'Unlimited',
+    funnels: 'Unlimited',
+    heatmaps: 'Unlimited',
+    replays: '1,000',
+    recordingRetention: '1 year',
     analyticsRetention: '1 year',
     support: 'Email',
   },
   growth: {
-    websites: '5',
-    events: '300K',
-    workflows: '10',
-    funnels: '10',
+    websites: 'Unlimited',
+    events: '500K',
+    workflows: 'Unlimited',
+    funnels: 'Unlimited',
     heatmaps: 'Unlimited',
     replays: '10,000',
-    recordingRetention: '2 months',
+    recordingRetention: '2 years',
     analyticsRetention: '2 years',
     support: 'Email',
   },
   pro: {
-    websites: '15',
-    events: '1M',
+    websites: 'Unlimited',
+    events: '2M',
     workflows: 'Unlimited',
     funnels: 'Unlimited',
     heatmaps: 'Unlimited',
-    replays: '25,000',
-    recordingRetention: '3 months',
-    analyticsRetention: '3 years',
+    replays: '50,000',
+    recordingRetention: '5 years',
+    analyticsRetention: '5 years',
     support: 'Priority',
   },
 };
