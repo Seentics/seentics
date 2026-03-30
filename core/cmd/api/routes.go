@@ -68,6 +68,7 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, apiKeySvc *apikeys.S
 			strings.HasPrefix(path, "/api/v1/tracker/config/") ||
 			strings.HasPrefix(path, "/api/v1/tracker/init/") ||
 			path == "/api/v1/tracker/collect" ||
+		path == "/api/v1/tracker/replay" ||
 			strings.HasPrefix(path, "/api/v1/internal/") ||
 			strings.HasPrefix(path, "/api/v1/analytics/public/") {
 			c.Next()
@@ -131,6 +132,7 @@ func registerTrackerRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	v1.GET("/tracker/config/:site_id", h.website.GetTrackerConfig)
 	v1.GET("/tracker/init/:site_id", h.tracker.Init)
 	v1.POST("/tracker/collect", middleware.DecompressMiddleware(), h.tracker.Collect)
+	v1.POST("/tracker/replay", middleware.DecompressMiddleware(), h.tracker.ReplayChunk)
 }
 
 func registerAnalyticsRoutes(v1 *gin.RouterGroup, h appHandlers) {

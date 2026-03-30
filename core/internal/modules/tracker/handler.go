@@ -1,6 +1,7 @@
 package tracker
 
 import (
+	"context"
 	"net/http"
 	"sync"
 	"time"
@@ -236,6 +237,49 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 
 	wg.Wait()
 	c.JSON(http.StatusOK, gin.H{"status": "ok", "processed": processed})
+}
+
+// ── ReplayChunk ───────────────────────────────────────────────────────────────
+// POST /api/v1/tracker/replay?site_id=...&session_id=...&visitor_id=...
+// Body: JSON array of rrweb eventWithTime objects.
+// Content-Encoding: gzip is transparently decompressed by DecompressMiddleware.
+func (h *TrackerHandler) ReplayChunk(c *gin.Context) {
+	siteID    := c.Query("site_id")
+	sessionID := c.Query("session_id")
+	visitorID := c.Query("visitor_id")
+	if siteID == "" || sessionID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id and session_id are required"})
+		return
+	}
+
+	// Validate site
+	ctx     := c.Request.Context()
+	website, err := h.websites.GetWebsiteByAnyID(ctx, siteID)
+	if err != nil || !website.IsActive {
+		c.JSON(http.StatusNotFound, gin.H{"error": "website not found"})
+		return
+	}
+
+	// Parse rrweb events — raw JSON objects preserved as-is for S3 storage
+	var events []map[string]interface{}
+	if err := c.ShouldBindJSON(&events); err != nil || len(events) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or empty events array"})
+		return
+	}
+	if len(events) > 200 {
+		events = events[:200] // hard cap per chunk
+	}
+
+	ua := c.Request.UserAgent()
+	ip := c.ClientIP()
+
+	go func() {
+		if err := h.replays.ProcessRRWebChunk(context.Background(), website.SiteID, sessionID, visitorID, events, ua, ip); err != nil {
+			h.logger.Warn().Err(err).Str("session_id", sessionID).Msg("replay chunk: save failed")
+		}
+	}()
+
+	c.JSON(http.StatusOK, gin.H{"status": "ok", "received": len(events)})
 }
 
 // ── Type converters ───────────────────────────────────────────────────────────

@@ -106,6 +106,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.1.4",
     "cpx2": "^8.0.0",
+    "esbuild": "^0.25.12",
     "jsdom": "^28.1.0",
     "patch-package": "^8.0.0",
     "postcss": "^8",

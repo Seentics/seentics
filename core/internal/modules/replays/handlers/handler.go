@@ -63,7 +63,7 @@ func (h *ReplayHandler) GetSession(c *gin.Context) {
 		return
 	}
 
-	chunks, err := h.service.GetSession(c.Request.Context(), websiteID, sessionID)
+	meta, chunks, err := h.service.GetSession(c.Request.Context(), websiteID, sessionID)
 	if err != nil {
 		h.logger.Error().Err(err).Str("website_id", websiteID).Str("session_id", sessionID).Msg("replay: get session failed")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -72,6 +72,7 @@ func (h *ReplayHandler) GetSession(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"session_id": sessionID,
+		"meta":       meta,
 		"chunks":     chunks,
 	})
 }

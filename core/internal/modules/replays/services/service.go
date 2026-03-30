@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/Seentics/seentics/internal/modules/replays/models"
 	"github.com/Seentics/seentics/internal/modules/replays/repository"
@@ -91,6 +92,71 @@ func (s *ReplayService) ListSessions(ctx context.Context, websiteID string, limi
 	return sessions, nil
 }
 
-func (s *ReplayService) GetSession(ctx context.Context, websiteID, sessionID string) ([]models.ReplayChunk, error) {
-	return s.repo.GetChunks(ctx, websiteID, sessionID)
+func (s *ReplayService) GetSession(ctx context.Context, websiteID, sessionID string) (*models.Session, []models.ReplayChunk, error) {
+	meta, err := s.repo.GetSessionMeta(ctx, websiteID, sessionID)
+	if err != nil {
+		s.logger.Warn().Err(err).Msg("get session: meta fetch failed")
+	}
+	chunks, err := s.repo.GetChunks(ctx, websiteID, sessionID)
+	if err != nil {
+		return meta, nil, fmt.Errorf("get session chunks: %w", err)
+	}
+	return meta, chunks, nil
+}
+
+// ProcessRRWebChunk stores a batch of rrweb eventWithTime objects for a session.
+// Events arrive already in rrweb format (type, timestamp, data) — stored as-is in S3.
+func (s *ReplayService) ProcessRRWebChunk(
+	ctx context.Context,
+	websiteID, sessionID, visitorID string,
+	events []map[string]interface{},
+	ua, ip string,
+) error {
+	if len(events) == 0 {
+		return nil
+	}
+
+	// Use the earliest timestamp in the batch as the S3 key (for ordering)
+	tsMs := time.Now().UnixMilli()
+	for _, ev := range events {
+		if ts, ok := ev["timestamp"].(float64); ok && int64(ts) < tsMs && int64(ts) > 0 {
+			tsMs = int64(ts)
+		}
+	}
+
+	// Detect session start: rrweb emits a FullSnapshot (type=2) at the beginning.
+	// When we see it, create the Postgres metadata row.
+	var meta *models.SessionMeta
+	entryURL := ""
+	hasFullSnapshot := false
+	for _, ev := range events {
+		t, _ := ev["type"].(float64)
+		if int(t) == 4 { // rrweb Meta event — contains href
+			if data, ok := ev["data"].(map[string]interface{}); ok {
+				if href, ok := data["href"].(string); ok {
+					entryURL = href
+				}
+			}
+		}
+		if int(t) == 2 { // rrweb FullSnapshot
+			hasFullSnapshot = true
+		}
+	}
+	if hasFullSnapshot {
+		uaInfo  := utils.ParseUserAgent(ua)
+		locInfo := utils.GetLocationFromIP(ip)
+		meta = &models.SessionMeta{
+			Browser:   uaInfo.Browser,
+			Device:    uaInfo.Device,
+			OS:        uaInfo.OS,
+			Country:   locInfo.Country,
+			EntryPage: entryURL,
+		}
+	}
+
+	if err := s.repo.SaveChunk(ctx, websiteID, sessionID, tsMs, events, meta); err != nil {
+		s.logger.Warn().Err(err).Str("session_id", sessionID).Msg("rrweb chunk: save failed")
+		return err
+	}
+	return nil
 }

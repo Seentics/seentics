@@ -63,6 +63,24 @@ func (r *ReplayRepository) ListSessions(ctx context.Context, websiteID string, l
 	return out, rows.Err()
 }
 
+// GetSessionMeta returns the Postgres metadata row for a single session.
+func (r *ReplayRepository) GetSessionMeta(ctx context.Context, websiteID, sessionID string) (*models.Session, error) {
+	const q = `SELECT session_id, website_id,
+		COALESCE(browser,''), COALESCE(device,''), COALESCE(os,''),
+		COALESCE(country,''), COALESCE(entry_page,''),
+		timestamp, has_rage_clicks
+		FROM session_replays
+		WHERE website_id=$1 AND session_id=$2 AND sequence=0
+		LIMIT 1`
+	row := r.db.QueryRow(ctx, q, websiteID, sessionID)
+	var s models.Session
+	if err := row.Scan(&s.SessionID, &s.WebsiteID, &s.Browser, &s.Device, &s.OS,
+		&s.Country, &s.EntryPage, &s.StartedAt, &s.HasRageClicks); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
 // GetChunks downloads all recording chunks for a session from S3, in timestamp order.
 func (r *ReplayRepository) GetChunks(ctx context.Context, websiteID, sessionID string) ([]models.ReplayChunk, error) {
 	prefix := storage.SessionPrefix(websiteID, sessionID)
