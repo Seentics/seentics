@@ -40,9 +40,21 @@ export async function getSessionWithEvents(
   const res  = await api.get(`/api/v1/replays/${websiteId}/${sessionId}`);
   const body = res.data as SessionChunksResponse;
 
-  // Flatten all chunks into a single sorted event array
-  const events: RRWebEvent[] = (body.chunks ?? []).flatMap(c => c.data ?? []);
-  events.sort((a, b) => a.timestamp - b.timestamp);
+  // Flatten all chunks and unwrap rrweb events from the TrackerEvent envelope.
+  // The tracker sends: {type: "rrweb", data: <rrwebEventWithTime>, ts, url, sid, vid}
+  // We extract the inner `data` object which is the real rrweb event.
+  const events: RRWebEvent[] = (body.chunks ?? []).flatMap(c =>
+    (c.data ?? []).map((item: any) => {
+      if (item.type === 'rrweb' && item.data && typeof item.data.type === 'number') {
+        return item.data as RRWebEvent;   // unwrap TrackerEvent envelope
+      }
+      if (typeof item.type === 'number') {
+        return item as RRWebEvent;        // already a raw rrweb event (legacy)
+      }
+      return null;
+    }).filter((e): e is RRWebEvent => e !== null),
+  );
 
+  events.sort((a, b) => a.timestamp - b.timestamp);
   return { meta: body.meta ?? null, events };
 }

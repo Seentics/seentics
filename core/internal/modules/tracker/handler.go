@@ -119,14 +119,20 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id is required"})
 		return
 	}
-	total := len(req.Events) + len(req.Session) + len(req.Heatmaps) + len(req.Funnels) + len(req.Automations)
+	// Session (rrweb recording) events are excluded from the cap — they go straight
+	// to object storage and do not touch the analytics DB.
+	analyticsTotal := len(req.Events) + len(req.Heatmaps) + len(req.Funnels) + len(req.Automations)
+	total          := analyticsTotal + len(req.Session)
 	if total == 0 {
 		c.JSON(http.StatusOK, gin.H{"status": "ok", "processed": 0})
 		return
 	}
-	if total > 500 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "too many events (max 500 total)"})
+	if analyticsTotal > 500 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "too many analytics events (max 500)"})
 		return
+	}
+	if len(req.Session) > 300 {
+		req.Session = req.Session[:300] // hard cap per batch — tracker should stay under REC_MAX
 	}
 
 	website, err := h.websites.GetWebsiteByAnyID(ctx, req.SiteID)

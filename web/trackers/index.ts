@@ -12,11 +12,9 @@ const autoTrack = script?.getAttribute('data-auto-track') !== 'false';
 const domain    = window.location.hostname;
 
 const COLLECT      = apiHost + '/api/v1/tracker/collect';
-const REPLAY       = apiHost + '/api/v1/tracker/replay';
-const MAX_BATCH    = 25;    // max analytics events before forced flush
-const FLUSH_MS     = 5000;  // analytics queue idle timeout
-const REC_BATCH    = 50;    // max rrweb events per gzip chunk
-const REC_FLUSH_MS = 2000;  // recording chunk flush interval (2 s = low latency)
+const MAX_BATCH    = 25;    // analytics events before forced flush (session events excluded)
+const FLUSH_MS     = 5000;  // single flush interval for all queues — 5s
+const REC_MAX      = 150;   // max rrweb events before an early recording flush
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let cfg:         Record<string, unknown> = {};
@@ -29,6 +27,7 @@ const queues = {
   heatmaps:    [] as any[],
   funnels:     [] as any[],
   automations: [] as any[],
+  session:     [] as any[],   // rrweb eventWithTime wrapped in TrackerEvent envelope
 };
 
 // ─── Visitor / Session IDs ────────────────────────────────────────────────────
@@ -58,7 +57,7 @@ const getSessionId = (): string => {
   return id;
 };
 
-// ─── Analytics queue helpers ──────────────────────────────────────────────────
+// ─── Queue helpers ────────────────────────────────────────────────────────────
 const categoryOf = (type: string): keyof typeof queues => {
   if (type === 'funnel_step' || type === 'funnel_complete') return 'funnels';
   if (type === 'automation_trigger')                        return 'automations';
@@ -69,17 +68,18 @@ const categoryOf = (type: string): keyof typeof queues => {
 const pushAnalytics = (type: string, data: Record<string, unknown>): void => {
   const cat = categoryOf(type);
   queues[cat].push({ type, data, ts: Date.now(), url: location.href, sid: getSessionId(), vid: visitorId });
-  const total = queues.events.length + queues.heatmaps.length + queues.funnels.length + queues.automations.length;
-  if (total >= MAX_BATCH) flushAnalytics();
-  else if (!analyticsTimer) analyticsTimer = window.setTimeout(flushAnalytics, FLUSH_MS);
+  // Only count non-session events toward the force-flush threshold
+  const analyticsTotal = queues.events.length + queues.heatmaps.length + queues.funnels.length + queues.automations.length;
+  if (analyticsTotal >= MAX_BATCH) flush();
+  else if (!analyticsTimer) analyticsTimer = window.setTimeout(flush, FLUSH_MS);
 };
 
-const flushAnalytics = (): void => {
-  const e = queues.events.splice(0);
-  const h = queues.heatmaps.splice(0);
-  const f = queues.funnels.splice(0);
-  const a = queues.automations.splice(0);
-  if (!e.length && !h.length && !f.length && !a.length) return;
+// ─── Unified flush — sends all queues to /collect in one request ──────────────
+const flush = (): void => {
+  const e = queues.events.splice(0), h = queues.heatmaps.splice(0);
+  const f = queues.funnels.splice(0), a = queues.automations.splice(0);
+  const s = queues.session.splice(0);
+  if (!e.length && !h.length && !f.length && !a.length && !s.length) return;
   clearTimeout(analyticsTimer!); analyticsTimer = null;
 
   const payload: Record<string, unknown> = { site_id: siteId, domain };
@@ -87,8 +87,17 @@ const flushAnalytics = (): void => {
   if (h.length) payload.heatmaps    = h;
   if (f.length) payload.funnels     = f;
   if (a.length) payload.automations = a;
+  if (s.length) payload.session     = s;
 
   const json = JSON.stringify(payload);
+
+  // When recording events are present, use XHR with gzip (sendBeacon has a ~64KB limit)
+  if (s.length > 0) {
+    sendGzip(json);
+    return;
+  }
+
+  // Analytics-only: sendBeacon is most reliable on page close
   const blob = new Blob([json], { type: 'application/json' });
   if (navigator.sendBeacon) { navigator.sendBeacon(COLLECT, blob); return; }
   const xhr = new XMLHttpRequest();
@@ -97,62 +106,57 @@ const flushAnalytics = (): void => {
   xhr.send(json);
 };
 
-// ─── Recording chunk sender (gzip) ────────────────────────────────────────────
-const sendRecordingChunk = async (events: unknown[]): Promise<void> => {
-  if (!events.length) return;
-  const sid = getSessionId();
-  const url = `${REPLAY}?site_id=${encodeURIComponent(siteId)}&session_id=${encodeURIComponent(sid)}&visitor_id=${encodeURIComponent(visitorId)}`;
-  const json = JSON.stringify(events);
+const flushAnalytics = flush; // keep public API name
 
-  // Use native CompressionStream if available (Chrome 80+, Firefox 113+, Safari 16.4+)
+// Gzip via native CompressionStream; falls back to plain JSON if unavailable
+const sendGzip = async (json: string): Promise<void> => {
   if (typeof CompressionStream !== 'undefined') {
     try {
-      const cs     = new CompressionStream('gzip');
+      const cs = new CompressionStream('gzip');
       const writer = cs.writable.getWriter();
       writer.write(new TextEncoder().encode(json));
       writer.close();
-      const compressed = await new Response(cs.readable).arrayBuffer();
+      const buf = await new Response(cs.readable).arrayBuffer();
       const xhr = new XMLHttpRequest();
-      xhr.open('POST', url, true);
-      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.open('POST', COLLECT, true);
+      xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.setRequestHeader('Content-Encoding', 'gzip');
-      xhr.send(compressed);
+      xhr.send(buf);
       return;
-    } catch (_) { /* fall through to uncompressed */ }
+    } catch (_) { /* fall through */ }
   }
-
-  // Fallback: uncompressed JSON
   const xhr = new XMLHttpRequest();
-  xhr.open('POST', url, true);
+  xhr.open('POST', COLLECT, true);
   xhr.setRequestHeader('Content-Type', 'application/json');
   xhr.send(json);
 };
 
 // ─── rrweb recording ──────────────────────────────────────────────────────────
+// Events are wrapped in the standard TrackerEvent envelope and queued in
+// queues.session — flushed with everything else via the unified /collect call.
 const initRecording = (): (() => void) | undefined => {
-  const batch: unknown[] = [];
-  let recTimer: number | null = null;
-
-  const flush = (): void => {
-    if (recTimer !== null) { clearTimeout(recTimer); recTimer = null; }
-    if (!batch.length) return;
-    sendRecordingChunk(batch.splice(0)); // async fire-and-forget
-  };
-
   const stopFn = record({
     emit(event) {
-      batch.push(event);
-      if (batch.length >= REC_BATCH) {
-        flush();
-      } else if (recTimer === null) {
-        recTimer = window.setTimeout(flush, REC_FLUSH_MS);
-      }
+      const sid = getSessionId();
+      // Wrap rrweb eventWithTime so the backend stores it identically to other events
+      queues.session.push({
+        type: 'rrweb',
+        data: event,           // full rrweb eventWithTime: {type, timestamp, data}
+        ts:   event.timestamp,
+        url:  location.href,
+        sid,
+        vid:  visitorId,
+      });
+
+      // Early flush if recording batch is getting large (avoids huge single payload)
+      if (queues.session.length >= REC_MAX) flush();
+      else if (!analyticsTimer) analyticsTimer = window.setTimeout(flush, FLUSH_MS);
     },
     // Privacy
-    maskAllInputs:  false,
+    maskAllInputs:    false,
     maskInputOptions: { password: true },
-    blockSelector:  '[data-seentics-block]',
-    ignoreSelector: '[data-seentics-ignore]',
+    blockSelector:    '[data-seentics-block]',
+    ignoreSelector:   '[data-seentics-ignore]',
     // Performance sampling
     sampling: {
       mousemove: 50,   // ~20fps mouse tracking
@@ -161,16 +165,9 @@ const initRecording = (): (() => void) | undefined => {
       input:     'last',
     },
     inlineStylesheet: true,   // accurate CSS replay
-    collectFonts:     false,  // skip font data to keep chunks small
-    recordCanvas:     false,  // canvas recording is expensive; opt-in later
+    collectFonts:     false,
+    recordCanvas:     false,
   });
-
-  // Flush on page hide / close
-  const onHide = (): void => flush();
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') onHide();
-  });
-  window.addEventListener('pagehide', onHide, { once: true });
 
   return stopFn;
 };
@@ -324,9 +321,9 @@ const init = (): void => {
   if (!siteId) return;
   initRouting();
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flushAnalytics();
+    if (document.visibilityState === 'hidden') flush();
   });
-  window.addEventListener('pagehide', flushAnalytics);
+  window.addEventListener('pagehide', flush);
 
   fetch(apiHost + '/api/v1/tracker/init/' + siteId)
     .then(r => r.json())
