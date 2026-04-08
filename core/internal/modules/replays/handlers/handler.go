@@ -76,3 +76,28 @@ func (h *ReplayHandler) GetSession(c *gin.Context) {
 		"chunks":     chunks,
 	})
 }
+// BatchDelete godoc
+// DELETE /replays/:website_id/batch
+// Request body: { "sessionIds": ["id1", "id2"] }
+func (h *ReplayHandler) BatchDelete(c *gin.Context) {
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return
+	}
+
+	var req struct {
+		SessionIDs []string `json:"sessionIds"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	if err := h.service.DeleteSessions(c.Request.Context(), websiteID, req.SessionIDs); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "sessions deleted"})
+}

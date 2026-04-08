@@ -100,9 +100,14 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 	}
 
 	return map[string]interface{}{
-		"site_id":        w.SiteID,
-		"funnel_enabled": w.FunnelEnabled,
-		"goals":          cached.Goals,
+		"site_id":                  w.SiteID,
+		"funnel_enabled":           w.FunnelEnabled,
+		"goals":                    cached.Goals,
+		"replay_enabled":           w.ReplayEnabled,
+		"replay_sampling_rate":     w.ReplaySamplingRate,
+		"replay_include_patterns":  w.ReplayIncludePatterns,
+		"replay_exclude_patterns":  w.ReplayExcludePatterns,
+		"heatmap_enabled":          w.HeatmapEnabled,
 	}, nil
 }
 
@@ -705,12 +710,13 @@ func (s *WebsiteService) GetPublicDashboard(ctx context.Context, publicShareID s
 	}
 
 	return map[string]interface{}{
-		"website_name":    w.Name,
-		"website_url":     w.URL,
-		"total_visitors":  metrics.TotalVisitors,
-		"unique_visitors": metrics.UniqueVisitors,
-		"page_views":      metrics.PageViews,
-		"bounce_rate":     metrics.BounceRate,
+		"website_name":     w.Name,
+		"website_url":      w.URL,
+		"total_visitors":   metrics.TotalVisitors,
+		"unique_visitors":  metrics.UniqueVisitors,
+		"sessions":         metrics.Sessions,
+		"page_views":       metrics.PageViews,
+		"bounce_rate":      metrics.BounceRate,
 		"session_duration": metrics.AvgSessionTime,
 	}, nil
 }

@@ -6,8 +6,8 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Activity, Target, GitBranch,
-  Flame, Video, Bot, Code2, Settings, CreditCard,
-  LogOut, PanelLeftClose, PanelLeftOpen,
+  Video, Bot, Code2, Settings, CreditCard,
+  LogOut, PanelLeftClose, PanelLeftOpen, LifeBuoy,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { isEnterprise } from '@/lib/features';
@@ -25,7 +25,6 @@ function buildMainNav(websiteId: string): NavItem[] {
     { label: 'Realtime',        href: `/websites/${websiteId}/realtime`,    icon: Activity },
     { label: 'Goals',           href: `/websites/${websiteId}/goals`,       icon: Target },
     { label: 'Recording', href: `/websites/${websiteId}/replays`,     icon: Video },
-    { label: 'Heatmaps',        href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
     { label: 'Funnels',         href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
     { label: 'Automations',     href: `/websites/${websiteId}/automations`, icon: Bot },
   ];
@@ -34,10 +33,11 @@ function buildMainNav(websiteId: string): NavItem[] {
 function buildSecondaryNav(websiteId: string): NavItem[] {
   const items: NavItem[] = [
     { label: 'Developers', href: `/websites/${websiteId}/developers`, icon: Code2 },
+    { label: 'Support',    href: `/websites/${websiteId}/support`,    icon: LifeBuoy },
     { label: 'Settings',   href: `/websites/${websiteId}/settings`,   icon: Settings },
   ];
   if (isEnterprise || isDemo(websiteId)) {
-    items.splice(1, 0, { label: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard });
+    items.splice(2, 0, { label: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard });
   }
   return items;
 }

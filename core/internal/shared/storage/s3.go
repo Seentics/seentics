@@ -25,10 +25,16 @@ type S3Client struct {
 
 // NewS3Client creates an S3Client pointed at a MinIO (or any S3-compatible)
 // endpoint. Pass useSSL=false for local MinIO without TLS.
+// endpoint may be a bare host:port (e.g. "minio:9000") or a full URL
+// (e.g. "http://minio:9000"); the scheme is added only when absent.
 func NewS3Client(endpoint, accessKey, secretKey, bucket, region string, useSSL bool) (*S3Client, error) {
-	scheme := "http"
-	if useSSL {
-		scheme = "https"
+	endpointURL := endpoint
+	if !strings.Contains(endpoint, "://") {
+		scheme := "http"
+		if useSSL {
+			scheme = "https"
+		}
+		endpointURL = fmt.Sprintf("%s://%s", scheme, endpoint)
 	}
 
 	cfg := aws.Config{
@@ -37,7 +43,7 @@ func NewS3Client(endpoint, accessKey, secretKey, bucket, region string, useSSL b
 		EndpointResolverWithOptions: aws.EndpointResolverWithOptionsFunc(
 			func(service, reg string, opts ...interface{}) (aws.Endpoint, error) {
 				return aws.Endpoint{
-					URL:               fmt.Sprintf("%s://%s", scheme, endpoint),
+					URL:               endpointURL,
 					HostnameImmutable: true,
 				}, nil
 			},

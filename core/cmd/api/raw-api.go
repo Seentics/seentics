@@ -41,7 +41,7 @@ func registerRawAPIRoutes(router *gin.Engine, svc *apikeys.Service, h appHandler
 // registerAPIKeyManagementRoutes adds key-management endpoints under the
 // existing authenticated /api/v1 group (JWT-authed, same as the dashboard).
 func registerAPIKeyManagementRoutes(v1 *gin.RouterGroup, svc *apikeys.Service) {
-	g := v1.Group("/user/websites/:website_id/api-keys")
+	g := v1.Group("/user/websites/:id/api-keys")
 	{
 		g.POST("", createAPIKeyHandler(svc))
 		g.GET("", listAPIKeysHandler(svc))
@@ -90,7 +90,7 @@ func extractBearerKey(c *gin.Context) string {
 
 func createAPIKeyHandler(svc *apikeys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		websiteID := c.Param("website_id")
+		websiteID := c.Param("id")
 		userID, _ := c.Get("user_id")
 
 		var req struct {
@@ -114,7 +114,7 @@ func createAPIKeyHandler(svc *apikeys.Service) gin.HandlerFunc {
 
 func listAPIKeysHandler(svc *apikeys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		keys, err := svc.List(c.Request.Context(), c.Param("website_id"))
+		keys, err := svc.List(c.Request.Context(), c.Param("id"))
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list API keys"})
 			return
@@ -125,7 +125,7 @@ func listAPIKeysHandler(svc *apikeys.Service) gin.HandlerFunc {
 
 func revokeAPIKeyHandler(svc *apikeys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if err := svc.Revoke(c.Request.Context(), c.Param("key_id"), c.Param("website_id")); err != nil {
+		if err := svc.Revoke(c.Request.Context(), c.Param("key_id"), c.Param("id")); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke API key"})
 			return
 		}

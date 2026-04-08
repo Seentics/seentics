@@ -2,8 +2,10 @@ package services
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
+	"strconv"
 
 	"github.com/Seentics/seentics/internal/modules/heatmaps/models"
 	"github.com/Seentics/seentics/internal/modules/heatmaps/repository"
@@ -50,7 +52,7 @@ func (s *HeatmapService) ProcessEvents(ctx context.Context, websiteID uuid.UUID,
 				DeviceType:     uaInfo.Device,
 				XPercent:       int(toFloat(ev.Data["nx"]) * 10000),
 				YPercent:       int(toFloat(ev.Data["ny"]) * 10000),
-				TargetSelector: stringVal(ev.Data["target_selector"]),
+				TargetSelector: stringVal(ev.Data["target"]),
 			})
 		case "heatmap_scroll":
 			points = append(points, models.HeatmapPoint{
@@ -87,6 +89,15 @@ func (s *HeatmapService) ListPages(ctx context.Context, websiteID uuid.UUID) ([]
 	return pages, nil
 }
 
+// DeleteHeatmaps clears all points for given page paths
+func (s *HeatmapService) DeleteHeatmaps(ctx context.Context, websiteID uuid.UUID, pagePaths []string) error {
+	if err := s.repo.DeleteHeatmaps(ctx, websiteID, pagePaths); err != nil {
+		return fmt.Errorf("delete heatmaps: %w", err)
+	}
+	return nil
+}
+
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 func extractPath(rawURL string) string {
@@ -101,8 +112,25 @@ func extractPath(rawURL string) string {
 }
 
 func toFloat(v interface{}) float64 {
-	if f, ok := v.(float64); ok {
-		return f
+	switch n := v.(type) {
+	case float64:
+		return n
+	case float32:
+		return float64(n)
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	case json.Number:
+		f, err := n.Float64()
+		if err == nil {
+			return f
+		}
+	case string:
+		f, err := strconv.ParseFloat(n, 64)
+		if err == nil {
+			return f
+		}
 	}
 	return 0
 }

@@ -1,22 +1,35 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { DataTable, SortableHeader, ColumnDef } from '@/components/ui/data-table';
+import { DataTable, SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  Video, Clock, Monitor, Smartphone, Tablet,
-  AlertTriangle, Search, Users, RefreshCw,
+  Video,
+  Clock,
+  Monitor,
+  Smartphone,
+  Tablet,
+  AlertTriangle,
+  Search,
+  Users,
+  RefreshCw,
+  Trash2,
+  Play,
+  Copy,
+  MousePointerClick,
 } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import { demoReplays } from '@/lib/demo/replays';
-import { listSessions, type ReplaySession } from '@/lib/replays-api';
+import { listSessions, deleteSessions, type ReplaySession } from '@/lib/replays-api';
+import { useToast } from '@/hooks/use-toast';
+
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -41,34 +54,72 @@ function DeviceIcon({ device }: { device: string }) {
 
 // Unified row type
 interface SessionRow {
-  id:            string;
-  session_id:    string;
-  country:       string;
-  browser:       string;
-  os:            string;
-  device:        string;
-  entry_page:    string;
+  id: string;
+  session_id: string;
+  country: string;
+  browser: string;
+  os: string;
+  device: string;
+  entry_page: string;
   duration_seconds: number;
-  pages_viewed:  number;
-  has_errors:    boolean;
+  pages_viewed: number;
+  has_errors: boolean;
   has_rage_clicks: boolean;
-  start_time:    string;
+  start_time: string;
 }
 
 export default function ReplaysPage() {
-  const params     = useParams();
-  const router     = useRouter();
-  const websiteId  = params?.websiteId as string;
+  const params = useParams();
+  const router = useRouter();
+  const websiteId = params?.websiteId as string;
   const isDemoMode = isDemo(websiteId);
 
-  const [search,       setSearch]       = useState('');
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [search, setSearch] = useState('');
   const [deviceFilter, setDeviceFilter] = useState('all');
+
+  const copySessionId = useCallback(
+    (id: string) => {
+      void navigator.clipboard.writeText(id).then(() => {
+        toast({ title: 'Session ID copied' });
+      });
+    },
+    [toast],
+  );
+
+  const deleteMutation = useMutation({
+    mutationFn: (ids: string[]) => {
+      if (isDemoMode) return Promise.resolve();
+      return deleteSessions(websiteId, ids);
+    },
+    onSuccess: () => {
+      if (!isDemoMode) {
+        queryClient.invalidateQueries({ queryKey: ['sessions', websiteId] });
+      }
+      toast({
+        title: isDemoMode ? "Action simulated" : "Sessions deleted",
+        description: isDemoMode
+          ? "In demo mode, sessions are not actually deleted."
+          : "The selected sessions have been successfully removed.",
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        variant: "destructive",
+        title: "Deletion failed",
+        description: err.message || "Something went wrong while deleting sessions.",
+      });
+    },
+  });
+
+
 
   // Real API
   const { data: apiData, isLoading, refetch } = useQuery({
-    queryKey:  ['sessions', websiteId],
-    queryFn:   () => listSessions(websiteId, 100, 0),
-    enabled:   !isDemoMode,
+    queryKey: ['sessions', websiteId],
+    queryFn: () => listSessions(websiteId, 100, 0),
+    enabled: !isDemoMode,
     staleTime: 30_000,
   });
 
@@ -76,65 +127,87 @@ export default function ReplaysPage() {
   const allSessions: SessionRow[] = useMemo(() => {
     if (isDemoMode) {
       return demoReplays().sessions.map(s => ({
-        id:               s.id,
-        session_id:       s.session_id,
-        country:          s.country,
-        browser:          s.browser,
-        os:               s.os,
-        device:           s.device,
-        entry_page:       s.entry_page,
+        id: s.id,
+        session_id: s.session_id,
+        country: s.country,
+        browser: s.browser,
+        os: s.os,
+        device: s.device,
+        entry_page: s.entry_page,
         duration_seconds: s.duration_seconds,
-        pages_viewed:     s.pages_viewed,
-        has_errors:       s.has_errors,
-        has_rage_clicks:  s.has_rage_clicks,
-        start_time:       s.start_time,
+        pages_viewed: s.pages_viewed,
+        has_errors: s.has_errors,
+        has_rage_clicks: s.has_rage_clicks,
+        start_time: s.start_time,
       }));
     }
     return (apiData?.sessions ?? []).map((s: ReplaySession) => ({
-      id:               s.sessionId,
-      session_id:       s.sessionId,
-      country:          s.country   || 'Unknown',
-      browser:          s.browser   || 'Unknown',
-      os:               s.os        || 'Unknown',
-      device:           s.device    || 'Desktop',
-      entry_page:       s.entryPage || '/',
-      duration_seconds: 0,
-      pages_viewed:     0,
-      has_errors:       false,
-      has_rage_clicks:  s.hasRageClicks,
-      start_time:       s.startedAt,
+      id: s.sessionId,
+      session_id: s.sessionId,
+      country: s.country || 'Unknown',
+      browser: s.browser || 'Unknown',
+      os: s.os || 'Unknown',
+      device: s.device || 'Desktop',
+      entry_page: s.entryPage || '/',
+      duration_seconds: s.durationSeconds || 0,
+      pages_viewed: s.pagesViewed || 0,
+      has_errors: false,
+      has_rage_clicks: s.hasRageClicks,
+      start_time: s.startedAt,
     }));
+
   }, [isDemoMode, apiData]);
 
   const filtered = useMemo(() =>
     allSessions.filter(s => {
       if (deviceFilter !== 'all' && s.device.toLowerCase() !== deviceFilter) return false;
-      if (search && ![s.country, s.browser, s.entry_page].some(v =>
-        v.toLowerCase().includes(search.toLowerCase()))) return false;
+      if (
+        search &&
+        ![s.country, s.browser, s.entry_page, s.session_id].some(v =>
+          v.toLowerCase().includes(search.toLowerCase()),
+        )
+      ) {
+        return false;
+      }
       return true;
     }),
     [allSessions, deviceFilter, search],
   );
 
-  const withErrors  = allSessions.filter(s => s.has_errors).length;
-  const withRage    = allSessions.filter(s => s.has_rage_clicks).length;
+  const withErrors = allSessions.filter(s => s.has_errors).length;
+  const withRage = allSessions.filter(s => s.has_rage_clicks).length;
   const avgDuration = allSessions.length && allSessions.some(s => s.duration_seconds > 0)
     ? Math.round(allSessions.reduce((s, r) => s + r.duration_seconds, 0) / allSessions.length)
     : 0;
 
-  const columns: ColumnDef<SessionRow>[] = [
+  const columns = useMemo<ColumnDef<SessionRow>[]>(() => [
+    selectionColumn<SessionRow>(),
     {
-      id: 'session',
-      header: ({ column }) => <SortableHeader column={column}>Session</SortableHeader>,
-      accessorFn: row => row.country,
+      id: 'country',
+      accessorKey: 'country',
+      header: ({ column }) => <SortableHeader column={column}>Country</SortableHeader>,
+      size: 200,
       cell: ({ row }) => {
         const s = row.original;
         return (
-          <div className="flex items-center gap-2 min-w-0">
-            <DeviceIcon device={s.device} />
-            <span className="text-sm font-medium text-foreground">{s.country}</span>
-            <span className="text-xs text-muted-foreground">{s.browser}</span>
-            <span className="text-xs text-muted-foreground hidden md:inline">· {s.os}</span>
+          <div className="flex items-center gap-3 py-1">
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-foreground tracking-tight">{s.country}</span>
+                {(s.has_errors || s.has_rage_clicks) && (
+                  <div className="flex gap-1 items-center">
+                    {s.has_rage_clicks && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />}
+                    {s.has_errors && <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground/80 font-semibold uppercase tracking-wider">
+                <DeviceIcon device={s.device} />
+                <span>{s.browser}</span>
+                <span className="opacity-40">•</span>
+                <span>{s.os}</span>
+              </div>
+            </div>
           </div>
         );
       },
@@ -143,67 +216,96 @@ export default function ReplaysPage() {
       id: 'entry_page',
       header: 'Entry Page',
       accessorKey: 'entry_page',
+      size: 350,
       cell: ({ getValue }) => (
-        <span className="font-mono text-xs text-muted-foreground">{getValue() as string}</span>
+        <div className="max-w-[350px] truncate group">
+          <span className="font-mono text-[11px] text-muted-foreground group-hover:text-primary transition-colors cursor-default">
+            {getValue() as string}
+          </span>
+        </div>
       ),
-    },
-    {
-      id: 'pages_viewed',
-      header: ({ column }) => <SortableHeader column={column}>Pages</SortableHeader>,
-      accessorKey: 'pages_viewed',
-      size: 70,
-      cell: ({ getValue }) => {
-        const v = getValue() as number;
-        return <span className="text-xs text-center block">{v > 0 ? v : '—'}</span>;
-      },
     },
     {
       id: 'duration',
       header: ({ column }) => <SortableHeader column={column}>Duration</SortableHeader>,
       accessorKey: 'duration_seconds',
-      size: 100,
+      size: 110,
       cell: ({ getValue }) => {
         const v = getValue() as number;
-        return v > 0 ? (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Clock className="h-3 w-3 shrink-0" />
-            {formatDuration(v)}
+        return (
+          <div className="flex items-center gap-1.5 text-xs text-foreground font-medium bg-muted/30 w-fit px-2 py-0.5 rounded-md border border-border/40">
+            <Clock className="h-3 w-3 text-muted-foreground" />
+            {v > 0 ? formatDuration(v) : '0s'}
           </div>
-        ) : <span className="text-xs text-muted-foreground">—</span>;
+        );
       },
-    },
-    {
-      id: 'flags',
-      header: 'Flags',
-      size: 100,
-      cell: ({ row }) => (
-        <div className="flex items-center gap-1">
-          {row.original.has_rage_clicks && (
-            <Badge className="text-[10px] px-1.5 py-0 h-4 bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950 dark:text-orange-300 border">
-              rage
-            </Badge>
-          )}
-          {row.original.has_errors && (
-            <Badge className="text-[10px] px-1.5 py-0 h-4 bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-300 border">
-              error
-            </Badge>
-          )}
-        </div>
-      ),
     },
     {
       id: 'when',
       header: 'When',
       accessorKey: 'start_time',
-      size: 90,
+      size: 130,
+
       cell: ({ getValue }) => (
-        <span className="text-xs text-muted-foreground">{timeAgo(getValue() as string)}</span>
+        <span className="text-xs text-muted-foreground font-medium">{timeAgo(getValue() as string)}</span>
       ),
     },
-  ];
+    {
+      id: 'actions',
+      header: '',
+      size: 108,
+      cell: ({ row }) => (
+        <div className="flex justify-end items-center gap-0.5 pr-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-primary"
+            title="Copy session ID"
+            onClick={(e) => {
+              e.stopPropagation();
+              copySessionId(row.original.session_id);
+            }}
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-primary hover:bg-primary/10"
+            title="Watch replay"
+            onClick={(e) => {
+              e.stopPropagation();
+              router.push(`/websites/${websiteId}/replays/${row.original.session_id}`);
+            }}
+          >
+            <Play className="h-3.5 w-3.5 fill-current" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full"
+            title="Delete session"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (confirm('Delete this session?')) {
+                deleteMutation.mutate([row.original.session_id]);
+              }
+            }}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ),
+    },
+  ], [deleteMutation, copySessionId, router, websiteId]);
+
+
+
+
+
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
         title="Session Replays"
         description="Watch real user sessions to understand exactly how people use your product."
@@ -219,15 +321,43 @@ export default function ReplaysPage() {
 
       <StatCards cards={[
         { label: 'Total Sessions', value: allSessions.length, icon: Users },
-        { label: 'Avg Duration',   value: avgDuration > 0 ? formatDuration(avgDuration) : '—', icon: Clock, iconColor: 'text-blue-600', valueColor: 'text-blue-600' },
-        { label: 'With Errors',    value: withErrors, icon: AlertTriangle, iconColor: 'text-red-500', valueColor: withErrors > 0 ? 'text-red-500' : undefined },
-        { label: 'Rage Clicks',    value: withRage,   icon: AlertTriangle, iconColor: 'text-orange-500', valueColor: withRage > 0 ? 'text-orange-500' : undefined },
+        { label: 'Avg Duration', value: avgDuration > 0 ? formatDuration(avgDuration) : '—', icon: Clock, iconColor: 'text-blue-600', valueColor: 'text-blue-600' },
+        { label: 'With Errors', value: withErrors, icon: AlertTriangle, iconColor: 'text-red-500', valueColor: withErrors > 0 ? 'text-red-500' : undefined },
+        {
+          label: 'Rage clicks',
+          value: withRage,
+          icon: MousePointerClick,
+          iconColor: 'text-orange-500',
+          valueColor: withRage > 0 ? 'text-orange-500' : undefined,
+        },
       ]} />
 
       <DataTable
         data={filtered}
         columns={columns}
         isLoading={isLoading}
+        enableRowSelection={true}
+        selectionActions={(selectedRows) => (
+          <>
+            <span className="text-sm font-medium text-muted-foreground mr-2">
+              {selectedRows.length} selected
+            </span>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-8 gap-1.5"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete ${selectedRows.length} session(s)?`)) {
+                  deleteMutation.mutate(selectedRows.map(r => r.session_id));
+                }
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </>
+        )}
         toolbarLeft={
           <div>
             <h3 className="text-sm font-semibold text-foreground">Recorded Sessions</h3>
@@ -241,7 +371,7 @@ export default function ReplaysPage() {
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search by country, browser, page..."
+                placeholder="Search country, browser, page, session ID…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-8 h-8 text-xs w-56"
@@ -252,10 +382,10 @@ export default function ReplaysPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all"     className="text-xs">All devices</SelectItem>
+                <SelectItem value="all" className="text-xs">All devices</SelectItem>
                 <SelectItem value="desktop" className="text-xs">Desktop</SelectItem>
-                <SelectItem value="mobile"  className="text-xs">Mobile</SelectItem>
-                <SelectItem value="tablet"  className="text-xs">Tablet</SelectItem>
+                <SelectItem value="mobile" className="text-xs">Mobile</SelectItem>
+                <SelectItem value="tablet" className="text-xs">Tablet</SelectItem>
               </SelectContent>
             </Select>
           </>
@@ -268,6 +398,7 @@ export default function ReplaysPage() {
           : 'Install the Seentics tracker with recording enabled to capture sessions.'}
         pageSize={15}
       />
+
     </div>
   );
 }

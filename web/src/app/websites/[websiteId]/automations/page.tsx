@@ -3,7 +3,8 @@
 import { useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { DataTable, SortableHeader, ColumnDef } from '@/components/ui/data-table';
+import { DataTable, SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
+
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,8 +20,10 @@ import {
   useAutomations,
   useToggleAutomation,
   useDeleteAutomation,
+  useBulkDeleteAutomations,
   type Automation,
 } from '@/lib/automations-api';
+
 
 const TRIGGER_LABELS: Record<string, string> = {
   custom_event:  'Custom Event',
@@ -96,6 +99,8 @@ export default function AutomationsPage() {
   const [search, setSearch] = useState('');
   const { data, isLoading } = useAutomations(websiteId);
   const automations: Automation[] = data?.automations ?? [];
+  const bulkDeleteMutation = useBulkDeleteAutomations();
+
 
   const filtered = useMemo(() =>
     automations.filter(a =>
@@ -114,8 +119,10 @@ export default function AutomationsPage() {
     : 0;
 
   const columns: ColumnDef<Automation>[] = [
+    selectionColumn<Automation>(),
     {
       id: 'name',
+
       header: ({ column }) => <SortableHeader column={column}>Automation</SortableHeader>,
       accessorKey: 'name',
       cell: ({ row }) => {
@@ -200,7 +207,7 @@ export default function AutomationsPage() {
   ];
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
         title="Automations"
         description="Trigger actions automatically based on user behavior and analytics events."
@@ -221,12 +228,35 @@ export default function AutomationsPage() {
         data={filtered}
         columns={columns}
         isLoading={isLoading}
+        enableRowSelection={true}
+        selectionActions={(selectedRows) => (
+          <>
+            <span className="text-sm font-medium text-muted-foreground mr-2">
+              {selectedRows.length} selected
+            </span>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="h-8 gap-1.5"
+              disabled={bulkDeleteMutation.isPending}
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete ${selectedRows.length} automation(s)?`)) {
+                  bulkDeleteMutation.mutate({ websiteId, automationIds: selectedRows.map(r => r.id) });
+                }
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete
+            </Button>
+          </>
+        )}
         toolbarLeft={
           <div>
             <h3 className="text-sm font-semibold text-foreground">Automations</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">{filtered.length} automation{filtered.length !== 1 ? 's' : ''} configured</p>
           </div>
         }
+
         toolbarRight={
           <>
             <div className="relative">

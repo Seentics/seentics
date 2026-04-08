@@ -25,7 +25,7 @@ const upsertPointSQL = `
 	INSERT INTO heatmap_points
 		(website_id, page_path, event_type, device_type, x_percent, y_percent, intensity, target_selector, last_updated)
 	VALUES ($1, $2, $3, $4, $5, $6, 1, $7, NOW())
-	ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent)
+	ON CONFLICT (website_id, page_path, event_type, device_type, x_percent, y_percent, target_selector)
 	DO UPDATE SET
 		intensity    = heatmap_points.intensity + 1,
 		last_updated = NOW()`
@@ -69,15 +69,17 @@ func (r *HeatmapRepository) GetHeatmapData(ctx context.Context, websiteID uuid.U
 	return points, nil
 }
 
-// ListPages returns a summary of click activity per page for a website
+// ListPages returns a summary of all heatmap activity per page for a website.
+// Includes click count, scroll count, and average scroll depth.
 func (r *HeatmapRepository) ListPages(ctx context.Context, websiteID uuid.UUID) ([]models.PageSummary, error) {
 	const q = `
 		SELECT page_path,
-		       COALESCE(SUM(intensity), 0)::int AS click_count,
-		       MAX(last_updated)               AS last_seen
+		       COALESCE(SUM(CASE WHEN event_type = 'click'  THEN intensity ELSE 0 END), 0)::int AS click_count,
+		       COALESCE(SUM(CASE WHEN event_type = 'scroll' THEN intensity ELSE 0 END), 0)::int AS scroll_count,
+		       COALESCE(AVG(CASE WHEN event_type = 'scroll' THEN y_percent END), 0)::int        AS avg_scroll_raw,
+		       MAX(last_updated) AS last_seen
 		FROM heatmap_points
 		WHERE website_id = $1
-		  AND event_type = 'click'
 		GROUP BY page_path
 		ORDER BY click_count DESC`
 	rows, err := r.db.Query(ctx, q, websiteID)
@@ -89,14 +91,22 @@ func (r *HeatmapRepository) ListPages(ctx context.Context, websiteID uuid.UUID) 
 	var pages []models.PageSummary
 	for rows.Next() {
 		var (
-			ps       models.PageSummary
-			lastSeen time.Time
+			ps            models.PageSummary
+			avgScrollRaw  int
+			lastSeen      time.Time
 		)
-		if err := rows.Scan(&ps.PagePath, &ps.ClickCount, &lastSeen); err != nil {
+		if err := rows.Scan(&ps.PagePath, &ps.ClickCount, &ps.ScrollCount, &avgScrollRaw, &lastSeen); err != nil {
 			return nil, fmt.Errorf("list pages scan: %w", err)
 		}
+		ps.AvgScroll = avgScrollRaw / 100 // stored as depth*100, convert back to percent
 		ps.LastSeen = lastSeen
 		pages = append(pages, ps)
 	}
 	return pages, nil
+}
+// DeleteHeatmaps clears all heatmap points for a set of page paths
+func (r *HeatmapRepository) DeleteHeatmaps(ctx context.Context, websiteID uuid.UUID, pagePaths []string) error {
+	const q = `DELETE FROM heatmap_points WHERE website_id = $1 AND page_path = ANY($2)`
+	_, err := r.db.Exec(ctx, q, websiteID, pagePaths)
+	return err
 }

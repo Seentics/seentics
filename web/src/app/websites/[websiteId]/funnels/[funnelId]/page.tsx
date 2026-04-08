@@ -52,7 +52,7 @@ export default function FunnelDetailPage() {
   const metrics = analytics?.step_metrics || [];
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
       <div className="flex items-center gap-3 mb-6">
         <Button
           variant="ghost"

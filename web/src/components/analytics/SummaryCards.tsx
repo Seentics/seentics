@@ -8,10 +8,9 @@ import {
   Clock,
   Eye,
   TrendingDown,
-  Users,
-  Activity,
   Radio,
   UserCheck,
+  Users,
 } from 'lucide-react';
 import React from 'react';
 import { cn } from '@/lib/utils';
@@ -38,7 +37,11 @@ const GrowthBadge = ({ current, previous, inverse = false }: {
     return <span className="text-[10px] text-muted-foreground/40">—</span>;
   }
   if (current === previous) {
-    return <span className="text-[10px] text-muted-foreground/40">0%</span>;
+    return (
+      <span className="text-[10px] font-medium text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded-md">
+        No change
+      </span>
+    );
   }
   const rawGrowth = ((current - previous) / previous) * 100;
   const growth = Math.max(-100, Math.min(999, rawGrowth));
@@ -122,8 +125,8 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, v
   if (isLoading || !data) {
     return (
       <div className="bg-card shadow-sm rounded overflow-hidden mb-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 divide-x divide-border/40">
-          {[...Array(7)].map((_, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/40">
+          {[...Array(6)].map((_, i) => (
             <div key={i} className="p-5">
               <Skeleton className="h-3 w-20 mb-4 rounded" />
               <Skeleton className="h-7 w-16 mb-2 rounded" />
@@ -141,18 +144,45 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, v
   const totalForRatio = newVisitors + returningVisitors || 1;
   const newPct = Math.round((newVisitors / totalForRatio) * 100);
 
+  // Prefer comparison “current_period” for KPIs that show a prior-period delta, so the big number
+  // and the growth badge always describe the same window (avoids misleading 0% when top-level
+  // fields differ slightly from the comparison query).
+  const cur = data.comparison?.current_period;
+
+  const sessions = (cur?.sessions ??
+    data.sessions ??
+    data.metrics?.sessions ??
+    0) as number;
+
+  // Distinct people in range (API may mirror as total_visitors in older payloads).
+  const uniqueVisitors = (cur?.unique_visitors ??
+    data.unique_visitors ??
+    data.metrics?.unique_visitors ??
+    0) as number;
+  const prevUnique =
+    data.comparison?.previous_period?.unique_visitors ??
+    data.comparison?.previous_period?.total_visitors;
+
+  // “Total visitors” in product language = visit count (distinct sessions), not duplicate of unique people.
+  const totalVisits = sessions;
+  const prevTotalVisits = data.comparison?.previous_period?.sessions;
+
+  const pageViews = (cur?.page_views ?? data.page_views ?? 0) as number;
+  const sessionDuration = (cur?.avg_session_time ?? data.session_duration ?? 0) as number;
+  const bounceRate = (cur?.bounce_rate ?? data.bounce_rate ?? 0) as number;
+
   const cards = [
-    { title: 'Live Visitors',    value: isDemo ? (data.live_visitors || 0) : (liveVisitors || 0), icon: Radio, format: 'number' as const },
-    { title: 'Total Visitors',   value: data.total_visitors || 0,   previousValue: data.comparison?.previous_period?.total_visitors,   icon: Users,        format: 'number' as const },
-    { title: 'Unique Visitors',  value: data.unique_visitors || 0,  previousValue: data.comparison?.previous_period?.unique_visitors,   icon: Activity,     format: 'number' as const },
-    { title: 'Page Views',       value: data.page_views || 0,       previousValue: data.comparison?.previous_period?.page_views,        icon: Eye,          format: 'number' as const },
-    { title: 'Session Duration', value: data.session_duration || 0, previousValue: data.comparison?.previous_period?.avg_session_time,  icon: Clock,        format: 'duration' as const },
-    { title: 'Bounce Rate',      value: data.bounce_rate || 0,      previousValue: data.comparison?.previous_period?.bounce_rate,       icon: TrendingDown, format: 'percentage' as const, inverse: true },
+    { title: 'Live Visitors',     value: isDemo ? (data.live_visitors || 0) : (liveVisitors || 0), icon: Radio,      format: 'number' as const },
+    { title: 'Unique Visitors',   value: uniqueVisitors,                 previousValue: prevUnique,       icon: UserCheck,  format: 'number' as const },
+    { title: 'Total visitors',    value: totalVisits,                    previousValue: prevTotalVisits,  icon: Users,      format: 'number' as const },
+    { title: 'Page Views',        value: pageViews,                      previousValue: data.comparison?.previous_period?.page_views,       icon: Eye,          format: 'number' as const },
+    { title: 'Session Duration',  value: sessionDuration,                previousValue: data.comparison?.previous_period?.avg_session_time, icon: Clock,        format: 'duration' as const },
+    { title: 'Bounce Rate',       value: bounceRate,                     previousValue: data.comparison?.previous_period?.bounce_rate,      icon: TrendingDown, format: 'percentage' as const, inverse: true },
   ];
 
   return (
     <div className="bg-card shadow-sm rounded overflow-hidden mb-6 border dark:border-none">
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 divide-x divide-border/40">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/40">
         {cards.map((card, i) => (
           <SummaryCard key={i} {...card} />
         ))}

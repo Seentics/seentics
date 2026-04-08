@@ -50,6 +50,7 @@ const getModalTitle = (modalType: string) => {
 const getModalContent = (modalType: string, data: any, isLoading: any) => {
   const metrics = data.dashboard || {};
   const legacyMetrics = metrics.metrics || {};
+  const sessionCount = metrics.sessions ?? legacyMetrics.sessions ?? 0;
   
   switch (modalType) {
     case 'traffic':
@@ -65,8 +66,8 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
               <div className="text-sm text-gray-600 dark:text-gray-400">Unique Visitors</div>
             </div>
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">Total Visits</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(sessionCount)}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">Sessions</div>
             </div>
             <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
               <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{formatPercentage(metrics.bounce_rate || legacyMetrics.bounce_rate || 0)}</div>
@@ -140,8 +141,8 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
               <div className="text-sm text-green-700 dark:text-green-300 font-medium">Total Page Views</div>
             </div>
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded border border-indigo-200 dark:border-indigo-800">
-              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Total Sessions</div>
+              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(sessionCount)}</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Sessions</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded border border-orange-200 dark:border-orange-800">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</div>
@@ -165,8 +166,8 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
               <div className="text-sm text-green-700 dark:text-green-300 font-medium">Total Page Views</div>
             </div>
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded border border-indigo-200 dark:border-indigo-800">
-              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Total Sessions</div>
+              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(sessionCount)}</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Sessions</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded border border-orange-200 dark:border-orange-800">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatDuration(metrics.session_duration || legacyMetrics.avg_session_time || 0)}</div>
@@ -190,8 +191,8 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
               <div className="text-sm text-green-700 dark:text-green-300 font-medium">Total Page Views</div>
             </div>
             <div className="text-center p-4 bg-indigo-50 dark:bg-indigo-950/20 rounded border border-indigo-200 dark:border-indigo-800">
-              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</div>
-              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Total Sessions</div>
+              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{formatNumber(sessionCount)}</div>
+              <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Sessions</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded border border-orange-200 dark:border-orange-800">
               <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatPercentage(metrics.bounce_rate || legacyMetrics.bounce_rate || 0)}</div>
@@ -219,8 +220,8 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
               <div className="text-sm text-indigo-700 dark:text-indigo-300 font-medium">Returning Visitors</div>
             </div>
             <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded border border-orange-200 dark:border-orange-800">
-              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</div>
-              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Total Sessions</div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{formatNumber(sessionCount)}</div>
+              <div className="text-sm text-orange-700 dark:text-orange-300 font-medium">Sessions</div>
             </div>
           </div>
           <div className="bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 p-6">
@@ -238,8 +239,8 @@ const getModalContent = (modalType: string, data: any, isLoading: any) => {
               </div>
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Total Sessions</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(metrics.total_visitors || legacyMetrics.sessions || 0)}</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Sessions</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{formatNumber(sessionCount)}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Avg Session Time</span>

@@ -26,10 +26,22 @@ export interface DashboardData {
   // Core 6 stats for SummaryCards
   total_visitors: number;
   unique_visitors: number;
+  /** Distinct sessions in range (pageview session count). */
+  sessions?: number;
   live_visitors: number;
   page_views: number;
   session_duration: number;
   bounce_rate: number;
+  /** Nested KPIs from the API (same values as top-level fields). */
+  metrics?: {
+    page_views?: number;
+    total_visitors?: number;
+    unique_visitors?: number;
+    sessions?: number;
+    bounce_rate?: number;
+    avg_session_time?: number;
+    pages_per_session?: number;
+  };
   // Comparison metrics for growth indicators
   comparison?: {
     current_period?: {
@@ -1048,6 +1060,32 @@ export const useDeleteFunnel = () => {
     },
   });
 };
+
+// Delete multiple funnels
+export async function deleteFunnels(websiteId: string, funnelIds: string[]): Promise<void> {
+  if (demoMutationGuard(websiteId)) return;
+  try {
+    await api.delete(`/funnels/bulk-delete?website_id=${websiteId}`, {
+      data: { funnelIds }
+    });
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export const useDeleteFunnels = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ websiteId, funnelIds }: { websiteId: string; funnelIds: string[] }) => 
+      deleteFunnels(websiteId, funnelIds),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnels', variables.websiteId] });
+      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnel-analytics'] });
+    },
+  });
+};
+
 
 
 export const useCompareFunnels = () => {

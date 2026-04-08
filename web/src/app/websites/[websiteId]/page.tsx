@@ -1,15 +1,12 @@
 'use client';
 
 import { GeolocationOverview } from '@/components/analytics/GeolocationOverview';
-import { TopCountriesChart } from '@/components/analytics/TopCountriesChart';
 import { TopDevicesChart } from '@/components/analytics/TopDevicesChart';
 import { TopPagesChart } from '@/components/analytics/TopPagesChart';
 import { TopSourcesChart } from '@/components/analytics/TopSourcesChart';
 import { TrafficOverview } from '@/components/analytics/TrafficOverview';
 import { UTMPerformanceChart } from '@/components/analytics/UTMPerformanceChart';
-import { RecentActivityFeed } from '@/components/analytics/RecentActivityFeed';
 import type { EventAnnotation } from '@/components/analytics/EventAnnotations';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -28,27 +25,20 @@ import {
   useTopPages,
   useTopReferrers,
   useVisitorInsights,
-  useGoalStats,
   usePreviousPeriodDailyStats,
-  useRecentActivity,
 } from '@/lib/analytics-api';
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
-import { Download, Globe, PlusCircle, Users, Target, X, Gauge, GitBranch } from 'lucide-react';
+import { Globe, PlusCircle, Users, X } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
-import { GoalConversions } from '@/components/analytics/GoalConversions';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
-import { PagePerformanceTable } from '@/components/analytics/PagePerformanceTable';
 
 import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
-import { AddGoalModal } from '@/components/websites/modals/AddGoalModal';
 import { FilterModal } from '@/components/analytics/FilterModal';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
-import { FunnelManagement } from '@/components/analytics/FunnelManagement';
-import { PathAnalysis } from '@/components/analytics/PathAnalysis';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 // Pure helper — defined outside component so it's never re-created on render
@@ -88,7 +78,6 @@ export default function WebsiteDashboardPage() {
   const [selectedModal, setSelectedModal] = useState<string | null>(null);
   const [modalType, setModalType] = useState<string>('');
   const [showAddWebsiteModal, setShowAddWebsiteModal] = useState(false);
-  const [showAddGoalModal, setShowAddGoalModal] = useState(false);
 
   // Filter state
   const [dateRange, setDateRange] = useState<number>(7);
@@ -221,8 +210,6 @@ export default function WebsiteDashboardPage() {
   const { data: topResolutions, isLoading: resolutionsLoading } = useTopResolutions(deferredId, dateRange);
   const { data: geolocationData, isLoading: geolocationLoading, error: geolocationError } = useGeolocationBreakdown(deferredId, dateRange);
   const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(deferredId, dateRange);
-  const { data: goalStats, isLoading: goalStatsLoading } = useGoalStats(deferredId, dateRange);
-  const { data: recentActivity, isLoading: recentActivityLoading } = useRecentActivity(deferredId);
 
   // Previous period data for comparison overlay
   const { data: previousDailyStats } = usePreviousPeriodDailyStats(deferredId, dateRange, showComparison);
@@ -359,38 +346,6 @@ export default function WebsiteDashboardPage() {
     };
   }, [isDemoMode, demoData, customEvents, finalDashboardData?.page_views]);
 
-  // Only show user-defined goals, no fallback to auto-tracked events
-  const finalGoalStats = useMemo(() => goalStats?.goals ?? [], [goalStats]);
-
-
-  const handleExportCSV = useCallback(() => {
-    const rows: string[][] = [
-      ['Metric', 'Value'],
-      ['Total Visitors', String(finalDashboardData?.total_visitors ?? 0)],
-      ['Unique Visitors', String(finalDashboardData?.unique_visitors ?? 0)],
-      ['Page Views', String(finalDashboardData?.page_views ?? 0)],
-      ['Bounce Rate', `${(finalDashboardData?.bounce_rate ?? 0).toFixed(1)}%`],
-      ['Session Duration (s)', String(finalDashboardData?.session_duration ?? 0)],
-      [],
-      ['Date', 'Visitors', 'Page Views'],
-      ...(finalDailyStats?.daily_stats ?? []).map((d: any) => [d.date, String(d.unique ?? 0), String(d.views ?? 0)]),
-      [],
-      ['Page', 'Views', 'Unique Visitors'],
-      ...(finalTopPages?.top_pages ?? []).map((p: any) => [p.page, String(p.views ?? 0), String(p.unique_visitors ?? 0)]),
-      [],
-      ['Country', 'Visitors'],
-      ...(finalTopCountries?.top_countries ?? []).map((c: any) => [c.country, String(c.visitors ?? 0)]),
-    ];
-    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `analytics-${currentWebsite?.name ?? websiteId}-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [finalDashboardData, finalDailyStats, finalTopPages, finalTopCountries, currentWebsite, websiteId]);
-
   const handleModalClose = () => {
     setSelectedModal(null);
     setModalType('');
@@ -482,8 +437,8 @@ export default function WebsiteDashboardPage() {
             activeFiltersCount={Object.keys(advancedFilters).length}
           />
 
-{/* Theme */}
-          <div className="h-8 w-8 flex items-center justify-center bg-card/50 hover:bg-card transition-colors rounded-md border border-border/40">
+{/* Theme — same box as row controls; compact icon matches Filter button height */}
+          <div className="flex h-8 shrink-0 items-center justify-center rounded-md border border-border/40 bg-card/50 transition-colors hover:bg-card">
             <ThemeToggle />
           </div>
         </div>
@@ -556,11 +511,7 @@ export default function WebsiteDashboardPage() {
 
         {/* AUDIENCE INTELLIGENCE */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <Users className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold tracking-tight">Audience Intelligence</h2>
-            <div className="h-px bg-border flex-1 ml-3" />
-          </div>
+ 
 
           {/* Pages & Sources */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -594,7 +545,7 @@ export default function WebsiteDashboardPage() {
             />
           </ChartErrorBoundary>
 
-          {/* Devices + Live Activity — 2-col grid */}
+          {/* Devices + UTM — 2-col grid (live page views → Realtime page) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card className="border border-border/60 bg-card shadow-sm">
               <CardContent className="p-5">
@@ -610,88 +561,12 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/60 bg-card shadow-sm">
-              <CardContent className="p-5">
-                <ChartErrorBoundary label="Live Activity">
-                  <RecentActivityFeed
-                    data={recentActivity}
-                    isLoading={!isDemoMode && recentActivityLoading}
-                  />
-                </ChartErrorBoundary>
-              </CardContent>
-            </Card>
-          </div>
-
-        </div>
-
-        {/* PAGE PERFORMANCE */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <Gauge className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold tracking-tight">Page Performance</h2>
-            <div className="h-px bg-border flex-1 ml-3" />
-          </div>
-
-          <Card className="border border-border/60 bg-card shadow-sm">
-            <CardContent className="p-5">
-              <ChartErrorBoundary label="Page Performance">
-                <PagePerformanceTable
-                  data={(isDemoMode ? demoData?.topPages : topPages) || { top_pages: [] }}
-                  isLoading={!isDemoMode && pagesLoading}
-                />
-              </ChartErrorBoundary>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* CONVERSION & MARKETING INTELLIGENCE */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-1">
-            <Target className="h-4 w-4 text-primary" />
-            <h2 className="text-sm font-semibold tracking-tight">Conversion & Marketing</h2>
-            <div className="h-px bg-border flex-1 ml-3" />
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* Goal Conversions */}
-            <Card className="border border-border/60 bg-card shadow-sm">
-              <CardHeader className="p-5 pb-3 border-b border-border/60">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-semibold tracking-tight">Goal Conversions</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Behavioral targets</p>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      onClick={() => setShowAddGoalModal(true)}
-                      variant="secondary"
-                      size="sm"
-                      className="h-7 px-2.5 text-xs font-medium rounded gap-1.5 shadow-sm transition-transform active:scale-95"
-                    >
-                      <PlusCircle className="h-3 w-3" />
-                      Add Goal
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-4 flex-1">
-                <ChartErrorBoundary label="Goal Conversions">
-                  <GoalConversions
-                    items={finalGoalStats}
-                    totalVisitors={finalDashboardData?.unique_visitors || 0}
-                    isLoading={!isDemoMode && goalStatsLoading}
-                  />
-                </ChartErrorBoundary>
-              </CardContent>
-            </Card>
-
-            {/* Campaign Intelligence */}
             <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
               <CardHeader className="p-5 pb-3 border-b border-border/60">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="min-w-0 shrink-0">
-                    <h3 className="text-base font-semibold tracking-tight whitespace-nowrap">Campaign Intelligence</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">UTM source & performance</p>
+                    <h3 className="text-base font-semibold tracking-tight whitespace-nowrap">UTM breakdown</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">Sources, mediums & campaigns</p>
                   </div>
                   <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto shrink-0">
                     <TabsList className="grid w-full grid-cols-3 h-8 bg-muted/50 p-0.5 rounded">
@@ -703,20 +578,20 @@ export default function WebsiteDashboardPage() {
                 </div>
               </CardHeader>
               <CardContent className="pt-4">
-                <UTMPerformanceChart
-                  data={transformedCustomEvents.utm_performance as any}
-                  isLoading={customEventsLoading}
-                  hideTabs={true}
-                  controlledTab={utmTab}
-                />
+                <ChartErrorBoundary label="UTM breakdown">
+                  <UTMPerformanceChart
+                    data={transformedCustomEvents.utm_performance as any}
+                    isLoading={customEventsLoading}
+                    hideTabs={true}
+                    controlledTab={utmTab}
+                  />
+                </ChartErrorBoundary>
               </CardContent>
             </Card>
           </div>
+
         </div>
 
-        {/* PATH ANALYSIS */}
-        <PathAnalysis websiteId={websiteId} dateRange={dateRange} />
-        
         {/* Detailed Data Modal */}
         {selectedModal && (
           <DetailedDataModal
@@ -747,22 +622,16 @@ export default function WebsiteDashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="p-4 md:p-6 lg:p-8 w-full max-w-[1200px] mx-auto">
+    <div className="min-h-0 w-full bg-background">
+      <div className="mx-auto w-full max-w-[1200px] p-4 md:p-6 lg:p-8">
         {dashboardContent}
-      </main>
+      </div>
 
       {/* Add Website Modal */}
       <AddWebsiteModal
         open={showAddWebsiteModal}
         onOpenChange={setShowAddWebsiteModal}
         onSuccess={handleWebsiteAdded}
-      />
-
-      <AddGoalModal
-        open={showAddGoalModal}
-        onOpenChange={setShowAddGoalModal}
-        websiteId={websiteId}
       />
     </div>
   );

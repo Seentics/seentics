@@ -2,7 +2,11 @@ package migrations
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
@@ -11,6 +15,37 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog"
 )
+
+// postgresMigrationsDir must match the path in migrationsSourceURL (working directory = service root).
+const migrationsSourceURL = "file://internal/shared/migrations"
+const postgresMigrationsDir = "internal/shared/migrations"
+
+// maxBundledMigrationVersion returns the highest NNNN prefix from NNNN_name.up.sql in dir.
+func maxBundledMigrationVersion(dir string) (uint, error) {
+	matches, err := filepath.Glob(filepath.Join(dir, "*.up.sql"))
+	if err != nil {
+		return 0, err
+	}
+	var maxV uint
+	for _, path := range matches {
+		base := filepath.Base(path)
+		idx := strings.IndexByte(base, '_')
+		if idx <= 0 {
+			continue
+		}
+		n, err := strconv.ParseUint(base[:idx], 10, 64)
+		if err != nil {
+			continue
+		}
+		if uint(n) > maxV {
+			maxV = uint(n)
+		}
+	}
+	if maxV == 0 {
+		return 0, fmt.Errorf("no *.up.sql migrations in %s", dir)
+	}
+	return maxV, nil
+}
 
 // Migrator handles database migrations using go-migrate
 type Migrator struct {
@@ -44,7 +79,7 @@ func (m *Migrator) RunMigrations(ctx context.Context) error {
 	// Create migrate instance
 	m.logger.Debug().Msg("Creating migrate instance")
 	migrator, err := migrate.NewWithDatabaseInstance(
-		"file://internal/shared/migrations",
+		migrationsSourceURL,
 		"postgres",
 		driver,
 	)
@@ -54,10 +89,32 @@ func (m *Migrator) RunMigrations(ctx context.Context) error {
 	m.logger.Debug().Msg("Migrate instance created")
 	defer migrator.Close()
 
+	bundledMax, err := maxBundledMigrationVersion(postgresMigrationsDir)
+	if err != nil {
+		return fmt.Errorf("migrations: list bundled versions: %w", err)
+	}
+
 	// Get current version
 	version, dirty, err := migrator.Version()
-	if err != nil && err != migrate.ErrNilVersion {
+	if err != nil && !errors.Is(err, migrate.ErrNilVersion) {
 		return fmt.Errorf("failed to get current migration version: %w", err)
+	}
+
+	// After a migration squash, the DB can still record an old high version (e.g. 30) while
+	// the tree only ships 0001_baseline.up.sql. go-migrate then errors trying to resolve that
+	// version. Align the recorded version to the latest bundled file without running SQL.
+	if err == nil && version > bundledMax {
+		m.logger.Warn().
+			Uint("database_version", version).
+			Uint("bundled_max_version", bundledMax).
+			Msg("Database migration version is ahead of bundled files (squash or old volume); forcing to bundled max")
+		if err := migrator.Force(int(bundledMax)); err != nil {
+			return fmt.Errorf("failed to force migration version after squash mismatch: %w", err)
+		}
+		version, dirty, err = migrator.Version()
+		if err != nil {
+			return fmt.Errorf("failed to re-read migration version after force: %w", err)
+		}
 	}
 
 	if dirty {
@@ -69,7 +126,7 @@ func (m *Migrator) RunMigrations(ctx context.Context) error {
 		}
 	}
 
-	if err == migrate.ErrNilVersion {
+	if errors.Is(err, migrate.ErrNilVersion) {
 		m.logger.Info().Msg("No migrations applied yet")
 	} else {
 		m.logger.Info().Uint("version", version).Msg("Current migration version")

@@ -13,8 +13,11 @@ type Session struct {
 	EntryPage     string    `json:"entryPage"`
 	StartedAt     time.Time `json:"startedAt"`
 	ChunkCount    int       `json:"chunkCount"`
-	HasRageClicks bool      `json:"hasRageClicks"`
+	HasRageClicks   bool      `json:"hasRageClicks"`
+	DurationSeconds int       `json:"durationSeconds"`
+	PagesViewed     int       `json:"pagesViewed"`
 }
+
 
 // ReplayChunk represents a single chunk of recorded event data for a session
 type ReplayChunk struct {

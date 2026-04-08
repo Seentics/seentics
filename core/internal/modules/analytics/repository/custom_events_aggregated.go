@@ -120,18 +120,6 @@ func (r *CustomEventsAggregatedRepository) createEventSignature(eventType string
 	return hex.EncodeToString(hash[:])
 }
 
-// extractCommonProperties extracts common property keys from sample properties
-func (r *CustomEventsAggregatedRepository) extractCommonProperties(props models.Properties) models.Properties {
-	if props == nil {
-		return models.Properties{}
-	}
-
-	// For now, return the sample properties as common properties
-	// In a more sophisticated implementation, you could analyze multiple events
-	// and find properties that appear in most events of the same type
-	return props
-}
-
 // CleanupOldEvents removes old aggregated events (optional cleanup)
 func (r *CustomEventsAggregatedRepository) CleanupOldEvents(ctx context.Context, olderThanDays int) error {
 	query := `

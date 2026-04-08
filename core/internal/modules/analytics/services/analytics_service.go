@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/Seentics/seentics/internal/modules/analytics/models"
@@ -128,6 +127,7 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 
 		var metrics *models.DashboardMetrics
 		var comparison *models.ComparisonMetrics
+		var visitorInsights *models.VisitorInsights
 		var liveVisitors int
 
 		g.Go(func() error {
@@ -162,8 +162,23 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 			return nil
 		})
 
+		g.Go(func() error {
+			var err error
+			visitorInsights, err = s.repo.GetVisitorInsights(gCtx, websiteID, days, timezone)
+			if err != nil {
+				s.logger.Warn().Err(err).Msg("Failed to get visitor insights")
+			}
+			return nil
+		})
+
 		if err := g.Wait(); err != nil {
 			return nil, err
+		}
+
+		newVisitors, returningVisitors := 0, 0
+		if visitorInsights != nil {
+			newVisitors = visitorInsights.NewVisitors
+			returningVisitors = visitorInsights.ReturningVisitors
 		}
 
 		return &models.DashboardData{
@@ -171,6 +186,7 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 			DateRange:         days,
 			TotalVisitors:     metrics.TotalVisitors,
 			UniqueVisitors:    metrics.UniqueVisitors,
+			Sessions:          metrics.Sessions,
 			LiveVisitors:      liveVisitors,
 			PageViews:         metrics.PageViews,
 			SessionDuration:   metrics.AvgSessionTime,
@@ -178,8 +194,8 @@ func (s *AnalyticsService) GetDashboard(ctx context.Context, websiteID string, d
 			Comparison:        comparison,
 			Metrics:           metrics,
 			TopResolutions:    []models.TopItem{},
-			NewVisitors:       0,
-			ReturningVisitors: 0,
+			NewVisitors:       newVisitors,
+			ReturningVisitors: returningVisitors,
 		}, nil
 	})
 }
@@ -195,16 +211,16 @@ func (s *AnalyticsService) GetTopPages(ctx context.Context, websiteID string, da
 	})
 }
 
-func (s *AnalyticsService) GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int, userID string) (map[string]interface{}, error) {
+func (s *AnalyticsService) GetPageUTMBreakdown(ctx context.Context, websiteID, pagePath string, days int, timezone string, userID string) (map[string]interface{}, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
 	h := sha256.Sum256([]byte(pagePath))
 	pathHash := hex.EncodeToString(h[:8])
-	cacheKey := fmt.Sprintf("analytics:page_utm:%s:%s:%d", canonicalID, pathHash, days)
+	cacheKey := fmt.Sprintf("analytics:page_utm:%s:%s:%d:%s", canonicalID, pathHash, days, timezone)
 	return cachedQuery(s.cache, cacheKey, cacheTTLTopN, func() (map[string]interface{}, error) {
-		return s.repo.GetPageUTMBreakdown(ctx, canonicalID, pagePath, days)
+		return s.repo.GetPageUTMBreakdown(ctx, canonicalID, pagePath, days, timezone)
 	})
 }
 
@@ -263,14 +279,14 @@ func (s *AnalyticsService) GetTopDevices(ctx context.Context, websiteID string, 
 	})
 }
 
-func (s *AnalyticsService) GetTopResolutions(ctx context.Context, websiteID string, days, limit int, userID string) ([]models.TopItem, error) {
+func (s *AnalyticsService) GetTopResolutions(ctx context.Context, websiteID string, days, limit int, timezone string, userID string) ([]models.TopItem, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := fmt.Sprintf("analytics:top_resolutions:%s:%d:%d", canonicalID, days, limit)
+	cacheKey := fmt.Sprintf("analytics:top_resolutions:%s:%d:%d:%s", canonicalID, days, limit, timezone)
 	return cachedQuery(s.cache, cacheKey, cacheTTLTopN, func() ([]models.TopItem, error) {
-		return s.repo.GetTopResolutions(ctx, canonicalID, days, limit)
+		return s.repo.GetTopResolutions(ctx, canonicalID, days, limit, timezone)
 	})
 }
 
@@ -321,14 +337,14 @@ func (s *AnalyticsService) GetHourlyStats(ctx context.Context, websiteID string,
 	})
 }
 
-func (s *AnalyticsService) GetCustomEvents(ctx context.Context, websiteID string, days int, userID string) ([]models.CustomEventStat, error) {
+func (s *AnalyticsService) GetCustomEvents(ctx context.Context, websiteID string, days int, timezone string, userID string) ([]models.CustomEventStat, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := fmt.Sprintf("analytics:custom_events:%s:%d", canonicalID, days)
+	cacheKey := fmt.Sprintf("analytics:custom_events:%s:%d:%s", canonicalID, days, timezone)
 	return cachedQuery(s.cache, cacheKey, cacheTTLTopN, func() ([]models.CustomEventStat, error) {
-		return s.repo.GetCustomEventStats(ctx, canonicalID, days)
+		return s.repo.GetCustomEventStats(ctx, canonicalID, days, timezone)
 	})
 }
 
@@ -339,18 +355,18 @@ type CustomEventsData struct {
 }
 
 // GetCustomEventsWithUTM validates ownership once then fetches both custom events and UTM data.
-func (s *AnalyticsService) GetCustomEventsWithUTM(ctx context.Context, websiteID string, days int, userID string) (*CustomEventsData, error) {
+func (s *AnalyticsService) GetCustomEventsWithUTM(ctx context.Context, websiteID string, days int, timezone string, userID string) (*CustomEventsData, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := fmt.Sprintf("analytics:custom_events_utm:%s:%d", canonicalID, days)
+	cacheKey := fmt.Sprintf("analytics:custom_events_utm:%s:%d:%s", canonicalID, days, timezone)
 	return cachedQuery(s.cache, cacheKey, cacheTTLTopN, func() (*CustomEventsData, error) {
-		events, err := s.repo.GetCustomEventStats(ctx, canonicalID, days)
+		events, err := s.repo.GetCustomEventStats(ctx, canonicalID, days, timezone)
 		if err != nil {
 			return nil, err
 		}
-		utm, err := s.repo.GetUTMAnalytics(ctx, canonicalID, days)
+		utm, err := s.repo.GetUTMAnalytics(ctx, canonicalID, days, timezone)
 		if err != nil {
 			utm = map[string]interface{}{}
 		}
@@ -366,7 +382,7 @@ func (s *AnalyticsService) GetLiveVisitors(ctx context.Context, websiteID string
 
 	// Fast path: read from Redis HyperLogLog (sub-ms, no ClickHouse query)
 	if s.cache != nil {
-		hlKey := fmt.Sprintf("active:%s", canonicalID)
+		hlKey := fmt.Sprintf("sn:active:%s", canonicalID)
 		count, err := s.cache.PFCount(hlKey)
 		if err == nil && count > 0 {
 			return int(count), nil
@@ -377,14 +393,14 @@ func (s *AnalyticsService) GetLiveVisitors(ctx context.Context, websiteID string
 	return s.repo.GetLiveVisitors(ctx, canonicalID)
 }
 
-func (s *AnalyticsService) GetUTMAnalytics(ctx context.Context, websiteID string, days int, userID string) (map[string]interface{}, error) {
+func (s *AnalyticsService) GetUTMAnalytics(ctx context.Context, websiteID string, days int, timezone string, userID string) (map[string]interface{}, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
-	cacheKey := fmt.Sprintf("analytics:utm:%s:%d", canonicalID, days)
+	cacheKey := fmt.Sprintf("analytics:utm:%s:%d:%s", canonicalID, days, timezone)
 	return cachedQuery(s.cache, cacheKey, cacheTTLTopN, func() (map[string]interface{}, error) {
-		return s.repo.GetUTMAnalytics(ctx, canonicalID, days)
+		return s.repo.GetUTMAnalytics(ctx, canonicalID, days, timezone)
 	})
 }
 
@@ -445,13 +461,13 @@ func (s *AnalyticsService) GetActivityTrends(ctx context.Context, websiteID stri
 	})
 }
 
-func (s *AnalyticsService) GetGoalStats(ctx context.Context, websiteID string, days int, userID string) ([]models.EventItem, error) {
+func (s *AnalyticsService) GetGoalStats(ctx context.Context, websiteID string, days int, userID string) ([]models.GoalStatItem, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
 	cacheKey := fmt.Sprintf("analytics:goal_stats:%s:%d", canonicalID, days)
-	return cachedQuery(s.cache, cacheKey, cacheTTLTopN, func() ([]models.EventItem, error) {
+	return cachedQuery(s.cache, cacheKey, cacheTTLTopN, func() ([]models.GoalStatItem, error) {
 		return s.repo.GetGoalStats(ctx, canonicalID, days)
 	})
 }
@@ -490,8 +506,9 @@ func (s *AnalyticsService) ExportWebsiteData(ctx context.Context, websiteID stri
 	if format == "csv" {
 		var buf bytes.Buffer
 		buf.WriteString("Metric,Value\n")
-		buf.WriteString(fmt.Sprintf("Total Visitors,%d\n", metrics.TotalVisitors))
+		buf.WriteString(fmt.Sprintf("Total Visitors (unique),%d\n", metrics.TotalVisitors))
 		buf.WriteString(fmt.Sprintf("Unique Visitors,%d\n", metrics.UniqueVisitors))
+		buf.WriteString(fmt.Sprintf("Sessions,%d\n", metrics.Sessions))
 		buf.WriteString(fmt.Sprintf("Page Views,%d\n", metrics.PageViews))
 		buf.WriteString(fmt.Sprintf("Avg Session Duration,%.2f\n", metrics.AvgSessionTime))
 		buf.WriteString(fmt.Sprintf("Bounce Rate,%.2f\n", metrics.BounceRate))
@@ -555,13 +572,13 @@ func (s *AnalyticsService) GetTopCities(ctx context.Context, websiteID string, d
 	})
 }
 
-func (s *AnalyticsService) GetPathAnalysis(ctx context.Context, websiteID string, days int, userID string) (*models.PathAnalysis, error) {
+func (s *AnalyticsService) GetPathAnalysis(ctx context.Context, websiteID string, days int, timezone string, userID string) (*models.PathAnalysis, error) {
 	canonicalID, err := s.validateOwnership(ctx, websiteID, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	cacheKey := fmt.Sprintf("analytics:path_analysis:%s:%d", canonicalID, days)
+	cacheKey := fmt.Sprintf("analytics:path_analysis:%s:%d:%s", canonicalID, days, timezone)
 	return cachedQuery(s.cache, cacheKey, cacheTTLHeavy, func() (*models.PathAnalysis, error) {
 		g, gCtx := errgroup.WithContext(ctx)
 
@@ -572,22 +589,22 @@ func (s *AnalyticsService) GetPathAnalysis(ctx context.Context, websiteID string
 
 		g.Go(func() error {
 			var e error
-			entryPages, e = s.repo.GetEntryPages(gCtx, canonicalID, days, 10)
+			entryPages, e = s.repo.GetEntryPages(gCtx, canonicalID, days, 10, timezone)
 			return e
 		})
 		g.Go(func() error {
 			var e error
-			exitPages, e = s.repo.GetExitPages(gCtx, canonicalID, days, 10)
+			exitPages, e = s.repo.GetExitPages(gCtx, canonicalID, days, 10, timezone)
 			return e
 		})
 		g.Go(func() error {
 			var e error
-			pageFlows, e = s.repo.GetPageFlows(gCtx, canonicalID, days, 30)
+			pageFlows, e = s.repo.GetPageFlows(gCtx, canonicalID, days, 30, timezone)
 			return e
 		})
 		g.Go(func() error {
 			var e error
-			avgPathLength, e = s.repo.GetAvgPathLength(gCtx, canonicalID, days)
+			avgPathLength, e = s.repo.GetAvgPathLength(gCtx, canonicalID, days, timezone)
 			return e
 		})
 
@@ -604,179 +621,3 @@ func (s *AnalyticsService) GetPathAnalysis(ctx context.Context, websiteID string
 	})
 }
 
-// StartCacheWarmer launches a background goroutine that proactively warms the
-// Redis cache for all active websites. This ensures that even the very first
-// dashboard visit serves data from cache (sub-ms) instead of hitting ClickHouse.
-//
-// Warmed queries use the default parameters (7 days, UTC, no filters) which
-// covers the vast majority of first-visit dashboard loads.
-func (s *AnalyticsService) StartCacheWarmer(ctx context.Context) {
-	if s.cache == nil || s.websites == nil {
-		s.logger.Info().Msg("Cache warmer: skipped (cache or websites service not available)")
-		return
-	}
-
-	go func() {
-		// Small initial delay so the rest of the app finishes booting.
-		select {
-		case <-time.After(5 * time.Second):
-		case <-ctx.Done():
-			return
-		}
-
-		s.logger.Info().Msg("Cache warmer: started")
-		s.warmAll(ctx)
-
-		ticker := time.NewTicker(90 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				s.warmAll(ctx)
-			case <-ctx.Done():
-				s.logger.Info().Msg("Cache warmer: stopped")
-				return
-			}
-		}
-	}()
-}
-
-// warmAll fetches all active site IDs and warms their default dashboard queries.
-func (s *AnalyticsService) warmAll(ctx context.Context) {
-	siteIDs, err := s.websites.ListAllActiveSiteIDs(ctx)
-	if err != nil {
-		s.logger.Warn().Err(err).Msg("Cache warmer: failed to list active sites")
-		return
-	}
-
-	// Bounded parallelism — at most 10 sites warming concurrently.
-	sem := make(chan struct{}, 10)
-	var wg sync.WaitGroup
-
-	for _, id := range siteIDs {
-		select {
-		case <-ctx.Done():
-			break
-		default:
-		}
-
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(siteID string) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			s.warmSite(ctx, siteID)
-		}(id)
-	}
-
-	wg.Wait()
-	s.logger.Debug().Int("sites", len(siteIDs)).Msg("Cache warmer: cycle complete")
-}
-
-// warmSite pre-computes the above-the-fold dashboard queries for a single site
-// using default parameters (7 days, UTC, no filters).
-func (s *AnalyticsService) warmSite(ctx context.Context, siteID string) {
-	const days = 7
-	const tz = "UTC"
-	noFilters := models.AnalyticsFilters{}
-
-	warmCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	// Dashboard metrics + comparison + live visitors
-	dashKey := fmt.Sprintf("analytics:dashboard:%s:%d:%s:", siteID, days, tz)
-	if !s.cache.Exists(dashKey) {
-		g, gCtx := errgroup.WithContext(warmCtx)
-		var metrics *models.DashboardMetrics
-		var comparison *models.ComparisonMetrics
-		var liveVisitors int
-
-		g.Go(func() error {
-			var err error
-			metrics, err = s.repo.GetDashboardMetrics(gCtx, siteID, days, tz, noFilters)
-			return err
-		})
-		g.Go(func() error {
-			var err error
-			comparison, err = s.repo.GetComparisonMetrics(gCtx, siteID, days, tz, noFilters)
-			if err != nil {
-				comparison = nil
-			}
-			return nil
-		})
-		g.Go(func() error {
-			var err error
-			liveVisitors, err = s.repo.GetLiveVisitors(gCtx, siteID)
-			if err != nil {
-				liveVisitors = 0
-			}
-			return nil
-		})
-
-		if err := g.Wait(); err == nil && metrics != nil {
-			data := &models.DashboardData{
-				WebsiteID:         siteID,
-				DateRange:         days,
-				TotalVisitors:     metrics.TotalVisitors,
-				UniqueVisitors:    metrics.UniqueVisitors,
-				LiveVisitors:      liveVisitors,
-				PageViews:         metrics.PageViews,
-				SessionDuration:   metrics.AvgSessionTime,
-				BounceRate:        metrics.BounceRate,
-				Comparison:        comparison,
-				Metrics:           metrics,
-				TopResolutions:    []models.TopItem{},
-				NewVisitors:       0,
-				ReturningVisitors: 0,
-			}
-			_ = s.cache.Set(dashKey, data, cacheTTLDashboard)
-		}
-	}
-
-	// Daily stats (above the fold)
-	dailyKey := fmt.Sprintf("analytics:daily_stats:%s:%d:%s:", siteID, days, tz)
-	if !s.cache.Exists(dailyKey) {
-		if stats, err := s.repo.GetDailyStats(warmCtx, siteID, days, tz, noFilters); err == nil {
-			_ = s.cache.Set(dailyKey, stats, cacheTTLStats)
-		}
-	}
-
-	// Hourly stats (above the fold)
-	hourlyKey := fmt.Sprintf("analytics:hourly_stats:%s:1:%s:", siteID, tz)
-	if !s.cache.Exists(hourlyKey) {
-		if stats, err := s.repo.GetHourlyStats(warmCtx, siteID, 1, tz, noFilters); err == nil {
-			_ = s.cache.Set(hourlyKey, stats, cacheTTLStats)
-		}
-	}
-
-	// Visitor insights (above the fold)
-	insightsKey := fmt.Sprintf("analytics:visitor_insights:%s:%d:%s", siteID, days, tz)
-	if !s.cache.Exists(insightsKey) {
-		if insights, err := s.repo.GetVisitorInsights(warmCtx, siteID, days, tz); err == nil {
-			_ = s.cache.Set(insightsKey, insights, cacheTTLHeavy)
-		}
-	}
-
-	// Path analysis
-	pathKey := fmt.Sprintf("analytics:path_analysis:%s:%d", siteID, days)
-	if !s.cache.Exists(pathKey) {
-		g, gCtx := errgroup.WithContext(warmCtx)
-		var entryPages, exitPages []models.TopItem
-		var pageFlows []models.PageFlow
-		var avgPathLength float64
-
-		g.Go(func() error { var e error; entryPages, e = s.repo.GetEntryPages(gCtx, siteID, days, 10); return e })
-		g.Go(func() error { var e error; exitPages, e = s.repo.GetExitPages(gCtx, siteID, days, 10); return e })
-		g.Go(func() error { var e error; pageFlows, e = s.repo.GetPageFlows(gCtx, siteID, days, 30); return e })
-		g.Go(func() error { var e error; avgPathLength, e = s.repo.GetAvgPathLength(gCtx, siteID, days); return e })
-
-		if err := g.Wait(); err == nil {
-			_ = s.cache.Set(pathKey, &models.PathAnalysis{
-				TopEntryPages: entryPages,
-				TopExitPages:  exitPages,
-				PageFlows:     pageFlows,
-				AvgPathLength: avgPathLength,
-			}, cacheTTLHeavy)
-		}
-	}
-}

@@ -235,7 +235,8 @@ function SignUpFlow() {
                     Start tracking in 2 minutes.
                 </h1>
                 <p className="text-muted-foreground mb-10 max-w-md leading-relaxed">
-                    Create your free account and add your first website. No credit card required. Understand traffic and conversions clearly.
+                    Create your free account and add your first website. No credit card required. Understand traffic and
+                    conversions clearly.
                 </p>
 
                 <div className="space-y-5">
@@ -486,9 +487,9 @@ function SignUpFlow() {
                                     </Button>
                                 </form>
 
-                                <div className="mt-6 text-center">
+                                <div className="mt-6 text-center space-y-3">
                                     <p className="text-xs text-muted-foreground">
-                                        You&apos;re on the free <span className="font-medium text-foreground">Starter</span> plan.{' '}
+                                        You&apos;re on the free <span className="font-medium text-foreground">plan</span>.{' '}
                                         <Link href="/pricing" className="text-primary font-medium hover:underline">
                                             View upgrade options
                                         </Link>

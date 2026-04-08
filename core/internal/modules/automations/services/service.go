@@ -165,6 +165,17 @@ func (s *AutomationService) Delete(ctx context.Context, id, websiteID string) er
 	return nil
 }
 
+// BulkDelete removes multiple automations and evicts related cache entries.
+func (s *AutomationService) BulkDelete(ctx context.Context, websiteID string, ids []string) error {
+	for _, id := range ids {
+		if err := s.Delete(ctx, id, websiteID); err != nil {
+			s.logger.Error().Err(err).Str("id", id).Msg("bulk delete: failed for one automation")
+		}
+	}
+	return nil
+}
+
+
 // ListExecutions returns recent executions for an automation.
 func (s *AutomationService) ListExecutions(ctx context.Context, automationID, websiteID string, limit int) ([]models.AutomationExecution, error) {
 	if limit <= 0 {

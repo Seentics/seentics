@@ -5,332 +5,34 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
-
-	"github.com/Seentics/seentics/internal/modules/analytics/models"
 )
 
-// ExportEventsData exports all events data for a specific user
+// ExportEventsData returns a placeholder: raw events live in ClickHouse and are
+// not accessible from the PostgreSQL-only PrivacyRepository. Event data can be
+// exported separately via the admin/internal endpoints that have ClickHouse access.
 func (r *PrivacyRepository) ExportEventsData(userID string) ([]map[string]interface{}, error) {
-	// Get all websites owned by the user
-	websiteIDs, err := r.GetUserWebsites(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user websites: %w", err)
-	}
-
-	if len(websiteIDs) == 0 {
-		return []map[string]interface{}{
-			{
-				"user_id":     userID,
-				"exported_at": time.Now().UTC().Format(time.RFC3339),
-				"data":        []models.Event{},
-				"message":     "No websites found for user",
-			},
-		}, nil
-	}
-
-	// Query events for all user's websites
-	query := `
-		SELECT id, website_id, visitor_id, session_id, event_type, page, referrer, 
-		       user_agent, ip_address, country, city, browser, device, os,
-		       utm_source, utm_medium, utm_campaign, utm_term, utm_content,
-		       time_on_page, properties, timestamp, created_at
-		FROM events 
-		WHERE website_id = ANY($1)
-		ORDER BY timestamp DESC
-	`
-
-	rows, err := r.db.Query(context.Background(), query, websiteIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query events: %w", err)
-	}
-	defer rows.Close()
-
-	var events []models.Event
-	for rows.Next() {
-		var event models.Event
-		var propertiesJSON []byte
-
-		err := rows.Scan(
-			&event.ID, &event.WebsiteID, &event.VisitorID, &event.SessionID,
-			&event.EventType, &event.Page, &event.Referrer, &event.UserAgent,
-			&event.IPAddress, &event.Country, &event.City, &event.Browser,
-			&event.Device, &event.OS, &event.UTMSource, &event.UTMMedium,
-			&event.UTMCampaign, &event.UTMTerm, &event.UTMContent,
-			&event.TimeOnPage, &propertiesJSON, &event.Timestamp, &event.CreatedAt,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan event: %w", err)
-		}
-
-		// Parse properties JSON
-		if len(propertiesJSON) > 0 {
-			if err := json.Unmarshal(propertiesJSON, &event.Properties); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal properties: %w", err)
-			}
-		}
-
-		events = append(events, event)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating events: %w", err)
-	}
-
-	// Log the export operation
-	r.LogPrivacyOperation("export_events", userID, fmt.Sprintf("Exported %d events for %d websites", len(events), len(websiteIDs)))
-
-	return []map[string]interface{}{
-		{
-			"user_id":      userID,
-			"exported_at":  time.Now().UTC().Format(time.RFC3339),
-			"website_ids":  websiteIDs,
-			"events_count": len(events),
-			"data":         events,
-		},
-	}, nil
-}
-
-// ExportAnalyticsData exports all analytics data for a specific user
-func (r *PrivacyRepository) ExportAnalyticsData(userID string) ([]map[string]interface{}, error) {
-	// Get all websites owned by the user
-	websiteIDs, err := r.GetUserWebsites(userID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user websites: %w", err)
-	}
-
-	if len(websiteIDs) == 0 {
-		return []map[string]interface{}{
-			{
-				"user_id":     userID,
-				"exported_at": time.Now().UTC().Format(time.RFC3339),
-				"data":        map[string]interface{}{},
-				"message":     "No websites found for user",
-			},
-		}, nil
-	}
-
-	analyticsData := make(map[string]interface{})
-
-	// Get basic metrics
-	metricsQuery := `
-		SELECT 
-			COUNT(*) as page_views,
-			COUNT(DISTINCT visitor_id) as unique_visitors,
-			COUNT(DISTINCT session_id) as sessions,
-			ROUND(AVG(CASE WHEN time_on_page IS NOT NULL AND time_on_page > 0 THEN time_on_page END)) as avg_time_on_page
-		FROM events 
-		WHERE website_id = ANY($1)
-	`
-
-	var pageViews, uniqueVisitors, sessions int
-	var avgTimeOnPage *int
-	err = r.db.QueryRow(context.Background(), metricsQuery, websiteIDs).Scan(
-		&pageViews, &uniqueVisitors, &sessions, &avgTimeOnPage,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query basic metrics: %w", err)
-	}
-
-	analyticsData["page_views"] = pageViews
-	analyticsData["unique_visitors"] = uniqueVisitors
-	analyticsData["sessions"] = sessions
-	if avgTimeOnPage != nil {
-		analyticsData["avg_time_on_page"] = *avgTimeOnPage
-	}
-
-	// Get top pages
-	topPagesQuery := `
-		SELECT page, COUNT(*) as views, COUNT(DISTINCT visitor_id) as unique_visitors
-		FROM events 
-		WHERE website_id = ANY($1) AND page IS NOT NULL
-		GROUP BY page 
-		ORDER BY views DESC 
-		LIMIT 50
-	`
-
-	rows, err := r.db.Query(context.Background(), topPagesQuery, websiteIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query top pages: %w", err)
-	}
-	defer rows.Close()
-
-	var topPages []map[string]interface{}
-	for rows.Next() {
-		var page string
-		var views, unique int
-		if err := rows.Scan(&page, &views, &unique); err != nil {
-			return nil, fmt.Errorf("failed to scan top page: %w", err)
-		}
-		topPages = append(topPages, map[string]interface{}{
-			"page":            page,
-			"views":           views,
-			"unique_visitors": unique,
-		})
-	}
-	analyticsData["top_pages"] = topPages
-
-	// Get top referrers
-	topReferrersQuery := `
-		SELECT COALESCE(referrer, 'Direct') as referrer, COUNT(*) as views, COUNT(DISTINCT visitor_id) as unique_visitors
-		FROM events 
-		WHERE website_id = ANY($1)
-		GROUP BY COALESCE(referrer, 'Direct')
-		ORDER BY views DESC 
-		LIMIT 20
-	`
-
-	rows, err = r.db.Query(context.Background(), topReferrersQuery, websiteIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query top referrers: %w", err)
-	}
-	defer rows.Close()
-
-	var topReferrers []map[string]interface{}
-	for rows.Next() {
-		var referrer string
-		var views, unique int
-		if err := rows.Scan(&referrer, &views, &unique); err != nil {
-			return nil, fmt.Errorf("failed to scan top referrer: %w", err)
-		}
-		topReferrers = append(topReferrers, map[string]interface{}{
-			"referrer":        referrer,
-			"views":           views,
-			"unique_visitors": unique,
-		})
-	}
-	analyticsData["top_referrers"] = topReferrers
-
-	// Get countries
-	countriesQuery := `
-		SELECT COALESCE(country, 'Unknown') as country, COUNT(*) as views, COUNT(DISTINCT visitor_id) as unique_visitors
-		FROM events 
-		WHERE website_id = ANY($1)
-		GROUP BY COALESCE(country, 'Unknown')
-		ORDER BY views DESC 
-		LIMIT 20
-	`
-
-	rows, err = r.db.Query(context.Background(), countriesQuery, websiteIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query countries: %w", err)
-	}
-	defer rows.Close()
-
-	var countries []map[string]interface{}
-	for rows.Next() {
-		var country string
-		var views, unique int
-		if err := rows.Scan(&country, &views, &unique); err != nil {
-			return nil, fmt.Errorf("failed to scan country: %w", err)
-		}
-		countries = append(countries, map[string]interface{}{
-			"country":         country,
-			"views":           views,
-			"unique_visitors": unique,
-		})
-	}
-	analyticsData["countries"] = countries
-
-	// Get browsers
-	browsersQuery := `
-		SELECT COALESCE(browser, 'Unknown') as browser, COUNT(*) as views, COUNT(DISTINCT visitor_id) as unique_visitors
-		FROM events 
-		WHERE website_id = ANY($1)
-		GROUP BY COALESCE(browser, 'Unknown')
-		ORDER BY views DESC 
-		LIMIT 15
-	`
-
-	rows, err = r.db.Query(context.Background(), browsersQuery, websiteIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query browsers: %w", err)
-	}
-	defer rows.Close()
-
-	var browsers []map[string]interface{}
-	for rows.Next() {
-		var browser string
-		var views, unique int
-		if err := rows.Scan(&browser, &views, &unique); err != nil {
-			return nil, fmt.Errorf("failed to scan browser: %w", err)
-		}
-		browsers = append(browsers, map[string]interface{}{
-			"browser":         browser,
-			"views":           views,
-			"unique_visitors": unique,
-		})
-	}
-	analyticsData["browsers"] = browsers
-
-	// Get devices
-	devicesQuery := `
-		SELECT COALESCE(device, 'Unknown') as device, COUNT(*) as views, COUNT(DISTINCT visitor_id) as unique_visitors
-		FROM events 
-		WHERE website_id = ANY($1)
-		GROUP BY COALESCE(device, 'Unknown')
-		ORDER BY views DESC 
-		LIMIT 10
-	`
-
-	rows, err = r.db.Query(context.Background(), devicesQuery, websiteIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query devices: %w", err)
-	}
-	defer rows.Close()
-
-	var devices []map[string]interface{}
-	for rows.Next() {
-		var device string
-		var views, unique int
-		if err := rows.Scan(&device, &views, &unique); err != nil {
-			return nil, fmt.Errorf("failed to scan device: %w", err)
-		}
-		devices = append(devices, map[string]interface{}{
-			"device":          device,
-			"views":           views,
-			"unique_visitors": unique,
-		})
-	}
-	analyticsData["devices"] = devices
-
-	// Get custom events
-	customEventsQuery := `
-		SELECT event_type, COUNT(*) as count
-		FROM events 
-		WHERE website_id = ANY($1) AND event_type != 'pageview'
-		GROUP BY event_type
-		ORDER BY count DESC
-	`
-
-	rows, err = r.db.Query(context.Background(), customEventsQuery, websiteIDs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query custom events: %w", err)
-	}
-	defer rows.Close()
-
-	var customEvents []map[string]interface{}
-	for rows.Next() {
-		var eventType string
-		var count int
-		if err := rows.Scan(&eventType, &count); err != nil {
-			return nil, fmt.Errorf("failed to scan custom event: %w", err)
-		}
-		customEvents = append(customEvents, map[string]interface{}{
-			"event_type": eventType,
-			"count":      count,
-		})
-	}
-	analyticsData["custom_events"] = customEvents
-
-	// Log the export operation
-	r.LogPrivacyOperation("export_analytics", userID, fmt.Sprintf("Exported analytics data for %d websites", len(websiteIDs)))
-
+	r.LogPrivacyOperation("export_events", userID, "skipped: events are ClickHouse-backed")
 	return []map[string]interface{}{
 		{
 			"user_id":     userID,
 			"exported_at": time.Now().UTC().Format(time.RFC3339),
-			"website_ids": websiteIDs,
-			"data":        analyticsData,
+			"message":     "Raw event export not available: events are stored in ClickHouse",
+			"data":        []interface{}{},
+		},
+	}, nil
+}
+
+// ExportAnalyticsData returns a placeholder: aggregated analytics are served
+// from ClickHouse, not PostgreSQL. Per-user analytics summaries can be obtained
+// via the analytics API endpoints which have ClickHouse access.
+func (r *PrivacyRepository) ExportAnalyticsData(userID string) ([]map[string]interface{}, error) {
+	r.LogPrivacyOperation("export_analytics", userID, "skipped: analytics are ClickHouse-backed")
+	return []map[string]interface{}{
+		{
+			"user_id":     userID,
+			"exported_at": time.Now().UTC().Format(time.RFC3339),
+			"message":     "Analytics summary export not available: data is served from ClickHouse",
+			"data":        map[string]interface{}{},
 		},
 	}, nil
 }
@@ -730,41 +432,10 @@ func (r *PrivacyRepository) ExportWebsiteData(websiteID string) (map[string]inte
 		"exported_at": time.Now().UTC().Format(time.RFC3339),
 	}
 
-	// Events
-	eventsQuery := `
-		SELECT id, website_id, visitor_id, session_id, event_type, page, referrer,
-		       user_agent, ip_address, country, city, browser, device, os,
-		       utm_source, utm_medium, utm_campaign, utm_term, utm_content,
-		       time_on_page, properties, timestamp, created_at
-		FROM events WHERE website_id = $1 ORDER BY timestamp DESC
-	`
-	rows, err := r.db.Query(ctx, eventsQuery, websiteID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query events: %w", err)
-	}
-	defer rows.Close()
-
-	var events []models.Event
-	for rows.Next() {
-		var event models.Event
-		var propsJSON []byte
-		if err := rows.Scan(
-			&event.ID, &event.WebsiteID, &event.VisitorID, &event.SessionID,
-			&event.EventType, &event.Page, &event.Referrer, &event.UserAgent,
-			&event.IPAddress, &event.Country, &event.City, &event.Browser,
-			&event.Device, &event.OS, &event.UTMSource, &event.UTMMedium,
-			&event.UTMCampaign, &event.UTMTerm, &event.UTMContent,
-			&event.TimeOnPage, &propsJSON, &event.Timestamp, &event.CreatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("failed to scan event: %w", err)
-		}
-		if len(propsJSON) > 0 {
-			json.Unmarshal(propsJSON, &event.Properties)
-		}
-		events = append(events, event)
-	}
-	exportData["events"] = events
-	exportData["events_count"] = len(events)
+	// Events live in ClickHouse — not exported here.
+	exportData["events"] = []interface{}{}
+	exportData["events_count"] = 0
+	exportData["events_note"] = "Raw events are stored in ClickHouse and not included in this export"
 
 	// Sessions
 	sessRows, err := r.db.Query(ctx, `SELECT id, website_id, visitor_id, session_id, start_time, entry_time, exit_time, created_at FROM sessions WHERE website_id = $1 ORDER BY start_time DESC`, websiteID)

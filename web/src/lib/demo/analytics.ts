@@ -11,22 +11,33 @@ const daysAgo = (days: number) => {
 
 export const demoAnalyticsData = () => ({
   dashboardData: {
-    total_visitors: 142593,
+    total_visitors: 89432,
     unique_visitors: 89432,
+    sessions: 142593,
     live_visitors: 432,
     page_views: 421876,
     session_duration: 312,
     bounce_rate: 34.2,
     comparison: {
+      current_period: {
+        total_visitors: 89432,
+        unique_visitors: 89432,
+        sessions: 142593,
+        page_views: 421876,
+        avg_session_time: 312,
+        bounce_rate: 34.2,
+      },
       previous_period: {
-        total_visitors: 121402,
+        total_visitors: 76432,
         unique_visitors: 76432,
+        sessions: 121402,
         page_views: 365821,
         avg_session_time: 298,
         bounce_rate: 38.5,
       },
       visitor_change: 17.4,
       pageview_change: 15.3,
+      session_change: 17.5,
       duration_change: 4.7,
       bounce_change: -11.2,
     },

@@ -3,35 +3,49 @@ const zlib    = require('zlib');
 const fs      = require('fs');
 const path    = require('path');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT   = path.join(__dirname, '..');
+const outDir = path.join(ROOT, 'public', 'trackers');
 
 async function run() {
-  const srcPath = path.join(ROOT, 'trackers', 'index.ts');
-  const outPath = path.join(ROOT, 'public', 'trackers', 'seentics.js');
+  fs.mkdirSync(outDir, { recursive: true });
 
-  console.log('Building Seentics tracker (rrweb + gzip)...');
-
+  // ── 1. Main tracker — seentics.js (no rrweb; loaded lazily at runtime) ─────
+  console.log('Building seentics.js...');
   await esbuild.build({
-    entryPoints: [srcPath],
-    bundle:      true,
-    minify:      true,
-    format:      'iife',       // self-contained, no global exports
-    target:      ['chrome80', 'firefox80', 'safari14', 'edge80'],
-    outfile:     outPath,
-    treeShaking: true,
-    platform:    'browser',
-    define: {
-      'process.env.NODE_ENV': '"production"',
-    },
+    entryPoints:   [path.join(ROOT, 'trackers', 'index.ts')],
+    bundle:        true,
+    minify:        true,
+    format:        'iife',
+    target:        ['chrome80', 'firefox80', 'safari14', 'edge80'],
+    outfile:       path.join(outDir, 'seentics.js'),
+    treeShaking:   true,
+    platform:      'browser',
+    define:        { 'process.env.NODE_ENV': '"production"' },
     legalComments: 'none',
   });
 
-  const minifiedSize = fs.statSync(outPath).size;
-  const gzipped      = zlib.gzipSync(fs.readFileSync(outPath));
-  console.log(
-    `  seentics.js → ${(minifiedSize / 1024).toFixed(1)} KB minified` +
-    ` / ${(gzipped.length / 1024).toFixed(1)} KB gzipped`
-  );
+  // ── 2. rrweb standalone — rrweb.js (sets window.__rrweb_record) ───────────
+  console.log('Building rrweb.js...');
+  await esbuild.build({
+    entryPoints:   [path.join(ROOT, 'trackers', 'rrweb-loader.ts')],
+    bundle:        true,
+    minify:        true,
+    format:        'iife',
+    target:        ['chrome80', 'firefox80', 'safari14', 'edge80'],
+    outfile:       path.join(outDir, 'rrweb.js'),
+    treeShaking:   true,
+    platform:      'browser',
+    define:        { 'process.env.NODE_ENV': '"production"' },
+    legalComments: 'none',
+  });
+
+  // ── Size report ────────────────────────────────────────────────────────────
+  for (const name of ['seentics.js', 'rrweb.js']) {
+    const file    = path.join(outDir, name);
+    const size    = fs.statSync(file).size;
+    const gzipped = zlib.gzipSync(fs.readFileSync(file));
+    console.log(`  ${name} → ${(size / 1024).toFixed(1)} KB minified / ${(gzipped.length / 1024).toFixed(1)} KB gzipped`);
+  }
   console.log('Tracker build complete.');
 }
 

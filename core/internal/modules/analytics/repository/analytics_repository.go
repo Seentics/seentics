@@ -9,25 +9,19 @@ import (
 )
 
 // PostgresAnalyticsRepository provides PostgreSQL-backed analytics queries.
-// Only used for goal stats and screen resolutions (metadata stored in PG);
-// all other analytics are served by ClickHouse.
+// Used for goal stats (event goals reference custom_events_aggregated in PG).
+// All other analytics are served by ClickHouse.
 type PostgresAnalyticsRepository struct {
-	goals          *GoalAnalytics
-	topResolutions *TopResolutionsAnalytics
+	goals *GoalAnalytics
 }
 
-// NewPostgresAnalyticsRepository creates a PG analytics repository for goals & resolutions.
+// NewPostgresAnalyticsRepository creates a PG analytics repository for goal stats.
 func NewPostgresAnalyticsRepository(db *pgxpool.Pool) *PostgresAnalyticsRepository {
 	return &PostgresAnalyticsRepository{
-		goals:          NewGoalAnalytics(db),
-		topResolutions: NewTopResolutionsAnalytics(db),
+		goals: NewGoalAnalytics(db),
 	}
 }
 
-func (r *PostgresAnalyticsRepository) GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.EventItem, error) {
+func (r *PostgresAnalyticsRepository) GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.GoalStatItem, error) {
 	return r.goals.GetGoalStats(ctx, websiteID, days)
-}
-
-func (r *PostgresAnalyticsRepository) GetTopResolutions(ctx context.Context, websiteID string, days int, limit int) ([]models.TopItem, error) {
-	return r.topResolutions.GetTopResolutions(ctx, websiteID, days, limit)
 }

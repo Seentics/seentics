@@ -2,12 +2,22 @@
 
 import { useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useQueries } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { GitBranch, TrendingUp, Users, Target, MoreVertical, Eye, Edit, Trash2, Plus, Calendar, BarChart3, Search } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
-import { useFunnels, useFunnelAnalytics, useDeleteFunnel, type Funnel } from '@/lib/analytics-api';
-import { DataTable } from '@/components/ui/data-table';
+import {
+  analyticsKeys,
+  getFunnelAnalytics,
+  useFunnels,
+  useFunnelAnalytics,
+  useDeleteFunnel,
+  useDeleteFunnels,
+  type Funnel,
+} from '@/lib/analytics-api';
+import { DataTable, selectionColumn } from '@/components/ui/data-table';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -51,7 +61,28 @@ export default function FunnelsPage() {
   const [editingFunnel, setEditingFunnel] = useState<Funnel | null>(null);
 
   const { data: funnels = [], isLoading: funnelsLoading } = useFunnels(websiteId);
+  const funnelIds = useMemo(() => funnels.map(f => f.id), [funnels]);
+  const funnelAnalyticsQueries = useQueries({
+    queries: funnelIds.map(funnelId => ({
+      queryKey: [...analyticsKeys.all, 'funnel-analytics', funnelId, dateRange] as const,
+      queryFn:  () => getFunnelAnalytics(funnelId, dateRange),
+      enabled:  !isDemoMode && funnelIds.length > 0,
+    })),
+  });
+  const avgConvLoading =
+    !isDemoMode && funnelIds.length > 0 && funnelAnalyticsQueries.some(q => q.isPending);
+  const avgConversionStr = useMemo(() => {
+    if (isDemoMode || funnelIds.length === 0) return '';
+    const rates = funnelAnalyticsQueries
+      .map(q => q.data?.analytics?.[0]?.conversion_rate)
+      .filter((r): r is number => typeof r === 'number' && !Number.isNaN(r));
+    if (!rates.length) return '—';
+    const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
+    return `${avg.toFixed(1)}%`;
+  }, [isDemoMode, funnelIds.length, funnelAnalyticsQueries]);
   const deleteFunnelMutation = useDeleteFunnel();
+  const bulkDeleteMutation = useDeleteFunnels();
+
 
   const handleDeleteFunnel = (id: string) => {
     if (confirm('Delete this funnel?')) {
@@ -69,6 +100,7 @@ export default function FunnelsPage() {
   }, [funnels, search]);
 
   const columns = useMemo(() => [
+    selectionColumn<Funnel>(),
     {
       id: 'name',
       header: 'Funnel Name',
@@ -124,27 +156,30 @@ export default function FunnelsPage() {
       header: '',
       size: 50,
       cell: ({ row }: { row: any }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <MoreVertical size={14} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem onClick={() => router.push(`/websites/${websiteId}/funnels/${row.original.id}`)}>
-              <Eye size={12} className="mr-2" /> View Details
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => { setEditingFunnel(row.original); setIsBuilderOpen(true); }}>
-              <Edit size={12} className="mr-2" /> Edit Funnel
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleDeleteFunnel(row.original.id)} className="text-destructive">
-              <Trash2 size={12} className="mr-2" /> Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex justify-end pr-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                <MoreVertical size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem onClick={() => router.push(`/websites/${websiteId}/funnels/${row.original.id}`)}>
+                <Eye size={12} className="mr-2" /> View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => { setEditingFunnel(row.original); setIsBuilderOpen(true); }}>
+                <Edit size={12} className="mr-2" /> Edit Funnel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleDeleteFunnel(row.original.id)} className="text-destructive font-medium">
+                <Trash2 size={12} className="mr-2" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       )
     }
   ], [websiteId, dateRange, router]);
+
 
   // Summary Metrics
   const summary = useMemo(() => {
@@ -160,12 +195,17 @@ export default function FunnelsPage() {
       { label: 'Active Funnels', value: funnels.filter(f => f.is_active).length, icon: GitBranch },
       { label: 'Total Funnels', value: funnels.length, icon: BarChart3 },
       { label: 'Total Steps', value: funnels.reduce((s, f) => s + (f.steps?.length || 0), 0), icon: Target },
-      { label: 'Website ID', value: websiteId, icon: Users },
+      {
+        label:      'Avg. conversion',
+        value:     funnelIds.length === 0 ? '—' : avgConversionStr,
+        icon:       TrendingUp,
+        iconColor: 'text-blue-600',
+      },
     ];
-  }, [isDemoMode, funnels, websiteId]);
+  }, [isDemoMode, funnels, funnelIds.length, avgConversionStr]);
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
         title="Funnels"
         description="Track conversion steps and identify where users drop off in their journey."
@@ -180,13 +220,35 @@ export default function FunnelsPage() {
         </Button>
       </DashboardPageHeader>
 
-      <StatCards cards={summary} isLoading={funnelsLoading} />
+      <StatCards cards={summary} isLoading={funnelsLoading || avgConvLoading} />
 
       <div className="mt-8">
         <DataTable
           columns={columns as any}
           data={filtered}
           isLoading={funnelsLoading}
+          enableRowSelection={true}
+          selectionActions={(selectedRows) => (
+            <>
+              <span className="text-sm font-medium text-muted-foreground mr-2">
+                {selectedRows.length} selected
+              </span>
+              <Button
+                variant="destructive"
+                size="sm"
+                className="h-8 gap-1.5"
+                disabled={bulkDeleteMutation.isPending}
+                onClick={() => {
+                  if (confirm(`Are you sure you want to delete ${selectedRows.length} funnel(s)?`)) {
+                    bulkDeleteMutation.mutate({ websiteId, funnelIds: selectedRows.map(r => r.id) });
+                  }
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </Button>
+            </>
+          )}
           toolbarLeft={
             <div>
               <h3 className="text-sm font-semibold text-foreground">Funnels</h3>
@@ -208,6 +270,7 @@ export default function FunnelsPage() {
             </div>
           }
         />
+
       </div>
 
       {/* Create/Edit Funnel Modal */}

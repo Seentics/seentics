@@ -37,6 +37,20 @@ export type Website = {
   };
 };
 
+/** Resolves a dashboard route id (site_id or UUID) to a website record. */
+export async function getWebsiteByAnyId(id: string): Promise<Website | null> {
+  if (!id) return null;
+  if (isDemo(id)) return demoWebsite() as Website;
+  const bySite = await getWebsiteBySiteId(id);
+  if (bySite) return bySite;
+  try {
+    const all = await getWebsites();
+    return all.find(w => w.id === id || w.siteId === id) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // Fetches all websites for the current user.
 export async function getWebsites(): Promise<Website[]> {
   try {

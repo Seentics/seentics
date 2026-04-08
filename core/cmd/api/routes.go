@@ -131,7 +131,9 @@ func registerTrackerRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	v1.GET("/tracker/config/:site_id", h.website.GetTrackerConfig)
 	v1.GET("/tracker/init/:site_id", h.tracker.Init)
 	v1.POST("/tracker/collect", middleware.DecompressMiddleware(), h.tracker.Collect)
+	v1.POST("/tracker/replay", middleware.DecompressMiddleware(), h.tracker.ReplayChunk)
 }
+
 
 func registerAnalyticsRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	analytics := v1.Group("/analytics")
@@ -230,7 +232,9 @@ func registerHeatmapRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	heatmaps := v1.Group("/heatmaps/:website_id")
 	{
 		heatmaps.GET("/pages", h.heatmap.ListPages)
+		heatmaps.DELETE("/bulk-delete", h.heatmap.DeleteHeatmaps)
 		heatmaps.GET("/data", h.heatmap.GetHeatmap)
+
 	}
 }
 
@@ -238,16 +242,20 @@ func registerReplayRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	replays := v1.Group("/replays/:website_id")
 	{
 		replays.GET("", h.replay.ListSessions)
+		replays.DELETE("/batch", h.replay.BatchDelete)
 		replays.GET("/:session_id", h.replay.GetSession)
 	}
 }
+
 
 func registerAutomationRoutes(v1 *gin.RouterGroup, h appHandlers) {
 	automations := v1.Group("/websites/:website_id/automations")
 	{
 		automations.GET("", h.automation.List)
+		automations.DELETE("/bulk-delete", h.automation.BulkDelete)
 		automations.POST("", h.automation.Create)
 		automations.GET("/:id", h.automation.Get)
+
 		automations.PUT("/:id", h.automation.Update)
 		automations.DELETE("/:id", h.automation.Delete)
 		automations.GET("/:id/executions", h.automation.ListExecutions)

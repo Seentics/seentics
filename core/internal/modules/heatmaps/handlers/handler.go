@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/Seentics/seentics/internal/modules/heatmaps/services"
+	websiteServices "github.com/Seentics/seentics/internal/modules/websites/services"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -11,21 +13,38 @@ import (
 
 // HeatmapHandler exposes heatmap endpoints
 type HeatmapHandler struct {
-	service *services.HeatmapService
-	logger  zerolog.Logger
+	service  *services.HeatmapService
+	websites *websiteServices.WebsiteService
+	logger   zerolog.Logger
 }
 
 // NewHeatmapHandler creates a new HeatmapHandler
-func NewHeatmapHandler(service *services.HeatmapService, logger zerolog.Logger) *HeatmapHandler {
-	return &HeatmapHandler{service: service, logger: logger}
+func NewHeatmapHandler(service *services.HeatmapService, websites *websiteServices.WebsiteService, logger zerolog.Logger) *HeatmapHandler {
+	return &HeatmapHandler{service: service, websites: websites, logger: logger}
+}
+
+func (h *HeatmapHandler) resolveWebsiteUUID(c *gin.Context) (uuid.UUID, bool) {
+	raw := strings.TrimSpace(c.Param("website_id"))
+	if raw == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
+		return uuid.Nil, false
+	}
+	if id, err := uuid.Parse(raw); err == nil {
+		return id, true
+	}
+	w, err := h.websites.GetWebsiteByAnyID(c.Request.Context(), raw)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "website not found"})
+		return uuid.Nil, false
+	}
+	return w.ID, true
 }
 
 // ListPages godoc
 // GET /heatmaps/:website_id/pages
 func (h *HeatmapHandler) ListPages(c *gin.Context) {
-	websiteID, err := uuid.Parse(c.Param("website_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid website_id"})
+	websiteID, ok := h.resolveWebsiteUUID(c)
+	if !ok {
 		return
 	}
 
@@ -42,9 +61,8 @@ func (h *HeatmapHandler) ListPages(c *gin.Context) {
 // GetHeatmap godoc
 // GET /heatmaps/:website_id/data?page_path=&event_type=
 func (h *HeatmapHandler) GetHeatmap(c *gin.Context) {
-	websiteID, err := uuid.Parse(c.Param("website_id"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid website_id"})
+	websiteID, ok := h.resolveWebsiteUUID(c)
+	if !ok {
 		return
 	}
 
@@ -67,4 +85,28 @@ func (h *HeatmapHandler) GetHeatmap(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, data)
+}
+// DeleteHeatmaps godoc
+// DELETE /heatmaps/:website_id/bulk-delete
+func (h *HeatmapHandler) DeleteHeatmaps(c *gin.Context) {
+	websiteID, ok := h.resolveWebsiteUUID(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		PagePaths []string `json:"pagePaths"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.DeleteHeatmaps(c.Request.Context(), websiteID, req.PagePaths); err != nil {
+		h.logger.Error().Err(err).Str("website_id", websiteID.String()).Msg("heatmap: bulk delete failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
 }

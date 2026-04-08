@@ -29,7 +29,7 @@ type Config struct {
 	ClickHousePassword string
 	ClickHouseDB       string
 
-	// S3 / MinIO — session recording storage
+	// S3-compatible storage (MinIO local, Cloudflare R2, AWS S3, etc.) — replay payloads
 	S3Endpoint  string
 	S3AccessKey string
 	S3SecretKey string
@@ -64,11 +64,11 @@ func Load() (*Config, error) {
 		ClickHouseDB:       getEnvOrDefault("CLICKHOUSE_DB", "seentics"),
 
 		S3Endpoint:  getEnvOrDefault("S3_ENDPOINT", "localhost:9000"),
-		S3AccessKey: getEnvOrDefault("S3_ACCESS_KEY", "minioadmin"),
-		S3SecretKey: getEnvOrDefault("S3_SECRET_KEY", "minioadmin"),
-		S3Bucket:    getEnvOrDefault("S3_BUCKET", "seentics-replays"),
+		S3AccessKey: firstEnvOrDefault([]string{"S3_ACCESS_KEY", "AWS_ACCESS_KEY_ID"}, "minioadmin"),
+		S3SecretKey: firstEnvOrDefault([]string{"S3_SECRET_KEY", "AWS_SECRET_ACCESS_KEY"}, "minioadmin"),
+		S3Bucket:    firstEnvOrDefault([]string{"S3_BUCKET", "S3_BUCKET_REPLAYS"}, "seentics-replays"),
 		S3UseSSL:    GetEnvAsBool("S3_USE_SSL", false),
-		S3Region:    getEnvOrDefault("S3_REGION", "us-east-1"),
+		S3Region:    firstEnvOrDefault([]string{"S3_REGION", "AWS_REGION"}, "us-east-1"),
 	}
 
 	// Validate required fields
@@ -96,6 +96,16 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
+// firstEnvOrDefault returns the first non-empty os.Getenv(key) for keys in order, else defaultValue.
+func firstEnvOrDefault(keys []string, defaultValue string) string {
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return defaultValue
+}
+
 func GetEnvAsBool(key string, defaultValue bool) bool {
 	if value := os.Getenv(key); value != "" {
 		if parsed, err := strconv.ParseBool(value); err == nil {
@@ -113,7 +123,7 @@ func GetEnvAsInt(key string, defaultValue int) int {
 	}
 	return defaultValue
 }
-// S3Config holds MinIO/S3-compatible storage settings used for session replay data.
+// S3Config holds S3-compatible storage settings used for session replay data.
 type S3Config struct {
 	Endpoint  string
 	AccessKey string

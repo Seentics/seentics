@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getWebsiteBySiteId, updateWebsite } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { toast } from 'sonner';
-import { Loader2, Zap, Target, MousePointer2, Info } from 'lucide-react';
+import { Loader2, Zap, Target, Info } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -24,7 +24,6 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
     mutationFn: async (data: {
       automationEnabled?: boolean;
       funnelEnabled?: boolean;
-      heatmapEnabled?: boolean;
     }) => {
       if (!user?.id) throw new Error("User ID required");
       return await updateWebsite(websiteId, data, user.id);
@@ -66,16 +65,6 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
       onToggle: (val: boolean) => updateMutation.mutate({ funnelEnabled: val }),
       color: 'text-indigo-500',
       bgColor: 'bg-indigo-500/10',
-    },
-    {
-      id: 'heatmaps',
-      title: 'Heatmaps',
-      description: 'Record user clicks, movements, and scroll behavior on your pages.',
-      icon: MousePointer2,
-      enabled: website?.heatmapEnabled ?? true,
-      onToggle: (val: boolean) => updateMutation.mutate({ heatmapEnabled: val }),
-      color: 'text-rose-500',
-      bgColor: 'bg-rose-500/10',
     },
   ];
 

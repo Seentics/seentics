@@ -127,15 +127,14 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
 
   const referrers = data?.top_referrers || [];
 
-  const getSourceData = (type: 'overview' | 'search' | 'social' | 'direct') => {
+  const getSourceData = (type: 'overview' | 'search' | 'social') => {
     // For overview: show all referrers grouped by canonical name (Direct, Google, Facebook, etc.)
-    // For search/social/direct: filter to that category then group
+    // For search/social: filter to that category then group
     const filtered = type === 'overview'
       ? referrers
       : referrers.filter(r =>
           type === 'search' ? isOrganic(r.referrer)
-          : type === 'social' ? isSocial(r.referrer)
-          : isDirect(r.referrer)
+          : isSocial(r.referrer)
         );
 
     const grouped: Record<string, number> = {};
@@ -158,15 +157,14 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
     }));
   };
 
-  const PageList = ({ type }: { type: 'overview' | 'search' | 'social' | 'direct' }) => {
+  const PageList = ({ type }: { type: 'overview' | 'search' | 'social' }) => {
     const items = getSourceData(type);
 
     if (items.length === 0) {
-      const emptyMessages: Record<string, string> = {
+      const emptyMessages: Record<'overview' | 'search' | 'social', string> = {
         overview: 'No traffic data available',
         search: 'No search engine traffic',
         social: 'No social media traffic',
-        direct: 'No direct traffic',
       };
 
       return (
@@ -253,11 +251,10 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
               <h3 className="text-base font-semibold tracking-tight">Traffic Sources</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Main acquisition channels</p>
            </div>
-           <TabsList className="grid grid-cols-4 h-8 w-full sm:w-[300px] bg-muted/50 p-0.5 rounded">
+           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted/50 p-0.5 rounded">
              <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
              <TabsTrigger value="search" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Search</TabsTrigger>
              <TabsTrigger value="social" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Social</TabsTrigger>
-             <TabsTrigger value="direct" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Direct</TabsTrigger>
            </TabsList>
         </div>
 
@@ -274,11 +271,6 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
         <TabsContent value="social" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
           <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
             <PageList type="social" />
-          </div>
-        </TabsContent>
-        <TabsContent value="direct" className="mt-0 focus-visible:outline-none focus:outline-none flex-1 min-h-0 overflow-hidden">
-          <div className="h-full overflow-y-auto pr-1 custom-scrollbar">
-            <PageList type="direct" />
           </div>
         </TabsContent>
       </Tabs>

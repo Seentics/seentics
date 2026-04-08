@@ -143,3 +143,23 @@ func (h *AutomationHandler) ListExecutions(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"executions": execs})
 }
+// BulkDelete godoc
+// DELETE /websites/:website_id/automations/bulk-delete
+func (h *AutomationHandler) BulkDelete(c *gin.Context) {
+	websiteID := c.Param("website_id")
+	var req struct {
+		AutomationIDs []string `json:"automationIds"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.service.BulkDelete(c.Request.Context(), websiteID, req.AutomationIDs); err != nil {
+		h.logger.Error().Err(err).Str("website_id", websiteID).Msg("automation: bulk delete failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.Status(http.StatusNoContent)
+}

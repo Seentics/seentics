@@ -14,10 +14,14 @@ export default function Layout({ children }: LayoutProps) {
   const websiteId = params?.websiteId as string;
 
   return (
-    <div className="h-screen overflow-hidden bg-background text-foreground flex">
-      <TrackerScript />
+    <div className="flex h-screen min-h-0 overflow-hidden bg-background text-foreground">
+      <TrackerScript websiteId={websiteId} />
       {websiteId && <Sidebar websiteId={websiteId} />}
-      <main className="flex-1 min-w-0 overflow-y-auto h-screen">
+      {/*
+        flex flex-col + min-h-0: children can use flex-1 (e.g. session replay) and get real height.
+        flex-1 + h-screen on <main> alone did not pass height into nested flex columns reliably.
+      */}
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
         {children}
       </main>
     </div>

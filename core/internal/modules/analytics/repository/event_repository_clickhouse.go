@@ -14,6 +14,13 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type BatchResult struct {
+	Total     int     `json:"total"`
+	Processed int     `json:"processed"`
+	Failed    int     `json:"failed"`
+	Errors    []error `json:"errors,omitempty"`
+}
+
 type ClickHouseEventRepository struct {
 	conn   driver.Conn
 	logger zerolog.Logger

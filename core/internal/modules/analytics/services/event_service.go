@@ -2,10 +2,7 @@ package services
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -15,7 +12,6 @@ import (
 	websiteServicePkg "github.com/Seentics/seentics/internal/modules/websites/services"
 	"github.com/Seentics/seentics/internal/shared/utils"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 )
@@ -23,19 +19,16 @@ import (
 const (
 	BatchSize     = 2000
 	FlushInterval = 5 * time.Second
-
-	eventStream = "sn:stream:events"
-	eventGroup  = "seentics"
-	eventWorker = "core-worker"
+	BufferSize    = 20_000 // in-memory event channel capacity
 )
 
 type EventService struct {
 	repo     repository.EventRepository
-	db       *pgxpool.Pool
 	logger   zerolog.Logger
 	websites *websiteServicePkg.WebsiteService
 	rdb      *redis.Client
 
+	buf        chan models.Event
 	ctx        context.Context
 	cancel     context.CancelFunc
 	wg         sync.WaitGroup
@@ -43,29 +36,20 @@ type EventService struct {
 	shutdownMu sync.RWMutex
 }
 
-func NewEventService(repo repository.EventRepository, db *pgxpool.Pool, websiteSvc *websiteServicePkg.WebsiteService, logger zerolog.Logger, rdb *redis.Client) *EventService {
+func NewEventService(repo repository.EventRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger, rdb *redis.Client) *EventService {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	service := &EventService{
+	s := &EventService{
 		repo:     repo,
-		db:       db,
-		websites: websiteSvc,
+		websites: websites,
 		logger:   logger,
 		rdb:      rdb,
+		buf:      make(chan models.Event, BufferSize),
 		ctx:      ctx,
 		cancel:   cancel,
 	}
-
-	// Ensure stream consumer group exists (ignore "already exists" error)
-	bgCtx := context.Background()
-	if err := rdb.XGroupCreateMkStream(bgCtx, eventStream, eventGroup, "$").Err(); err != nil {
-		if !strings.Contains(err.Error(), "BUSYGROUP") {
-			logger.Error().Err(err).Msg("Failed to create event stream consumer group")
-		}
-	}
-
-	service.startStreamConsumer()
-	return service
+	s.startFlusher()
+	return s
 }
 
 func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*models.EventResponse, error) {
@@ -95,8 +79,7 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 
 	s.enrichEventData(ctx, event)
 
-	if err := s.publishEvent(ctx, event); err != nil {
-		s.logger.Warn().Err(err).Msg("Failed to publish event to stream, dropping")
+	if !s.enqueue(*event) {
 		return nil, fmt.Errorf("server busy, try again later")
 	}
 
@@ -140,9 +123,8 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	}
 	req.SiteID = website.SiteID
 
-	// Pre-compute shared enrichment once per batch (all events share the same
-	// client IP + UA from the /collect request) to avoid redundant UA parsing
-	// and GeoIP lookups on every event.
+	// Pre-compute shared UA + GeoIP once for the whole batch — all events share
+	// the same client IP and user-agent from the /collect HTTP request headers.
 	var sharedUA *utils.UserAgentInfo
 	var sharedGeo *utils.LocationInfo
 	if req.ClientUA != "" {
@@ -155,74 +137,50 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	}
 
 	now := time.Now()
+	accepted := 0
 	var liveVisitorIDs []string
 
-	// Prepare all events and collect serialised JSON for pipeline XADD.
-	type preparedEvent struct {
-		data []byte
-		idx  int
-	}
-	prepared := make([]preparedEvent, 0, len(req.Events))
-
 	for i := range req.Events {
-		req.Events[i].WebsiteID = req.SiteID
-		if req.Events[i].EventType == "" {
-			req.Events[i].EventType = "pageview"
+		ev := &req.Events[i]
+		ev.WebsiteID = req.SiteID
+		if ev.EventType == "" {
+			ev.EventType = "pageview"
 		}
-		if req.Events[i].Timestamp.IsZero() {
-			req.Events[i].Timestamp = now
+		if ev.Timestamp.IsZero() {
+			ev.Timestamp = now
 		}
-		if req.ClientIP != "" && (req.Events[i].IPAddress == nil || *req.Events[i].IPAddress == "") {
+		if req.ClientIP != "" && (ev.IPAddress == nil || *ev.IPAddress == "") {
 			ip := req.ClientIP
-			req.Events[i].IPAddress = &ip
+			ev.IPAddress = &ip
 		}
-		if req.ClientUA != "" && (req.Events[i].UserAgent == nil || *req.Events[i].UserAgent == "") {
+		if req.ClientUA != "" && (ev.UserAgent == nil || *ev.UserAgent == "") {
 			ua := req.ClientUA
-			req.Events[i].UserAgent = &ua
+			ev.UserAgent = &ua
 		}
 
-		// Apply shared enrichment instead of per-event parsing.
-		s.enrichEventShared(ctx, &req.Events[i], sharedUA, sharedGeo)
+		s.enrichEventShared(ctx, ev, sharedUA, sharedGeo)
 
-		data, err := json.Marshal(&req.Events[i])
-		if err != nil {
-			continue
+		if s.enqueue(*ev) {
+			accepted++
 		}
-		prepared = append(prepared, preparedEvent{data: data, idx: i})
 
-		if req.Events[i].EventType == "pageview" && req.Events[i].VisitorID != "" {
-			liveVisitorIDs = append(liveVisitorIDs, req.Events[i].VisitorID)
+		if ev.EventType == "pageview" && ev.VisitorID != "" {
+			liveVisitorIDs = append(liveVisitorIDs, ev.VisitorID)
 		}
 	}
 
-	// Single pipeline round-trip for all XADD + PFADD.
-	pipe := s.rdb.Pipeline()
-	for _, p := range prepared {
-		pipe.XAdd(ctx, &redis.XAddArgs{
-			Stream: eventStream,
-			MaxLen: 50000,
-			Approx: true,
-			Values: map[string]interface{}{"d": string(p.data)},
-		})
-	}
+	// Update live visitor HyperLogLog in Redis (5-min TTL for the realtime widget).
 	if len(liveVisitorIDs) > 0 {
 		hlKey := "sn:active:" + req.SiteID
 		args := make([]interface{}, len(liveVisitorIDs))
 		for i, v := range liveVisitorIDs {
 			args[i] = v
 		}
+		pipe := s.rdb.Pipeline()
 		pipe.PFAdd(ctx, hlKey, args...)
 		pipe.Expire(ctx, hlKey, 5*time.Minute)
-	}
-	cmds, err := pipe.Exec(ctx)
-	accepted := 0
-	if err != nil {
-		s.logger.Warn().Err(err).Msg("Batch event pipeline XADD partially failed")
-	}
-	// Count successful XADDs (first len(prepared) commands in the pipeline).
-	for i := 0; i < len(prepared) && i < len(cmds); i++ {
-		if cmds[i].Err() == nil {
-			accepted++
+		if _, err := pipe.Exec(ctx); err != nil {
+			s.logger.Warn().Err(err).Msg("Failed to update live visitor HyperLogLog")
 		}
 	}
 
@@ -233,151 +191,119 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	}, nil
 }
 
-// publishEvent serialises event to JSON and pushes it onto the Redis Stream.
-func (s *EventService) publishEvent(ctx context.Context, event *models.Event) error {
-	data, err := json.Marshal(event)
-	if err != nil {
-		return err
+// enqueue adds an event to the in-memory buffer. Returns false (and logs a
+// warning) only when the buffer is completely full — i.e. ClickHouse is falling
+// behind faster than events can be flushed.
+func (s *EventService) enqueue(ev models.Event) bool {
+	select {
+	case s.buf <- ev:
+		return true
+	default:
+		s.logger.Warn().
+			Str("website_id", ev.WebsiteID).
+			Msg("Event buffer full — dropping event")
+		return false
 	}
-	return s.rdb.XAdd(ctx, &redis.XAddArgs{
-		Stream: eventStream,
-		MaxLen: 50000,
-		Approx: true,
-		Values: map[string]interface{}{"d": string(data)},
-	}).Err()
 }
 
-// startStreamConsumer reads batches from the Redis Stream via a consumer group,
-// writes to ClickHouse, then ACKs processed messages.
-func (s *EventService) startStreamConsumer() {
+// startFlusher runs a background goroutine that drains the buffer into ClickHouse.
+// It flushes whenever BatchSize events accumulate OR FlushInterval elapses.
+func (s *EventService) startFlusher() {
 	s.wg.Add(1)
 	go func() {
 		defer s.wg.Done()
 
+		ticker := time.NewTicker(FlushInterval)
+		defer ticker.Stop()
+
+		batch := make([]models.Event, 0, BatchSize)
+
+		flush := func() {
+			if len(batch) == 0 {
+				return
+			}
+			s.processBatch(batch)
+			batch = batch[:0]
+		}
+
 		for {
 			select {
+			case ev := <-s.buf:
+				batch = append(batch, ev)
+				if len(batch) >= BatchSize {
+					flush()
+				}
+
+			case <-ticker.C:
+				flush()
+
 			case <-s.ctx.Done():
+				// Drain remaining events before exiting.
+			drain:
+				for {
+					select {
+					case ev := <-s.buf:
+						batch = append(batch, ev)
+					default:
+						break drain
+					}
+				}
+				flush()
 				return
-			default:
-			}
-
-			msgs, err := s.rdb.XReadGroup(s.ctx, &redis.XReadGroupArgs{
-				Group:    eventGroup,
-				Consumer: eventWorker,
-				Streams:  []string{eventStream, ">"},
-				Count:    BatchSize,
-				Block:    FlushInterval,
-			}).Result()
-
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					return
-				}
-				if errors.Is(err, redis.Nil) {
-					continue // timeout with no new messages — normal
-				}
-				s.logger.Error().Err(err).Msg("Event stream read error")
-				time.Sleep(time.Second)
-				continue
-			}
-
-			if len(msgs) == 0 || len(msgs[0].Messages) == 0 {
-				continue
-			}
-
-			rawMsgs := msgs[0].Messages
-			batch := make([]models.Event, 0, len(rawMsgs))
-			ids := make([]string, 0, len(rawMsgs))
-
-			for _, msg := range rawMsgs {
-				ids = append(ids, msg.ID)
-				data, ok := msg.Values["d"].(string)
-				if !ok {
-					continue
-				}
-				var event models.Event
-				if err := json.Unmarshal([]byte(data), &event); err != nil {
-					continue
-				}
-
-				batch = append(batch, event)
-			}
-
-			if len(batch) > 0 {
-				s.processBatch(batch)
-			}
-
-			// ACK all messages (including malformed ones) so they don't pile up
-			if len(ids) > 0 {
-				s.rdb.XAck(context.Background(), eventStream, eventGroup, ids...)
 			}
 		}
 	}()
 }
 
-// processBatch writes a batch to ClickHouse.
+// processBatch writes a batch of events to ClickHouse.
 func (s *EventService) processBatch(batch []models.Event) {
 	if len(batch) == 0 {
 		return
 	}
 
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Deduplicate: 1 cache lookup per unique site_id, not per event in the batch.
+	// Resolve any UUID-format website IDs to canonical site IDs.
+	// One cache lookup per unique UUID, not per event.
 	siteIDMap := make(map[string]string)
 	for i := range batch {
-		event := &batch[i]
-		if len(event.WebsiteID) > 24 {
-			if resolved, ok := siteIDMap[event.WebsiteID]; ok {
-				event.WebsiteID = resolved
-			} else if website, err := s.websites.GetWebsiteByAnyID(ctx, event.WebsiteID); err == nil {
-				siteIDMap[event.WebsiteID] = website.SiteID
-				event.WebsiteID = website.SiteID
+		ev := &batch[i]
+		if len(ev.WebsiteID) > 24 {
+			if resolved, ok := siteIDMap[ev.WebsiteID]; ok {
+				ev.WebsiteID = resolved
+			} else if website, err := s.websites.GetWebsiteByAnyID(ctx, ev.WebsiteID); err == nil {
+				siteIDMap[ev.WebsiteID] = website.SiteID
+				ev.WebsiteID = website.SiteID
 			}
 		}
 	}
-
-	eventTypes := make(map[string]int)
-	websiteIDs := make(map[string]int)
-	for _, event := range batch {
-		eventTypes[event.EventType]++
-		websiteIDs[event.WebsiteID]++
-	}
-
-	s.logger.Info().
-		Int("events_count", len(batch)).
-		Interface("event_types", eventTypes).
-		Interface("website_ids", websiteIDs).
-		Msg("Processing batch")
 
 	result, err := s.repo.CreateBatch(ctx, batch)
 	if err != nil {
 		s.logger.Error().
 			Err(err).
-			Int("events_count", len(batch)).
-			Interface("event_types", eventTypes).
-			Msg("Failed to process batch")
+			Int("count", len(batch)).
+			Msg("Failed to flush event batch to ClickHouse")
 		return
 	}
 
-	s.logger.Info().
+	s.logger.Debug().
 		Int("processed", result.Processed).
 		Int("failed", result.Failed).
 		Dur("duration", time.Since(start)).
-		Interface("event_types", eventTypes).
-		Msg("Batch processed successfully")
+		Msg("Event batch flushed")
 
 	if result.Failed > 0 {
 		s.logger.Warn().
-			Int("failed_count", result.Failed).
+			Int("failed", result.Failed).
 			Interface("errors", result.Errors).
-			Msg("Some events failed in batch")
+			Msg("Some events in batch failed")
 	}
 }
 
-// Shutdown gracefully stops the stream consumer.
+// Shutdown drains the buffer and stops the flusher goroutine.
 func (s *EventService) Shutdown(timeout time.Duration) error {
 	s.logger.Info().Msg("Shutting down event service")
 
@@ -388,10 +314,7 @@ func (s *EventService) Shutdown(timeout time.Duration) error {
 	s.cancel()
 
 	done := make(chan struct{})
-	go func() {
-		s.wg.Wait()
-		close(done)
-	}()
+	go func() { s.wg.Wait(); close(done) }()
 
 	select {
 	case <-done:
@@ -416,22 +339,12 @@ func (s *EventService) GetEvents(ctx context.Context, websiteID string, limit in
 	return s.repo.GetByWebsiteID(ctx, websiteID, limit, offset)
 }
 
-// GetStats returns Redis stream statistics.
+// GetStats returns current buffer utilisation stats.
 func (s *EventService) GetStats() map[string]interface{} {
-	ctx := context.Background()
-	info, err := s.rdb.XInfoStream(ctx, eventStream).Result()
-	if err != nil {
-		return map[string]interface{}{
-			"stream":         eventStream,
-			"batch_size":     BatchSize,
-			"flush_interval": FlushInterval.String(),
-			"error":          err.Error(),
-		}
-	}
 	return map[string]interface{}{
-		"stream":        eventStream,
-		"stream_length": info.Length,
-		"batch_size":    BatchSize,
+		"buffer_size":    BufferSize,
+		"buffer_used":    len(s.buf),
+		"batch_size":     BatchSize,
 		"flush_interval": FlushInterval.String(),
 	}
 }
@@ -440,9 +353,8 @@ func (s *EventService) enrichEventData(ctx context.Context, event *models.Event)
 	s.enrichEventShared(ctx, event, nil, nil)
 }
 
-// enrichEventShared applies UA + GeoIP enrichment to an event. When sharedUA /
-// sharedGeo are provided (pre-computed once for the whole batch) the expensive
-// ParseUserAgent and GetLocationFromIP calls are skipped entirely.
+// enrichEventShared applies UA + GeoIP enrichment. When sharedUA/sharedGeo are
+// provided (pre-computed once per batch) the expensive parsing calls are skipped.
 func (s *EventService) enrichEventShared(_ context.Context, event *models.Event, sharedUA *utils.UserAgentInfo, sharedGeo *utils.LocationInfo) {
 	if event.Page == "" && event.PagePath != "" {
 		event.Page = event.PagePath
@@ -480,10 +392,8 @@ func (s *EventService) enrichEventShared(_ context.Context, event *models.Event,
 		} else {
 			location = utils.GetLocationFromIP(*event.IPAddress)
 		}
-		if event.Country == nil || *event.Country == "" {
-			if location.Country != "" {
-				event.Country = &location.Country
-			}
+		if location.Country != "" && (event.Country == nil || *event.Country == "") {
+			event.Country = &location.Country
 		}
 		if event.CountryCode == nil || *event.CountryCode == "" {
 			event.CountryCode = &location.CountryCode

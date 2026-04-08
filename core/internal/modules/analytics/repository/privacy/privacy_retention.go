@@ -6,49 +6,28 @@ import (
 	"time"
 )
 
-// CleanupOldEvents cleans up events older than 2 years
+// CleanupOldEvents is a no-op: events live in ClickHouse which has a built-in
+// TTL of 2 years (TTL toDate(timestamp) + INTERVAL 2 YEAR). No manual cleanup needed.
 func (r *PrivacyRepository) CleanupOldEvents() error {
-	cutoffDate := time.Now().AddDate(-2, 0, 0)
-
-	// Delete events older than 2 years
-	deleteQuery := `DELETE FROM events WHERE timestamp < $1`
-
-	result, err := r.db.Exec(context.Background(), deleteQuery, cutoffDate)
-	if err != nil {
-		return fmt.Errorf("failed to cleanup old events: %w", err)
-	}
-
-	rowsAffected := result.RowsAffected()
-
-	// Log the cleanup operation
-	r.LogPrivacyOperation("cleanup_old_events", "system", fmt.Sprintf("Cleaned up %d events older than %s", rowsAffected, cutoffDate.Format(time.RFC3339)))
-
+	r.LogPrivacyOperation("cleanup_old_events", "system", "skipped: ClickHouse TTL handles event lifecycle")
 	return nil
 }
 
-// CleanupOldAnalytics cleans up analytics data older than 1 year
+// CleanupOldAnalytics removes stale PostgreSQL analytics metadata older than 1 year.
+// Currently cleans up inactive funnels. ClickHouse analytics data is handled by TTL.
 func (r *PrivacyRepository) CleanupOldAnalytics() error {
 	cutoffDate := time.Now().AddDate(-1, 0, 0)
 
-	// Note: Analytics data is primarily stored in materialized views which are automatically
-	// updated based on the events table. Since we're already cleaning up old events,
-	// the materialized views will automatically reflect the cleaned data.
-
-	// However, we can clean up old funnel data that's no longer needed
-	deleteOldFunnelsQuery := `
-		DELETE FROM funnels 
-		WHERE created_at < $1 AND is_active = false
-	`
-
-	result, err := r.db.Exec(context.Background(), deleteOldFunnelsQuery, cutoffDate)
+	result, err := r.db.Exec(context.Background(), `
+		DELETE FROM funnels WHERE created_at < $1 AND is_active = false
+	`, cutoffDate)
 	if err != nil {
 		return fmt.Errorf("failed to cleanup old funnels: %w", err)
 	}
 
-	rowsAffected := result.RowsAffected()
-
-	// Log the cleanup operation
-	r.LogPrivacyOperation("cleanup_old_analytics", "system", fmt.Sprintf("Cleaned up %d inactive funnels older than %s", rowsAffected, cutoffDate.Format(time.RFC3339)))
+	r.LogPrivacyOperation("cleanup_old_analytics", "system", fmt.Sprintf(
+		"Cleaned up %d inactive funnels older than %s", result.RowsAffected(), cutoffDate.Format(time.RFC3339),
+	))
 
 	return nil
 }

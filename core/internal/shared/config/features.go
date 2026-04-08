@@ -39,18 +39,3 @@ func ShouldEnforceUsageLimits() bool {
 	return IsEnterprise()
 }
 
-// GetEventLimits returns event limits based on deployment type
-func GetEventLimits() map[string]int {
-	if IsOpenSource() {
-		return map[string]int{
-			"events_per_month": -1, // unlimited
-			"batch_size":       1000,
-		}
-	}
-
-	// Enterprise mode — gateway enforces limits, but keep sensible defaults
-	return map[string]int{
-		"events_per_month": -1, // unlimited at core level; gateway enforces
-		"batch_size":       1000,
-	}
-}

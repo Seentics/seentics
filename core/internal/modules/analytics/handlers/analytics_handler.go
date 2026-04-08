@@ -201,11 +201,12 @@ func (h *AnalyticsHandler) GetPageUTMBreakdown(c *gin.Context) {
 	}
 
 	days := h.parseDays(c, 7)
+	timezone := h.parseTimezone(c)
 
 	cancel := h.withQueryTimeout(c)
 	defer cancel()
 
-	breakdown, err := h.service.GetPageUTMBreakdown(c.Request.Context(), websiteID, pagePath, days, userID)
+	breakdown, err := h.service.GetPageUTMBreakdown(c.Request.Context(), websiteID, pagePath, days, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get page UTM breakdown")
 		return
@@ -332,11 +333,12 @@ func (h *AnalyticsHandler) GetTopResolutions(c *gin.Context) {
 
 	days := h.parseDays(c, 7)
 	limit := h.parseLimit(c, 10)
+	timezone := h.parseTimezone(c)
 
 	cancel := h.withQueryTimeout(c)
 	defer cancel()
 
-	resolutions, err := h.service.GetTopResolutions(c.Request.Context(), websiteID, days, limit, userID)
+	resolutions, err := h.service.GetTopResolutions(c.Request.Context(), websiteID, days, limit, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get top resolutions")
 		return
@@ -562,11 +564,12 @@ func (h *AnalyticsHandler) GetCustomEvents(c *gin.Context) {
 	}
 
 	days := h.parseDays(c, 7)
+	timezone := h.parseTimezone(c)
 
 	cancel := h.withQueryTimeout(c)
 	defer cancel()
 
-	result, err := h.service.GetCustomEventsWithUTM(c.Request.Context(), websiteID, days, userID)
+	result, err := h.service.GetCustomEventsWithUTM(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get custom events")
 		return
@@ -960,11 +963,12 @@ func (h *AnalyticsHandler) GetPathAnalysis(c *gin.Context) {
 	}
 
 	days := h.parseDays(c, 7)
+	timezone := h.parseTimezone(c)
 
 	cancel := h.withQueryTimeout(c)
 	defer cancel()
 
-	analysis, err := h.service.GetPathAnalysis(c.Request.Context(), websiteID, days, userID)
+	analysis, err := h.service.GetPathAnalysis(c.Request.Context(), websiteID, days, timezone, userID)
 	if err != nil {
 		h.handleError(c, err, "Failed to get path analysis")
 		return

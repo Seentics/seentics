@@ -6,10 +6,11 @@ import "time"
 
 // TrafficSummary - USED in traffic_summary_analytics.go
 type TrafficSummary struct {
-	TotalPageViews     int     `json:"total_page_views" db:"total_page_views"`
-	TotalVisitors      int     `json:"total_visitors" db:"total_visitors"`
-	UniqueVisitors     int     `json:"unique_visitors" db:"unique_visitors"`
-	TotalSessions      int     `json:"total_sessions" db:"total_sessions"`
+	TotalPageViews int `json:"total_page_views" db:"total_page_views"`
+	// TotalVisitors is distinct visitor_id in the range (same meaning as UniqueVisitors).
+	TotalVisitors  int `json:"total_visitors" db:"total_visitors"`
+	UniqueVisitors int `json:"unique_visitors" db:"unique_visitors"`
+	TotalSessions  int `json:"total_sessions" db:"total_sessions"`
 	BounceRate         float64 `json:"bounce_rate" db:"bounce_rate"`
 	AvgSessionTime     float64 `json:"avg_session_time" db:"avg_session_time"`
 	PagesPerSession    float64 `json:"pages_per_session" db:"pages_per_session"`
@@ -23,10 +24,12 @@ type TrafficSummary struct {
 
 // DashboardMetrics - USED in dashboard_analytics.go
 type DashboardMetrics struct {
-	PageViews       int     `json:"page_views" db:"page_views"`
-	TotalVisitors   int     `json:"total_visitors" db:"total_visitors"`
-	UniqueVisitors  int     `json:"unique_visitors" db:"unique_visitors"`
-	Sessions        int     `json:"sessions" db:"sessions"`
+	PageViews int `json:"page_views" db:"page_views"`
+	// TotalVisitors and UniqueVisitors both count distinct visitor_id over the date range.
+	TotalVisitors  int     `json:"total_visitors" db:"total_visitors"`
+	UniqueVisitors int     `json:"unique_visitors" db:"unique_visitors"`
+	// Sessions is the number of distinct sessions (pageview groups) in the range.
+	Sessions       int     `json:"sessions" db:"sessions"`
 	BounceRate      float64 `json:"bounce_rate" db:"bounce_rate"`
 	AvgSessionTime  float64 `json:"avg_session_time" db:"avg_session_time"`
 	PagesPerSession float64 `json:"pages_per_session" db:"pages_per_session"`
@@ -127,6 +130,7 @@ type HourlyStat struct {
 type CustomEventStat struct {
 	EventType        string     `json:"event_type" db:"event_type"`
 	Count            int        `json:"count" db:"count"`
+	UniqueVisitors   int        `json:"unique_visitors" db:"unique_visitors"`
 	SampleProperties Properties `json:"sample_properties" db:"sample_properties"`
 	SampleEvent      Properties `json:"sample_event" db:"sample_event"`
 	CommonProperties Properties `json:"common_properties" db:"common_properties"`
@@ -137,6 +141,17 @@ type EventItem struct {
 	EventType        string     `json:"event_type" db:"event_type"`
 	Count            int        `json:"count" db:"count"`
 	SampleProperties Properties `json:"sample_properties,omitempty" db:"sample_properties"`
+}
+
+// GoalStatItem is one configured website goal with optional conversion stats for the UI goals table.
+type GoalStatItem struct {
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	GoalType        string  `json:"goal_type"`
+	Target          string  `json:"target"`
+	Completions     int     `json:"completions"`
+	ConversionRate  float64 `json:"conversion_rate"`
+	UniqueVisitors  int     `json:"unique_visitors,omitempty"`
 }
 
 // TopItem - USED in top_continents_analytics.go
@@ -161,6 +176,7 @@ type DashboardData struct {
 	DateRange         int                  `json:"date_range"`
 	TotalVisitors     int                  `json:"total_visitors"`
 	UniqueVisitors    int                  `json:"unique_visitors"`
+	Sessions          int                  `json:"sessions"`
 	LiveVisitors      int                  `json:"live_visitors"`
 	PageViews         int                  `json:"page_views"`
 	SessionDuration   float64              `json:"session_duration"`

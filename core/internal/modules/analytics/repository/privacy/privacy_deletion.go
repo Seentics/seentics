@@ -5,45 +5,23 @@ import (
 	"fmt"
 )
 
-// DeleteEventsData deletes all events data for websites owned by a specific user
+// DeleteEventsData is a no-op at the PostgreSQL layer: events are stored in
+// ClickHouse, not PostgreSQL. To delete ClickHouse events for a user's websites,
+// call EventRepository.DeleteByWebsiteID from the service layer.
 func (r *PrivacyRepository) DeleteEventsData(userID string) error {
-	// Since we don't have a websites table in analytics service, we'll call the user service
-	// to get the website IDs for this user, then delete all events for those websites
-	websiteIDs, err := r.GetUserWebsitesFromUserService(userID)
-	if err != nil {
-		return nil // Don't fail the entire operation if we can't get websites
-	}
-
-	if len(websiteIDs) == 0 {
-		return nil
-	}
-
-	// Delete all events for user's websites
-	deleteQuery := `DELETE FROM events WHERE website_id = ANY($1)`
-	_, err = r.db.Exec(context.Background(), deleteQuery, websiteIDs)
-	if err != nil {
-		return fmt.Errorf("failed to delete events: %w", err)
-	}
-
 	return nil
 }
 
-// DeleteEventsDataForWebsite deletes all events data for a specific website
+// DeleteEventsDataForWebsite is a no-op at the PostgreSQL layer: events are
+// stored in ClickHouse. Call EventRepository.DeleteByWebsiteID from the service layer.
 func (r *PrivacyRepository) DeleteEventsDataForWebsite(websiteID string) error {
-	// Delete all events for this website
-	deleteQuery := `DELETE FROM events WHERE website_id = $1`
-	_, err := r.db.Exec(context.Background(), deleteQuery, websiteID)
-	if err != nil {
-		return fmt.Errorf("failed to delete events for website %s: %w", websiteID, err)
-	}
-
 	return nil
 }
 
 // DeleteAnalyticsData deletes all analytics data for a specific user
 func (r *PrivacyRepository) DeleteAnalyticsData(userID string) error {
 	// Get website IDs for this user
-	websiteIDs, err := r.GetUserWebsitesFromUserService(userID)
+	websiteIDs, err := r.GetUserWebsites(userID)
 	if err != nil {
 		return nil
 	}
@@ -77,7 +55,7 @@ func (r *PrivacyRepository) DeleteAnalyticsDataForWebsite(websiteID string) erro
 // DeleteFunnelData deletes all funnel data for a specific user
 func (r *PrivacyRepository) DeleteFunnelData(userID string) error {
 	// Get website IDs for this user
-	websiteIDs, err := r.GetUserWebsitesFromUserService(userID)
+	websiteIDs, err := r.GetUserWebsites(userID)
 	if err != nil {
 		return nil
 	}
@@ -140,7 +118,7 @@ func (r *PrivacyRepository) DeleteFunnelDataForWebsite(websiteID string) error {
 func (r *PrivacyRepository) DeleteUserData(userID string) error {
 
 	// Get website IDs for this user
-	websiteIDs, err := r.GetUserWebsitesFromUserService(userID)
+	websiteIDs, err := r.GetUserWebsites(userID)
 	if err != nil {
 		return fmt.Errorf("failed to get user websites: %w", err)
 	}

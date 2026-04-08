@@ -125,7 +125,7 @@ func main() {
 	funnelRepo       := funnelRepoPkg.NewFunnelRepository(db, chConn)
 	privacyRepo      := privacy.NewPrivacyRepository(db)
 	heatmapRepo      := heatmapRepoPkg.NewHeatmapRepository(db)
-	replayRepo       := replayRepoPkg.New(db, s3Client)
+	replayRepo       := replayRepoPkg.New(db, s3Client, logger)
 	automationRepo   := automationRepoPkg.NewAutomationRepository(db)
 
 	// ── Services ────────────────────────────────────────────────────────────
@@ -137,16 +137,14 @@ func main() {
 	)
 
 	authService       := authServicePkg.NewAuthService(authRepo, cfg, logger)
-	eventService      := services.NewEventService(eventRepo, db, websiteService, logger, rdb)
+	eventService      := services.NewEventService(eventRepo, websiteService, logger, rdb)
 	analyticsService  := services.NewAnalyticsService(analyticsRepo, websiteService, logger, appCache)
 	privacyService    := services.NewPrivacyService(privacyRepo, websiteService, logger)
 	funnelService     := funnelServicePkg.NewFunnelService(funnelRepo, websiteService, appCache)
 	heatmapService    := heatmapServicePkg.NewHeatmapService(heatmapRepo, logger)
-	replayService     := replayServicePkg.NewReplayService(replayRepo, logger)
+	replayService     := replayServicePkg.NewReplayService(replayRepo, websiteRepo, logger)
 	automationService := automationServicePkg.NewAutomationService(automationRepo, appCache, logger)
 	apiKeyService     := apikeysPkg.NewService(db, appCache, logger)
-
-	analyticsService.StartCacheWarmer(ctx)
 
 	// ── Handlers ────────────────────────────────────────────────────────────
 
@@ -159,7 +157,7 @@ func main() {
 		auth:       authHandlerPkg.NewAuthHandler(authService, logger),
 		funnel:     funnelHandlerPkg.NewFunnelHandler(funnelService),
 		website:    websiteHandlerPkg.NewWebsiteHandler(websiteService, logger),
-		heatmap:    heatmapHandlerPkg.NewHeatmapHandler(heatmapService, logger),
+		heatmap:    heatmapHandlerPkg.NewHeatmapHandler(heatmapService, websiteService, logger),
 		replay:     replayHandlerPkg.NewReplayHandler(replayService, logger),
 		automation: automationHandlerPkg.NewAutomationHandler(automationService, logger),
 		tracker:    trackerPkg.NewTrackerHandler(websiteService, eventService, funnelService, heatmapService, replayService, automationService, logger),

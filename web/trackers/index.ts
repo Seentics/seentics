@@ -1,20 +1,34 @@
 /*!
- * Seentics Tracker v2 — analytics, heatmaps, session recording, funnels & automations
- * Recording: rrweb (full DOM replay) + gzip compression + batching
+ * Seentics Tracker v2 — analytics, session recording, funnels & automations
+ * Recording: rrweb (lazy-loaded after init) + gzip compression + batching
  * Analytics:  batched, sendBeacon, single /collect endpoint
  */
-import { record } from 'rrweb';
 
-const script    = document.currentScript as HTMLScriptElement | null;
-const siteId    = script?.getAttribute('data-website-id') ?? '';
-const apiHost   = script?.getAttribute('data-api-host') ?? 'https://api.seentics.com';
+const script = document.currentScript as HTMLScriptElement | null;
+const siteId = script?.getAttribute('data-website-id') ?? '';
+
+/** Strip trailing /api/v1 so COLLECT = origin + '/api/v1/tracker/collect' never doubles the prefix. */
+function normalizeApiBase(raw: string): string {
+  let s = raw.trim().replace(/\/+$/, '');
+  while (/\/api\/v1$/i.test(s)) {
+    s = s.replace(/\/api\/v1$/i, '');
+  }
+  return s;
+}
+const apiHost = normalizeApiBase(script?.getAttribute('data-api-host') ?? 'https://api.seentics.com');
 const autoTrack = script?.getAttribute('data-auto-track') !== 'false';
 const domain    = window.location.hostname;
 
-const COLLECT      = apiHost + '/api/v1/tracker/collect';
-const MAX_BATCH    = 25;    // analytics events before forced flush (session events excluded)
-const FLUSH_MS     = 5000;  // single flush interval for all queues — 5s
-const REC_MAX      = 150;   // max rrweb events before an early recording flush
+// rrweb.js lives next to seentics.js; override via data-rrweb-src if needed.
+const _scriptSrc = script?.src ?? '';
+const rrwebSrc: string =
+  script?.getAttribute('data-rrweb-src') ??
+  (_scriptSrc ? _scriptSrc.replace(/[^/?#]*\.js[^/]*$/, 'rrweb.js') : '');
+
+const COLLECT   = apiHost + '/api/v1/tracker/collect';
+const MAX_BATCH = 25;    // analytics events before forced flush
+const FLUSH_MS  = 5000;  // flush interval — 5 s
+const REC_MAX   = 150;   // rrweb events before early flush
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let cfg:         Record<string, unknown> = {};
@@ -24,7 +38,6 @@ let analyticsTimer: number | null        = null;
 
 const queues = {
   events:      [] as any[],
-  heatmaps:    [] as any[],
   funnels:     [] as any[],
   automations: [] as any[],
   session:     [] as any[],   // rrweb eventWithTime wrapped in TrackerEvent envelope
@@ -33,12 +46,23 @@ const queues = {
 // ─── Visitor / Session IDs ────────────────────────────────────────────────────
 const getStore = (): Storage | null => { try { return localStorage; } catch { return null; } };
 
+// Cryptographically random token; falls back to Math.random if unavailable.
+const rnd = (): string => {
+  try {
+    const arr = new Uint8Array(9);
+    crypto.getRandomValues(arr);
+    return Array.from(arr, b => b.toString(36)).join('');
+  } catch {
+    return Math.random().toString(36).slice(2, 11);
+  }
+};
+
 const visitorId: string = (() => {
   const s = getStore();
-  if (!s) return 'v-' + Math.random().toString(36).slice(2, 11);
+  if (!s) return 'v-' + rnd();
   let id = s.getItem('snc_vid');
   if (!id) {
-    id = 'v-' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36);
+    id = 'v-' + rnd() + Date.now().toString(36);
     s.setItem('snc_vid', id);
   }
   return id;
@@ -50,7 +74,7 @@ const getSessionId = (): string => {
   let id  = s.getItem('snc_sid');
   const exp = s.getItem('snc_se');
   if (!id || !exp || Date.now() > +exp) {
-    id = 's-' + Math.random().toString(36).slice(2, 11) + Date.now().toString(36);
+    id = 's-' + rnd() + Date.now().toString(36);
     s.setItem('snc_sid', id);
   }
   s.setItem('snc_se', String(Date.now() + 1_800_000)); // rolling 30 min
@@ -61,37 +85,34 @@ const getSessionId = (): string => {
 const categoryOf = (type: string): keyof typeof queues => {
   if (type === 'funnel_step' || type === 'funnel_complete') return 'funnels';
   if (type === 'automation_trigger')                        return 'automations';
-  if (type.startsWith('heatmap_'))                         return 'heatmaps';
   return 'events';
 };
 
 const pushAnalytics = (type: string, data: Record<string, unknown>): void => {
   const cat = categoryOf(type);
   queues[cat].push({ type, data, ts: Date.now(), url: location.href, sid: getSessionId(), vid: visitorId });
-  // Only count non-session events toward the force-flush threshold
-  const analyticsTotal = queues.events.length + queues.heatmaps.length + queues.funnels.length + queues.automations.length;
+  const analyticsTotal = queues.events.length + queues.funnels.length + queues.automations.length;
   if (analyticsTotal >= MAX_BATCH) flush();
   else if (!analyticsTimer) analyticsTimer = window.setTimeout(flush, FLUSH_MS);
 };
 
 // ─── Unified flush — sends all queues to /collect in one request ──────────────
 const flush = (): void => {
-  const e = queues.events.splice(0), h = queues.heatmaps.splice(0);
+  const e = queues.events.splice(0);
   const f = queues.funnels.splice(0), a = queues.automations.splice(0);
   const s = queues.session.splice(0);
-  if (!e.length && !h.length && !f.length && !a.length && !s.length) return;
+  if (!e.length && !f.length && !a.length && !s.length) return;
   clearTimeout(analyticsTimer!); analyticsTimer = null;
 
   const payload: Record<string, unknown> = { site_id: siteId, domain };
   if (e.length) payload.events      = e;
-  if (h.length) payload.heatmaps    = h;
   if (f.length) payload.funnels     = f;
   if (a.length) payload.automations = a;
   if (s.length) payload.session     = s;
 
   const json = JSON.stringify(payload);
 
-  // When recording events are present, use XHR with gzip (sendBeacon has a ~64KB limit)
+  // When recording events are present, use XHR with gzip (sendBeacon has a ~64 KB limit)
   if (s.length > 0) {
     sendGzip(json);
     return;
@@ -108,7 +129,7 @@ const flush = (): void => {
 
 const flushAnalytics = flush; // keep public API name
 
-// Gzip via native CompressionStream; falls back to plain JSON if unavailable
+// Gzip via native CompressionStream; falls back to plain JSON if unavailable.
 const sendGzip = async (json: string): Promise<void> => {
   if (typeof CompressionStream !== 'undefined') {
     try {
@@ -131,14 +152,61 @@ const sendGzip = async (json: string): Promise<void> => {
   xhr.send(json);
 };
 
+// ─── rrweb lazy loader ────────────────────────────────────────────────────────
+// rrweb.js is loaded on demand — only when session recording is actually needed.
+// It sets window.__rrweb_record = record after loading.
+type RrwebRecord = (options: Record<string, unknown>) => () => void;
+let _rrwebPromise: Promise<RrwebRecord | null> | null = null;
+
+const loadRrweb = (): Promise<RrwebRecord | null> => {
+  if (_rrwebPromise) return _rrwebPromise;
+  _rrwebPromise = new Promise((resolve) => {
+    const w = window as any;
+    if (w.__rrweb_record) { resolve(w.__rrweb_record); return; }
+    if (!rrwebSrc)        { resolve(null); return; }
+    const s    = document.createElement('script');
+    s.src      = rrwebSrc;
+    s.onload   = () => resolve(w.__rrweb_record ?? null);
+    s.onerror  = () => resolve(null);
+    document.head.appendChild(s);
+  });
+  return _rrwebPromise;
+};
+
+// ─── Safe regex — guards against ReDoS ───────────────────────────────────────
+// Patterns longer than 500 chars fall back to plain string.includes.
+const safeRegex = (pattern: string, subject: string): boolean => {
+  if (pattern.length > 500) return subject.includes(pattern);
+  try { return new RegExp(pattern).test(subject); } catch { return subject.includes(pattern); }
+};
+
 // ─── rrweb recording ──────────────────────────────────────────────────────────
-// Events are wrapped in the standard TrackerEvent envelope and queued in
-// queues.session — flushed with everything else via the unified /collect call.
-const initRecording = (): (() => void) | undefined => {
-  const stopFn = record({
-    emit(event) {
+const matchesPatterns = (patterns: string | null | undefined): boolean => {
+  if (!patterns) return false;
+  const list = patterns.split('\n').map(p => p.trim()).filter(Boolean);
+  if (!list.length) return false;
+  const url = location.href;
+  return list.some(p => safeRegex(p, url));
+};
+
+const initRecording = async (): Promise<void> => {
+  const samplingRate = typeof cfg.replay_sampling_rate === 'number'
+    ? (cfg.replay_sampling_rate as number)
+    : 1.0;
+  if (samplingRate < 1.0 && Math.random() > samplingRate) return;
+
+  const includePatterns = cfg.replay_include_patterns as string | null | undefined;
+  const excludePatterns = cfg.replay_exclude_patterns as string | null | undefined;
+  if (includePatterns && !matchesPatterns(includePatterns)) return;
+  if (excludePatterns && matchesPatterns(excludePatterns)) return;
+
+  // Load rrweb lazily — only at this point do we know recording is needed.
+  const record = await loadRrweb();
+  if (!record) return;
+
+  record({
+    emit(event: any) {
       const sid = getSessionId();
-      // Wrap rrweb eventWithTime so the backend stores it identically to other events
       queues.session.push({
         type: 'rrweb',
         data: event,           // full rrweb eventWithTime: {type, timestamp, data}
@@ -147,19 +215,20 @@ const initRecording = (): (() => void) | undefined => {
         sid,
         vid:  visitorId,
       });
-
-      // Early flush if recording batch is getting large (avoids huge single payload)
       if (queues.session.length >= REC_MAX) flush();
       else if (!analyticsTimer) analyticsTimer = window.setTimeout(flush, FLUSH_MS);
     },
-    // Privacy
-    maskAllInputs:    false,
-    maskInputOptions: { password: true },
-    blockSelector:    '[data-seentics-block]',
-    ignoreSelector:   '[data-seentics-ignore]',
+    // Full snapshot every 2 min limits incremental drift so replay stays in sync
+    // (reduces “Node with id … not found” / mutation errors on long sessions).
+    checkoutEveryNms: 120_000,
+    // Privacy: mask ALL inputs by default.
+    // Users can add data-seentics-block to hide elements from the recording entirely.
+    maskAllInputs:  true,
+    blockSelector:  '[data-seentics-block]',
+    ignoreSelector: '[data-seentics-ignore]',
     // Performance sampling
     sampling: {
-      mousemove: 50,   // ~20fps mouse tracking
+      mousemove: 50,   // ~20 fps mouse tracking
       scroll:    150,
       media:     800,
       input:     'last',
@@ -168,34 +237,9 @@ const initRecording = (): (() => void) | undefined => {
     collectFonts:     false,
     recordCanvas:     false,
   });
-
-  return stopFn;
 };
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
-const throttle = <T extends unknown[]>(fn: (...args: T) => void, ms: number) => {
-  let last = 0;
-  let t: number | null = null;
-  return function (this: unknown, ...a: T) {
-    const now = Date.now(), rem = ms - (now - last);
-    if (rem <= 0) { last = now; fn.apply(this, a); }
-    else { if (t) clearTimeout(t); t = window.setTimeout(() => { last = Date.now(); fn.apply(this, a); }, rem); }
-  };
-};
-
-const getSelector = (el: Element | null): string => {
-  const parts: string[] = [];
-  while (el && el.nodeType === 1 && el !== document.body) {
-    let s = el.tagName.toLowerCase();
-    if ((el as HTMLElement).id) { parts.unshift(s + '#' + (el as HTMLElement).id); break; }
-    const cls = [...(el as HTMLElement).classList].slice(0, 2).join('.');
-    if (cls) s += '.' + cls;
-    parts.unshift(s);
-    el = el.parentElement;
-  }
-  return parts.slice(-3).join('>') || 'body';
-};
-
 const utmParams = (): Record<string, string> | null => {
   const p = new URLSearchParams(location.search), out: Record<string, string> = {};
   for (const k of ['source', 'medium', 'campaign', 'term', 'content']) {
@@ -226,28 +270,6 @@ const trackPage = (): void => {
   evalAutomations('pageview', { path: location.pathname, title: document.title });
 };
 
-// ─── Heatmaps ─────────────────────────────────────────────────────────────────
-const initHeatmaps = (): void => {
-  document.addEventListener('click', (e) => {
-    const docH = Math.max(document.body.scrollHeight, 1);
-    pushAnalytics('heatmap_click', {
-      x:  e.clientX,   y:  e.clientY,
-      nx: +(e.clientX / innerWidth).toFixed(4),
-      ny: +((e.clientY + scrollY) / docH).toFixed(4),
-      target: getSelector(e.target as Element),
-      text:   ((e.target as HTMLElement)?.textContent ?? '').trim().slice(0, 60),
-    });
-  }, { passive: true });
-
-  let maxDepth = 0;
-  const MILESTONES = [25, 50, 75, 90, 100];
-  window.addEventListener('scroll', throttle(() => {
-    const depth = Math.min(100, Math.round((scrollY + innerHeight) / Math.max(document.body.scrollHeight, 1) * 100));
-    const hit = MILESTONES.find(m => depth >= m && m > maxDepth);
-    if (hit) { maxDepth = hit; pushAnalytics('heatmap_scroll', { depth: hit, path: location.pathname }); }
-  }, 300), { passive: true });
-};
-
 // ─── Funnels ──────────────────────────────────────────────────────────────────
 const funnelState: Record<string, { step: number }> = {};
 const evalFunnels = (path: string): void => {
@@ -257,7 +279,7 @@ const evalFunnels = (path: string): void => {
     const state = funnelState[f.id] ?? (funnelState[f.id] = { step: 0 });
     const next = steps[state.step];
     if (!next) continue;
-    const hit = next.path ? next.path === path : next.pattern ? new RegExp(next.pattern).test(path) : false;
+    const hit = next.path ? next.path === path : next.pattern ? safeRegex(next.pattern, path) : false;
     if (!hit) continue;
     pushAnalytics('funnel_step', { funnel_id: f.id, name: f.name, step: state.step, step_name: next.name, path });
     if (++state.step >= steps.length) {
@@ -277,7 +299,7 @@ const evalAutomations = (event: string, props: Record<string, unknown>): void =>
       if (c.op === 'eq')       return v === c.value;
       if (c.op === 'neq')      return v !== c.value;
       if (c.op === 'contains') return v != null && String(v).includes(c.value);
-      if (c.op === 'regex')    return v != null && new RegExp(c.value).test(String(v));
+      if (c.op === 'regex')    return v != null && safeRegex(c.value, String(v));
       if (c.op === 'gt')       return +(v as number) > +c.value;
       if (c.op === 'lt')       return +(v as number) < +c.value;
       return true;
@@ -332,13 +354,11 @@ const init = (): void => {
       funnels     = d.funnels     ?? [];
       automations = d.automations ?? [];
       if (autoTrack)               trackPage();
-      if (cfg.heatmaps  !== false) initHeatmaps();
-      if (cfg.recording !== false) initRecording();
+      if (cfg.recording !== false) initRecording(); // async — loads rrweb lazily
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
     })
     .catch(() => {
       if (autoTrack) trackPage();
-      initHeatmaps();
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
     });
 };

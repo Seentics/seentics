@@ -106,32 +106,15 @@ func (h *InternalHandler) GetUserResourceCounts(c *gin.Context) {
 	}
 	counts["replays"] = replayCount
 
-	// Monthly events
+	// Monthly events (ClickHouse is required — events never go to PostgreSQL)
 	var monthlyEvents int
-
-	if h.ch != nil {
-		var chCount uint64
-		err := h.ch.QueryRow(ctx, "SELECT count() FROM events WHERE website_id IN (?) AND timestamp >= ?", siteIDs, startOfMonth).Scan(&chCount)
-		if err == nil {
-			monthlyEvents = int(chCount)
-		}
-
-		var customCount uint64
-		err = h.ch.QueryRow(ctx, "SELECT COALESCE(sum(count), 0) FROM custom_events_aggregated WHERE website_id IN (?) AND last_seen >= ?", siteIDs, startOfMonth).Scan(&customCount)
-		if err == nil {
-			monthlyEvents += int(customCount)
-		}
-	} else {
-		err := h.db.QueryRow(ctx, `
-			SELECT COALESCE(SUM(count_sum), 0) FROM (
-				SELECT COUNT(*) as count_sum FROM events WHERE website_id = ANY($1) AND timestamp >= $2
-				UNION ALL
-				SELECT COALESCE(SUM(count), 0) as count_sum FROM custom_events_aggregated WHERE website_id = ANY($1) AND last_seen >= $2
-			) AS combined
-		`, siteIDs, startOfMonth).Scan(&monthlyEvents)
-		if err != nil {
-			h.logger.Warn().Err(err).Str("user_id", userID).Msg("Failed to count monthly events from Postgres")
-		}
+	var chCount uint64
+	if err := h.ch.QueryRow(ctx, "SELECT count() FROM events WHERE website_id IN (?) AND timestamp >= ?", siteIDs, startOfMonth).Scan(&chCount); err == nil {
+		monthlyEvents = int(chCount)
+	}
+	var customCount uint64
+	if err := h.ch.QueryRow(ctx, "SELECT COALESCE(sum(count), 0) FROM custom_events_aggregated WHERE website_id IN (?) AND last_seen >= ?", siteIDs, startOfMonth).Scan(&customCount); err == nil {
+		monthlyEvents += int(customCount)
 	}
 	counts["monthly_events"] = monthlyEvents
 
