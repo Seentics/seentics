@@ -3,7 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
-	"time"
+	"sort"
 
 	"github.com/Seentics/seentics/internal/modules/replays/models"
 	"github.com/Seentics/seentics/internal/modules/replays/repository"
@@ -14,12 +14,15 @@ import (
 )
 
 type TrackerEvent struct {
-	Type string                 `json:"type"`
-	Data map[string]interface{} `json:"data"`
-	TS   int64                  `json:"ts"`
-	URL  string                 `json:"url"`
-	SID  string                 `json:"sid"`
-	VID  string                 `json:"vid"`
+	Type      string                 `json:"type"`
+	Data      map[string]interface{} `json:"data"`
+	TS        int64                  `json:"ts"`
+	URL       string                 `json:"url"`
+	SID       string                 `json:"sid"`
+	VID       string                 `json:"vid"`
+	WebsiteID string                 `json:"-"`
+	ClientIP  string                 `json:"-"`
+	ClientUA  string                 `json:"-"`
 }
 
 type ReplayService struct {
@@ -30,6 +33,35 @@ type ReplayService struct {
 
 func NewReplayService(repo *repository.ReplayRepository, websiteRepo *websiteRepo.WebsiteRepository, logger zerolog.Logger) *ReplayService {
 	return &ReplayService{repo: repo, websiteRepo: websiteRepo, logger: logger}
+}
+
+// sortSessionBatchEvents orders one flushed batch by tracker `ts` so replay chunks stay time-ordered.
+func sortSessionBatchEvents(events []map[string]interface{}) {
+	sort.SliceStable(events, func(i, j int) bool {
+		ti := envelopeTimestampMs(events[i])
+		tj := envelopeTimestampMs(events[j])
+		if ti != tj {
+			return ti < tj
+		}
+		return i < j
+	})
+}
+
+func envelopeTimestampMs(ev map[string]interface{}) int64 {
+	v, ok := ev["ts"]
+	if !ok {
+		return 0
+	}
+	switch t := v.(type) {
+	case float64:
+		return int64(t)
+	case int64:
+		return t
+	case int:
+		return int64(t)
+	default:
+		return 0
+	}
 }
 
 // resolveIDs retrieves both the UUID and the SiteID for a given website identification string.
@@ -52,18 +84,27 @@ func (s *ReplayService) resolveIDs(ctx context.Context, websiteID string) (strin
 	return websiteID, w.ID.String(), nil
 }
 
-func (s *ReplayService) ProcessEvents(ctx context.Context, websiteID string, events []TrackerEvent, ua, ip string) error {
+// ProcessEvents processes session recording events from any number of sites/visitors.
+// Each event carries its own WebsiteID, ClientIP, and ClientUA so the call is global.
+func (s *ReplayService) ProcessEvents(ctx context.Context, events []TrackerEvent) error {
 	type sessionBatch struct {
-		events  []map[string]interface{}
-		startTs int64
-		endTs   int64
+		websiteID string
+		events    []map[string]interface{}
+		startTs   int64
+		endTs     int64
+		clientUA  string
+		clientIP  string
 	}
 	grouped := make(map[string]*sessionBatch)
 	for _, ev := range events {
 		if ev.SID == "" { continue }
 		b, exists := grouped[ev.SID]
 		if !exists {
-			b = &sessionBatch{startTs: ev.TS, endTs: ev.TS}
+			b = &sessionBatch{
+				websiteID: ev.WebsiteID,
+				startTs:   ev.TS, endTs: ev.TS,
+				clientUA: ev.ClientUA, clientIP: ev.ClientIP,
+			}
 			grouped[ev.SID] = b
 		}
 		b.events = append(b.events, map[string]interface{}{
@@ -74,19 +115,27 @@ func (s *ReplayService) ProcessEvents(ctx context.Context, websiteID string, eve
 		if ev.TS > b.endTs   { b.endTs = ev.TS }
 	}
 
-	uaInfo := utils.ParseUserAgent(ua)
-	locInfo := utils.GetLocationFromIP(ip)
-
 	for sessionID, batch := range grouped {
+		uaInfo := utils.ParseUserAgent(batch.clientUA)
+		locInfo := utils.GetLocationFromIP(batch.clientIP)
+
 		var meta *models.SessionMeta
 		pageIncrements := 0
 
 		// A batch is "new" only if it contains a FullSnapshot (rrweb event type 2).
 		// This prevents over-counting pages and re-writing metadata on every flush.
 		hasFullSnapshot := false
-		for _, ev := range events {
-			if ev.SID != sessionID || ev.Type != "rrweb" { continue }
-			if t, ok := ev.Data["type"].(float64); ok && int(t) == 2 {
+		for _, row := range batch.events {
+			typ, _ := row["type"].(string)
+			if typ != "rrweb" {
+				continue
+			}
+			inner, _ := row["data"].(map[string]interface{})
+			if inner == nil {
+				continue
+			}
+			t, ok := inner["type"].(float64)
+			if ok && int(t) == 2 {
 				hasFullSnapshot = true
 				break
 			}
@@ -105,11 +154,14 @@ func (s *ReplayService) ProcessEvents(ctx context.Context, websiteID string, eve
 		}
 
 		rageClicks := detectRageClicksFromTrackerEvents(events, sessionID)
+		sessionErrors := detectSessionErrors(events, sessionID)
 		durationInBatch := int((batch.endTs - batch.startTs) / 1000)
 		tsToUse := batch.endTs
 		if hasFullSnapshot { tsToUse = batch.startTs }
 
-		if err := s.repo.SaveChunk(ctx, websiteID, sessionID, tsToUse, batch.events, meta, pageIncrements, durationInBatch, rageClicks); err != nil {
+		sortSessionBatchEvents(batch.events)
+
+		if err := s.repo.SaveChunk(ctx, batch.websiteID, sessionID, tsToUse, batch.events, meta, pageIncrements, durationInBatch, rageClicks, sessionErrors); err != nil {
 			s.logger.Warn().Err(err).Str("session_id", sessionID).Msg("replay: save chunk failed")
 		}
 	}
@@ -120,6 +172,18 @@ type rageClick struct{ ts int64; x, y float64 }
 
 // detectRageClicksFromTrackerEvents checks whether a session's rrweb-envelope events
 // contain rage clicks (3+ clicks within 50px and 1s).
+func detectSessionErrors(events []TrackerEvent, sessionID string) bool {
+	for _, ev := range events {
+		if ev.SID != sessionID {
+			continue
+		}
+		if ev.Type == "session_error" {
+			return true
+		}
+	}
+	return false
+}
+
 func detectRageClicksFromTrackerEvents(events []TrackerEvent, sessionID string) bool {
 	var clicks []rageClick
 	for _, ev := range events {
@@ -134,25 +198,6 @@ func detectRageClicksFromTrackerEvents(events []TrackerEvent, sessionID string) 
 		x, _ := inner["x"].(float64)
 		y, _ := inner["y"].(float64)
 		ts, _ := ev.Data["timestamp"].(float64)
-		clicks = append(clicks, rageClick{ts: int64(ts), x: x, y: y})
-	}
-	return hasRageClickPattern(clicks)
-}
-
-// detectRageClicksFromRRWeb checks raw rrweb events (already unwrapped from envelope).
-func detectRageClicksFromRRWeb(events []map[string]interface{}) bool {
-	var clicks []rageClick
-	for _, ev := range events {
-		t, _ := ev["type"].(float64)
-		if int(t) != 3 { continue }
-		inner, _ := ev["data"].(map[string]interface{})
-		if inner == nil { continue }
-		src, _ := inner["source"].(float64)
-		ct, _ := inner["type"].(float64)
-		if int(src) != 2 || int(ct) != 2 { continue }
-		x, _ := inner["x"].(float64)
-		y, _ := inner["y"].(float64)
-		ts, _ := ev["timestamp"].(float64)
 		clicks = append(clicks, rageClick{ts: int64(ts), x: x, y: y})
 	}
 	return hasRageClickPattern(clicks)
@@ -205,54 +250,6 @@ func (s *ReplayService) GetSession(ctx context.Context, websiteID, sessionID str
 	chunks, err := s.repo.GetChunks(ctx, siteID, sessionID)
 	if err != nil { return meta, nil, fmt.Errorf("get session chunks: %w", err) }
 	return meta, chunks, nil
-}
-
-func (s *ReplayService) ProcessRRWebChunk(ctx context.Context, websiteID, sessionID, visitorID string, events []map[string]interface{}, ua, ip string) error {
-	if len(events) == 0 { return nil }
-
-	var minTs, maxTs int64
-	for i, ev := range events {
-		if ts, ok := ev["timestamp"].(float64); ok && int64(ts) > 0 {
-			if i == 0 || int64(ts) < minTs { minTs = int64(ts) }
-			if i == 0 || int64(ts) > maxTs { maxTs = int64(ts) }
-		}
-	}
-	if minTs == 0 { minTs = time.Now().UnixMilli() }
-	if maxTs == 0 { maxTs = minTs }
-
-	var meta *models.SessionMeta
-	entryURL := ""
-	pageIncrements := 0
-	hasFullSnapshot := false
-	for _, ev := range events {
-		t, _ := ev["type"].(float64)
-		if int(t) == 4 { // Meta
-			if data, ok := ev["data"].(map[string]interface{}); ok {
-				if href, ok := data["href"].(string); ok { entryURL = href; pageIncrements++ }
-			}
-		}
-		if int(t) == 2 { hasFullSnapshot = true; if entryURL == "" { pageIncrements++ } }
-	}
-	if hasFullSnapshot && pageIncrements == 0 { pageIncrements = 1 }
-
-	if hasFullSnapshot {
-		uaInfo  := utils.ParseUserAgent(ua); locInfo := utils.GetLocationFromIP(ip)
-		meta = &models.SessionMeta{
-			Browser: uaInfo.Browser, Device: uaInfo.Device, OS: uaInfo.OS,
-			Country: locInfo.Country, EntryPage: entryURL,
-		}
-	}
-
-	durationInBatch := int((maxTs - minTs) / 1000)
-	tsToUse := maxTs
-	if meta != nil { tsToUse = minTs }
-
-	rageClicks := detectRageClicksFromRRWeb(events)
-	if err := s.repo.SaveChunk(ctx, websiteID, sessionID, tsToUse, events, meta, pageIncrements, durationInBatch, rageClicks); err != nil {
-		s.logger.Warn().Err(err).Str("session_id", sessionID).Msg("replay chunk: save failed")
-		return err
-	}
-	return nil
 }
 
 func (s *ReplayService) DeleteSessions(ctx context.Context, websiteID string, sessionIDs []string) error {

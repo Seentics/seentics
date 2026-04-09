@@ -69,8 +69,8 @@ func (p *Properties) Scan(value interface{}) error {
 }
 
 type BatchEventRequest struct {
-	SiteID string  `json:"siteId"`
-	Domain string  `json:"domain"`
+	WebsiteID string `json:"website_id"`
+	Domain    string `json:"domain"`
 	Events []Event `json:"events"`
 	// ClientIP and ClientUA are injected by the HTTP handler — not part of the JSON payload.
 	// TrackBatchEvents uses these as fallbacks for events that omit IP/UA.

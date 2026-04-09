@@ -198,6 +198,7 @@ type RecentActivity struct {
 	Country   string `json:"country"`
 	Device    string `json:"device"`
 	Browser   string `json:"browser"`
+	OS        string `json:"os"`
 	Referrer  string `json:"referrer"`
 	Timestamp string `json:"timestamp"`
 }

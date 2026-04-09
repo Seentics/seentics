@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { addGoal } from '@/lib/websites-api';
+import { addGoal, updateGoal, type Goal } from '@/lib/websites-api';
+import { analyticsKeys } from '@/lib/analytics-api';
 import { toast } from 'sonner';
 import { Loader2, Check, Copy, Code } from 'lucide-react';
 
@@ -28,9 +29,11 @@ interface AddGoalModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   websiteId: string;
+  /** When set, the modal edits this goal instead of creating a new one. */
+  editingGoal?: Goal | null;
 }
 
-export function AddGoalModal({ open, onOpenChange, websiteId }: AddGoalModalProps) {
+export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null }: AddGoalModalProps) {
   const [name, setName] = useState('');
   const [type, setType] = useState<'event' | 'pageview'>('event');
   const [identifier, setIdentifier] = useState('');
@@ -39,6 +42,26 @@ export function AddGoalModal({ open, onOpenChange, websiteId }: AddGoalModalProp
   const [createdGoal, setCreatedGoal] = useState<{ type: string; identifier: string; selector?: string } | null>(null);
   const [copied, setCopied] = useState(false);
   const queryClient = useQueryClient();
+  const isEdit = !!editingGoal?.id;
+
+  useEffect(() => {
+    if (!open) return;
+    if (editingGoal) {
+      setName(editingGoal.name ?? '');
+      setType(editingGoal.type === 'pageview' ? 'pageview' : 'event');
+      setIdentifier(editingGoal.identifier ?? '');
+      setSelector(typeof editingGoal.selector === 'string' ? editingGoal.selector : '');
+      setCreatedGoal(null);
+      setShowHelper(false);
+    } else {
+      setName('');
+      setIdentifier('');
+      setSelector('');
+      setType('event');
+      setCreatedGoal(null);
+      setShowHelper(false);
+    }
+  }, [open, editingGoal?.id]);
 
   const resetForm = () => {
     setName('');
@@ -55,11 +78,26 @@ export function AddGoalModal({ open, onOpenChange, websiteId }: AddGoalModalProp
     onSuccess: (_data, variables) => {
       toast.success('Goal created successfully');
       queryClient.invalidateQueries({ queryKey: ['goals', websiteId] });
-      queryClient.invalidateQueries({ queryKey: ['goalStats'] });
+      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'goal-stats', websiteId] });
       setCreatedGoal({ type: variables.type, identifier: variables.identifier, selector: variables.selector });
     },
     onError: (error: any) => {
       toast.error(error.message || 'Failed to create goal');
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: { name: string; type: string; identifier: string; selector?: string }) =>
+      updateGoal(websiteId, editingGoal!.id, data),
+    onSuccess: () => {
+      toast.success('Goal updated');
+      queryClient.invalidateQueries({ queryKey: ['goals', websiteId] });
+      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'goal-stats', websiteId] });
+      resetForm();
+      onOpenChange(false);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Failed to update goal');
     },
   });
 
@@ -80,14 +118,20 @@ export function AddGoalModal({ open, onOpenChange, websiteId }: AddGoalModalProp
       toast.error('Please fill in all fields');
       return;
     }
-    mutation.mutate({ name, type, identifier, selector: selector.trim() || undefined });
+    const payload = { name, type, identifier, selector: selector.trim() || undefined };
+    if (isEdit) {
+      updateMutation.mutate(payload);
+    } else {
+      mutation.mutate(payload);
+    }
   };
 
+  const pending = mutation.isPending || updateMutation.isPending;
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog open={open} onOpenChange={(next) => { if (!next) handleClose(); }}>
       <DialogContent className="sm:max-w-[460px]">
-        {createdGoal ? (
-          /* ─── Success: show tracking instructions ─── */
+        {createdGoal && !isEdit ? (
           <div className="space-y-4">
             <DialogHeader>
               <div className="flex items-center gap-2">
@@ -159,9 +203,9 @@ export function AddGoalModal({ open, onOpenChange, websiteId }: AddGoalModalProp
         ) : (
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>Create New Goal</DialogTitle>
+            <DialogTitle>{isEdit ? 'Edit goal' : 'Create New Goal'}</DialogTitle>
             <DialogDescription>
-              Define a goal to track specific actions or page visits.
+              {isEdit ? 'Update how this goal is tracked.' : 'Define a goal to track specific actions or page visits.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -178,7 +222,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId }: AddGoalModalProp
               <Label htmlFor="type">Goal Type</Label>
               <Select value={type} onValueChange={(v: any) => {
                 setType(v);
-                setIdentifier('');
+                if (!isEdit) setIdentifier('');
               }}>
                 <SelectTrigger id="type" className="h-11 font-bold">
                   <SelectValue placeholder="Select type" />
@@ -245,15 +289,15 @@ export function AddGoalModal({ open, onOpenChange, websiteId }: AddGoalModalProp
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleClose()}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending && (
+            <Button type="submit" disabled={pending}>
+              {pending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              Create Goal
+              {isEdit ? 'Save changes' : 'Create Goal'}
             </Button>
           </DialogFooter>
         </form>

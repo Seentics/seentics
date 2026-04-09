@@ -250,11 +250,11 @@ export const demoAnalyticsData = () => ({
 
   recentActivity: {
     activities: [
-      { type: 'pageview', page: '/', country: 'United States', browser: 'Chrome', device: 'Desktop', timestamp: new Date(Date.now() - 30000).toISOString() },
-      { type: 'pageview', page: '/pricing', country: 'Germany', browser: 'Firefox', device: 'Desktop', timestamp: new Date(Date.now() - 60000).toISOString() },
-      { type: 'event', page: '/signup', country: 'United Kingdom', browser: 'Safari', device: 'Mobile', timestamp: new Date(Date.now() - 120000).toISOString() },
-      { type: 'pageview', page: '/docs', country: 'Canada', browser: 'Chrome', device: 'Desktop', timestamp: new Date(Date.now() - 180000).toISOString() },
-      { type: 'pageview', page: '/features', country: 'France', browser: 'Edge', device: 'Tablet', timestamp: new Date(Date.now() - 240000).toISOString() },
+      { page: '/', country: 'United States', browser: 'Chrome', device: 'Desktop', os: 'macOS', referrer: 'https://google.com/', timestamp: new Date(Date.now() - 30000).toISOString() },
+      { page: '/pricing', country: 'Germany', browser: 'Firefox', device: 'Desktop', os: 'Windows 10', referrer: '', timestamp: new Date(Date.now() - 60000).toISOString() },
+      { page: '/signup', country: 'United Kingdom', browser: 'Safari', device: 'Mobile', os: 'iOS', referrer: 'https://twitter.com/', timestamp: new Date(Date.now() - 120000).toISOString() },
+      { page: '/docs', country: 'Canada', browser: 'Chrome', device: 'Desktop', os: 'Linux', referrer: '', timestamp: new Date(Date.now() - 180000).toISOString() },
+      { page: '/features', country: 'France', browser: 'Edge', device: 'Tablet', os: 'Android', referrer: 'https://news.ycombinator.com/', timestamp: new Date(Date.now() - 240000).toISOString() },
     ],
   },
 

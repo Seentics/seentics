@@ -217,7 +217,6 @@ export default function ApiKeysPage() {
       <DashboardPageHeader
         title="API Keys"
         description="Manage authentication keys for the Seentics Ingest & Analytics APIs."
-        icon={KeyRound}
       >
         <Button size="sm" className="h-8 gap-1.5" onClick={() => setShowNew(true)}>
           <Plus className="h-3.5 w-3.5" />

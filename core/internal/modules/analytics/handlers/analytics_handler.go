@@ -878,7 +878,7 @@ func (h *AnalyticsHandler) GetRecentActivity(c *gin.Context) {
 		return
 	}
 
-	setCacheHeaders(c, 30)
+	setCacheHeaders(c, 10)
 	c.JSON(http.StatusOK, gin.H{
 		"website_id": websiteID,
 		"activities": activities,

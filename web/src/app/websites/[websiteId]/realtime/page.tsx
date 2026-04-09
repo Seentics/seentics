@@ -1,14 +1,17 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useRealtimeData, RealtimeMinute } from '@/lib/analytics-api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRealtimeData, RealtimeMinute, useRecentActivity } from '@/lib/analytics-api';
+import { RecentActivityFeed } from '@/components/analytics/RecentActivityFeed';
+import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Activity, Globe, Monitor, ExternalLink, Eye, Users, Layers } from 'lucide-react';
+import { Activity, AppWindow, Globe, Monitor, ExternalLink, Eye, Users, Layers, History, type LucideIcon } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard-header';
-import { useMemo } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import Image from 'next/image';
 import { StatCards } from '@/components/seentics-ui/StatCards';
+import { websiteWorkspaceShellClass } from '@/lib/website-shell';
+import { pathFromRaw, shortenSessionSlugInPath, stripWebsiteDashboardPrefix } from '@/lib/realtime-path';
 
 // ─── Country name → flag emoji ──────────────────────────────────────────────
 const COUNTRY_FLAGS: Record<string, string> = {
@@ -137,8 +140,10 @@ function ReferrerIcon({ name, domain }: { name: string; domain: string }) {
 function fillTimeline(raw: RealtimeMinute[]): RealtimeMinute[] {
   if (raw.length === 0) return [];
 
-  const map = new Map<string, RealtimeMinute>();
-  raw.forEach(m => map.set(m.minute, m));
+  const byMinute: Record<string, RealtimeMinute> = {};
+  raw.forEach((m) => {
+    byMinute[m.minute] = m;
+  });
 
   const filled: RealtimeMinute[] = [];
   const now = new Date();
@@ -146,94 +151,161 @@ function fillTimeline(raw: RealtimeMinute[]): RealtimeMinute[] {
   for (let i = 29; i >= 0; i--) {
     const d = new Date(now.getTime() - i * 60000);
     const key = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
-    filled.push(map.get(key) ?? { minute: key, visitors: 0, views: 0 });
+    filled.push(byMinute[key] ?? { minute: key, visitors: 0, views: 0 });
   }
 
   return filled;
 }
 
+type RealtimeTimelineMetric = 'views' | 'visitors';
+
+interface NameVisitorsRow {
+  name: string;
+  visitors: number;
+}
+interface ActivePageRow {
+  page: string;
+  visitors: number;
+}
+
+interface MergedReferrerEntry {
+  label: string;
+  domain: string;
+  visitors: number;
+}
+
+function countPhrase(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 // ─── 30-Minute Activity Timeline ────────────────────────────────────────────
-function RealtimeTimeline({ timeline }: { timeline: RealtimeMinute[] }) {
+function RealtimeTimeline({
+  timeline,
+  metric,
+}: {
+  timeline: RealtimeMinute[];
+  metric: RealtimeTimelineMetric;
+}) {
   const filled = useMemo(() => fillTimeline(timeline), [timeline]);
-  const max = useMemo(() => Math.max(...filled.map(t => t.views), 1), [filled]);
-  const hasAnyData = useMemo(() => filled.some(t => t.views > 0 || t.visitors > 0), [filled]);
+  const max = useMemo(() => {
+    const key = metric === 'views' ? 'views' : 'visitors';
+    return Math.max(...filled.map((t) => t[key]), 1);
+  }, [filled, metric]);
+  const hasAnyData = useMemo(() => filled.some((t) => t.views > 0 || t.visitors > 0), [filled]);
+  const idxMid = Math.floor((filled.length - 1) / 2);
+  const labelMid = filled[idxMid]?.minute ?? '—';
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-[2px] h-32 relative">
-        {!hasAnyData && (
-          <div className="absolute inset-0 flex items-center justify-center z-10">
-            <p className="text-xs text-muted-foreground/50">No activity in the last 30 minutes</p>
-          </div>
-        )}
-        {filled.map((t, i) => {
-          const height = t.views > 0 ? Math.max((t.views / max) * 100, 8) : 4;
-          const isRecent = i >= filled.length - 5;
-          const hasData = t.views > 0;
-          return (
-            <div key={t.minute} className="flex-1 h-full flex flex-col justify-end items-center group relative">
-              <div className="absolute -top-9 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                <div className="bg-popover text-popover-foreground text-[10px] font-medium px-2 py-1.5 rounded-md shadow-lg border whitespace-nowrap">
-                  <span className="font-bold">{t.minute}</span>
-                  <span className="text-muted-foreground"> · </span>
-                  {t.views} views · {t.visitors} visitors
-                </div>
-              </div>
-              <div
-                className={cn(
-                  "w-full rounded-[3px] transition-all duration-300",
-                  hasData
-                    ? isRecent
-                      ? "bg-emerald-500/80 hover:bg-emerald-500"
-                      : "bg-primary/40 hover:bg-primary/60"
-                    : "bg-muted/20"
-                )}
-                style={{ height: `${height}%` }}
-              />
+      <div className="relative rounded-lg bg-muted/35 px-1.5 sm:px-2 pt-3 pb-2">
+        <div
+          className="pointer-events-none absolute inset-x-2 top-3 bottom-7 flex flex-col justify-between opacity-[0.35]"
+          aria-hidden
+        >
+          {[0, 1, 2].map((k) => (
+            <div key={k} className="h-px w-full bg-border" />
+          ))}
+        </div>
+        <div className="relative flex gap-px sm:gap-0.5 h-[7.5rem] sm:h-[8.25rem]" role="presentation">
+          {!hasAnyData && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-muted/25">
+              <p className="text-[13px] text-muted-foreground">No traffic in the last 30 minutes</p>
             </div>
-          );
-        })}
+          )}
+          {filled.map((t, i) => {
+            const v = metric === 'views' ? t.views : t.visitors;
+            const height = v > 0 ? Math.max((v / max) * 100, 6) : 3;
+            const isRecent = i >= filled.length - 5;
+            const hasData = v > 0;
+            const tip = `${t.minute} · ${countPhrase(t.views, 'view', 'views')}, ${countPhrase(t.visitors, 'visitor', 'visitors')}`;
+            return (
+              <div
+                key={t.minute}
+                className="flex min-w-0 flex-1 flex-col items-center justify-end group relative"
+              >
+                <div className="pointer-events-none absolute bottom-full z-20 mb-1.5 left-1/2 w-max max-w-56 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+                  <div className="rounded-md border border-border/80 bg-popover px-2 py-1 text-center text-[10px] font-medium text-popover-foreground shadow-sm">
+                    {tip}
+                  </div>
+                </div>
+                <div
+                  className={cn(
+                    'w-full max-w-[7px] rounded-t-[3px] transition-all duration-300 ease-out',
+                    !hasData && 'min-h-[3px] bg-muted-foreground/12',
+                    hasData &&
+                      isRecent &&
+                      'bg-emerald-600 dark:bg-emerald-500',
+                    hasData && !isRecent && 'bg-emerald-600/50 dark:bg-emerald-500/45',
+                  )}
+                  style={{ height: `${height}%` }}
+                />
+              </div>
+            );
+          })}
+        </div>
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground/50 px-0.5 tabular-nums">
-        <span>{filled[0]?.minute}</span>
-        <span>{filled[Math.floor(filled.length / 2)]?.minute}</span>
-        <span>{filled[filled.length - 1]?.minute}</span>
+      <div className="flex items-center justify-between px-0.5 text-[11px] tabular-nums text-muted-foreground">
+        <span>{filled[0]?.minute ?? '—'}</span>
+        <span className="opacity-80">{labelMid}</span>
+        <span className="font-medium text-foreground">Now</span>
       </div>
     </div>
   );
 }
 
-// ─── Stat Card ──────────────────────────────────────────────────────────────
-function StatCard({
-  label,
-  value,
+/** Flat panels — similar to Plausible / Fathom realtime (no heavy shadow, thin border). */
+const sectionCardClass = 'rounded-lg border border-border bg-card overflow-hidden';
+
+const scrollSectionClass = 'scroll-mt-24 md:scroll-mt-28';
+
+function RealtimeSectionHeader({
+  title,
   icon: Icon,
-  color,
-  isLoading,
+  right,
+  className,
 }: {
-  label: string;
-  value: number;
-  icon: React.ElementType;
-  color: string;
-  isLoading: boolean;
+  title: string;
+  icon?: LucideIcon;
+  right?: ReactNode;
+  className?: string;
 }) {
   return (
-    <Card className="border border-border/60 bg-card shadow-sm">
-      <CardContent className="p-6">
-        <div className="flex items-center gap-4">
-          <div className={cn("p-2.5 rounded-xl", color)}>
-            <Icon size={18} className="opacity-80" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-xs text-muted-foreground font-medium">{label}</p>
-            <p className={cn("text-2xl font-bold tabular-nums tracking-tight", isLoading && "animate-pulse")}>
-              {isLoading ? '--' : value.toLocaleString()}
-            </p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div
+      className={cn(
+        'flex items-center justify-between gap-4 px-5 sm:px-6 py-4 border-b border-border bg-muted/30',
+        className,
+      )}
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        {Icon ? <Icon className="h-4 w-4 text-muted-foreground opacity-70 shrink-0" aria-hidden /> : null}
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground truncate">
+          {title}
+        </h2>
+      </div>
+      {right ? <div className="shrink-0">{right}</div> : null}
+    </div>
   );
+}
+
+const ACTIVE_PAGE_PATH_MAX = 52;
+
+function activePageDisplay(
+  raw: string,
+  websiteId: string,
+): { display: string; title: string } {
+  const t = raw.trim();
+  if (!t) return { display: raw, title: raw };
+  let path = pathFromRaw(t);
+  if (!path.startsWith('/')) path = `/${path}`;
+
+  const canonical = stripWebsiteDashboardPrefix(path, websiteId);
+  const shortenedIds = shortenSessionSlugInPath(canonical);
+  const display =
+    shortenedIds.length > ACTIVE_PAGE_PATH_MAX
+      ? `${shortenedIds.slice(0, ACTIVE_PAGE_PATH_MAX - 1)}…`
+      : shortenedIds;
+
+  return { display, title: canonical };
 }
 
 // ─── Breakdown Row ──────────────────────────────────────────────────────────
@@ -243,59 +315,51 @@ function BreakdownRow({
   count,
   pct,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   count: number;
   pct: number;
 }) {
   return (
-    <div className="relative group">
-      {/* Background bar */}
-      <div
-        className="absolute inset-y-0 left-0 bg-primary/[0.05] rounded-md transition-all duration-500"
-        style={{ width: `${Math.max(pct, 3)}%` }}
-      />
-      <div className="relative flex items-center gap-3 px-3 py-2.5 rounded-md hover:bg-muted/20 transition-colors">
-        <div className="shrink-0">{icon}</div>
-        <span className="text-sm font-medium text-foreground truncate flex-1">{label || '(unknown)'}</span>
-        <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{pct.toFixed(0)}%</span>
-        <span className="text-sm font-bold text-foreground tabular-nums w-8 text-right shrink-0">{count}</span>
+    <div className="flex items-center gap-4 px-5 sm:px-6 py-3.5 sm:py-4 hover:bg-muted/20 transition-colors">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="shrink-0 opacity-90">{icon}</div>
+        <span className="text-sm text-foreground truncate leading-snug">{label || '(unknown)'}</span>
       </div>
+      <span className="text-xs text-muted-foreground tabular-nums shrink-0 w-10 text-right">{pct.toFixed(0)}%</span>
+      <span className="text-sm font-medium text-foreground tabular-nums w-9 text-right shrink-0">{count}</span>
     </div>
   );
 }
 
 // ─── Referrer Breakdown (with URL parsing + merging) ────────────────────────
-function ReferrerBreakdown({ referrers, isLoading }: { referrers: Array<{ name: string; visitors: number }>; isLoading: boolean }) {
+function ReferrerBreakdown({ referrers, isLoading }: { referrers: NameVisitorsRow[]; isLoading: boolean }) {
   const parsed = useMemo(() => {
-    const merged = new Map<string, { label: string; domain: string; visitors: number }>();
+    const merged: Record<string, MergedReferrerEntry> = {};
     for (const r of referrers) {
       const { label, domain } = parseReferrer(r.name);
-      const existing = merged.get(label);
-      if (existing) { existing.visitors += r.visitors; }
-      else { merged.set(label, { label, domain, visitors: r.visitors }); }
+      const existing = merged[label];
+      if (existing) {
+        existing.visitors += r.visitors;
+      } else {
+        merged[label] = { label, domain, visitors: r.visitors };
+      }
     }
-    return Array.from(merged.values()).sort((a, b) => b.visitors - a.visitors);
+    return Object.values(merged).sort((a, b) => b.visitors - a.visitors);
   }, [referrers]);
 
   const total = useMemo(() => parsed.reduce((sum, i) => sum + i.visitors, 0), [parsed]);
 
   return (
-    <Card className="border border-border/60 bg-card shadow-sm">
-      <CardHeader className="p-6 pb-4 border-b border-border/60">
-        <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
-          <ExternalLink size={15} className="text-muted-foreground" />
-          Traffic Sources
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-4">
+    <Card id="realtime-sources" className={cn(sectionCardClass, scrollSectionClass)}>
+      <RealtimeSectionHeader title="Traffic sources" icon={ExternalLink} />
+      <CardContent className="p-0">
         {isLoading ? (
-          <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-8 bg-muted/20 rounded animate-pulse" />)}</div>
+          <div className="p-6 space-y-4">{Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-9 bg-muted/25 rounded-lg animate-pulse" />)}</div>
         ) : parsed.length === 0 ? (
-          <p className="text-xs text-muted-foreground/60 text-center py-6">No referrer data</p>
+          <p className="text-sm text-muted-foreground text-center py-12 px-6">No referrer data</p>
         ) : (
-          <div className="space-y-1">
-            {parsed.map((item) => {
+          <div className="divide-y divide-border/50">{parsed.map((item) => {
               const pct = total > 0 ? (item.visitors / total) * 100 : 0;
               return (
                 <BreakdownRow
@@ -306,8 +370,7 @@ function ReferrerBreakdown({ referrers, isLoading }: { referrers: Array<{ name: 
                   pct={pct}
                 />
               );
-            })}
-          </div>
+            })}</div>
         )}
       </CardContent>
     </Card>
@@ -317,6 +380,7 @@ function ReferrerBreakdown({ referrers, isLoading }: { referrers: Array<{ name: 
 // ─── Breakdown Card ─────────────────────────────────────────────────────────
 function BreakdownCard({
   title,
+  sectionId,
   icon: Icon,
   items,
   emptyText,
@@ -324,33 +388,29 @@ function BreakdownCard({
   renderRow,
 }: {
   title: string;
-  icon: React.ElementType;
-  items: Array<{ name: string; visitors: number }>;
+  sectionId?: string;
+  icon: LucideIcon;
+  items: NameVisitorsRow[];
   emptyText: string;
   isLoading: boolean;
-  renderRow: (item: { name: string; visitors: number }, pct: number) => React.ReactNode;
+  renderRow: (item: NameVisitorsRow, pct: number) => ReactNode;
 }) {
   const total = useMemo(() => items.reduce((sum, i) => sum + i.visitors, 0), [items]);
 
   return (
-    <Card className="border border-border/60 bg-card shadow-sm">
-      <CardHeader className="p-6 pb-4 border-b border-border/60">
-        <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
-          <Icon size={15} className="text-muted-foreground" />
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-4">
+    <Card id={sectionId} className={cn(sectionCardClass, sectionId && scrollSectionClass)}>
+      <RealtimeSectionHeader title={title} icon={Icon} />
+      <CardContent className="p-0">
         {isLoading ? (
-          <div className="space-y-2">
+          <div className="p-6 space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-10 bg-muted/30 rounded-md animate-pulse" />
+              <div key={i} className="h-11 bg-muted/25 rounded-lg animate-pulse" />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-8 text-center">{emptyText}</p>
+          <p className="text-sm text-muted-foreground py-12 text-center px-6">{emptyText}</p>
         ) : (
-          <div className="space-y-1">
+          <div className="divide-y divide-border/50">
             {items.map((item) => {
               const pct = total > 0 ? (item.visitors / total) * 100 : 0;
               return <div key={item.name}>{renderRow(item, pct)}</div>;
@@ -365,192 +425,283 @@ function BreakdownCard({
 // ─── Active Pages Table ─────────────────────────────────────────────────────
 function ActivePagesTable({
   pages,
+  websiteId,
   isLoading,
 }: {
-  pages: Array<{ page: string; visitors: number }>;
+  pages: ActivePageRow[];
+  websiteId: string;
   isLoading: boolean;
 }) {
-  const max = pages.length > 0 ? pages[0].visitors : 1;
+  const maxVisitors = useMemo(() => Math.max(1, ...pages.map((p) => p.visitors)), [pages]);
+
+  const headerRight =
+    !isLoading && pages.length > 0 ? (
+      <span className="text-xs normal-case font-normal tracking-normal text-muted-foreground tabular-nums">
+        {pages.length} {pages.length === 1 ? 'path' : 'paths'}
+      </span>
+    ) : null;
+
+  let listBody: ReactNode;
+  if (isLoading) {
+    listBody = (
+      <div className="space-y-0 divide-y divide-border/50 px-5 py-2 sm:px-6">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 py-3.5">
+            <div className="h-4 max-w-xs flex-1 rounded bg-muted/30 animate-pulse" />
+            <div className="h-1.5 flex-1 rounded-full bg-muted/25 animate-pulse" />
+            <div className="h-4 w-8 rounded bg-muted/30 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  } else if (pages.length === 0) {
+    listBody = (
+      <div className="px-6 py-12 text-center">
+        <p className="text-sm font-medium text-foreground">No pages in this window</p>
+        <p className="mt-1 text-xs text-muted-foreground">Paths appear here as visitors load them.</p>
+      </div>
+    );
+  } else {
+    listBody = (
+      <ul className="divide-y divide-border/50">
+        {pages.map((p) => {
+          const pageLabels = activePageDisplay(p.page, websiteId);
+          const share = (p.visitors / maxVisitors) * 100;
+          return (
+            <li key={p.page}>
+              <div
+                className={cn(
+                  'flex items-center gap-3 px-5 py-3 sm:gap-4 sm:px-6',
+                  'transition-colors hover:bg-muted/35',
+                )}
+              >
+                <span
+                  className="min-w-0 flex-1 truncate font-mono text-sm leading-snug text-foreground"
+                  title={pageLabels.title}
+                >
+                  {pageLabels.display}
+                </span>
+                <div
+                  className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted/60 sm:w-28"
+                  aria-hidden={true}
+                >
+                  <div
+                    className="h-full rounded-full bg-emerald-600/55 transition-all duration-500 ease-out dark:bg-emerald-500/50"
+                    style={{ width: `${share}%` }}
+                  />
+                </div>
+                <span className="w-8 shrink-0 text-right text-sm font-medium tabular-nums tracking-tight text-foreground sm:w-9">
+                  {p.visitors}
+                </span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
 
   return (
-    <Card className="border border-border/60 bg-card shadow-sm">
-      <CardHeader className="p-6 pb-4 border-b border-border/60">
-        <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
-          <Layers size={15} className="text-muted-foreground" />
-          Active Pages
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        {isLoading ? (
-          <div className="p-6 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-9 bg-muted/30 rounded animate-pulse" />
-            ))}
-          </div>
-        ) : pages.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-10 text-center">No active pages right now</p>
-        ) : (
-          <div>
-            <div className="grid grid-cols-12 gap-2 px-6 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 border-b border-border/40">
-              <div className="col-span-9">Page</div>
-              <div className="col-span-3 text-right">Visitors</div>
-            </div>
-            <div className="divide-y divide-border/30">
-              {pages.map((p) => {
-                const barWidth = Math.max((p.visitors / max) * 100, 3);
-                return (
-                  <div
-                    key={p.page}
-                    className="grid grid-cols-12 gap-2 px-6 py-3 items-center hover:bg-muted/20 transition-colors relative"
-                  >
-                    <div
-                      className="absolute inset-y-0 left-0 bg-primary/[0.04] transition-all duration-300"
-                      style={{ width: `${barWidth}%` }}
-                    />
-                    <div className="col-span-9 relative z-10 flex items-center gap-2.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                      <span className="text-sm font-medium text-foreground truncate">{p.page}</span>
-                    </div>
-                    <div className="col-span-3 text-right relative z-10">
-                      <span className="text-sm font-bold tabular-nums text-foreground">{p.visitors}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </CardContent>
+    <Card id="realtime-active-pages" className={cn(sectionCardClass, scrollSectionClass)}>
+      <RealtimeSectionHeader title="Active pages" icon={Layers} right={headerRight} />
+      <CardContent className="p-0">{listBody}</CardContent>
     </Card>
   );
 }
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 export default function RealtimePage() {
-  const { websiteId } = useParams<{ websiteId: string }>();
+  const params = useParams();
+  const websiteId = params.websiteId as string;
   const { data, isLoading } = useRealtimeData(websiteId);
+  const { data: recentActivityData, isLoading: recentActivityLoading } = useRecentActivity(websiteId ?? '', {
+    limit: 50,
+    refetchIntervalMs: 12_000,
+    staleTimeMs: 8000,
+  });
+  const [activityMetric, setActivityMetric] = useState('views' as RealtimeTimelineMetric);
 
   return (
-    <div className="p-6 md:p-8 lg:p-10 w-full max-w-[1400px] mx-auto">
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className={cn(websiteWorkspaceShellClass, 'space-y-10')}>
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
 
-          {/* Header */}
           <DashboardPageHeader
             title="Realtime"
-            description="Live visitor activity on your website right now."
+            description="Live visitors, pageviews, and where traffic comes from."
+            className="mb-2 gap-4 xl:gap-6"
           >
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-40 animate-ping" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
               </span>
-              <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Live</span>
+              Updating
             </div>
           </DashboardPageHeader>
 
-          {/* Stat Cards */}
-          <StatCards
-            isLoading={isLoading}
-            cards={[
-              {
-                label: 'Active Visitors',
-                value: data?.active_visitors ?? 0,
-                icon: Users,
-                iconColor: 'text-emerald-600 dark:text-emerald-400',
-                valueColor: 'text-emerald-600 dark:text-emerald-400'
-              },
-              {
-                label: 'Pageviews',
-                value: data?.pageviews ?? 0,
-                icon: Eye,
-                iconColor: 'text-indigo-600 dark:text-indigo-400'
-              },
-              {
-                label: 'Sessions',
-                value: data?.sessions ?? 0,
-                icon: Activity,
-                iconColor: 'text-indigo-600 dark:text-indigo-400'
-              },
-              {
-                label: 'Pages / Visitor',
-                value: data?.active_visitors ? (data.pageviews / data.active_visitors).toFixed(1) : '0.0',
-                icon: Layers,
-                iconColor: 'text-amber-600 dark:text-amber-400'
-              },
-            ]}
-          />
+          <section id="realtime-summary" aria-label="Summary metrics" className={scrollSectionClass}>
+            <StatCards
+              className="mb-0 gap-4 sm:gap-5 md:gap-6"
+              cardClassName="shadow-none rounded-lg border-border/80 p-5 sm:p-6 min-h-[5.5rem]"
+              isLoading={isLoading}
+              cards={[
+                {
+                  label: 'Active Visitors',
+                  value: data?.active_visitors ?? 0,
+                  icon: Users,
+                },
+                {
+                  label: 'Pageviews',
+                  value: data?.pageviews ?? 0,
+                  icon: Eye,
+                },
+                {
+                  label: 'Sessions',
+                  value: data?.sessions ?? 0,
+                  icon: Activity,
+                },
+                {
+                  label: 'Pages / Visitor',
+                  value: data?.active_visitors ? (data.pageviews / data.active_visitors).toFixed(1) : '0.0',
+                  icon: Layers,
+                },
+              ]}
+            />
+          </section>
 
-          {/* Activity Timeline */}
-          <Card className="border border-border/60 bg-card shadow-sm">
-            <CardHeader className="p-6 pb-4 border-b border-border/60">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold tracking-tight flex items-center gap-2">
-                  <Activity size={15} className="text-muted-foreground" />
-                  Activity (last 30 minutes)
-                </CardTitle>
-                <span className="text-[11px] text-muted-foreground/60">per minute</span>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              {isLoading ? (
-                <div className="h-32 bg-muted/20 rounded animate-pulse" />
-              ) : (
-                <RealtimeTimeline timeline={data?.timeline ?? []} />
-              )}
+          <Card id="realtime-activity-log" className={cn(sectionCardClass, scrollSectionClass)}>
+            <RealtimeSectionHeader
+              title="Pageviews"
+              icon={History}
+              right={
+                <span className="hidden sm:inline text-[11px] normal-case font-normal tracking-normal text-muted-foreground">
+                  Last 24 hours
+                </span>
+              }
+            />
+            <CardContent className="px-4 pb-3 pt-2 sm:px-4 sm:pb-3 sm:pt-2.5">
+              <RecentActivityFeed
+                embed
+                websiteId={websiteId}
+                data={recentActivityData}
+                isLoading={recentActivityLoading}
+              />
             </CardContent>
           </Card>
 
-          {/* Active Pages */}
-          <ActivePagesTable pages={data?.top_pages ?? []} isLoading={isLoading} />
+          <div className="flex flex-col gap-8 xl:grid xl:grid-cols-12 xl:items-start xl:gap-x-10 xl:gap-y-8">
+            <div className="xl:col-span-7 flex flex-col gap-8">
+              <ActivePagesTable
+                pages={data?.top_pages ?? []}
+                websiteId={websiteId ?? ''}
+                isLoading={isLoading}
+              />
 
-          {/* Breakdown Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <ReferrerBreakdown referrers={data?.top_referrers ?? []} isLoading={isLoading} />
-            <BreakdownCard
-              title="Countries"
-              icon={Globe}
-              items={data?.top_countries ?? []}
-              emptyText="No country data"
-              isLoading={isLoading}
-              renderRow={(item, pct) => (
-                <BreakdownRow
-                  icon={<span className="text-base leading-none shrink-0">{countryToFlag(item.name) || '🌍'}</span>}
-                  label={item.name}
-                  count={item.visitors}
-                  pct={pct}
+              <Card id="realtime-activity" className={cn(sectionCardClass, scrollSectionClass)}>
+                <RealtimeSectionHeader
+                  title="Traffic by minute"
+                  icon={Activity}
+                  right={
+                    <div
+                      className="inline-flex shrink-0 rounded-lg border border-border/80 bg-muted/20 p-0.5"
+                      role="group"
+                      aria-label="Chart metric"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setActivityMetric('views')}
+                        className={cn(
+                          'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                          activityMetric === 'views'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        Views
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActivityMetric('visitors')}
+                        className={cn(
+                          'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                          activityMetric === 'visitors'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        Visitors
+                      </button>
+                    </div>
+                  }
                 />
-              )}
-            />
-            <BreakdownCard
-              title="Devices"
-              icon={Monitor}
-              items={data?.top_devices ?? []}
-              emptyText="No device data"
-              isLoading={isLoading}
-              renderRow={(item, pct) => (
-                <BreakdownRow
-                  icon={<DeviceIcon name={item.name} />}
-                  label={item.name.charAt(0).toUpperCase() + item.name.slice(1)}
-                  count={item.visitors}
-                  pct={pct}
-                />
-              )}
-            />
-            <BreakdownCard
-              title="Browsers"
-              icon={Globe}
-              items={data?.top_browsers ?? []}
-              emptyText="No browser data"
-              isLoading={isLoading}
-              renderRow={(item, pct) => (
-                <BreakdownRow
-                  icon={<BrowserIcon name={item.name} />}
-                  label={item.name}
-                  count={item.visitors}
-                  pct={pct}
-                />
-              )}
-            />
+                <CardContent className="px-5 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5">
+                  {isLoading ? (
+                    <div className="space-y-3">
+                      <div className="h-[7.5rem] sm:h-[8.25rem] rounded-lg bg-muted/25 animate-pulse" />
+                      <div className="flex justify-between">
+                        <div className="h-3 w-10 rounded bg-muted/20 animate-pulse" />
+                        <div className="h-3 w-10 rounded bg-muted/20 animate-pulse" />
+                        <div className="h-3 w-10 rounded bg-muted/20 animate-pulse" />
+                      </div>
+                    </div>
+                  ) : (
+                    <RealtimeTimeline timeline={data?.timeline ?? []} metric={activityMetric} />
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="xl:col-span-5 flex flex-col gap-7">
+              <ReferrerBreakdown referrers={data?.top_referrers ?? []} isLoading={isLoading} />
+              <BreakdownCard
+                title="Countries"
+                sectionId="realtime-countries"
+                icon={Globe}
+                items={data?.top_countries ?? []}
+                emptyText="No country data"
+                isLoading={isLoading}
+                renderRow={(item, pct) => (
+                  <BreakdownRow
+                    icon={<span className="text-base leading-none shrink-0">{countryToFlag(item.name) || '🌍'}</span>}
+                    label={item.name}
+                    count={item.visitors}
+                    pct={pct}
+                  />
+                )}
+              />
+              <BreakdownCard
+                title="Devices"
+                sectionId="realtime-devices"
+                icon={Monitor}
+                items={data?.top_devices ?? []}
+                emptyText="No device data"
+                isLoading={isLoading}
+                renderRow={(item, pct) => (
+                  <BreakdownRow
+                    icon={<DeviceIcon name={item.name} />}
+                    label={item.name.charAt(0).toUpperCase() + item.name.slice(1)}
+                    count={item.visitors}
+                    pct={pct}
+                  />
+                )}
+              />
+              <BreakdownCard
+                title="Browsers"
+                sectionId="realtime-browsers"
+                icon={AppWindow}
+                items={data?.top_browsers ?? []}
+                emptyText="No browser data"
+                isLoading={isLoading}
+                renderRow={(item, pct) => (
+                  <BreakdownRow
+                    icon={<BrowserIcon name={item.name} />}
+                    label={item.name}
+                    count={item.visitors}
+                    pct={pct}
+                  />
+                )}
+              />
+            </div>
           </div>
 
         </div>

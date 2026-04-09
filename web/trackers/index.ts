@@ -5,7 +5,8 @@
  */
 
 const script = document.currentScript as HTMLScriptElement | null;
-const siteId = script?.getAttribute('data-website-id') ?? '';
+/** Website UUID — same value as the dashboard project id (data-website-id). */
+const websiteId = script?.getAttribute('data-website-id') ?? '';
 
 /** Strip trailing /api/v1 so COLLECT = origin + '/api/v1/tracker/collect' never doubles the prefix. */
 function normalizeApiBase(raw: string): string {
@@ -104,7 +105,7 @@ const flush = (): void => {
   if (!e.length && !f.length && !a.length && !s.length) return;
   clearTimeout(analyticsTimer!); analyticsTimer = null;
 
-  const payload: Record<string, unknown> = { site_id: siteId, domain };
+  const payload: Record<string, unknown> = { website_id: websiteId, domain };
   if (e.length) payload.events      = e;
   if (f.length) payload.funnels     = f;
   if (a.length) payload.automations = a;
@@ -157,6 +158,41 @@ const sendGzip = async (json: string): Promise<void> => {
 // It sets window.__rrweb_record = record after loading.
 type RrwebRecord = (options: Record<string, unknown>) => () => void;
 let _rrwebPromise: Promise<RrwebRecord | null> | null = null;
+
+/** One shot per page load — first client error/rejection during recording. */
+let sessionClientErrorSent = false;
+
+const enqueueSessionClientError = (): void => {
+  if (sessionClientErrorSent) return;
+  sessionClientErrorSent = true;
+  queues.session.push({
+    type: 'session_error',
+    data: { kind: 'client' },
+    ts: Date.now(),
+    url: location.href,
+    sid: getSessionId(),
+    vid: visitorId,
+  });
+  if (queues.session.length >= REC_MAX) flush();
+  else if (!analyticsTimer) analyticsTimer = window.setTimeout(flush, FLUSH_MS);
+};
+
+/** Capture window errors + unhandled rejections for replay session metadata. */
+const installSessionClientErrorCapture = (): void => {
+  const w = window as unknown as { __snc_err_cap?: boolean };
+  if (w.__snc_err_cap) return;
+  w.__snc_err_cap = true;
+  window.addEventListener(
+    'error',
+    () => {
+      enqueueSessionClientError();
+    },
+    true,
+  );
+  window.addEventListener('unhandledrejection', () => {
+    enqueueSessionClientError();
+  });
+};
 
 const loadRrweb = (): Promise<RrwebRecord | null> => {
   if (_rrwebPromise) return _rrwebPromise;
@@ -218,14 +254,15 @@ const initRecording = async (): Promise<void> => {
       if (queues.session.length >= REC_MAX) flush();
       else if (!analyticsTimer) analyticsTimer = window.setTimeout(flush, FLUSH_MS);
     },
-    // Full snapshot every 2 min limits incremental drift so replay stays in sync
-    // (reduces “Node with id … not found” / mutation errors on long sessions).
-    checkoutEveryNms: 120_000,
+    // Full snapshot periodically limits incremental drift (“node not found” / bad mirrors).
+    checkoutEveryNms: 90_000,
     // Privacy: mask ALL inputs by default.
     // Users can add data-seentics-block to hide elements from the recording entirely.
     maskAllInputs:  true,
     blockSelector:  '[data-seentics-block]',
     ignoreSelector: '[data-seentics-ignore]',
+    // Shadow roots (web components, etc.) — fuller DOM mirror at moderate size cost.
+    recordShadowDOM: true,
     // Performance sampling
     sampling: {
       mousemove: 50,   // ~20 fps mouse tracking
@@ -236,6 +273,9 @@ const initRecording = async (): Promise<void> => {
     inlineStylesheet: true,   // accurate CSS replay
     collectFonts:     false,
     recordCanvas:     false,
+    errorHandler: (_err: unknown) => {
+      // Don’t throw from rrweb record — keeps emit pipeline alive on single bad mutations.
+    },
   });
 };
 
@@ -340,21 +380,24 @@ const initRouting = (): void => {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 const init = (): void => {
-  if (!siteId) return;
+  if (!websiteId) return;
   initRouting();
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') flush();
   });
   window.addEventListener('pagehide', flush);
 
-  fetch(apiHost + '/api/v1/tracker/init/' + siteId)
+    fetch(apiHost + '/api/v1/tracker/init/' + websiteId)
     .then(r => r.json())
     .then((d: any) => {
       cfg         = d.config      ?? {};
       funnels     = d.funnels     ?? [];
       automations = d.automations ?? [];
       if (autoTrack)               trackPage();
-      if (cfg.recording !== false) initRecording(); // async — loads rrweb lazily
+      if (cfg.recording !== false) {
+        installSessionClientErrorCapture();
+        void initRecording(); // loads rrweb lazily
+      }
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
     })
     .catch(() => {

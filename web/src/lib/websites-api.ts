@@ -37,18 +37,11 @@ export type Website = {
   };
 };
 
-/** Resolves a dashboard route id (site_id or UUID) to a website record. */
+/** Fetches a website by dashboard UUID (primary public website identifier). */
 export async function getWebsiteByAnyId(id: string): Promise<Website | null> {
   if (!id) return null;
   if (isDemo(id)) return demoWebsite() as Website;
-  const bySite = await getWebsiteBySiteId(id);
-  if (bySite) return bySite;
-  try {
-    const all = await getWebsites();
-    return all.find(w => w.id === id || w.siteId === id) ?? null;
-  } catch {
-    return null;
-  }
+  return getWebsite(id);
 }
 
 // Fetches all websites for the current user.
@@ -173,11 +166,15 @@ export async function deleteWebsite(siteId: string, userId: string): Promise<voi
   }
 }
 
-// Gets a single website by its public siteId.
-export async function getWebsiteBySiteId(siteId: string): Promise<Website | null> {
-  if (!siteId) return null;
+// Gets a single website by UUID (same id as /websites/[websiteId] routes).
+export async function getWebsiteBySiteId(websiteId: string): Promise<Website | null> {
+  return getWebsite(websiteId);
+}
+
+async function getWebsite(websiteId: string): Promise<Website | null> {
+  if (!websiteId) return null;
   try {
-    const response = await api.get(`/user/websites/by-site-id/${siteId}`);
+    const response = await api.get(`/user/websites/${websiteId}`);
     const w = response.data.data;
     if (!w) return null;
     return {
@@ -216,7 +213,7 @@ export async function getWebsiteBySiteId(siteId: string): Promise<Website | null
       }
     };
   } catch (error) {
-    console.error('Error fetching website by siteId:', error);
+    console.error('Error fetching website:', error);
     return null;
   }
 }
@@ -291,6 +288,7 @@ export interface Goal {
   name: string;
   type: 'event' | 'pageview';
   identifier: string;
+  selector?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -306,7 +304,28 @@ export const addGoal = async (websiteId: string, data: { name: string; type: str
     return { id: 'demo-goal', websiteId, name: data.name, type: data.type as any, identifier: data.identifier, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   }
   const response = await api.post(`/user/websites/${websiteId}/goals`, data);
-  return response.data;
+                      return response.data;
+};
+
+export const updateGoal = async (
+  websiteId: string,
+  goalId: string,
+  data: { name: string; type: string; identifier: string; selector?: string },
+): Promise<Goal> => {
+  if (demoMutationGuard(websiteId)) {
+    return {
+      id: goalId,
+      websiteId,
+      name: data.name,
+      type: data.type as 'event' | 'pageview',
+      identifier: data.identifier,
+      selector: data.selector,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  }
+  const response = await api.patch(`/user/websites/${websiteId}/goals/${goalId}`, data);
+  return response.data?.data ?? response.data;
 };
 
 export const deleteGoal = async (websiteId: string, goalId: string): Promise<void> => {

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ReplaySession } from '@/lib/replays-api';
+import { displayRealtimePath } from '@/lib/realtime-path';
 import { cn } from '@/lib/utils';
 import {
   ReplaySessionTimelineLog,
@@ -39,13 +40,23 @@ function SummaryField({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-function SessionSummaryCard({ session }: { session: ReplaySession | null }) {
+function SessionSummaryCard({
+  session,
+  websiteId = '',
+}: {
+  session: ReplaySession | null;
+  websiteId?: string;
+}) {
+  const entryDisplay = session?.entryPage
+    ? displayRealtimePath(session.entryPage, websiteId ?? '', 80)
+    : '';
+
   return (
     <Card className="flex min-h-0 flex-col shadow-sm">
       <CardHeader className="space-y-1 pb-3">
         <CardTitle className="text-base font-semibold text-foreground">Session summary</CardTitle>
         <CardDescription className="text-xs leading-relaxed">
-          Context for this recording (device, entry, and duration).
+          Who this was, where they started, and how long the recording runs.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4 pt-0">
@@ -62,8 +73,8 @@ function SessionSummaryCard({ session }: { session: ReplaySession | null }) {
               </SummaryField>
               <SummaryField label="Country">{session.country}</SummaryField>
               <SummaryField label="Entry page">
-                <span className="break-all font-mono text-[11px] sm:text-xs" title={session.entryPage}>
-                  {session.entryPage || '—'}
+                <span className="break-all font-mono text-[11px] sm:text-xs" title={session.entryPage || undefined}>
+                  {entryDisplay || '—'}
                 </span>
               </SummaryField>
               <SummaryField label="Started">{formatStartedAt(session.startedAt)}</SummaryField>
@@ -105,9 +116,10 @@ function TimelineCard({ replayBridge }: { replayBridge: SessionReplayBridge | nu
   return (
     <Card className="flex min-w-0 flex-col shadow-sm">
       <CardHeader className="space-y-1 pb-3">
-        <CardTitle className="text-base font-semibold text-foreground">Timeline & key moments</CardTitle>
+        <CardTitle className="text-base font-semibold text-foreground">Timeline</CardTitle>
         <CardDescription className="text-xs leading-relaxed">
-          Click an entry to jump. Use the scrubber under the recording for precise seeks.
+          Jump to each distinct URL (repeated snapshots on the same page are folded). Rage clicks and
+          errors appear when captured. Use the scrubber under the player for every full snapshot.
         </CardDescription>
         <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 text-[10px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
@@ -147,9 +159,11 @@ function TimelineCard({ replayBridge }: { replayBridge: SessionReplayBridge | nu
 export function ReplaySessionSidebar({
   replayBridge = null,
   session = null,
+  websiteId = '',
 }: {
   replayBridge?: SessionReplayBridge | null;
   session?: ReplaySession | null;
+  websiteId?: string;
 }) {
   return (
     <section
@@ -159,7 +173,7 @@ export function ReplaySessionSidebar({
       )}
     >
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5 lg:items-start">
-        <SessionSummaryCard session={session} />
+        <SessionSummaryCard session={session} websiteId={websiteId} />
         <TimelineCard replayBridge={replayBridge} />
       </div>
     </section>

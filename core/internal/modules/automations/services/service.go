@@ -18,12 +18,13 @@ const (
 
 // TrackerEvent is the wire-format event emitted by seentics.js
 type TrackerEvent struct {
-	Type string                 `json:"type"`
-	Data map[string]interface{} `json:"data"`
-	TS   int64                  `json:"ts"`
-	URL  string                 `json:"url"`
-	SID  string                 `json:"sid"`
-	VID  string                 `json:"vid"`
+	Type      string                 `json:"type"`
+	Data      map[string]interface{} `json:"data"`
+	TS        int64                  `json:"ts"`
+	URL       string                 `json:"url"`
+	SID       string                 `json:"sid"`
+	VID       string                 `json:"vid"`
+	WebsiteID string                 `json:"-"`
 }
 
 // AutomationService orchestrates automation logic
@@ -41,7 +42,10 @@ func NewAutomationService(repo *repository.AutomationRepository, c *cache.Cache,
 // ProcessTriggers handles automation_trigger events from the tracker.
 // Events are deduplicated by automation_id so each unique automation is
 // looked up only once per batch (and that lookup is Redis-cached).
-func (s *AutomationService) ProcessTriggers(ctx context.Context, websiteID string, events []TrackerEvent) error {
+// ProcessTriggers handles automation_trigger events from the tracker.
+// Each event carries its own WebsiteID so events from multiple sites can
+// be processed in a single global call.
+func (s *AutomationService) ProcessTriggers(ctx context.Context, events []TrackerEvent) error {
 	// Group executions by automation_id — one DB/cache lookup per unique automation
 	type pending struct{ execs []models.AutomationExecution }
 	byID := make(map[string]*pending)
@@ -52,7 +56,7 @@ func (s *AutomationService) ProcessTriggers(ctx context.Context, websiteID strin
 		}
 		automationID, _ := ev.Data["automation_id"].(string)
 		if automationID == "" {
-			s.logger.Warn().Str("website_id", websiteID).Msg("automation trigger: missing automation_id")
+			s.logger.Warn().Str("website_id", ev.WebsiteID).Msg("automation trigger: missing automation_id")
 			continue
 		}
 		if byID[automationID] == nil {
@@ -60,7 +64,7 @@ func (s *AutomationService) ProcessTriggers(ctx context.Context, websiteID strin
 		}
 		byID[automationID].execs = append(byID[automationID].execs, models.AutomationExecution{
 			AutomationID: automationID,
-			WebsiteID:    websiteID,
+			WebsiteID:    ev.WebsiteID,
 			VisitorID:    ev.VID,
 			SessionID:    ev.SID,
 			Status:       "completed",
@@ -68,7 +72,7 @@ func (s *AutomationService) ProcessTriggers(ctx context.Context, websiteID strin
 	}
 
 	for automationID, p := range byID {
-		auto, err := s.Get(ctx, automationID, websiteID) // cached
+		auto, err := s.Get(ctx, automationID, p.execs[0].WebsiteID) // cached
 		if err != nil {
 			s.logger.Warn().Err(err).Str("automation_id", automationID).Msg("automation trigger: not found")
 			continue

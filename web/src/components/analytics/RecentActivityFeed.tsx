@@ -3,19 +3,16 @@
 import React from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import {
-  Monitor,
-  Smartphone,
-  Tablet,
-  Globe,
-  ExternalLink,
-} from 'lucide-react';
+import { Globe, ExternalLink } from 'lucide-react';
+import { activityReferrerLabel, displayRealtimePath } from '@/lib/realtime-path';
+import { getBrowserImagePath, getDeviceImagePath, getOsImagePath } from '@/lib/analytics-icons';
 
 interface RecentActivityItem {
   page: string;
   country: string;
   device: string;
   browser: string;
+  os?: string;
   referrer: string;
   timestamp: string;
 }
@@ -23,14 +20,25 @@ interface RecentActivityItem {
 interface RecentActivityFeedProps {
   data?: { activities?: RecentActivityItem[] };
   isLoading?: boolean;
+  /** Omit title row; use inside a parent card header (e.g. realtime page). */
+  embed?: boolean;
+  /** Strips `/websites/:id` from tracked paths when set. */
+  websiteId?: string;
 }
 
-const deviceLabel = (device: string) => {
-  const d = device.toLowerCase();
-  if (d.includes('mobile') || d.includes('phone')) return { Icon: Smartphone, label: 'Mobile' };
-  if (d.includes('tablet')) return { Icon: Tablet, label: 'Tablet' };
-  return { Icon: Monitor, label: 'Desktop' };
-};
+function MetaIcon({ src, label }: { src: string; label: string }) {
+  if (!label) return null;
+  return (
+    <img
+      src={src}
+      alt=""
+      role="img"
+      aria-label={label}
+      title={label}
+      className="h-4 w-4 shrink-0 rounded-[3px] object-contain opacity-95"
+    />
+  );
+}
 
 const getCountryFlag = (country: string): string => {
   const map: Record<string, string> = {
@@ -62,7 +70,8 @@ const getCountryFlag = (country: string): string => {
 
 const timeAgo = (timestamp: string): string => {
   const now = Date.now();
-  const then = new Date(timestamp + 'Z').getTime();
+  const iso = timestamp.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(timestamp) ? timestamp : `${timestamp}Z`;
+  const then = new Date(iso).getTime();
   const diff = Math.max(0, Math.floor((now - then) / 1000));
   if (diff < 5) return 'just now';
   if (diff < 60) return `${diff}s ago`;
@@ -73,58 +82,28 @@ const timeAgo = (timestamp: string): string => {
   return `${Math.floor(hours / 24)}d ago`;
 };
 
-const shortenUUID = (s: string): string => {
-  // abc12345-1234-1234-1234-123456789abc → abc1…9abc
-  return s.replace(
-    /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi,
-    (m) => m.slice(0, 4) + '…' + m.slice(-4)
-  );
-};
-
-const shortenPage = (page: string): string => {
-  if (page === '/') return '/';
-  const clean = page.replace(/\/$/, '');
-  // First try shortening UUIDs in the path
-  const withShortIds = shortenUUID(clean);
-  if (withShortIds.length <= 45) return withShortIds;
-  // Still too long — show last meaningful segments
-  const segments = clean.split('/').filter(Boolean);
-  if (segments.length <= 1) return withShortIds.slice(0, 42) + '...';
-  const last = shortenUUID(segments[segments.length - 1]);
-  const secondLast = segments.length > 2 ? shortenUUID(segments[segments.length - 2]) : null;
-  const tail = secondLast ? `${secondLast}/${last}` : last;
-  const result = `/…/${tail}`;
-  if (result.length > 45) return `/…/${last}`;
-  return result;
-};
-
-const shortenReferrer = (referrer: string): string => {
-  if (!referrer) return '';
-  try {
-    const url = new URL(referrer.startsWith('http') ? referrer : `https://${referrer}`);
-    return url.hostname.replace(/^www\./, '');
-  } catch {
-    return referrer.length > 20 ? referrer.slice(0, 17) + '...' : referrer;
-  }
-};
-
-export function RecentActivityFeed({ data, isLoading }: RecentActivityFeedProps) {
+export function RecentActivityFeed({ data, isLoading, embed, websiteId }: RecentActivityFeedProps) {
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-5 w-28" />
-        <Skeleton className="h-3 w-44" />
-        <div className="space-y-1">
-          {[...Array(7)].map((_, i) => (
-            <div key={i} className="py-3 space-y-1.5">
+      <div className={cn('space-y-3', embed && 'space-y-2')}>
+        {!embed && (
+          <>
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-3 w-44" />
+          </>
+        )}
+        <div className="space-y-0 divide-y divide-border/50">
+          {[...Array(embed ? 6 : 7)].map((_, i) => (
+            <div key={i} className="py-2.5 space-y-1.5">
               <div className="flex items-center gap-2">
-                <Skeleton className="h-3.5 flex-1" />
-                <Skeleton className="h-3 w-14" />
+                <Skeleton className="h-3.5 flex-1 rounded" />
+                <Skeleton className="h-3.5 w-14 rounded" />
               </div>
               <div className="flex items-center gap-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-3 w-16" />
-                <Skeleton className="h-3 w-14" />
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-3 w-full max-w-[12rem] rounded" />
               </div>
             </div>
           ))}
@@ -137,25 +116,26 @@ export function RecentActivityFeed({ data, isLoading }: RecentActivityFeedProps)
 
   return (
     <div>
-      {/* Header with divider */}
-      <div className="flex items-center justify-between pb-4 mb-2 border-b border-border/60">
-        <div>
-          <h3 className="text-base font-semibold tracking-tight">Live Activity</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">Recent page views on your site</p>
-        </div>
-        {activities.length > 0 && (
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2.5 py-1 rounded">
-            <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
-            </span>
-            Live
+      {!embed && (
+        <div className="flex items-center justify-between pb-4 mb-2 border-b border-border/60">
+          <div>
+            <h3 className="text-base font-semibold tracking-tight">Live Activity</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Recent page views on your site</p>
           </div>
-        )}
-      </div>
+          {activities.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2.5 py-1 rounded">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+              </span>
+              Live
+            </div>
+          )}
+        </div>
+      )}
 
       {activities.length === 0 ? (
-        <div className="text-center py-12 space-y-3">
+        <div className={cn('text-center space-y-3', embed ? 'py-8' : 'py-12')}>
           <div className="w-10 h-10 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
             <Globe className="h-5 w-5 text-muted-foreground" />
           </div>
@@ -167,57 +147,87 @@ export function RecentActivityFeed({ data, isLoading }: RecentActivityFeedProps)
           </div>
         </div>
       ) : (
-        <div className="max-h-[420px] overflow-y-auto">
+        <div
+          className={cn(
+            'max-h-[420px] overflow-y-auto overflow-x-hidden',
+            embed && 'max-h-[min(20rem,42vh)] text-[13px]',
+          )}
+        >
           {activities.map((item, i) => {
-            const { Icon: DeviceIcon } = deviceLabel(item.device);
             const flag = getCountryFlag(item.country);
             const ago = timeAgo(item.timestamp);
             const isRecent = ago === 'just now' || ago.endsWith('s ago');
-            const referrerHost = shortenReferrer(item.referrer);
-
+            const pageShown = websiteId
+              ? displayRealtimePath(item.page, websiteId, 96)
+              : item.page.length > 72
+                ? `${item.page.slice(0, 71)}…`
+                : item.page;
+            const pageTitle = item.page;
+            const refLabel = activityReferrerLabel(item.referrer, websiteId);
+            const showRef = Boolean(refLabel && refLabel !== pageShown);
+            const osLabel = (item.os || '').trim();
+            const deviceLabelText = (item.device || '').trim();
+            const browserLabel = (item.browser || '').trim();
             return (
               <div
                 key={`${item.timestamp}-${i}`}
                 className={cn(
-                  "py-3.5 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors -mx-8 px-8",
-                  i === 0 && "animate-in fade-in slide-in-from-top-1 duration-300"
+                  'border-b border-border/50 last:border-0 py-2',
+                  embed && 'hover:bg-muted/20',
+                  !embed && 'hover:bg-accent/5 -mx-8 px-8 py-2.5',
+                  i === 0 && 'animate-in fade-in slide-in-from-top-1 duration-300',
                 )}
               >
-                {/* Page path + time */}
-                <div className="flex items-center justify-between gap-3 mb-1.5">
-                  <span className="text-sm font-medium text-foreground truncate" title={item.page}>
-                    {shortenPage(item.page)}
+                <div className="flex items-center justify-between gap-3">
+                  <span
+                    className="font-mono text-[13px] text-foreground min-w-0 leading-snug truncate"
+                    title={pageTitle}
+                  >
+                    {pageShown}
                   </span>
-                  <span className={cn(
-                    "text-[11px] font-medium shrink-0 tabular-nums",
-                    isRecent ? "text-emerald-500" : "text-muted-foreground/60"
-                  )}>
+                  <span
+                    className={cn(
+                      'text-[11px] shrink-0 tabular-nums',
+                      isRecent ? 'text-emerald-600 dark:text-emerald-500' : 'text-muted-foreground',
+                    )}
+                  >
                     {ago}
                   </span>
                 </div>
-
-                {/* Meta row */}
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  {(flag || item.country) && (
-                    <span className="flex items-center gap-1 shrink-0">
-                      {flag && <span>{flag}</span>}
-                      <span>{item.country || 'Unknown'}</span>
-                    </span>
-                  )}
-                  {(flag || item.country) && <span className="text-border/60">·</span>}
-                  <span className="flex items-center gap-1 shrink-0">
-                    <DeviceIcon className="h-3 w-3" />
-                  </span>
-                  {item.browser && <span className="truncate">{item.browser}</span>}
-                  {referrerHost && (
-                    <>
-                      <span className="text-border/60">·</span>
-                      <span className="flex items-center gap-0.5 truncate">
-                        <ExternalLink className="h-2.5 w-2.5 shrink-0" />
-                        {referrerHost}
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
+                  <span
+                    className="inline-flex min-w-0 max-w-[11rem] items-center gap-1.5"
+                    title={item.country || undefined}
+                  >
+                    {flag ? (
+                      <span className="shrink-0 text-[15px] leading-none" aria-hidden>
+                        {flag}
                       </span>
-                    </>
+                    ) : (
+                      <Globe className="h-3.5 w-3.5 shrink-0 opacity-50" aria-hidden />
+                    )}
+                    <span className="min-w-0 truncate">{item.country || '—'}</span>
+                  </span>
+
+                  <span className="text-border/70" aria-hidden>
+                    ·
+                  </span>
+
+                  {deviceLabelText ? (
+                    <MetaIcon src={getDeviceImagePath(deviceLabelText)} label={deviceLabelText} />
+                  ) : (
+                    <MetaIcon src={getDeviceImagePath('')} label="Device" />
                   )}
+
+                  {osLabel ? <MetaIcon src={getOsImagePath(osLabel)} label={osLabel} /> : null}
+
+                  {browserLabel ? <MetaIcon src={getBrowserImagePath(browserLabel)} label={browserLabel} /> : null}
+
+                  {showRef ? (
+                    <span className="inline-flex h-4 shrink-0 items-center" title={refLabel}>
+                      <ExternalLink className="h-3.5 w-3.5 opacity-55" aria-label={`Referrer: ${refLabel}`} />
+                    </span>
+                  ) : null}
                 </div>
               </div>
             );

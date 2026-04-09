@@ -340,7 +340,6 @@ export default function UiBlocksPage() {
       <DashboardPageHeader
         title="UI Blocks"
         description="Copy-paste embeddable analytics widgets, badges, and charts for your product."
-        icon={Layout}
       >
         <a
           href="https://docs.seentics.com/ui-blocks"

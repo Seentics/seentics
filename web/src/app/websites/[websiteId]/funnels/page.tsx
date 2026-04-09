@@ -209,7 +209,6 @@ export default function FunnelsPage() {
       <DashboardPageHeader
         title="Funnels"
         description="Track conversion steps and identify where users drop off in their journey."
-        icon={GitBranch}
       >
         <Button
           onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}

@@ -29,6 +29,12 @@ func RateLimitMiddleware(appCache *cache.Cache) gin.HandlerFunc {
 			limit = 2000
 			keyPrefix = "rl:internal"
 			identifier = clientIP // Could also use a specific identifier if needed
+		case path == "/api/v1/tracker/collect":
+			// Tracker endpoints — called by browsers every 10s.
+			// 60 req/min gives ~10x headroom over normal usage and stops flooding.
+			limit = 60
+			keyPrefix = "rl:tracker"
+			identifier = clientIP
 		case path == "/api/v1/analytics/event" || path == "/api/v1/analytics/batch" || path == "/api/v1/heatmaps/record" || path == "/api/v1/replays/record" || path == "/api/v1/funnels/track" || path == "/api/v1/funnels/batch":
 			// Ingestion Endpoints (High throughput)
 			limit = 10000

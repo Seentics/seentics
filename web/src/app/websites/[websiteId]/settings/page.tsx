@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Code2, CreditCard, Goal, Settings, Shield, Users } from 'lucide-react';
+import { Code2, CreditCard, Goal, Shield, Users } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { isEnterprise } from '@/lib/features';
@@ -49,11 +49,10 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="p-4 sm:p-8 max-w-[1440px] mx-auto space-y-8 animate-in fade-in duration-500">
+    <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
       <DashboardPageHeader
         title="Settings"
         description="Choose an analytics settings page from the sidebar or quick links below."
-        icon={Settings}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

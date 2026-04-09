@@ -1,9 +1,7 @@
 package tracker
 
 import (
-	"context"
 	"net/http"
-	"sync"
 	"time"
 
 	analyticsModels "github.com/Seentics/seentics/internal/modules/analytics/models"
@@ -22,11 +20,11 @@ import (
 
 type TrackerHandler struct {
 	websites    *websiteSvc.WebsiteService
-	events      *analyticsSvc.EventService
+	analytics   *analyticsSvc.EventService
 	funnels     *funnelSvc.FunnelService
-	heatmaps    *heatmapSvc.HeatmapService
 	replays     *replaySvc.ReplayService
 	automations *automationSvc.AutomationService
+	buffer      *CollectBuffer
 	logger      zerolog.Logger
 }
 
@@ -40,41 +38,57 @@ func NewTrackerHandler(
 	logger      zerolog.Logger,
 ) *TrackerHandler {
 	return &TrackerHandler{
-		websites: websites, events: events, funnels: funnels,
-		heatmaps: heatmaps, replays: replays, automations: automations,
-		logger: logger,
+		websites:    websites,
+		analytics:   events,
+		funnels:     funnels,
+		replays:     replays,
+		automations: automations,
+		buffer:      NewCollectBuffer(events, heatmaps, replays, automations, logger),
+		logger:      logger,
 	}
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 
 func (h *TrackerHandler) Init(c *gin.Context) {
-	siteID := c.Param("site_id")
-	if siteID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id is required"})
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
 		return
 	}
 
 	origin := originOf(c)
 	ctx    := c.Request.Context()
 
-	config, err := h.websites.GetTrackerConfig(ctx, siteID, origin)
+	w, err := h.websites.GetWebsiteByID(ctx, websiteID)
 	if err != nil {
-		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("tracker init: config fetch failed")
+		h.logger.Warn().Err(err).Str("website_id", websiteID).Msg("tracker init: config fetch failed")
+		c.JSON(http.StatusNotFound, gin.H{"error": "website not found or domain mismatch"})
+		return
+	}
+	if !h.websites.ValidateOriginDomain(origin, w.URL) {
+		h.logger.Warn().Str("website_id", websiteID).Str("origin", origin).Msg("tracker init: domain mismatch")
 		c.JSON(http.StatusNotFound, gin.H{"error": "website not found or domain mismatch"})
 		return
 	}
 
-	funnels, err := h.funnels.GetActiveFunnels(ctx, siteID, origin)
+	config, err := h.websites.TrackerConfigMap(ctx, w)
 	if err != nil {
-		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("tracker init: funnels fetch failed")
+		h.logger.Warn().Err(err).Str("website_id", websiteID).Msg("tracker init: config build failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load tracker config"})
+		return
+	}
+
+	funnels, err := h.funnels.GetActiveFunnels(ctx, w.ID.String(), origin)
+	if err != nil {
+		h.logger.Warn().Err(err).Str("website_id", websiteID).Msg("tracker init: funnels fetch failed")
 		funnels = []funnelModels.Funnel{}
 	}
 
 	// Return automations so the tracker script can evaluate conditions client-side
-	automations, err := h.automations.GetActive(ctx, siteID)
+	automations, err := h.automations.GetActive(ctx, w.ID.String())
 	if err != nil {
-		h.logger.Warn().Err(err).Str("site_id", siteID).Msg("tracker init: automations fetch failed")
+		h.logger.Warn().Err(err).Str("website_id", websiteID).Msg("tracker init: automations fetch failed")
 		automations = nil
 	}
 
@@ -98,7 +112,7 @@ type TrackerEvent struct {
 }
 
 type CollectRequest struct {
-	SiteID      string         `json:"site_id"`
+	WebsiteID   string         `json:"website_id"`
 	Domain      string         `json:"domain"`
 	Events      []TrackerEvent `json:"events,omitempty"`
 	Session     []TrackerEvent `json:"session,omitempty"`
@@ -108,34 +122,23 @@ type CollectRequest struct {
 }
 
 func (h *TrackerHandler) Collect(c *gin.Context) {
-	ctx := c.Request.Context()
-
 	var req CollectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
-	if req.SiteID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id is required"})
+	if req.WebsiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
 		return
-	}
-	// Session (rrweb recording) events are excluded from the cap — they go straight
-	// to object storage and do not touch the analytics DB.
-	analyticsTotal := len(req.Events) + len(req.Heatmaps) + len(req.Funnels) + len(req.Automations)
-	total          := analyticsTotal + len(req.Session)
-	if total == 0 {
-		c.JSON(http.StatusOK, gin.H{"status": "ok", "processed": 0})
-		return
-	}
-	if analyticsTotal > 500 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "too many analytics events (max 500)"})
-		return
-	}
-	if len(req.Session) > 300 {
-		req.Session = req.Session[:300] // hard cap per batch — tracker should stay under REC_MAX
 	}
 
-	website, err := h.websites.GetWebsiteByAnyID(ctx, req.SiteID)
+	total := len(req.Events) + len(req.Heatmaps) + len(req.Funnels) + len(req.Automations) + len(req.Session)
+	if total == 0 {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		return
+	}
+
+	website, err := h.websites.GetWebsiteByID(c.Request.Context(), req.WebsiteID)
 	if err != nil || !website.IsActive {
 		c.JSON(http.StatusNotFound, gin.H{"error": "website not found or inactive"})
 		return
@@ -146,178 +149,97 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 		return
 	}
 
-	clientIP := c.ClientIP()
-	clientUA := c.Request.UserAgent()
-	siteID   := website.SiteID
-	now      := time.Now()
-
-	var (
-		mu        sync.Mutex
-		processed int
-		wg        sync.WaitGroup
-	)
-	add := func(n int) { mu.Lock(); processed += n; mu.Unlock() }
-
-	// ── Analytics (pageview / custom / identify / performance) ──────────────
-	if len(req.Events) > 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			resp, err := h.events.TrackBatchEvents(ctx, &analyticsModels.BatchEventRequest{
-				SiteID:   siteID,
-				Domain:   req.Domain,
-				Events:   toAnalyticsEvents(siteID, req.Events, now),
-				ClientIP: clientIP,
-				ClientUA: clientUA,
-			})
-			if err != nil {
-				h.logger.Warn().Err(err).Str("section", "events").Msg("collect: dispatch failed")
-				return
-			}
-			add(resp.EventsCount)
-		}()
-	}
-
-	// ── Heatmaps → dedicated heatmap_points table ────────────────────────────
-	if len(req.Heatmaps) > 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			websiteUUID, err := uuid.Parse(website.ID.String())
-			if err != nil {
-				return
-			}
-			if err := h.heatmaps.ProcessEvents(ctx, websiteUUID, toHeatmapEvents(req.Heatmaps), clientUA); err != nil {
-				h.logger.Warn().Err(err).Str("section", "heatmaps").Msg("collect: dispatch failed")
-				return
-			}
-			add(len(req.Heatmaps))
-		}()
-	}
-
-	// ── Session recording → MinIO/S3 ─────────────────────────────────────────
-	if len(req.Session) > 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := h.replays.ProcessEvents(ctx, siteID, toReplayEvents(req.Session), clientUA, clientIP); err != nil {
-				h.logger.Warn().Err(err).Str("section", "session").Msg("collect: dispatch failed")
-				return
-			}
-			add(len(req.Session))
-		}()
-	}
-
-	// ── Funnels → analytics events table (event_type=funnel_step/complete) ──
-	if len(req.Funnels) > 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			resp, err := h.events.TrackBatchEvents(ctx, &analyticsModels.BatchEventRequest{
-				SiteID:   siteID,
-				Domain:   req.Domain,
-				Events:   toAnalyticsEvents(siteID, req.Funnels, now),
-				ClientIP: clientIP,
-				ClientUA: clientUA,
-			})
-			if err != nil {
-				h.logger.Warn().Err(err).Str("section", "funnels").Msg("collect: dispatch failed")
-				return
-			}
-			add(resp.EventsCount)
-		}()
-	}
-
-	// ── Automations → verify + record execution ───────────────────────────────
-	if len(req.Automations) > 0 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			if err := h.automations.ProcessTriggers(ctx, siteID, toAutomationEvents(req.Automations)); err != nil {
-				h.logger.Warn().Err(err).Str("section", "automations").Msg("collect: dispatch failed")
-				return
-			}
-			add(len(req.Automations))
-		}()
-	}
-
-	wg.Wait()
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "processed": processed})
-}
-
-// ── ReplayChunk ───────────────────────────────────────────────────────────────
-// POST /api/v1/tracker/replay?site_id=...&session_id=...&visitor_id=...
-// Body: JSON array of rrweb eventWithTime objects.
-// Content-Encoding: gzip is transparently decompressed by DecompressMiddleware.
-func (h *TrackerHandler) ReplayChunk(c *gin.Context) {
-	siteID    := c.Query("site_id")
-	sessionID := c.Query("session_id")
-	visitorID := c.Query("visitor_id")
-	if siteID == "" || sessionID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id and session_id are required"})
-		return
-	}
-
-	// Validate site
-	ctx     := c.Request.Context()
-	website, err := h.websites.GetWebsiteByAnyID(ctx, siteID)
-	if err != nil || !website.IsActive {
-		c.JSON(http.StatusNotFound, gin.H{"error": "website not found"})
-		return
-	}
-
-	// Parse rrweb events — raw JSON objects preserved as-is for S3 storage
-	var events []map[string]interface{}
-	if err := c.ShouldBindJSON(&events); err != nil || len(events) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid or empty events array"})
-		return
-	}
-	if len(events) > 200 {
-		events = events[:200] // hard cap per chunk
-	}
-
-	ua := c.Request.UserAgent()
+	websiteUUID, _ := uuid.Parse(website.ID.String())
+	ctx := c.Request.Context()
+	now := time.Now()
 	ip := c.ClientIP()
+	ua := c.Request.UserAgent()
 
-	go func() {
-		if err := h.replays.ProcessRRWebChunk(context.Background(), website.SiteID, sessionID, visitorID, events, ua, ip); err != nil {
-			h.logger.Warn().Err(err).Str("session_id", sessionID).Msg("replay chunk: save failed")
-		}
-	}()
+	analytics := collectMergeAnalytics(website.SiteID, req.Events, req.Funnels, now, ip, ua)
+	if err := h.analytics.EnrichCollectAnalytics(ctx, analytics); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "analytics unavailable"})
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{"status": "ok", "received": len(events)})
+	heatmaps := collectPrepareHeatmaps(req.Heatmaps, websiteUUID, ua)
+	sessions := collectPrepareSessions(req.Session, website.SiteID, ip, ua)
+	automations := collectPrepareAutomations(req.Automations, website.SiteID)
+
+	h.buffer.Push(analytics, heatmaps, sessions, automations)
+
+	c.JSON(http.StatusAccepted, gin.H{"status": "ok"})
 }
 
 // ── Type converters ───────────────────────────────────────────────────────────
 
-func toAnalyticsEvents(siteID string, evs []TrackerEvent, now time.Time) []analyticsModels.Event {
+// collectMergeAnalytics maps pageview/custom/funnel tracker rows into analytics events (enrichment follows).
+func collectMergeAnalytics(siteID string, events, funnels []TrackerEvent, now time.Time, clientIP, clientUA string) []analyticsModels.Event {
+	pe := toAnalyticsEvents(siteID, events, now, clientIP, clientUA)
+	pf := toAnalyticsEvents(siteID, funnels, now, clientIP, clientUA)
+	return append(pe, pf...)
+}
+
+func toAnalyticsEvents(siteID string, evs []TrackerEvent, now time.Time, clientIP, clientUA string) []analyticsModels.Event {
 	out := make([]analyticsModels.Event, 0, len(evs))
 	for _, e := range evs {
-		out = append(out, normalize(siteID, e, now))
+		ev := normalize(siteID, e, now)
+		if clientIP != "" && (ev.IPAddress == nil || *ev.IPAddress == "") {
+			ip := clientIP
+			ev.IPAddress = &ip
+		}
+		if clientUA != "" && (ev.UserAgent == nil || *ev.UserAgent == "") {
+			ua := clientUA
+			ev.UserAgent = &ua
+		}
+		out = append(out, ev)
 	}
 	return out
 }
 
-func toHeatmapEvents(evs []TrackerEvent) []heatmapSvc.TrackerEvent {
-	out := make([]heatmapSvc.TrackerEvent, len(evs))
-	for i, e := range evs {
-		out[i] = heatmapSvc.TrackerEvent{Type: e.Type, Data: e.Data, TS: e.TS, URL: e.URL, SID: e.SID, VID: e.VID}
+// collectPrepareHeatmaps keeps only types the heatmap pipeline persists; unknown types are dropped.
+func collectPrepareHeatmaps(evs []TrackerEvent, websiteUUID uuid.UUID, clientUA string) []heatmapSvc.TrackerEvent {
+	out := make([]heatmapSvc.TrackerEvent, 0, len(evs))
+	for _, e := range evs {
+		if e.Type != "heatmap_click" && e.Type != "heatmap_scroll" {
+			continue
+		}
+		out = append(out, heatmapSvc.TrackerEvent{
+			Type: e.Type, Data: e.Data, TS: e.TS, URL: e.URL, SID: e.SID, VID: e.VID,
+			WebsiteUUID: websiteUUID, ClientUA: clientUA,
+		})
 	}
 	return out
 }
 
-func toReplayEvents(evs []TrackerEvent) []replaySvc.TrackerEvent {
-	out := make([]replaySvc.TrackerEvent, len(evs))
-	for i, e := range evs {
-		out[i] = replaySvc.TrackerEvent{Type: e.Type, Data: e.Data, TS: e.TS, URL: e.URL, SID: e.SID, VID: e.VID}
+// collectPrepareSessions keeps rrweb session rows with a non-empty session id.
+func collectPrepareSessions(evs []TrackerEvent, websiteID, clientIP, clientUA string) []replaySvc.TrackerEvent {
+	out := make([]replaySvc.TrackerEvent, 0, len(evs))
+	for _, e := range evs {
+		if e.Type != "" && e.Type != "rrweb" && e.Type != "session_error" {
+			continue
+		}
+		if e.SID == "" {
+			continue
+		}
+		out = append(out, replaySvc.TrackerEvent{
+			Type: e.Type, Data: e.Data, TS: e.TS, URL: e.URL, SID: e.SID, VID: e.VID,
+			WebsiteID: websiteID, ClientIP: clientIP, ClientUA: clientUA,
+		})
 	}
 	return out
 }
 
-func toAutomationEvents(evs []TrackerEvent) []automationSvc.TrackerEvent {
-	out := make([]automationSvc.TrackerEvent, len(evs))
-	for i, e := range evs {
-		out[i] = automationSvc.TrackerEvent{Type: e.Type, Data: e.Data, TS: e.TS, URL: e.URL, SID: e.SID, VID: e.VID}
+// collectPrepareAutomations keeps only rows the automation executor handles.
+func collectPrepareAutomations(evs []TrackerEvent, websiteID string) []automationSvc.TrackerEvent {
+	out := make([]automationSvc.TrackerEvent, 0, len(evs))
+	for _, e := range evs {
+		if e.Type != "automation_trigger" {
+			continue
+		}
+		out = append(out, automationSvc.TrackerEvent{
+			Type: e.Type, Data: e.Data, TS: e.TS, URL: e.URL, SID: e.SID, VID: e.VID,
+			WebsiteID: websiteID,
+		})
 	}
 	return out
 }

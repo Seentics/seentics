@@ -16,12 +16,14 @@ import (
 
 // TrackerEvent is the wire-format event emitted by seentics.js
 type TrackerEvent struct {
-	Type string                 `json:"type"`
-	Data map[string]interface{} `json:"data"`
-	TS   int64                  `json:"ts"`
-	URL  string                 `json:"url"`
-	SID  string                 `json:"sid"`
-	VID  string                 `json:"vid"`
+	Type        string                 `json:"type"`
+	Data        map[string]interface{} `json:"data"`
+	TS          int64                  `json:"ts"`
+	URL         string                 `json:"url"`
+	SID         string                 `json:"sid"`
+	VID         string                 `json:"vid"`
+	WebsiteUUID uuid.UUID              `json:"-"`
+	ClientUA    string                 `json:"-"`
 }
 
 // HeatmapService orchestrates heatmap processing
@@ -36,17 +38,20 @@ func NewHeatmapService(repo *repository.HeatmapRepository, logger zerolog.Logger
 }
 
 // ProcessEvents converts all heatmap events to points and writes them in one batch.
-func (s *HeatmapService) ProcessEvents(ctx context.Context, websiteID uuid.UUID, events []TrackerEvent, ua string) error {
+// Each event carries its own WebsiteUUID and ClientUA so events from multiple
+// sites/visitors can be flushed in a single call.
+func (s *HeatmapService) ProcessEvents(ctx context.Context, events []TrackerEvent) error {
 	if len(events) == 0 {
 		return nil
 	}
-	uaInfo := utils.ParseUserAgent(ua)
 	points := make([]models.HeatmapPoint, 0, len(events))
 
 	for _, ev := range events {
+		uaInfo := utils.ParseUserAgent(ev.ClientUA)
 		switch ev.Type {
 		case "heatmap_click":
 			points = append(points, models.HeatmapPoint{
+				WebsiteID:      ev.WebsiteUUID,
 				PagePath:       extractPath(ev.URL),
 				EventType:      "click",
 				DeviceType:     uaInfo.Device,
@@ -56,6 +61,7 @@ func (s *HeatmapService) ProcessEvents(ctx context.Context, websiteID uuid.UUID,
 			})
 		case "heatmap_scroll":
 			points = append(points, models.HeatmapPoint{
+				WebsiteID:  ev.WebsiteUUID,
 				PagePath:   extractPath(ev.URL),
 				EventType:  "scroll",
 				DeviceType: uaInfo.Device,
@@ -65,7 +71,7 @@ func (s *HeatmapService) ProcessEvents(ctx context.Context, websiteID uuid.UUID,
 		}
 	}
 
-	if err := s.repo.BatchUpsertPoints(ctx, websiteID, points); err != nil {
+	if err := s.repo.BatchUpsertPoints(ctx, points); err != nil {
 		return fmt.Errorf("heatmap batch upsert: %w", err)
 	}
 	return nil

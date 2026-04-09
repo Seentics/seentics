@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -1295,6 +1297,80 @@ func (r *ClickHouseAnalyticsRepository) GetActivityTrends(ctx context.Context, w
 	}, nil
 }
 
+// chGoalPageviewPredicate builds (page = ? OR endsWith(...)) for full URLs, paths, and path suffixes.
+func chGoalPageviewPredicate(identifier string) (sql string, args []interface{}) {
+	t := strings.TrimSpace(identifier)
+	if t == "" {
+		return "false", nil
+	}
+	seen := map[string]struct{}{}
+	var conds []string
+	var out []interface{}
+	addEq := func(s string) {
+		if s == "" {
+			return
+		}
+		k := "eq:" + s
+		if _, ok := seen[k]; ok {
+			return
+		}
+		seen[k] = struct{}{}
+		conds = append(conds, "page = ?")
+		out = append(out, s)
+	}
+	addSuffix := func(s string) {
+		if s == "" {
+			return
+		}
+		k := "suf:" + s
+		if _, ok := seen[k]; ok {
+			return
+		}
+		seen[k] = struct{}{}
+		conds = append(conds, "endsWith(page, ?)")
+		out = append(out, s)
+	}
+
+	addEq(t)
+	lower := strings.ToLower(t)
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		if u, err := url.Parse(t); err == nil && u != nil {
+			path := u.Path
+			if path == "" {
+				path = "/"
+			}
+			addEq(path)
+			addSuffix(path)
+			if path != "/" && !strings.HasSuffix(path, "/") {
+				addSuffix(path + "/")
+			}
+		}
+		return "(" + strings.Join(conds, " OR ") + ")", out
+	}
+
+	p := t
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+		addEq(p)
+	}
+	addSuffix(p)
+	if p != "/" && !strings.HasSuffix(p, "/") {
+		addSuffix(p + "/")
+	}
+	return "(" + strings.Join(conds, " OR ") + ")", out
+}
+
+// chGoalEventPredicate matches tracker custom events (event_type custom + properties.name)
+// or rows where event_type equals the goal identifier directly.
+func chGoalEventPredicate(identifier string) (sql string, args []interface{}) {
+	id := strings.TrimSpace(identifier)
+	if id == "" {
+		return "false", nil
+	}
+	sql = "((event_type = 'custom' AND JSONExtractString(properties, 'name') = ?) OR (event_type != 'custom' AND event_type = ?))"
+	return sql, []interface{}{id, id}
+}
+
 func (r *ClickHouseAnalyticsRepository) GetGoalStats(ctx context.Context, websiteID string, days int) ([]models.GoalStatItem, error) {
 	items, err := r.pg.GetGoalStats(ctx, websiteID, days)
 	if err != nil {
@@ -1304,36 +1380,88 @@ func (r *ClickHouseAnalyticsRepository) GetGoalStats(ctx context.Context, websit
 	dateFilter, dateArgs := chPageviewLastNDaysFilter(days, tz)
 
 	for i := range items {
-		if items[i].GoalType != "pageview" {
+		switch items[i].GoalType {
+		case "pageview":
+			predSQL, predArgs := chGoalPageviewPredicate(items[i].Target)
+			if predSQL == "false" {
+				continue
+			}
+			pagePred := fmt.Sprintf("(event_type = 'pageview' AND %s)", predSQL)
+			q := fmt.Sprintf(`
+				SELECT
+					countIf(%s) AS pageviews,
+					uniqIf(visitor_id, %s) AS uv,
+					uniqIf(session_id, %s) AS sess_goal,
+					uniqIf(session_id, event_type = 'pageview') AS sess_total
+				FROM events
+				WHERE website_id = ?
+				AND %s
+			`, pagePred, pagePred, pagePred, dateFilter)
+
+			args := make([]interface{}, 0, len(predArgs)*3+1+len(dateArgs))
+			for range 3 {
+				args = append(args, predArgs...)
+			}
+			args = append(args, websiteID)
+			args = append(args, dateArgs...)
+
+			var pageviews, uv, sessGoal, sessTotal uint64
+			if err := r.conn.QueryRow(ctx, q, args...).Scan(&pageviews, &uv, &sessGoal, &sessTotal); err != nil {
+				r.logger.Warn().Err(err).Str("website_id", websiteID).Str("path", items[i].Target).Msg("goal pageview stats clickhouse")
+				continue
+			}
+
+			items[i].Completions = int(pageviews)
+			items[i].UniqueVisitors = int(uv)
+			if sessTotal > 0 {
+				items[i].ConversionRate = float64(sessGoal) / float64(sessTotal) * 100
+			}
+
+		case "event":
+			predSQL, predArgs := chGoalEventPredicate(items[i].Target)
+			if predSQL == "false" {
+				continue
+			}
+			q := fmt.Sprintf(`
+				SELECT
+					countIf(%s) AS ev_cnt,
+					uniqIf(visitor_id, %s) AS uv,
+					uniqIf(session_id, %s) AS sess_goal,
+					uniqIf(session_id, event_type = 'pageview') AS sess_total
+				FROM events
+				WHERE website_id = ?
+				AND %s
+			`, predSQL, predSQL, predSQL, dateFilter)
+
+			args := make([]interface{}, 0, len(predArgs)*3+1+len(dateArgs))
+			for range 3 {
+				args = append(args, predArgs...)
+			}
+			args = append(args, websiteID)
+			args = append(args, dateArgs...)
+
+			var evCnt, uv, sessGoal, sessTotal uint64
+			if err := r.conn.QueryRow(ctx, q, args...).Scan(&evCnt, &uv, &sessGoal, &sessTotal); err != nil {
+				r.logger.Warn().Err(err).Str("website_id", websiteID).Str("event", items[i].Target).Msg("goal event stats clickhouse")
+				continue
+			}
+
+			items[i].Completions = int(evCnt)
+			items[i].UniqueVisitors = int(uv)
+			if sessTotal > 0 {
+				items[i].ConversionRate = float64(sessGoal) / float64(sessTotal) * 100
+			}
+		default:
 			continue
-		}
-		path := items[i].Target
-		q := fmt.Sprintf(`
-			SELECT
-				countIf(event_type = 'pageview' AND page = ?) AS pageviews,
-				uniqIf(visitor_id, event_type = 'pageview' AND page = ?) AS uv,
-				uniqIf(session_id, event_type = 'pageview' AND page = ?) AS sess_goal,
-				uniqIf(session_id, event_type = 'pageview') AS sess_total
-			FROM events
-			WHERE website_id = ?
-			AND %s
-		`, dateFilter)
-
-		args := []interface{}{path, path, path, websiteID}
-		args = append(args, dateArgs...)
-
-		var pageviews, uv, sessGoal, sessTotal uint64
-		if err := r.conn.QueryRow(ctx, q, args...).Scan(&pageviews, &uv, &sessGoal, &sessTotal); err != nil {
-			r.logger.Warn().Err(err).Str("website_id", websiteID).Str("path", path).Msg("goal pageview stats clickhouse")
-			continue
-		}
-
-		items[i].Completions = int(pageviews)
-		items[i].UniqueVisitors = int(uv)
-		if sessTotal > 0 {
-			items[i].ConversionRate = float64(sessGoal) / float64(sessTotal) * 100
 		}
 	}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Completions != items[j].Completions {
+			return items[i].Completions > items[j].Completions
+		}
+		return strings.ToLower(items[i].Name) < strings.ToLower(items[j].Name)
+	})
 
 	return items, nil
 }
@@ -1395,6 +1523,7 @@ func (r *ClickHouseAnalyticsRepository) GetRecentActivity(ctx context.Context, w
 			COALESCE(country, '') as country,
 			COALESCE(device, '') as device,
 			COALESCE(browser, '') as browser,
+			COALESCE(os, '') as os,
 			COALESCE(referrer, '') as referrer,
 			formatDateTime(timestamp, '%Y-%m-%dT%H:%i:%S', 'UTC') as ts
 		FROM events
@@ -1413,7 +1542,7 @@ func (r *ClickHouseAnalyticsRepository) GetRecentActivity(ctx context.Context, w
 	var activities []models.RecentActivity
 	for rows.Next() {
 		var a models.RecentActivity
-		if err := rows.Scan(&a.Page, &a.Country, &a.Device, &a.Browser, &a.Referrer, &a.Timestamp); err != nil {
+		if err := rows.Scan(&a.Page, &a.Country, &a.Device, &a.Browser, &a.OS, &a.Referrer, &a.Timestamp); err != nil {
 			continue
 		}
 		activities = append(activities, a)

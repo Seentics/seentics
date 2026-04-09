@@ -71,7 +71,7 @@ export default function BillingSettings() {
   };
 
   return (
-    <div className="p-4 sm:p-8 space-y-8 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
+    <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
       <DashboardPageHeader
         title="Billing & Plans"
         description="Manage your subscription and track usage."

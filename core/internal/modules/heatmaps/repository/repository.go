@@ -31,13 +31,14 @@ const upsertPointSQL = `
 		last_updated = NOW()`
 
 // BatchUpsertPoints sends all upserts in a single pgx pipeline (one network round-trip).
-func (r *HeatmapRepository) BatchUpsertPoints(ctx context.Context, websiteID uuid.UUID, points []models.HeatmapPoint) error {
+// Each point carries its own WebsiteID so points from multiple sites can be batched together.
+func (r *HeatmapRepository) BatchUpsertPoints(ctx context.Context, points []models.HeatmapPoint) error {
 	if len(points) == 0 {
 		return nil
 	}
 	batch := &pgx.Batch{}
 	for _, p := range points {
-		batch.Queue(upsertPointSQL, websiteID, p.PagePath, p.EventType, p.DeviceType, p.XPercent, p.YPercent, p.TargetSelector)
+		batch.Queue(upsertPointSQL, p.WebsiteID, p.PagePath, p.EventType, p.DeviceType, p.XPercent, p.YPercent, p.TargetSelector)
 	}
 	return r.db.SendBatch(ctx, batch).Close()
 }

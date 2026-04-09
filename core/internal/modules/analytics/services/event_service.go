@@ -16,40 +16,23 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const (
-	BatchSize     = 2000
-	FlushInterval = 5 * time.Second
-	BufferSize    = 20_000 // in-memory event channel capacity
-)
-
 type EventService struct {
 	repo     repository.EventRepository
 	logger   zerolog.Logger
 	websites *websiteServicePkg.WebsiteService
 	rdb      *redis.Client
 
-	buf        chan models.Event
-	ctx        context.Context
-	cancel     context.CancelFunc
-	wg         sync.WaitGroup
-	isShutdown bool
 	shutdownMu sync.RWMutex
+	isShutdown bool
 }
 
 func NewEventService(repo repository.EventRepository, websites *websiteServicePkg.WebsiteService, logger zerolog.Logger, rdb *redis.Client) *EventService {
-	ctx, cancel := context.WithCancel(context.Background())
-
-	s := &EventService{
+	return &EventService{
 		repo:     repo,
 		websites: websites,
 		logger:   logger,
 		rdb:      rdb,
-		buf:      make(chan models.Event, BufferSize),
-		ctx:      ctx,
-		cancel:   cancel,
 	}
-	s.startFlusher()
-	return s
 }
 
 func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*models.EventResponse, error) {
@@ -60,7 +43,7 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 	}
 	s.shutdownMu.RUnlock()
 
-	website, err := s.websites.GetWebsiteByAnyID(ctx, event.WebsiteID)
+	website, err := s.websites.GetWebsiteByID(ctx, event.WebsiteID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid website_id")
 	}
@@ -79,8 +62,8 @@ func (s *EventService) TrackEvent(ctx context.Context, event *models.Event) (*mo
 
 	s.enrichEventData(ctx, event)
 
-	if !s.enqueue(*event) {
-		return nil, fmt.Errorf("server busy, try again later")
+	if _, err := s.flushBatchToClickHouse(ctx, []models.Event{*event}); err != nil {
+		return nil, err
 	}
 
 	return &models.EventResponse{
@@ -107,9 +90,9 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 		}, nil
 	}
 
-	website, err := s.websites.GetWebsiteByAnyID(ctx, req.SiteID)
+	website, err := s.websites.GetWebsiteByID(ctx, req.WebsiteID)
 	if err != nil {
-		return nil, fmt.Errorf("invalid website_id: %s", req.SiteID)
+		return nil, fmt.Errorf("invalid website_id: %s", req.WebsiteID)
 	}
 	if !website.IsActive {
 		return nil, fmt.Errorf("website is inactive")
@@ -121,10 +104,8 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 			Msg("Domain mismatch in batch event")
 		return nil, fmt.Errorf("domain mismatch")
 	}
-	req.SiteID = website.SiteID
+	canonicalSiteID := website.SiteID
 
-	// Pre-compute shared UA + GeoIP once for the whole batch — all events share
-	// the same client IP and user-agent from the /collect HTTP request headers.
 	var sharedUA *utils.UserAgentInfo
 	var sharedGeo *utils.LocationInfo
 	if req.ClientUA != "" {
@@ -137,12 +118,11 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 	}
 
 	now := time.Now()
-	accepted := 0
 	var liveVisitorIDs []string
 
 	for i := range req.Events {
 		ev := &req.Events[i]
-		ev.WebsiteID = req.SiteID
+		ev.WebsiteID = canonicalSiteID
 		if ev.EventType == "" {
 			ev.EventType = "pageview"
 		}
@@ -160,18 +140,18 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 
 		s.enrichEventShared(ctx, ev, sharedUA, sharedGeo)
 
-		if s.enqueue(*ev) {
-			accepted++
-		}
-
 		if ev.EventType == "pageview" && ev.VisitorID != "" {
 			liveVisitorIDs = append(liveVisitorIDs, ev.VisitorID)
 		}
 	}
 
-	// Update live visitor HyperLogLog in Redis (5-min TTL for the realtime widget).
+	result, err := s.flushBatchToClickHouse(ctx, req.Events)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(liveVisitorIDs) > 0 {
-		hlKey := "sn:active:" + req.SiteID
+		hlKey := "sn:active:" + canonicalSiteID
 		args := make([]interface{}, len(liveVisitorIDs))
 		for i, v := range liveVisitorIDs {
 			args[i] = v
@@ -184,109 +164,120 @@ func (s *EventService) TrackBatchEvents(ctx context.Context, req *models.BatchEv
 		}
 	}
 
+	count := len(req.Events)
+	if result != nil {
+		count = result.Processed
+	}
 	return &models.BatchEventResponse{
 		Status:      "accepted",
-		EventsCount: accepted,
+		EventsCount: count,
 		ProcessedAt: now.Unix(),
 	}, nil
 }
 
-// enqueue adds an event to the in-memory buffer. Returns false (and logs a
-// warning) only when the buffer is completely full — i.e. ClickHouse is falling
-// behind faster than events can be flushed.
-func (s *EventService) enqueue(ev models.Event) bool {
-	select {
-	case s.buf <- ev:
-		return true
-	default:
-		s.logger.Warn().
-			Str("website_id", ev.WebsiteID).
-			Msg("Event buffer full — dropping event")
-		return false
+// EnrichCollectAnalytics runs UA / GeoIP enrichment on tracker-derived rows before they are buffered.
+// Called synchronously from POST /api/v1/tracker/collect.
+func (s *EventService) EnrichCollectAnalytics(ctx context.Context, events []models.Event) error {
+	s.shutdownMu.RLock()
+	defer s.shutdownMu.RUnlock()
+	if s.isShutdown {
+		return fmt.Errorf("service is shutdown")
 	}
+	for i := range events {
+		s.enrichEventShared(ctx, &events[i], nil, nil)
+	}
+	return nil
 }
 
-// startFlusher runs a background goroutine that drains the buffer into ClickHouse.
-// It flushes whenever BatchSize events accumulate OR FlushInterval elapses.
-func (s *EventService) startFlusher() {
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
+// FlushCollectAnalytics writes pre-enriched analytics rows from the 2s collect buffer to ClickHouse
+// and updates live-visitor Redis keys (one PFADD batch per site).
+func (s *EventService) FlushCollectAnalytics(ctx context.Context, events []models.Event) (*models.BatchEventResponse, error) {
+	s.shutdownMu.RLock()
+	if s.isShutdown {
+		s.shutdownMu.RUnlock()
+		return nil, fmt.Errorf("service is shutdown")
+	}
+	s.shutdownMu.RUnlock()
 
-		ticker := time.NewTicker(FlushInterval)
-		defer ticker.Stop()
+	if len(events) == 0 {
+		return &models.BatchEventResponse{
+			Status:      "success",
+			EventsCount: 0,
+			ProcessedAt: time.Now().Unix(),
+		}, nil
+	}
 
-		batch := make([]models.Event, 0, BatchSize)
-
-		flush := func() {
-			if len(batch) == 0 {
-				return
-			}
-			s.processBatch(batch)
-			batch = batch[:0]
+	liveBySite := make(map[string][]string)
+	for i := range events {
+		ev := &events[i]
+		if ev.EventType == "pageview" && ev.VisitorID != "" && ev.WebsiteID != "" {
+			liveBySite[ev.WebsiteID] = append(liveBySite[ev.WebsiteID], ev.VisitorID)
 		}
+	}
 
-		for {
-			select {
-			case ev := <-s.buf:
-				batch = append(batch, ev)
-				if len(batch) >= BatchSize {
-					flush()
-				}
+	chResult, err := s.flushBatchToClickHouse(ctx, events)
+	if err != nil {
+		return nil, err
+	}
 
-			case <-ticker.C:
-				flush()
-
-			case <-s.ctx.Done():
-				// Drain remaining events before exiting.
-			drain:
-				for {
-					select {
-					case ev := <-s.buf:
-						batch = append(batch, ev)
-					default:
-						break drain
-					}
-				}
-				flush()
-				return
-			}
+	for siteID, visitorIDs := range liveBySite {
+		if len(visitorIDs) == 0 {
+			continue
 		}
-	}()
+		hlKey := "sn:active:" + siteID
+		args := make([]interface{}, len(visitorIDs))
+		for i, v := range visitorIDs {
+			args[i] = v
+		}
+		pipe := s.rdb.Pipeline()
+		pipe.PFAdd(ctx, hlKey, args...)
+		pipe.Expire(ctx, hlKey, 5*time.Minute)
+		if _, err := pipe.Exec(ctx); err != nil {
+			s.logger.Warn().Err(err).Str("site_id", siteID).Msg("Failed to update live visitor HyperLogLog")
+		}
+	}
+
+	count := len(events)
+	if chResult != nil {
+		count = chResult.Processed
+	}
+	return &models.BatchEventResponse{
+		Status:      "accepted",
+		EventsCount: count,
+		ProcessedAt: time.Now().Unix(),
+	}, nil
 }
 
-// processBatch writes a batch of events to ClickHouse.
-func (s *EventService) processBatch(batch []models.Event) {
+// flushBatchToClickHouse resolves UUID website_id values and writes one batch to ClickHouse.
+func (s *EventService) flushBatchToClickHouse(ctx context.Context, batch []models.Event) (*repository.BatchResult, error) {
 	if len(batch) == 0 {
-		return
+		return &repository.BatchResult{}, nil
 	}
 
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	writeCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	// Resolve any UUID-format website IDs to canonical site IDs.
-	// One cache lookup per unique UUID, not per event.
 	siteIDMap := make(map[string]string)
 	for i := range batch {
 		ev := &batch[i]
 		if len(ev.WebsiteID) > 24 {
 			if resolved, ok := siteIDMap[ev.WebsiteID]; ok {
 				ev.WebsiteID = resolved
-			} else if website, err := s.websites.GetWebsiteByAnyID(ctx, ev.WebsiteID); err == nil {
+			} else if website, err := s.websites.GetWebsiteByID(writeCtx, ev.WebsiteID); err == nil {
 				siteIDMap[ev.WebsiteID] = website.SiteID
 				ev.WebsiteID = website.SiteID
 			}
 		}
 	}
 
-	result, err := s.repo.CreateBatch(ctx, batch)
+	result, err := s.repo.CreateBatch(writeCtx, batch)
 	if err != nil {
 		s.logger.Error().
 			Err(err).
 			Int("count", len(batch)).
 			Msg("Failed to flush event batch to ClickHouse")
-		return
+		return nil, err
 	}
 
 	s.logger.Debug().
@@ -301,29 +292,17 @@ func (s *EventService) processBatch(batch []models.Event) {
 			Interface("errors", result.Errors).
 			Msg("Some events in batch failed")
 	}
+
+	return result, nil
 }
 
-// Shutdown drains the buffer and stops the flusher goroutine.
 func (s *EventService) Shutdown(timeout time.Duration) error {
-	s.logger.Info().Msg("Shutting down event service")
-
 	s.shutdownMu.Lock()
 	s.isShutdown = true
 	s.shutdownMu.Unlock()
-
-	s.cancel()
-
-	done := make(chan struct{})
-	go func() { s.wg.Wait(); close(done) }()
-
-	select {
-	case <-done:
-		s.logger.Info().Msg("Event service shutdown completed")
-		return nil
-	case <-time.After(timeout):
-		s.logger.Warn().Msg("Event service shutdown timed out")
-		return fmt.Errorf("shutdown timeout exceeded")
-	}
+	s.logger.Info().Msg("Event service shut down (sync writes only)")
+	_ = timeout
+	return nil
 }
 
 func (s *EventService) GetEvents(ctx context.Context, websiteID string, limit int, offset int) ([]models.Event, error) {
@@ -339,13 +318,9 @@ func (s *EventService) GetEvents(ctx context.Context, websiteID string, limit in
 	return s.repo.GetByWebsiteID(ctx, websiteID, limit, offset)
 }
 
-// GetStats returns current buffer utilisation stats.
 func (s *EventService) GetStats() map[string]interface{} {
 	return map[string]interface{}{
-		"buffer_size":    BufferSize,
-		"buffer_used":    len(s.buf),
-		"batch_size":     BatchSize,
-		"flush_interval": FlushInterval.String(),
+		"ingestion": "sync_clickhouse_per_call",
 	}
 }
 
@@ -353,8 +328,6 @@ func (s *EventService) enrichEventData(ctx context.Context, event *models.Event)
 	s.enrichEventShared(ctx, event, nil, nil)
 }
 
-// enrichEventShared applies UA + GeoIP enrichment. When sharedUA/sharedGeo are
-// provided (pre-computed once per batch) the expensive parsing calls are skipped.
 func (s *EventService) enrichEventShared(_ context.Context, event *models.Event, sharedUA *utils.UserAgentInfo, sharedGeo *utils.LocationInfo) {
 	if event.Page == "" && event.PagePath != "" {
 		event.Page = event.PagePath

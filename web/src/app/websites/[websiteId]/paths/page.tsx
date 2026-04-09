@@ -15,7 +15,6 @@ export default function PathsPage() {
       <DashboardPageHeader
         title="User Paths"
         description="Discover the most common journeys users take through your product."
-        icon={Route}
       />
       <StatCards
         cards={[

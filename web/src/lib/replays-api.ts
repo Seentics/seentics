@@ -10,6 +10,8 @@ export interface ReplaySession {
   entryPage:     string;
   startedAt:     string;
   hasRageClicks: boolean;
+  /** True if a window error or unhandled rejection was reported during recording. */
+  hasErrors?: boolean;
   durationSeconds: number;
   pagesViewed:     number;
 }
@@ -43,12 +45,16 @@ export async function getSessionWithEvents(
   const res  = await api.get(`/replays/${websiteId}/${sessionId}`);
   const body = res.data as SessionChunksResponse;
 
-  // Flatten all chunks and unwrap rrweb events from the TrackerEvent envelope.
-  // The tracker sends either raw rrweb events or {type: "rrweb", data: <rrwebEvent>, ts, url}
-  const events: RRWebEvent[] = (body.chunks ?? []).flatMap(c => {
-    if (!c.data || !Array.isArray(c.data)) return [];
-    return c.data.map((item: any) => {
-      if (!item) return null;
+  // Ordered chunk list from API; preserve chunk + row order for equal timestamps (stable replay).
+  type Tagged = { ev: RRWebEvent; chunk: number; row: number };
+  const tagged: Tagged[] = [];
+
+  (body.chunks ?? []).forEach((c, chunkIdx) => {
+    if (!c.data || !Array.isArray(c.data)) return;
+    c.data.forEach((item: any, row: number) => {
+      if (!item) return;
+
+      let ev: RRWebEvent | null = null;
 
       // 1. Envelope format: { type: "rrweb", data: { type, timestamp, ... } }
       if (item.type === 'rrweb' && item.data) {
@@ -56,22 +62,31 @@ export async function getSessionWithEvents(
         const type = typeof inner.type === 'string' ? parseInt(inner.type, 10) : inner.type;
         const ts = typeof inner.timestamp === 'string' ? parseInt(inner.timestamp, 10) : inner.timestamp;
         if (typeof type === 'number' && typeof ts === 'number') {
-          return { ...inner, type, timestamp: ts } as RRWebEvent;
+          ev = { ...inner, type, timestamp: ts } as RRWebEvent;
         }
       }
 
       // 2. Raw format: { type: <number>, timestamp: <number>, ... }
-      const type = typeof item.type === 'string' ? parseInt(item.type, 10) : item.type;
-      const ts = typeof item.timestamp === 'string' ? parseInt(item.timestamp, 10) : (item.timestamp || item.ts);
-      if (typeof type === 'number' && typeof ts === 'number') {
-        return { ...item, type, timestamp: ts } as RRWebEvent;
+      if (!ev) {
+        const type = typeof item.type === 'string' ? parseInt(item.type, 10) : item.type;
+        const ts = typeof item.timestamp === 'string' ? parseInt(item.timestamp, 10) : (item.timestamp || item.ts);
+        if (typeof type === 'number' && typeof ts === 'number') {
+          ev = { ...item, type, timestamp: ts } as RRWebEvent;
+        }
       }
 
-      return null;
-    }).filter((e): e is RRWebEvent => e !== null);
+      if (ev) tagged.push({ ev, chunk: chunkIdx, row });
+    });
   });
 
-  events.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  tagged.sort((a, b) => {
+    const dt = (a.ev.timestamp || 0) - (b.ev.timestamp || 0);
+    if (dt !== 0) return dt;
+    if (a.chunk !== b.chunk) return a.chunk - b.chunk;
+    return a.row - b.row;
+  });
+
+  const events = tagged.map((t) => t.ev);
   return { meta: body.meta ?? null, events };
 }
 

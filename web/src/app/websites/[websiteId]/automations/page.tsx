@@ -211,7 +211,6 @@ export default function AutomationsPage() {
       <DashboardPageHeader
         title="Automations"
         description="Trigger actions automatically based on user behavior and analytics events."
-        icon={Bot}
       />
 
       <StatCards

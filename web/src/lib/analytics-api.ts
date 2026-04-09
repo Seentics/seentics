@@ -643,19 +643,29 @@ export const useGoalStats = (websiteId: string, days: number = 30) => {
   });
 };
 
-export const useRecentActivity = (websiteId: string) => {
+export type UseRecentActivityOptions = {
+  /** Max rows returned (default 20). */
+  limit?: number;
+  refetchIntervalMs?: number;
+  staleTimeMs?: number;
+};
+
+export const useRecentActivity = (websiteId: string, options?: UseRecentActivityOptions) => {
+  const limit = options?.limit ?? 20;
+  const refetchInterval = options?.refetchIntervalMs ?? 30000;
+  const staleTime = options?.staleTimeMs ?? Math.min(15000, refetchInterval - 1);
   return useQuery({
-    queryKey: ['recent-activity', websiteId],
+    queryKey: ['recent-activity', websiteId, limit],
     queryFn: async () => {
       if (isDemo(websiteId)) {
         return demoAnalyticsData().recentActivity;
       }
-      const response = await api.get(`/analytics/recent-activity/${websiteId}?limit=20`);
+      const response = await api.get(`/analytics/recent-activity/${websiteId}?limit=${limit}`);
       return response.data;
     },
     enabled: !!websiteId,
-    refetchInterval: 30000, // Refresh every 30 seconds
-    staleTime: 15000,
+    refetchInterval,
+    staleTime,
   });
 };
 

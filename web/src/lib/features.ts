@@ -88,6 +88,28 @@ export const LIMITS = {
     analyticsRetention: '5 years',
     support: 'Priority',
   },
+  agency: {
+    websites: 'Unlimited',
+    events: '5M',
+    workflows: 'Unlimited',
+    funnels: 'Unlimited',
+    heatmaps: 'Unlimited',
+    replays: '100,000',
+    recordingRetention: '3 years',
+    analyticsRetention: '3 years',
+    support: 'Priority',
+  },
+  agency_pro: {
+    websites: 'Unlimited',
+    events: '20M',
+    workflows: 'Unlimited',
+    funnels: 'Unlimited',
+    heatmaps: 'Unlimited',
+    replays: '500,000',
+    recordingRetention: '7 years',
+    analyticsRetention: '7 years',
+    support: 'Dedicated & SLA',
+  },
 };
 
 // Get current limits based on plan

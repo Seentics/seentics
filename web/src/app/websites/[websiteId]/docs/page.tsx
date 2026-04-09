@@ -134,7 +134,6 @@ export default function DocsPage() {
       <DashboardPageHeader
         title="Documentation"
         description="Integrate Seentics into your services using the official SDKs."
-        icon={BookOpen}
       />
 
       {/* SDK tabs */}

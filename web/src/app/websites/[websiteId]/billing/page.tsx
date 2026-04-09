@@ -22,6 +22,7 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { isDemo } from '@/lib/demo';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
+import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 
 // ─── Plan metadata ─────────────────────────────────────────────────────────
 
@@ -148,7 +149,7 @@ export default function AccountBillingSettings() {
     }
 
     return (
-        <div className="max-w-[1200px] mx-auto p-4 sm:p-8 space-y-8 animate-in fade-in duration-500">
+        <div className={cn(websiteWorkspaceShellClass, 'space-y-8 animate-in fade-in duration-500')}>
             <DashboardPageHeader
                 title="Billing & Subscription"
                 description="Manage your plan, usage limits, and billing details."

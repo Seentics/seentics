@@ -7,13 +7,11 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { DataTable, SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
 
 import { StatCards } from '@/components/seentics-ui/StatCards';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Flame, Eye, MousePointer, Move, Search, Activity, Trash2,
-  Copy, ExternalLink, RefreshCw, TrendingDown,
+  Copy, ExternalLink, RefreshCw,
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -30,15 +28,48 @@ import {
 
 import { cn } from '@/lib/utils';
 
+/** Path-only label for table; tooltip keeps full stored path. */
+const HEATMAP_PATH_MAX = 56;
+
+/** Drop redundant `/websites/{id}/` when paths are recorded as dashboard routes. */
+function stripWebsiteDashboardPrefix(path: string, websiteId: string): string {
+  if (!websiteId) return path;
+  const prefix = `/websites/${websiteId}`;
+  if (path === prefix || path === `${prefix}/`) return '/';
+  if (path.startsWith(`${prefix}/`)) return path.slice(prefix.length);
+  return path;
+}
+
+function heatmapPathDisplay(raw: string, websiteId: string): { display: string; title: string } {
+  const t = raw?.trim() || '/';
+  let path = t;
+  try {
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(t) || t.startsWith('//')) {
+      const u = new URL(t.startsWith('//') ? `https:${t}` : t);
+      path = `${u.pathname}${u.search}` || '/';
+    }
+  } catch {
+    /* plain path */
+  }
+  if (!path.startsWith('/')) path = `/${path}`;
+
+  const title = path;
+  const relative = stripWebsiteDashboardPrefix(path, websiteId);
+  const display =
+    relative.length <= HEATMAP_PATH_MAX
+      ? relative
+      : `${relative.slice(0, HEATMAP_PATH_MAX - 1)}…`;
+  return { display, title };
+}
+
 // Unified row type for table (merges demo + real data shapes)
 interface PageRow {
-  url:          string;
-  views:        number;
-  clicks:       number;
-  scroll_events: number;
-  avg_scroll:   number;
-  active:       boolean;
-  last_seen?:   string;
+  url:        string;
+  views:      number;
+  clicks:     number;
+  avg_scroll: number;
+  active:     boolean;
+  last_seen?: string;
 }
 
 export default function HeatmapsPage() {
@@ -96,22 +127,20 @@ export default function HeatmapsPage() {
   const pages: PageRow[] = useMemo(() => {
     if (isDemoMode) {
       return demoHeatmapPages().map(p => ({
-        url:           p.url,
-        views:         p.views,
-        clicks:        p.clicks,
-        scroll_events: Math.max(0, p.views - p.clicks),
-        avg_scroll:    p.avg_scroll,
-        active:        p.active,
+        url:        p.url,
+        views:      p.views,
+        clicks:     p.clicks,
+        avg_scroll: p.avg_scroll,
+        active:     p.active,
       }));
     }
     return (apiPages ?? []).map((p: HeatmapPageSummary) => ({
-      url:           p.page_path,
-      views:         p.click_count + p.scroll_count,
-      clicks:        p.click_count,
-      scroll_events: p.scroll_count,
-      avg_scroll:    p.avg_scroll,
-      active:        true,
-      last_seen:     p.last_seen,
+      url:        p.page_path,
+      views:      p.click_count + p.scroll_count,
+      clicks:     p.click_count,
+      avg_scroll: p.avg_scroll,
+      active:     true,
+      last_seen:  p.last_seen,
     }));
   }, [isDemoMode, apiPages]);
 
@@ -134,25 +163,34 @@ export default function HeatmapsPage() {
 
       header: ({ column }) => <SortableHeader column={column}>Page</SortableHeader>,
       accessorKey: 'url',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <span className={cn(
-            'h-1.5 w-1.5 rounded-full shrink-0',
-            row.original.active ? 'bg-green-500' : 'bg-muted-foreground/30',
-          )} />
-          <span className="font-mono text-sm text-foreground">{row.original.url}</span>
-          {row.original.active && (
-            <Badge className="text-[10px] h-4 px-1.5 bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 border">
-              live
-            </Badge>
-          )}
-          {row.original.last_seen && (
-            <span className="text-[10px] text-muted-foreground ml-auto">
-              {new Date(row.original.last_seen).toLocaleDateString()}
-            </span>
-          )}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const { display, title } = heatmapPathDisplay(row.original.url, websiteId);
+        return (
+          <div className="min-w-0 max-w-[min(100%,36rem)]">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className={cn(
+                  'h-1.5 w-1.5 rounded-full shrink-0 mt-px',
+                  row.original.active ? 'bg-emerald-500/90' : 'bg-muted-foreground/35',
+                )}
+                title={row.original.active ? 'Receiving data' : 'Inactive'}
+              />
+              <span className="font-mono text-xs text-foreground truncate" title={title}>
+                {display}
+              </span>
+            </div>
+            {row.original.last_seen ? (
+              <p className="text-[11px] text-muted-foreground tabular-nums pl-3.5 mt-0.5">
+                {new Date(row.original.last_seen).toLocaleDateString(undefined, {
+                  month: 'numeric',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </p>
+            ) : null}
+          </div>
+        );
+      },
     },
     {
       id: 'views',
@@ -160,7 +198,7 @@ export default function HeatmapsPage() {
       accessorKey: 'views',
       size: 100,
       cell: ({ getValue }) => (
-        <span className="text-sm font-semibold">{(getValue() as number).toLocaleString()}</span>
+        <span className="text-sm tabular-nums text-foreground">{(getValue() as number).toLocaleString()}</span>
       ),
     },
     {
@@ -169,69 +207,19 @@ export default function HeatmapsPage() {
       accessorKey: 'clicks',
       size: 100,
       cell: ({ getValue }) => (
-        <span className="text-sm font-semibold">{(getValue() as number).toLocaleString()}</span>
+        <span className="text-sm tabular-nums text-foreground">{(getValue() as number).toLocaleString()}</span>
       ),
-    },
-    {
-      id: 'scroll_events',
-      header: ({ column }) => (
-        <SortableHeader column={column}>
-          <span className="flex items-center gap-1">
-            <TrendingDown className="h-3 w-3 opacity-60" />
-            Scroll
-          </span>
-        </SortableHeader>
-      ),
-      accessorKey: 'scroll_events',
-      size: 100,
-      cell: ({ getValue }) => (
-        <span className="text-sm font-semibold text-muted-foreground">
-          {(getValue() as number).toLocaleString()}
-        </span>
-      ),
-    },
-    {
-      id: 'avg_scroll',
-      header: ({ column }) => <SortableHeader column={column}>Avg Scroll</SortableHeader>,
-      accessorKey: 'avg_scroll',
-      size: 140,
-      cell: ({ getValue }) => {
-        const v = getValue() as number;
-        return v > 0 ? (
-          <div className="flex items-center gap-2">
-            <Progress value={v} className="h-1.5 flex-1" />
-            <span className="text-xs font-semibold w-8 text-right shrink-0">{v}%</span>
-          </div>
-        ) : <span className="text-xs text-muted-foreground">—</span>;
-      },
-    },
-    {
-      id: 'click_rate',
-      header: ({ column }) => <SortableHeader column={column}>Click Rate</SortableHeader>,
-      accessorFn: row => row.views > 0 ? (row.clicks / row.views) * 100 : 0,
-      size: 100,
-      cell: ({ getValue }) => {
-        const rate = getValue() as number;
-        return rate > 0 ? (
-          <span className={cn(
-            'text-sm font-semibold',
-            rate >= 30 ? 'text-green-600' : rate >= 15 ? 'text-amber-600' : 'text-muted-foreground',
-          )}>
-            {rate.toFixed(1)}%
-          </span>
-        ) : <span className="text-xs text-muted-foreground">—</span>;
-      },
     },
     {
       id: 'actions',
       header: '',
       size: 112,
       cell: ({ row }) => (
-        <div className="flex justify-end items-center gap-0.5 pr-1">
+        <div className="flex justify-end items-center gap-0 pr-0.5">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            className="h-7 w-7 text-muted-foreground hover:text-foreground"
             title="Copy link to this heatmap"
             onClick={(e) => {
               e.stopPropagation();
@@ -243,7 +231,7 @@ export default function HeatmapsPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-primary hover:bg-primary/10"
+            className="h-7 w-7 text-primary hover:bg-primary/10"
             title="Open heatmap"
             onClick={(e) => {
               e.stopPropagation();
@@ -255,7 +243,7 @@ export default function HeatmapsPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
+            className="h-7 w-7 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30"
             title="Delete data for this page"
             onClick={(e) => {
               e.stopPropagation();
@@ -269,15 +257,14 @@ export default function HeatmapsPage() {
         </div>
       ),
     },
-  ], [copyHeatmapLink, heatmapHref, router, deleteMutation]);
+  ], [copyHeatmapLink, heatmapHref, router, deleteMutation, websiteId]);
 
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto">
+    <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
         title="Heatmaps"
         description="See where users click, move, and how far they scroll on each page."
-        icon={Flame}
       >
         {!isDemoMode && (
           <Button
@@ -309,6 +296,7 @@ export default function HeatmapsPage() {
       ]} />
 
       <DataTable
+        className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-4 [&_th]:!py-3"
         data={filtered}
         columns={columns}
         isLoading={isLoading}

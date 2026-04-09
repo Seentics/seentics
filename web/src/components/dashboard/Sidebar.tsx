@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
-  LayoutDashboard, Activity, Target, GitBranch,
-  Video, Bot, Code2, Settings, CreditCard,
+  LayoutDashboard, Activity, GitBranch,
+  Video, Flame, Bot, Code2, Settings, CreditCard,
   LogOut, PanelLeftClose, PanelLeftOpen, LifeBuoy,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
@@ -23,8 +23,8 @@ function buildMainNav(websiteId: string): NavItem[] {
   return [
     { label: 'Overview',        href: `/websites/${websiteId}`,             icon: LayoutDashboard },
     { label: 'Realtime',        href: `/websites/${websiteId}/realtime`,    icon: Activity },
-    { label: 'Goals',           href: `/websites/${websiteId}/goals`,       icon: Target },
     { label: 'Recording', href: `/websites/${websiteId}/replays`,     icon: Video },
+    { label: 'Heatmaps',  href: `/websites/${websiteId}/heatmaps`,   icon: Flame },
     { label: 'Funnels',         href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
     { label: 'Automations',     href: `/websites/${websiteId}/automations`, icon: Bot },
   ];

@@ -29,10 +29,11 @@ func (h *HeatmapHandler) resolveWebsiteUUID(c *gin.Context) (uuid.UUID, bool) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
 		return uuid.Nil, false
 	}
-	if id, err := uuid.Parse(raw); err == nil {
-		return id, true
+	if _, err := uuid.Parse(raw); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid website_id"})
+		return uuid.Nil, false
 	}
-	w, err := h.websites.GetWebsiteByAnyID(c.Request.Context(), raw)
+	w, err := h.websites.GetWebsiteByID(c.Request.Context(), raw)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "website not found"})
 		return uuid.Nil, false

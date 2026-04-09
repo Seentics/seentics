@@ -10,7 +10,7 @@ export default function GoalConversionsPage() {
   const websiteId = params?.websiteId as string;
 
   return (
-    <div className="p-4 sm:p-8 space-y-8 animate-in fade-in duration-500 max-w-[1440px] mx-auto">
+    <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
       <DashboardPageHeader
         title="Goal Conversions"
         description="Define what success looks like for your website."

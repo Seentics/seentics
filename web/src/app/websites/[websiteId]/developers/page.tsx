@@ -532,7 +532,7 @@ function DocsTab({ websiteId }: { websiteId: string }) {
   const [tab, setTab] = useState<SdkTab>('Node.js');
 
   return (
-    <div className="space-y-8 max-w-[800px]">
+    <div className="w-full space-y-8">
       <div>
         <h2 className="text-sm font-semibold text-foreground">Documentation</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
@@ -640,11 +640,10 @@ export default function DevelopersPage() {
   const websiteId = params?.websiteId as string;
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1100px] mx-auto">
+    <div className="mx-auto w-full max-w-[1200px] p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
         title="Developers"
         description="API keys, embeddable widgets, and SDK documentation."
-        icon={Code2}
       />
 
       <Tabs defaultValue="api-keys">

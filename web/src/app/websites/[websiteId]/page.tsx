@@ -40,6 +40,7 @@ import { AddWebsiteModal } from '@/components/websites/AddWebsiteModal';
 import { FilterModal } from '@/components/analytics/FilterModal';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection';
 
 // Pure helper — defined outside component so it's never re-created on render
 function categorizeReferrer(referrer: string): string {
@@ -589,6 +590,10 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          <ChartErrorBoundary label="Goals">
+            <WebsiteGoalsSection websiteId={deferredId} days={dateRange} />
+          </ChartErrorBoundary>
 
         </div>
 

@@ -230,6 +230,7 @@ export default function ReplayDetailPage() {
               <SessionReplaySurface
                 className="mt-0 flex min-w-0 w-full flex-col sm:!mt-0"
                 events={events}
+                websiteId={websiteId}
                 sessionSummary={
                   session
                     ? {
@@ -248,7 +249,11 @@ export default function ReplayDetailPage() {
           </div>
 
           {hasRecording ? (
-            <ReplaySessionSidebar replayBridge={replayBridge} session={session ?? null} />
+            <ReplaySessionSidebar
+              replayBridge={replayBridge}
+              session={session ?? null}
+              websiteId={websiteId}
+            />
           ) : null}
         </div>
       </ReplayPlaybackProvider>

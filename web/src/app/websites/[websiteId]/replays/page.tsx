@@ -6,16 +6,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { DataTable, SortableHeader, ColumnDef, selectionColumn } from '@/components/ui/data-table';
 import { StatCards } from '@/components/seentics-ui/StatCards';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Video,
   Clock,
-  Monitor,
-  Smartphone,
-  Tablet,
   AlertTriangle,
   Search,
   Users,
@@ -29,6 +25,7 @@ import { isDemo } from '@/lib/demo';
 import { demoReplays } from '@/lib/demo/replays';
 import { listSessions, deleteSessions, type ReplaySession } from '@/lib/replays-api';
 import { useToast } from '@/hooks/use-toast';
+import { SessionClientVisuals, SessionCountryVisual } from '@/components/replays/session-environment-visuals';
 
 
 function formatDuration(seconds: number): string {
@@ -45,11 +42,38 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function DeviceIcon({ device }: { device: string }) {
-  const d = device.toLowerCase();
-  if (d === 'mobile') return <Smartphone className="h-3.5 w-3.5" />;
-  if (d === 'tablet') return <Tablet className="h-3.5 w-3.5" />;
-  return <Monitor className="h-3.5 w-3.5" />;
+/** Strip origin; keep path (+ query). Truncate for table cells; tooltip shows full path. */
+const ENTRY_PATH_MAX = 56;
+
+/** Drop redundant `/websites/{id}/` when entry URLs are recorded as dashboard routes. */
+function stripWebsiteDashboardPrefix(path: string, websiteId: string): string {
+  if (!websiteId) return path;
+  const prefix = `/websites/${websiteId}`;
+  if (path === prefix || path === `${prefix}/`) return '/';
+  if (path.startsWith(`${prefix}/`)) return path.slice(prefix.length);
+  return path;
+}
+
+function entryPathDisplay(raw: string, websiteId: string): { display: string; title: string } {
+  const t = raw?.trim() || '/';
+  let path = t;
+  try {
+    if (/^[a-z][a-z0-9+.-]*:\/\//i.test(t) || t.startsWith('//')) {
+      const u = new URL(t.startsWith('//') ? `https:${t}` : t);
+      path = `${u.pathname}${u.search}` || '/';
+    }
+  } catch {
+    /* treat as plain path */
+  }
+  if (!path.startsWith('/')) path = `/${path}`;
+
+  const title = path;
+  const relative = stripWebsiteDashboardPrefix(path, websiteId);
+  const display =
+    relative.length <= ENTRY_PATH_MAX
+      ? relative
+      : `${relative.slice(0, ENTRY_PATH_MAX - 1)}…`;
+  return { display, title };
 }
 
 // Unified row type
@@ -151,7 +175,7 @@ export default function ReplaysPage() {
       entry_page: s.entryPage || '/',
       duration_seconds: s.durationSeconds || 0,
       pages_viewed: s.pagesViewed || 0,
-      has_errors: false,
+      has_errors: Boolean(s.hasErrors),
       has_rage_clicks: s.hasRageClicks,
       start_time: s.startedAt,
     }));
@@ -163,7 +187,7 @@ export default function ReplaysPage() {
       if (deviceFilter !== 'all' && s.device.toLowerCase() !== deviceFilter) return false;
       if (
         search &&
-        ![s.country, s.browser, s.entry_page, s.session_id].some(v =>
+        ![s.country, s.browser, s.os, s.device, s.entry_page, s.session_id].some(v =>
           v.toLowerCase().includes(search.toLowerCase()),
         )
       ) {
@@ -185,81 +209,83 @@ export default function ReplaysPage() {
     {
       id: 'country',
       accessorKey: 'country',
-      header: ({ column }) => <SortableHeader column={column}>Country</SortableHeader>,
+      header: ({ column }) => <SortableHeader column={column}>Origin</SortableHeader>,
       size: 200,
       cell: ({ row }) => {
         const s = row.original;
         return (
-          <div className="flex items-center gap-3 py-1">
-            <div className="flex flex-col gap-0.5">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-foreground tracking-tight">{s.country}</span>
-                {(s.has_errors || s.has_rage_clicks) && (
-                  <div className="flex gap-1 items-center">
-                    {s.has_rage_clicks && <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]" />}
-                    {s.has_errors && <div className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]" />}
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground/80 font-semibold uppercase tracking-wider">
-                <DeviceIcon device={s.device} />
-                <span>{s.browser}</span>
-                <span className="opacity-40">•</span>
-                <span>{s.os}</span>
-              </div>
-            </div>
+          <div className="flex items-center gap-4 min-h-10">
+            <SessionCountryVisual country={s.country} />
+            {(s.has_errors || s.has_rage_clicks) && (
+              <span
+                className="flex flex-col gap-1.5 shrink-0"
+                title={[s.has_rage_clicks && 'Rage clicks', s.has_errors && 'Issues'].filter(Boolean).join(' · ')}
+              >
+                {s.has_rage_clicks && <span className="size-2 rounded-full bg-amber-500 shadow-sm" aria-hidden />}
+                {s.has_errors && <span className="size-2 rounded-full bg-red-500 shadow-sm" aria-hidden />}
+              </span>
+            )}
           </div>
         );
       },
     },
     {
+      id: 'client',
+      header: 'Client',
+      accessorFn: row => `${row.browser}|${row.os}|${row.device}`,
+      size: 200,
+      cell: ({ row }) => {
+        const s = row.original;
+        return <SessionClientVisuals browser={s.browser} os={s.os} device={s.device} />;
+      },
+    },
+    {
       id: 'entry_page',
-      header: 'Entry Page',
+      header: 'Entry page',
       accessorKey: 'entry_page',
-      size: 350,
-      cell: ({ getValue }) => (
-        <div className="max-w-[350px] truncate group">
-          <span className="font-mono text-[11px] text-muted-foreground group-hover:text-primary transition-colors cursor-default">
-            {getValue() as string}
+      size: 240,
+      cell: ({ getValue }) => {
+        const { display, title } = entryPathDisplay(getValue() as string, websiteId);
+        return (
+          <span className="font-mono text-xs text-muted-foreground block min-w-0 max-w-[min(100%,28rem)] truncate" title={title}>
+            {display}
           </span>
-        </div>
-      ),
+        );
+      },
     },
     {
       id: 'duration',
       header: ({ column }) => <SortableHeader column={column}>Duration</SortableHeader>,
       accessorKey: 'duration_seconds',
-      size: 110,
+      size: 96,
       cell: ({ getValue }) => {
         const v = getValue() as number;
         return (
-          <div className="flex items-center gap-1.5 text-xs text-foreground font-medium bg-muted/30 w-fit px-2 py-0.5 rounded-md border border-border/40">
-            <Clock className="h-3 w-3 text-muted-foreground" />
-            {v > 0 ? formatDuration(v) : '0s'}
-          </div>
+          <span className="text-sm tabular-nums text-foreground tracking-wide">
+            {v > 0 ? formatDuration(v) : '—'}
+          </span>
         );
       },
     },
     {
       id: 'when',
-      header: 'When',
+      header: ({ column }) => <SortableHeader column={column}>Recorded</SortableHeader>,
       accessorKey: 'start_time',
-      size: 130,
-
+      size: 96,
       cell: ({ getValue }) => (
-        <span className="text-xs text-muted-foreground font-medium">{timeAgo(getValue() as string)}</span>
+        <span className="text-sm text-muted-foreground whitespace-nowrap">{timeAgo(getValue() as string)}</span>
       ),
     },
     {
       id: 'actions',
       header: '',
-      size: 108,
+      size: 120,
       cell: ({ row }) => (
-        <div className="flex justify-end items-center gap-0.5 pr-1">
+        <div className="flex justify-end items-center gap-1 pr-1">
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-primary"
+            className="h-9 w-9 text-muted-foreground hover:text-foreground"
             title="Copy session ID"
             onClick={(e) => {
               e.stopPropagation();
@@ -271,7 +297,7 @@ export default function ReplaysPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-primary hover:bg-primary/10"
+            className="h-9 w-9 text-foreground hover:bg-muted"
             title="Watch replay"
             onClick={(e) => {
               e.stopPropagation();
@@ -283,7 +309,7 @@ export default function ReplaysPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full"
+            className="h-9 w-9 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
             title="Delete session"
             onClick={(e) => {
               e.stopPropagation();
@@ -309,7 +335,6 @@ export default function ReplaysPage() {
       <DashboardPageHeader
         title="Session Replays"
         description="Watch real user sessions to understand exactly how people use your product."
-        icon={Video}
       >
         {!isDemoMode && (
           <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => refetch()}>
@@ -333,9 +358,11 @@ export default function ReplaysPage() {
       ]} />
 
       <DataTable
+        className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-5 [&_th]:!py-3.5"
         data={filtered}
         columns={columns}
         isLoading={isLoading}
+        rowClassName={() => 'hover:bg-muted/40'}
         enableRowSelection={true}
         selectionActions={(selectedRows) => (
           <>
@@ -360,9 +387,11 @@ export default function ReplaysPage() {
         )}
         toolbarLeft={
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Recorded Sessions</h3>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {filtered.length} session{filtered.length !== 1 ? 's' : ''} recorded
+            <h3 className="text-base font-medium tracking-tight text-foreground">Recorded sessions</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {filtered.length === 0
+                ? 'No recordings match filters.'
+                : `${filtered.length} session${filtered.length !== 1 ? 's' : ''} recorded`}
             </p>
           </div>
         }
@@ -371,7 +400,7 @@ export default function ReplaysPage() {
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
-                placeholder="Search country, browser, page, session ID…"
+                placeholder="Search country, browser, OS, page…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-8 h-8 text-xs w-56"

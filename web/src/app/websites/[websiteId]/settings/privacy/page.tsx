@@ -9,7 +9,7 @@ export default function PrivacySettingsPage() {
   const websiteId = params?.websiteId as string;
 
   return (
-    <div className="p-4 sm:p-8 max-w-[1440px] mx-auto">
+    <div className="p-4 sm:p-8">
       <PrivacySettingsComponent websiteId={websiteId} />
     </div>
   );

@@ -84,7 +84,7 @@ func (s *AnalyticsService) resolveWebsiteID(ctx context.Context, websiteID strin
 	if s.websites == nil {
 		return websiteID
 	}
-	website, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
+	website, err := s.websites.GetWebsiteByID(ctx, websiteID)
 	if err != nil {
 		return websiteID
 	}
@@ -102,7 +102,7 @@ func (s *AnalyticsService) validateOwnership(ctx context.Context, websiteID stri
 		return "", fmt.Errorf("invalid user_id format")
 	}
 
-	w, err := s.websites.GetWebsiteByAnyID(ctx, websiteID)
+	w, err := s.websites.GetWebsiteByID(ctx, websiteID)
 	if err != nil {
 		return "", fmt.Errorf("website not found")
 	}
@@ -545,7 +545,8 @@ func (s *AnalyticsService) GetRecentActivity(ctx context.Context, websiteID stri
 		return nil, err
 	}
 	cacheKey := fmt.Sprintf("analytics:recent_activity:%s:%d", canonicalID, limit)
-	return cachedQuery(s.cache, cacheKey, cacheTTLStats, func() ([]models.RecentActivity, error) {
+	// Short TTL: used on the realtime page for a live-style log (query itself is last 24h only).
+	return cachedQuery(s.cache, cacheKey, 10*time.Second, func() ([]models.RecentActivity, error) {
 		return s.repo.GetRecentActivity(ctx, canonicalID, limit)
 	})
 }

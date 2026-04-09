@@ -147,9 +147,13 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle other error messages
-    if (error.response?.data?.message) {
-      return Promise.reject(new Error(error.response.data.message));
+    // Handle other error messages (API uses `message` or `error`)
+    const data = error.response?.data as { message?: string; error?: string } | undefined;
+    const apiMsg =
+      (typeof data?.message === 'string' && data.message) ||
+      (typeof data?.error === 'string' && data.error);
+    if (apiMsg) {
+      return Promise.reject(new Error(apiMsg));
     }
 
     return Promise.reject(error);

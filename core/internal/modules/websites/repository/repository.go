@@ -14,6 +14,7 @@ import (
 
 var (
 	ErrWebsiteNotFound = errors.New("website not found")
+	ErrGoalNotFound    = errors.New("goal not found")
 )
 
 type WebsiteRepository struct {
@@ -281,10 +282,9 @@ func (r *WebsiteRepository) GetByUUIDOnly(ctx context.Context, id uuid.UUID) (*m
 	return &w, nil
 }
 
-// Delete removes a website
+// Delete removes a website by primary key UUID.
 func (r *WebsiteRepository) Delete(ctx context.Context, id string, userID uuid.UUID) error {
-	// id can be UUID string or SiteID string. We'll try both for safety but frontend usually sends public site_id or UUID
-	query := `DELETE FROM websites WHERE (id::text = $1 OR site_id = $1) AND user_id = $2`
+	query := `DELETE FROM websites WHERE id::text = $1 AND user_id = $2`
 	result, err := r.db.Exec(ctx, query, id, userID)
 	if err != nil {
 		return fmt.Errorf("failed to delete website: %w", err)
@@ -356,10 +356,25 @@ func (r *WebsiteRepository) CreateGoal(ctx context.Context, goal *models.Goal) e
 	return r.db.QueryRow(ctx, query, goal.WebsiteID, goal.Name, goal.Type, goal.Identifier, goal.Selector, goal.Revenue, goal.Currency, time.Now(), time.Now()).Scan(&goal.ID)
 }
 
+func (r *WebsiteRepository) UpdateGoal(ctx context.Context, goalID uuid.UUID, websiteID uuid.UUID, name, goalType, identifier string, selector *string, revenue *float64, currency *string) error {
+	query := `
+		UPDATE goals
+		SET name = $1, type = $2, identifier = $3, selector = $4, revenue = $5, currency = $6, updated_at = $7
+		WHERE id = $8 AND website_id = $9`
+	_, err := r.db.Exec(ctx, query, name, goalType, identifier, selector, revenue, currency, time.Now(), goalID, websiteID)
+	return err
+}
+
 func (r *WebsiteRepository) DeleteGoal(ctx context.Context, id uuid.UUID, websiteID uuid.UUID) error {
 	query := `DELETE FROM goals WHERE id = $1 AND website_id = $2`
-	_, err := r.db.Exec(ctx, query, id, websiteID)
-	return err
+	tag, err := r.db.Exec(ctx, query, id, websiteID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrGoalNotFound
+	}
+	return nil
 }
 
 // --- Members ---

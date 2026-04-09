@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/Seentics/seentics/internal/modules/websites/models"
+	"github.com/Seentics/seentics/internal/modules/websites/repository"
 	"github.com/Seentics/seentics/internal/modules/websites/services"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -23,11 +25,11 @@ func NewWebsiteHandler(service *services.WebsiteService, logger zerolog.Logger) 
 	}
 }
 
-// GetTrackerConfig handles the GET /api/v1/tracker/config/:site_id request (Public)
+// GetTrackerConfig handles the GET /api/v1/tracker/config/:website_id request (Public)
 func (h *WebsiteHandler) GetTrackerConfig(c *gin.Context) {
-	siteID := c.Param("site_id")
-	if siteID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Site ID is required"})
+	websiteID := c.Param("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id is required"})
 		return
 	}
 
@@ -37,9 +39,9 @@ func (h *WebsiteHandler) GetTrackerConfig(c *gin.Context) {
 		origin = c.Request.Header.Get("Referer")
 	}
 
-	config, err := h.service.GetTrackerConfig(c.Request.Context(), siteID, origin)
+	config, err := h.service.GetTrackerConfig(c.Request.Context(), websiteID, origin)
 	if err != nil {
-		h.logger.Warn().Err(err).Str("site_id", siteID).Str("origin", origin).Msg("Tracker config fetch failed")
+		h.logger.Warn().Err(err).Str("website_id", websiteID).Str("origin", origin).Msg("Tracker config fetch failed")
 		c.JSON(http.StatusNotFound, gin.H{"error": "Website not found or domain mismatch"})
 		return
 	}
@@ -120,7 +122,7 @@ func (h *WebsiteHandler) Get(c *gin.Context) {
 	}
 
 	id := c.Param("id")
-	website, err := h.service.GetWebsiteBySiteID(c.Request.Context(), id)
+	website, err := h.service.GetWebsiteByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Website not found"})
 		return
@@ -219,6 +221,37 @@ func (h *WebsiteHandler) CreateGoal(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Goal created successfully", "data": goal})
 }
 
+// UpdateGoal handles PATCH /api/v1/user/websites/:id/goals/:goal_id
+func (h *WebsiteHandler) UpdateGoal(c *gin.Context) {
+	requesterID, ok := h.extractUserID(c)
+	if !ok {
+		return
+	}
+	id := c.Param("id")
+	role, err := h.service.GetUserRole(c.Request.Context(), id, requesterID)
+	if err != nil || role == "" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Not a member of this website"})
+		return
+	}
+	goalIDStr := c.Param("goal_id")
+	goalID, err := uuid.Parse(goalIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid goal ID"})
+		return
+	}
+	var req models.CreateGoalRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	goal, err := h.service.UpdateGoal(c.Request.Context(), id, goalID, req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update goal"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Goal updated successfully", "data": goal})
+}
+
 // DeleteGoal handles DELETE /api/v1/user/websites/:id/goals/:goal_id
 func (h *WebsiteHandler) DeleteGoal(c *gin.Context) {
 	requesterID, ok := h.extractUserID(c)
@@ -240,6 +273,10 @@ func (h *WebsiteHandler) DeleteGoal(c *gin.Context) {
 	}
 
 	if err := h.service.DeleteGoal(c.Request.Context(), id, goalID); err != nil {
+		if errors.Is(err, repository.ErrGoalNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Goal not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete goal"})
 		return
 	}

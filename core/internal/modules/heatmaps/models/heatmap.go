@@ -1,16 +1,21 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // HeatmapPoint represents a single interaction point on a page
 type HeatmapPoint struct {
-	PagePath       string `json:"page_path"`
-	EventType      string `json:"event_type"` // "click" or "scroll"
-	DeviceType     string `json:"device_type"`
-	XPercent       int    `json:"x_percent"`  // click: 0–10000 (nx*10000); nx = pageX/docScrollWidth; scroll: 0
-	YPercent       int    `json:"y_percent"`  // click: pageY/docScrollHeight; scroll: depth%*100 (e.g. 2500 = 25%)
-	Intensity      int    `json:"intensity"`
-	TargetSelector string `json:"target_selector"`
+	WebsiteID      uuid.UUID `json:"website_id"`
+	PagePath       string    `json:"page_path"`
+	EventType      string    `json:"event_type"` // "click" or "scroll"
+	DeviceType     string    `json:"device_type"`
+	XPercent       int       `json:"x_percent"`  // click: 0–10000 (nx*10000); nx = pageX/docScrollWidth; scroll: 0
+	YPercent       int       `json:"y_percent"`  // click: pageY/docScrollHeight; scroll: depth%*100 (e.g. 2500 = 25%)
+	Intensity      int       `json:"intensity"`
+	TargetSelector string    `json:"target_selector"`
 }
 
 // HeatmapData groups all points for a given page

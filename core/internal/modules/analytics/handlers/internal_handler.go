@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"net/http"
 	"time"
 
@@ -8,14 +9,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
+
+	replayrepo "github.com/Seentics/seentics/internal/modules/replays/repository"
 )
 
 // InternalHandler serves internal API endpoints consumed by the enterprise gateway.
 // These endpoints are protected by API key (not JWT).
 type InternalHandler struct {
-	db     *pgxpool.Pool
-	ch     driver.Conn
-	logger zerolog.Logger
+	db         *pgxpool.Pool
+	ch         driver.Conn
+	replayRepo *replayrepo.ReplayRepository
+	logger     zerolog.Logger
 }
 
 func NewInternalHandler(db *pgxpool.Pool, logger zerolog.Logger) *InternalHandler {
@@ -25,6 +29,59 @@ func NewInternalHandler(db *pgxpool.Pool, logger zerolog.Logger) *InternalHandle
 // SetClickHouse adds a ClickHouse connection to the handler
 func (h *InternalHandler) SetClickHouse(ch driver.Conn) {
 	h.ch = ch
+}
+
+// SetReplayRepository enables deleting session replay chunks from S3/MinIO during retention cleanup.
+func (h *InternalHandler) SetReplayRepository(r *replayrepo.ReplayRepository) {
+	h.replayRepo = r
+}
+
+// deleteReplayChunksFromStorage removes object-storage blobs for sessions matching the same predicate
+// as the subsequent Postgres DELETE (per-user site id lists).
+func (h *InternalHandler) deleteReplayChunksFromStorage(ctx context.Context, siteIDs, uuidStrings []string, recordingDays int, deleteAll bool) {
+	if h.replayRepo == nil || len(siteIDs) == 0 {
+		return
+	}
+
+	var (
+		q    string
+		args []any
+	)
+	if deleteAll {
+		q = `
+			SELECT DISTINCT website_id, session_id
+			FROM session_replays
+			WHERE website_id = ANY($1) OR website_id = ANY($2)`
+		args = []any{siteIDs, uuidStrings}
+	} else {
+		q = `
+			SELECT DISTINCT website_id, session_id
+			FROM session_replays
+			WHERE (website_id = ANY($1) OR website_id = ANY($2))
+			  AND created_at < NOW() - $3 * INTERVAL '1 day'`
+		args = []any{siteIDs, uuidStrings, recordingDays}
+	}
+
+	rows, err := h.db.Query(ctx, q, args...)
+	if err != nil {
+		h.logger.Warn().Err(err).Msg("Retention: failed to list sessions for S3 cleanup")
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var wid, sid string
+		if err := rows.Scan(&wid, &sid); err != nil {
+			continue
+		}
+		if err := h.replayRepo.DeleteSessionChunks(ctx, wid, sid); err != nil {
+			h.logger.Warn().Err(err).Str("website_id", wid).Str("session_id", sid).
+				Msg("Retention: failed to delete replay chunks from object storage")
+		}
+	}
+	if err := rows.Err(); err != nil {
+		h.logger.Warn().Err(err).Msg("Retention: error iterating sessions for S3 cleanup")
+	}
 }
 
 // GetUserResourceCounts returns the current count of each resource type for a user.
@@ -231,19 +288,19 @@ func (h *InternalHandler) GetSystemStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
 
-// GetWebsiteOwner returns the user ID that owns a website identified by site_id.
+// GetWebsiteOwner returns the user ID that owns a website identified by website UUID.
 // Used by the enterprise gateway to resolve website ownership for billing checks.
 func (h *InternalHandler) GetWebsiteOwner(c *gin.Context) {
-	siteID := c.Query("site_id")
-	if siteID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "site_id query parameter required"})
+	websiteID := c.Query("website_id")
+	if websiteID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "website_id query parameter required"})
 		return
 	}
 
 	var userID string
 	err := h.db.QueryRow(c.Request.Context(),
-		"SELECT user_id::text FROM websites WHERE site_id = $1 OR id::text = $1",
-		siteID,
+		"SELECT user_id::text FROM websites WHERE id::text = $1",
+		websiteID,
 	).Scan(&userID)
 
 	if err != nil {
@@ -313,8 +370,9 @@ func (h *InternalHandler) RetentionCleanup(c *gin.Context) {
 		}
 	}
 
-	// Delete old session replays from PostgreSQL
+	// Delete old session replays: object storage chunks first, then PostgreSQL metadata.
 	if req.RecordingRetentionDays > 0 {
+		h.deleteReplayChunksFromStorage(ctx, siteIDs, uuidStrings, req.RecordingRetentionDays, false)
 		tag, err := h.db.Exec(ctx,
 			"DELETE FROM session_replays WHERE (website_id = ANY($1) OR website_id = ANY($2)) AND created_at < NOW() - $3 * INTERVAL '1 day'",
 			siteIDs, uuidStrings, req.RecordingRetentionDays,
@@ -326,6 +384,7 @@ func (h *InternalHandler) RetentionCleanup(c *gin.Context) {
 		}
 	} else if req.RecordingRetentionDays == 0 {
 		// 0 means no recordings allowed (Starter plan) — delete all
+		h.deleteReplayChunksFromStorage(ctx, siteIDs, uuidStrings, 0, true)
 		tag, err := h.db.Exec(ctx,
 			"DELETE FROM session_replays WHERE website_id = ANY($1) OR website_id = ANY($2)",
 			siteIDs, uuidStrings,

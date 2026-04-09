@@ -7,11 +7,12 @@
 
   // ─── Config ───────────────────────────────────────────────────────────────
   const script   = document.currentScript;
-  const siteId   = script.getAttribute('data-website-id');
+  // data-website-id must be the website UUID (same as the dashboard project id).
+  const websiteId = script.getAttribute('data-website-id');
   const apiHost  = script.getAttribute('data-api-host') || 'https://api.seentics.com';
   const autoTrack = script.getAttribute('data-auto-track') !== 'false';
   const domain   = window.location.hostname;
-  const COLLECT  = apiHost + '/api/v1/collect';
+  const COLLECT  = apiHost + '/api/v1/tracker/collect';
   const MAX_BATCH = 25;
   const FLUSH_MS  = 5000;
 
@@ -77,7 +78,7 @@
     clearTimeout(timer); timer = null;
 
     // Only include non-empty sections — keeps payload small
-    const payload = { site_id: siteId, domain };
+    const payload = { website_id: websiteId, domain };
     if (e.length) payload.events      = e;
     if (s.length) payload.session     = s;
     if (h.length) payload.heatmaps    = h;
@@ -315,12 +316,12 @@
 
   // ─── Initialise ───────────────────────────────────────────────────────────
   const init = () => {
-    if (!siteId) return;
+    if (!websiteId) return;
     initRouting();
     window.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flush(); });
     window.addEventListener('pagehide', flush);
 
-    fetch(apiHost + '/api/v1/tracker/init/' + siteId)
+    fetch(apiHost + '/api/v1/tracker/init/' + websiteId)
       .then(r => r.json())
       .then(d => {
         cfg         = d.config      || {};

@@ -75,8 +75,7 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
       setUrl('');
       
       // Instead of just closing, show the tracking code
-      const siteId = (website as any).siteId || website.id;
-      setNewWebsiteId(siteId);
+      setNewWebsiteId(website.id);
       setShowTrackingModal(true);
       onOpenChange(false); // Close the current "Add Website" form modal
 

@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { analyticsKeys } from '@/lib/analytics-api';
 import { getGoals, deleteGoal, Goal } from '@/lib/websites-api';
 import { AddGoalModal } from '../websites/modals/AddGoalModal';
 import { toast } from 'sonner';
@@ -38,9 +39,11 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
     onSuccess: () => {
       toast.success('Goal deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['goals', websiteId] });
+      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'goal-stats', websiteId] });
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Failed to delete goal');
+    onError: (error: unknown) => {
+      const message = error instanceof Error ? error.message : 'Failed to delete goal';
+      toast.error(message);
     },
   });
 

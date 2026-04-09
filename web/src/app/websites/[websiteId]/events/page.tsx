@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Zap, ChevronDown, Activity, Layers } from 'lucide-react';
+import { ChevronDown, Activity, Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 
@@ -77,7 +77,6 @@ export default function EventsPage() {
       <DashboardPageHeader
         title="Custom Events"
         description="All custom events tracked via seentics.track(). Click a row to see property breakdowns."
-        icon={Zap}
       >
         <Select value={String(dateRange)} onValueChange={v => setDateRange(Number(v))}>
           <SelectTrigger className="w-[120px] h-8 text-xs">

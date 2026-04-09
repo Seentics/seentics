@@ -10,6 +10,7 @@ import (
 	"io"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -94,6 +95,25 @@ func (c *S3Client) GetJSON(ctx context.Context, key string, dst interface{}) err
 	return json.Unmarshal(data, dst)
 }
 
+// GetJSONWithRetry downloads and unmarshals JSON, retrying transient failures.
+func (c *S3Client) GetJSONWithRetry(ctx context.Context, key string, dst interface{}) error {
+	var last error
+	for attempt := range 3 {
+		if attempt > 0 {
+			select {
+			case <-time.After(time.Duration(50*attempt) * time.Millisecond):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		last = c.GetJSON(ctx, key, dst)
+		if last == nil {
+			return nil
+		}
+	}
+	return last
+}
+
 // ListKeys returns all object keys under prefix, sorted lexicographically.
 func (c *S3Client) ListKeys(ctx context.Context, prefix string) ([]string, error) {
 	var keys []string
@@ -144,9 +164,10 @@ func (c *S3Client) DeletePrefix(ctx context.Context, prefix string) error {
 }
 
 // SessionKey returns the S3 key for a replay chunk.
-// Pattern: sessions/{websiteID}/{sessionID}/{tsMs:016d}.json
+// Pattern: sessions/{websiteID}/{sessionID}/{tsMs:016d}_{wallNanos:020d}.json
+// The nanosecond suffix prevents two flushes in the same millisecond from overwriting the same object.
 func SessionKey(websiteID, sessionID string, tsMs int64) string {
-	return fmt.Sprintf("sessions/%s/%s/%016d.json", websiteID, sessionID, tsMs)
+	return fmt.Sprintf("sessions/%s/%s/%016d_%020d.json", websiteID, sessionID, tsMs, time.Now().UnixNano())
 }
 
 // SessionPrefix returns the listing prefix for all chunks of a session.

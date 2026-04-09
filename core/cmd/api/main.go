@@ -163,6 +163,7 @@ func main() {
 		tracker:    trackerPkg.NewTrackerHandler(websiteService, eventService, funnelService, heatmapService, replayService, automationService, logger),
 	}
 	h.internal.SetClickHouse(chConn)
+	h.internal.SetReplayRepository(replayRepo)
 
 	// ── HTTP Server ─────────────────────────────────────────────────────────
 

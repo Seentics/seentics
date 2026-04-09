@@ -51,6 +51,7 @@ func setupRouter(cfg *config.Config, appCache *cache.Cache, apiKeySvc *apikeys.S
 
 	router.Use(ginGzip.Gzip(ginGzip.DefaultCompression))
 	router.Use(middleware.RequestSizeLimitMiddleware(10 * 1024 * 1024))
+	router.Use(middleware.SecurityHeadersMiddleware())
 	router.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	router.Use(middleware.ClientIPMiddleware())
 	router.Use(middleware.Logger(logger))
@@ -128,10 +129,9 @@ func registerAuthRoutes(v1 *gin.RouterGroup, h appHandlers) {
 }
 
 func registerTrackerRoutes(v1 *gin.RouterGroup, h appHandlers) {
-	v1.GET("/tracker/config/:site_id", h.website.GetTrackerConfig)
-	v1.GET("/tracker/init/:site_id", h.tracker.Init)
+	v1.GET("/tracker/config/:website_id", h.website.GetTrackerConfig)
+	v1.GET("/tracker/init/:website_id", h.tracker.Init)
 	v1.POST("/tracker/collect", middleware.DecompressMiddleware(), h.tracker.Collect)
-	v1.POST("/tracker/replay", middleware.DecompressMiddleware(), h.tracker.ReplayChunk)
 }
 
 
@@ -189,12 +189,12 @@ func registerWebsiteRoutes(v1 *gin.RouterGroup, h appHandlers) {
 		websites.GET("", h.website.List)
 		websites.POST("", h.website.Create)
 		websites.GET("/:id", h.website.Get)
-		websites.GET("/by-site-id/:id", h.website.Get)
 		websites.PUT("/:id", h.website.Update)
 		websites.DELETE("/:id", h.website.Delete)
 
 		websites.GET("/:id/goals", h.website.ListGoals)
 		websites.POST("/:id/goals", h.website.CreateGoal)
+		websites.PATCH("/:id/goals/:goal_id", h.website.UpdateGoal)
 		websites.DELETE("/:id/goals/:goal_id", h.website.DeleteGoal)
 
 		websites.GET("/:id/my-role", h.website.GetMyRole)

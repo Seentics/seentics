@@ -349,7 +349,8 @@ func (r *PrivacyRepository) ExportReplayData(userID string) ([]map[string]interf
 		       MIN(timestamp) as start_time, MAX(timestamp) as end_time,
 		       MAX(browser) as browser, MAX(device) as device, MAX(os) as os,
 		       MAX(country) as country, MAX(entry_page) as entry_page,
-		       BOOL_OR(has_rage_clicks) as has_rage_clicks
+		       BOOL_OR(has_rage_clicks) as has_rage_clicks,
+		       BOOL_OR(has_errors) as has_errors
 		FROM session_replays
 		WHERE website_id = ANY($1)
 		GROUP BY website_id, session_id
@@ -367,14 +368,14 @@ func (r *PrivacyRepository) ExportReplayData(userID string) ([]map[string]interf
 		var chunkCount int
 		var startTime, endTime time.Time
 		var browser, device, os, country, entryPage *string
-		var hasRageClicks *bool
-		if err := rows.Scan(&websiteID, &sessionID, &chunkCount, &startTime, &endTime, &browser, &device, &os, &country, &entryPage, &hasRageClicks); err != nil {
+		var hasRageClicks, hasErrors *bool
+		if err := rows.Scan(&websiteID, &sessionID, &chunkCount, &startTime, &endTime, &browser, &device, &os, &country, &entryPage, &hasRageClicks, &hasErrors); err != nil {
 			return nil, fmt.Errorf("failed to scan replay: %w", err)
 		}
 		replays = append(replays, map[string]interface{}{
 			"website_id": websiteID, "session_id": sessionID, "chunk_count": chunkCount,
 			"start_time": startTime, "end_time": endTime, "browser": browser, "device": device,
-			"os": os, "country": country, "entry_page": entryPage, "has_rage_clicks": hasRageClicks,
+			"os": os, "country": country, "entry_page": entryPage, "has_rage_clicks": hasRageClicks, "has_errors": hasErrors,
 		})
 	}
 
@@ -514,7 +515,8 @@ func (r *PrivacyRepository) ExportWebsiteData(websiteID string) (map[string]inte
 	rpRows, err := r.db.Query(ctx, `
 		SELECT website_id, session_id, COUNT(*) as chunks, MIN(timestamp) as start_time, MAX(timestamp) as end_time,
 		       MAX(browser) as browser, MAX(device) as device, MAX(os) as os, MAX(country) as country,
-		       MAX(entry_page) as entry_page, BOOL_OR(has_rage_clicks) as has_rage_clicks
+		       MAX(entry_page) as entry_page, BOOL_OR(has_rage_clicks) as has_rage_clicks,
+		       BOOL_OR(has_errors) as has_errors
 		FROM session_replays WHERE website_id = $1
 		GROUP BY website_id, session_id ORDER BY MIN(timestamp) DESC
 	`, websiteID)
@@ -526,9 +528,9 @@ func (r *PrivacyRepository) ExportWebsiteData(websiteID string) (map[string]inte
 			var chunks int
 			var st, et time.Time
 			var br, dv, os, co, ep *string
-			var rage *bool
-			if err := rpRows.Scan(&wID, &sID, &chunks, &st, &et, &br, &dv, &os, &co, &ep, &rage); err == nil {
-				replays = append(replays, map[string]interface{}{"website_id": wID, "session_id": sID, "chunk_count": chunks, "start_time": st, "end_time": et, "browser": br, "device": dv, "os": os, "country": co, "entry_page": ep, "has_rage_clicks": rage})
+			var rage, errs *bool
+			if err := rpRows.Scan(&wID, &sID, &chunks, &st, &et, &br, &dv, &os, &co, &ep, &rage, &errs); err == nil {
+				replays = append(replays, map[string]interface{}{"website_id": wID, "session_id": sID, "chunk_count": chunks, "start_time": st, "end_time": et, "browser": br, "device": dv, "os": os, "country": co, "entry_page": ep, "has_rage_clicks": rage, "has_errors": errs})
 			}
 		}
 		exportData["replays"] = replays

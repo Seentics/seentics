@@ -1,7 +1,6 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Bot, ArrowLeft, Save, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkflowEditor } from '@/components/automations/WorkflowBuilder';

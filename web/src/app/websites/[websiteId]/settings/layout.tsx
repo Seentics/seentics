@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 import { ArrowLeft, CreditCard, Goal, Settings, Shield, Users, Code2, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 import { isEnterprise } from '@/lib/features';
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
@@ -46,7 +47,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mx-auto flex w-full max-w-[1400px] gap-6 px-4 py-6 md:px-6 md:py-8">
+      <div className={cn(websiteWorkspaceShellClass, 'flex gap-6')}>
         <aside className="hidden w-64 shrink-0 lg:block">
           <div className="sticky top-6 rounded-2xl border border-border/60 bg-card p-4">
             <Button asChild variant="outline" className="mb-4 h-10 w-full justify-start gap-2 rounded-lg text-sm font-medium">

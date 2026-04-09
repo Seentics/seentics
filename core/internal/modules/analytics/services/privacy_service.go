@@ -36,7 +36,7 @@ func (s *PrivacyService) validateOwnership(ctx context.Context, websiteID string
 		return "", fmt.Errorf("invalid user_id format")
 	}
 
-	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	w, err := s.websites.GetWebsiteByID(ctx, websiteID)
 	if err != nil {
 		return "", fmt.Errorf("website not found")
 	}

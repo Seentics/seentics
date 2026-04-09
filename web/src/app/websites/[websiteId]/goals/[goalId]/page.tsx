@@ -72,10 +72,10 @@ export default function GoalDetailPage() {
           variant="ghost"
           size="sm"
           className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
-          onClick={() => router.push(`/websites/${websiteId}/goals`)}
+          onClick={() => router.push(`/websites/${websiteId}`)}
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Back to Goals
+          Back to analytics
         </Button>
       </div>
 

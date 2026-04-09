@@ -34,7 +34,7 @@ func (s *FunnelService) validateOwnership(ctx context.Context, websiteID string,
 	if err != nil {
 		return "", fmt.Errorf("invalid user_id format")
 	}
-	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	w, err := s.websites.GetWebsiteByID(ctx, websiteID)
 	if err != nil {
 		return "", fmt.Errorf("website not found")
 	}
@@ -77,9 +77,9 @@ func (s *FunnelService) ListFunnelsPaginated(ctx context.Context, websiteID stri
 }
 
 // GetActiveFunnels retrieves all active funnels for a website (public tracker endpoint).
-// Result is cached for 5 minutes; evicted on create/update/delete.
+// websiteID is the website UUID (same as dashboard / embed). Result is cached for 5 minutes; evicted on create/update/delete.
 func (s *FunnelService) GetActiveFunnels(ctx context.Context, websiteID string, origin string) ([]models.Funnel, error) {
-	w, err := s.websites.GetWebsiteBySiteID(ctx, websiteID)
+	w, err := s.websites.GetWebsiteByID(ctx, websiteID)
 	if err != nil {
 		return nil, fmt.Errorf("website not found")
 	}
@@ -105,7 +105,7 @@ func (s *FunnelService) GetActiveFunnels(ctx context.Context, websiteID string, 
 
 // TrackFunnelEvent processes a tracking event from the frontend (public)
 func (s *FunnelService) TrackFunnelEvent(ctx context.Context, req *models.TrackFunnelEventRequest, origin string) error {
-	w, err := s.websites.GetWebsiteBySiteID(ctx, req.WebsiteID)
+	w, err := s.websites.GetWebsiteByID(ctx, req.WebsiteID)
 	if err != nil {
 		return fmt.Errorf("website not found")
 	}
@@ -123,7 +123,7 @@ func (s *FunnelService) TrackFunnelEventBatch(ctx context.Context, siteID string
 	if len(events) == 0 {
 		return nil
 	}
-	w, err := s.websites.GetWebsiteBySiteID(ctx, siteID)
+	w, err := s.websites.GetWebsiteByID(ctx, siteID)
 	if err != nil {
 		return fmt.Errorf("website not found")
 	}

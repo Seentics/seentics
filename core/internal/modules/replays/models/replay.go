@@ -14,6 +14,7 @@ type Session struct {
 	StartedAt     time.Time `json:"startedAt"`
 	ChunkCount    int       `json:"chunkCount"`
 	HasRageClicks   bool      `json:"hasRageClicks"`
+	HasErrors       bool      `json:"hasErrors"`
 	DurationSeconds int       `json:"durationSeconds"`
 	PagesViewed     int       `json:"pagesViewed"`
 }

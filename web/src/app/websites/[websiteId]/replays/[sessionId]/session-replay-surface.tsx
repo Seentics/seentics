@@ -26,6 +26,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { displayRealtimePath, pathFromRaw, shortenSessionSlugInPath, stripWebsiteDashboardPrefix } from '@/lib/realtime-path';
 import {
   AlertTriangle,
   CircleDot,
@@ -160,10 +161,15 @@ const LOG_KIND_ORDER: Record<ReplayLogEntryKind, number> = {
   error: 3,
 };
 
-function shortenTimelineLabel(raw: string, max = 56): string {
-  const t = raw?.trim() || '';
-  if (t.length <= max) return t;
-  return `${t.slice(0, max - 1)}…`;
+function replayPathKey(href: string, websiteId?: string): string {
+  let path = pathFromRaw(href.trim());
+  if (!path.startsWith('/')) path = `/${path}`;
+  if (websiteId) path = stripWebsiteDashboardPrefix(path, websiteId);
+  return shortenSessionSlugInPath(path);
+}
+
+function formatReplayLogPathDetail(raw: string, websiteId?: string): string {
+  return displayRealtimePath(raw, websiteId ?? '', 72);
 }
 
 function hrefAfterFullSnapshot(events: RRWebEvent[], snapIdx: number): string | undefined {
@@ -178,23 +184,29 @@ function hrefAfterFullSnapshot(events: RRWebEvent[], snapIdx: number): string | 
 }
 
 /**
- * Ordered log of notable moments: start, page/full snapshots, rage clusters, and optional client error flag.
+ * Notable moments for the sidebar: recording start, one row per **distinct URL** (skips repeated
+ * rrweb full snapshots on the same path — the scrubber still has every snapshot).
  */
 export function buildReplayLogEntries(
   events: RRWebEvent[],
-  opts?: { entryPage?: string; hasErrors?: boolean; hasRageClicks?: boolean },
+  opts?: { entryPage?: string; hasErrors?: boolean; hasRageClicks?: boolean; websiteId?: string },
 ): ReplayLogEntry[] {
   if (events.length < 2) return [];
   const t0 = events[0].timestamp;
+  const websiteId = opts?.websiteId;
   const out: ReplayLogEntry[] = [];
 
   out.push({
     id: 'start',
     kind: 'start',
     title: 'Recording start',
-    detail: opts?.entryPage ? shortenTimelineLabel(opts.entryPage) : undefined,
+    detail: opts?.entryPage?.trim() ? formatReplayLogPathDetail(opts.entryPage.trim(), websiteId) : undefined,
     offsetMs: 0,
   });
+
+  let lastPathKey: string | null = opts?.entryPage?.trim()
+    ? replayPathKey(opts.entryPage.trim(), websiteId)
+    : null;
 
   let pageSeq = 0;
   for (let i = 0; i < events.length; i++) {
@@ -202,22 +214,27 @@ export function buildReplayLogEntries(
     const off = events[i].timestamp - t0;
     const href = hrefAfterFullSnapshot(events, i);
     if (off <= 0) {
-      if (href) {
+      if (href?.trim()) {
+        const h = href.trim();
         out[0] = {
           ...out[0],
-          detail: shortenTimelineLabel(href),
+          detail: formatReplayLogPathDetail(h, websiteId),
         };
+        lastPathKey = replayPathKey(h, websiteId);
       }
       continue;
     }
+    const htrim = href?.trim();
+    if (!htrim) continue;
+    const pathKey = replayPathKey(htrim, websiteId);
+    if (pathKey === lastPathKey) continue;
+    lastPathKey = pathKey;
     pageSeq += 1;
     out.push({
       id: `page-${pageSeq}-${off}`,
       kind: 'page',
-      title: 'Page / full snapshot',
-      detail: href
-        ? shortenTimelineLabel(href)
-        : 'New DOM snapshot (navigation or major in-app change)',
+      title: 'Page',
+      detail: formatReplayLogPathDetail(htrim, websiteId),
       offsetMs: off,
     });
   }
@@ -331,6 +348,9 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
             Math.abs(currentMs - e.offsetMs) < 2800;
           const timeLabel =
             e.offsetMs === null ? '—' : fmtClock(Math.min(durationMs, Math.max(0, e.offsetMs)));
+          const detail = e.detail?.trim();
+          const primaryLine = detail || e.title;
+          const kindLine = detail && detail !== e.title ? e.title : null;
 
           return (
             <li key={e.id} className="border-b border-border/50 last:border-b-0">
@@ -358,15 +378,24 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
                 <span className="mt-0.5">
                   <LogKindIcon kind={e.kind} />
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="font-medium text-foreground">{e.title}</span>
-                  {e.detail ? (
-                    <span className="mt-0.5 block font-mono text-[10px] text-muted-foreground">
-                      {e.detail}
+                <span className="min-w-0 flex-1 space-y-0.5">
+                  <span className="flex items-start justify-between gap-2">
+                    <span
+                      className={cn(
+                        'min-w-0 font-mono text-xs font-medium text-foreground',
+                        !detail && 'font-sans',
+                      )}
+                    >
+                      {primaryLine}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">{timeLabel}</span>
+                  </span>
+                  {kindLine ? (
+                    <span className="block text-[10px] font-medium tracking-wide text-muted-foreground">
+                      {kindLine}
                     </span>
                   ) : null}
                 </span>
-                <span className="shrink-0 tabular-nums text-muted-foreground">{timeLabel}</span>
               </button>
             </li>
           );
@@ -377,21 +406,11 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
 });
 
 /**
- * rrweb-player uses Math.min(widthScale, heightScale) (letterbox / “contain”).
- * We override `.replayer-wrapper` transform to fill the shell (“cover”) and clip overflow.
+ * Re-apply wrapper transform after resize. Use cover (Math.max scale) so the shell is filled
+ * (no side letterboxing). Anchor at the top center so overflow is clipped at the bottom, not
+ * symmetric top+bottom crop that made the header feel “cut off”.
  */
 const PLAYER_MAX_SCALE = 100;
-
-function replayViewportRatio(events: RRWebEvent[]): number {
-  for (const ev of events) {
-    if (ev.type !== RRWEB_META) continue;
-    const d = ev.data as { width?: unknown; height?: unknown };
-    const w = Number(d?.width);
-    const h = Number(d?.height);
-    if (w > 0 && h > 0) return w / h;
-  }
-  return 16 / 9;
-}
 
 function readReplayerLogicalSize(
   replayer: { wrapper: HTMLElement; iframe: HTMLIFrameElement },
@@ -401,21 +420,24 @@ function readReplayerLogicalSize(
   const ph = Number(resizePayload?.height);
   if (pw > 1 && ph > 1) return { w: pw, h: ph };
 
+  // Prefer iframe layout box (recorded viewport). Full scrollWidth/scrollHeight skews scale
+  // on long pages and can make the mirrored DOM spill outside the shell.
+  const ow = replayer.iframe.offsetWidth;
+  const oh = replayer.iframe.offsetHeight;
+  if (ow > 1 && oh > 1) return { w: ow, h: oh };
+
   try {
-    const doc = replayer.iframe.contentDocument;
-    const root = doc?.documentElement;
-    if (root) {
-      const w = Math.max(root.scrollWidth, root.clientWidth);
-      const h = Math.max(root.scrollHeight, root.clientHeight);
+    const doc = replayer.iframe.contentDocument?.documentElement;
+    if (doc) {
+      const w = doc.clientWidth;
+      const h = doc.clientHeight;
       if (w > 1 && h > 1) return { w, h };
     }
   } catch {
     /* cross-origin or not ready */
   }
 
-  const w = replayer.iframe.offsetWidth;
-  const h = replayer.iframe.offsetHeight;
-  return { w, h };
+  return { w: Math.max(ow, 1), h: Math.max(oh, 1) };
 }
 
 function applyReplayCoverScale(
@@ -430,7 +452,8 @@ function applyReplayCoverScale(
   const widthScale = containerW / fw;
   const heightScale = containerH / fh;
   const scale = Math.min(maxScale, Math.max(widthScale, heightScale));
-  replayer.wrapper.style.transform = `scale(${scale}) translate(-50%, -50%)`;
+  replayer.wrapper.style.transformOrigin = '50% 0';
+  replayer.wrapper.style.transform = `translate(-50%, 0) scale(${scale})`;
 }
 
 /** Minimal surface of rrweb Replayer for our chrome (avoids duplicate rrweb type graphs). */
@@ -867,6 +890,7 @@ export function SessionReplaySurface({
   onReady,
   onBridgeReady,
   sessionSummary,
+  websiteId,
   className,
 }: {
   events: RRWebEvent[];
@@ -874,6 +898,8 @@ export function SessionReplaySurface({
   onBridgeReady?: (bridge: SessionReplayBridge | null) => void;
   /** Fields from session API meta for the timeline log. */
   sessionSummary?: { entryPage?: string; hasErrors?: boolean; hasRageClicks?: boolean };
+  /** Used to normalize dashboard URLs in the timeline and session summary. */
+  websiteId?: string;
   className?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -891,13 +917,6 @@ export function SessionReplaySurface({
   /** Start small until ResizeObserver runs — avoids a huge iframe flash before the first layout pass. */
   const [playerSize, setPlayerSize] = useState({ w: 640, h: 360 });
 
-  const metaAspect = useMemo(() => replayViewportRatio(events), [events]);
-  const [, setContentAspect] = useState(metaAspect);
-
-  useEffect(() => {
-    setContentAspect(metaAspect);
-  }, [metaAspect]);
-
   const durationMs = useMemo(() => {
     if (events.length < 2) return 0;
     return Math.max(0, events[events.length - 1].timestamp - events[0].timestamp);
@@ -911,8 +930,9 @@ export function SessionReplaySurface({
         entryPage: sessionSummary?.entryPage,
         hasErrors: Boolean(sessionSummary?.hasErrors),
         hasRageClicks: Boolean(sessionSummary?.hasRageClicks),
+        websiteId,
       }),
-    [events, sessionSummary?.entryPage, sessionSummary?.hasErrors, sessionSummary?.hasRageClicks],
+    [events, sessionSummary?.entryPage, sessionSummary?.hasErrors, sessionSummary?.hasRageClicks, websiteId],
   );
 
   useLayoutEffect(() => {
@@ -980,25 +1000,21 @@ export function SessionReplaySurface({
     };
 
     let lastResizeDims: { width?: number; height?: number } | undefined;
+    let coverRaf = 0;
 
-    const applyCover = () => {
-      const shell = shellRef.current;
-      if (!shell) return;
-      applyReplayCoverScale(
-        r,
-        shell.clientWidth,
-        shell.clientHeight,
-        PLAYER_MAX_SCALE,
-        lastResizeDims,
-      );
+    const scheduleCover = () => {
+      cancelAnimationFrame(coverRaf);
+      coverRaf = requestAnimationFrame(() => {
+        coverRaf = 0;
+        const shell = shellRef.current;
+        if (!shell) return;
+        applyReplayCoverScale(r, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE, lastResizeDims);
+      });
     };
 
     const sync = (d?: { width?: number; height?: number }) => {
       lastResizeDims = d;
-      const { w, h } = readReplayerLogicalSize(r, d);
-      if (w > 0 && h > 0) setContentAspect(w / h);
-      queueMicrotask(applyCover);
-      requestAnimationFrame(applyCover);
+      scheduleCover();
     };
 
     const onResize = (payload?: unknown) => sync(payload as { width?: number; height?: number } | undefined);
@@ -1009,6 +1025,7 @@ export function SessionReplaySurface({
     const t2 = window.setTimeout(() => sync(), 160);
 
     return () => {
+      cancelAnimationFrame(coverRaf);
       clearTimeout(t1);
       clearTimeout(t2);
       r.off('resize', onResize);
@@ -1051,6 +1068,10 @@ export function SessionReplaySurface({
           showController: false,
           maxScale: PLAYER_MAX_SCALE,
           inactiveColor: 'rgba(255, 255, 255, 0.18)',
+          // Noisy on inconsistent recordings; DevTools console work can spike CPU/fan.
+          showWarning: false,
+          showDebug: false,
+          mouseTail: false,
         },
       });
 
@@ -1132,46 +1153,38 @@ export function SessionReplaySurface({
       /* ignore */
     }
     const rep = bridge.replayer as unknown as { wrapper: HTMLElement; iframe: HTMLIFrameElement };
-    const shell = shellRef.current;
-    const runCover = () => {
-      if (!shell) return;
-      applyReplayCoverScale(rep, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE);
+    let coverRaf = 0;
+    const scheduleCover = () => {
+      cancelAnimationFrame(coverRaf);
+      coverRaf = requestAnimationFrame(() => {
+        coverRaf = 0;
+        const shell = shellRef.current;
+        if (!shell) return;
+        applyReplayCoverScale(rep, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE);
+      });
     };
-    queueMicrotask(runCover);
-    const raf = requestAnimationFrame(runCover);
-    const t0 = window.setTimeout(runCover, 0);
-    const t1 = window.setTimeout(runCover, 50);
+    scheduleCover();
+    const t1 = window.setTimeout(scheduleCover, 50);
     return () => {
-      cancelAnimationFrame(raf);
-      window.clearTimeout(t0);
+      cancelAnimationFrame(coverRaf);
       window.clearTimeout(t1);
     };
-  }, [bridge, playerSize.w, playerSize.h]);
-
-  useEffect(() => {
-    if (!bridge || !shellRef.current) return;
-    const rep = bridge.replayer as unknown as { wrapper: HTMLElement; iframe: HTMLIFrameElement };
-    const shell = shellRef.current;
-    const run = () => applyReplayCoverScale(rep, shell.clientWidth, shell.clientHeight, PLAYER_MAX_SCALE);
-    run();
-    const id = requestAnimationFrame(run);
-    return () => cancelAnimationFrame(id);
   }, [bridge, playerSize.w, playerSize.h]);
 
   return (
     <div
       ref={wrapRef}
       className={cn(
-        'flex w-full min-w-0 flex-1 flex-col',
+        'flex w-full min-w-0 max-w-full flex-1 flex-col',
         className,
-        'min-h-[89dvh]',
+        'min-h-[85dvh]',
       )}
     >
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden mb-4  border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
-        <div ref={measureRef} className="relative flex min-h-0 min-w-0 flex-1 basis-0 flex-col">
+      <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden mb-4 border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
+        <div ref={measureRef} className="relative flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden">
           <div
             ref={measureInnerRef}
-            className="relative min-h-0 w-full min-w-0 flex-1 basis-0 bg-black"
+            className="relative min-h-0 min-w-0 w-full max-w-full flex-1 basis-0 overflow-hidden bg-black"
           >
             <div
               ref={shellRef}
@@ -1181,7 +1194,7 @@ export function SessionReplaySurface({
                 '[&_.rrweb-player-root]:h-full [&_.rrweb-player-root]:w-full [&_.rrweb-player-root]:flow-root',
                 '[&_.rr-player]:!float-none [&_.rr-player]:!m-0 [&_.rr-player]:!block [&_.rr-player]:!rounded-none [&_.rr-player]:!border-0 [&_.rr-player]:!bg-transparent [&_.rr-player]:!shadow-none [&_.rr-player]:!ring-0 [&_.rr-player]:!outline-none',
                 '[&_.rr-player__frame]:!relative [&_.rr-player__frame]:!overflow-hidden [&_.rr-player__frame]:!rounded-[inherit] [&_.rr-player__frame]:!border-0 [&_.rr-player__frame]:!bg-black [&_.rr-player__frame]:!shadow-none [&_.rr-player__frame]:!ring-0 [&_.rr-player__frame]:!outline-none',
-                '[&_.replayer-wrapper]:!absolute [&_.replayer-wrapper]:!left-1/2 [&_.replayer-wrapper]:!top-1/2 [&_.replayer-wrapper]:!float-none [&_.replayer-wrapper]:!clear-none [&_.replayer-wrapper]:!origin-top-left [&_.replayer-wrapper]:!border-0 [&_.replayer-wrapper]:!ring-0',
+                '[&_.replayer-wrapper]:!absolute [&_.replayer-wrapper]:!left-1/2 [&_.replayer-wrapper]:!top-0 [&_.replayer-wrapper]:!float-none [&_.replayer-wrapper]:!clear-none [&_.replayer-wrapper]:!origin-top [&_.replayer-wrapper]:!border-0 [&_.replayer-wrapper]:!ring-0',
                 '[&_.replayer-wrapper>iframe]:!border-0 [&_.replayer-wrapper>iframe]:!bg-black [&_.replayer-wrapper>iframe]:!shadow-none',
               )}
             />

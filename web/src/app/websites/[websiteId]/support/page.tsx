@@ -15,7 +15,6 @@ import {
   Loader2,
   Send,
   ExternalLink,
-  LifeBuoy,
   BookOpen,
   Clock,
   MessageSquare,
@@ -26,6 +25,7 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { isEnterprise } from '@/lib/features';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 import { isDemo } from '@/lib/demo';
 
 const SUPPORT_EMAIL = 'seentics@gmail.com';
@@ -86,11 +86,10 @@ export default function SupportPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-[1100px] mx-auto animate-in fade-in duration-500 space-y-8">
+    <div className={cn(websiteWorkspaceShellClass, 'animate-in fade-in duration-500 space-y-8')}>
       <DashboardPageHeader
         title="Support"
         description="Ask a question, report an issue, or book time with the team."
-        icon={LifeBuoy}
       />
 
       <div className="grid gap-4 lg:grid-cols-3">

@@ -61,18 +61,26 @@ type trackerConfigCache struct {
 
 // GetTrackerConfig returns the configuration for the tracker script.
 // Goals are cached in Redis for 15 minutes to avoid DB queries on every tracker init request.
-func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, origin string) (map[string]interface{}, error) {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+func (s *WebsiteService) GetTrackerConfig(ctx context.Context, websiteID string, origin string) (map[string]interface{}, error) {
+	w, err := s.GetWebsiteByID(ctx, websiteID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Domain Validation
 	if !s.ValidateOriginDomain(origin, w.URL) {
 		return nil, fmt.Errorf("domain mismatch")
 	}
 
-	// Try cache for goals
+	return s.trackerConfigMap(ctx, w)
+}
+
+// TrackerConfigMap builds the public tracker config for an already-resolved website (no origin check).
+// Used by tracker init after GetWebsiteByID + domain validation.
+func (s *WebsiteService) TrackerConfigMap(ctx context.Context, w *models.Website) (map[string]interface{}, error) {
+	return s.trackerConfigMap(ctx, w)
+}
+
+func (s *WebsiteService) trackerConfigMap(ctx context.Context, w *models.Website) (map[string]interface{}, error) {
 	cacheKey := fmt.Sprintf("tracker:config:%s", w.SiteID)
 	var cached trackerConfigCache
 	cacheHit := s.cache != nil && s.cache.Get(cacheKey, &cached)
@@ -100,7 +108,7 @@ func (s *WebsiteService) GetTrackerConfig(ctx context.Context, siteID string, or
 	}
 
 	return map[string]interface{}{
-		"site_id":                  w.SiteID,
+		"website_id":               w.ID.String(),
 		"funnel_enabled":           w.FunnelEnabled,
 		"goals":                    cached.Goals,
 		"replay_enabled":           w.ReplayEnabled,
@@ -213,6 +221,7 @@ func (s *WebsiteService) GetWebsiteBySiteID(ctx context.Context, siteID string) 
 	}
 
 	if s.cache != nil {
+		s.cache.Set(websiteCacheKeyID(w.ID), w, 1*time.Hour)
 		s.cache.Set(fmt.Sprintf("website:site_id:%s", w.SiteID), w, 1*time.Hour)
 		s.cache.Set(fmt.Sprintf("website:site_id:%s", w.ID.String()), w, 1*time.Hour)
 	}
@@ -220,23 +229,38 @@ func (s *WebsiteService) GetWebsiteBySiteID(ctx context.Context, siteID string) 
 	return w, nil
 }
 
-// GetWebsiteByAnyID returns details for a specific site, trying SiteID first then UUID
-func (s *WebsiteService) GetWebsiteByAnyID(ctx context.Context, id string) (*models.Website, error) {
-	// 1. Try SiteID (24-char)
-	w, err := s.GetWebsiteBySiteID(ctx, id)
-	if err == nil {
-		return w, nil
+func websiteCacheKeyID(id uuid.UUID) string {
+	return fmt.Sprintf("website:id:%s", id.String())
+}
+
+// GetWebsiteByID loads a website by its primary key UUID (the only public website identifier).
+func (s *WebsiteService) GetWebsiteByID(ctx context.Context, id string) (*models.Website, error) {
+	id = strings.TrimSpace(id)
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid website_id: expected UUID, got %q", id)
 	}
 
-	// 2. Try UUID
-	if uid, errParse := uuid.Parse(id); errParse == nil {
-		wUUID, errUUID := s.repo.GetByUUIDOnly(ctx, uid)
-		if errUUID == nil {
-			return wUUID, nil
+	key := websiteCacheKeyID(uid)
+	if s.cache != nil {
+		var w models.Website
+		if s.cache.Get(key, &w) {
+			return &w, nil
 		}
 	}
 
-	return nil, fmt.Errorf("website not found with id: %s", id)
+	w, err := s.repo.GetByUUIDOnly(ctx, uid)
+	if err != nil {
+		return nil, fmt.Errorf("website not found with id: %s", id)
+	}
+
+	if s.cache != nil {
+		_ = s.cache.Set(key, *w, 1*time.Hour)
+		_ = s.cache.Set(fmt.Sprintf("website:site_id:%s", w.SiteID), *w, 1*time.Hour)
+		_ = s.cache.Set(fmt.Sprintf("website:site_id:%s", w.ID.String()), *w, 1*time.Hour)
+	}
+
+	return w, nil
 }
 
 // ValidateOriginDomain checks if the origin matches the registered domain
@@ -284,6 +308,7 @@ func (s *WebsiteService) invalidateCache(ctx context.Context, w *models.Website)
 	uuidStr := w.ID.String()
 
 	// Website metadata caches
+	s.cache.Delete(websiteCacheKeyID(w.ID))
 	s.cache.Delete(fmt.Sprintf("website:site_id:%s", siteID))
 	s.cache.Delete(fmt.Sprintf("website:site_id:%s", uuidStr))
 	s.cache.Delete(fmt.Sprintf("tracker:config:%s", siteID))
@@ -295,20 +320,11 @@ func (s *WebsiteService) invalidateCache(ctx context.Context, w *models.Website)
 
 // UpdateWebsite updates website settings
 func (s *WebsiteService) UpdateWebsite(ctx context.Context, id string, userID uuid.UUID, req models.UpdateWebsiteRequest) (*models.Website, error) {
-	// 1. Get original
-	var original *models.Website
-	var err error
-
-	// Check if id is UUID or site_id
-	if uid, errParse := uuid.Parse(id); errParse == nil {
-		original, err = s.repo.GetByID(ctx, uid, userID)
-	} else {
-		original, err = s.repo.GetBySiteID(ctx, id)
-		if err == nil && original.UserID != userID {
-			return nil, repository.ErrWebsiteNotFound
-		}
+	uid, err := uuid.Parse(strings.TrimSpace(id))
+	if err != nil {
+		return nil, fmt.Errorf("invalid website id")
 	}
-
+	original, err := s.repo.GetByID(ctx, uid, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -340,8 +356,7 @@ func (s *WebsiteService) UpdateWebsite(ctx context.Context, id string, userID uu
 // DeleteWebsite removes a website tracking profile and all its associated data
 func (s *WebsiteService) DeleteWebsite(ctx context.Context, id string, userID uuid.UUID) error {
 	// 1. Get website info first for cleanup (need UUID and SiteID)
-	// We use GetWebsiteByAnyID to reconcile public SiteID or internal ID
-	w, err := s.GetWebsiteByAnyID(ctx, id)
+	w, err := s.GetWebsiteByID(ctx, id)
 	if err != nil {
 		// If website doesn't exist, just return nil (it's already gone)
 		return nil
@@ -396,7 +411,7 @@ func (s *WebsiteService) cleanupAllRelatedData(ctx context.Context, w *models.We
 
 // ListGoals returns all goals for a website
 func (s *WebsiteService) ListGoals(ctx context.Context, siteID string) ([]models.Goal, error) {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	w, err := s.GetWebsiteByID(ctx, siteID)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +420,7 @@ func (s *WebsiteService) ListGoals(ctx context.Context, siteID string) ([]models
 
 // CreateGoal creates a new goal for a website
 func (s *WebsiteService) CreateGoal(ctx context.Context, siteID string, req models.CreateGoalRequest) (*models.Goal, error) {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	w, err := s.GetWebsiteByID(ctx, siteID)
 	if err != nil {
 		return nil, err
 	}
@@ -423,22 +438,62 @@ func (s *WebsiteService) CreateGoal(ctx context.Context, siteID string, req mode
 	if err := s.repo.CreateGoal(ctx, goal); err != nil {
 		return nil, err
 	}
+	s.invalidateTrackerGoalCaches(ctx, w)
 	return goal, nil
+}
+
+// UpdateGoal updates an existing goal for a website.
+func (s *WebsiteService) UpdateGoal(ctx context.Context, siteID string, goalID uuid.UUID, req models.CreateGoalRequest) (*models.Goal, error) {
+	w, err := s.GetWebsiteByID(ctx, siteID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.repo.UpdateGoal(ctx, goalID, w.ID, req.Name, req.Type, req.Identifier, req.Selector, req.Revenue, req.Currency); err != nil {
+		return nil, err
+	}
+	goals, err := s.repo.ListGoals(ctx, w.ID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range goals {
+		if goals[i].ID == goalID {
+			s.invalidateTrackerGoalCaches(ctx, w)
+			out := goals[i]
+			return &out, nil
+		}
+	}
+	return nil, fmt.Errorf("goal not found after update")
 }
 
 // DeleteGoal removes a goal
 func (s *WebsiteService) DeleteGoal(ctx context.Context, siteID string, goalID uuid.UUID) error {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	w, err := s.GetWebsiteByID(ctx, siteID)
 	if err != nil {
 		return err
 	}
-	return s.repo.DeleteGoal(ctx, goalID, w.ID)
+	err = s.repo.DeleteGoal(ctx, goalID, w.ID)
+	if err != nil {
+		return err
+	}
+	s.invalidateTrackerGoalCaches(ctx, w)
+	return nil
+}
+
+func (s *WebsiteService) invalidateTrackerGoalCaches(ctx context.Context, w *models.Website) {
+	if s.cache == nil || w == nil {
+		return
+	}
+	siteID := w.SiteID
+	s.cache.Delete(fmt.Sprintf("tracker:config:%s", siteID))
+	s.cache.DeleteByPattern(fmt.Sprintf("analytics:goal_stats:%s:*", siteID))
+	// Goal stats cache keys use public site_id; also clear any legacy UUID-prefixed keys.
+	s.cache.DeleteByPattern(fmt.Sprintf("analytics:goal_stats:%s:*", w.ID.String()))
 }
 
 // GetUserRole returns the role of a user for a website.
 // The website owner (websites.user_id) always has "owner" role even without a website_members row.
 func (s *WebsiteService) GetUserRole(ctx context.Context, siteID string, userID uuid.UUID) (string, error) {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	w, err := s.GetWebsiteByID(ctx, siteID)
 	if err != nil {
 		return "", err
 	}
@@ -458,7 +513,7 @@ func (s *WebsiteService) GetUserRole(ctx context.Context, siteID string, userID 
 // requireRole checks that requesterID has at least one of the allowed roles for this website.
 // Returns the website and an error if permission is denied.
 func (s *WebsiteService) requireRole(ctx context.Context, siteID string, requesterID uuid.UUID, allowedRoles ...string) (*models.Website, error) {
-	w, err := s.GetWebsiteBySiteID(ctx, siteID)
+	w, err := s.GetWebsiteByID(ctx, siteID)
 	if err != nil {
 		return nil, err
 	}
@@ -672,7 +727,7 @@ func (s *WebsiteService) RevokeInvitation(ctx context.Context, siteID string, re
 // TogglePublicShare enables or disables public dashboard sharing for a website.
 // Returns the share ID (non-empty when enabled, empty when disabled).
 func (s *WebsiteService) TogglePublicShare(ctx context.Context, siteID string, userID uuid.UUID, enabled bool) (string, error) {
-	w, err := s.GetWebsiteByAnyID(ctx, siteID)
+	w, err := s.GetWebsiteByID(ctx, siteID)
 	if err != nil {
 		return "", err
 	}
