@@ -7,17 +7,25 @@ import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Video, Copy, Link2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Video,
+  Copy,
+  Link2,
+} from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import { getSessionWithEvents, type ReplaySession } from '@/lib/replays-api';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { SessionReplaySurface, type SessionReplaySurfaceAPI } from './session-replay-surface';
+import {
+  ReplayPlaybackProvider,
+  SessionReplaySurface,
+  type SessionReplayBridge,
+  type SessionReplaySurfaceAPI,
+} from './session-replay-surface';
+import { ReplaySessionSidebar } from './replay-session-sidebar';
 
 export type { SessionReplaySurfaceAPI as ReplayPlayerAPI } from './session-replay-surface';
-
-/** Centered column width (replay + header) */
-const REPLAY_LAYOUT_MAX_CLASS = 'max-w-[1800px]';
 
 export default function ReplayDetailPage() {
   const params = useParams();
@@ -28,6 +36,7 @@ export default function ReplayDetailPage() {
   const isDemoMode = isDemo(websiteId);
 
   const playerApiRef = useRef<SessionReplaySurfaceAPI | null>(null);
+  const [replayBridge, setReplayBridge] = useState<SessionReplayBridge | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['replay', websiteId, sessionId],
@@ -48,6 +57,7 @@ export default function ReplayDetailPage() {
         durationSeconds: 120,
         pagesViewed: 3,
         hasRageClicks: false,
+        hasErrors: false,
         sessionId,
         websiteId,
       } as ReplaySession)
@@ -67,6 +77,19 @@ export default function ReplayDetailPage() {
       toast({ title: 'Session ID copied' });
     });
   }, [sessionId, toast]);
+
+  const listHref = `/websites/${websiteId}/replays`;
+  const hasRecording = events.length > 0;
+
+  useEffect(() => {
+    setReplayBridge(null);
+  }, [websiteId, sessionId]);
+
+  useEffect(() => {
+    if (!hasRecording || isLoading) {
+      setReplayBridge(null);
+    }
+  }, [hasRecording, isLoading]);
 
   useEffect(() => {
     if (events.length === 0) return;
@@ -92,13 +115,10 @@ export default function ReplayDetailPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [events.length]);
 
-  const listHref = `/websites/${websiteId}/replays`;
-  const hasRecording = events.length > 0;
-
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col">
-      <div className="w-full shrink-0 border-b border-border/60  backdrop-blur-md">
-        <div className={cn('mx-auto w-full px-4 py-2 md:px-8 lg:px-6', REPLAY_LAYOUT_MAX_CLASS)}>
+    <div className="flex min-h-0 w-full flex-1 flex-col basis-0">
+      <div className="w-full shrink-0 border-b border-border/60 backdrop-blur-md">
+        <div className="w-full px-3 py-2 md:px-5">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
             <Button
               variant="ghost"
@@ -146,9 +166,20 @@ export default function ReplayDetailPage() {
               </Button>
             )}
 
+            {session?.hasErrors && (
+              <Badge
+                variant="outline"
+                title="Set when a JavaScript error or unhandled promise rejection fired in the visitor’s browser while recording was on. Does not include console warnings or failed network requests."
+                className="text-[10px] shrink-0 border-red-500/50 text-red-800 dark:text-red-300 bg-red-500/10"
+              >
+                Client errors
+              </Badge>
+            )}
+
             {session?.hasRageClicks && (
               <Badge
                 variant="outline"
+                title="Set when we detect 3 or more clicks within about 1 second inside roughly 50×50 px in the recording—the same rule as the amber dots on the session timeline."
                 className="text-[10px] shrink-0 border-amber-500/50 text-amber-800 dark:text-amber-300 bg-amber-500/10"
               >
                 Rage clicks
@@ -164,51 +195,63 @@ export default function ReplayDetailPage() {
         </div>
       </div>
 
-      <div
-        className={cn(
-          'mx-auto flex min-h-0 w-full min-w-0 flex-1 flex-col px-2 sm:px-3 lg:px-4',
-          REPLAY_LAYOUT_MAX_CLASS,
-        )}
-      >
-        <div
-          className={cn(
-            'relative flex min-h-0 min-w-0 w-full flex-1 flex-col ',
-            '',
-          )}
-        >
-          {isLoading ? (
-            <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-3">
-              <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-              <p className="text-xs font-medium text-muted-foreground">Loading recording…</p>
-            </div>
-          ) : !hasRecording ? (
-            <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">
-              <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
-                <Video className="h-7 w-7 text-muted-foreground/50" />
+      <ReplayPlaybackProvider bridge={replayBridge}>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch overflow-x-hidden">
+          {/* Player must stay first in the column; avoid flex-1 on this row when a recording exists — it can reorder/stack oddly with overflow + min-height. */}
+          <div
+            className={cn(
+              'flex min-w-0 w-full flex-col',
+              hasRecording ? 'shrink-0 px-3 pt-3 sm:px-5 sm:pt-4' : 'min-h-0 flex-1 basis-0 px-3 pb-3 pt-2 sm:px-4',
+            )}
+          >
+            {isLoading ? (
+              <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-3">
+                <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                <p className="text-xs font-medium text-muted-foreground">Loading recording…</p>
               </div>
-              <div className="max-w-md space-y-2">
-                <p className="text-sm font-semibold text-foreground">No recording for this session</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  {isDemoMode
-                    ? 'Demo mode has no sample recording. Enable replay on a live site to see playback here.'
-                    : 'The capture may have been too short, blocked in the browser, or replay disabled for this site.'}
-                </p>
+            ) : !hasRecording ? (
+              <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">
+                <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+                  <Video className="h-7 w-7 text-muted-foreground/50" />
+                </div>
+                <div className="max-w-md space-y-2">
+                  <p className="text-sm font-semibold text-foreground">No recording for this session</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {isDemoMode
+                      ? 'Demo mode has no sample recording. Enable replay on a live site to see playback here.'
+                      : 'The capture may have been too short, blocked in the browser, or replay disabled for this site.'}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>
+                  Back to replays
+                </Button>
               </div>
-              <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>
-                Back to replays
-              </Button>
-            </div>
-          ) : (
-            <SessionReplaySurface
-              className="flex min-h-0 min-w-0 w-full flex-1 flex-col"
-              events={events}
-              onReady={(api) => {
-                playerApiRef.current = api;
-              }}
-            />
-          )}
+            ) : (
+              <SessionReplaySurface
+                className="mt-0 flex min-w-0 w-full flex-col sm:!mt-0"
+                events={events}
+                sessionSummary={
+                  session
+                    ? {
+                        entryPage: session.entryPage,
+                        hasErrors: Boolean(session.hasErrors),
+                        hasRageClicks: Boolean(session.hasRageClicks),
+                      }
+                    : undefined
+                }
+                onReady={(api) => {
+                  playerApiRef.current = api;
+                }}
+                onBridgeReady={setReplayBridge}
+              />
+            )}
+          </div>
+
+          {hasRecording ? (
+            <ReplaySessionSidebar replayBridge={replayBridge} session={session ?? null} />
+          ) : null}
         </div>
-      </div>
+      </ReplayPlaybackProvider>
     </div>
   );
 }
