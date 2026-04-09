@@ -21,12 +21,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
-  ArrowLeft, MousePointer, Flame,
+  ArrowLeft, MousePointer,
   AlertTriangle, RefreshCw, Monitor,
   TrendingDown, Layers, Link2,
-  MoreHorizontal, ChevronDown,
+  MoreHorizontal,
+  ChevronLeft, ChevronRight,
+  Lock, ExternalLink,
 } from 'lucide-react';
-import { Slider } from '@/components/ui/slider';
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
 import { getHeatmapData, heatmapPageSlug, type HeatmapPoint as ApiHeatmapPoint } from '@/lib/heatmaps-api';
@@ -235,27 +236,25 @@ function rampAt(ramp: [number, [number, number, number, number]][], v: number): 
 function HeatOnlyUnderlay() {
   return (
     <div
-      className="absolute inset-0 pointer-events-none"
+      className="pointer-events-none absolute inset-0 bg-gradient-to-b from-background via-muted/30 to-muted/50"
       aria-hidden
     >
       <div
-        className="absolute inset-0 opacity-[0.35]"
+        className="absolute inset-0 opacity-[0.45] dark:opacity-[0.35]"
         style={{
           backgroundImage: `
-            linear-gradient(to bottom, rgb(24 24 27 / 0.97), rgb(9 9 11 / 1)),
-            radial-gradient(ellipse 80% 50% at 50% -20%, rgb(59 130 246 / 0.12), transparent 55%),
-            linear-gradient(rgb(39 39 42 / 0.35) 1px, transparent 1px),
-            linear-gradient(90deg, rgb(39 39 42 / 0.35) 1px, transparent 1px)
+            radial-gradient(ellipse 90% 45% at 50% 0%, hsl(var(--primary) / 0.07), transparent 55%),
+            linear-gradient(hsl(var(--border) / 0.45) 1px, transparent 1px),
+            linear-gradient(90deg, hsl(var(--border) / 0.45) 1px, transparent 1px)
           `,
-          backgroundSize: '100% 100%, 100% 100%, 32px 32px, 32px 32px',
-          backgroundPosition: '0 0, 0 0, 0 0, 0 0',
+          backgroundSize: '100% 100%, 40px 40px, 40px 40px',
         }}
       />
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="text-center px-8 max-w-sm">
-          <p className="text-[11px] font-medium text-zinc-400 tracking-wide uppercase">Heatmap overlay</p>
-          <p className="text-xs text-zinc-500 mt-1.5 leading-relaxed">
-            Coordinates are shown on this grid. Open the real page in a new tab to compare layout.
+      <div className="absolute inset-0 flex items-center justify-center p-6">
+        <div className="max-w-sm rounded-lg border border-border/70 bg-card/95 px-4 py-4 text-center">
+          <p className="text-sm font-medium text-foreground">Heat layer only</p>
+          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+            Neutral grid under the heatmap. Open the live page in another tab to compare layout.
           </p>
         </div>
       </div>
@@ -264,6 +263,84 @@ function HeatOnlyUnderlay() {
 }
 
 type PreviewUnderlay = 'iframe' | 'heat-only';
+
+/** Single-row browser-style chrome (traffic dots, nav, omnibox, open). */
+function HeatmapPreviewBrowserChrome({
+  pageUrl,
+  underlay,
+  loadState,
+}: {
+  pageUrl: string;
+  underlay: PreviewUnderlay;
+  loadState: 'idle' | 'loading' | 'loaded' | 'error';
+}) {
+  const displayUrl = pageUrl.trim() || '—';
+  const secure     = /^https:\/\//i.test(pageUrl);
+  const statusLead =
+    underlay === 'heat-only'
+      ? 'Heat only · '
+      : loadState === 'error'
+        ? 'Blocked · '
+        : loadState === 'loading'
+          ? 'Loading · '
+          : '';
+  const barTitle = `${statusLead}${displayUrl}`;
+
+  const openExternal = () => {
+    if (!pageUrl.trim()) return;
+    window.open(pageUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  return (
+    <div className="flex h-9 shrink-0 items-center gap-1 border-b border-zinc-800/90 bg-zinc-900 px-1.5">
+      <div className="flex shrink-0 gap-1 px-0.5" aria-hidden>
+        <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
+        <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
+        <span className="h-2 w-2 rounded-full bg-[#28c840]" />
+      </div>
+      <button
+        type="button"
+        disabled
+        className="shrink-0 rounded p-1 text-zinc-600 opacity-60"
+        aria-hidden
+        tabIndex={-1}
+      >
+        <ChevronLeft className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        disabled
+        className="shrink-0 rounded p-1 text-zinc-600 opacity-60"
+        aria-hidden
+        tabIndex={-1}
+      >
+        <ChevronRight className="h-3.5 w-3.5" />
+      </button>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-zinc-700/80 bg-zinc-950/90 px-2 py-0.5">
+        {secure ? (
+          <Lock className="h-3 w-3 shrink-0 text-emerald-500/90" aria-hidden />
+        ) : (
+          <span className="w-3 shrink-0 text-center text-[9px] text-zinc-500" aria-hidden>
+            ··
+          </span>
+        )}
+        <p className="min-w-0 truncate font-mono text-[11px] leading-snug text-zinc-400" title={barTitle}>
+          {statusLead ? <span className="text-zinc-500">{statusLead}</span> : null}
+          <span className="text-zinc-400">{displayUrl}</span>
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={openExternal}
+        disabled={!pageUrl.trim()}
+        className="shrink-0 rounded p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:pointer-events-none disabled:opacity-35"
+        title="Open in new tab"
+      >
+        <ExternalLink className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
 
 // ─── Canvas overlay ───────────────────────────────────────────────────────────
 function HeatmapViewer({
@@ -288,7 +365,7 @@ function HeatmapViewer({
   const iframeRef  = useRef<HTMLIFrameElement>(null);
   const canvasRef  = useRef<HTMLCanvasElement>(null);
   const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const measureTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const measureTimersRef = useRef<number[]>([]);
   const onBlockedRef = useRef(onUnderlayBlocked);
   onBlockedRef.current = onUnderlayBlocked;
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
@@ -448,7 +525,8 @@ function HeatmapViewer({
   const showLoadingOverlay   = showIframe && loadState === 'loading';
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-zinc-950">
+    <div className="flex h-full min-h-0 w-full flex-col bg-[#09090b] dark:bg-[#09090b]">
+      <HeatmapPreviewBrowserChrome pageUrl={url} underlay={underlay} loadState={loadState} />
       <div
         ref={scrollRef}
         className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
@@ -534,7 +612,6 @@ export default function HeatmapDetailPage() {
   const [customUrl, setCustomUrl] = useState('');
   const [liveUrl,   setLiveUrl]   = useState('');
   const [previewTouched, setPreviewTouched] = useState(false);
-  const [overlayOpacity, setOverlayOpacity] = useState([88]);
   const [previewUnderlay, setPreviewUnderlay] = useState<PreviewUnderlay>('iframe');
 
   const urlPath = slug ? decodeURIComponent(slug).replace(/_/g, '/') : '/';
@@ -633,189 +710,180 @@ export default function HeatmapDetailPage() {
   };
 
   const pathForHeading = isDemoMode ? (demoPage?.url ?? urlPath) : urlPath;
-  const { title: pageTitle, subtitle: pageSubtitle } = heatmapPageHeading(
+  const { subtitle: pageSubtitle } = heatmapPageHeading(
     pathForHeading || '/',
     isDemoMode ? undefined : websiteId,
   );
+  const heatmapPathLine = (() => {
+    const p = (urlPath || '').trim() || pageSubtitle || '/';
+    return p.startsWith('/') ? p : `/${p}`;
+  })();
 
-  const ControlPill = (
-    <div className="flex flex-wrap items-center gap-0.5 rounded-lg border border-border/50 bg-muted/25 px-0.5 py-0.5">
-      <div className="flex rounded-md p-px">
-        {([['click', MousePointer, 'Clicks'], ['scroll', TrendingDown, 'Scroll']] as const).map(
-          ([type, Icon, label]) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => setHeatType(type)}
-              className={cn(
-                'flex items-center gap-1 rounded-[5px] px-2 py-1 text-[11px] font-normal transition-colors',
-                heatType === type
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Icon className="h-3 w-3 opacity-70" />
-              <span className="hidden sm:inline">{label}</span>
-            </button>
-          ),
-        )}
+  const previewUrlPopoverInner = (
+    <>
+      <div>
+        <p className="text-sm font-medium text-foreground">Preview URL</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Must match this path so clicks and scroll line up with the iframe.
+        </p>
       </div>
-      <Select value={device} onValueChange={v => setDevice(v as DeviceType)}>
-        <SelectTrigger className="h-7 w-[104px] border-0 bg-transparent text-[11px] font-normal shadow-none focus:ring-0">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all" className="text-xs">All devices</SelectItem>
-          <SelectItem value="desktop" className="text-xs">Desktop</SelectItem>
-          <SelectItem value="mobile" className="text-xs">Mobile</SelectItem>
-          <SelectItem value="tablet" className="text-xs">Tablet</SelectItem>
-        </SelectContent>
-      </Select>
-      <div className="mx-0.5 hidden h-4 w-px bg-border/60 sm:block" />
-      <div className="flex rounded-md p-px">
-        {([
-          ['iframe', Monitor, 'Page'],
-          ['heat-only', Layers, 'Heat'],
-        ] as const).map(([mode, Icon, label]) => (
-          <button
-            key={mode}
-            type="button"
-            onClick={() => setPreviewUnderlay(mode)}
-            className={cn(
-              'flex items-center gap-1 rounded-[5px] px-2 py-1 text-[11px] font-normal transition-colors',
-              previewUnderlay === mode
-                ? 'bg-background text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            <Icon className="h-3 w-3 opacity-70" />
-            {label}
-          </button>
-        ))}
+      <div className="flex gap-2">
+        <Input
+          value={customUrl}
+          onChange={e => setCustomUrl(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && applyUrl()}
+          placeholder={displayIframeUrl || 'https://…'}
+          className="h-9 font-mono text-xs"
+        />
+        <Button type="button" size="sm" className="h-9 shrink-0" onClick={applyUrl}>
+          Apply
+        </Button>
       </div>
-    </div>
+      <Button type="button" variant="ghost" size="sm" className="h-8 w-full text-xs" onClick={resetPreviewUrl}>
+        Reset to suggested
+      </Button>
+    </>
   );
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       {isError && !isDemoMode && (
-        <div className="shrink-0 border-b border-destructive/25 bg-destructive/10 px-4 py-2 text-xs font-medium text-destructive">
+        <div className="shrink-0 border-b border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
           {(error as Error)?.message ?? 'Failed to load heatmap data.'}
         </div>
       )}
 
-      <header className="shrink-0 border-b border-border/40 bg-background/80 px-3 py-2 backdrop-blur-sm md:px-5">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground"
-              onClick={() => router.push(`/websites/${websiteId}/heatmaps`)}
-              aria-label="Back to heatmaps"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-            </Button>
-            <div className="min-w-0 flex-1 leading-tight">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h1 className="truncate text-sm font-medium text-foreground">
-                  {pageTitle}
-                </h1>
-                {isDemoMode && (
-                  <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-normal">Demo</Badge>
-                )}
-              </div>
-              <p
-                className="truncate text-[11px] font-normal text-muted-foreground"
-                title={urlPath.startsWith('/') ? urlPath : `/${urlPath}`}
-              >
-                {pageSubtitle}
-              </p>
-            </div>
+      <header className="shrink-0 border-b border-border bg-background">
+        <div
+          className="mx-auto flex max-w-[1800px] items-center gap-2 overflow-x-auto px-2 py-1.5 md:px-4"
+          role="toolbar"
+          aria-label="Heatmap"
+        >
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 shrink-0 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() => router.push(`/websites/${websiteId}/heatmaps`)}
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Heatmaps
+          </Button>
+          {isDemoMode ? (
+            <Badge variant="secondary" className="h-5 shrink-0 px-1.5 text-[10px] font-medium">
+              Demo
+            </Badge>
+          ) : null}
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-muted-foreground">
+            {points.length > 0 ? (
+              <span className="shrink-0 tabular-nums">{points.length.toLocaleString()} pts</span>
+            ) : null}
+            {points.length > 0 ? <span className="shrink-0 text-border" aria-hidden>·</span> : null}
+            <code className="min-w-0 truncate font-mono text-[10px] sm:text-[11px]" title={heatmapPathLine}>
+              {heatmapPathLine}
+            </code>
           </div>
 
-          <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-            <div className="hidden sm:block">{ControlPill}</div>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] font-normal sm:hidden">
-                  View
-                  <ChevronDown className="h-3 w-3 opacity-50" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                  Data mode
-                </DropdownMenuLabel>
-                <DropdownMenuItem className="text-xs" onClick={() => setHeatType('click')}>
-                  Clicks {heatType === 'click' ? ' ✓' : ''}
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-xs" onClick={() => setHeatType('scroll')}>
-                  Scroll depth {heatType === 'scroll' ? ' ✓' : ''}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
-                  Preview
-                </DropdownMenuLabel>
-                <DropdownMenuItem className="text-xs" onClick={() => setPreviewUnderlay('iframe')}>
-                  With page {previewUnderlay === 'iframe' ? ' ✓' : ''}
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-xs" onClick={() => setPreviewUnderlay('heat-only')}>
-                  Heat only {previewUnderlay === 'heat-only' ? ' ✓' : ''}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
+          <div className="flex shrink-0 items-center gap-1">
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] font-normal text-muted-foreground hover:text-foreground">
-                  <Link2 className="h-3 w-3" />
-                  <span className="hidden md:inline">URL</span>
+                <Button variant="outline" size="icon" className="h-8 w-8" title="Preview URL" aria-label="Preview URL">
+                  <Link2 className="h-3.5 w-3.5" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[min(92vw,380px)] p-3" align="end">
-                <p className="mb-2 text-xs text-muted-foreground">
-                  Match your live page so the underlay lines up with the heat layer.
-                </p>
-                <div className="flex gap-2">
-                  <Input
-                    value={customUrl}
-                    onChange={e => setCustomUrl(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && applyUrl()}
-                    placeholder={displayIframeUrl || 'https://…'}
-                    className="h-9 font-mono text-xs"
-                  />
-                  <Button type="button" size="sm" className="h-9 shrink-0" onClick={applyUrl}>
-                    Apply
-                  </Button>
-                </div>
-                <Button type="button" variant="ghost" size="sm" className="mt-2 h-8 w-full text-xs" onClick={resetPreviewUrl}>
-                  Reset to suggested URL
-                </Button>
+              <PopoverContent className="w-[min(92vw,380px)] space-y-3 p-4" align="end">
+                {previewUrlPopoverInner}
               </PopoverContent>
             </Popover>
+
+            <div className="flex rounded-md border border-border bg-background p-0.5">
+              {([
+                ['click', MousePointer, 'Clicks', 'Where people click'],
+                ['scroll', TrendingDown, 'Scroll', 'How far they scroll'],
+              ] as const).map(([type, Icon, label, hint]) => (
+                <button
+                  key={type}
+                  type="button"
+                  title={hint}
+                  onClick={() => setHeatType(type)}
+                  className={cn(
+                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    heatType === type
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-3 w-3 opacity-80" />
+                  <span className="hidden sm:inline">{label}</span>
+                </button>
+              ))}
+            </div>
+
+            <Select value={device} onValueChange={v => setDevice(v as DeviceType)}>
+              <SelectTrigger
+                className="h-8 w-[108px] rounded-md border-border bg-background px-2 text-[11px] font-medium shadow-none sm:w-32 sm:text-xs"
+                title="Device"
+              >
+                <SelectValue placeholder="Device" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all" className="text-xs">All devices</SelectItem>
+                <SelectItem value="desktop" className="text-xs">Desktop</SelectItem>
+                <SelectItem value="mobile" className="text-xs">Mobile</SelectItem>
+                <SelectItem value="tablet" className="text-xs">Tablet</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="flex rounded-md border border-border bg-background p-0.5">
+              {([
+                ['iframe', Monitor, 'Page preview', 'Live page under heatmap'] as const,
+                ['heat-only', Layers, 'Heat only', 'Heat only, no iframe'] as const,
+              ]).map(([mode, Icon, label, hint]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  title={hint}
+                  onClick={() => setPreviewUnderlay(mode)}
+                  className={cn(
+                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    previewUnderlay === mode
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-3 w-3 opacity-80" />
+                  {mode === 'iframe' ? (
+                    <>
+                      <span className="sm:hidden">Preview</span>
+                      <span className="hidden sm:inline">{label}</span>
+                    </>
+                  ) : (
+                    <span>{label}</span>
+                  )}
+                </button>
+              ))}
+            </div>
 
             {!isDemoMode && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" aria-label="More actions">
-                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" aria-label="More">
+                    <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end" className="w-52">
                   <DropdownMenuItem className="text-xs" onClick={copyShareLink}>
-                    Copy link to this heatmap
+                    Copy link
                   </DropdownMenuItem>
                   {displayIframeUrl ? (
                     <DropdownMenuItem
                       className="text-xs"
                       onClick={() => window.open(displayIframeUrl, '_blank', 'noopener,noreferrer')}
                     >
-                      Open preview in new tab
+                      Open preview tab
                     </DropdownMenuItem>
                   ) : null}
                   <DropdownMenuItem className="text-xs" onClick={() => refetch()}>
+                    <RefreshCw className="mr-2 h-3.5 w-3.5" />
                     Refresh data
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -823,98 +891,44 @@ export default function HeatmapDetailPage() {
             )}
           </div>
         </div>
-
-        <div className="mx-auto max-w-[1600px] px-3 pb-2 sm:hidden md:px-5">{ControlPill}</div>
       </header>
 
-      <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col px-4 pb-4 pt-1 md:px-6">
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border/80 bg-muted/30 shadow-sm">
+      <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-2 pb-2 pt-1.5 md:px-4 md:pb-3 md:pt-2">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card">
           {!displayIframeUrl && !isDemoMode ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-16 text-center">
-              <Flame className="h-10 w-10 text-muted-foreground/30" />
-              <p className="text-sm font-medium text-foreground">Add a preview URL</p>
-              <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
-                Set the site URL in settings or use <span className="font-medium text-foreground">Preview URL</span> above.
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+              <p className="text-sm font-medium text-foreground">Add a page preview URL</p>
+              <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
+                Set your site URL in Settings, or use Preview URL above so the heatmap aligns with your page.
               </p>
             </div>
           ) : points.length === 0 && !isLoading && !isDemoMode ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-16 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-                <Flame className="h-7 w-7 text-muted-foreground/40" />
-              </div>
-              <p className="text-sm font-medium text-foreground">No data for this page yet</p>
-              <p className="max-w-sm text-xs leading-relaxed text-muted-foreground">
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
+              <p className="text-sm font-medium text-foreground">No data for this view yet</p>
+              <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
                 {heatType === 'click'
-                  ? 'Clicks will show here after visitors interact with this path.'
-                  : 'Scroll milestones appear after visitors scroll this page.'}
+                  ? 'Clicks will appear after visitors use this path. Check heatmaps are enabled in Settings.'
+                  : 'Scroll depth appears after traffic. Try Clicks if you expect visitors but see nothing here.'}
               </p>
             </div>
           ) : (
-            <>
-              <div className="min-h-0 flex-1">
-                <HeatmapViewer
-                  key={`${websiteId}:${urlPath}`}
-                  url={displayIframeUrl}
-                  points={points}
-                  heatType={heatType}
-                  overlayOpacity={overlayOpacity[0] / 100}
-                  underlay={previewUnderlay}
-                  onUnderlayBlocked={() => setPreviewUnderlay('heat-only')}
-                />
-              </div>
-              {!!points.length && (
-                <footer className="flex shrink-0 flex-wrap items-center gap-x-6 gap-y-2 border-t border-border/60 bg-background/80 px-4 py-2.5">
-                  {heatType === 'click' ? (
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span className="hidden sm:inline">Intensity</span>
-                      <div
-                        className="h-2 w-28 max-w-[40vw] rounded-full"
-                        style={{
-                          background: 'linear-gradient(90deg, rgba(0,62,255,0.35), rgba(0,255,144,0.45), rgba(255,230,0,0.55), rgba(255,0,0,0.65))',
-                        }}
-                      />
-                      <span className="text-[10px]">low → high</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span className="hidden sm:inline">Depth</span>
-                      <div
-                        className="h-2 w-28 max-w-[40vw] rounded-full"
-                        style={{
-                          background: 'linear-gradient(90deg, rgba(0,170,85,0.45), rgba(0,85,255,0.35))',
-                        }}
-                      />
-                      <span className="text-[10px]">shallow → deep</span>
-                    </div>
-                  )}
-                  {displayIframeUrl ? (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] text-muted-foreground">Overlay</span>
-                      <Slider
-                        value={overlayOpacity}
-                        onValueChange={setOverlayOpacity}
-                        min={25}
-                        max={100}
-                        step={5}
-                        className="w-[88px] md:w-[120px]"
-                        aria-label="Heatmap overlay opacity"
-                      />
-                    </div>
-                  ) : null}
-                  <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
-                    {points.length.toLocaleString()} pts
-                    {isDemoMode ? ' · demo' : ''}
-                  </span>
-                </footer>
-              )}
-            </>
+            <div className="min-h-0 flex-1">
+              <HeatmapViewer
+                key={`${websiteId}:${urlPath}`}
+                url={displayIframeUrl}
+                points={points}
+                heatType={heatType}
+                underlay={previewUnderlay}
+                onUnderlayBlocked={() => setPreviewUnderlay('heat-only')}
+              />
+            </div>
           )}
 
           {isLoading && (
-            <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
-              <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-background/85 px-4 py-2 shadow-md backdrop-blur-sm">
+            <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-background/50">
+              <div className="flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2.5">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-                <span className="text-xs font-medium">Loading…</span>
+                <span className="text-xs font-medium text-foreground">Loading…</span>
               </div>
             </div>
           )}
