@@ -16,7 +16,15 @@ const TRIGGER_ICONS: Record<string, any> = {
 
 export const TriggerNode = memo(({ data, selected }: any) => {
   const Icon = TRIGGER_ICONS[data.triggerType] || Zap;
-  
+  const path =
+    typeof data.pageUrlMatch === 'string' && data.pageUrlMatch.trim() !== ''
+      ? data.pageUrlMatch.trim()
+      : null;
+  const rate =
+    data.rateLimitSec != null && data.rateLimitSec !== ''
+      ? String(data.rateLimitSec)
+      : null;
+
   return (
     <div className={cn(
       "px-4 py-3 rounded-xl bg-card border-2 shadow-sm min-w-[220px] transition-all",
@@ -29,6 +37,13 @@ export const TriggerNode = memo(({ data, selected }: any) => {
         <div className="min-w-0">
           <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">Trigger</p>
           <p className="text-sm font-semibold truncate">{data.label || 'Select Trigger'}</p>
+          {(path || rate) ? (
+            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+              {path ? <span className="truncate block font-mono">{path}</span> : null}
+              {path && rate ? <span className="text-muted-foreground/70"> · </span> : null}
+              {rate ? <span>{rate}s cooldown</span> : null}
+            </p>
+          ) : null}
         </div>
       </div>
       
@@ -72,6 +87,12 @@ export const ActionNode = memo(({ data, selected }: any) => {
         <div className="min-w-0">
           <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider mb-0.5">Action</p>
           <p className="text-sm font-semibold truncate">{data.label || 'Select Action'}</p>
+          {typeof data.configPayload === 'string' && data.configPayload.trim() !== '' ? (
+            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-muted-foreground">
+              {data.configPayload.trim().slice(0, 80)}
+              {data.configPayload.trim().length > 80 ? '…' : ''}
+            </p>
+          ) : null}
         </div>
       </div>
 
