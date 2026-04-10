@@ -196,46 +196,51 @@ function RealtimeTimeline({
   const labelMid = filled[idxMid]?.minute ?? '—';
 
   return (
-    <div className="space-y-3">
-      <div className="relative rounded-lg bg-muted/35 px-1.5 sm:px-2 pt-3 pb-2">
+    <div className="space-y-2">
+      <div className="relative rounded-xl bg-muted/25 border border-border/40 px-3 sm:px-4 pt-4 pb-3">
+        {/* Horizontal grid lines */}
         <div
-          className="pointer-events-none absolute inset-x-2 top-3 bottom-7 flex flex-col justify-between opacity-[0.35]"
+          className="pointer-events-none absolute inset-x-3 sm:inset-x-4 top-4 bottom-8 flex flex-col justify-between"
           aria-hidden
         >
-          {[0, 1, 2].map((k) => (
-            <div key={k} className="h-px w-full bg-border" />
+          {[0, 1, 2, 3].map((k) => (
+            <div key={k} className="h-px w-full bg-border/30" />
           ))}
         </div>
-        <div className="relative flex gap-px sm:gap-0.5 h-[7.5rem] sm:h-[8.25rem]" role="presentation">
+
+        <div className="relative flex gap-[3px] sm:gap-1 h-[9rem] sm:h-[10rem]" role="presentation">
           {!hasAnyData && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-md bg-muted/25">
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg">
               <p className="text-[13px] text-muted-foreground">No traffic in the last 30 minutes</p>
             </div>
           )}
           {filled.map((t, i) => {
             const v = metric === 'views' ? t.views : t.visitors;
-            const height = v > 0 ? Math.max((v / max) * 100, 6) : 3;
+            const height = v > 0 ? Math.max((v / max) * 100, 5) : 2;
             const isRecent = i >= filled.length - 5;
             const hasData = v > 0;
-            const tip = `${t.minute} · ${countPhrase(t.views, 'view', 'views')}, ${countPhrase(t.visitors, 'visitor', 'visitors')}`;
+            const tip = `${t.minute} — ${countPhrase(t.views, 'view', 'views')}, ${countPhrase(t.visitors, 'visitor', 'visitors')}`;
             return (
               <div
                 key={t.minute}
                 className="flex min-w-0 flex-1 flex-col items-center justify-end group relative"
               >
-                <div className="pointer-events-none absolute bottom-full z-20 mb-1.5 left-1/2 w-max max-w-56 -translate-x-1/2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                  <div className="rounded-md border border-border/80 bg-popover px-2 py-1 text-center text-[10px] font-medium text-popover-foreground shadow-sm">
-                    {tip}
+                {/* Tooltip */}
+                <div className="pointer-events-none absolute bottom-full z-20 mb-2 left-1/2 w-max max-w-52 -translate-x-1/2 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                  <div className="rounded-lg border border-border/70 bg-popover/95 backdrop-blur-sm px-2.5 py-1.5 text-center shadow-md">
+                    <p className="text-[11px] font-semibold text-foreground">{t.minute}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {t.views} {t.views === 1 ? 'view' : 'views'} · {t.visitors} {t.visitors === 1 ? 'visitor' : 'visitors'}
+                    </p>
                   </div>
                 </div>
+                {/* Bar */}
                 <div
                   className={cn(
-                    'w-full max-w-[7px] rounded-t-[3px] transition-all duration-300 ease-out',
-                    !hasData && 'min-h-[3px] bg-muted-foreground/12',
-                    hasData &&
-                      isRecent &&
-                      'bg-emerald-600 dark:bg-emerald-500',
-                    hasData && !isRecent && 'bg-emerald-600/50 dark:bg-emerald-500/45',
+                    'w-full max-w-[9px] rounded-t-[4px] transition-all duration-300 ease-out',
+                    !hasData && 'min-h-[3px] bg-border/40',
+                    hasData && isRecent && 'bg-emerald-500 dark:bg-emerald-400',
+                    hasData && !isRecent && 'bg-emerald-600/40 dark:bg-emerald-500/35 group-hover:bg-emerald-600/60 dark:group-hover:bg-emerald-500/55',
                   )}
                   style={{ height: `${height}%` }}
                 />
@@ -244,10 +249,12 @@ function RealtimeTimeline({
           })}
         </div>
       </div>
-      <div className="flex items-center justify-between px-0.5 text-[11px] tabular-nums text-muted-foreground">
+
+      {/* Time axis */}
+      <div className="flex items-center justify-between px-1 text-[11px] tabular-nums text-muted-foreground">
         <span>{filled[0]?.minute ?? '—'}</span>
-        <span className="opacity-80">{labelMid}</span>
-        <span className="font-medium text-foreground">Now</span>
+        <span className="opacity-70">{labelMid}</span>
+        <span className="font-semibold text-foreground/80">Now</span>
       </div>
     </div>
   );
@@ -444,12 +451,13 @@ function ActivePagesTable({
   let listBody: ReactNode;
   if (isLoading) {
     listBody = (
-      <div className="space-y-0 divide-y divide-border/50 px-5 py-2 sm:px-6">
+      <div className="divide-y divide-border/40">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-4 py-3.5">
-            <div className="h-4 max-w-xs flex-1 rounded bg-muted/30 animate-pulse" />
-            <div className="h-1.5 flex-1 rounded-full bg-muted/25 animate-pulse" />
-            <div className="h-4 w-8 rounded bg-muted/30 animate-pulse" />
+          <div key={i} className="flex items-center gap-3 px-5 py-3.5 sm:px-6">
+            <div className="h-3 w-5 rounded bg-muted/30 animate-pulse shrink-0" />
+            <div className="h-3.5 flex-1 max-w-[65%] rounded bg-muted/30 animate-pulse" />
+            <div className="h-2 flex-1 rounded-full bg-muted/20 animate-pulse" />
+            <div className="h-3.5 w-7 rounded bg-muted/30 animate-pulse shrink-0" />
           </div>
         ))}
       </div>
@@ -463,36 +471,45 @@ function ActivePagesTable({
     );
   } else {
     listBody = (
-      <ul className="divide-y divide-border/50">
-        {pages.map((p) => {
+      <ul className="divide-y divide-border/40">
+        {pages.map((p, idx) => {
           const pageLabels = activePageDisplay(p.page, websiteId);
           const share = (p.visitors / maxVisitors) * 100;
+          const isTop = idx === 0;
           return (
             <li key={p.page}>
-              <div
-                className={cn(
-                  'flex items-center gap-3 px-5 py-3 sm:gap-4 sm:px-6',
-                  'transition-colors hover:bg-muted/35',
-                )}
-              >
-                <span
-                  className="min-w-0 flex-1 truncate font-mono text-sm leading-snug text-foreground"
-                  title={pageLabels.title}
-                >
-                  {pageLabels.display}
-                </span>
+              <div className="relative group overflow-hidden">
+                {/* Background fill bar */}
                 <div
-                  className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted/60 sm:w-28"
-                  aria-hidden={true}
-                >
-                  <div
-                    className="h-full rounded-full bg-emerald-600/55 transition-all duration-500 ease-out dark:bg-emerald-500/50"
-                    style={{ width: `${share}%` }}
-                  />
+                  className={cn(
+                    'pointer-events-none absolute inset-y-0 left-0 transition-all duration-500 ease-out',
+                    isTop
+                      ? 'bg-emerald-500/8 dark:bg-emerald-500/10'
+                      : 'bg-emerald-500/5 dark:bg-emerald-500/6',
+                  )}
+                  style={{ width: `${share}%` }}
+                  aria-hidden
+                />
+                <div className="relative flex items-center gap-3 px-5 py-3 sm:gap-4 sm:px-6 transition-colors hover:bg-muted/30">
+                  {/* Rank */}
+                  <span className="shrink-0 w-5 text-right text-[11px] font-medium tabular-nums text-muted-foreground/60 select-none">
+                    {idx + 1}
+                  </span>
+                  {/* Path */}
+                  <span
+                    className={cn(
+                      'min-w-0 flex-1 truncate font-mono text-sm leading-snug',
+                      isTop ? 'font-semibold text-foreground' : 'text-foreground/90',
+                    )}
+                    title={pageLabels.title}
+                  >
+                    {pageLabels.display}
+                  </span>
+                  {/* Visitor count */}
+                  <span className="shrink-0 text-right text-sm font-semibold tabular-nums tracking-tight text-foreground">
+                    {p.visitors}
+                  </span>
                 </div>
-                <span className="w-8 shrink-0 text-right text-sm font-medium tabular-nums tracking-tight text-foreground sm:w-9">
-                  {p.visitors}
-                </span>
               </div>
             </li>
           );

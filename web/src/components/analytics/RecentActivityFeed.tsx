@@ -35,7 +35,7 @@ function MetaIcon({ src, label }: { src: string; label: string }) {
       role="img"
       aria-label={label}
       title={label}
-      className="h-4 w-4 shrink-0 rounded-[3px] object-contain opacity-95"
+      className="h-3.5 w-3.5 shrink-0 rounded-[3px] object-contain opacity-90"
     />
   );
 }
@@ -85,25 +85,25 @@ const timeAgo = (timestamp: string): string => {
 export function RecentActivityFeed({ data, isLoading, embed, websiteId }: RecentActivityFeedProps) {
   if (isLoading) {
     return (
-      <div className={cn('space-y-3', embed && 'space-y-2')}>
+      <div className={cn('space-y-3', embed && 'space-y-1')}>
         {!embed && (
           <>
             <Skeleton className="h-5 w-28" />
             <Skeleton className="h-3 w-44" />
           </>
         )}
-        <div className="space-y-0 divide-y divide-border/50">
+        <div className="divide-y divide-border/40">
           {[...Array(embed ? 6 : 7)].map((_, i) => (
-            <div key={i} className="py-2.5 space-y-1.5">
+            <div key={i} className={cn('flex flex-col gap-1.5', embed ? 'py-2.5 px-1' : 'py-3')}>
               <div className="flex items-center gap-2">
-                <Skeleton className="h-3.5 flex-1 rounded" />
-                <Skeleton className="h-3.5 w-14 rounded" />
+                <Skeleton className="h-3.5 flex-1 max-w-[70%] rounded" />
+                <Skeleton className="h-3 w-12 rounded ml-auto" />
               </div>
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-4 w-4 rounded" />
-                <Skeleton className="h-4 w-4 rounded" />
-                <Skeleton className="h-4 w-4 rounded" />
-                <Skeleton className="h-3 w-full max-w-[12rem] rounded" />
+              <div className="flex items-center gap-1.5">
+                <Skeleton className="h-3.5 w-3.5 rounded-sm" />
+                <Skeleton className="h-3.5 w-3.5 rounded-sm" />
+                <Skeleton className="h-3.5 w-3.5 rounded-sm" />
+                <Skeleton className="h-3 w-24 rounded ml-1" />
               </div>
             </div>
           ))}
@@ -147,91 +147,132 @@ export function RecentActivityFeed({ data, isLoading, embed, websiteId }: Recent
           </div>
         </div>
       ) : (
-        <div
-          className={cn(
-            'max-h-[420px] overflow-y-auto overflow-x-hidden',
-            embed && 'max-h-[min(20rem,42vh)] text-[13px]',
-          )}
-        >
-          {activities.map((item, i) => {
-            const flag = getCountryFlag(item.country);
-            const ago = timeAgo(item.timestamp);
-            const isRecent = ago === 'just now' || ago.endsWith('s ago');
-            const pageShown = websiteId
-              ? displayRealtimePath(item.page, websiteId, 96)
-              : item.page.length > 72
-                ? `${item.page.slice(0, 71)}…`
-                : item.page;
-            const pageTitle = item.page;
-            const refLabel = activityReferrerLabel(item.referrer, websiteId);
-            const showRef = Boolean(refLabel && refLabel !== pageShown);
-            const osLabel = (item.os || '').trim();
-            const deviceLabelText = (item.device || '').trim();
-            const browserLabel = (item.browser || '').trim();
-            return (
-              <div
-                key={`${item.timestamp}-${i}`}
-                className={cn(
-                  'border-b border-border/50 last:border-0 py-2',
-                  embed && 'hover:bg-muted/20',
-                  !embed && 'hover:bg-accent/5 -mx-8 px-8 py-2.5',
-                  i === 0 && 'animate-in fade-in slide-in-from-top-1 duration-300',
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span
-                    className="font-mono text-[13px] text-foreground min-w-0 leading-snug truncate"
-                    title={pageTitle}
-                  >
-                    {pageShown}
-                  </span>
-                  <span
+        <div className="relative">
+          <div
+            className={cn(
+              'overflow-y-auto overflow-x-hidden',
+              embed
+                ? 'max-h-[min(20rem,42vh)]'
+                : 'max-h-[420px]',
+            )}
+          >
+            <div className="divide-y divide-border/40">
+              {activities.map((item, i) => {
+                const flag = getCountryFlag(item.country);
+                const ago = timeAgo(item.timestamp);
+                const isRecent = ago === 'just now' || ago.endsWith('s ago');
+                const pageShown = websiteId
+                  ? displayRealtimePath(item.page, websiteId, 96)
+                  : item.page.length > 72
+                    ? `${item.page.slice(0, 71)}…`
+                    : item.page;
+                const pageTitle = item.page;
+                const refLabel = activityReferrerLabel(item.referrer, websiteId);
+                const showRef = Boolean(refLabel && refLabel !== pageShown);
+                const osLabel = (item.os || '').trim();
+                const deviceLabelText = (item.device || '').trim();
+                const browserLabel = (item.browser || '').trim();
+                return (
+                  <div
+                    key={`${item.timestamp}-${i}`}
                     className={cn(
-                      'text-[11px] shrink-0 tabular-nums',
-                      isRecent ? 'text-emerald-600 dark:text-emerald-500' : 'text-muted-foreground',
+                      'group relative flex flex-col gap-1.5 transition-colors',
+                      embed
+                        ? 'px-1 py-2.5 hover:bg-muted/25'
+                        : 'px-8 -mx-8 py-3 hover:bg-accent/5',
+                      i === 0 && 'animate-in fade-in slide-in-from-top-1 duration-300',
                     )}
                   >
-                    {ago}
-                  </span>
-                </div>
-                <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[11px] text-muted-foreground">
-                  <span
-                    className="inline-flex min-w-0 max-w-[11rem] items-center gap-1.5"
-                    title={item.country || undefined}
-                  >
-                    {flag ? (
-                      <span className="shrink-0 text-[15px] leading-none" aria-hidden>
-                        {flag}
+                    {/* Left accent bar */}
+                    <span
+                      className={cn(
+                        'pointer-events-none absolute left-0 top-2 bottom-2 w-[2.5px] rounded-full transition-colors',
+                        embed && (isRecent
+                          ? 'bg-emerald-500'
+                          : 'bg-border/60 group-hover:bg-border'),
+                        !embed && 'hidden',
+                      )}
+                      aria-hidden
+                    />
+
+                    {/* Path row */}
+                    <div className={cn('flex items-center justify-between gap-3', embed && 'pl-3')}>
+                      <span
+                        className="font-mono text-[13px] font-medium text-foreground min-w-0 leading-snug truncate"
+                        title={pageTitle}
+                      >
+                        {pageShown}
                       </span>
-                    ) : (
-                      <Globe className="h-3.5 w-3.5 shrink-0 opacity-50" aria-hidden />
-                    )}
-                    <span className="min-w-0 truncate">{item.country || '—'}</span>
-                  </span>
 
-                  <span className="text-border/70" aria-hidden>
-                    ·
-                  </span>
+                      {/* Timestamp */}
+                      <span
+                        className={cn(
+                          'inline-flex shrink-0 items-center gap-1.5 text-[11px] tabular-nums',
+                          isRecent ? 'text-emerald-600 dark:text-emerald-500' : 'text-muted-foreground',
+                        )}
+                      >
+                        {isRecent && (
+                          <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden>
+                            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-50 animate-ping" />
+                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          </span>
+                        )}
+                        {ago}
+                      </span>
+                    </div>
 
-                  {deviceLabelText ? (
-                    <MetaIcon src={getDeviceImagePath(deviceLabelText)} label={deviceLabelText} />
-                  ) : (
-                    <MetaIcon src={getDeviceImagePath('')} label="Device" />
-                  )}
+                    {/* Metadata row */}
+                    <div className={cn('flex flex-wrap items-center gap-x-2 gap-y-1', embed && 'pl-3')}>
+                      {/* Country */}
+                      <span
+                        className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+                        title={item.country || undefined}
+                      >
+                        {flag ? (
+                          <span className="shrink-0 text-[13px] leading-none" aria-hidden>{flag}</span>
+                        ) : (
+                          <Globe className="h-3 w-3 shrink-0 opacity-50" aria-hidden />
+                        )}
+                        <span className="truncate max-w-[9rem]">{item.country || '—'}</span>
+                      </span>
 
-                  {osLabel ? <MetaIcon src={getOsImagePath(osLabel)} label={osLabel} /> : null}
+                      {/* Icons group */}
+                      <span className="inline-flex items-center gap-1 text-muted-foreground/60" aria-hidden>·</span>
+                      <span className="inline-flex items-center gap-1">
+                        {deviceLabelText
+                          ? <MetaIcon src={getDeviceImagePath(deviceLabelText)} label={deviceLabelText} />
+                          : <MetaIcon src={getDeviceImagePath('')} label="Device" />}
+                        {osLabel ? <MetaIcon src={getOsImagePath(osLabel)} label={osLabel} /> : null}
+                        {browserLabel ? <MetaIcon src={getBrowserImagePath(browserLabel)} label={browserLabel} /> : null}
+                      </span>
 
-                  {browserLabel ? <MetaIcon src={getBrowserImagePath(browserLabel)} label={browserLabel} /> : null}
+                      {/* Referrer */}
+                      {showRef && (
+                        <>
+                          <span className="inline-flex items-center gap-1 text-muted-foreground/60" aria-hidden>·</span>
+                          <span
+                            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground truncate max-w-[10rem]"
+                            title={refLabel}
+                          >
+                            <ExternalLink className="h-3 w-3 shrink-0 opacity-55" aria-hidden />
+                            {refLabel}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
 
-                  {showRef ? (
-                    <span className="inline-flex h-4 shrink-0 items-center" title={refLabel}>
-                      <ExternalLink className="h-3.5 w-3.5 opacity-55" aria-label={`Referrer: ${refLabel}`} />
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
+          {/* Scroll fade */}
+          {activities.length > 5 && (
+            <div
+              className="pointer-events-none absolute bottom-0 inset-x-0 h-10 bg-gradient-to-t from-card to-transparent"
+              aria-hidden
+            />
+          )}
         </div>
       )}
     </div>
