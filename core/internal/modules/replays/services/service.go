@@ -73,6 +73,8 @@ type ReplayService struct {
 	pgQueue     chan repository.SessionUpsertRow
 	idCache     map[string]idCacheEntry
 	idCacheMu   sync.Mutex
+	workerWg    sync.WaitGroup // tracks S3 worker goroutines
+	batcherWg   sync.WaitGroup // tracks pgBatcher goroutine
 }
 
 func NewReplayService(repo *repository.ReplayRepository, websiteRepo *websiteRepo.WebsiteRepository, logger zerolog.Logger, cfg *config.Config) *ReplayService {
@@ -108,20 +110,34 @@ func NewReplayService(repo *repository.ReplayRepository, websiteRepo *websiteRep
 	logger.Info().Dur("idle_flush", idle).Dur("max_age", maxAge).Dur("presign_ttl", presignTTL).Msg("replay spool (bundle-only + presigned reads)")
 
 	for i := 0; i < sessionWorkers; i++ {
+		s.workerWg.Add(1)
 		go s.worker()
 	}
+	s.batcherWg.Add(1)
 	go s.pgBatcher()
 	return s
 }
 
-// Shutdown flushes in-memory replay buffers then stops the spool finalizer.
+// Shutdown drains all queues and goroutines in dependency order:
+//  1. Flush the in-memory spool to S3 (may take up to 90 s per session).
+//  2. Close s.queue — the 16 S3 workers drain remaining jobs and exit.
+//  3. Wait for all workers — ensures no more rows land in pgQueue.
+//  4. Close s.pgQueue — pgBatcher flushes the last batch and exits.
+//  5. Wait for pgBatcher — guarantees every metadata row is persisted.
 func (s *ReplayService) Shutdown(ctx context.Context) {
 	s.spool.FlushAll(ctx)
 	s.spool.Stop()
+
+	close(s.queue)
+	s.workerWg.Wait()
+
+	close(s.pgQueue)
+	s.batcherWg.Wait()
 }
 
 // worker drains the S3 queue — uploads one chunk then forwards a Postgres row.
 func (s *ReplayService) worker() {
+	defer s.workerWg.Done()
 	for job := range s.queue {
 		err := s.spool.Push(job.websiteID, job.sessionID, job.events)
 		if err != nil {
@@ -157,7 +173,9 @@ func (s *ReplayService) worker() {
 
 // pgBatcher accumulates Postgres upsert rows and flushes as a single batch
 // when either pgBatchSize rows are ready or pgBatchTimeout elapses.
+// Exits cleanly when pgQueue is closed (by Shutdown), flushing any remaining rows first.
 func (s *ReplayService) pgBatcher() {
+	defer s.batcherWg.Done()
 	buf := make([]repository.SessionUpsertRow, 0, pgBatchSize)
 	ticker := time.NewTicker(pgBatchTimeout)
 	defer ticker.Stop()

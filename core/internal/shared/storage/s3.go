@@ -253,22 +253,35 @@ func (c *S3Client) Delete(ctx context.Context, key string) error {
 	return err
 }
 
+// s3DeleteBatchSize is the maximum number of objects per DeleteObjects call (S3 hard limit).
+const s3DeleteBatchSize = 1000
+
 // DeletePrefix removes all objects whose key starts with prefix.
+// Batches deletions in groups of 1000 to respect S3's DeleteObjects limit.
 func (c *S3Client) DeletePrefix(ctx context.Context, prefix string) error {
 	keys, err := c.ListKeys(ctx, prefix)
 	if err != nil || len(keys) == 0 {
 		return err
 	}
-	objs := make([]awss3types.ObjectIdentifier, len(keys))
-	for i, k := range keys {
-		k := k
-		objs[i] = awss3types.ObjectIdentifier{Key: &k}
+	for i := 0; i < len(keys); i += s3DeleteBatchSize {
+		end := i + s3DeleteBatchSize
+		if end > len(keys) {
+			end = len(keys)
+		}
+		batch := keys[i:end]
+		objs := make([]awss3types.ObjectIdentifier, len(batch))
+		for j, k := range batch {
+			k := k
+			objs[j] = awss3types.ObjectIdentifier{Key: &k}
+		}
+		if _, err := c.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
+			Bucket: &c.bucket,
+			Delete: &awss3types.Delete{Objects: objs, Quiet: aws.Bool(true)},
+		}); err != nil {
+			return err
+		}
 	}
-	_, err = c.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
-		Bucket: &c.bucket,
-		Delete: &awss3types.Delete{Objects: objs, Quiet: aws.Bool(true)},
-	})
-	return err
+	return nil
 }
 
 // SessionPrefix returns the listing prefix for all chunks of a session.
