@@ -55,6 +55,14 @@ export interface ClientLimits {
   maxWebsites: number | null;
 }
 
+/** Sent on create when the UI does not override limits (server applies agency defaults). */
+export const DEFAULT_CLIENT_LIMITS: ClientLimits = {
+  maxMonthlyEvents: null,
+  maxReplays: null,
+  maxHeatmaps: null,
+  maxWebsites: null,
+};
+
 export interface AgencyClient {
   id: string;
   agencyId: string;
@@ -105,7 +113,9 @@ export interface WhiteLabelSettings {
   hideSeentics: boolean;
 }
 
-export type CreateClientRequest = Omit<AgencyClient, 'id' | 'agencyId' | 'createdAt' | 'updatedAt'>;
+export type CreateClientRequest = Omit<AgencyClient, 'id' | 'agencyId' | 'createdAt' | 'updatedAt' | 'limits'> & {
+  limits?: ClientLimits;
+};
 export type UpdateClientRequest = Partial<CreateClientRequest>;
 
 // ─── Mappers ──────────────────────────────────────────────────────────────────
@@ -204,7 +214,7 @@ export async function createClient(req: CreateClientRequest): Promise<AgencyClie
     status: req.status,
     note: req.note,
     features_enabled: req.featuresEnabled,
-    limits: req.limits,
+    limits: req.limits ?? DEFAULT_CLIENT_LIMITS,
   };
   const response = await api.post('/user/agency/clients', payload);
   const raw = response.data?.client || response.data?.data || response.data;

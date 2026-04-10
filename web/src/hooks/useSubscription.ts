@@ -32,6 +32,7 @@ export interface SubscriptionData {
   priceMonthly?: number;
   priceYearly?: number;
   currentPeriodEnd?: string;
+  cancelAtPeriodEnd?: boolean;
 }
 
 export interface UseSubscriptionReturn {

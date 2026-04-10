@@ -113,7 +113,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
     }
     try {
       setCreating(true);
-      const key = await apiKeysAPI.create(websiteId, newKeyName.trim());
+      const key = await apiKeysAPI.create(websiteId, newKeyName.trim(), []);
       setCreatedKey(key);
       setShowCreate(false);
       setNewKeyName('');
@@ -132,7 +132,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
     }
     try {
       setDeleting(id);
-      await apiKeysAPI.remove(websiteId, id);
+      await apiKeysAPI.revoke(websiteId, id);
       setKeys((prev) => prev.filter((k) => k.id !== id));
       toast.success('API key revoked');
     } catch {
@@ -313,7 +313,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
                         <code className="font-mono">{key.keyPrefix}\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022</code>
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          {key.lastUsed ? `Used ${formatDate(key.lastUsed)}` : 'Never used'}
+                          {key.lastUsedAt ? `Used ${formatDate(key.lastUsedAt)}` : 'Never used'}
                         </span>
                       </div>
                     </div>

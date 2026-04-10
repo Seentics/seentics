@@ -44,7 +44,12 @@ export async function GET(
       return new NextResponse('Build error', { status: 500 });
     }
 
-    const code = result.outputFiles[0].text;
+    const out = result.outputFiles?.[0];
+    if (!out) {
+      console.error(`[tracker] esbuild produced no output for ${name}`);
+      return new NextResponse('Build error', { status: 500 });
+    }
+    const code = out.text;
     const etag = `"${crypto.createHash('sha256').update(code).digest('hex').slice(0, 16)}"`;
     hit = { code, etag };
     cache.set(name, hit);
