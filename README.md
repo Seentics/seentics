@@ -44,12 +44,10 @@ You own your data. Deploy in minutes with Docker.
 
 ## Features
 
-| | |
-| --- | --- |
-| **Analytics** | Unified dashboard (traffic, sources, geography, devices, browsers), realtime visitors & event stream, goals, funnels, custom events, period compare, chart annotations |
-| **Operations** | Threshold & anomaly alerts (email / webhook), scheduled PDF/email reports |
-| **Behavior** | Heatmaps (click & scroll, per viewport, live mode), session replays (S3-compatible storage, PII masking), path analysis, on-site automations (popups, banners, webhooks, custom JS) |
-| **Developers** | One script tag tracker, **per-website API keys** for server-side analytics access, outbound webhooks, `@seentics/components` (in-repo package), built-in API explorer |
+- **Analytics** — Dashboard, realtime, goals, funnels, events, comparisons, annotations  
+- **Operations** — Alerts, scheduled reports  
+- **Behavior** — Heatmaps, session replays, path analysis, on-site automations  
+- **Developers** — Tracking script, per-website API keys, webhooks, `@seentics/components`, in-dashboard API docs  
 
 ---
 
