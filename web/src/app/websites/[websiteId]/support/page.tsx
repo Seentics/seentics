@@ -27,8 +27,9 @@ import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 import { isDemo } from '@/lib/demo';
+import { config } from '@/lib/config';
 
-const SUPPORT_EMAIL = 'seentics@gmail.com';
+const SUPPORT_EMAIL = config.supportEmail;
 
 type TabId = 'contact' | 'call';
 
