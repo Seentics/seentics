@@ -2,7 +2,6 @@
 
 import React from 'react';
 import { useParams } from 'next/navigation';
-import TrackerScript from '@/components/tracker-script';
 import { Sidebar } from '@/components/dashboard/Sidebar';
 
 interface LayoutProps {
@@ -15,7 +14,6 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="flex h-screen min-h-0 overflow-hidden bg-background text-foreground">
-      <TrackerScript websiteId={websiteId} />
       {websiteId && <Sidebar websiteId={websiteId} />}
       {/*
         flex flex-col + min-h-0: children can use flex-1 (e.g. session replay) and get real height.

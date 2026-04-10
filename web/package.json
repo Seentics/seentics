@@ -21,7 +21,8 @@
   "homepage": "https://github.com/Seentics/seentics#readme",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "bundle-trackers": "node scripts/bundle-trackers.cjs",
+    "build": "node scripts/bundle-trackers.cjs && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

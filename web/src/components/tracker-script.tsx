@@ -1,14 +1,8 @@
 'use client';
 
 import Script from 'next/script';
-import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { config } from '@/lib/config';
-
-type TrackerScriptProps = {
-  /** Dashboard fallback when `NEXT_PUBLIC_SEENTICS_SITE_ID` is unset (URL site UUID). */
-  websiteId?: string;
-};
 
 // Tracker appends `/api/v1/...`; env often uses `NEXT_PUBLIC_API_URL` with a trailing `/api/v1`.
 function normalizeTrackerApiHost(raw: string): string {
@@ -20,14 +14,18 @@ function normalizeTrackerApiHost(raw: string): string {
 }
 
 /**
- * Loader for the tracker script (served dynamically from /api/tracker/seentics.js).
- * Configure via env (preferred):
+ * Loads the Seentics tracker **only** when self-tracking is configured via env.
+ *
+ * We intentionally do **not** infer `data-website-id` from the URL (e.g. `/websites/[id]`).
+ * Otherwise every dashboard session would pollute the **customer** website that is open in the UI.
+ *
+ * Set one of:
  * - NEXT_PUBLIC_SEENTICS_SITE_ID
- * - NEXT_PUBLIC_SEENTICS_TRACKER_URL (override script URL, e.g. https://cdn.example.com/seentics.js)
- * - NEXT_PUBLIC_SEENTICS_API_HOST (optional; defaults from NEXT_PUBLIC_API_URL / api base)
+ * - NEXT_PUBLIC_SEENTICS_WEBSITE_ID
+ *
+ * Optional: NEXT_PUBLIC_SEENTICS_TRACKER_URL, NEXT_PUBLIC_SEENTICS_API_HOST
  */
-export default function TrackerScript({ websiteId }: TrackerScriptProps) {
-  const pathname = usePathname();
+export default function TrackerScript() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -36,17 +34,14 @@ export default function TrackerScript({ websiteId }: TrackerScriptProps) {
 
   if (!mounted) return null;
 
-  const isPerWebsiteDashboard = /^\/websites\/[^/]+/.test(pathname ?? '');
+  const siteId =
+    process.env.NEXT_PUBLIC_SEENTICS_SITE_ID?.trim() ||
+    process.env.NEXT_PUBLIC_SEENTICS_WEBSITE_ID?.trim() ||
+    '';
 
-  if (isPerWebsiteDashboard && !websiteId) {
-    return null;
-  }
-
-  const envSiteId = process.env.NEXT_PUBLIC_SEENTICS_SITE_ID?.trim() ?? '';
   const envTrackerUrl = process.env.NEXT_PUBLIC_SEENTICS_TRACKER_URL?.trim() ?? '';
   const envApiHost = process.env.NEXT_PUBLIC_SEENTICS_API_HOST?.trim() ?? '';
 
-  const siteId = envSiteId || (websiteId || '').trim();
   const apiHostRaw = envApiHost || process.env.NEXT_PUBLIC_API_URL || config.apiBaseUrl;
   const apiHost = normalizeTrackerApiHost(apiHostRaw);
 
@@ -54,7 +49,7 @@ export default function TrackerScript({ websiteId }: TrackerScriptProps) {
     envTrackerUrl ||
     `${window.location.origin}/api/tracker/seentics.js`;
 
-  if (!siteId || !trackerUrl) return null;
+  if (!siteId) return null;
 
   return (
     <Script
@@ -62,7 +57,7 @@ export default function TrackerScript({ websiteId }: TrackerScriptProps) {
       defer
       src={trackerUrl}
       data-website-id={siteId}
-      data-api-host={apiHost}
+      {...(apiHost ? { 'data-api-host': apiHost } : {})}
       strategy="afterInteractive"
     />
   );
