@@ -21,7 +21,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--v3-blue.svg" alt="License" /></a>
   <img src="https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white" alt="Go" />
-  <img src="https://img.shields.io/badge/Next.js-14-black?logo=next.js" alt="Next.js" />
+  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js" />
   <img src="https://img.shields.io/badge/ClickHouse-FFCC01?logo=clickhouse&logoColor=black" alt="ClickHouse" />
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker" />
 </p>
@@ -44,45 +44,12 @@ You own your data. Deploy in minutes with Docker.
 
 ## Features
 
-### Web Analytics
-
-**Overview** — single-page dashboard: summary cards, traffic chart, top pages, traffic sources, geography, devices, and browsers. Drill into any section via modal — no separate pages needed. Filter by date range, compare any two periods.
-
-**Realtime** — live visitor count, currently active pages, and a live event feed with device and country.
-
-**Goals** — page visit goals, custom event goals, and CSS selector click goals. See conversion rates and completion trends.
-
-**Funnels** — multi-step conversion funnels. Visualize drop-off at each step and see your overall conversion rate.
-
-**Events** — custom event tracking. View occurrence counts, unique users, and drill into property breakdowns per event.
-
-**Annotations** — mark deploys, campaigns, and incidents directly on your traffic charts.
-
-**Alerts** — threshold and anomaly alerts delivered via email or webhook.
-
-**Scheduled Reports** — automated PDF/email digests on any schedule.
-
-### Behavior Analytics
-
-**Heatmaps** — click and scroll overlays for any page. Supports desktop, tablet, and mobile viewports. Live mode shows clicks as they happen.
-
-**Session Replays** — record full user sessions with automatic PII masking. Stored in S3-compatible storage. Searchable by page, duration, country, and device.
-
-**Path Analysis** — visualize user flows between pages. See where users come from and where they go next.
-
-**Behavioral Automations** — trigger popups, banners, webhooks, or custom JavaScript based on exit intent, scroll depth, time on page, and more — without code deploys.
-
-### Developer Tools
-
-**Tracking Script** — one line of JS. Tracks pageviews, custom events, and goal completions automatically.
-
-**API Keys** — agency-level API keys for server-to-server data access without JWT expiry.
-
-**Webhooks** — push analytics events to any endpoint on configurable triggers.
-
-**`@seentics/components`** — embeddable React components for analytics. Drop into any app with an API key.
-
-**OpenAPI Reference** — full API explorer built into the dashboard.
+| | |
+| --- | --- |
+| **Analytics** | Unified dashboard (traffic, sources, geography, devices, browsers), realtime visitors & event stream, goals, funnels, custom events, period compare, chart annotations |
+| **Operations** | Threshold & anomaly alerts (email / webhook), scheduled PDF/email reports |
+| **Behavior** | Heatmaps (click & scroll, per viewport, live mode), session replays (S3-compatible storage, PII masking), path analysis, on-site automations (popups, banners, webhooks, custom JS) |
+| **Developers** | One script tag tracker, **per-website API keys** for server-side analytics access, outbound webhooks, `@seentics/components` (in-repo package), built-in API explorer |
 
 ---
 
@@ -91,12 +58,12 @@ You own your data. Deploy in minutes with Docker.
 | Layer | Technology |
 |---|---|
 | Backend API | Go 1.24 (Gin) |
-| Frontend | Next.js 14, Tailwind CSS, shadcn/ui |
+| Frontend | Next.js 16, Tailwind CSS, shadcn/ui |
 | Analytics DB | ClickHouse |
 | Metadata DB | PostgreSQL 15 |
-| Event Streaming | NATS |
-| Object Storage | S3-compatible (MinIO for local dev) |
-| Cache & Rate Limiting | Redis 7 |
+| Event pipeline | In-memory batching → ClickHouse (see [`core/README.md`](core/README.md)) |
+| Object Storage | S3-compatible (MinIO in Docker Compose for local dev) |
+| Cache & rate limiting | Redis |
 
 ---
 
@@ -121,13 +88,13 @@ After creating a site in the dashboard, add to your `<head>`:
 
 ```html
 <script
-  async
-  src="http://localhost:3002/trackers/seentics.js"
-  data-site-id="YOUR_SITE_ID"
+  defer
+  src="http://localhost:3000/trackers/seentics.js"
+  data-website-id="YOUR_WEBSITE_ID"
 ></script>
 ```
 
-Replace `localhost:3002` with your server URL in production.
+Use the same **public** URL your visitors load (dashboard on `:3000` in Docker; in production, your web/edge URL). The ID is the website UUID from the Seentics dashboard.
 
 ### Track Custom Events
 
@@ -165,7 +132,7 @@ import {
   FunnelChart,
 } from '@seentics/components'
 
-<SeenticsProvider apiKey="sk_age_..." baseUrl="https://api.yourdomain.com">
+<SeenticsProvider apiKey="YOUR_API_KEY" baseUrl="https://api.yourdomain.com">
   {/* In a customer portal, admin panel, or your own product */}
   <AnalyticsSummary siteId="site_abc" dateRange="last_7_days" />
   <TrafficChart siteId="site_abc" metric="pageviews" groupBy="day" />
@@ -185,21 +152,24 @@ seentics/
 │   ├── cmd/api/main.go          # Entry point
 │   ├── internal/
 │   │   ├── modules/
+│   │   │   ├── auth/            # Users, JWT, sessions
 │   │   │   ├── analytics/       # Events, pageviews, goals, realtime
 │   │   │   ├── websites/        # Site management, members
 │   │   │   ├── funnels/         # Funnel steps + conversion tracking
 │   │   │   ├── heatmaps/        # Click + scroll recording + query
 │   │   │   ├── replays/         # Session recording + playback
-│   │   │   ├── workflows/       # Behavioral automations
-│   │   │   └── tracker/         # seentics.js serving
+│   │   │   ├── automations/     # Behavioral workflow engine
+│   │   │   ├── apikeys/         # Per-website raw API keys
+│   │   │   └── tracker/         # Ingestion / tracker HTTP surface
 │   │   └── shared/
 │   │       ├── database/        # Postgres + ClickHouse connections
 │   │       ├── config/          # Env config + feature flags
 │   │       ├── middleware/      # Auth, CORS, logging, rate limit
 │   │       └── migrations/      # Postgres + ClickHouse schema
-│   └── data/trackers/           # seentics.js tracking scripts
+│   └── data/                    # Runtime data (see Docker volumes)
 │
-├── web/                         # Next.js 14 frontend
+├── web/                         # Next.js app + dashboard UI
+│   ├── trackers/                # `seentics.js` source (served under `/trackers/…`)
 │   └── src/
 │       ├── app/
 │       │   └── websites/[websiteId]/
@@ -224,8 +194,7 @@ seentics/
 ├── packages/                    # Embeddable UI packages (MIT licensed)
 │   └── components/              # @seentics/components — React components
 │
-├── docker-compose.yml           # Local dev stack
-└── scripts/                     # Deployment utilities
+└── docker-compose.yml           # Local dev stack
 ```
 
 ---
@@ -238,54 +207,44 @@ seentics/
 docker compose up -d --build
 ```
 
-Starts PostgreSQL, ClickHouse, NATS, MinIO, Redis, and both the backend and frontend with hot reloading.
+Starts PostgreSQL, ClickHouse, Redis, MinIO, the Go API, and the Next.js app (with dev hot reload on the pinned Compose file).
 
 ### Production
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for full instructions (AWS EC2 or any Linux server).
-
-```bash
-git clone https://github.com/Seentics/seentics.git
-cd seentics
-cp core/.env.example core/.env
-./scripts/deploy.sh
-```
+See [DEPLOYMENT.md](DEPLOYMENT.md) for hosting on a VPS or cloud instance. Typical flow: configure `core/.env` from [`core/.env.example`](core/.env.example), then run the stack with Docker (or your orchestrator) behind HTTPS.
 
 ### Key Environment Variables
 
-| Variable | Description | Default |
-|---|---|---|
-| `DATABASE_URL` | PostgreSQL connection string | See `.env.example` |
-| `JWT_SECRET` | Auth token signing key | Required |
-| `CLICKHOUSE_HOST` | ClickHouse host | `localhost` |
-| `CLICKHOUSE_DB` | ClickHouse database | `seentics` |
-| `NATS_URL` | NATS server URL | `nats://localhost:4222` |
-| `S3_ENDPOINT` | S3/MinIO endpoint for replays | `http://minio:9000` |
-| `CORS_ALLOWED_ORIGINS` | Allowed frontend origins | `http://localhost:3000` |
+Start from [`core/.env.example`](core/.env.example) (JWT, database, core flags). For the **full** local stack (ClickHouse, Redis, MinIO, ports, and service hostnames), use [`docker-compose.yml`](docker-compose.yml) as the source of truth — Compose wires services together even when every key is not duplicated in `.env.example`.
 
-Full list: [`core/.env.example`](core/.env.example)
+| Variable | Role |
+|---|---|
+| `DATABASE_URL` | PostgreSQL |
+| `JWT_SECRET` | Session / API auth |
+| `CLICKHOUSE_*` | Analytics store |
+| `REDIS_URL` | Cache & rate limits |
+| `S3_*` / `S3_ENDPOINT` | Replay storage |
+| `CORS_ALLOWED_ORIGINS` | Browser origins allowed to call the API |
 
 ---
 
 ## Architecture
 
 ```
-Browser ──→ Next.js Frontend (:3000)
-                  │
-            Go Backend API (:3002)
-                  │
-    ┌─────────────┼──────────────┬──────────┐
-    │             │              │          │
-ClickHouse    PostgreSQL       NATS       Redis
-(analytics    (metadata,    (event      (cache,
- data)         users,        streams)    rate limit)
-               sites)
-                  │
-                MinIO
-          (replays + assets)
+Browser ──→ Next.js (:3000) ──→ Go API (:3002)
+                                      │
+          ┌───────────────────────────┼──────────────────────────┐
+          │                           │                          │
+    ClickHouse                   PostgreSQL                    Redis
+   (analytics)                  (sites, users…)                 │
+          │                           │                   (cache & limits)
+          └───────────────────────────┼──────────────────────────┘
+                                      │
+                                    MinIO
+                          (replay chunks; S3-compatible)
 ```
 
-Events are published to **NATS** and consumed by background workers that batch-write to **ClickHouse**. Redis handles caching and rate limiting. Session replays are stored in S3-compatible storage.
+Tracking hits the **Go API**; events are **batched in memory** and written to **ClickHouse** (see [`core/README.md`](core/README.md)). **Redis** backs query cache and rate limiting. Replays use **S3-compatible** storage (e.g. MinIO in Docker).
 
 ---
 
