@@ -38,6 +38,15 @@ func (h *ReplayHandler) ListSessions(c *gin.Context) {
 	if o := c.Query("offset"); o != "" {
 		fmt.Sscanf(o, "%d", &offset)
 	}
+	// Clamp to safe bounds: LIMIT -1 in Postgres returns all rows; LIMIT 0 is useless.
+	if limit < 1 {
+		limit = 1
+	} else if limit > 500 {
+		limit = 500
+	}
+	if offset < 0 {
+		offset = 0
+	}
 
 	sessions, err := h.service.ListSessions(c.Request.Context(), websiteID, limit, offset)
 	if err != nil {
@@ -98,6 +107,15 @@ func (h *ReplayHandler) BatchDelete(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+	if len(req.SessionIDs) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "sessionIds must not be empty"})
+		return
+	}
+	const maxBatchDelete = 500
+	if len(req.SessionIDs) > maxBatchDelete {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("sessionIds exceeds maximum of %d", maxBatchDelete)})
 		return
 	}
 
