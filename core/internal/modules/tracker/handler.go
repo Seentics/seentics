@@ -15,6 +15,7 @@ import (
 	replaySvc       "github.com/Seentics/seentics/internal/modules/replays/services"
 	websiteModels   "github.com/Seentics/seentics/internal/modules/websites/models"
 	websiteSvc      "github.com/Seentics/seentics/internal/modules/websites/services"
+	"github.com/Seentics/seentics/internal/shared/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -179,7 +180,13 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 
 	websiteUUID, _ := uuid.Parse(website.ID.String())
 	now := time.Now()
-	ip := c.ClientIP()
+	// Prefer IP from ClientIPMiddleware (CF-Connecting-IP, then X-Forwarded-For, …).
+	// c.ClientIP() ignores those unless Gin trusted proxies / TrustedPlatform are set, which
+	// often yields the CDN/proxy edge IP (wrong country) instead of the visitor.
+	ip := utils.GetClientIP(c.Request.Context())
+	if ip == "" {
+		ip = c.ClientIP()
+	}
 	ua := c.Request.UserAgent()
 
 	// Enrichment (geo/UA parsing) is deferred to the buffer flush — keeps this

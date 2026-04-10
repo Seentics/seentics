@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Code2, CreditCard, Goal, Shield, Users } from 'lucide-react';
+import { Code2, CreditCard, Goal, LayoutGrid, Shield, Users } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { isEnterprise } from '@/lib/features';
@@ -12,6 +12,12 @@ export default function SettingsPage() {
   const websiteId = params?.websiteId as string;
 
   const pages = [
+    {
+      title: 'Websites',
+      description: 'View all properties, add a site, edit details, or remove a website.',
+      href: '/websites/manage',
+      icon: LayoutGrid,
+    },
     {
       title: 'Tracking',
       description: 'Install and verify your analytics snippet.',
@@ -52,7 +58,7 @@ export default function SettingsPage() {
     <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
       <DashboardPageHeader
         title="Settings"
-        description="Choose an analytics settings page from the sidebar or quick links below."
+        description="Manage this site below, or use Websites to add, edit, or remove properties on your account."
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

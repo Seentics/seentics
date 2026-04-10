@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Activity, GitBranch,
   Video, Flame, Bot, Code2, Settings, CreditCard,
-  LogOut, PanelLeftClose, PanelLeftOpen, LifeBuoy, LayoutGrid,
+  LogOut, PanelLeftClose, PanelLeftOpen, LifeBuoy,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { isEnterprise } from '@/lib/features';
@@ -43,7 +43,6 @@ function buildSecondaryNav(websiteId: string): NavItem[] {
 }
 
 function isActive(href: string, pathname: string): boolean {
-  if (href === '/websites') return pathname === '/websites';
   if (href.match(/\/websites\/[^/]+$/)) return pathname === href;
   return pathname.startsWith(href);
 }
@@ -128,25 +127,6 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
 
       {/* Nav */}
       <nav className={cn('flex-1 py-2', collapsed ? 'px-2' : 'px-3')}>
-        <ul className="space-y-0.5">
-          <li key="/websites">
-            <Link
-              href="/websites"
-              title={collapsed ? 'All websites' : undefined}
-              className={cn(
-                'flex items-center gap-3 rounded-md transition-colors',
-                collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-3',
-                isActive('/websites', pathname)
-                  ? 'bg-primary/10 text-primary dark:bg-accent dark:text-foreground'
-                  : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',
-              )}
-            >
-              <LayoutGrid className="h-[17px] w-[17px] shrink-0" />
-              {!collapsed && <span className="flex-1 text-[13.5px] font-medium">Websites</span>}
-            </Link>
-          </li>
-        </ul>
-        <div className="my-2 mx-3 h-px bg-border/50" />
         <ul className="space-y-0.5">
           {mainNav.map(renderItem)}
         </ul>
