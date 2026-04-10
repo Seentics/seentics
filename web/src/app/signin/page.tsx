@@ -22,6 +22,7 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import { useAuth } from '@/stores/useAuthStore';
 import { isEnterprise } from '@/lib/features';
+import { getGatewayBaseUrlForRedirect } from '@/lib/config';
 
 const features = [
     { icon: BarChart3, text: 'Real-time analytics with sub-second latency' },
@@ -87,7 +88,7 @@ export default function SignInPage() {
         }
     };
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+    const oauthBase = getGatewayBaseUrlForRedirect();
 
     return (
         <div className="min-h-screen bg-background flex">
@@ -141,7 +142,7 @@ export default function SignInPage() {
                     <div className="space-y-3 mb-6">
                         <button
                             type="button"
-                            onClick={() => { window.location.href = `${backendUrl}/user/auth/google`; }}
+                            onClick={() => { window.location.href = `${oauthBase}/user/auth/google`; }}
                             className="w-full h-11 rounded-lg border border-border bg-white hover:bg-gray-50 transition-colors flex items-center justify-center gap-3 text-sm font-medium text-gray-700"
                         >
                             <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -155,7 +156,7 @@ export default function SignInPage() {
 
                         <button
                             type="button"
-                            onClick={() => { window.location.href = `${backendUrl}/user/auth/github`; }}
+                            onClick={() => { window.location.href = `${oauthBase}/user/auth/github`; }}
                             className="w-full h-11 rounded-lg border border-transparent bg-[#24292f] hover:bg-[#2f363d] transition-colors flex items-center justify-center gap-3 text-sm font-medium text-white"
                         >
                             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">

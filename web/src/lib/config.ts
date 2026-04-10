@@ -54,6 +54,13 @@ export const getApiUrl = (endpoint: string = '') => {
   return `${base}${endpoint}`;
 };
 
+/** Absolute gateway base for full-page redirects (OAuth). Axios uses same-origin `/api/v1` in the browser; OAuth must hit the real API path on the gateway host. */
+export function getGatewayBaseUrlForRedirect(): string {
+  const v = config.apiVersion;
+  const base = config.apiBaseUrl.replace(/\/$/, '');
+  return base.endsWith(`/api/${v}`) ? base : `${base}/api/${v}`;
+}
+
 export const getFullUrl = (path: string = '') => {
   return `${config.frontendUrl}${path}`;
 };
