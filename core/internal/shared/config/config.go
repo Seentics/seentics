@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -84,9 +85,21 @@ func Load() (*Config, error) {
 		if cfg.DatabaseURL == "" {
 			return nil, errors.New("DATABASE_URL is required in production")
 		}
+		if !isLikelyLocalS3Endpoint(cfg.S3Endpoint) &&
+			(cfg.S3AccessKey == "minioadmin" || cfg.S3SecretKey == "minioadmin" ||
+				cfg.S3AccessKey == "" || cfg.S3SecretKey == "") {
+			return nil, errors.New("production S3/R2: set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY (or S3_ACCESS_KEY / S3_SECRET_KEY); default MinIO credentials only apply to local MinIO")
+		}
 	}
 
 	return cfg, nil
+}
+
+func isLikelyLocalS3Endpoint(endpoint string) bool {
+	e := strings.ToLower(strings.TrimSpace(endpoint))
+	return strings.Contains(e, "minio") ||
+		strings.Contains(e, "localhost") ||
+		strings.Contains(e, "127.0.0.1")
 }
 
 func getEnvOrDefault(key, defaultValue string) string {
