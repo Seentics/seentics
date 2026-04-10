@@ -142,7 +142,7 @@ func main() {
 	privacyService    := services.NewPrivacyService(privacyRepo, websiteService, logger)
 	funnelService     := funnelServicePkg.NewFunnelService(funnelRepo, websiteService, appCache)
 	heatmapService    := heatmapServicePkg.NewHeatmapService(heatmapRepo, logger)
-	replayService     := replayServicePkg.NewReplayService(replayRepo, websiteRepo, logger)
+	replayService     := replayServicePkg.NewReplayService(replayRepo, websiteRepo, logger, cfg)
 	automationService := automationServicePkg.NewAutomationService(automationRepo, appCache, logger)
 	apiKeyService     := apikeysPkg.NewService(db, appCache, logger)
 
@@ -197,6 +197,9 @@ func main() {
 	if err := eventService.Shutdown(10 * time.Second); err != nil {
 		logger.Error().Err(err).Msg("Failed to shutdown event service gracefully")
 	}
+	flushCtx, flushCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	replayService.Shutdown(flushCtx)
+	flushCancel()
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error().Err(err).Msg("Server forced to shutdown")
 	} else {

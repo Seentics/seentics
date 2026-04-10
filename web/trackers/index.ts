@@ -57,7 +57,7 @@ const rnd = (): string => {
   }
 };
 
-const visitorId: string = (() => {
+let visitorId: string = (() => {
   const s = getStore();
   if (!s) return 'v-' + rnd();
   let id = s.getItem('snc_vid');
@@ -144,6 +144,34 @@ const flush = (): void => {
 };
 
 const flushAnalytics = flush; // keep public API name
+
+// flushBeacon is used on page close (visibilitychange / pagehide).
+// Unlike flush(), it sends ALL queued data — including session recording events —
+// via sendBeacon so the browser guarantees delivery even as the page unloads.
+// Falls back to synchronous XHR if sendBeacon is unavailable or rejects the payload.
+const flushBeacon = (): void => {
+  const e = queues.events.splice(0);
+  const f = queues.funnels.splice(0), a = queues.automations.splice(0);
+  const s = queues.session.splice(0);
+  if (!e.length && !f.length && !a.length && !s.length) return;
+
+  const payload: Record<string, unknown> = { website_id: websiteId, domain };
+  if (e.length) payload.events      = e;
+  if (f.length) payload.funnels     = f;
+  if (a.length) payload.automations = a;
+  if (s.length) payload.session     = s;
+
+  const json = JSON.stringify(payload);
+  const blob = new Blob([json], { type: 'application/json' });
+  if (navigator.sendBeacon && navigator.sendBeacon(COLLECT, blob)) return;
+  // sendBeacon unavailable or rejected payload (e.g. > 64 KB) — use sync XHR as last resort.
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', COLLECT, false); // synchronous
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.send(json);
+  } catch { /* ignore — page is already closing */ }
+};
 
 // Gzip via native CompressionStream; falls back to plain JSON if unavailable.
 const sendGzip = async (json: string): Promise<void> => {
@@ -292,6 +320,8 @@ const startRrweb = (record: RrwebRecord, sid: string): void => {
 };
 
 const initRecording = async (): Promise<void> => {
+  if (cfg.replay_enabled === false) return;
+
   const samplingRate = typeof cfg.replay_sampling_rate === 'number'
     ? (cfg.replay_sampling_rate as number)
     : 1.0;
@@ -412,18 +442,26 @@ const init = (): void => {
   if (!websiteId) return;
   initRouting();
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') flush();
+    if (document.visibilityState === 'hidden') flushBeacon();
   });
-  window.addEventListener('pagehide', flush);
+  window.addEventListener('pagehide', flushBeacon);
 
     fetch(apiHost + '/api/v1/tracker/init/' + websiteId)
-    .then(r => r.json())
+    .then(async (r) => {
+      if (!r.ok) {
+        const t = await r.text().catch(() => '');
+        console.warn('[Seentics] tracker init failed:', r.status, r.statusText, t?.slice?.(0, 200) ?? '');
+        throw new Error('tracker init failed');
+      }
+      return r.json();
+    })
     .then(async (d: any) => {
       cfg         = d.config      ?? {};
       funnels     = d.funnels     ?? [];
       automations = d.automations ?? [];
       if (autoTrack) trackPage();
-      if (cfg.recording !== false) {
+      // Server sends replay_enabled; legacy key recording also supported.
+      if (cfg.replay_enabled !== false && cfg.recording !== false) {
         installSessionClientErrorCapture();
         await initRecording(); // await so first flush includes rrweb snapshot
       }
@@ -432,6 +470,10 @@ const init = (): void => {
       flushInterval = window.setInterval(flush, FLUSH_MS);
     })
     .catch(() => {
+      console.warn(
+        '[Seentics] tracker running in degraded mode (no session recording). ' +
+          'Fix init URL/domain: data-api-host should reach your API (e.g. same origin as this app in dev).',
+      );
       if (autoTrack) trackPage();
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
       flush();
@@ -445,6 +487,7 @@ const init = (): void => {
               pushAnalytics('custom', { name, ...(props ?? {}) }),
   identify: (userId: string, traits?: Record<string, unknown>) => {
               getStore()?.setItem('snc_vid', userId);
+              visitorId = userId; // update in-memory id so all subsequent events use it
               pushAnalytics('identify', { user_id: userId, traits: traits ?? {} });
             },
   page:  trackPage,

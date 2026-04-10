@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -63,17 +64,23 @@ func (h *ReplayHandler) GetSession(c *gin.Context) {
 		return
 	}
 
-	meta, chunks, err := h.service.GetSession(c.Request.Context(), websiteID, sessionID)
+	meta, access, err := h.service.GetSession(c.Request.Context(), websiteID, sessionID)
 	if err != nil {
+		if errors.Is(err, services.ErrReplayNotReady) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		h.logger.Error().Err(err).Str("website_id", websiteID).Str("session_id", sessionID).Msg("replay: get session failed")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"session_id": sessionID,
-		"meta":       meta,
-		"chunks":     chunks,
+		"session_id":             sessionID,
+		"meta":                   meta,
+		"warm_chunks":            access.WarmChunks,
+		"replay_url":             access.ReplayURL,
+		"replay_url_expires_at":  access.ReplayURLExpiresAt,
 	})
 }
 // BatchDelete godoc

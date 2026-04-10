@@ -2,17 +2,26 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/Seentics/seentics/internal/modules/replays/models"
 	"github.com/Seentics/seentics/internal/modules/replays/repository"
+	"github.com/Seentics/seentics/internal/modules/replays/spool"
 	websiteRepo "github.com/Seentics/seentics/internal/modules/websites/repository"
+	"github.com/Seentics/seentics/internal/shared/config"
 	"github.com/Seentics/seentics/internal/shared/utils"
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
+
+// ErrReplayNotReady is returned when the session has no in-memory buffer and no bundle object yet.
+var ErrReplayNotReady = errors.New("replay recording is not available yet")
+
+const maxReplayRecordingAge = 30 * time.Minute
 
 type TrackerEvent struct {
 	Type      string                 `json:"type"`
@@ -45,24 +54,59 @@ const (
 	pgQueueCap       = 16384 // Postgres batcher queue depth
 	pgBatchSize      = 256   // flush Postgres when this many rows accumulate
 	pgBatchTimeout   = 500 * time.Millisecond
+	idCacheTTL       = 5 * time.Minute
 )
+
+type idCacheEntry struct {
+	siteID    string
+	uuidStr   string
+	expiresAt time.Time
+}
 
 type ReplayService struct {
 	repo        *repository.ReplayRepository
 	websiteRepo *websiteRepo.WebsiteRepository
 	logger      zerolog.Logger
+	spool       *spool.Manager
+	presignTTL  time.Duration
 	queue       chan sessionJob
 	pgQueue     chan repository.SessionUpsertRow
+	idCache     map[string]idCacheEntry
+	idCacheMu   sync.Mutex
 }
 
-func NewReplayService(repo *repository.ReplayRepository, websiteRepo *websiteRepo.WebsiteRepository, logger zerolog.Logger) *ReplayService {
+func NewReplayService(repo *repository.ReplayRepository, websiteRepo *websiteRepo.WebsiteRepository, logger zerolog.Logger, cfg *config.Config) *ReplayService {
+	idle := 15 * time.Minute
+	maxAge := maxReplayRecordingAge
+	presignTTL := time.Hour
+	if cfg != nil {
+		if cfg.ReplaySpoolIdleFlush > 0 {
+			idle = cfg.ReplaySpoolIdleFlush
+		}
+		if cfg.ReplaySpoolMaxAge > 0 {
+			maxAge = cfg.ReplaySpoolMaxAge
+		}
+		if cfg.ReplayPresignTTL > 0 {
+			presignTTL = cfg.ReplayPresignTTL
+		}
+	}
+	if maxAge > maxReplayRecordingAge {
+		maxAge = maxReplayRecordingAge
+	}
+
 	s := &ReplayService{
 		repo:        repo,
 		websiteRepo: websiteRepo,
 		logger:      logger,
+		presignTTL:  presignTTL,
 		queue:       make(chan sessionJob, sessionQueueCap),
 		pgQueue:     make(chan repository.SessionUpsertRow, pgQueueCap),
+		spool:       spool.New(repo, logger, idle, maxAge),
+		idCache:     make(map[string]idCacheEntry),
 	}
+	go s.spool.Run(context.Background())
+	logger.Info().Dur("idle_flush", idle).Dur("max_age", maxAge).Dur("presign_ttl", presignTTL).Msg("replay spool (bundle-only + presigned reads)")
+
 	for i := 0; i < sessionWorkers; i++ {
 		go s.worker()
 	}
@@ -70,14 +114,18 @@ func NewReplayService(repo *repository.ReplayRepository, websiteRepo *websiteRep
 	return s
 }
 
+// Shutdown flushes in-memory replay buffers then stops the spool finalizer.
+func (s *ReplayService) Shutdown(ctx context.Context) {
+	s.spool.FlushAll(ctx)
+	s.spool.Stop()
+}
+
 // worker drains the S3 queue — uploads one chunk then forwards a Postgres row.
 func (s *ReplayService) worker() {
 	for job := range s.queue {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		err := s.repo.UploadChunk(ctx, job.websiteID, job.sessionID, job.tsMs, job.events)
-		cancel()
+		err := s.spool.Push(job.websiteID, job.sessionID, job.events)
 		if err != nil {
-			s.logger.Warn().Err(err).Str("session_id", job.sessionID).Msg("replay: s3 upload failed")
+			s.logger.Warn().Err(err).Str("session_id", job.sessionID).Msg("replay: chunk storage failed")
 			continue // don't write Postgres for a chunk we couldn't store
 		}
 
@@ -147,8 +195,8 @@ func (s *ReplayService) pgBatcher() {
 // sortSessionBatchEvents orders one flushed batch by tracker `ts` so replay chunks stay time-ordered.
 func sortSessionBatchEvents(events []map[string]interface{}) {
 	sort.SliceStable(events, func(i, j int) bool {
-		ti := envelopeTimestampMs(events[i])
-		tj := envelopeTimestampMs(events[j])
+		ti := utils.EventTimestampMs(events[i])
+		tj := utils.EventTimestampMs(events[j])
 		if ti != tj {
 			return ti < tj
 		}
@@ -156,41 +204,38 @@ func sortSessionBatchEvents(events []map[string]interface{}) {
 	})
 }
 
-func envelopeTimestampMs(ev map[string]interface{}) int64 {
-	v, ok := ev["ts"]
-	if !ok {
-		return 0
-	}
-	switch t := v.(type) {
-	case float64:
-		return int64(t)
-	case int64:
-		return t
-	case int:
-		return int64(t)
-	default:
-		return 0
-	}
-}
-
 // resolveIDs retrieves both the UUID and the SiteID for a given website identification string.
+// Results are cached for idCacheTTL to avoid repeated DB lookups on every flush cycle.
 func (s *ReplayService) resolveIDs(ctx context.Context, websiteID string) (string, string, error) {
+	s.idCacheMu.Lock()
+	if e, ok := s.idCache[websiteID]; ok && time.Now().Before(e.expiresAt) {
+		s.idCacheMu.Unlock()
+		return e.siteID, e.uuidStr, nil
+	}
+	s.idCacheMu.Unlock()
+
+	var siteID, uuidStr string
 	uid, err := uuid.Parse(websiteID)
 	if err == nil {
-		// It's a UUID, look up the SiteID
+		// It's a UUID — look up the SiteID.
 		w, err := s.websiteRepo.GetByUUIDOnly(ctx, uid)
 		if err != nil {
 			return "", websiteID, fmt.Errorf("website uuid resolution failed: %w", err)
 		}
-		return w.SiteID, websiteID, nil
+		siteID, uuidStr = w.SiteID, websiteID
+	} else {
+		// Not a UUID — assume it's a SiteID, look up the UUID.
+		w, err := s.websiteRepo.GetBySiteID(ctx, websiteID)
+		if err != nil {
+			return websiteID, "", fmt.Errorf("website site_id resolution failed: %w", err)
+		}
+		siteID, uuidStr = websiteID, w.ID.String()
 	}
 
-	// Not a UUID, assume it's a SiteID, look up the UUID
-	w, err := s.websiteRepo.GetBySiteID(ctx, websiteID)
-	if err != nil {
-		return websiteID, "", fmt.Errorf("website site_id resolution failed: %w", err)
-	}
-	return websiteID, w.ID.String(), nil
+	s.idCacheMu.Lock()
+	s.idCache[websiteID] = idCacheEntry{siteID: siteID, uuidStr: uuidStr, expiresAt: time.Now().Add(idCacheTTL)}
+	s.idCacheMu.Unlock()
+	return siteID, uuidStr, nil
 }
 
 // ProcessEvents processes session recording events from any number of sites/visitors.
@@ -274,6 +319,15 @@ func (s *ReplayService) ProcessEvents(ctx context.Context, events []TrackerEvent
 		uaInfo := utils.ParseUserAgent(batch.clientUA)
 		locInfo := utils.GetLocationFromIP(batch.clientIP)
 
+		// Sort events and clicks by timestamp before any field extraction
+		// so entryURL and rage click detection both operate on ordered data.
+		sortSessionBatchEvents(batch.events)
+		if len(batch.clicks) > 1 {
+			sort.Slice(batch.clicks, func(i, j int) bool {
+				return batch.clicks[i].ts < batch.clicks[j].ts
+			})
+		}
+
 		var meta *models.SessionMeta
 		pageIncrements := 0
 		if batch.hasFullSnapshot {
@@ -294,7 +348,6 @@ func (s *ReplayService) ProcessEvents(ctx context.Context, events []TrackerEvent
 		if batch.hasFullSnapshot {
 			tsToUse = batch.startTs
 		}
-		sortSessionBatchEvents(batch.events)
 
 		work = append(work, sessionWork{
 			sessionID:       sessionID,
@@ -310,8 +363,12 @@ func (s *ReplayService) ProcessEvents(ctx context.Context, events []TrackerEvent
 	// Enqueue each session job — non-blocking, workers drain continuously.
 	// If the queue is full (8192 cap), drop with a warning rather than block the flush.
 	for _, w := range work {
+		storageWebsiteID := w.batch.websiteID
+		if sk, _, err := s.resolveIDs(ctx, w.batch.websiteID); err == nil {
+			storageWebsiteID = sk
+		}
 		job := sessionJob{
-			websiteID:       w.batch.websiteID,
+			websiteID:       storageWebsiteID,
 			sessionID:       w.sessionID,
 			tsMs:            w.tsToUse,
 			events:          w.batch.events,
@@ -359,30 +416,46 @@ func (s *ReplayService) ListSessions(ctx context.Context, websiteID string, limi
 		return s.repo.ListSessions(ctx, websiteID, websiteID, limit, offset)
 	}
 
-    s.logger.Info().
-        Str("input", websiteID).
-        Str("resolved_site", siteID).
-        Str("resolved_uuid", uuidStr).
-        Msg("ListSessions: ID Resolution diagnostic")
-
 	return s.repo.ListSessions(ctx, siteID, uuidStr, limit, offset)
 }
 
 
-func (s *ReplayService) GetSession(ctx context.Context, websiteID, sessionID string) (*models.Session, []models.ReplayChunk, error) {
+func (s *ReplayService) GetSession(ctx context.Context, websiteID, sessionID string) (*models.Session, *models.SessionReplayAccess, error) {
 	siteID, uuidStr, err := s.resolveIDs(ctx, websiteID)
 	if err != nil {
 		s.logger.Warn().Err(err).Str("input_id", websiteID).Msg("get session: id resolution failed")
 		siteID, uuidStr = websiteID, websiteID
 	}
-	
+
 	meta, err := s.repo.GetSessionMeta(ctx, siteID, uuidStr, sessionID)
-	if err != nil { s.logger.Warn().Err(err).Msg("get session: meta fetch failed") }
-	
-	// For chunks (S3), we use siteID as it's the standard for keys
-	chunks, err := s.repo.GetChunks(ctx, siteID, sessionID)
-	if err != nil { return meta, nil, fmt.Errorf("get session chunks: %w", err) }
-	return meta, chunks, nil
+	if err != nil {
+		s.logger.Warn().Err(err).Msg("get session: meta fetch failed")
+	}
+
+	access := &models.SessionReplayAccess{}
+
+	if warm, ok := s.spool.WarmChunks(siteID, sessionID); ok {
+		access.WarmChunks = warm
+		return meta, access, nil
+	}
+
+	exists, err := s.repo.ReplayBundleExists(ctx, siteID, sessionID)
+	if err != nil {
+		return meta, nil, fmt.Errorf("replay bundle: %w", err)
+	}
+	if !exists {
+		return meta, nil, ErrReplayNotReady
+	}
+
+	exp := s.presignTTL
+	deadline := time.Now().Add(exp)
+	url, err := s.repo.PresignReplayBundle(ctx, siteID, sessionID, exp)
+	if err != nil {
+		return meta, nil, fmt.Errorf("replay presign: %w", err)
+	}
+	access.ReplayURL = url
+	access.ReplayURLExpiresAt = &deadline
+	return meta, access, nil
 }
 
 func (s *ReplayService) DeleteSessions(ctx context.Context, websiteID string, sessionIDs []string) error {
@@ -393,14 +466,14 @@ func (s *ReplayService) DeleteSessions(ctx context.Context, websiteID string, se
 	}
 	
 	for _, id := range sessionIDs {
-		// Delete using both potential IDs for safety
-		if err := s.repo.DeleteSession(ctx, siteID, id); err != nil {
-			s.logger.Error().Err(err).Str("website_id", siteID).Str("session_id", id).Msg("replay: delete by site_id failed")
-		}
+		s.spool.Remove(siteID, id)
 		if uuidStr != siteID {
-			if err := s.repo.DeleteSession(ctx, uuidStr, id); err != nil {
-				s.logger.Debug().Err(err).Str("website_id", uuidStr).Str("session_id", id).Msg("replay: delete by uuid skipped (already deleted by site_id)")
-			}
+			s.spool.Remove(uuidStr, id)
+		}
+		// S3 objects are keyed by siteID — one deletion covers both ID forms.
+		// Postgres rows may have been written under either ID, so use an OR delete.
+		if err := s.repo.DeleteSessionByEitherID(ctx, siteID, uuidStr, id); err != nil {
+			s.logger.Error().Err(err).Str("site_id", siteID).Str("session_id", id).Msg("replay: delete failed")
 		}
 	}
 	return nil

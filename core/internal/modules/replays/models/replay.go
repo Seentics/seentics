@@ -35,3 +35,11 @@ type SessionMeta struct {
 	Country   string
 	EntryPage string
 }
+
+// SessionReplayAccess tells the client how to load recording data: in-memory chunks while recording
+// is spooled, or a presigned URL to fetch bundle.json.gz directly from object storage.
+type SessionReplayAccess struct {
+	WarmChunks         []ReplayChunk `json:"warm_chunks,omitempty"`
+	ReplayURL          string        `json:"replay_url,omitempty"`
+	ReplayURLExpiresAt *time.Time    `json:"replay_url_expires_at,omitempty"`
+}

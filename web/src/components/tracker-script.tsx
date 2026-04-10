@@ -42,7 +42,13 @@ export default function TrackerScript() {
   const envTrackerUrl = process.env.NEXT_PUBLIC_SEENTICS_TRACKER_URL?.trim() ?? '';
   const envApiHost = process.env.NEXT_PUBLIC_SEENTICS_API_HOST?.trim() ?? '';
 
-  const apiHostRaw = envApiHost || process.env.NEXT_PUBLIC_API_URL || config.apiBaseUrl;
+  // Default to the current origin so /api/v1 hits Next.js rewrites (local dev). Plain localhost:8080
+  // bypasses Next and breaks when the API is only reachable via the dev proxy.
+  const apiHostRaw =
+    envApiHost ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    window.location.origin ||
+    config.apiBaseUrl;
   const apiHost = normalizeTrackerApiHost(apiHostRaw);
 
   const trackerUrl =

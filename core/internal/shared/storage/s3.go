@@ -4,8 +4,10 @@ package storage
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -16,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	awss3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // S3Client wraps the AWS S3 client with helpers tailored for replay storage.
@@ -95,6 +98,75 @@ func (c *S3Client) GetJSON(ctx context.Context, key string, dst interface{}) err
 	return json.Unmarshal(data, dst)
 }
 
+// PutGzipJSON marshals v as JSON, gzip-compresses, and uploads at key (e.g. bundle.json.gz).
+func (c *S3Client) PutGzipJSON(ctx context.Context, key string, v interface{}) error {
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("s3 put gzip json marshal: %w", err)
+	}
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	if _, err := gw.Write(raw); err != nil {
+		return fmt.Errorf("s3 put gzip write: %w", err)
+	}
+	if err := gw.Close(); err != nil {
+		return fmt.Errorf("s3 put gzip close: %w", err)
+	}
+	ct := "application/gzip"
+	_, err = c.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      &c.bucket,
+		Key:         &key,
+		Body:        bytes.NewReader(buf.Bytes()),
+		ContentType: &ct,
+	})
+	return err
+}
+
+// GetJSONGzip downloads a gzip-compressed JSON payload and unmarshals into dst.
+func (c *S3Client) GetJSONGzip(ctx context.Context, key string, dst interface{}) error {
+	out, err := c.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: &c.bucket,
+		Key:    &key,
+	})
+	if err != nil {
+		return fmt.Errorf("s3 get gzip %q: %w", key, err)
+	}
+	defer out.Body.Close()
+	comp, err := io.ReadAll(out.Body)
+	if err != nil {
+		return err
+	}
+	gr, err := gzip.NewReader(bytes.NewReader(comp))
+	if err != nil {
+		return fmt.Errorf("s3 gzip reader %q: %w", key, err)
+	}
+	defer gr.Close()
+	plain, err := io.ReadAll(gr)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(plain, dst)
+}
+
+// GetJSONGzipWithRetry downloads a gzipped JSON payload with retries.
+func (c *S3Client) GetJSONGzipWithRetry(ctx context.Context, key string, dst interface{}) error {
+	var last error
+	for attempt := range 3 {
+		if attempt > 0 {
+			select {
+			case <-time.After(time.Duration(50*attempt) * time.Millisecond):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		last = c.GetJSONGzip(ctx, key, dst)
+		if last == nil {
+			return nil
+		}
+	}
+	return last
+}
+
 // GetJSONWithRetry downloads and unmarshals JSON, retrying transient failures.
 func (c *S3Client) GetJSONWithRetry(ctx context.Context, key string, dst interface{}) error {
 	var last error
@@ -112,6 +184,42 @@ func (c *S3Client) GetJSONWithRetry(ctx context.Context, key string, dst interfa
 		}
 	}
 	return last
+}
+
+// ObjectExists reports whether an object is present at key (HeadObject).
+func (c *S3Client) ObjectExists(ctx context.Context, key string) (bool, error) {
+	_, err := c.client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: &c.bucket,
+		Key:    &key,
+	})
+	if err == nil {
+		return true, nil
+	}
+	var re *smithyhttp.ResponseError
+	if errors.As(err, &re) && re.HTTPStatusCode() == 404 {
+		return false, nil
+	}
+	low := strings.ToLower(err.Error())
+	if strings.Contains(low, "notfound") || strings.Contains(low, "no such key") || strings.Contains(low, "nosuchkey") {
+		return false, nil
+	}
+	return false, err
+}
+
+// PresignGetObject returns a time-limited HTTPS GET URL for an object (R2/S3/MinIO).
+func (c *S3Client) PresignGetObject(ctx context.Context, key string, expiry time.Duration) (string, error) {
+	if expiry <= 0 {
+		expiry = time.Hour
+	}
+	presigner := s3.NewPresignClient(c.client)
+	out, err := presigner.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: &c.bucket,
+		Key:    &key,
+	}, s3.WithPresignExpires(expiry))
+	if err != nil {
+		return "", fmt.Errorf("s3 presign get %q: %w", key, err)
+	}
+	return out.URL, nil
 }
 
 // ListKeys returns all object keys under prefix, sorted lexicographically.
@@ -163,16 +271,14 @@ func (c *S3Client) DeletePrefix(ctx context.Context, prefix string) error {
 	return err
 }
 
-// SessionKey returns the S3 key for a replay chunk.
-// Pattern: sessions/{websiteID}/{sessionID}/{tsMs:016d}_{wallNanos:020d}.json
-// The nanosecond suffix prevents two flushes in the same millisecond from overwriting the same object.
-func SessionKey(websiteID, sessionID string, tsMs int64) string {
-	return fmt.Sprintf("sessions/%s/%s/%016d_%020d.json", websiteID, sessionID, tsMs, time.Now().UnixNano())
-}
-
 // SessionPrefix returns the listing prefix for all chunks of a session.
 func SessionPrefix(websiteID, sessionID string) string {
 	return fmt.Sprintf("sessions/%s/%s/", websiteID, sessionID)
+}
+
+// SessionBundleKey returns the object key for a single gzipped JSON array of all replay events.
+func SessionBundleKey(websiteID, sessionID string) string {
+	return fmt.Sprintf("sessions/%s/%s/bundle.json.gz", websiteID, sessionID)
 }
 
 // ensureBucket creates the bucket if it doesn't exist.

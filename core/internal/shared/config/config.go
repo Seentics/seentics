@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -37,6 +38,11 @@ type Config struct {
 	S3Bucket    string
 	S3UseSSL    bool
 	S3Region    string
+
+	// Replay: in-memory spool until idle/max age, then one gzip bundle on R2. Max session length caps at ReplaySpoolMaxAge (default 30m).
+	ReplaySpoolIdleFlush time.Duration
+	ReplaySpoolMaxAge    time.Duration
+	ReplayPresignTTL     time.Duration
 }
 
 func Load() (*Config, error) {
@@ -70,6 +76,10 @@ func Load() (*Config, error) {
 		S3Bucket:    firstEnvOrDefault([]string{"S3_BUCKET", "S3_BUCKET_REPLAYS"}, "seentics-replays"),
 		S3UseSSL:    GetEnvAsBool("S3_USE_SSL", false),
 		S3Region:    firstEnvOrDefault([]string{"S3_REGION", "AWS_REGION"}, "us-east-1"),
+
+		ReplaySpoolIdleFlush: parseDurationEnv("REPLAY_SPOOL_IDLE_FLUSH", 15*time.Minute),
+		ReplaySpoolMaxAge:    parseDurationEnv("REPLAY_SPOOL_MAX_AGE", 30*time.Minute),
+		ReplayPresignTTL:     parseDurationEnv("REPLAY_PRESIGN_TTL", time.Hour),
 	}
 
 	// Validate required fields
@@ -135,6 +145,15 @@ func GetEnvAsInt(key string, defaultValue int) int {
 		}
 	}
 	return defaultValue
+}
+
+func parseDurationEnv(key string, defaultVal time.Duration) time.Duration {
+	if v := os.Getenv(key); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
+	}
+	return defaultVal
 }
 // S3Config holds S3-compatible storage settings used for session replay data.
 type S3Config struct {

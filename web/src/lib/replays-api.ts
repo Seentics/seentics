@@ -33,39 +33,48 @@ export interface SessionCustomEvent {
   data:      Record<string, unknown>;
 }
 
-export interface SessionChunksResponse {
+/** Core GET /replays/:websiteId/:sessionId JSON (bundle-only storage; cold path uses presigned R2 URL). */
+export interface SessionReplayApiResponse {
   session_id: string;
   meta:       ReplaySession | null;
-  chunks:     Array<{ sequence: number; data: RRWebEvent[] }>;
+  warm_chunks?: Array<{ sequence: number; data: unknown[] }>;
+  replay_url?: string;
+  replay_url_expires_at?: string;
 }
 
-export async function listSessions(websiteId: string, limit = 20, offset = 0) {
-  const res = await api.get(`/replays/${websiteId}`, {
-    params: { limit, offset },
-  });
-  return res.data as { sessions: ReplaySession[]; limit: number; offset: number };
+async function fetchGzipJsonArray(url: string): Promise<unknown[]> {
+  const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+  if (!res.ok) {
+    throw new Error(`Replay bundle fetch failed: ${res.status}`);
+  }
+  const buf = await res.arrayBuffer();
+  if (typeof DecompressionStream === 'undefined') {
+    throw new Error('This browser cannot decompress replay bundles (no DecompressionStream).');
+  }
+  const ds = new DecompressionStream('gzip');
+  const decompressed = await new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer();
+  const text = new TextDecoder().decode(decompressed);
+  const parsed = JSON.parse(text) as unknown;
+  if (!Array.isArray(parsed)) {
+    throw new Error('Replay bundle must be a JSON array');
+  }
+  return parsed;
 }
 
-export async function getSessionWithEvents(
-  websiteId: string,
-  sessionId: string,
-): Promise<{ meta: ReplaySession | null; events: RRWebEvent[]; customEvents: SessionCustomEvent[] }> {
-  const res  = await api.get(`/replays/${websiteId}/${sessionId}`);
-  const body = res.data as SessionChunksResponse;
-
-  // Ordered chunk list from API; preserve chunk + row order for equal timestamps (stable replay).
+function eventsFromChunkList(
+  chunks: Array<{ sequence: number; data: unknown[] }>,
+): { events: RRWebEvent[]; customEvents: SessionCustomEvent[] } {
   type Tagged = { ev: RRWebEvent; chunk: number; row: number };
   const tagged: Tagged[] = [];
   const customEvents: SessionCustomEvent[] = [];
 
-  (body.chunks ?? []).forEach((c, chunkIdx) => {
+  (chunks ?? []).forEach((c, chunkIdx) => {
     if (!c.data || !Array.isArray(c.data)) return;
     c.data.forEach((item: any, row: number) => {
       if (!item) return;
 
       let ev: RRWebEvent | null = null;
 
-      // 1. Envelope format: { type: "rrweb", data: { type, timestamp, ... } }
       if (item.type === 'rrweb' && item.data) {
         const inner = item.data;
         const type = typeof inner.type === 'string' ? parseInt(inner.type, 10) : inner.type;
@@ -75,7 +84,6 @@ export async function getSessionWithEvents(
         }
       }
 
-      // 2. Raw format: { type: <number>, timestamp: <number>, ... }
       if (!ev && (typeof item.type === 'number' || !Number.isNaN(parseInt(item.type, 10)))) {
         const type = typeof item.type === 'string' ? parseInt(item.type, 10) : item.type;
         const ts = typeof item.timestamp === 'string' ? parseInt(item.timestamp, 10) : (item.timestamp || item.ts);
@@ -84,7 +92,6 @@ export async function getSessionWithEvents(
         }
       }
 
-      // 3. Custom event: { type: "session_error" | other string, ts, url, data }
       if (!ev && typeof item.type === 'string' && item.type !== 'rrweb') {
         const ts = typeof item.ts === 'number' ? item.ts
           : typeof item.timestamp === 'number' ? item.timestamp
@@ -110,6 +117,34 @@ export async function getSessionWithEvents(
   });
 
   const events = tagged.map((t) => t.ev);
+  return { events, customEvents };
+}
+
+export async function listSessions(websiteId: string, limit = 20, offset = 0) {
+  const res = await api.get(`/replays/${websiteId}`, {
+    params: { limit, offset },
+  });
+  return res.data as { sessions: ReplaySession[]; limit: number; offset: number };
+}
+
+export async function getSessionWithEvents(
+  websiteId: string,
+  sessionId: string,
+): Promise<{ meta: ReplaySession | null; events: RRWebEvent[]; customEvents: SessionCustomEvent[] }> {
+  const res = await api.get(`/replays/${websiteId}/${sessionId}`);
+  const body = res.data as SessionReplayApiResponse;
+
+  let chunks = body.warm_chunks;
+  if ((!chunks || chunks.length === 0) && body.replay_url) {
+    const raw = await fetchGzipJsonArray(body.replay_url);
+    chunks = [{ sequence: 0, data: raw as unknown[] }];
+  }
+
+  if (!chunks?.length) {
+    return { meta: body.meta ?? null, events: [], customEvents: [] };
+  }
+
+  const { events, customEvents } = eventsFromChunkList(chunks);
   return { meta: body.meta ?? null, events, customEvents };
 }
 
