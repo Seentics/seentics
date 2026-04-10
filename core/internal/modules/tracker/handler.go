@@ -1,7 +1,9 @@
 package tracker
 
 import (
+	"context"
 	"net/http"
+	"sync"
 	"time"
 
 	analyticsModels "github.com/Seentics/seentics/internal/modules/analytics/models"
@@ -11,6 +13,7 @@ import (
 	funnelSvc       "github.com/Seentics/seentics/internal/modules/funnels/services"
 	heatmapSvc      "github.com/Seentics/seentics/internal/modules/heatmaps/services"
 	replaySvc       "github.com/Seentics/seentics/internal/modules/replays/services"
+	websiteModels   "github.com/Seentics/seentics/internal/modules/websites/models"
 	websiteSvc      "github.com/Seentics/seentics/internal/modules/websites/services"
 
 	"github.com/gin-gonic/gin"
@@ -18,14 +21,20 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type websiteCacheEntry struct {
+	w      *websiteModels.Website
+	expiry time.Time
+}
+
 type TrackerHandler struct {
-	websites    *websiteSvc.WebsiteService
-	analytics   *analyticsSvc.EventService
-	funnels     *funnelSvc.FunnelService
-	replays     *replaySvc.ReplayService
-	automations *automationSvc.AutomationService
-	buffer      *CollectBuffer
-	logger      zerolog.Logger
+	websites     *websiteSvc.WebsiteService
+	analytics    *analyticsSvc.EventService
+	funnels      *funnelSvc.FunnelService
+	replays      *replaySvc.ReplayService
+	automations  *automationSvc.AutomationService
+	buffer       *CollectBuffer
+	websiteCache sync.Map // map[string]*websiteCacheEntry — 60 s TTL
+	logger       zerolog.Logger
 }
 
 func NewTrackerHandler(
@@ -46,6 +55,23 @@ func NewTrackerHandler(
 		buffer:      NewCollectBuffer(events, heatmaps, replays, automations, logger),
 		logger:      logger,
 	}
+}
+
+// getCachedWebsite returns a website from a 60 s in-memory cache to avoid a DB
+// round-trip on every /collect request.
+func (h *TrackerHandler) getCachedWebsite(ctx context.Context, id string) (*websiteModels.Website, error) {
+	if v, ok := h.websiteCache.Load(id); ok {
+		e := v.(*websiteCacheEntry)
+		if time.Now().Before(e.expiry) {
+			return e.w, nil
+		}
+	}
+	w, err := h.websites.GetWebsiteByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	h.websiteCache.Store(id, &websiteCacheEntry{w: w, expiry: time.Now().Add(5 * time.Minute)})
+	return w, nil
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
@@ -134,40 +160,38 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 
 	total := len(req.Events) + len(req.Heatmaps) + len(req.Funnels) + len(req.Automations) + len(req.Session)
 	if total == 0 {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+		c.Status(http.StatusNoContent)
 		return
 	}
 
-	website, err := h.websites.GetWebsiteByID(c.Request.Context(), req.WebsiteID)
+	website, err := h.getCachedWebsite(c.Request.Context(), req.WebsiteID)
 	if err != nil || !website.IsActive {
 		c.JSON(http.StatusNotFound, gin.H{"error": "website not found or inactive"})
 		return
 	}
-	if !h.websites.ValidateOriginDomain(req.Domain, website.URL) {
-		h.logger.Warn().Str("domain", req.Domain).Str("site", website.URL).Msg("collect: domain mismatch")
+
+	// Validate using the real Origin/Referer header — not the client-supplied domain field.
+	if !h.websites.ValidateOriginDomain(originOf(c), website.URL) {
+		h.logger.Warn().Str("origin", originOf(c)).Str("site", website.URL).Msg("collect: domain mismatch")
 		c.JSON(http.StatusForbidden, gin.H{"error": "domain mismatch"})
 		return
 	}
 
 	websiteUUID, _ := uuid.Parse(website.ID.String())
-	ctx := c.Request.Context()
 	now := time.Now()
 	ip := c.ClientIP()
 	ua := c.Request.UserAgent()
 
+	// Enrichment (geo/UA parsing) is deferred to the buffer flush — keeps this
+	// handler at sub-millisecond latency.
 	analytics := collectMergeAnalytics(website.SiteID, req.Events, req.Funnels, now, ip, ua)
-	if err := h.analytics.EnrichCollectAnalytics(ctx, analytics); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "analytics unavailable"})
-		return
-	}
-
 	heatmaps := collectPrepareHeatmaps(req.Heatmaps, websiteUUID, ua)
 	sessions := collectPrepareSessions(req.Session, website.SiteID, ip, ua)
 	automations := collectPrepareAutomations(req.Automations, website.SiteID)
 
 	h.buffer.Push(analytics, heatmaps, sessions, automations)
 
-	c.JSON(http.StatusAccepted, gin.H{"status": "ok"})
+	c.Status(http.StatusNoContent)
 }
 
 // ── Type converters ───────────────────────────────────────────────────────────

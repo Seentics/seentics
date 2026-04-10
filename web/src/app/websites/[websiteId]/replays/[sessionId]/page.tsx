@@ -63,7 +63,8 @@ export default function ReplayDetailPage() {
       } as ReplaySession)
     : data?.meta ?? undefined;
 
-  const events = isDemoMode ? [] : (data?.events ?? []);
+  const events       = isDemoMode ? [] : (data?.events ?? []);
+  const customEvents = isDemoMode ? [] : (data?.customEvents ?? []);
 
   const copyShareLink = useCallback(() => {
     const full = typeof window !== 'undefined' ? window.location.href : '';
@@ -230,6 +231,7 @@ export default function ReplayDetailPage() {
               <SessionReplaySurface
                 className="mt-0 flex min-w-0 w-full flex-col sm:!mt-0"
                 events={events}
+                customEvents={customEvents}
                 websiteId={websiteId}
                 sessionSummary={
                   session

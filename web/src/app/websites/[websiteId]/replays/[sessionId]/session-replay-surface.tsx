@@ -40,7 +40,7 @@ import {
   Rewind,
   SkipForward,
 } from 'lucide-react';
-import type { RRWebEvent } from '@/lib/replays-api';
+import type { RRWebEvent, SessionCustomEvent } from '@/lib/replays-api';
 
 type PlayerInstance = InstanceType<typeof PlayerCtor>;
 
@@ -125,6 +125,58 @@ function rageClusterStarts(clicks: RageClickPt[]): number[] {
   return markers;
 }
 
+/** Derives click/scroll/input counts and exit page from the rrweb event stream. */
+export function buildSessionActivityStats(events: RRWebEvent[]): SessionActivityStats {
+  let totalClicks = 0;
+  let inputInteractions = 0;
+  let maxScrollPx = 0;
+  let exitPage: string | null = null;
+
+  for (const ev of events) {
+    if (ev.type === RRWEB_META) {
+      const d = ev.data as { href?: unknown };
+      if (typeof d.href === 'string' && d.href.trim()) exitPage = d.href.trim();
+      continue;
+    }
+    if (ev.type !== RRWEB_INC) continue;
+    let inner = ev.data as Record<string, unknown>;
+    // Handle both flat { source, type, x, y } and nested { data: { source, type, x, y } }
+    if (inner.source === undefined && inner.data && typeof inner.data === 'object') {
+      inner = inner.data as Record<string, unknown>;
+    }
+    const source = Number(inner.source);
+    if (source === 2 && Number(inner.type) === 2) totalClicks++;         // MouseInteraction Click
+    if (source === 3) {                                                   // Scroll
+      const y = Number(inner.y);
+      if (Number.isFinite(y) && y > maxScrollPx) maxScrollPx = y;
+    }
+    if (source === 5) inputInteractions++;                                // Input
+  }
+
+  return { totalClicks, inputInteractions, maxScrollPx, exitPage };
+}
+
+/** Extracts JS error detail rows from custom (non-rrweb) events stored in the same chunks. */
+export function buildSessionErrorDetails(
+  customEvents: SessionCustomEvent[],
+  t0: number,
+): SessionErrorDetail[] {
+  return customEvents
+    .filter(e => e.eventType === 'session_error')
+    .map((e, i) => {
+      const d = e.data as Record<string, unknown>;
+      const message  = String(d.message || d.error || 'Unknown error');
+      const stack    = typeof d.stack === 'string' ? d.stack : undefined;
+      const filename = typeof d.filename === 'string' ? d.filename : undefined;
+      const lineno   = typeof d.lineno === 'number'   ? d.lineno   : undefined;
+      const colno    = typeof d.colno === 'number'    ? d.colno    : undefined;
+      const url      = e.url || (typeof d.url === 'string' ? d.url : undefined);
+      const ts       = e.timestamp;
+      const offsetMs = t0 > 0 && ts > 0 ? Math.max(0, ts - t0) : null;
+      return { message, stack, filename, lineno, colno, url, timestamp: ts, offsetMs, _i: i } as SessionErrorDetail & { _i: number };
+    });
+}
+
 /** Page boundaries + approximate rage moments derived from the recording (not server flags). */
 export function buildReplayTimelineMarkers(events: RRWebEvent[]): ReplayTimelineMarker[] {
   if (events.length < 2) return [];
@@ -150,8 +202,30 @@ export type ReplayLogEntry = {
   kind: ReplayLogEntryKind;
   title: string;
   detail?: string;
-  /** Playback offset in ms; null when we can’t seek (e.g. error without timestamp). */
+  /** Playback offset in ms; null when we can't seek (e.g. error without timestamp). */
   offsetMs: number | null;
+};
+
+/** Aggregate activity counts derived from the rrweb event stream. */
+export type SessionActivityStats = {
+  totalClicks:       number;
+  inputInteractions: number;
+  maxScrollPx:       number;
+  exitPage:          string | null;
+};
+
+/** One JS error extracted from a session_error custom event. */
+export type SessionErrorDetail = {
+  message:   string;
+  stack?:    string;
+  filename?: string;
+  lineno?:   number;
+  colno?:    number;
+  url?:      string;
+  /** Epoch ms from the stored event (0 when missing). */
+  timestamp: number;
+  /** Playback seek offset (ms from recording start); null when timestamp is unavailable. */
+  offsetMs:  number | null;
 };
 
 const LOG_KIND_ORDER: Record<ReplayLogEntryKind, number> = {
@@ -189,7 +263,13 @@ function hrefAfterFullSnapshot(events: RRWebEvent[], snapIdx: number): string | 
  */
 export function buildReplayLogEntries(
   events: RRWebEvent[],
-  opts?: { entryPage?: string; hasErrors?: boolean; hasRageClicks?: boolean; websiteId?: string },
+  opts?: {
+    entryPage?: string;
+    hasErrors?: boolean;
+    hasRageClicks?: boolean;
+    websiteId?: string;
+    errorDetails?: SessionErrorDetail[];
+  },
 ): ReplayLogEntry[] {
   if (events.length < 2) return [];
   const t0 = events[0].timestamp;
@@ -260,7 +340,23 @@ export function buildReplayLogEntries(
     });
   }
 
-  if (opts?.hasErrors) {
+  const errs = opts?.errorDetails ?? [];
+  if (errs.length > 0) {
+    errs.forEach((err, i) => {
+      const base = err.filename?.split('/').pop() ?? '';
+      const fileRef = base
+        ? `${base}${err.lineno != null ? `:${err.lineno}` : ''}`
+        : undefined;
+      const msg = err.message.length > 72 ? `${err.message.slice(0, 72)}…` : err.message;
+      out.push({
+        id: `error-${i}`,
+        kind: 'error',
+        title: msg,
+        detail: fileRef,
+        offsetMs: err.offsetMs,
+      });
+    });
+  } else if (opts?.hasErrors) {
     out.push({
       id: 'client-error',
       kind: 'error',
@@ -340,7 +436,7 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
             'min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]',
         )}
       >
-        {entries.map((e) => {
+        {entries.map((e, idx) => {
           const canSeek = e.offsetMs !== null && durationMs > 0;
           const active =
             canSeek &&
@@ -348,6 +444,24 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
             Math.abs(currentMs - e.offsetMs) < 2800;
           const timeLabel =
             e.offsetMs === null ? '—' : fmtClock(Math.min(durationMs, Math.max(0, e.offsetMs)));
+
+          // Per-page duration: diff to the next page/start entry (skip rage/error markers).
+          let pageDuration: string | null = null;
+          if ((e.kind === 'start' || e.kind === 'page') && e.offsetMs !== null) {
+            const nextPageEntry = entries.slice(idx + 1).find(
+              n => (n.kind === 'start' || n.kind === 'page') && n.offsetMs !== null,
+            );
+            const endMs = nextPageEntry?.offsetMs ?? durationMs;
+            const spanMs = endMs - e.offsetMs;
+            if (spanMs > 0) {
+              const spanS = Math.floor(spanMs / 1000);
+              const spanM = Math.floor(spanS / 60);
+              pageDuration = spanM > 0
+                ? `${spanM}m ${(spanS % 60).toString().padStart(2, '0')}s`
+                : `${spanS}s`;
+            }
+          }
+
           const detail = e.detail?.trim();
           const primaryLine = detail || e.title;
           const kindLine = detail && detail !== e.title ? e.title : null;
@@ -388,7 +502,12 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
                     >
                       {primaryLine}
                     </span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">{timeLabel}</span>
+                    <span className="flex shrink-0 items-center gap-1.5 tabular-nums text-muted-foreground">
+                      {pageDuration && (
+                        <span className="text-[10px] text-muted-foreground/70">{pageDuration}</span>
+                      )}
+                      {timeLabel}
+                    </span>
                   </span>
                   {kindLine ? (
                     <span className="block text-[10px] font-medium tracking-wide text-muted-foreground">
@@ -408,7 +527,7 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
 /**
  * Re-apply wrapper transform after resize. Use cover (Math.max scale) so the shell is filled
  * (no side letterboxing). Anchor at the top center so overflow is clipped at the bottom, not
- * symmetric top+bottom crop that made the header feel “cut off”.
+ * symmetric top+bottom crop that made the header feel "cut off".
  */
 const PLAYER_MAX_SCALE = 100;
 
@@ -470,6 +589,8 @@ export type SessionReplayBridge = {
   durationMs: number;
   markers: ReplayTimelineMarker[];
   logEntries: ReplayLogEntry[];
+  activityStats: SessionActivityStats;
+  errorDetails: SessionErrorDetail[];
 };
 
 /** Throttle UI updates while playing — avoids 60 React commits/sec from duplicate RAF loops. */
@@ -887,6 +1008,7 @@ function SessionReplayTransportBar({
 
 export function SessionReplaySurface({
   events,
+  customEvents,
   onReady,
   onBridgeReady,
   sessionSummary,
@@ -894,6 +1016,7 @@ export function SessionReplaySurface({
   className,
 }: {
   events: RRWebEvent[];
+  customEvents?: SessionCustomEvent[];
   onReady?: (api: SessionReplaySurfaceAPI) => void;
   onBridgeReady?: (bridge: SessionReplayBridge | null) => void;
   /** Fields from session API meta for the timeline log. */
@@ -922,6 +1045,16 @@ export function SessionReplaySurface({
     return Math.max(0, events[events.length - 1].timestamp - events[0].timestamp);
   }, [events]);
 
+  const t0 = events.length > 0 ? events[0].timestamp : 0;
+
+  const activityStats = useMemo(() => buildSessionActivityStats(events), [events]);
+
+  const errorDetails = useMemo(
+    () => buildSessionErrorDetails(customEvents ?? [], t0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customEvents, t0],
+  );
+
   const timelineMarkers = useMemo(() => buildReplayTimelineMarkers(events), [events]);
 
   const logEntries = useMemo(
@@ -931,8 +1064,10 @@ export function SessionReplaySurface({
         hasErrors: Boolean(sessionSummary?.hasErrors),
         hasRageClicks: Boolean(sessionSummary?.hasRageClicks),
         websiteId,
+        errorDetails,
       }),
-    [events, sessionSummary?.entryPage, sessionSummary?.hasErrors, sessionSummary?.hasRageClicks, websiteId],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [events, sessionSummary?.entryPage, sessionSummary?.hasErrors, sessionSummary?.hasRageClicks, websiteId, errorDetails],
   );
 
   useLayoutEffect(() => {
@@ -945,11 +1080,13 @@ export function SessionReplaySurface({
         durationMs,
         markers: timelineMarkers,
         logEntries,
+        activityStats,
+        errorDetails,
       });
     } else {
       notify(null);
     }
-  }, [bridge, durationMs, timelineMarkers, logEntries, events.length]);
+  }, [bridge, durationMs, timelineMarkers, logEntries, activityStats, errorDetails, events.length]);
 
   useEffect(() => {
     return () => {

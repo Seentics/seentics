@@ -22,7 +22,7 @@ export default function FunnelDetailPage() {
   const funnelId = params?.funnelId as string;
 
   const { data: funnels = [], isLoading: funnelsLoading } = useFunnels(websiteId);
-  const { data: analyticsData, isLoading: analyticsLoading } = useFunnelAnalytics(funnelId, 30);
+  const { data: analyticsData, isLoading: analyticsLoading } = useFunnelAnalytics(funnelId, 30, websiteId);
 
   const funnel = funnels.find(f => f.id === funnelId);
   const analytics = analyticsData?.analytics?.[0];

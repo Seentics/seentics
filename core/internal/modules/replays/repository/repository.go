@@ -28,45 +28,138 @@ func New(db *pgxpool.Pool, s3 *storage.S3Client, logger zerolog.Logger) *ReplayR
 	return &ReplayRepository{db: db, s3: s3, logger: logger}
 }
 
-// SaveChunk writes one event batch for a session.
+// SaveChunk writes one event batch for a session (S3 + Postgres in one call).
+// Kept for compatibility — new code should use UploadChunk + UpsertSessionMetaBatch.
 func (r *ReplayRepository) SaveChunk(ctx context.Context, websiteID, sessionID string, tsMs int64, events interface{}, meta *models.SessionMeta, pageIncrements, durationInBatch int, hasRageClicks, hasErrors bool) error {
+	if err := r.UploadChunk(ctx, websiteID, sessionID, tsMs, events); err != nil {
+		return err
+	}
+	var b, d, o, c, u string
+	if meta != nil {
+		b, d, o, c, u = meta.Browser, meta.Device, meta.OS, meta.Country, meta.EntryPage
+	}
+	return r.UpsertSessionMetaBatch(ctx, []SessionUpsertRow{{
+		WebsiteID:       websiteID,
+		SessionID:       sessionID,
+		TsMs:            tsMs,
+		Browser:         b,
+		Device:          d,
+		OS:              o,
+		Country:         c,
+		EntryPage:       u,
+		PageIncrements:  pageIncrements,
+		DurationSeconds: durationInBatch,
+		HasRageClicks:   hasRageClicks,
+		HasErrors:       hasErrors,
+	}})
+}
 
+// UploadChunk writes the events JSON to S3 only — no Postgres touch.
+func (r *ReplayRepository) UploadChunk(ctx context.Context, websiteID, sessionID string, tsMs int64, events interface{}) error {
 	key := storage.SessionKey(websiteID, sessionID, tsMs)
 	if err := r.s3.PutJSON(ctx, key, events); err != nil {
 		return fmt.Errorf("replay upload: %w", err)
 	}
+	return nil
+}
 
-	lastTs := time.UnixMilli(tsMs)
+// SessionUpsertRow holds everything needed for one row in UpsertSessionMetaBatch.
+type SessionUpsertRow struct {
+	WebsiteID       string
+	SessionID       string
+	TsMs            int64
+	Browser         string
+	Device          string
+	OS              string
+	Country         string
+	EntryPage       string
+	PageIncrements  int
+	DurationSeconds int
+	HasRageClicks   bool
+	HasErrors       bool
+}
 
-	// Robust UPSERT logic:
-	// If the session row exists, we accumulate duration and page views.
-	// has_rage_clicks / has_errors are latches — once true, never cleared.
+// UpsertSessionMetaBatch upserts up to N session metadata rows in a single Postgres
+// round-trip using unnest arrays — drastically fewer queries vs. one UPSERT per row.
+func (r *ReplayRepository) UpsertSessionMetaBatch(ctx context.Context, rows []SessionUpsertRow) error {
+	if len(rows) == 0 {
+		return nil
+	}
+
+	websiteIDs := make([]string, len(rows))
+	sessionIDs := make([]string, len(rows))
+	timestamps := make([]time.Time, len(rows))
+	browsers := make([]string, len(rows))
+	devices := make([]string, len(rows))
+	oss := make([]string, len(rows))
+	countries := make([]string, len(rows))
+	entryPages := make([]string, len(rows))
+	pageIncs := make([]int32, len(rows))
+	durations := make([]int32, len(rows))
+	rageClicks := make([]bool, len(rows))
+	hasErrors := make([]bool, len(rows))
+
+	for i, row := range rows {
+		websiteIDs[i] = row.WebsiteID
+		sessionIDs[i] = row.SessionID
+		timestamps[i] = time.UnixMilli(row.TsMs)
+		browsers[i] = row.Browser
+		devices[i] = row.Device
+		oss[i] = row.OS
+		countries[i] = row.Country
+		entryPages[i] = row.EntryPage
+		pageIncs[i] = int32(row.PageIncrements)
+		durations[i] = int32(row.DurationSeconds)
+		rageClicks[i] = row.HasRageClicks
+		hasErrors[i] = row.HasErrors
+	}
+
 	const q = `
 		INSERT INTO session_replays (
 			website_id, session_id, sequence, data,
 			browser, device, os, country, entry_page,
 			timestamp, pages_viewed, duration_seconds, has_rage_clicks, has_errors
 		)
-		VALUES ($1, $2, 0, '{}', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		SELECT
+			unnest($1::text[]),  -- website_id
+			unnest($2::text[]),  -- session_id
+			0,                   -- sequence (always 0 for metadata row)
+			'{}',                -- data placeholder
+			unnest($3::text[]),  -- browser
+			unnest($4::text[]),  -- device
+			unnest($5::text[]),  -- os
+			unnest($6::text[]),  -- country
+			unnest($7::text[]),  -- entry_page
+			unnest($8::timestamptz[]),  -- timestamp
+			unnest($9::int[]),   -- pages_viewed
+			unnest($10::int[]),  -- duration_seconds
+			unnest($11::bool[]), -- has_rage_clicks
+			unnest($12::bool[])  -- has_errors
 		ON CONFLICT (website_id, session_id, sequence) DO UPDATE SET
-			duration_seconds = GREATEST(session_replays.duration_seconds, $10, (EXTRACT(EPOCH FROM (EXCLUDED.timestamp - session_replays.timestamp))::INT + $10)),
-			pages_viewed = session_replays.pages_viewed + EXCLUDED.pages_viewed,
-			has_rage_clicks = CASE WHEN EXCLUDED.has_rage_clicks THEN TRUE ELSE session_replays.has_rage_clicks END,
-			has_errors = CASE WHEN EXCLUDED.has_errors THEN TRUE ELSE session_replays.has_errors END,
-			browser = CASE WHEN EXCLUDED.browser <> '' THEN EXCLUDED.browser ELSE session_replays.browser END,
-			device = CASE WHEN EXCLUDED.device <> '' THEN EXCLUDED.device ELSE session_replays.device END,
-			os = CASE WHEN EXCLUDED.os <> '' THEN EXCLUDED.os ELSE session_replays.os END,
-			country = CASE WHEN EXCLUDED.country <> '' THEN EXCLUDED.country ELSE session_replays.country END,
-			entry_page = CASE WHEN EXCLUDED.entry_page <> '' THEN EXCLUDED.entry_page ELSE session_replays.entry_page END
+			duration_seconds  = GREATEST(
+				session_replays.duration_seconds,
+				EXCLUDED.duration_seconds,
+				(EXTRACT(EPOCH FROM (EXCLUDED.timestamp - session_replays.timestamp))::INT + EXCLUDED.duration_seconds)
+			),
+			pages_viewed      = session_replays.pages_viewed + EXCLUDED.pages_viewed,
+			has_rage_clicks   = CASE WHEN EXCLUDED.has_rage_clicks THEN TRUE ELSE session_replays.has_rage_clicks END,
+			has_errors        = CASE WHEN EXCLUDED.has_errors      THEN TRUE ELSE session_replays.has_errors      END,
+			browser           = CASE WHEN EXCLUDED.browser    <> '' THEN EXCLUDED.browser    ELSE session_replays.browser    END,
+			device            = CASE WHEN EXCLUDED.device     <> '' THEN EXCLUDED.device     ELSE session_replays.device     END,
+			os                = CASE WHEN EXCLUDED.os         <> '' THEN EXCLUDED.os         ELSE session_replays.os         END,
+			country           = CASE WHEN EXCLUDED.country    <> '' THEN EXCLUDED.country    ELSE session_replays.country    END,
+			entry_page        = CASE WHEN EXCLUDED.entry_page <> '' THEN EXCLUDED.entry_page ELSE session_replays.entry_page END
 	`
 
-	var b, d, o, c, u string
-	if meta != nil {
-		b, d, o, c, u = meta.Browser, meta.Device, meta.OS, meta.Country, meta.EntryPage
+	_, err := r.db.Exec(ctx, q,
+		websiteIDs, sessionIDs,
+		browsers, devices, oss, countries, entryPages,
+		timestamps, pageIncs, durations, rageClicks, hasErrors,
+	)
+	if err != nil {
+		return fmt.Errorf("replay upsert batch(%d): %w", len(rows), err)
 	}
-
-	_, err := r.db.Exec(ctx, q, websiteID, sessionID, b, d, o, c, u, lastTs, pageIncrements, durationInBatch, hasRageClicks, hasErrors)
-	return err
+	return nil
 }
 
 // ListSessions returns paginated session metadata.

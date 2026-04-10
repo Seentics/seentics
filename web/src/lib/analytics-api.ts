@@ -2,6 +2,23 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import api from './api'; // Your existing axios instance
 import { isDemo, demoAnalyticsData, demoRealtimeData, demoCustomEvents, demoGeolocation, demoMutationGuard } from './demo';
+import {
+  fetchDashboardFunnelList,
+  createDashboardFunnel,
+  getDashboardFunnel,
+  updateDashboardFunnel,
+  deleteDashboardFunnel,
+  bulkDeleteDashboardFunnels,
+  getDashboardFunnelAnalytics,
+} from './funnels-dashboard';
+import type {
+  DashboardFunnel as Funnel,
+  DashboardFunnelStep as FunnelStep,
+  FunnelListSummary,
+  FunnelAnalyticsItem,
+  FunnelAnalyticsResponse,
+} from './funnels-dashboard';
+import { funnelKeys } from './funnels-api';
 
 // =============================================================================
 // TIMEZONE UTILITY
@@ -765,273 +782,63 @@ export default {
 };
 
 // =============================================================================
-// FUNNEL MANAGEMENT API
+// FUNNEL MANAGEMENT API (Core routes live in ./funnels-dashboard.ts)
 // =============================================================================
 
-export interface FunnelStep {
-  id: string;
-  name: string;
-  type: 'page' | 'event' | 'custom';
-  condition: {
-    page?: string;
-    event?: string;
-    custom?: string;
-  };
-  order: number;
-}
+export type {
+  Funnel,
+  FunnelStep,
+  FunnelListSummary,
+  FunnelAnalyticsItem,
+  FunnelAnalyticsResponse,
+};
 
-export interface Funnel {
-  id: string;
-  name: string;
-  description?: string;
-  website_id: string;
-  user_id?: string;
-  steps: FunnelStep[];
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface FunnelAnalyticsItem {
-  funnel_id: string;
-  website_id: string;
-  date: string;
-  total_starts: number;
-  total_conversions: number;
-  conversion_rate: number;
-  avg_value: number;
-  total_value: number;
-  step_metrics?: any;
-  avg_time_to_convert?: number;
-  avg_time_to_abandon?: number;
-  drop_off_rate?: number;
-  abandonment_rate?: number;
-}
-
-export interface FunnelAnalyticsResponse {
-  status: string;
-  analytics: FunnelAnalyticsItem[];
-  count: number;
-}
-
-export interface FunnelAnalytics {
-  funnelId: string;
-  totalVisitors: number;
-  steps: Array<{
-    stepId: string;
-    name: string;
-    count: number;
-    conversionRate: number;
-    dropOffRate: number;
-    avgTimeOnStep: number;
-  }>;
-  overallConversionRate: number;
-  biggestDropOff: {
-    stepName: string;
-    dropOffRate: number;
-  };
-  dateRange: {
-    startDate: string;
-    endDate: string;
-  };
-}
-
-// Create a new funnel
-export async function createFunnel(websiteId: string, funnelData: Omit<Funnel, 'id' | 'website_id' | 'created_at' | 'updated_at'>): Promise<Funnel> {
-  if (demoMutationGuard(websiteId)) {
-    return { id: 'demo-new', website_id: websiteId, ...funnelData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as Funnel;
-  }
-  try {
-    const response = await api.post(`/funnels/`, {
-      ...funnelData,
-      website_id: websiteId
-    });
-    // Handle both direct object response and wrapped response
-    if (response.data && response.data.funnel) {
-      return response.data.funnel;
-    } else {
-      return response.data;
-    }
-  } catch (error: any) {
-    console.error('Error creating funnel:', error);
-
-    // Check for limit reached error
-    if (error.response?.status === 403 && error.response?.data?.error === 'Funnel limit reached') {
-      throw new Error(`Funnel limit reached! You've reached your plan's funnel limit. Please upgrade to create more funnels.`);
-    }
-
-    // Check for other limit-related errors  
-    if (error.response?.data?.message?.includes('limit')) {
-      throw new Error(error.response.data.message);
-    }
-
-    throw error;
-  }
-}
-
-// Get all funnels for a website
-export async function getFunnels(websiteId: string): Promise<Funnel[]> {
-  if (isDemo(websiteId)) {
-    const { demoFunnels } = await import('./demo');
-    return demoFunnels().funnels as any;
-  }
-  try {
-    const response = await api.get(`/funnels/`, {
-      params: { website_id: websiteId }
-    });
-
-    // Handle both direct object response and wrapped response
-    if (response.data && response.data.funnels) {
-      return response.data.funnels;
-    } else if (response.data && response.data.data) {
-      return response.data.data;
-    } else {
-      return response.data;
-    }
-  } catch (error) {
-    throw error;
-  }
-}
-
-// Get a specific funnel
-export async function getFunnel(funnelId: string): Promise<Funnel> {
-  try {
-    const response = await api.get(`/funnels/${funnelId}`);
-    // Handle both direct object response and wrapped response
-    if (response.data && response.data.funnel) {
-      return response.data.funnel;
-    } else {
-      return response.data;
-    }
-  } catch (error) {
-    throw error;
-  }
-}
-
-// Update a funnel
-export async function updateFunnel(funnelId: string, funnelData: Partial<Funnel>): Promise<Funnel> {
-  try {
-    const response = await api.put(`/funnels/${funnelId}`, funnelData);
-    // Handle both direct object response and wrapped response
-    if (response.data && response.data.funnel) {
-      return response.data.funnel;
-    } else {
-      return response.data;
-    }
-  } catch (error) {
-    throw error;
-  }
-}
-
-// Delete a funnel
-export async function deleteFunnel(funnelId: string): Promise<void> {
-  try {
-    await api.delete(`/funnels/${funnelId}`);
-  } catch (error) {
-    throw error;
-  }
-}
-
-// Get funnel analytics data
-export async function getFunnelAnalytics(funnelId: string, dateRange: number = 7): Promise<FunnelAnalyticsResponse> {
-  if (funnelId.startsWith('demo-')) {
-    const { demoFunnelAnalytics } = await import('./demo');
-    return demoFunnelAnalytics(funnelId);
-  }
-  try {
-    const response = await api.get(`/funnels/${funnelId}/analytics`, {
-      params: { days: dateRange }
-    });
-
-    // Handle different response formats from the analytics service
-    if (response.data && typeof response.data === 'object') {
-      // If the response has a 'data' wrapper, unwrap it
-      if ('data' in response.data) {
-        return response.data.data;
-      }
-      // If it's a direct analytics object, return it
-      return response.data;
-    }
-
-    // Return empty analytics if no valid data
-    return {
-      status: 'success',
-      analytics: [{
-        funnel_id: funnelId,
-        website_id: '',
-        date: new Date().toISOString().split('T')[0],
-        total_starts: 0,
-        total_conversions: 0,
-        conversion_rate: 0,
-        avg_value: 0,
-        total_value: 0,
-        drop_off_rate: 100,
-        abandonment_rate: 100
-      }],
-      count: 0
-    };
-  } catch (error) {
-    console.warn(`Failed to fetch funnel analytics for ${funnelId}:`, error);
-    // Return empty analytics structure instead of throwing
-    return {
-      status: 'error',
-      analytics: [{
-        funnel_id: funnelId,
-        website_id: '',
-        date: new Date().toISOString().split('T')[0],
-        total_starts: 0,
-        total_conversions: 0,
-        conversion_rate: 0,
-        avg_value: 0,
-        total_value: 0,
-        drop_off_rate: 100,
-        abandonment_rate: 100
-      }],
-      count: 0
-    };
-  }
-}
-
-
-// Compare multiple funnels
-export async function compareFunnels(websiteId: string, funnelIds: string[], dateRange: number = 7): Promise<any> {
-  try {
-    const response = await api.post(`/funnels/compare?website_id=${websiteId}`, {
-      funnel_ids: funnelIds,
-      date_range: dateRange
-    });
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
-}
+export {
+  fetchDashboardFunnelList as getFunnels,
+  createDashboardFunnel as createFunnel,
+  getDashboardFunnel as getFunnel,
+  updateDashboardFunnel as updateFunnel,
+  deleteDashboardFunnel as deleteFunnel,
+  bulkDeleteDashboardFunnels as deleteFunnels,
+  getDashboardFunnelAnalytics as getFunnelAnalytics,
+} from './funnels-dashboard';
 
 // React Query hooks for funnels
 export const useFunnels = (websiteId: string) => {
   return useQuery<Funnel[]>({
     queryKey: [...analyticsKeys.all, 'funnels', websiteId],
-    queryFn: () => getFunnels(websiteId),
+    queryFn: () => fetchDashboardFunnelList(websiteId),
     enabled: !!websiteId,
     staleTime: 5 * 60 * 1000,
   });
 };
 
-export const useFunnel = (funnelId: string) => {
+export const useFunnel = (websiteId: string, funnelId: string) => {
   return useQuery<Funnel>({
-    queryKey: [...analyticsKeys.all, 'funnel', funnelId],
-    queryFn: () => getFunnel(funnelId),
-    enabled: !!funnelId,
+    queryKey: [...analyticsKeys.all, 'funnel', websiteId, funnelId],
+    queryFn: () => getDashboardFunnel(websiteId, funnelId),
+    enabled: !!websiteId && !!funnelId,
     staleTime: 5 * 60 * 1000,
   });
 };
 
-export const useFunnelAnalytics = (funnelId: string, dateRange: number = 7) => {
+export const useFunnelAnalytics = (funnelId: string, dateRange: number = 7, websiteId?: string) => {
   return useQuery<FunnelAnalyticsResponse>({
-    queryKey: [...analyticsKeys.all, 'funnel-analytics', funnelId, dateRange],
-    queryFn: () => getFunnelAnalytics(funnelId, dateRange),
+    queryKey: [...analyticsKeys.all, 'funnel-analytics', funnelId, dateRange, websiteId ?? ''] as const,
+    queryFn: () => getDashboardFunnelAnalytics(funnelId, dateRange, websiteId),
     enabled: !!funnelId,
     staleTime: 2 * 60 * 1000,
   });
+};
+
+const invalidateAllFunnelQueries = (qc: ReturnType<typeof useQueryClient>, websiteId?: string) => {
+  qc.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnels'] });
+  qc.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnel'] });
+  qc.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnel-analytics'] });
+  qc.invalidateQueries({ queryKey: funnelKeys.lists() });
+  if (websiteId) {
+    qc.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnels', websiteId] });
+  }
 };
 
 export const useCreateFunnel = () => {
@@ -1039,9 +846,9 @@ export const useCreateFunnel = () => {
 
   return useMutation({
     mutationFn: ({ websiteId, funnelData }: { websiteId: string; funnelData: Omit<Funnel, 'id' | 'website_id' | 'created_at' | 'updated_at'> }) =>
-      createFunnel(websiteId, funnelData),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnels'] });
+      createDashboardFunnel(websiteId, funnelData),
+    onSuccess: (_, v) => {
+      invalidateAllFunnelQueries(queryClient, v.websiteId);
     },
   });
 };
@@ -1050,11 +857,10 @@ export const useUpdateFunnel = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ funnelId, funnelData }: { funnelId: string; funnelData: Partial<Funnel> }) =>
-      updateFunnel(funnelId, funnelData),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnels'] });
-      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnel-analytics'] });
+    mutationFn: ({ websiteId, funnelId, funnelData }: { websiteId: string; funnelId: string; funnelData: Partial<Funnel> }) =>
+      updateDashboardFunnel(websiteId, funnelId, funnelData),
+    onSuccess: (_, v) => {
+      invalidateAllFunnelQueries(queryClient, v.websiteId);
     },
   });
 };
@@ -1063,48 +869,23 @@ export const useDeleteFunnel = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (funnelId: string) => deleteFunnel(funnelId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnels'] });
-      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnel-analytics'] });
+    mutationFn: ({ websiteId, funnelId }: { websiteId: string; funnelId: string }) =>
+      deleteDashboardFunnel(websiteId, funnelId),
+    onSuccess: (_, v) => {
+      invalidateAllFunnelQueries(queryClient, v.websiteId);
     },
   });
 };
-
-// Delete multiple funnels
-export async function deleteFunnels(websiteId: string, funnelIds: string[]): Promise<void> {
-  if (demoMutationGuard(websiteId)) return;
-  try {
-    await api.delete(`/funnels/bulk-delete?website_id=${websiteId}`, {
-      data: { funnelIds }
-    });
-  } catch (error: any) {
-    throw error;
-  }
-}
 
 export const useDeleteFunnels = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ websiteId, funnelIds }: { websiteId: string; funnelIds: string[] }) => 
-      deleteFunnels(websiteId, funnelIds),
+    mutationFn: ({ websiteId, funnelIds }: { websiteId: string; funnelIds: string[] }) =>
+      bulkDeleteDashboardFunnels(websiteId, funnelIds),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnels', variables.websiteId] });
-      queryClient.invalidateQueries({ queryKey: [...analyticsKeys.all, 'funnel-analytics'] });
+      invalidateAllFunnelQueries(queryClient, variables.websiteId);
     },
-  });
-};
-
-
-
-export const useCompareFunnels = () => {
-  return useMutation({
-    mutationFn: ({ websiteId, funnelIds, dateRange }: {
-      websiteId: string;
-      funnelIds: string[];
-      dateRange?: number
-    }) => compareFunnels(websiteId, funnelIds, dateRange || 7),
   });
 };
 

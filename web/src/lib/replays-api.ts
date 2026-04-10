@@ -25,6 +25,14 @@ export interface RRWebEvent {
   delay?:    number;
 }
 
+/** Non-rrweb custom events stored in the same chunk (e.g. session_error). */
+export interface SessionCustomEvent {
+  eventType: string;             // e.g. "session_error"
+  timestamp: number;             // epoch ms
+  url?:      string;
+  data:      Record<string, unknown>;
+}
+
 export interface SessionChunksResponse {
   session_id: string;
   meta:       ReplaySession | null;
@@ -41,13 +49,14 @@ export async function listSessions(websiteId: string, limit = 20, offset = 0) {
 export async function getSessionWithEvents(
   websiteId: string,
   sessionId: string,
-): Promise<{ meta: ReplaySession | null; events: RRWebEvent[] }> {
+): Promise<{ meta: ReplaySession | null; events: RRWebEvent[]; customEvents: SessionCustomEvent[] }> {
   const res  = await api.get(`/replays/${websiteId}/${sessionId}`);
   const body = res.data as SessionChunksResponse;
 
   // Ordered chunk list from API; preserve chunk + row order for equal timestamps (stable replay).
   type Tagged = { ev: RRWebEvent; chunk: number; row: number };
   const tagged: Tagged[] = [];
+  const customEvents: SessionCustomEvent[] = [];
 
   (body.chunks ?? []).forEach((c, chunkIdx) => {
     if (!c.data || !Array.isArray(c.data)) return;
@@ -67,12 +76,26 @@ export async function getSessionWithEvents(
       }
 
       // 2. Raw format: { type: <number>, timestamp: <number>, ... }
-      if (!ev) {
+      if (!ev && (typeof item.type === 'number' || !Number.isNaN(parseInt(item.type, 10)))) {
         const type = typeof item.type === 'string' ? parseInt(item.type, 10) : item.type;
         const ts = typeof item.timestamp === 'string' ? parseInt(item.timestamp, 10) : (item.timestamp || item.ts);
-        if (typeof type === 'number' && typeof ts === 'number') {
+        if (typeof type === 'number' && !Number.isNaN(type) && typeof ts === 'number') {
           ev = { ...item, type, timestamp: ts } as RRWebEvent;
         }
+      }
+
+      // 3. Custom event: { type: "session_error" | other string, ts, url, data }
+      if (!ev && typeof item.type === 'string' && item.type !== 'rrweb') {
+        const ts = typeof item.ts === 'number' ? item.ts
+          : typeof item.timestamp === 'number' ? item.timestamp
+          : 0;
+        customEvents.push({
+          eventType: item.type,
+          timestamp: ts,
+          url:       item.url,
+          data:      item.data && typeof item.data === 'object' ? item.data : {},
+        });
+        return;
       }
 
       if (ev) tagged.push({ ev, chunk: chunkIdx, row });
@@ -87,7 +110,7 @@ export async function getSessionWithEvents(
   });
 
   const events = tagged.map((t) => t.ev);
-  return { meta: body.meta ?? null, events };
+  return { meta: body.meta ?? null, events, customEvents };
 }
 
 export async function deleteSessions(websiteId: string, sessionIds: string[]) {

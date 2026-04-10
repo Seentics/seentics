@@ -1,7 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
   output: 'standalone',
+  // esbuild uses native platform binaries — tell Next.js not to bundle it,
+  // just require() it at runtime from node_modules.
+  serverExternalPackages: ['esbuild'],
   // Allow large tracker payloads (replay FullSnapshot events can exceed 10MB)
   middlewareClientMaxBodySize: '50mb',
   images: {

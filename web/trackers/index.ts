@@ -26,16 +26,15 @@ const rrwebSrc: string =
   script?.getAttribute('data-rrweb-src') ??
   (_scriptSrc ? _scriptSrc.replace(/[^/?#]*\.js[^/]*$/, 'rrweb.js') : '');
 
-const COLLECT   = apiHost + '/api/v1/tracker/collect';
-const MAX_BATCH = 25;    // analytics events before forced flush
-const FLUSH_MS  = 5000;  // flush interval — 5 s
-const REC_MAX   = 150;   // rrweb events before early flush
+const COLLECT       = apiHost + '/api/v1/tracker/collect';
+const FLUSH_MS      = 10_000;           // 10 s periodic flush interval
+const SESSION_MAX_MS = 30 * 60 * 1000; // 30 min hard session cap
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let cfg:         Record<string, unknown> = {};
 let funnels:     any[]                   = [];
 let automations: any[]                   = [];
-let analyticsTimer: number | null        = null;
+let flushInterval: number | null = null;
 
 const queues = {
   events:      [] as any[],
@@ -72,14 +71,21 @@ const visitorId: string = (() => {
 const getSessionId = (): string => {
   const s = getStore();
   if (!s) return 's-' + Date.now().toString(36);
-  let id  = s.getItem('snc_sid');
-  const exp = s.getItem('snc_se');
-  if (!id || !exp || Date.now() > +exp) {
-    id = 's-' + rnd() + Date.now().toString(36);
+  const now  = Date.now();
+  let id     = s.getItem('snc_sid');
+  const exp  = s.getItem('snc_se');   // inactivity expiry
+  const ss   = s.getItem('snc_ss');   // session start time (for hard cap)
+
+  const inactivityExpired = !id || !exp || now > +exp;
+  const hardCapExceeded   = !!ss && (now - +ss) >= SESSION_MAX_MS;
+
+  if (inactivityExpired || hardCapExceeded) {
+    id = 's-' + rnd() + now.toString(36);
     s.setItem('snc_sid', id);
+    s.setItem('snc_ss', String(now));
   }
-  s.setItem('snc_se', String(Date.now() + 1_800_000)); // rolling 30 min
-  return id;
+  s.setItem('snc_se', String(now + SESSION_MAX_MS));
+  return id!;
 };
 
 // ─── Queue helpers ────────────────────────────────────────────────────────────
@@ -90,20 +96,29 @@ const categoryOf = (type: string): keyof typeof queues => {
 };
 
 const pushAnalytics = (type: string, data: Record<string, unknown>): void => {
-  const cat = categoryOf(type);
-  queues[cat].push({ type, data, ts: Date.now(), url: location.href, sid: getSessionId(), vid: visitorId });
-  const analyticsTotal = queues.events.length + queues.funnels.length + queues.automations.length;
-  if (analyticsTotal >= MAX_BATCH) flush();
-  else if (!analyticsTimer) analyticsTimer = window.setTimeout(flush, FLUSH_MS);
+  queues[categoryOf(type)].push({ type, data, ts: Date.now(), url: location.href, sid: getSessionId(), vid: visitorId });
 };
 
 // ─── Unified flush — sends all queues to /collect in one request ──────────────
 const flush = (): void => {
+  // Session hard-cap check: if the session rotated since we last started rrweb,
+  // restart recording so the new session gets a fresh FullSnapshot baseline.
+  if (activeRecordingSessionId !== null) {
+    const currentSid = getSessionId();
+    if (currentSid !== activeRecordingSessionId) {
+      // Flush whatever was buffered under the old session first (handled below).
+      // Then restart rrweb for the new session — the initial FullSnapshot lands
+      // in the next flush cycle 10 s later.
+      loadRrweb().then(record => {
+        if (record) startRrweb(record, currentSid);
+      });
+    }
+  }
+
   const e = queues.events.splice(0);
   const f = queues.funnels.splice(0), a = queues.automations.splice(0);
   const s = queues.session.splice(0);
   if (!e.length && !f.length && !a.length && !s.length) return;
-  clearTimeout(analyticsTimer!); analyticsTimer = null;
 
   const payload: Record<string, unknown> = { website_id: websiteId, domain };
   if (e.length) payload.events      = e;
@@ -159,38 +174,40 @@ const sendGzip = async (json: string): Promise<void> => {
 type RrwebRecord = (options: Record<string, unknown>) => () => void;
 let _rrwebPromise: Promise<RrwebRecord | null> | null = null;
 
-/** One shot per page load — first client error/rejection during recording. */
-let sessionClientErrorSent = false;
-
-const enqueueSessionClientError = (): void => {
-  if (sessionClientErrorSent) return;
-  sessionClientErrorSent = true;
-  queues.session.push({
-    type: 'session_error',
-    data: { kind: 'client' },
-    ts: Date.now(),
-    url: location.href,
-    sid: getSessionId(),
-    vid: visitorId,
-  });
-  if (queues.session.length >= REC_MAX) flush();
-  else if (!analyticsTimer) analyticsTimer = window.setTimeout(flush, FLUSH_MS);
-};
-
 /** Capture window errors + unhandled rejections for replay session metadata. */
 const installSessionClientErrorCapture = (): void => {
   const w = window as unknown as { __snc_err_cap?: boolean };
   if (w.__snc_err_cap) return;
   w.__snc_err_cap = true;
-  window.addEventListener(
-    'error',
-    () => {
-      enqueueSessionClientError();
-    },
-    true,
-  );
-  window.addEventListener('unhandledrejection', () => {
-    enqueueSessionClientError();
+
+  const enqueue = (data: Record<string, unknown>) => {
+    queues.session.push({
+      type: 'session_error',
+      data,
+      ts:  Date.now(),
+      url: location.href,
+      sid: getSessionId(),
+      vid: visitorId,
+    });
+  };
+
+  window.addEventListener('error', (ev: ErrorEvent) => {
+    enqueue({
+      message:  ev.message  || 'Script error',
+      filename: ev.filename || undefined,
+      lineno:   ev.lineno   || undefined,
+      colno:    ev.colno    || undefined,
+      stack:    (ev.error as Error | null)?.stack || undefined,
+    });
+  }, true);
+
+  window.addEventListener('unhandledrejection', (ev: PromiseRejectionEvent) => {
+    const reason = ev.reason;
+    const isErr  = reason instanceof Error;
+    enqueue({
+      message: isErr ? reason.message : String(reason ?? 'Unhandled rejection'),
+      stack:   isErr ? reason.stack   : undefined,
+    });
   });
 };
 
@@ -225,6 +242,55 @@ const matchesPatterns = (patterns: string | null | undefined): boolean => {
   return list.some(p => safeRegex(p, url));
 };
 
+/** Stop function returned by rrweb record(); null when recording is off. */
+let stopRecording: (() => void) | null = null;
+/** The session ID that the current rrweb instance is recording under. */
+let activeRecordingSessionId: string | null = null;
+
+const RRWEB_OPTIONS = {
+  // Full snapshot periodically limits incremental drift ("node not found" / bad mirrors).
+  checkoutEveryNms: 90_000,
+  // Privacy: mask ALL inputs by default.
+  maskAllInputs:   true,
+  blockSelector:   '[data-seentics-block]',
+  ignoreSelector:  '[data-seentics-ignore]',
+  recordShadowDOM: true,
+  sampling: {
+    mousemove: 50,   // ~20 fps mouse tracking
+    scroll:    150,
+    media:     800,
+    input:     'last',
+  },
+  inlineStylesheet: true,
+  collectFonts:     false,
+  recordCanvas:     false,
+  errorHandler:     (_err: unknown) => { /* keep emit pipeline alive on bad mutations */ },
+};
+
+/** Start (or restart) rrweb under the given session ID and attach to the global stop handle. */
+const startRrweb = (record: RrwebRecord, sid: string): void => {
+  if (stopRecording) {
+    try { stopRecording(); } catch { /* ignore */ }
+    stopRecording = null;
+  }
+  activeRecordingSessionId = sid;
+  const stop = record({
+    ...RRWEB_OPTIONS,
+    emit(event: any) {
+      queues.session.push({
+        type: 'rrweb',
+        data: event,
+        ts:   event.timestamp,
+        url:  location.href,
+        sid:  activeRecordingSessionId!,
+        vid:  visitorId,
+      });
+    },
+  });
+  // rrweb record() returns a stop function in some versions, undefined in others.
+  if (typeof stop === 'function') stopRecording = stop;
+};
+
 const initRecording = async (): Promise<void> => {
   const samplingRate = typeof cfg.replay_sampling_rate === 'number'
     ? (cfg.replay_sampling_rate as number)
@@ -236,47 +302,10 @@ const initRecording = async (): Promise<void> => {
   if (includePatterns && !matchesPatterns(includePatterns)) return;
   if (excludePatterns && matchesPatterns(excludePatterns)) return;
 
-  // Load rrweb lazily — only at this point do we know recording is needed.
   const record = await loadRrweb();
   if (!record) return;
 
-  record({
-    emit(event: any) {
-      const sid = getSessionId();
-      queues.session.push({
-        type: 'rrweb',
-        data: event,           // full rrweb eventWithTime: {type, timestamp, data}
-        ts:   event.timestamp,
-        url:  location.href,
-        sid,
-        vid:  visitorId,
-      });
-      if (queues.session.length >= REC_MAX) flush();
-      else if (!analyticsTimer) analyticsTimer = window.setTimeout(flush, FLUSH_MS);
-    },
-    // Full snapshot periodically limits incremental drift (“node not found” / bad mirrors).
-    checkoutEveryNms: 90_000,
-    // Privacy: mask ALL inputs by default.
-    // Users can add data-seentics-block to hide elements from the recording entirely.
-    maskAllInputs:  true,
-    blockSelector:  '[data-seentics-block]',
-    ignoreSelector: '[data-seentics-ignore]',
-    // Shadow roots (web components, etc.) — fuller DOM mirror at moderate size cost.
-    recordShadowDOM: true,
-    // Performance sampling
-    sampling: {
-      mousemove: 50,   // ~20 fps mouse tracking
-      scroll:    150,
-      media:     800,
-      input:     'last',
-    },
-    inlineStylesheet: true,   // accurate CSS replay
-    collectFonts:     false,
-    recordCanvas:     false,
-    errorHandler: (_err: unknown) => {
-      // Don’t throw from rrweb record — keeps emit pipeline alive on single bad mutations.
-    },
-  });
+  startRrweb(record, getSessionId());
 };
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -389,20 +418,24 @@ const init = (): void => {
 
     fetch(apiHost + '/api/v1/tracker/init/' + websiteId)
     .then(r => r.json())
-    .then((d: any) => {
+    .then(async (d: any) => {
       cfg         = d.config      ?? {};
       funnels     = d.funnels     ?? [];
       automations = d.automations ?? [];
-      if (autoTrack)               trackPage();
+      if (autoTrack) trackPage();
       if (cfg.recording !== false) {
         installSessionClientErrorCapture();
-        void initRecording(); // loads rrweb lazily
+        await initRecording(); // await so first flush includes rrweb snapshot
       }
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
+      flush(); // first load: send pageview + rrweb snapshot immediately
+      flushInterval = window.setInterval(flush, FLUSH_MS);
     })
     .catch(() => {
       if (autoTrack) trackPage();
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
+      flush();
+      flushInterval = window.setInterval(flush, FLUSH_MS);
     });
 };
 

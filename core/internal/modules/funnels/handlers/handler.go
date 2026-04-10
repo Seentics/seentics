@@ -5,6 +5,7 @@ import (
 	"github.com/Seentics/seentics/internal/modules/funnels/services"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -229,15 +230,28 @@ func (h *FunnelHandler) GetFunnelStats(c *gin.Context) {
 	}
 
 	funnelID := c.Param("funnel_id")
+	days := 30
+	if d := c.Query("days"); d != "" {
+		fmt.Sscanf(d, "%d", &days)
+	}
+	if days < 1 {
+		days = 1
+	}
+	if days > 366 {
+		days = 366
+	}
 
-	// GetFunnel verifies ownership and loads stats in one path
-	funnel, err := h.service.GetFunnel(c.Request.Context(), funnelID, userID)
+	stats, err := h.service.GetFunnelStatsForDashboard(c.Request.Context(), funnelID, userID, days)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Funnel not found"})
+		if strings.Contains(err.Error(), "unauthorized access to funnel") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Funnel not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, funnel.Stats)
+	c.JSON(http.StatusOK, stats)
 }
 
 // GetActiveFunnels retrieves only active funnels

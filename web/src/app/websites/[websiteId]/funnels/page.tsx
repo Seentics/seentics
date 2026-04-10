@@ -2,16 +2,15 @@
 
 import { useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useQueries } from '@tanstack/react-query';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { GitBranch, TrendingUp, Users, Target, MoreVertical, Eye, Edit, Trash2, Plus, Calendar, BarChart3, Search } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import {
-  analyticsKeys,
-  getFunnelAnalytics,
   useFunnels,
   useFunnelAnalytics,
+  useCreateFunnel,
+  useUpdateFunnel,
   useDeleteFunnel,
   useDeleteFunnels,
   type Funnel,
@@ -25,25 +24,42 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// Helper component for stats in the table cell
-function FunnelCellStats({ funnelId, dateRange }: { funnelId: string; dateRange: number }) {
-  const { data: analytics, isLoading } = useFunnelAnalytics(funnelId, dateRange);
-  const item = analytics?.analytics?.[0];
+// List page: real sites use list_summary from GET /websites/:id/funnels (single batch). Demo still uses analytics API.
+function FunnelCellStats({ funnel, dateRange, isDemoMode }: { funnel: Funnel; dateRange: number; isDemoMode: boolean }) {
+  const { data: analytics, isLoading } = useFunnelAnalytics(isDemoMode ? funnel.id : '', dateRange);
 
-  if (isLoading) {
-    return <Skeleton className="h-4 w-24" />;
+  if (isDemoMode) {
+    const item = analytics?.analytics?.[0];
+    if (isLoading) {
+      return <Skeleton className="h-4 w-24" />;
+    }
+    if (!item) return <span className="text-muted-foreground">—</span>;
+    return (
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold">{(item.conversion_rate || 0).toFixed(1)}%</span>
+          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Conv.</span>
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          {item.total_conversions?.toLocaleString()} of {item.total_starts?.toLocaleString()}
+        </div>
+      </div>
+    );
   }
 
-  if (!item) return <span className="text-muted-foreground">—</span>;
+  const s = funnel.list_summary;
+  if (!s) {
+    return <span className="text-muted-foreground">—</span>;
+  }
 
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold">{(item.conversion_rate || 0).toFixed(1)}%</span>
+        <span className="text-sm font-semibold">{(s.conversion_rate || 0).toFixed(1)}%</span>
         <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Conv.</span>
       </div>
       <div className="text-[10px] text-muted-foreground">
-        {item.total_conversions?.toLocaleString()} of {item.total_starts?.toLocaleString()}
+        {s.total_conversions.toLocaleString()} of {s.total_starts.toLocaleString()}
       </div>
     </div>
   );
@@ -62,31 +78,44 @@ export default function FunnelsPage() {
 
   const { data: funnels = [], isLoading: funnelsLoading } = useFunnels(websiteId);
   const funnelIds = useMemo(() => funnels.map(f => f.id), [funnels]);
-  const funnelAnalyticsQueries = useQueries({
-    queries: funnelIds.map(funnelId => ({
-      queryKey: [...analyticsKeys.all, 'funnel-analytics', funnelId, dateRange] as const,
-      queryFn:  () => getFunnelAnalytics(funnelId, dateRange),
-      enabled:  !isDemoMode && funnelIds.length > 0,
-    })),
-  });
-  const avgConvLoading =
-    !isDemoMode && funnelIds.length > 0 && funnelAnalyticsQueries.some(q => q.isPending);
   const avgConversionStr = useMemo(() => {
     if (isDemoMode || funnelIds.length === 0) return '';
-    const rates = funnelAnalyticsQueries
-      .map(q => q.data?.analytics?.[0]?.conversion_rate)
+    const rates = funnels
+      .map(f => f.list_summary?.conversion_rate)
       .filter((r): r is number => typeof r === 'number' && !Number.isNaN(r));
     if (!rates.length) return '—';
     const avg = rates.reduce((a, b) => a + b, 0) / rates.length;
     return `${avg.toFixed(1)}%`;
-  }, [isDemoMode, funnelIds.length, funnelAnalyticsQueries]);
+  }, [isDemoMode, funnels]);
+  const createFunnelMutation = useCreateFunnel();
+  const updateFunnelMutation = useUpdateFunnel();
   const deleteFunnelMutation = useDeleteFunnel();
   const bulkDeleteMutation = useDeleteFunnels();
 
+  const handleSaveFunnel = (data: Omit<Funnel, 'id' | 'website_id' | 'created_at' | 'updated_at'>) => {
+    if (editingFunnel) {
+      updateFunnelMutation.mutate(
+        { websiteId, funnelId: editingFunnel.id, funnelData: data },
+        {
+          onSuccess: () => {
+            setIsBuilderOpen(false);
+            setEditingFunnel(null);
+          },
+        }
+      );
+    } else {
+      createFunnelMutation.mutate(
+        { websiteId, funnelData: data },
+        {
+          onSuccess: () => setIsBuilderOpen(false),
+        }
+      );
+    }
+  };
 
   const handleDeleteFunnel = (id: string) => {
     if (confirm('Delete this funnel?')) {
-      deleteFunnelMutation.mutate(id);
+      deleteFunnelMutation.mutate({ websiteId, funnelId: id });
     }
   };
 
@@ -137,7 +166,9 @@ export default function FunnelsPage() {
     {
       id: 'performance',
       header: 'Performance (30d)',
-      cell: ({ row }: { row: any }) => <FunnelCellStats funnelId={row.original.id} dateRange={dateRange} />
+      cell: ({ row }: { row: any }) => (
+        <FunnelCellStats funnel={row.original} dateRange={dateRange} isDemoMode={isDemoMode} />
+      )
     },
     {
       id: 'created',
@@ -178,7 +209,7 @@ export default function FunnelsPage() {
         </div>
       )
     }
-  ], [websiteId, dateRange, router]);
+  ], [websiteId, dateRange, router, isDemoMode]);
 
 
   // Summary Metrics
@@ -219,7 +250,7 @@ export default function FunnelsPage() {
         </Button>
       </DashboardPageHeader>
 
-      <StatCards cards={summary} isLoading={funnelsLoading || avgConvLoading} />
+      <StatCards cards={summary} isLoading={funnelsLoading} />
 
       <div className="mt-8">
         <DataTable
@@ -284,7 +315,7 @@ export default function FunnelsPage() {
             <FunnelBuilder
               websiteId={websiteId}
               existingFunnel={editingFunnel || undefined}
-              onSave={() => setIsBuilderOpen(false)}
+              onSave={handleSaveFunnel}
               onCancel={() => {
                 setIsBuilderOpen(false);
                 setEditingFunnel(null);

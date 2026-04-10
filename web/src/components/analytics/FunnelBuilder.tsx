@@ -99,9 +99,9 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
       name: name.trim(),
       description: description.trim(),
       steps,
-      is_active: true
+      is_active: existingFunnel?.is_active ?? true,
     });
-  }, [name, description, steps, onSave]);
+  }, [name, description, steps, onSave, existingFunnel?.is_active]);
 
   const getStepIcon = (type: string) => {
     switch (type) {

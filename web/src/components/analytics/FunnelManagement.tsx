@@ -29,6 +29,7 @@ import {
   useDeleteFunnel,
   type Funnel
 } from '@/lib/analytics-api';
+import { isDemo } from '@/lib/demo';
 
 interface FunnelManagementProps {
   websiteId: string;
@@ -36,36 +37,65 @@ interface FunnelManagementProps {
   onCreateWorkflow?: (step: string) => void;
 }
 
-// Small component to fetch & show inline stats for a single funnel row
-function FunnelRowStats({ funnelId, dateRange }: { funnelId: string; dateRange: number }) {
-  const { data: analytics, isLoading } = useFunnelAnalytics(funnelId, dateRange);
-  const item = analytics?.analytics?.[0];
+/** Inline row stats: list batch summary (no extra requests). Demo uses analytics API. */
+function FunnelRowStats({ funnel, dateRange, websiteId }: { funnel: Funnel; dateRange: number; websiteId: string }) {
+  const demoSite = isDemo(websiteId);
+  const { data: analytics, isLoading } = useFunnelAnalytics(
+    demoSite ? funnel.id : '',
+    dateRange,
+    demoSite ? websiteId : undefined
+  );
 
-  if (isLoading) {
+  if (demoSite) {
+    const item = analytics?.analytics?.[0];
+    if (isLoading) {
+      return (
+        <div className="flex items-center gap-3">
+          <div className="h-4 w-12 bg-muted rounded animate-pulse" />
+          <div className="h-4 w-10 bg-muted rounded animate-pulse" />
+        </div>
+      );
+    }
+    if (!item) return null;
     return (
-      <div className="flex items-center gap-3">
-        <div className="h-4 w-12 bg-muted rounded animate-pulse" />
-        <div className="h-4 w-10 bg-muted rounded animate-pulse" />
+      <div className="flex items-center gap-3 text-[11px] shrink-0">
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <Users className="h-3 w-3" />
+          <span className="font-medium text-foreground">{item.total_starts?.toLocaleString() || '0'}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <TrendingUp className="h-3 w-3 text-green-500" />
+          <span className="font-medium text-green-600">{item.conversion_rate?.toFixed(1) || '0'}%</span>
+        </div>
+        {(item.drop_off_rate ?? 0) > 0 && (
+          <div className="flex items-center gap-1">
+            <TrendingDown className="h-3 w-3 text-orange-400" />
+            <span className="font-medium text-orange-500">{item.drop_off_rate?.toFixed(1)}%</span>
+          </div>
+        )}
       </div>
     );
   }
 
-  if (!item) return null;
-
+  const s = funnel.list_summary;
+  if (!s) {
+    return <span className="text-[11px] text-muted-foreground shrink-0">—</span>;
+  }
+  const dropPct = s.total_starts > 0 ? ((s.total_starts - s.total_conversions) / s.total_starts) * 100 : 0;
   return (
     <div className="flex items-center gap-3 text-[11px] shrink-0">
       <div className="flex items-center gap-1 text-muted-foreground">
         <Users className="h-3 w-3" />
-        <span className="font-medium text-foreground">{item.total_starts?.toLocaleString() || '0'}</span>
+        <span className="font-medium text-foreground">{s.total_starts.toLocaleString()}</span>
       </div>
       <div className="flex items-center gap-1">
         <TrendingUp className="h-3 w-3 text-green-500" />
-        <span className="font-medium text-green-600">{item.conversion_rate?.toFixed(1) || '0'}%</span>
+        <span className="font-medium text-green-600">{s.conversion_rate.toFixed(1)}%</span>
       </div>
-      {(item.drop_off_rate ?? 0) > 0 && (
+      {dropPct > 0 && (
         <div className="flex items-center gap-1">
           <TrendingDown className="h-3 w-3 text-orange-400" />
-          <span className="font-medium text-orange-500">{item.drop_off_rate?.toFixed(1)}%</span>
+          <span className="font-medium text-orange-500">{dropPct.toFixed(1)}%</span>
         </div>
       )}
     </div>
@@ -75,17 +105,20 @@ function FunnelRowStats({ funnelId, dateRange }: { funnelId: string; dateRange: 
 function FunnelDetailModal({
   funnel,
   dateRange,
+  websiteId,
   open,
   onOpenChange
 }: {
   funnel: Funnel;
   dateRange: number;
+  websiteId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
   const { data: funnelAnalytics, isLoading } = useFunnelAnalytics(
     open ? funnel.id : '',
-    dateRange
+    dateRange,
+    open ? websiteId : undefined
   );
 
   const analytics = funnelAnalytics?.analytics?.[0];
@@ -204,7 +237,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
   const handleUpdateFunnel = (funnelData: Omit<Funnel, 'id' | 'website_id' | 'created_at' | 'updated_at'>) => {
     if (!editingFunnel) return;
     updateFunnelMutation.mutate(
-      { funnelId: editingFunnel.id, funnelData },
+      { websiteId, funnelId: editingFunnel.id, funnelData },
       {
         onSuccess: () => {
           setEditingFunnel(null);
@@ -216,11 +249,12 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
 
   const handleDeleteFunnel = (funnelId: string) => {
     if (!confirm('Delete this funnel?')) return;
-    deleteFunnelMutation.mutate(funnelId);
+    deleteFunnelMutation.mutate({ websiteId, funnelId });
   };
 
   const handleToggleStatus = (funnel: Funnel) => {
     updateFunnelMutation.mutate({
+      websiteId,
       funnelId: funnel.id,
       funnelData: { is_active: !funnel.is_active }
     });
@@ -325,7 +359,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
                   </div>
 
                   {/* Inline stats */}
-                  <FunnelRowStats funnelId={funnel.id} dateRange={dateRange} />
+                  <FunnelRowStats funnel={funnel} dateRange={dateRange} websiteId={websiteId} />
 
                   {/* View button */}
                   <Button
@@ -414,6 +448,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
         <FunnelDetailModal
           funnel={detailFunnel}
           dateRange={dateRange}
+          websiteId={websiteId}
           open={!!detailFunnel}
           onOpenChange={(open) => { if (!open) setDetailFunnel(null); }}
         />

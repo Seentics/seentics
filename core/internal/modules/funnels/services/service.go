@@ -149,7 +149,7 @@ func (s *FunnelService) GetFunnel(ctx context.Context, id string, userID string)
 	if userID != "system" && funnel.UserID != userID {
 		return nil, fmt.Errorf("unauthorized access to funnel")
 	}
-	if stats, err := s.GetFunnelStats(ctx, funnel.ID, funnel.WebsiteID); err == nil {
+	if stats, err := s.GetFunnelStats(ctx, funnel.ID, funnel.WebsiteID, 30); err == nil {
 		funnel.Stats = stats
 	}
 	return funnel, nil
@@ -220,7 +220,19 @@ func (s *FunnelService) DeleteFunnels(ctx context.Context, ids []string, userID 
 	return nil
 }
 
-// GetFunnelStats returns real-time performance stats for a funnel.
-func (s *FunnelService) GetFunnelStats(ctx context.Context, id string, websiteID string) (*models.FunnelStats, error) {
-	return s.repo.GetFunnelStats(ctx, id, websiteID)
+// GetFunnelStats returns real-time performance stats for a funnel over the last `days` days.
+func (s *FunnelService) GetFunnelStats(ctx context.Context, id string, websiteID string, days int) (*models.FunnelStats, error) {
+	return s.repo.GetFunnelStats(ctx, id, websiteID, days)
+}
+
+// GetFunnelStatsForDashboard verifies ownership and returns stats for the given window.
+func (s *FunnelService) GetFunnelStatsForDashboard(ctx context.Context, funnelID string, userID string, days int) (*models.FunnelStats, error) {
+	funnel, err := s.repo.GetFunnelByID(ctx, funnelID)
+	if err != nil {
+		return nil, err
+	}
+	if userID != "system" && funnel.UserID != userID {
+		return nil, fmt.Errorf("unauthorized access to funnel")
+	}
+	return s.repo.GetFunnelStats(ctx, funnelID, funnel.WebsiteID, days)
 }

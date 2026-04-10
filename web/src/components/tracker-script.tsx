@@ -20,9 +20,10 @@ function normalizeTrackerApiHost(raw: string): string {
 }
 
 /**
- * Loader for `trackers/seentics.js`. Configure via env (preferred):
+ * Loader for the tracker script (served dynamically from /api/tracker/seentics.js).
+ * Configure via env (preferred):
  * - NEXT_PUBLIC_SEENTICS_SITE_ID
- * - NEXT_PUBLIC_SEENTICS_TRACKER_URL (full script URL, e.g. http://localhost:3000/trackers/seentics.js)
+ * - NEXT_PUBLIC_SEENTICS_TRACKER_URL (override script URL, e.g. https://cdn.example.com/seentics.js)
  * - NEXT_PUBLIC_SEENTICS_API_HOST (optional; defaults from NEXT_PUBLIC_API_URL / api base)
  */
 export default function TrackerScript({ websiteId }: TrackerScriptProps) {
@@ -51,7 +52,7 @@ export default function TrackerScript({ websiteId }: TrackerScriptProps) {
 
   const trackerUrl =
     envTrackerUrl ||
-    `${window.location.origin}/trackers/seentics.js`;
+    `${window.location.origin}/api/tracker/seentics.js`;
 
   if (!siteId || !trackerUrl) return null;
 

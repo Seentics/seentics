@@ -14,6 +14,14 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// Hard caps — drop events rather than grow unbounded under a traffic spike or slow DB.
+const (
+	maxAnalyticsCap   = 50_000
+	maxHeatmapsCap    = 20_000
+	maxSessionsCap    = 30_000
+	maxAutomationsCap = 10_000
+)
+
 // CollectBuffer holds four feature queues: each /collect appends validated, feature-ready rows.
 // Every ~2s, flush swaps each queue and runs one DB batch per non-empty feature.
 type CollectBuffer struct {
@@ -53,6 +61,7 @@ func NewCollectBuffer(
 }
 
 // Push appends validated rows from one /collect into the feature buffers (short lock).
+// Events are dropped with a warning if a queue is at its hard cap.
 func (b *CollectBuffer) Push(
 	analytics []analyticsModels.Event,
 	heat []heatmapSvc.TrackerEvent,
@@ -62,16 +71,32 @@ func (b *CollectBuffer) Push(
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if len(analytics) > 0 {
-		b.analytics = append(b.analytics, analytics...)
+		if len(b.analytics)+len(analytics) <= maxAnalyticsCap {
+			b.analytics = append(b.analytics, analytics...)
+		} else {
+			b.logger.Warn().Int("drop", len(analytics)).Msg("analytics buffer full")
+		}
 	}
 	if len(heat) > 0 {
-		b.heatmaps = append(b.heatmaps, heat...)
+		if len(b.heatmaps)+len(heat) <= maxHeatmapsCap {
+			b.heatmaps = append(b.heatmaps, heat...)
+		} else {
+			b.logger.Warn().Int("drop", len(heat)).Msg("heatmaps buffer full")
+		}
 	}
 	if len(sessions) > 0 {
-		b.sessions = append(b.sessions, sessions...)
+		if len(b.sessions)+len(sessions) <= maxSessionsCap {
+			b.sessions = append(b.sessions, sessions...)
+		} else {
+			b.logger.Warn().Int("drop", len(sessions)).Msg("sessions buffer full")
+		}
 	}
 	if len(automations) > 0 {
-		b.automations = append(b.automations, automations...)
+		if len(b.automations)+len(automations) <= maxAutomationsCap {
+			b.automations = append(b.automations, automations...)
+		} else {
+			b.logger.Warn().Int("drop", len(automations)).Msg("automations buffer full")
+		}
 	}
 }
 
@@ -103,11 +128,10 @@ func (b *CollectBuffer) flush() {
 	defer cancel()
 
 	var wg sync.WaitGroup
-	wg.Add(4)
-	go b.flushAnalytics(ctx, &wg, analytics)
-	go b.flushHeatmaps(ctx, &wg, heatmaps)
-	go b.flushSessionRecordings(ctx, &wg, sessions)
-	go b.flushAutomations(ctx, &wg, automations)
+	if len(analytics) > 0   { wg.Add(1); go b.flushAnalytics(ctx, &wg, analytics) }
+	if len(heatmaps) > 0    { wg.Add(1); go b.flushHeatmaps(ctx, &wg, heatmaps) }
+	if len(sessions) > 0    { wg.Add(1); go b.flushSessionRecordings(ctx, &wg, sessions) }
+	if len(automations) > 0 { wg.Add(1); go b.flushAutomations(ctx, &wg, automations) }
 	wg.Wait()
 }
 
@@ -122,6 +146,10 @@ func (b *CollectBuffer) flushAnalytics(ctx context.Context, wg *sync.WaitGroup, 
 	defer wg.Done()
 	if len(events) == 0 {
 		return
+	}
+	// Enrich here (geo/UA parsing) so the /collect handler returns immediately.
+	if err := b.eventsSvc.EnrichCollectAnalytics(ctx, events); err != nil {
+		b.logger.Warn().Err(err).Msg("flush: analytics enrichment")
 	}
 	if _, err := b.eventsSvc.FlushCollectAnalytics(ctx, events); err != nil {
 		b.logger.Warn().Err(err).Msg("flush: analytics (pageviews/funnels/custom)")

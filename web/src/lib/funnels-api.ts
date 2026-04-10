@@ -2,6 +2,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import api from './api';
 import { isDemo, demoMutationGuard, demoFunnels, demoFunnelStats } from './demo';
 
+/** Invalidate dashboard React Query trees from funnel CRUD (matches analytics-api keys). */
+export const ANALYTICS_FUNNEL_QUERY_PREFIX = ['analytics', 'funnels'] as const;
+export const ANALYTICS_FUNNEL_ANALYTICS_PREFIX = ['analytics', 'funnel-analytics'] as const;
+
 // =============================================================================
 // TYPES & INTERFACES
 // =============================================================================
@@ -125,11 +129,18 @@ export const bulkDeleteFunnels = async (websiteId: string, funnelIds: string[]):
     });
 };
 
-export const getFunnelStats = async (websiteId: string, funnelId: string): Promise<FunnelStats> => {
+export const getFunnelStats = async (
+    websiteId: string,
+    funnelId: string,
+    days: number = 30
+): Promise<FunnelStats> => {
     if (isDemo(websiteId)) {
         return demoFunnelStats() as any;
     }
-    const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}/stats`);
+    const d = Math.min(366, Math.max(1, Math.round(Number(days) || 30)));
+    const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}/stats`, {
+        params: { days: d },
+    });
     return response.data;
 };
 
@@ -143,7 +154,8 @@ export const funnelKeys = {
     list: (websiteId: string, limit?: number, offset?: number) => [...funnelKeys.lists(), websiteId, limit, offset] as const,
     details: () => [...funnelKeys.all, 'detail'] as const,
     detail: (websiteId: string, funnelId: string) => [...funnelKeys.details(), websiteId, funnelId] as const,
-    stats: (websiteId: string, funnelId: string) => [...funnelKeys.all, 'stats', websiteId, funnelId] as const,
+    stats: (websiteId: string, funnelId: string, days?: number) =>
+        [...funnelKeys.all, 'stats', websiteId, funnelId, days ?? 30] as const,
 };
 
 // =============================================================================
@@ -168,10 +180,10 @@ export const useFunnel = (websiteId: string, funnelId: string) => {
     });
 };
 
-export const useFunnelStats = (websiteId: string, funnelId: string) => {
+export const useFunnelStats = (websiteId: string, funnelId: string, days: number = 30) => {
     return useQuery<FunnelStats>({
-        queryKey: funnelKeys.stats(websiteId, funnelId),
-        queryFn: () => getFunnelStats(websiteId, funnelId),
+        queryKey: funnelKeys.stats(websiteId, funnelId, days),
+        queryFn: () => getFunnelStats(websiteId, funnelId, days),
         enabled: !!websiteId && !!funnelId,
         staleTime: 5 * 60 * 1000,
     });
@@ -186,10 +198,10 @@ export const useCreateFunnel = () => {
 
     return useMutation<Funnel, Error, { websiteId: string; data: CreateFunnelRequest }>({
         mutationFn: ({ websiteId, data }) => createFunnel(websiteId, data),
-        onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({
-                queryKey: funnelKeys.lists(),
-            });
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: funnelKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: [...ANALYTICS_FUNNEL_QUERY_PREFIX] });
+            queryClient.invalidateQueries({ queryKey: [...ANALYTICS_FUNNEL_ANALYTICS_PREFIX] });
         },
     });
 };
@@ -204,12 +216,12 @@ export const useUpdateFunnel = () => {
     >({
         mutationFn: ({ websiteId, funnelId, data }) => updateFunnel(websiteId, funnelId, data),
         onSuccess: (data, variables) => {
-            queryClient.invalidateQueries({
-                queryKey: funnelKeys.lists(),
-            });
+            queryClient.invalidateQueries({ queryKey: funnelKeys.lists() });
             queryClient.invalidateQueries({
                 queryKey: funnelKeys.detail(variables.websiteId, variables.funnelId),
             });
+            queryClient.invalidateQueries({ queryKey: [...ANALYTICS_FUNNEL_QUERY_PREFIX] });
+            queryClient.invalidateQueries({ queryKey: [...ANALYTICS_FUNNEL_ANALYTICS_PREFIX] });
         },
     });
 };
@@ -219,10 +231,10 @@ export const useDeleteFunnel = () => {
 
     return useMutation<void, Error, { websiteId: string; funnelId: string }>({
         mutationFn: ({ websiteId, funnelId }) => deleteFunnel(websiteId, funnelId),
-        onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({
-                queryKey: funnelKeys.lists(),
-            });
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: funnelKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: [...ANALYTICS_FUNNEL_QUERY_PREFIX] });
+            queryClient.invalidateQueries({ queryKey: [...ANALYTICS_FUNNEL_ANALYTICS_PREFIX] });
         },
     });
 };
@@ -232,10 +244,10 @@ export const useBulkDeleteFunnels = () => {
 
     return useMutation<void, Error, { websiteId: string; funnelIds: string[] }>({
         mutationFn: ({ websiteId, funnelIds }) => bulkDeleteFunnels(websiteId, funnelIds),
-        onSuccess: (_, variables) => {
-            queryClient.invalidateQueries({
-                queryKey: funnelKeys.lists(),
-            });
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: funnelKeys.lists() });
+            queryClient.invalidateQueries({ queryKey: [...ANALYTICS_FUNNEL_QUERY_PREFIX] });
+            queryClient.invalidateQueries({ queryKey: [...ANALYTICS_FUNNEL_ANALYTICS_PREFIX] });
         },
     });
 };

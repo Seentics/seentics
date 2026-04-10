@@ -474,8 +474,15 @@ func (r *FunnelRepository) FilterIDsByUser(ctx context.Context, ids []string, us
 	return validIDs, nil
 }
 
-// GetFunnelStats calculates real-time statistics for a funnel using a single ClickHouse query
-func (r *FunnelRepository) GetFunnelStats(ctx context.Context, funnelID string, websiteID string) (*models.FunnelStats, error) {
+// GetFunnelStats calculates real-time statistics for a funnel using a single ClickHouse query.
+// days is the trailing window length (clamped by caller), default 30.
+func (r *FunnelRepository) GetFunnelStats(ctx context.Context, funnelID string, websiteID string, days int) (*models.FunnelStats, error) {
+	if days < 1 {
+		days = 1
+	}
+	if days > 366 {
+		days = 366
+	}
 	steps, err := r.GetStepsByFunnelID(ctx, funnelID)
 	if err != nil {
 		return nil, err
@@ -516,8 +523,8 @@ func (r *FunnelRepository) GetFunnelStats(ctx context.Context, funnelID string, 
 		SELECT %s
 		FROM events
 		WHERE website_id = ?
-		AND timestamp >= now() - interval 30 day`,
-		strings.Join(selectClauses, ", "))
+		AND timestamp >= now() - interval %d day`,
+		strings.Join(selectClauses, ", "), days)
 
 	// Scan results
 	counts := make([]uint64, len(steps))

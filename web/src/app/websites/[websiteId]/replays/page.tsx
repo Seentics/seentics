@@ -358,7 +358,7 @@ export default function ReplaysPage() {
       ]} />
 
       <DataTable
-        className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-5 [&_th]:!py-3.5"
+        className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-2.5 [&_th]:!py-3.5"
         data={filtered}
         columns={columns}
         isLoading={isLoading}
