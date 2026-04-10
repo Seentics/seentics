@@ -92,6 +92,8 @@ func (m *Manager) Push(siteID, sessionID string, events []map[string]interface{}
 }
 
 // WarmChunks returns merged in-memory events as a single chunk when the session is still spooled.
+// Returns false when a bundle upload is in progress with no buffered events yet — the caller
+// should fall through to the S3 presigned-URL path rather than serving empty replay data.
 func (m *Manager) WarmChunks(siteID, sessionID string) ([]models.ReplayChunk, bool) {
 	if siteID == "" || sessionID == "" {
 		return nil, false
@@ -108,6 +110,12 @@ func (m *Manager) WarmChunks(siteID, sessionID string) ([]models.ReplayChunk, bo
 	if st.dirty {
 		sortEvents(st.events)
 		st.dirty = false
+	}
+	// Upload in progress and no new events have accumulated yet.
+	// Returning (nil, false) lets GetSession fall through to S3 instead of
+	// serving an empty replay during the upload window (up to 90 s).
+	if st.finalizing && len(st.events) == 0 {
+		return nil, false
 	}
 	if len(st.events) == 0 {
 		return []models.ReplayChunk{}, true
@@ -148,7 +156,8 @@ func (m *Manager) Stop() {
 	m.stopOnce.Do(func() { close(m.stop) })
 }
 
-// FlushAll finalizes every spooled session (used on shutdown).
+// FlushAll finalizes every spooled session concurrently (used on shutdown).
+// Sessions upload in parallel since the global finalizeMu was replaced with per-session locking.
 func (m *Manager) FlushAll(ctx context.Context) {
 	m.mu.RLock()
 	keys := make([]string, 0, len(m.sessions))
@@ -156,9 +165,17 @@ func (m *Manager) FlushAll(ctx context.Context) {
 		keys = append(keys, k)
 	}
 	m.mu.RUnlock()
+
+	var wg sync.WaitGroup
 	for _, k := range keys {
-		m.finalizeKey(ctx, k, true)
+		wg.Add(1)
+		k := k
+		go func() {
+			defer wg.Done()
+			m.finalizeKey(ctx, k, true)
+		}()
 	}
+	wg.Wait()
 }
 
 func (m *Manager) tickFinalize(ctx context.Context) {
