@@ -466,7 +466,6 @@ export default function WebsiteDashboardPage() {
           />
         </div>
 
-
         {/* Active Filter Pills */}
         {Object.keys(advancedFilters).length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
@@ -546,7 +545,7 @@ export default function WebsiteDashboardPage() {
             />
           </ChartErrorBoundary>
 
-          {/* Devices + UTM — 2-col grid (live page views → Realtime page) */}
+          {/* Devices + UTM — 2-col grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card className="border border-border/60 bg-card shadow-sm">
               <CardContent className="p-5">

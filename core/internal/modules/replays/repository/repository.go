@@ -5,7 +5,9 @@ package repository
 import (
 	"context"
 	"fmt"
+	"hash/fnv"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/Seentics/seentics/internal/modules/replays/models"
@@ -19,6 +21,9 @@ type ReplayRepository struct {
 	db     *pgxpool.Pool
 	s3     *storage.S3Client
 	logger zerolog.Logger
+	// bundleShard serializes read-modify-write bundle merges for keys mapping to the same slot.
+	// Same session always shares a slot; different sessions may share one (less parallelism, safe).
+	bundleShard [32]sync.Mutex
 }
 
 func New(db *pgxpool.Pool, s3 *storage.S3Client, logger zerolog.Logger) *ReplayRepository {
@@ -30,6 +35,9 @@ type SessionUpsertRow struct {
 	WebsiteID       string
 	SessionID       string
 	TsMs            int64
+	// LatestEventMs is the max tracker envelope ts (epoch ms) in this batch — used so duration_seconds
+	// tracks (latest_event - session_start) without double-counting batch spans.
+	LatestEventMs   int64
 	Browser         string
 	Device          string
 	OS              string
@@ -60,6 +68,7 @@ func (r *ReplayRepository) UpsertSessionMetaBatch(ctx context.Context, rows []Se
 	durations := make([]int32, len(rows))
 	rageClicks := make([]bool, len(rows))
 	hasErrors := make([]bool, len(rows))
+	dataJSON := make([]string, len(rows))
 
 	for i, row := range rows {
 		websiteIDs[i] = row.WebsiteID
@@ -74,6 +83,11 @@ func (r *ReplayRepository) UpsertSessionMetaBatch(ctx context.Context, rows []Se
 		durations[i] = int32(row.DurationSeconds)
 		rageClicks[i] = row.HasRageClicks
 		hasErrors[i] = row.HasErrors
+		endMs := row.LatestEventMs
+		if endMs == 0 {
+			endMs = row.TsMs
+		}
+		dataJSON[i] = fmt.Sprintf(`{"_snc_re_end":%d}`, endMs)
 	}
 
 	const q = `
@@ -86,7 +100,7 @@ func (r *ReplayRepository) UpsertSessionMetaBatch(ctx context.Context, rows []Se
 			unnest($1::text[]),  -- website_id
 			unnest($2::text[]),  -- session_id
 			0,                   -- sequence (always 0 for metadata row)
-			'{}',                -- data placeholder
+			unnest($13::text[])::jsonb,
 			unnest($3::text[]),  -- browser
 			unnest($4::text[]),  -- device
 			unnest($5::text[]),  -- os
@@ -101,7 +115,14 @@ func (r *ReplayRepository) UpsertSessionMetaBatch(ctx context.Context, rows []Se
 			duration_seconds  = GREATEST(
 				session_replays.duration_seconds,
 				EXCLUDED.duration_seconds,
-				GREATEST(0, EXTRACT(EPOCH FROM (EXCLUDED.timestamp - session_replays.timestamp))::INT) + EXCLUDED.duration_seconds
+				GREATEST(0, EXTRACT(EPOCH FROM (
+					COALESCE(
+						CASE WHEN EXCLUDED.data ? '_snc_re_end' THEN
+							to_timestamp((EXCLUDED.data->>'_snc_re_end')::bigint / 1000.0)
+						ELSE NULL END,
+						EXCLUDED.timestamp
+					) - session_replays.timestamp
+				))::INT)
 			),
 			pages_viewed      = session_replays.pages_viewed + EXCLUDED.pages_viewed,
 			has_rage_clicks   = CASE WHEN EXCLUDED.has_rage_clicks THEN TRUE ELSE session_replays.has_rage_clicks END,
@@ -117,11 +138,61 @@ func (r *ReplayRepository) UpsertSessionMetaBatch(ctx context.Context, rows []Se
 		websiteIDs, sessionIDs,
 		browsers, devices, oss, countries, entryPages,
 		timestamps, pageIncs, durations, rageClicks, hasErrors,
+		dataJSON,
 	)
 	if err != nil {
 		return fmt.Errorf("replay upsert batch(%d): %w", len(rows), err)
 	}
 	return nil
+}
+
+// CountDistinctReplaySessionsSince counts distinct replay sessions for the user's sites since `since` (UTC calendar month boundary for billing caps).
+func (r *ReplayRepository) CountDistinctReplaySessionsSince(ctx context.Context, siteIDs, uuidStrings []string, since time.Time) (int, error) {
+	if len(siteIDs) == 0 {
+		return 0, nil
+	}
+	var n int
+	err := r.db.QueryRow(ctx, `
+		SELECT COUNT(DISTINCT session_id) FROM session_replays
+		WHERE (website_id = ANY($1) OR website_id = ANY($2)) AND timestamp >= $3`,
+		siteIDs, uuidStrings, since,
+	).Scan(&n)
+	return n, err
+}
+
+// CountNewReplaySessionsInBatch returns how many distinct session IDs in batchSessionIDs
+// are not yet present in session_replays for those sites since `since`.
+func (r *ReplayRepository) CountNewReplaySessionsInBatch(ctx context.Context, siteIDs, uuidStrings []string, since time.Time, batchSessionIDs []string) (int, error) {
+	if len(siteIDs) == 0 || len(batchSessionIDs) == 0 {
+		return 0, nil
+	}
+	seen := make(map[string]struct{}, len(batchSessionIDs))
+	uniq := make([]string, 0, len(batchSessionIDs))
+	for _, sid := range batchSessionIDs {
+		if sid == "" {
+			continue
+		}
+		if _, ok := seen[sid]; ok {
+			continue
+		}
+		seen[sid] = struct{}{}
+		uniq = append(uniq, sid)
+	}
+	if len(uniq) == 0 {
+		return 0, nil
+	}
+	var n int
+	err := r.db.QueryRow(ctx, `
+		SELECT COUNT(*)::int FROM unnest($1::text[]) AS x(sid)
+		WHERE NOT EXISTS (
+			SELECT 1 FROM session_replays sr
+			WHERE sr.session_id = x.sid
+			  AND (sr.website_id = ANY($2) OR sr.website_id = ANY($3))
+			  AND sr.timestamp >= $4
+		)`,
+		uniq, siteIDs, uuidStrings, since,
+	).Scan(&n)
+	return n, err
 }
 
 // ListSessions returns paginated session metadata.
@@ -195,6 +266,12 @@ func sortReplayEvents(events []map[string]interface{}) {
 	})
 }
 
+func (r *ReplayRepository) bundleMergeLock(bundleKey string) *sync.Mutex {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(bundleKey))
+	return &r.bundleShard[h.Sum32()%uint32(len(r.bundleShard))]
+}
+
 // UploadSessionBundleGzip merges newEvents with an existing bundle object (if any),
 // sorts by event ts, and writes one gzip JSON array to R2/S3.
 func (r *ReplayRepository) UploadSessionBundleGzip(ctx context.Context, websiteID, sessionID string, newEvents []map[string]interface{}) error {
@@ -205,6 +282,10 @@ func (r *ReplayRepository) UploadSessionBundleGzip(ctx context.Context, websiteI
 		return nil
 	}
 	bundleKey := storage.SessionBundleKey(websiteID, sessionID)
+	mu := r.bundleMergeLock(bundleKey)
+	mu.Lock()
+	defer mu.Unlock()
+
 	exists, err := r.s3.ObjectExists(ctx, bundleKey)
 	if err != nil {
 		return fmt.Errorf("replay bundle head: %w", err)
@@ -230,6 +311,46 @@ func (r *ReplayRepository) ReplayBundleExists(ctx context.Context, websiteID, se
 	}
 	key := storage.SessionBundleKey(websiteID, sessionID)
 	return r.s3.ObjectExists(ctx, key)
+}
+
+// LocateReplayBundle returns the object key for an existing gzip bundle, checking site id first
+// then website UUID (metadata may be stored under either form).
+func (r *ReplayRepository) LocateReplayBundle(ctx context.Context, siteID, uuidStr, sessionID string) (string, error) {
+	if r.s3 == nil {
+		return "", fmt.Errorf("replay bundle: s3 client nil")
+	}
+	keys := []string{storage.SessionBundleKey(siteID, sessionID)}
+	if uuidStr != "" && uuidStr != siteID {
+		keys = append(keys, storage.SessionBundleKey(uuidStr, sessionID))
+	}
+	var firstErr error
+	for _, key := range keys {
+		ok, err := r.s3.ObjectExists(ctx, key)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		if ok {
+			return key, nil
+		}
+	}
+	if firstErr != nil {
+		return "", firstErr
+	}
+	return "", nil
+}
+
+// PresignReplayObject returns a time-limited GET URL for an already-resolved bundle key.
+func (r *ReplayRepository) PresignReplayObject(ctx context.Context, key string, exp time.Duration) (string, error) {
+	if r.s3 == nil {
+		return "", fmt.Errorf("replay bundle: s3 client nil")
+	}
+	if key == "" {
+		return "", fmt.Errorf("replay bundle: empty key")
+	}
+	return r.s3.PresignGetObject(ctx, key, exp)
 }
 
 // PresignReplayBundle returns a time-limited GET URL for the session bundle (browser loads R2/S3 directly).

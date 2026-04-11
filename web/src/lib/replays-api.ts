@@ -40,6 +40,8 @@ export interface SessionReplayApiResponse {
   warm_chunks?: Array<{ sequence: number; data: unknown[] }>;
   replay_url?: string;
   replay_url_expires_at?: string;
+  /** True when metadata exists but recording bytes are not downloadable yet (retry shortly). */
+  recording_pending?: boolean;
 }
 
 async function fetchGzipJsonArray(url: string): Promise<unknown[]> {
@@ -130,7 +132,12 @@ export async function listSessions(websiteId: string, limit = 20, offset = 0) {
 export async function getSessionWithEvents(
   websiteId: string,
   sessionId: string,
-): Promise<{ meta: ReplaySession | null; events: RRWebEvent[]; customEvents: SessionCustomEvent[] }> {
+): Promise<{
+  meta: ReplaySession | null;
+  events: RRWebEvent[];
+  customEvents: SessionCustomEvent[];
+  recordingPending: boolean;
+}> {
   const res = await api.get(`/replays/${websiteId}/${sessionId}`);
   const body = res.data as SessionReplayApiResponse;
 
@@ -141,11 +148,16 @@ export async function getSessionWithEvents(
   }
 
   if (!chunks?.length) {
-    return { meta: body.meta ?? null, events: [], customEvents: [] };
+    return {
+      meta: body.meta ?? null,
+      events: [],
+      customEvents: [],
+      recordingPending: body.recording_pending === true,
+    };
   }
 
   const { events, customEvents } = eventsFromChunkList(chunks);
-  return { meta: body.meta ?? null, events, customEvents };
+  return { meta: body.meta ?? null, events, customEvents, recordingPending: false };
 }
 
 export async function deleteSessions(websiteId: string, sessionIds: string[]) {

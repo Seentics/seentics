@@ -40,6 +40,7 @@ type sessionJob struct {
 	websiteID       string
 	sessionID       string
 	tsMs            int64
+	latestEventMs   int64
 	events          []map[string]interface{}
 	meta            *models.SessionMeta
 	pageIncrements  int
@@ -78,7 +79,7 @@ type ReplayService struct {
 }
 
 func NewReplayService(repo *repository.ReplayRepository, websiteRepo *websiteRepo.WebsiteRepository, logger zerolog.Logger, cfg *config.Config) *ReplayService {
-	idle := 15 * time.Minute
+	idle := 60 * time.Second
 	maxAge := maxReplayRecordingAge
 	presignTTL := time.Hour
 	if cfg != nil {
@@ -135,6 +136,42 @@ func (s *ReplayService) Shutdown(ctx context.Context) {
 	s.batcherWg.Wait()
 }
 
+func replayMonthStartUTC() time.Time {
+	now := time.Now().UTC()
+	return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+}
+
+// WithinMonthlyReplayQuota reports whether ingesting batchSessionIDs would stay within
+// maxReplays distinct sessions for the UTC calendar month. maxReplays < 0 means unlimited.
+func (s *ReplayService) WithinMonthlyReplayQuota(ctx context.Context, ownerID uuid.UUID, batchSessionIDs []string, maxReplays int) (bool, error) {
+	if maxReplays < 0 || len(batchSessionIDs) == 0 {
+		return true, nil
+	}
+	wsites, err := s.websiteRepo.ListByUserID(ctx, ownerID)
+	if err != nil {
+		return false, err
+	}
+	siteIDs := make([]string, 0, len(wsites))
+	uuids := make([]string, 0, len(wsites))
+	for _, w := range wsites {
+		siteIDs = append(siteIDs, w.SiteID)
+		uuids = append(uuids, w.ID.String())
+	}
+	if len(siteIDs) == 0 {
+		return true, nil
+	}
+	since := replayMonthStartUTC()
+	current, err := s.repo.CountDistinctReplaySessionsSince(ctx, siteIDs, uuids, since)
+	if err != nil {
+		return false, err
+	}
+	newInBatch, err := s.repo.CountNewReplaySessionsInBatch(ctx, siteIDs, uuids, since, batchSessionIDs)
+	if err != nil {
+		return false, err
+	}
+	return current+newInBatch <= maxReplays, nil
+}
+
 // worker drains the S3 queue — uploads one chunk then forwards a Postgres row.
 func (s *ReplayService) worker() {
 	defer s.workerWg.Done()
@@ -153,6 +190,7 @@ func (s *ReplayService) worker() {
 			WebsiteID:       job.websiteID,
 			SessionID:       job.sessionID,
 			TsMs:            job.tsMs,
+			LatestEventMs:   job.latestEventMs,
 			Browser:         b,
 			Device:          d,
 			OS:              o,
@@ -389,6 +427,7 @@ func (s *ReplayService) ProcessEvents(ctx context.Context, events []TrackerEvent
 			websiteID:       storageWebsiteID,
 			sessionID:       w.sessionID,
 			tsMs:            w.tsToUse,
+			latestEventMs:   w.batch.endTs,
 			events:          w.batch.events,
 			meta:            w.meta,
 			pageIncrements:  w.pageIncrements,
@@ -438,6 +477,15 @@ func (s *ReplayService) ListSessions(ctx context.Context, websiteID string, limi
 }
 
 
+func replayWarmChunksUseful(w []models.ReplayChunk) bool {
+	for _, c := range w {
+		if len(c.Data) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *ReplayService) GetSession(ctx context.Context, websiteID, sessionID string) (*models.Session, *models.SessionReplayAccess, error) {
 	siteID, uuidStr, err := s.resolveIDs(ctx, websiteID)
 	if err != nil {
@@ -452,22 +500,33 @@ func (s *ReplayService) GetSession(ctx context.Context, websiteID, sessionID str
 
 	access := &models.SessionReplayAccess{}
 
-	if warm, ok := s.spool.WarmChunks(siteID, sessionID); ok {
+	if warm, ok := s.spool.WarmChunks(siteID, sessionID); ok && replayWarmChunksUseful(warm) {
 		access.WarmChunks = warm
 		return meta, access, nil
 	}
+	if uuidStr != "" && uuidStr != siteID {
+		if warm, ok := s.spool.WarmChunks(uuidStr, sessionID); ok && replayWarmChunksUseful(warm) {
+			access.WarmChunks = warm
+			return meta, access, nil
+		}
+	}
 
-	exists, err := s.repo.ReplayBundleExists(ctx, siteID, sessionID)
+	bundleKey, err := s.repo.LocateReplayBundle(ctx, siteID, uuidStr, sessionID)
 	if err != nil {
 		return meta, nil, fmt.Errorf("replay bundle: %w", err)
 	}
-	if !exists {
-		return meta, nil, ErrReplayNotReady
+	if bundleKey == "" {
+		// Avoid 404 when the session is listed in Postgres but the gzip bundle is not in object
+		// storage yet (spool not flushed, upload in flight, or core restarted before upload).
+		if meta == nil {
+			return nil, nil, ErrReplayNotReady
+		}
+		return meta, &models.SessionReplayAccess{RecordingPending: true}, nil
 	}
 
 	exp := s.presignTTL
 	deadline := time.Now().Add(exp)
-	url, err := s.repo.PresignReplayBundle(ctx, siteID, sessionID, exp)
+	url, err := s.repo.PresignReplayObject(ctx, bundleKey, exp)
 	if err != nil {
 		return meta, nil, fmt.Errorf("replay presign: %w", err)
 	}

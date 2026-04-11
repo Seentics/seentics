@@ -38,29 +38,17 @@ func (h *InternalHandler) SetReplayRepository(r *replayrepo.ReplayRepository) {
 
 // deleteReplayChunksFromStorage removes object-storage blobs for sessions matching the same predicate
 // as the subsequent Postgres DELETE (per-user site id lists).
-func (h *InternalHandler) deleteReplayChunksFromStorage(ctx context.Context, siteIDs, uuidStrings []string, recordingDays int, deleteAll bool) {
-	if h.replayRepo == nil || len(siteIDs) == 0 {
+func (h *InternalHandler) deleteReplayChunksFromStorage(ctx context.Context, siteIDs, uuidStrings []string, recordingDays int) {
+	if h.replayRepo == nil || len(siteIDs) == 0 || recordingDays <= 0 {
 		return
 	}
 
-	var (
-		q    string
-		args []any
-	)
-	if deleteAll {
-		q = `
-			SELECT DISTINCT website_id, session_id
-			FROM session_replays
-			WHERE website_id = ANY($1) OR website_id = ANY($2)`
-		args = []any{siteIDs, uuidStrings}
-	} else {
-		q = `
+	const q = `
 			SELECT DISTINCT website_id, session_id
 			FROM session_replays
 			WHERE (website_id = ANY($1) OR website_id = ANY($2))
 			  AND created_at < NOW() - $3 * INTERVAL '1 day'`
-		args = []any{siteIDs, uuidStrings, recordingDays}
-	}
+	args := []any{siteIDs, uuidStrings, recordingDays}
 
 	rows, err := h.db.Query(ctx, q, args...)
 	if err != nil {
@@ -371,26 +359,15 @@ func (h *InternalHandler) RetentionCleanup(c *gin.Context) {
 	}
 
 	// Delete old session replays: object storage chunks first, then PostgreSQL metadata.
+	// recording_retention_days <= 0: skip replay and heatmap age cleanup (never treat 0 as "delete all").
 	if req.RecordingRetentionDays > 0 {
-		h.deleteReplayChunksFromStorage(ctx, siteIDs, uuidStrings, req.RecordingRetentionDays, false)
+		h.deleteReplayChunksFromStorage(ctx, siteIDs, uuidStrings, req.RecordingRetentionDays)
 		tag, err := h.db.Exec(ctx,
 			"DELETE FROM session_replays WHERE (website_id = ANY($1) OR website_id = ANY($2)) AND created_at < NOW() - $3 * INTERVAL '1 day'",
 			siteIDs, uuidStrings, req.RecordingRetentionDays,
 		)
 		if err != nil {
 			h.logger.Warn().Err(err).Str("user_id", req.UserID).Msg("Retention: failed to delete session replays")
-		} else {
-			result["deleted_replays"] = tag.RowsAffected()
-		}
-	} else if req.RecordingRetentionDays == 0 {
-		// 0 means no recordings allowed (Starter plan) — delete all
-		h.deleteReplayChunksFromStorage(ctx, siteIDs, uuidStrings, 0, true)
-		tag, err := h.db.Exec(ctx,
-			"DELETE FROM session_replays WHERE website_id = ANY($1) OR website_id = ANY($2)",
-			siteIDs, uuidStrings,
-		)
-		if err != nil {
-			h.logger.Warn().Err(err).Str("user_id", req.UserID).Msg("Retention: failed to delete all session replays")
 		} else {
 			result["deleted_replays"] = tag.RowsAffected()
 		}

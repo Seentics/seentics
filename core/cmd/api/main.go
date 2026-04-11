@@ -100,7 +100,7 @@ func main() {
 	utils.InitGlobalGeolocationService(appCache)
 
 	s3cfg := cfg.S3()
-	s3Client, err := storage.NewS3Client(s3cfg.Endpoint, s3cfg.AccessKey, s3cfg.SecretKey, s3cfg.Bucket, s3cfg.Region, s3cfg.UseSSL)
+	s3Client, err := storage.NewS3Client(s3cfg.Endpoint, s3cfg.AccessKey, s3cfg.SecretKey, s3cfg.Bucket, s3cfg.Region, s3cfg.UseSSL, s3cfg.PublicEndpoint)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Failed to connect to MinIO/S3")
 	}

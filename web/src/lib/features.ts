@@ -50,7 +50,7 @@ export const LIMITS = {
     workflows: '1',
     funnels: '1',
     heatmaps: '3',
-    replays: '100',
+    replays: '5',
     recordingRetention: '30 days',
     analyticsRetention: '30 days',
     support: 'Community',

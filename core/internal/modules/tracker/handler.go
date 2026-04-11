@@ -3,6 +3,7 @@ package tracker
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -195,6 +196,37 @@ func (h *TrackerHandler) Collect(c *gin.Context) {
 	heatmaps := collectPrepareHeatmaps(req.Heatmaps, websiteUUID, ua)
 	sessions := collectPrepareSessions(req.Session, website.SiteID, ip, ua)
 	automations := collectPrepareAutomations(req.Automations, website.SiteID)
+
+	if len(sessions) > 0 {
+		if maxStr := c.GetHeader("X-Max-Replays"); maxStr != "" {
+			if maxRepl, err := strconv.Atoi(maxStr); err == nil && maxRepl >= 0 {
+				sids := make([]string, 0, len(sessions))
+				seen := make(map[string]struct{})
+				for _, ev := range sessions {
+					if ev.SID == "" {
+						continue
+					}
+					if _, ok := seen[ev.SID]; ok {
+						continue
+					}
+					seen[ev.SID] = struct{}{}
+					sids = append(sids, ev.SID)
+				}
+				if len(sids) > 0 {
+					ok, err := h.replays.WithinMonthlyReplayQuota(c.Request.Context(), website.UserID, sids, maxRepl)
+					if err != nil {
+						h.logger.Warn().Err(err).Str("website_id", req.WebsiteID).Msg("collect: replay quota check failed")
+					} else if !ok {
+						c.JSON(http.StatusTooManyRequests, gin.H{
+							"error":   "session recording limit reached",
+							"message": "Monthly distinct session recording limit reached for this plan.",
+						})
+						return
+					}
+				}
+			}
+		}
+	}
 
 	h.buffer.Push(analytics, heatmaps, sessions, automations)
 

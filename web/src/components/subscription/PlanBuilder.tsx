@@ -36,7 +36,7 @@ const INDIVIDUAL_PLANS = [
     features: [
       'Unlimited Websites',
       '10,000 Events / month',
-      '100 Session Recordings',
+      '5 Session Recordings',
       '3 Heatmap Pages',
       '1 Funnel & 1 Automation',
       '30 Day Data Retention',

@@ -67,6 +67,9 @@ func (m *Manager) Push(siteID, sessionID string, events []map[string]interface{}
 	if siteID == "" || sessionID == "" {
 		return nil
 	}
+	if len(events) == 0 {
+		return nil
+	}
 	k := mapKey(siteID, sessionID)
 	m.mu.Lock()
 	st, ok := m.sessions[k]
@@ -118,7 +121,8 @@ func (m *Manager) WarmChunks(siteID, sessionID string) ([]models.ReplayChunk, bo
 		return nil, false
 	}
 	if len(st.events) == 0 {
-		return []models.ReplayChunk{}, true
+		// Do not claim "warm" with no data — let GetSession fall through to the S3 bundle path.
+		return nil, false
 	}
 	cp := make([]map[string]interface{}, len(st.events))
 	copy(cp, st.events)
@@ -137,7 +141,7 @@ func (m *Manager) Remove(siteID, sessionID string) {
 
 // Run starts the idle finalizer until Stop is called or ctx ends.
 func (m *Manager) Run(ctx context.Context) {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {

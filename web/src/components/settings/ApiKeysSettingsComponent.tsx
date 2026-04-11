@@ -187,7 +187,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
               is available on the <span className="font-semibold text-foreground">Growth</span> plan and above.
             </p>
             <Button asChild className="gap-2">
-              <a href={`/websites/${websiteId}/billing`}>
+              <a href={`/websites/${websiteId}/settings/billing`}>
                 <Zap className="h-4 w-4" />
                 Upgrade Plan
               </a>

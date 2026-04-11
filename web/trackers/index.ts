@@ -41,6 +41,7 @@ const queues = {
   funnels:     [] as any[],
   automations: [] as any[],
   session:     [] as any[],   // rrweb eventWithTime wrapped in TrackerEvent envelope
+  heatmaps:    [] as any[],   // heatmap_click / heatmap_scroll for /collect heatmaps
 };
 
 // ─── Visitor / Session IDs ────────────────────────────────────────────────────
@@ -92,6 +93,7 @@ const getSessionId = (): string => {
 const categoryOf = (type: string): keyof typeof queues => {
   if (type === 'funnel_step' || type === 'funnel_complete') return 'funnels';
   if (type === 'automation_trigger')                        return 'automations';
+  if (type === 'heatmap_click' || type === 'heatmap_scroll') return 'heatmaps';
   return 'events';
 };
 
@@ -118,18 +120,20 @@ const flush = (): void => {
   const e = queues.events.splice(0);
   const f = queues.funnels.splice(0), a = queues.automations.splice(0);
   const s = queues.session.splice(0);
-  if (!e.length && !f.length && !a.length && !s.length) return;
+  const h = queues.heatmaps.splice(0);
+  if (!e.length && !f.length && !a.length && !s.length && !h.length) return;
 
   const payload: Record<string, unknown> = { website_id: websiteId, domain };
   if (e.length) payload.events      = e;
   if (f.length) payload.funnels     = f;
   if (a.length) payload.automations = a;
   if (s.length) payload.session     = s;
+  if (h.length) payload.heatmaps    = h;
 
   const json = JSON.stringify(payload);
 
-  // When recording events are present, use XHR with gzip (sendBeacon has a ~64 KB limit)
-  if (s.length > 0) {
+  // Session or large heatmap batches: gzip + XHR (sendBeacon ~64 KB)
+  if (s.length > 0 || h.length > 400 || json.length > 55_000) {
     sendGzip(json);
     return;
   }
@@ -153,18 +157,28 @@ const flushBeacon = (): void => {
   const e = queues.events.splice(0);
   const f = queues.funnels.splice(0), a = queues.automations.splice(0);
   const s = queues.session.splice(0);
-  if (!e.length && !f.length && !a.length && !s.length) return;
+  const h = queues.heatmaps.splice(0);
+  if (!e.length && !f.length && !a.length && !s.length && !h.length) return;
 
   const payload: Record<string, unknown> = { website_id: websiteId, domain };
   if (e.length) payload.events      = e;
   if (f.length) payload.funnels     = f;
   if (a.length) payload.automations = a;
   if (s.length) payload.session     = s;
+  if (h.length) payload.heatmaps    = h;
 
   const json = JSON.stringify(payload);
+  if (s.length > 0 || h.length > 400 || json.length > 55_000) {
+    try {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', COLLECT, false);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(json);
+    } catch { /* ignore */ }
+    return;
+  }
   const blob = new Blob([json], { type: 'application/json' });
   if (navigator.sendBeacon && navigator.sendBeacon(COLLECT, blob)) return;
-  // sendBeacon unavailable or rejected payload (e.g. > 64 KB) — use sync XHR as last resort.
   try {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', COLLECT, false); // synchronous
@@ -262,12 +276,100 @@ const safeRegex = (pattern: string, subject: string): boolean => {
 };
 
 // ─── rrweb recording ──────────────────────────────────────────────────────────
+const patternLines = (patterns: string | null | undefined): string[] => {
+  if (!patterns) return [];
+  return patterns.split('\n').map(p => p.trim()).filter(Boolean);
+};
+
+/** True when there is at least one non-empty URL pattern line (after trim). */
+const hasEffectivePatterns = (patterns: string | null | undefined): boolean =>
+  patternLines(patterns).length > 0;
+
 const matchesPatterns = (patterns: string | null | undefined): boolean => {
-  if (!patterns) return false;
-  const list = patterns.split('\n').map(p => p.trim()).filter(Boolean);
+  const list = patternLines(patterns);
   if (!list.length) return false;
   const url = location.href;
   return list.some(p => safeRegex(p, url));
+};
+
+// ─── Heatmaps (click + scroll depth) ─────────────────────────────────────────
+const heatmapAllowed = (): boolean => {
+  if (cfg.heatmap_enabled === false) return false;
+  const inc = cfg.heatmap_include_patterns as string | null | undefined;
+  const exc = cfg.heatmap_exclude_patterns as string | null | undefined;
+  // Only enforce include/exclude when there is at least one real pattern line.
+  // Otherwise whitespace-only textarea values would block all heatmap capture.
+  if (hasEffectivePatterns(inc) && !matchesPatterns(inc)) return false;
+  if (hasEffectivePatterns(exc) && matchesPatterns(exc)) return false;
+  return true;
+};
+
+const scrollDepth01 = (): number => {
+  const el = document.documentElement;
+  const sh = el.scrollHeight - el.clientHeight;
+  if (sh <= 0) return 1;
+  return Math.min(1, Math.max(0, el.scrollTop / sh));
+};
+
+const heatmapSelectorHint = (el: Element): string => {
+  const tag = el.tagName.toLowerCase();
+  if (el.id) return `${tag}#${el.id.replace(/\s/g, '')}`;
+  if (el.className && typeof el.className === 'string') {
+    const c = el.className.trim().split(/\s+/).filter(Boolean).slice(0, 2).join('.');
+    if (c) return `${tag}.${c}`;
+  }
+  return tag;
+};
+
+let heatmapListenersInstalled = false;
+/** Max scroll depth on the current page URL (reset in trackPage). */
+let heatmapScrollMax = 0;
+
+const installHeatmapCapture = (): void => {
+  if (heatmapListenersInstalled) return;
+  // Hard-off only; include/exclude patterns are evaluated per-event so SPA navigations can enable later.
+  if (cfg.heatmap_enabled === false) return;
+  heatmapListenersInstalled = true;
+
+  document.addEventListener('click', (ev: MouseEvent) => {
+    if (!heatmapAllowed()) return;
+    const t = ev.target;
+    if (!(t instanceof Element)) return;
+    if (t.closest('[data-seentics-block]')) return;
+    const vw = innerWidth || 1;
+    const vh = innerHeight || 1;
+    queues.heatmaps.push({
+      type: 'heatmap_click',
+      data: {
+        nx: ev.clientX / vw,
+        ny: ev.clientY / vh,
+        target: heatmapSelectorHint(t),
+      },
+      ts: Date.now(),
+      url: location.href,
+      sid: getSessionId(),
+      vid: visitorId,
+    });
+  }, true);
+
+  let scrollFireAt = 0;
+  const onScroll = (): void => {
+    if (!heatmapAllowed()) return;
+    const d = scrollDepth01();
+    if (d > heatmapScrollMax) heatmapScrollMax = d;
+    const now = Date.now();
+    if (now - scrollFireAt < 450) return;
+    scrollFireAt = now;
+    queues.heatmaps.push({
+      type: 'heatmap_scroll',
+      data: { depth: heatmapScrollMax },
+      ts: now,
+      url: location.href,
+      sid: getSessionId(),
+      vid: visitorId,
+    });
+  };
+  window.addEventListener('scroll', onScroll, { passive: true });
 };
 
 /** Stop function returned by rrweb record(); null when recording is off. */
@@ -329,8 +431,8 @@ const initRecording = async (): Promise<void> => {
 
   const includePatterns = cfg.replay_include_patterns as string | null | undefined;
   const excludePatterns = cfg.replay_exclude_patterns as string | null | undefined;
-  if (includePatterns && !matchesPatterns(includePatterns)) return;
-  if (excludePatterns && matchesPatterns(excludePatterns)) return;
+  if (hasEffectivePatterns(includePatterns) && !matchesPatterns(includePatterns)) return;
+  if (hasEffectivePatterns(excludePatterns) && matchesPatterns(excludePatterns)) return;
 
   const record = await loadRrweb();
   if (!record) return;
@@ -359,6 +461,7 @@ const deviceInfo = () => ({
 
 // ─── Page tracking ────────────────────────────────────────────────────────────
 const trackPage = (): void => {
+  heatmapScrollMax = 0;
   const utm = utmParams();
   pushAnalytics('pageview', {
     title: document.title, referrer: document.referrer,
@@ -465,6 +568,7 @@ const init = (): void => {
         installSessionClientErrorCapture();
         await initRecording(); // await so first flush includes rrweb snapshot
       }
+      installHeatmapCapture();
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
       flush(); // first load: send pageview + rrweb snapshot immediately
       flushInterval = window.setInterval(flush, FLUSH_MS);
@@ -475,6 +579,7 @@ const init = (): void => {
           'Fix init URL/domain: data-api-host should reach your API (e.g. same origin as this app in dev).',
       );
       if (autoTrack) trackPage();
+      installHeatmapCapture();
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
       flush();
       flushInterval = window.setInterval(flush, FLUSH_MS);

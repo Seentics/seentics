@@ -32,14 +32,19 @@ type Config struct {
 	ClickHouseDB       string
 
 	// S3-compatible storage (MinIO local, Cloudflare R2, AWS S3, etc.) — replay payloads
-	S3Endpoint  string
-	S3AccessKey string
-	S3SecretKey string
-	S3Bucket    string
-	S3UseSSL    bool
-	S3Region    string
+	S3Endpoint       string
+	// S3PublicEndpoint, when set, is used instead of S3Endpoint when generating presigned URLs.
+	// Needed when the internal endpoint (e.g. http://minio:9000 in Docker) differs from the
+	// URL the browser must hit (e.g. http://localhost:9000). Leave empty to use S3Endpoint for both.
+	S3PublicEndpoint string
+	S3AccessKey      string
+	S3SecretKey      string
+	S3Bucket         string
+	S3UseSSL         bool
+	S3Region         string
 
-	// Replay: in-memory spool until idle/max age, then one gzip bundle on R2. Max session length caps at ReplaySpoolMaxAge (default 30m).
+	// Replay: in-memory spool until idle/max age, then one gzip bundle on S3/MinIO.
+	// Idle flush should stay short enough that the dashboard can load replays soon after the visitor goes idle (not 10+ minutes).
 	ReplaySpoolIdleFlush time.Duration
 	ReplaySpoolMaxAge    time.Duration
 	ReplayPresignTTL     time.Duration
@@ -70,14 +75,15 @@ func Load() (*Config, error) {
 		ClickHousePassword: getEnvOrDefault("CLICKHOUSE_PASSWORD", ""),
 		ClickHouseDB:       getEnvOrDefault("CLICKHOUSE_DB", "seentics"),
 
-		S3Endpoint:  getEnvOrDefault("S3_ENDPOINT", "localhost:9000"),
-		S3AccessKey: firstEnvOrDefault([]string{"S3_ACCESS_KEY", "AWS_ACCESS_KEY_ID"}, "minioadmin"),
-		S3SecretKey: firstEnvOrDefault([]string{"S3_SECRET_KEY", "AWS_SECRET_ACCESS_KEY"}, "minioadmin"),
-		S3Bucket:    firstEnvOrDefault([]string{"S3_BUCKET", "S3_BUCKET_REPLAYS"}, "seentics-replays"),
-		S3UseSSL:    GetEnvAsBool("S3_USE_SSL", false),
-		S3Region:    firstEnvOrDefault([]string{"S3_REGION", "AWS_REGION"}, "us-east-1"),
+		S3Endpoint:       getEnvOrDefault("S3_ENDPOINT", "localhost:9000"),
+		S3PublicEndpoint: getEnvOrDefault("S3_PUBLIC_ENDPOINT", ""),
+		S3AccessKey:      firstEnvOrDefault([]string{"S3_ACCESS_KEY", "AWS_ACCESS_KEY_ID"}, "minioadmin"),
+		S3SecretKey:      firstEnvOrDefault([]string{"S3_SECRET_KEY", "AWS_SECRET_ACCESS_KEY"}, "minioadmin"),
+		S3Bucket:         firstEnvOrDefault([]string{"S3_BUCKET", "S3_BUCKET_REPLAYS"}, "seentics-replays"),
+		S3UseSSL:         GetEnvAsBool("S3_USE_SSL", false),
+		S3Region:         firstEnvOrDefault([]string{"S3_REGION", "AWS_REGION"}, "us-east-1"),
 
-		ReplaySpoolIdleFlush: parseDurationEnv("REPLAY_SPOOL_IDLE_FLUSH", 15*time.Minute),
+		ReplaySpoolIdleFlush: parseDurationEnv("REPLAY_SPOOL_IDLE_FLUSH", 60*time.Second),
 		ReplaySpoolMaxAge:    parseDurationEnv("REPLAY_SPOOL_MAX_AGE", 30*time.Minute),
 		ReplayPresignTTL:     parseDurationEnv("REPLAY_PRESIGN_TTL", time.Hour),
 	}
@@ -157,22 +163,24 @@ func parseDurationEnv(key string, defaultVal time.Duration) time.Duration {
 }
 // S3Config holds S3-compatible storage settings used for session replay data.
 type S3Config struct {
-	Endpoint  string
-	AccessKey string
-	SecretKey string
-	Bucket    string
-	UseSSL    bool
-	Region    string
+	Endpoint       string
+	PublicEndpoint string
+	AccessKey      string
+	SecretKey      string
+	Bucket         string
+	UseSSL         bool
+	Region         string
 }
 
 // S3 returns the S3/MinIO config extracted from the main Config.
 func (c *Config) S3() S3Config {
 	return S3Config{
-		Endpoint:  c.S3Endpoint,
-		AccessKey: c.S3AccessKey,
-		SecretKey: c.S3SecretKey,
-		Bucket:    c.S3Bucket,
-		UseSSL:    c.S3UseSSL,
-		Region:    c.S3Region,
+		Endpoint:       c.S3Endpoint,
+		PublicEndpoint: c.S3PublicEndpoint,
+		AccessKey:      c.S3AccessKey,
+		SecretKey:      c.S3SecretKey,
+		Bucket:         c.S3Bucket,
+		UseSSL:         c.S3UseSSL,
+		Region:         c.S3Region,
 	}
 }

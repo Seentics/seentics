@@ -42,4 +42,6 @@ type SessionReplayAccess struct {
 	WarmChunks         []ReplayChunk `json:"warm_chunks,omitempty"`
 	ReplayURL          string        `json:"replay_url,omitempty"`
 	ReplayURLExpiresAt *time.Time    `json:"replay_url_expires_at,omitempty"`
+	// RecordingPending is true when Postgres metadata exists but warm data and object bundle are not available yet.
+	RecordingPending bool `json:"recording_pending,omitempty"`
 }

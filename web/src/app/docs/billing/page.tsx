@@ -53,7 +53,7 @@ export default function BillingDocs() {
                             </tr>
                             <tr className="border-b">
                                 <td className="p-4 font-medium">Session Recordings</td>
-                                <td className="p-4 text-center text-muted-foreground">100</td>
+                                <td className="p-4 text-center text-muted-foreground">5</td>
                                 <td className="p-4 text-center text-muted-foreground">3K</td>
                                 <td className="p-4 text-center font-bold text-primary">25K</td>
                                 <td className="p-4 text-center text-muted-foreground">5K incl., then $5/1K</td>

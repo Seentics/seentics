@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { Code2, CreditCard, Goal, LayoutGrid, Shield, Users } from 'lucide-react';
+import { CreditCard, Goal, KeyRound, LayoutGrid, LifeBuoy, Shield, Users } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { isEnterprise } from '@/lib/features';
+import { isDemo } from '@/lib/demo';
 
 export default function SettingsPage() {
   const params = useParams();
@@ -14,15 +15,15 @@ export default function SettingsPage() {
   const pages = [
     {
       title: 'Websites',
-      description: 'View all properties, add a site, edit details, or remove a website.',
-      href: '/websites/manage',
+      description: 'Add sites, copy tracking snippets, edit details, or remove properties.',
+      href: `/websites/${websiteId}/settings/websites`,
       icon: LayoutGrid,
     },
     {
-      title: 'Tracking',
-      description: 'Install and verify your analytics snippet.',
-      href: `/websites/${websiteId}/settings/tracking`,
-      icon: Code2,
+      title: 'Developers',
+      description: 'API keys, REST API, and integration docs.',
+      href: `/websites/${websiteId}/settings/developers`,
+      icon: KeyRound,
     },
     {
       title: 'Goals',
@@ -36,6 +37,12 @@ export default function SettingsPage() {
       href: `/websites/${websiteId}/settings/privacy`,
       icon: Shield,
     },
+    {
+      title: 'Support',
+      description: 'Contact us, book a call, or get help with your workspace.',
+      href: `/websites/${websiteId}/settings/support`,
+      icon: LifeBuoy,
+    },
     ...(isEnterprise
       ? [
           {
@@ -44,6 +51,10 @@ export default function SettingsPage() {
             href: `/websites/${websiteId}/settings/team`,
             icon: Users,
           },
+        ]
+      : []),
+    ...(isEnterprise || isDemo(websiteId)
+      ? [
           {
             title: 'Billing',
             description: 'Manage subscription and usage.',
@@ -58,7 +69,7 @@ export default function SettingsPage() {
     <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
       <DashboardPageHeader
         title="Settings"
-        description="Manage this site below, or use Websites to add, edit, or remove properties on your account."
+        description="Manage this site below. Open Websites to manage all properties and tracking snippets."
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

@@ -1,17 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Activity, GitBranch,
-  Video, Flame, Bot, Code2, Settings, CreditCard,
-  LogOut, PanelLeftClose, PanelLeftOpen, LifeBuoy,
+  Video, Flame, Bot, Settings,
+  LogOut, PanelLeftClose, PanelLeftOpen,
+  User, CreditCard, LifeBuoy,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
-import { isEnterprise } from '@/lib/features';
-import { isDemo } from '@/lib/demo';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/stores/useAuthStore';
 
 interface NavItem {
   label: string;
@@ -21,36 +23,49 @@ interface NavItem {
 
 function buildMainNav(websiteId: string): NavItem[] {
   return [
-    { label: 'Overview',        href: `/websites/${websiteId}`,             icon: LayoutDashboard },
-    { label: 'Realtime',        href: `/websites/${websiteId}/realtime`,    icon: Activity },
-    { label: 'Recording', href: `/websites/${websiteId}/replays`,     icon: Video },
-    { label: 'Heatmaps',  href: `/websites/${websiteId}/heatmaps`,   icon: Flame },
-    { label: 'Funnels',         href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
-    { label: 'Automations',     href: `/websites/${websiteId}/automations`, icon: Bot },
+    { label: 'Overview',    href: `/websites/${websiteId}`,             icon: LayoutDashboard },
+    { label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video },
+    { label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
+    { label: 'Realtime',    href: `/websites/${websiteId}/realtime`,    icon: Activity },
+    { label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
+    { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
   ];
 }
 
 function buildSecondaryNav(websiteId: string): NavItem[] {
-  const items: NavItem[] = [
-    { label: 'Developers', href: `/websites/${websiteId}/developers`, icon: Code2 },
-    { label: 'Support',    href: `/websites/${websiteId}/support`,    icon: LifeBuoy },
-    { label: 'Settings',   href: `/websites/${websiteId}/settings`,   icon: Settings },
+  return [
+    { label: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings },
   ];
-  if (isEnterprise || isDemo(websiteId)) {
-    items.splice(2, 0, { label: 'Billing', href: `/websites/${websiteId}/billing`, icon: CreditCard });
-  }
-  return items;
 }
 
-function isActive(href: string, pathname: string): boolean {
-  if (href.match(/\/websites\/[^/]+$/)) return pathname === href;
-  return pathname.startsWith(href);
+function isNavActive(href: string, pathname: string): boolean {
+  if (/^\/websites\/[^/]+$/.test(href)) {
+    return pathname === href;
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function Sidebar({ websiteId }: { websiteId: string }) {
-  const pathname  = usePathname();
-  const mainNav   = buildMainNav(websiteId);
+  const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
+  const mainNav = buildMainNav(websiteId);
   const secondNav = buildSecondaryNav(websiteId);
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  const initials = useMemo(() => {
+    if (!user) return '?';
+    const n = user.name?.trim();
+    if (n) {
+      const parts = n.split(/\s+/).filter(Boolean);
+      if (parts.length >= 2) {
+        return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+      }
+      return n.slice(0, 2).toUpperCase();
+    }
+    const e = user.email?.trim();
+    return e ? e[0]!.toUpperCase() : '?';
+  }, [user]);
 
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -63,7 +78,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   };
 
   const renderItem = (item: NavItem) => {
-    const active = isActive(item.href, pathname);
+    const active = isNavActive(item.href, pathname);
     return (
       <li key={item.href}>
         <Link
@@ -129,28 +144,115 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       <nav className={cn('flex-1 py-2', collapsed ? 'px-2' : 'px-3')}>
         <ul className="space-y-0.5">
           {mainNav.map(renderItem)}
-        </ul>
-
-        <div className="my-2 mx-3 h-px bg-border/50" />
-
-        <ul className="space-y-0.5">
           {secondNav.map(renderItem)}
         </ul>
       </nav>
 
-      {/* Log out */}
+      {/* Account */}
       <div className={cn('shrink-0 pb-3', collapsed ? 'px-2' : 'px-3')}>
-        <button
-          className={cn(
-            'flex items-center gap-3 rounded-md transition-colors w-full',
-            'text-foreground/45 hover:text-foreground hover:bg-muted/50',
-            collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-3',
-          )}
-          title="Log out"
-        >
-          <LogOut className="h-[17px] w-[17px] shrink-0" />
-          {!collapsed && <span className="text-[13.5px] font-medium">Log out</span>}
-        </button>
+        <Popover open={accountOpen} onOpenChange={setAccountOpen}>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              title={user?.name || user?.email || 'Account'}
+              aria-label="Account menu"
+              className={cn(
+                'flex items-center gap-3 rounded-md transition-colors w-full',
+                'text-foreground hover:bg-muted/50',
+                collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-2',
+              )}
+            >
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt=""
+                  className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-border/60"
+                />
+              ) : (
+                <div
+                  className={cn(
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                    'bg-primary/12 text-[11px] font-semibold text-primary ring-1 ring-border/40',
+                  )}
+                >
+                  {initials}
+                </div>
+              )}
+              {!collapsed && (
+                <span className="min-w-0 flex-1 truncate text-left text-[13.5px] font-medium text-foreground/90">
+                  {user?.name?.trim() || user?.email || 'Account'}
+                </span>
+              )}
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            className="w-64 p-0"
+            side="right"
+            align="end"
+            sideOffset={10}
+            collisionPadding={12}
+          >
+            <div className="border-b border-border/60 px-3 py-3">
+              <p className="truncate text-sm font-semibold text-foreground">{user?.name?.trim() || 'Account'}</p>
+              {user?.email ? (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</p>
+              ) : null}
+            </div>
+            <nav className="flex flex-col p-1.5">
+              <Link
+                href="/workspace/settings"
+                onClick={() => setAccountOpen(false)}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium',
+                  'text-foreground/80 hover:bg-muted/80 hover:text-foreground',
+                )}
+              >
+                <User className="h-4 w-4 shrink-0 opacity-70" />
+                Profile
+              </Link>
+              <Link
+                href={`/websites/${websiteId}/settings/billing`}
+                onClick={() => setAccountOpen(false)}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium',
+                  'text-foreground/80 hover:bg-muted/80 hover:text-foreground',
+                )}
+              >
+                <CreditCard className="h-4 w-4 shrink-0 opacity-70" />
+                Billing
+              </Link>
+              <Link
+                href={`/websites/${websiteId}/settings/support`}
+                onClick={() => setAccountOpen(false)}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium',
+                  'text-foreground/80 hover:bg-muted/80 hover:text-foreground',
+                )}
+              >
+                <LifeBuoy className="h-4 w-4 shrink-0 opacity-70" />
+                Support
+              </Link>
+            </nav>
+            <Separator className="bg-border/60" />
+            <div className="p-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setAccountOpen(false);
+                  logout();
+                  router.push('/signin');
+                }}
+                className={cn(
+                  'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium',
+                  'text-destructive/90 hover:bg-destructive/10 hover:text-destructive',
+                )}
+              >
+                <LogOut className="h-4 w-4 shrink-0 opacity-80" />
+                Log out
+              </button>
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
     </aside>
   );

@@ -23,42 +23,63 @@ import (
 
 // S3Client wraps the AWS S3 client with helpers tailored for replay storage.
 type S3Client struct {
-	client *s3.Client
-	bucket string
+	client         *s3.Client
+	bucket         string
+	// presignClient is an S3 client using the public-facing endpoint URL (e.g. http://localhost:9000
+	// instead of the internal http://minio:9000). Used only for PresignGetObject so that the URL
+	// the browser follows is resolvable from outside the Docker network.
+	// If nil, client is used for presigning (same as the internal endpoint).
+	presignClient *s3.Client
 }
 
 // NewS3Client creates an S3Client pointed at a MinIO (or any S3-compatible)
 // endpoint. Pass useSSL=false for local MinIO without TLS.
 // endpoint may be a bare host:port (e.g. "minio:9000") or a full URL
 // (e.g. "http://minio:9000"); the scheme is added only when absent.
-func NewS3Client(endpoint, accessKey, secretKey, bucket, region string, useSSL bool) (*S3Client, error) {
-	endpointURL := endpoint
-	if !strings.Contains(endpoint, "://") {
+//
+// publicEndpoint, if non-empty, is used only for generating presigned URLs.
+// This is needed when the internal S3 endpoint (e.g. http://minio:9000 inside Docker)
+// differs from the URL the browser must use (e.g. http://localhost:9000).
+// Pass "" to use the same endpoint for both operations and presigning.
+func NewS3Client(endpoint, accessKey, secretKey, bucket, region string, useSSL bool, publicEndpoint string) (*S3Client, error) {
+	toURL := func(ep string) string {
+		if strings.Contains(ep, "://") {
+			return ep
+		}
 		scheme := "http"
 		if useSSL {
 			scheme = "https"
 		}
-		endpointURL = fmt.Sprintf("%s://%s", scheme, endpoint)
+		return fmt.Sprintf("%s://%s", scheme, ep)
 	}
 
-	cfg := aws.Config{
-		Region:      region,
-		Credentials: credentials.NewStaticCredentialsProvider(accessKey, secretKey, ""),
-		EndpointResolverWithOptions: aws.EndpointResolverWithOptionsFunc(
-			func(service, reg string, opts ...interface{}) (aws.Endpoint, error) {
-				return aws.Endpoint{
-					URL:               endpointURL,
-					HostnameImmutable: true,
-				}, nil
-			},
-		),
+	endpointURL := toURL(endpoint)
+
+	makeClient := func(epURL string) *s3.Client {
+		cfg := aws.Config{
+			Region:      region,
+			Credentials: credentials.NewStaticCredentialsProvider(accessKey, secretKey, ""),
+			EndpointResolverWithOptions: aws.EndpointResolverWithOptionsFunc(
+				func(service, reg string, opts ...interface{}) (aws.Endpoint, error) {
+					return aws.Endpoint{
+						URL:               epURL,
+						HostnameImmutable: true,
+					}, nil
+				},
+			),
+		}
+		return s3.NewFromConfig(cfg, func(o *s3.Options) {
+			o.UsePathStyle = true // required for MinIO and path-style R2
+		})
 	}
 
-	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.UsePathStyle = true // required for MinIO
-	})
-
+	client := makeClient(endpointURL)
 	c := &S3Client{client: client, bucket: bucket}
+
+	if publicEndpoint != "" && publicEndpoint != endpoint {
+		c.presignClient = makeClient(toURL(publicEndpoint))
+	}
+
 	if err := c.ensureBucket(context.Background()); err != nil {
 		return nil, fmt.Errorf("s3: ensure bucket %q: %w", bucket, err)
 	}
@@ -206,12 +227,18 @@ func (c *S3Client) ObjectExists(ctx context.Context, key string) (bool, error) {
 	return false, err
 }
 
-// PresignGetObject returns a time-limited HTTPS GET URL for an object (R2/S3/MinIO).
+// PresignGetObject returns a time-limited GET URL for an object (R2/S3/MinIO).
+// When a publicEndpoint was provided at construction time, the URL will use that
+// host so it is reachable from the browser (not the internal Docker endpoint).
 func (c *S3Client) PresignGetObject(ctx context.Context, key string, expiry time.Duration) (string, error) {
 	if expiry <= 0 {
 		expiry = time.Hour
 	}
-	presigner := s3.NewPresignClient(c.client)
+	clientToUse := c.client
+	if c.presignClient != nil {
+		clientToUse = c.presignClient
+	}
+	presigner := s3.NewPresignClient(clientToUse)
 	out, err := presigner.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: &c.bucket,
 		Key:    &key,

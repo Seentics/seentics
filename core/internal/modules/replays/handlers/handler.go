@@ -90,6 +90,7 @@ func (h *ReplayHandler) GetSession(c *gin.Context) {
 		"warm_chunks":            access.WarmChunks,
 		"replay_url":             access.ReplayURL,
 		"replay_url_expires_at":  access.ReplayURLExpiresAt,
+		"recording_pending":      access.RecordingPending,
 	})
 }
 // BatchDelete godoc

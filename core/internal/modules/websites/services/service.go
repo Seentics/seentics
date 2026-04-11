@@ -107,7 +107,7 @@ func (s *WebsiteService) trackerConfigMap(ctx context.Context, w *models.Website
 		}
 	}
 
-	return map[string]interface{}{
+	out := map[string]interface{}{
 		"website_id":               w.ID.String(),
 		"funnel_enabled":           w.FunnelEnabled,
 		"goals":                    cached.Goals,
@@ -116,7 +116,14 @@ func (s *WebsiteService) trackerConfigMap(ctx context.Context, w *models.Website
 		"replay_include_patterns":  w.ReplayIncludePatterns,
 		"replay_exclude_patterns":  w.ReplayExcludePatterns,
 		"heatmap_enabled":          w.HeatmapEnabled,
-	}, nil
+	}
+	if w.HeatmapIncludePatterns != nil {
+		out["heatmap_include_patterns"] = *w.HeatmapIncludePatterns
+	}
+	if w.HeatmapExcludePatterns != nil {
+		out["heatmap_exclude_patterns"] = *w.HeatmapExcludePatterns
+	}
+	return out, nil
 }
 
 // CreateWebsite creates a new website tracking profile

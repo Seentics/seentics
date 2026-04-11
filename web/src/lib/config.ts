@@ -40,21 +40,41 @@ export const config = {
 };
 
 // Helper functions
+function normalizeApiEndpoint(endpoint: string): string {
+  if (endpoint === '') return '';
+  return endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+}
+
+/** Resolved /api/v1 base (no trailing slash). */
+function resolvedApiBase(fromEnv: string): string {
+  const apiBase = fromEnv.replace(/\/$/, '');
+  return apiBase.endsWith(`/api/${config.apiVersion}`)
+    ? apiBase
+    : `${apiBase}/api/${config.apiVersion}`;
+}
+
 export const getApiUrl = (endpoint: string = '') => {
+  const ep = normalizeApiEndpoint(endpoint);
+
   if (typeof window !== 'undefined') {
-    return `/api/${config.apiVersion}${endpoint}`;
+    // When NEXT_PUBLIC_API_URL is absolute (e.g. http://localhost:8080/api/v1 in Docker),
+    // call the gateway directly. Same-origin /api/v1 only works if Next rewrites proxy correctly.
+    const publicUrl = (process.env.NEXT_PUBLIC_API_URL || '').trim();
+    if (publicUrl.startsWith('http://') || publicUrl.startsWith('https://')) {
+      return `${resolvedApiBase(publicUrl)}${ep}`;
+    }
+    return `/api/${config.apiVersion}${ep}`;
   }
 
-  // Prevent double /api/v1 if config.apiBaseUrl already includes it
-  let apiBase = config.apiBaseUrl.replace(/\/$/, ''); // Remove trailing slash
+  let apiBase = config.apiBaseUrl.replace(/\/$/, '');
   const base = apiBase.endsWith(`/api/${config.apiVersion}`)
     ? apiBase
     : `${apiBase}/api/${config.apiVersion}`;
 
-  return `${base}${endpoint}`;
+  return `${base}${ep}`;
 };
 
-/** Absolute gateway base for full-page redirects (OAuth). Axios uses same-origin `/api/v1` in the browser; OAuth must hit the real API path on the gateway host. */
+/** Absolute gateway base for full-page redirects (OAuth). Matches browser API base when NEXT_PUBLIC_API_URL is set. */
 export function getGatewayBaseUrlForRedirect(): string {
   const v = config.apiVersion;
   const base = config.apiBaseUrl.replace(/\/$/, '');

@@ -4,7 +4,7 @@ import 'rrweb/dist/style.css';
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -37,13 +37,15 @@ export default function ReplayDetailPage() {
 
   const playerApiRef = useRef<SessionReplaySurfaceAPI | null>(null);
   const [replayBridge, setReplayBridge] = useState<SessionReplayBridge | null>(null);
+  const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['replay', websiteId, sessionId],
     queryFn: () => getSessionWithEvents(websiteId, sessionId),
     enabled: !!websiteId && !!sessionId && !isDemoMode,
     staleTime: 5 * 60 * 1000,
     retry: 1,
+    refetchInterval: (q) => (q.state.data?.recordingPending ? 3500 : false),
   });
 
   const session = isDemoMode
@@ -63,8 +65,9 @@ export default function ReplayDetailPage() {
       } as ReplaySession)
     : data?.meta ?? undefined;
 
-  const events       = isDemoMode ? [] : (data?.events ?? []);
-  const customEvents = isDemoMode ? [] : (data?.customEvents ?? []);
+  const events            = isDemoMode ? [] : (data?.events ?? []);
+  const customEvents      = isDemoMode ? [] : (data?.customEvents ?? []);
+  const recordingPending  = !isDemoMode && (data?.recordingPending ?? false);
 
   const copyShareLink = useCallback(() => {
     const full = typeof window !== 'undefined' ? window.location.href : '';
@@ -81,6 +84,8 @@ export default function ReplayDetailPage() {
 
   const listHref = `/websites/${websiteId}/replays`;
   const hasRecording = events.length > 0;
+  /** Session queue payloads without a parseable rrweb DOM stream (e.g. only client errors, or empty bundle). */
+  const hasNonRrwebSignals = !isDemoMode && !hasRecording && customEvents.length > 0;
 
   useEffect(() => {
     setReplayBridge(null);
@@ -210,6 +215,48 @@ export default function ReplayDetailPage() {
                 <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
                 <p className="text-xs font-medium text-muted-foreground">Loading recording…</p>
               </div>
+            ) : !isDemoMode && isError ? (
+              <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">
+                <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+                  <Video className="h-7 w-7 text-muted-foreground/50" />
+                </div>
+                <div className="max-w-md space-y-2">
+                  <p className="text-sm font-semibold text-foreground">Replay not found</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    The server returned an error (for example 404). The session may have been deleted, or the recording never finished uploading.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>
+                  Back to replays
+                </Button>
+              </div>
+            ) : recordingPending ? (
+              <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">
+                <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
+                  <Video className="h-7 w-7 text-primary/60" />
+                </div>
+                <div className="max-w-md space-y-2">
+                  <p className="text-sm font-semibold text-foreground">Preparing recording…</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Replay bytes are written to object storage shortly after recording goes idle (usually within about a minute).
+                    If this never finishes, the analytics core may not reach MinIO/S3—check core logs for
+                    {' '}<span className="font-mono text-[11px]">replay spool: bundle upload failed</span>
+                    {' '}and verify <span className="font-mono text-[11px]">S3_*</span> / MinIO settings.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => queryClient.invalidateQueries({ queryKey: ['replay', websiteId, sessionId] })}
+                  >
+                    Retry now
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>
+                    Back to replays
+                  </Button>
+                </div>
+              </div>
             ) : !hasRecording ? (
               <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">
                 <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
@@ -218,9 +265,27 @@ export default function ReplayDetailPage() {
                 <div className="max-w-md space-y-2">
                   <p className="text-sm font-semibold text-foreground">No recording for this session</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    {isDemoMode
-                      ? 'Demo mode has no sample recording. Enable replay on a live site to see playback here.'
-                      : 'The capture may have been too short, blocked in the browser, or replay disabled for this site.'}
+                    {isDemoMode ? (
+                      'Demo mode has no sample recording. Enable replay on a live site to see playback here.'
+                    ) : hasNonRrwebSignals ? (
+                      <>
+                        We stored client-side signals (for example JavaScript errors) for this visit, but there is no
+                        rrweb DOM recording. Usually{' '}
+                        <span className="font-medium text-foreground/90">rrweb.js failed to load</span> (wrong URL,
+                        blocked by an extension, or CSP),{' '}
+                        <span className="font-medium text-foreground/90">session recording is off</span> for the site,
+                        or the tracker never finished init before the visitor left.
+                      </>
+                    ) : (
+                      <>
+                        The replay list counts every session row we have in the database; playback only works when
+                        rrweb events were captured and uploaded. Common causes:{' '}
+                        <span className="font-medium text-foreground/90">replay disabled</span>,{' '}
+                        <span className="font-medium text-foreground/90">monthly recording cap reached</span>,{' '}
+                        <span className="font-medium text-foreground/90">object storage upload failed</span> on the
+                        analytics core, or the visit was too short for a full snapshot to flush.
+                      </>
+                    )}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>

@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 /**
  * First-time entry: users with no websites add their first property here.
  * Once they have at least one site, visiting `/websites` redirects to that dashboard.
- * Manage all sites from Settings → Websites (`/websites/manage`).
+ * Manage all sites from Settings → Websites on any dashboard, or `/websites/manage`.
  */
 export default function WebsitesOnboardingPage() {
   const router = useRouter();
