@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -22,15 +22,25 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
   ArrowLeft, MousePointer,
-  AlertTriangle, RefreshCw, Monitor,
+  RefreshCw, Image as ImageIcon,
   TrendingDown, Layers, Link2,
   MoreHorizontal,
   ChevronLeft, ChevronRight,
   Lock, ExternalLink,
+  Globe,
 } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
-import { getHeatmapData, heatmapPageSlug, type HeatmapPoint as ApiHeatmapPoint } from '@/lib/heatmaps-api';
+import {
+   getHeatmapData,
+  getHeatmapPageScreenshot,
+  heatmapPageSlug,
+  normalizeHeatmapPagePath,
+  weightedHeatmapCaptureViewportWidth,
+  weightedHeatmapCaptureViewportHeight,
+  type HeatmapPageScreenshot,
+  type HeatmapPoint as ApiHeatmapPoint,
+} from '@/lib/heatmaps-api';
 import { normalizeWebsiteOriginForPreview } from '@/lib/website-preview-url';
 import { getWebsiteByAnyId } from '@/lib/websites-api';
 import { useToast } from '@/hooks/use-toast';
@@ -38,6 +48,15 @@ import { cn } from '@/lib/utils';
 
 type HeatType   = 'click' | 'scroll';
 type DeviceType = 'all' | 'desktop' | 'mobile' | 'tablet';
+
+function isAbsoluteHttpUrl(raw: string): boolean {
+  try {
+    const u = new URL(raw.trim());
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 interface HeatPoint {
   /** 0–1: click `pageX` ÷ document scroll width (same idea as `ny` horizontally). */
@@ -47,6 +66,8 @@ interface HeatPoint {
   intensity: number;
   selector?: string;
   device?:   string;
+  cap_vw?:   number | null;
+  cap_vh?:   number | null;
 }
 
 const UUID_SEGMENT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -76,32 +97,101 @@ function heatmapPageHeading(path: string, websiteId?: string): { title: string; 
   return { title, subtitle };
 }
 
+/** Logical doc bounds for nx/ny math (keeps coordinates consistent). */
+const HEATMAP_DIM_CAP = 32_000;
+/** Hard cap for canvas + preview layers — larger sizes freeze the tab (multi‑Mpx canvases). */
+const HEATMAP_PREVIEW_MAX_EDGE = 4096;
+const HEATMAP_PREVIEW_MAX_AREA = 10_000_000;
+
+function clampHeatmapPreviewDimensions(w: number, h: number): { w: number; h: number } {
+  let ww = Math.max(1, Math.round(w));
+  let hh = Math.max(1, Math.round(h));
+  if (ww > HEATMAP_PREVIEW_MAX_EDGE || hh > HEATMAP_PREVIEW_MAX_EDGE) {
+    const s = Math.min(HEATMAP_PREVIEW_MAX_EDGE / ww, HEATMAP_PREVIEW_MAX_EDGE / hh);
+    ww = Math.max(1, Math.round(ww * s));
+    hh = Math.max(1, Math.round(hh * s));
+  }
+  if (ww * hh > HEATMAP_PREVIEW_MAX_AREA) {
+    const s = Math.sqrt(HEATMAP_PREVIEW_MAX_AREA / (ww * hh));
+    ww = Math.max(1, Math.round(ww * s));
+    hh = Math.max(1, Math.round(hh * s));
+  }
+  return { w: ww, h: hh };
+}
+
 /**
- * Pixel height for the heat layer + iframe. Clicks use ny ∈ [0,1] over the *full* document; height must
+ * Lower bound for preview height from click/scroll spread before a DOM snapshot size is known.
+ * Clicks alone only imply height up to max(ny); real pages are often several viewports tall.
+ */
+function heatmapDocHeightHintPx(
+  points: HeatPoint[],
+  heatType: HeatType,
+  portWidth: number,
+): number {
+  const dataH = documentPixelHeightForHeatmap(points, heatType, portWidth, null);
+  const wh = weightedHeatmapCaptureViewportHeight(points);
+  let vhRef = wh;
+  if (vhRef == null || vhRef < 200) {
+    let maxVh = 0;
+    for (const p of points) {
+      const v = p.cap_vh;
+      if (typeof v === 'number' && Number.isFinite(v) && v > maxVh) maxVh = v;
+    }
+    vhRef = maxVh >= 200 ? maxVh : 900;
+  }
+  const stacks = heatType === 'scroll' ? 6 : 5;
+  const fromVh = Math.round(vhRef * stacks);
+  let maxDepth = 0;
+  if (heatType === 'scroll' && points.length) {
+    maxDepth = Math.max(...points.map(p => p.ny), 0);
+  }
+  const scrollGrow =
+    heatType === 'scroll' && maxDepth > 0.01
+      ? Math.round(vhRef / Math.max(0.08, 1 - maxDepth))
+      : 0;
+  return Math.min(
+    HEATMAP_DIM_CAP,
+    Math.max(dataH, fromVh, scrollGrow, Math.round(Math.max(320, portWidth) * 1.05)),
+  );
+}
+
+/**
+ * Pixel height for the heat layer. Clicks use ny ∈ [0,1] over the *full* document; height must
  * represent that full range for dots to line up (not just max(ny)).
  */
 function documentPixelHeightForHeatmap(
   points: HeatPoint[],
   heatType: HeatType,
   portWidth: number,
-  iframeDocPx: number | null,
+  snapshotDocPx: number | null,
 ): number {
   const w = Math.max(320, portWidth);
-  const minH = 520;
-  if (iframeDocPx != null && iframeDocPx >= minH) {
-    return Math.round(iframeDocPx);
+  const minH = 200;
+  if (snapshotDocPx != null && snapshotDocPx >= minH) {
+    return Math.round(snapshotDocPx);
   }
   if (!points.length) {
-    return Math.max(minH, Math.round(w * 2));
+    return Math.max(minH, Math.round(Math.min(w * 2, 1600)));
   }
   const pad = heatType === 'scroll' ? 0.04 : 0.1;
   const maxNyRaw = Math.max(...points.map(p => p.ny), heatType === 'scroll' ? 0.05 : 0.08);
-  // Clicks: assume at least full document (1.0) in normalized Y so coords match tracker pageY/docH.
+  // Don’t force bottom ≥ 1 before we have snapshot/doc metrics — avoids inflated shells on sparse data.
   const bottom = heatType === 'click'
-    ? Math.min(1.55, Math.max(1, maxNyRaw + pad))
+    ? Math.min(1.55, Math.max(0.08, maxNyRaw + pad))
     : Math.min(1.55, Math.max(0.1, maxNyRaw + pad));
-  const scale = Math.max(2400, w * 2.6);
-  return Math.max(minH, Math.ceil(bottom * scale));
+  const scale = Math.max(480, Math.min(1400, w * 1.85));
+  return Math.min(HEATMAP_DIM_CAP, Math.max(minH, Math.ceil(bottom * scale)));
+}
+
+/** Floor width from click spread when document width is otherwise underestimated. */
+function documentPixelWidthForHeatmap(points: HeatPoint[], portWidth: number): number {
+  const w = Math.max(320, portWidth);
+  if (!points.length) return w;
+  const pad = 0.1;
+  const maxNxRaw = Math.max(...points.map(p => p.nx), 0.08);
+  const right = Math.min(1.55, Math.max(0.1, maxNxRaw + pad));
+  const scale = Math.max(480, Math.min(1400, w * 1.85));
+  return Math.min(HEATMAP_DIM_CAP, Math.max(w, Math.ceil(right * scale)));
 }
 
 // ─── Heatmap canvas renderer ──────────────────────────────────────────────────
@@ -129,7 +219,7 @@ function drawClickHeatmap(canvas: HTMLCanvasElement, points: HeatPoint[], w: num
     const cx = Math.min(w, Math.max(0, p.nx * w));
     const cy = Math.min(h, Math.max(0, p.ny * h));
     const norm = p.intensity / maxI;
-    const alpha = 0.032 + Math.sqrt(norm) * 0.22;
+    const alpha = 0.055 + Math.sqrt(norm) * 0.34;
 
     const g = octx.createRadialGradient(cx, cy, 0, cx, cy, rSpot);
     g.addColorStop(0,   `rgba(255,255,255,${alpha})`);
@@ -262,28 +352,33 @@ function HeatOnlyUnderlay() {
   );
 }
 
-type PreviewUnderlay = 'iframe' | 'heat-only';
+type PreviewUnderlay = 'live' | 'screenshot' | 'heat-only';
 
 /** Single-row browser-style chrome (traffic dots, nav, omnibox, open). */
 function HeatmapPreviewBrowserChrome({
   pageUrl,
   underlay,
   loadState,
+  usingPageVisual = false,
 }: {
   pageUrl: string;
   underlay: PreviewUnderlay;
   loadState: 'idle' | 'loading' | 'loaded' | 'error';
+  /** True when showing a captured screenshot or live page under the heat layer. */
+  usingPageVisual?: boolean;
 }) {
   const displayUrl = pageUrl.trim() || '—';
   const secure     = /^https:\/\//i.test(pageUrl);
   const statusLead =
     underlay === 'heat-only'
       ? 'Heat only · '
-      : loadState === 'error'
-        ? 'Blocked · '
-        : loadState === 'loading'
-          ? 'Loading · '
-          : '';
+      : underlay === 'live'
+        ? 'Live page · '
+        : usingPageVisual
+          ? loadState === 'loading'
+            ? 'Loading screenshot · '
+            : 'Captured screenshot · '
+          : 'No screenshot yet · ';
   const barTitle = `${statusLead}${displayUrl}`;
 
   const openExternal = () => {
@@ -344,57 +439,76 @@ function HeatmapPreviewBrowserChrome({
 
 // ─── Canvas overlay ───────────────────────────────────────────────────────────
 function HeatmapViewer({
-  url,
+  pageUrl,
   points,
   heatType,
   overlayOpacity = 1,
   underlay,
-  onUnderlayBlocked,
+  preferredViewportWidth = null,
+  pageScreenshot = null,
 }: {
-  url: string;
+  pageUrl: string;
   points: HeatPoint[];
   heatType: HeatType;
-  /** 0–1 multiplier on the heat canvas only */
   overlayOpacity?: number;
-  /** When `heat-only`, skip iframe (user choice or embedding unusable). */
   underlay: PreviewUnderlay;
-  /** Called when iframe fails to load so parent can switch toggle default. */
-  onUnderlayBlocked?: () => void;
+  preferredViewportWidth?: number | null;
+  pageScreenshot?: HeatmapPageScreenshot | null;
 }) {
-  const scrollRef  = useRef<HTMLDivElement>(null);
-  const iframeRef  = useRef<HTMLIFrameElement>(null);
-  const canvasRef  = useRef<HTMLCanvasElement>(null);
-  const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const measureTimersRef = useRef<number[]>([]);
-  const onBlockedRef = useRef(onUnderlayBlocked);
-  onBlockedRef.current = onUnderlayBlocked;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [viewPort, setViewPort] = useState<{ w: number; h: number }>({ w: 1280, h: 0 });
-  const [measuredIframeDocH, setMeasuredIframeDocH] = useState<number | null>(null);
+  /** Natural JPEG size when loaded — refines doc box if API metadata differs slightly. */
+  const [shotNatural, setShotNatural] = useState<{ w: number; h: number } | null>(null);
 
-  const showIframe = underlay === 'iframe';
+  const screenshotActive =
+    underlay === 'screenshot' && !!pageScreenshot?.image_url?.trim();
+  const liveActive = underlay === 'live' && isAbsoluteHttpUrl(pageUrl);
+
+  const docHeightHint = useMemo(
+    () => heatmapDocHeightHintPx(points, heatType, viewPort.w),
+    [points, heatType, viewPort.w],
+  );
 
   const docPx = useMemo(() => {
-    const fromClicks = documentPixelHeightForHeatmap(points, heatType, viewPort.w, null);
-    let h: number;
-    if (measuredIframeDocH != null && measuredIframeDocH >= 520) {
-      h = Math.max(fromClicks, measuredIframeDocH);
-    } else {
-      h = fromClicks;
+    const dataH = documentPixelHeightForHeatmap(points, heatType, viewPort.w, null);
+    const hint = docHeightHint;
+    const natH = shotNatural && shotNatural.h > 200 ? shotNatural.h : 0;
+    if (screenshotActive && pageScreenshot) {
+      const sh = pageScreenshot.doc_height > 200 ? pageScreenshot.doc_height : 0;
+      return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, hint, sh, natH));
     }
-    // While the iframe loads (or we have no heat rows yet), don’t collapse shorter than the visible panel.
-    const iframeBoot =
-      showIframe &&
-      !!url &&
-      loadState !== 'error' &&
-      (loadState === 'loading' || (points.length === 0 && loadState !== 'loaded'));
-    if (iframeBoot && viewPort.h >= 120) {
-      h = Math.max(h, viewPort.h);
-    }
-    return h;
-  }, [points, heatType, viewPort.w, viewPort.h, measuredIframeDocH, showIframe, url, loadState]);
+    return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, hint, natH));
+  }, [points, heatType, viewPort.w, docHeightHint, screenshotActive, pageScreenshot, shotNatural]);
 
-  const dims = useMemo(() => ({ w: viewPort.w, h: docPx }), [viewPort.w, docPx]);
+  const dims = useMemo(() => {
+    const dataW = documentPixelWidthForHeatmap(points, viewPort.w);
+    const captureW =
+      preferredViewportWidth != null &&
+      preferredViewportWidth >= 320 &&
+      preferredViewportWidth <= HEATMAP_DIM_CAP
+        ? preferredViewportWidth
+        : null;
+    const shotW =
+      screenshotActive && pageScreenshot && pageScreenshot.doc_width > 200 ? pageScreenshot.doc_width : 0;
+    const natW = shotNatural && shotNatural.w > 200 ? shotNatural.w : 0;
+    const w = Math.min(
+      HEATMAP_DIM_CAP,
+      Math.max(320, viewPort.w, dataW, captureW ?? 0, shotW, natW),
+    );
+    const h = docPx;
+    return clampHeatmapPreviewDimensions(w, h);
+  }, [viewPort.w, docPx, points, preferredViewportWidth, screenshotActive, pageScreenshot, shotNatural]);
+
+  const previewScale = useMemo(() => {
+    if (viewPort.w <= 0 || dims.w <= 0) return 1;
+    if (dims.w <= viewPort.w) return 1;
+    return Math.max(0.2, Math.min(1, viewPort.w / dims.w));
+  }, [viewPort.w, dims.w]);
+
+  const scaledOuterW = Math.max(1, Math.round(dims.w * previewScale));
+  const scaledOuterH = Math.max(1, Math.round(dims.h * previewScale));
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -410,106 +524,25 @@ function HeatmapViewer({
     return () => ro.disconnect();
   }, []);
 
-  const bumpMeasuredHeight = useCallback(() => {
-    try {
-      const doc = iframeRef.current?.contentDocument;
-      if (!doc) return;
-      const h = Math.max(
-        doc.documentElement?.scrollHeight ?? 0,
-        doc.body?.scrollHeight ?? 0,
-        doc.documentElement?.offsetHeight ?? 0,
-        doc.body?.offsetHeight ?? 0,
-      );
-      if (h > 200) {
-        setMeasuredIframeDocH(prev => Math.max(prev ?? 0, Math.round(h)));
-      }
-    } catch {
-      /* cross-origin */
-    }
-  }, []);
-
-  // Reset load state when switching URL or underlay mode
   useEffect(() => {
-    setMeasuredIframeDocH(null);
-    measureTimersRef.current.forEach(t => clearTimeout(t));
-    measureTimersRef.current = [];
-    if (loadTimerRef.current) {
-      clearTimeout(loadTimerRef.current);
-      loadTimerRef.current = null;
-    }
-    if (!showIframe || !url) {
+    if (underlay === 'heat-only') {
       setLoadState('idle');
       return;
     }
-    setLoadState('loading');
-    loadTimerRef.current = setTimeout(() => {
-      loadTimerRef.current = null;
-      setLoadState(s => {
-        if (s === 'loading') {
-          queueMicrotask(() => onBlockedRef.current?.());
-          return 'error';
-        }
-        return s;
-      });
-    }, 45_000);
-    return () => {
-      if (loadTimerRef.current) {
-        clearTimeout(loadTimerRef.current);
-        loadTimerRef.current = null;
-      }
-    };
-  }, [url, showIframe]);
+    if (underlay === 'live' && isAbsoluteHttpUrl(pageUrl)) {
+      setLoadState('loaded');
+      return;
+    }
+    if (screenshotActive && pageScreenshot?.image_url) {
+      setLoadState('loading');
+    } else {
+      setLoadState('idle');
+    }
+  }, [underlay, screenshotActive, pageScreenshot?.image_url, pageUrl]);
 
-  // Same-origin: keep iframe/canvas height in sync when layout, fonts, or SPA content settle.
   useEffect(() => {
-    if (!showIframe || loadState !== 'loaded' || !url) return;
-    let ro: ResizeObserver | null = null;
-    let cancelled = false;
-    const t = window.setTimeout(() => {
-      try {
-        const doc = iframeRef.current?.contentDocument;
-        const el = doc?.documentElement;
-        if (!el || cancelled) return;
-        const remeasure = () => bumpMeasuredHeight();
-        ro = new ResizeObserver(remeasure);
-        ro.observe(el);
-        if (doc.body) ro.observe(doc.body);
-        remeasure();
-      } catch {
-        /* cross-origin */
-      }
-    }, 0);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-      ro?.disconnect();
-    };
-  }, [showIframe, loadState, url, bumpMeasuredHeight]);
-
-  const onIframeLoad = () => {
-    if (loadTimerRef.current) {
-      clearTimeout(loadTimerRef.current);
-      loadTimerRef.current = null;
-    }
-    bumpMeasuredHeight();
-    requestAnimationFrame(bumpMeasuredHeight);
-    requestAnimationFrame(() => requestAnimationFrame(bumpMeasuredHeight));
-    const delays = [80, 250, 800, 2000];
-    measureTimersRef.current.forEach(clearTimeout);
-    measureTimersRef.current = delays.map(ms =>
-      window.setTimeout(bumpMeasuredHeight, ms),
-    );
-    setLoadState('loaded');
-  };
-
-  const onIframeError = () => {
-    if (loadTimerRef.current) {
-      clearTimeout(loadTimerRef.current);
-      loadTimerRef.current = null;
-    }
-    setLoadState('error');
-    onBlockedRef.current?.();
-  };
+    setShotNatural(null);
+  }, [pageScreenshot?.image_url, underlay, screenshotActive]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -521,77 +554,124 @@ function HeatmapViewer({
     }
   }, [points, dims, heatType]);
 
-  const showHeatOnlyFallback = !showIframe || loadState === 'error';
-  const showLoadingOverlay   = showIframe && loadState === 'loading';
+  const showHeatOnlyFallback =
+    underlay === 'heat-only' || (!screenshotActive && !liveActive);
+  const showLoadingOverlay = screenshotActive && loadState === 'loading';
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col bg-[#09090b] dark:bg-[#09090b]">
-      <HeatmapPreviewBrowserChrome pageUrl={url} underlay={underlay} loadState={loadState} />
+      <HeatmapPreviewBrowserChrome
+        pageUrl={pageUrl}
+        underlay={underlay}
+        loadState={loadState}
+        usingPageVisual={screenshotActive || liveActive}
+      />
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto"
+        className="min-h-0 w-full flex-1 overflow-x-hidden overflow-y-auto"
       >
         <div
-          className="relative w-full"
-          style={{ height: docPx, minHeight: docPx }}
+          className="relative mx-auto shrink-0 overflow-hidden"
+          style={{
+            width: scaledOuterW,
+            minWidth: scaledOuterW,
+            height: scaledOuterH,
+            minHeight: scaledOuterH,
+          }}
         >
-          {showIframe && url && (
-            <iframe
-              ref={iframeRef}
-              key={url}
-              src={url}
-              className="absolute left-0 top-0 w-full border-0"
-              onLoad={onIframeLoad}
-              onError={onIframeError}
-              sandbox="allow-scripts allow-same-origin allow-forms allow-popups-to-escape-sandbox"
-              style={{ pointerEvents: 'none', height: docPx, minHeight: docPx }}
-              title="Page preview"
-            />
-          )}
-
-          {showHeatOnlyFallback && <HeatOnlyUnderlay />}
-
-          <canvas
-            ref={canvasRef}
-            className="pointer-events-none absolute left-0 top-0 z-20 transition-opacity duration-150"
+          <div
+            className="relative"
             style={{
-              mixBlendMode: 'screen',
-              opacity: overlayOpacity,
               width: dims.w,
+              minWidth: dims.w,
               height: dims.h,
+              minHeight: dims.h,
+              transform: `scale(${previewScale})`,
+              transformOrigin: 'top left',
             }}
-            width={dims.w}
-            height={dims.h}
-          />
-
-          {showLoadingOverlay && (
-            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/55 backdrop-blur-[1px]">
-              <div className="pointer-events-auto flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/75 px-4 py-3 shadow-lg">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/40 border-t-primary" />
-                <p className="text-xs text-white/60">Loading page preview…</p>
-                <p className="max-w-[220px] text-center text-[10px] leading-relaxed text-white/40">
-                  Switch to <span className="text-white/55">Heat only</span> for an instant grid backdrop.
-                </p>
+          >
+            {liveActive ? (
+              <div
+                className="absolute left-0 top-0 z-0 overflow-hidden bg-white"
+                style={{
+                  width: dims.w,
+                  minWidth: dims.w,
+                  height: dims.h,
+                  minHeight: dims.h,
+                }}
+              >
+                <iframe
+                  title={`Heatmap live preview: ${pageUrl}`}
+                  src={pageUrl.trim()}
+                  className="pointer-events-none block border-0"
+                  style={{
+                    width: dims.w,
+                    height: dims.h,
+                    minWidth: dims.w,
+                    minHeight: dims.h,
+                  }}
+                  referrerPolicy="no-referrer-when-downgrade"
+                  loading="eager"
+                />
               </div>
-            </div>
-          )}
+            ) : null}
+            {screenshotActive && pageScreenshot ? (
+              <div
+                className="absolute left-0 top-0 z-0 overflow-hidden bg-white"
+                style={{
+                  width: dims.w,
+                  minWidth: dims.w,
+                  height: dims.h,
+                  minHeight: dims.h,
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={pageScreenshot.image_url}
+                  alt=""
+                  className="pointer-events-none block h-full w-full object-fill"
+                  onLoad={e => {
+                    const im = e.currentTarget;
+                    setShotNatural({
+                      w: Math.max(1, im.naturalWidth),
+                      h: Math.max(1, im.naturalHeight),
+                    });
+                    setLoadState('loaded');
+                  }}
+                  onError={() => setLoadState('error')}
+                  loading="eager"
+                  decoding="async"
+                />
+              </div>
+            ) : null}
 
-          {showIframe && loadState === 'error' && (
-            <div className="absolute left-1/2 top-3 z-30 max-w-[min(92vw,420px)] -translate-x-1/2">
-              <div className="rounded-lg border border-amber-500/25 bg-zinc-950/90 px-3 py-2 shadow-lg backdrop-blur-md">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" />
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-medium text-zinc-100">Couldn’t embed this page</p>
-                    <p className="mt-0.5 text-[10px] leading-snug text-zinc-400">
-                      Many sites block iframes (X-Frame-Options / CSP). Scroll to see the full heatmap — use{' '}
-                      <span className="text-zinc-300">Heat only</span> or open the URL in a new tab.
-                    </p>
-                  </div>
+            {showHeatOnlyFallback ? <HeatOnlyUnderlay /> : null}
+
+            <canvas
+              ref={canvasRef}
+              className="pointer-events-none absolute left-0 top-0 z-20 transition-opacity duration-150"
+              style={{
+                mixBlendMode: 'normal',
+                opacity: overlayOpacity,
+                width: dims.w,
+                height: dims.h,
+              }}
+              width={dims.w}
+              height={dims.h}
+            />
+
+            {showLoadingOverlay && (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/55 backdrop-blur-[1px]">
+                <div className="pointer-events-auto flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/75 px-4 py-3 shadow-lg">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/40 border-t-primary" />
+                  <p className="text-xs text-white/60">Loading screenshot…</p>
+                  <p className="max-w-[220px] text-center text-[10px] leading-relaxed text-white/40">
+                    Switch to <span className="text-white/55">Heat only</span> for an instant grid backdrop.
+                  </p>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -612,9 +692,12 @@ export default function HeatmapDetailPage() {
   const [customUrl, setCustomUrl] = useState('');
   const [liveUrl,   setLiveUrl]   = useState('');
   const [previewTouched, setPreviewTouched] = useState(false);
-  const [previewUnderlay, setPreviewUnderlay] = useState<PreviewUnderlay>('iframe');
+  const [previewUnderlay, setPreviewUnderlay] = useState<PreviewUnderlay>('screenshot');
 
-  const urlPath = slug ? decodeURIComponent(slug).replace(/_/g, '/') : '/';
+  const urlPath = useMemo(() => {
+    const raw = slug ? decodeURIComponent(slug).replace(/_/g, '/') : '/';
+    return normalizeHeatmapPagePath(raw);
+  }, [slug]);
 
   const demoPages = isDemoMode ? demoHeatmapPages() : [];
   const demoPage  = demoPages.find(p => p.url === urlPath) ?? demoPages[0];
@@ -646,6 +729,27 @@ export default function HeatmapDetailPage() {
     staleTime: 60_000,
   });
 
+  const { data: pageScreenshot } = useQuery({
+    queryKey:  ['heatmap-screenshot', websiteId, urlPath],
+    queryFn:   () => getHeatmapPageScreenshot(websiteId, urlPath),
+    enabled:   Boolean(websiteId && !isDemoMode),
+    staleTime: 180_000,
+    refetchOnWindowFocus: false,
+  });
+
+  const previewModeOptions = useMemo(() => {
+    const pageHint = pageScreenshot
+      ? 'JPEG captured in visitors’ browsers (html2canvas) for this path when layout capture is enabled.'
+      : 'Visitors with the tracker send a page screenshot; ensure “heatmap layout” is enabled for the site.';
+    const liveHint =
+      'Embeds the real page. Blank if the site blocks iframes (X-Frame-Options / CSP frame-ancestors).';
+    return [
+      ['live', Globe, 'Live page', liveHint] as const,
+      ['screenshot', ImageIcon, 'Screenshot', pageHint] as const,
+      ['heat-only', Layers, 'Heat only', 'Heat only, no page underlay.'] as const,
+    ];
+  }, [pageScreenshot]);
+
   const demoPointsNormalized: HeatPoint[] = useMemo(() => {
     const raw = demoHeatmapPoints(heatType === 'scroll' ? 'move' : 'click');
     return raw.map(p => ({
@@ -659,12 +763,28 @@ export default function HeatmapDetailPage() {
   const allPoints: HeatPoint[] = isDemoMode
     ? demoPointsNormalized
     : (heatmapData?.points ?? []).map((p: ApiHeatmapPoint) => ({
-        nx:        p.x_percent / 10000,
-        ny:        p.y_percent / 10000,
+        nx: p.x_percent / 10000,
+        ny:
+          (p.event_type || heatType) === 'scroll'
+            ? Math.min(1, Math.max(0, (p.y_percent ?? 0) / 100))
+            : (p.y_percent ?? 0) / 10000,
         intensity: p.intensity,
         selector:  p.target_selector || undefined,
         device:    p.device_type || 'desktop',
+        cap_vw:    p.cap_vw ?? undefined,
+        cap_vh:    p.cap_vh ?? undefined,
       }));
+
+  const preferredViewportWidth = useMemo(() => {
+    if (isDemoMode) return null;
+    const src =
+      device === 'all'
+        ? (heatmapData?.points ?? [])
+        : (heatmapData?.points ?? []).filter(
+            p => (p.device_type || 'desktop').toLowerCase() === device,
+          );
+    return weightedHeatmapCaptureViewportWidth(src);
+  }, [heatmapData, device, isDemoMode]);
 
   const points: HeatPoint[] = device === 'all'
     ? allPoints
@@ -685,6 +805,17 @@ export default function HeatmapDetailPage() {
   }, [isDemoMode, demoIframeFallback, suggestedPreviewUrl, previewTouched]);
 
   const displayIframeUrl = liveUrl || suggestedPreviewUrl || demoIframeFallback;
+
+  const canLivePreview = useMemo(
+    () => isAbsoluteHttpUrl((displayIframeUrl || '').trim()),
+    [displayIframeUrl],
+  );
+
+  useEffect(() => {
+    if (previewUnderlay === 'live' && !canLivePreview) {
+      setPreviewUnderlay('screenshot');
+    }
+  }, [previewUnderlay, canLivePreview]);
 
   const applyUrl = () => {
     const t = customUrl.trim();
@@ -724,7 +855,7 @@ export default function HeatmapDetailPage() {
       <div>
         <p className="text-sm font-medium text-foreground">Preview URL</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          Must match this path so clicks and scroll line up with the iframe.
+          Must match this path so clicks and scroll line up with the captured page.
         </p>
       </div>
       <div className="flex gap-2">
@@ -746,7 +877,7 @@ export default function HeatmapDetailPage() {
   );
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background">
       {isError && !isDemoMode && (
         <div className="shrink-0 border-b border-destructive/30 bg-destructive/10 px-4 py-2.5 text-sm text-destructive">
           {(error as Error)?.message ?? 'Failed to load heatmap data.'}
@@ -834,33 +965,39 @@ export default function HeatmapDetailPage() {
             </Select>
 
             <div className="flex rounded-md border border-border bg-background p-0.5">
-              {([
-                ['iframe', Monitor, 'Page preview', 'Live page under heatmap'] as const,
-                ['heat-only', Layers, 'Heat only', 'Heat only, no iframe'] as const,
-              ]).map(([mode, Icon, label, hint]) => (
-                <button
-                  key={mode}
-                  type="button"
-                  title={hint}
-                  onClick={() => setPreviewUnderlay(mode)}
-                  className={cn(
-                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
-                    previewUnderlay === mode
-                      ? 'bg-muted text-foreground'
-                      : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <Icon className="h-3 w-3 opacity-80" />
-                  {mode === 'iframe' ? (
-                    <>
-                      <span className="sm:hidden">Preview</span>
-                      <span className="hidden sm:inline">{label}</span>
-                    </>
-                  ) : (
-                    <span>{label}</span>
-                  )}
-                </button>
-              ))}
+              {previewModeOptions.map(([mode, Icon, label, hint]) => {
+                const liveDisabled = mode === 'live' && !canLivePreview;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    title={
+                      liveDisabled
+                        ? 'Set a full https:// preview URL in Settings or Preview URL to embed the live page.'
+                        : hint
+                    }
+                    disabled={liveDisabled}
+                    onClick={() => setPreviewUnderlay(mode)}
+                    className={cn(
+                      'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                      previewUnderlay === mode
+                        ? 'bg-muted text-foreground'
+                        : 'text-muted-foreground hover:text-foreground',
+                      liveDisabled && 'pointer-events-none opacity-40',
+                    )}
+                  >
+                    <Icon className="h-3 w-3 opacity-80" />
+                    {mode === 'screenshot' || mode === 'live' ? (
+                      <>
+                        <span className="sm:hidden">{mode === 'live' ? 'Live' : 'Shot'}</span>
+                        <span className="hidden sm:inline">{label}</span>
+                      </>
+                    ) : (
+                      <span>{label}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
             {!isDemoMode && (
@@ -895,7 +1032,7 @@ export default function HeatmapDetailPage() {
 
       <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-2 pb-2 pt-1.5 md:px-4 md:pb-3 md:pt-2">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card">
-          {!displayIframeUrl && !isDemoMode ? (
+          {!displayIframeUrl && !isDemoMode && !pageScreenshot?.image_url ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
               <p className="text-sm font-medium text-foreground">Add a page preview URL</p>
               <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
@@ -915,11 +1052,12 @@ export default function HeatmapDetailPage() {
             <div className="min-h-0 flex-1">
               <HeatmapViewer
                 key={`${websiteId}:${urlPath}`}
-                url={displayIframeUrl}
+                pageUrl={displayIframeUrl || suggestedPreviewUrl || heatmapPathLine}
                 points={points}
                 heatType={heatType}
                 underlay={previewUnderlay}
-                onUnderlayBlocked={() => setPreviewUnderlay('heat-only')}
+                preferredViewportWidth={preferredViewportWidth}
+                pageScreenshot={isDemoMode ? null : (pageScreenshot ?? null)}
               />
             </div>
           )}

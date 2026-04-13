@@ -20,7 +20,7 @@
   },
   "homepage": "https://github.com/Seentics/seentics#readme",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/bundle-trackers.cjs && next dev",
     "bundle-trackers": "node scripts/bundle-trackers.cjs",
     "build": "node scripts/bundle-trackers.cjs && next build",
     "start": "next start",
@@ -68,6 +68,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^11.2.10",
     "heatmap.js": "^2.0.5",
+    "html2canvas": "^1.4.1",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "leaflet": "^1.9.4",

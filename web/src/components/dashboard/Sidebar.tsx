@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import {
   LayoutDashboard, Activity, GitBranch,
   Video, Flame, Bot, Settings,
-  LogOut, PanelLeftClose, PanelLeftOpen,
+  LogOut, PanelLeftClose,
   User, CreditCard, LifeBuoy,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
@@ -109,34 +109,37 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       collapsed ? 'w-[64px]' : 'w-[248px]',
     )}>
 
-      {/* Header: Logo + collapse toggle */}
-      <div className={cn(
-        'flex items-center h-[60px] shrink-0 gap-2',
-        collapsed ? 'justify-center px-2' : 'px-4',
-      )}>
-        <Logo size="sm" className="shrink-0" />
-        {!collapsed && (
+      {/* Header: expanded = logo + title + collapse; collapsed = single logo control to expand */}
+      <div
+        className={cn(
+          'flex h-[60px] shrink-0 items-center gap-2',
+          collapsed ? 'justify-center px-2' : 'px-4',
+        )}
+      >
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={() => persist(false)}
+            title="Expand sidebar"
+            aria-label="Expand sidebar"
+            className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+          >
+            <Logo size="sm" className="shrink-0" />
+          </button>
+        ) : (
           <>
-            <span className="flex-1 text-[16px] font-bold text-primary tracking-tight">
-              Seentics
-            </span>
+            <Logo size="sm" className="shrink-0" />
+            <span className="flex-1 text-[16px] font-bold tracking-tight text-primary">Seentics</span>
             <button
+              type="button"
               onClick={() => persist(true)}
               title="Collapse sidebar"
-              className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+              aria-label="Collapse sidebar"
+              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
           </>
-        )}
-        {collapsed && (
-          <button
-            onClick={() => persist(false)}
-            title="Expand sidebar"
-            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-          >
-            <PanelLeftOpen className="h-4 w-4" />
-          </button>
         )}
       </div>
 
@@ -149,7 +152,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
       </nav>
 
       {/* Account */}
-      <div className={cn('shrink-0 pb-3', collapsed ? 'px-2' : 'px-3')}>
+      <div className={cn('shrink-0 pb-6 ', collapsed ? 'px-2' : 'px-3')}>
         <Popover open={accountOpen} onOpenChange={setAccountOpen}>
           <PopoverTrigger asChild>
             <button
@@ -186,13 +189,13 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             </button>
           </PopoverTrigger>
           <PopoverContent
-            className="w-64 p-0"
+            className="w-64 border border-border/60 bg-card p-0 shadow-md"
             side="right"
             align="end"
             sideOffset={10}
             collisionPadding={12}
           >
-            <div className="border-b border-border/60 px-3 py-3">
+            <div className="border-b border-border/60 bg-muted/25 px-3 py-3">
               <p className="truncate text-sm font-semibold text-foreground">{user?.name?.trim() || 'Account'}</p>
               {user?.email ? (
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</p>
@@ -200,7 +203,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             </div>
             <nav className="flex flex-col p-1.5">
               <Link
-                href="/workspace/settings"
+                href={`/websites/${websiteId}/settings/profile`}
                 onClick={() => setAccountOpen(false)}
                 className={cn(
                   'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium',

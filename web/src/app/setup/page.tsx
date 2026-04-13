@@ -184,7 +184,7 @@ export default function SetupPage() {
                 description: 'Your admin account has been created.',
             });
 
-            router.push('/workspace');
+            router.push('/websites');
         } catch (err: any) {
             console.error('Setup error:', err);
             setError(err.message || 'Setup failed. Please try again.');

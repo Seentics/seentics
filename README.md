@@ -20,9 +20,9 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--v3-blue.svg" alt="License" /></a>
-  <img src="https://img.shields.io/badge/Go-1.24-00ADD8?logo=go&logoColor=white" alt="Go" />
+  <img src="https://img.shields.io/badge/Bun-000000?logo=bun&logoColor=white" alt="Bun" />
   <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js" />
-  <img src="https://img.shields.io/badge/ClickHouse-FFCC01?logo=clickhouse&logoColor=black" alt="ClickHouse" />
+  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker" />
 </p>
 
@@ -55,13 +55,10 @@ You own your data. Deploy in minutes with Docker.
 
 | Layer | Technology |
 |---|---|
-| Backend API | Go 1.24 (Gin) |
+| Backend API | Bun, Hono, Drizzle ORM (TypeScript) |
 | Frontend | Next.js 16, Tailwind CSS, shadcn/ui |
-| Analytics DB | ClickHouse |
-| Metadata DB | PostgreSQL 15 |
-| Event pipeline | In-memory batching → ClickHouse (see [`core/README.md`](core/README.md)) |
+| Primary DB | PostgreSQL 15 (app data + analytics events in this OSS stack) |
 | Object Storage | S3-compatible (MinIO in Docker Compose for local dev) |
-| Cache & rate limiting | Redis |
 
 ---
 
@@ -76,7 +73,7 @@ cd seentics
 docker compose up -d --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The API is at [http://localhost:3002](http://localhost:3002).
+Open [http://localhost:3000](http://localhost:3000). The API is served by **`core`** at [http://localhost:8080/api/v1](http://localhost:8080/api/v1) (see `docker-compose.yml`).
 
 ---
 
@@ -146,26 +143,7 @@ Styled with CSS variables — integrates with any design system.
 
 ```
 seentics/
-├── core/                        # Go backend API
-│   ├── cmd/api/main.go          # Entry point
-│   ├── internal/
-│   │   ├── modules/
-│   │   │   ├── auth/            # Users, JWT, sessions
-│   │   │   ├── analytics/       # Events, pageviews, goals, realtime
-│   │   │   ├── websites/        # Site management, members
-│   │   │   ├── funnels/         # Funnel steps + conversion tracking
-│   │   │   ├── heatmaps/        # Click + scroll recording + query
-│   │   │   ├── replays/         # Session recording + playback
-│   │   │   ├── automations/     # Behavioral workflow engine
-│   │   │   ├── apikeys/         # Per-website raw API keys
-│   │   │   └── tracker/         # Ingestion / tracker HTTP surface
-│   │   └── shared/
-│   │       ├── database/        # Postgres + ClickHouse connections
-│   │       ├── config/          # Env config + feature flags
-│   │       ├── middleware/      # Auth, CORS, logging, rate limit
-│   │       └── migrations/      # Postgres + ClickHouse schema
-│   └── data/                    # Runtime data (see Docker volumes)
-│
+├── core/                        # Bun + Hono + Drizzle — single OSS API
 ├── web/                         # Next.js app + dashboard UI
 │   ├── trackers/                # `seentics.js` source (served under `/trackers/…`)
 │   └── src/
@@ -205,23 +183,22 @@ seentics/
 docker compose up -d --build
 ```
 
-Starts PostgreSQL, ClickHouse, Redis, MinIO, the Go API, and the Next.js app (with dev hot reload on the pinned Compose file).
+Starts PostgreSQL, MinIO, the Bun API (`core`), and the Next.js app (with dev hot reload on the pinned Compose file).
 
 ### Production
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for hosting on a VPS or cloud instance. Typical flow: configure `core/.env` from [`core/.env.example`](core/.env.example), then run the stack with Docker (or your orchestrator) behind HTTPS.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for hosting on a VPS or cloud instance. Configure secrets and `DATABASE_URL` for **`core`**, then run the stack with Docker (or your orchestrator) behind HTTPS.
 
 ### Key Environment Variables
 
-Start from [`core/.env.example`](core/.env.example) (JWT, database, core flags). For the **full** local stack (ClickHouse, Redis, MinIO, ports, and service hostnames), use [`docker-compose.yml`](docker-compose.yml) as the source of truth — Compose wires services together even when every key is not duplicated in `.env.example`.
+Use [`.env.example`](.env.example) where present and [`docker-compose.yml`](docker-compose.yml) as the source of truth for ports and wired services.
 
 | Variable | Role |
 |---|---|
 | `DATABASE_URL` | PostgreSQL |
 | `JWT_SECRET` | Session / API auth |
-| `CLICKHOUSE_*` | Analytics store |
-| `REDIS_URL` | Cache & rate limits |
-| `S3_*` / `S3_ENDPOINT` | Replay storage |
+| `GLOBAL_API_KEY` | Service-to-service / internal routes |
+| `S3_*` / `S3_ENDPOINT` | Replay & heatmap object storage |
 | `CORS_ALLOWED_ORIGINS` | Browser origins allowed to call the API |
 
 ---
@@ -229,20 +206,13 @@ Start from [`core/.env.example`](core/.env.example) (JWT, database, core flags).
 ## Architecture
 
 ```
-Browser ──→ Next.js (:3000) ──→ Go API (:3002)
-                                      │
-          ┌───────────────────────────┼──────────────────────────┐
-          │                           │                          │
-    ClickHouse                   PostgreSQL                    Redis
-   (analytics)                  (sites, users…)                 │
-          │                           │                   (cache & limits)
-          └───────────────────────────┼──────────────────────────┘
-                                      │
-                                    MinIO
-                          (replay chunks; S3-compatible)
+Browser --> Next.js (:3000) -----> Bun API (:8080) -----> PostgreSQL
+                               |                              |
+                               +-----------------------------> MinIO
+                                                    (replays / heatmaps; S3-compatible)
 ```
 
-Tracking hits the **Go API**; events are **batched in memory** and written to **ClickHouse** (see [`core/README.md`](core/README.md)). **Redis** backs query cache and rate limiting. Replays use **S3-compatible** storage (e.g. MinIO in Docker).
+The tracker and dashboard call **`core`** (`/api/v1/...`). Analytics events are stored in **PostgreSQL** in this OSS stack; replays and heatmaps use **S3-compatible** storage (e.g. MinIO in Docker).
 
 ---
 

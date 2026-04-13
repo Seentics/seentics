@@ -44,7 +44,7 @@ export interface SessionReplayApiResponse {
   recording_pending?: boolean;
 }
 
-async function fetchGzipJsonArray(url: string): Promise<unknown[]> {
+export async function fetchGzipJsonArray(url: string): Promise<unknown[]> {
   const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
   if (!res.ok) {
     throw new Error(`Replay bundle fetch failed: ${res.status}`);
@@ -63,7 +63,8 @@ async function fetchGzipJsonArray(url: string): Promise<unknown[]> {
   return parsed;
 }
 
-function eventsFromChunkList(
+/** Converts warm-chunk / bundle rows into rrweb `eventWithTime` list + sidecar custom events. */
+export function eventsFromChunkList(
   chunks: Array<{ sequence: number; data: unknown[] }>,
 ): { events: RRWebEvent[]; customEvents: SessionCustomEvent[] } {
   type Tagged = { ev: RRWebEvent; chunk: number; row: number };
@@ -80,8 +81,12 @@ function eventsFromChunkList(
       if (item.type === 'rrweb' && item.data) {
         const inner = item.data;
         const type = typeof inner.type === 'string' ? parseInt(inner.type, 10) : inner.type;
-        const ts = typeof inner.timestamp === 'string' ? parseInt(inner.timestamp, 10) : inner.timestamp;
-        if (typeof type === 'number' && typeof ts === 'number') {
+        let ts = typeof inner.timestamp === 'string' ? parseInt(inner.timestamp, 10) : inner.timestamp;
+        if (typeof ts !== 'number' || Number.isNaN(ts)) {
+          const envTs = typeof item.ts === 'number' ? item.ts : Number(item.ts);
+          ts = Number.isFinite(envTs) ? envTs : NaN;
+        }
+        if (typeof type === 'number' && !Number.isNaN(type) && typeof ts === 'number' && !Number.isNaN(ts)) {
           ev = { ...inner, type, timestamp: ts } as RRWebEvent;
         }
       }

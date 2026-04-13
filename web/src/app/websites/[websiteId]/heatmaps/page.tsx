@@ -346,7 +346,7 @@ export default function HeatmapsPage() {
         onRowClick={row => router.push(heatmapHref(row.url))}
         emptyIcon={<Flame className="h-6 w-6" />}
         emptyTitle="No heatmap data yet"
-        emptyDescription="Install the tracker script to start collecting heatmap data."
+        emptyDescription="Install the tracker script, then open Settings → Features to enable heatmaps and adjust URL include/exclude patterns (localhost is often blocked by include rules). Run npm run bundle-trackers in seentics/web after changing the tracker."
       />
     </div>
   );

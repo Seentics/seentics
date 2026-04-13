@@ -2,16 +2,7 @@
 
 import Script from 'next/script';
 import { useEffect, useState } from 'react';
-import { config } from '@/lib/config';
-
-// Tracker appends `/api/v1/...`; env often uses `NEXT_PUBLIC_API_URL` with a trailing `/api/v1`.
-function normalizeTrackerApiHost(raw: string): string {
-  let s = raw.trim().replace(/\/+$/, '');
-  while (/\/api\/v1$/i.test(s)) {
-    s = s.replace(/\/api\/v1$/i, '');
-  }
-  return s;
-}
+import { normalizeTrackerApiHost } from '@/lib/config';
 
 /**
  * Loads the Seentics tracker **only** when self-tracking is configured via env.
@@ -24,6 +15,8 @@ function normalizeTrackerApiHost(raw: string): string {
  * - NEXT_PUBLIC_SEENTICS_WEBSITE_ID
  *
  * Optional: NEXT_PUBLIC_SEENTICS_TRACKER_URL, NEXT_PUBLIC_SEENTICS_API_HOST
+ *
+ * Default script URL is `/trackers/seentics.js` (built from `trackers/index.ts` via `npm run bundle-trackers`).
  */
 export default function TrackerScript() {
   const [mounted, setMounted] = useState(false);
@@ -40,20 +33,12 @@ export default function TrackerScript() {
     '';
 
   const envTrackerUrl = process.env.NEXT_PUBLIC_SEENTICS_TRACKER_URL?.trim() ?? '';
-  const envApiHost = process.env.NEXT_PUBLIC_SEENTICS_API_HOST?.trim() ?? '';
+  const apiHostOverride = process.env.NEXT_PUBLIC_SEENTICS_API_HOST?.trim();
 
-  // Default to the current origin so /api/v1 hits Next.js rewrites (local dev). Plain localhost:8080
-  // bypasses Next and breaks when the API is only reachable via the dev proxy.
-  const apiHostRaw =
-    envApiHost ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    window.location.origin ||
-    config.apiBaseUrl;
-  const apiHost = normalizeTrackerApiHost(apiHostRaw);
-
+  // Same static bundle as install snippets: `bundle-trackers` → public/trackers/seentics.js
   const trackerUrl =
     envTrackerUrl ||
-    `${window.location.origin}/api/tracker/seentics.js`;
+    `${window.location.origin}/trackers/seentics.js`;
 
   if (!siteId) return null;
 
@@ -63,7 +48,7 @@ export default function TrackerScript() {
       defer
       src={trackerUrl}
       data-website-id={siteId}
-      {...(apiHost ? { 'data-api-host': apiHost } : {})}
+      {...(apiHostOverride ? { 'data-api-host': normalizeTrackerApiHost(apiHostOverride) } : {})}
       strategy="afterInteractive"
     />
   );

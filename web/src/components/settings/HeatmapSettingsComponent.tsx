@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { updateWebsite, getWebsiteBySiteId } from '@/lib/websites-api';
+import { updateWebsite, getWebsiteByAnyId } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,7 +23,7 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
 
   const { data: website, isLoading } = useQuery({
     queryKey: ['website', websiteId],
-    queryFn: () => getWebsiteBySiteId(websiteId),
+    queryFn: () => getWebsiteByAnyId(websiteId),
     enabled: !!websiteId,
   });
 

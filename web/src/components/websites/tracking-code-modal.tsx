@@ -31,7 +31,9 @@ export function TrackingCodeModal({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const origin = window.location.origin;
-      setTrackingCode(`<!-- Seentics Analytics -->\n<script \n  defer \n  data-website-id="${siteId}" \n  src="${origin}/trackers/seentics.js"\n></script>`);
+      setTrackingCode(
+        `<!-- Seentics Analytics -->\n<script \n  defer \n  data-website-id="${siteId}" \n  src="${origin}/trackers/seentics.js"\n></script>`,
+      );
     }
   }, [siteId]);
 

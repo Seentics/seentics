@@ -201,19 +201,157 @@ function IconBadge({
   );
 }
 
-export function SessionCountryVisual({ country }: { country: string }) {
+export function SessionCountryVisual({
+  country,
+  compact,
+}: {
+  country: string;
+  /** Tighter row height for dense tables (e.g. session list). */
+  compact?: boolean;
+}) {
   const raw = country?.trim() ?? '';
   const hasName = raw.length > 0 && raw.toLowerCase() !== 'unknown';
   const displayName = hasName ? raw : '—';
   const flag = countryFlagUrl(country);
   const title = hasName ? raw : 'Unknown location';
 
+  if (compact) {
+    return (
+      <div className="flex min-h-[2.25rem] min-w-0 items-center gap-2" title={title}>
+        <span title={title} className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
+          {flag ? (
+            <img
+              src={flag}
+              alt=""
+              width={20}
+              height={20}
+              className="h-5 w-5 object-contain"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <Globe className="size-4 text-muted-foreground" />
+          )}
+        </span>
+        <span
+          className="max-w-[7.5rem] truncate text-xs font-medium text-foreground sm:max-w-[9rem]"
+          title={hasName ? raw : undefined}
+        >
+          {displayName}
+        </span>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center gap-3 min-h-6 min-w-0" title={title}>
+    <div className="flex min-h-6 min-w-0 items-center gap-3" title={title}>
       <IconBadge src={flag} label={title} childrenFallback={<Globe className="size-[18px]" />} />
-      <span className="text-sm text-foreground truncate max-w-[140px] sm:max-w-[180px]" title={hasName ? raw : undefined}>
+      <span className="max-w-[140px] truncate text-sm text-foreground sm:max-w-[180px]" title={hasName ? raw : undefined}>
         {displayName}
       </span>
+    </div>
+  );
+}
+
+function MicroIconBadge({
+  src,
+  label,
+  childrenFallback,
+  imgClassName,
+}: {
+  src: string | null;
+  label: string;
+  childrenFallback: ReactNode;
+  imgClassName?: string;
+}) {
+  return (
+    <span title={label} className="inline-flex h-4 w-4 shrink-0 items-center justify-center">
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          width={16}
+          height={16}
+          className={cn('h-4 w-4 object-contain rounded-none', imgClassName)}
+          loading="lazy"
+          decoding="async"
+        />
+      ) : (
+        <span className="flex items-center justify-center text-muted-foreground [&_svg]:size-3.5">{childrenFallback}</span>
+      )}
+    </span>
+  );
+}
+
+/** Single-line browser / OS / device: icon + label for each segment. */
+export function SessionClientRowStack({
+  browser,
+  os,
+  device,
+}: {
+  browser: string;
+  os: string;
+  device: string;
+}) {
+  const br = normalizeBrowser(browser);
+  const osN = normalizeOS(os);
+  const browserSrc = br.slug ? browserIconSrc(br.slug) : null;
+  const osSrc = osN.slug ? osIconSrc(osN.slug) : null;
+
+  const d = device.toLowerCase();
+  const deviceLabel =
+    device?.trim() && device !== 'Unknown'
+      ? device.charAt(0).toUpperCase() + device.slice(1).toLowerCase()
+      : 'Desktop';
+  const deviceIcon =
+    d === 'mobile' ? (
+      <Smartphone className="size-3.5" />
+    ) : d === 'tablet' ? (
+      <Tablet className="size-3.5" />
+    ) : (
+      <Monitor className="size-3.5" />
+    );
+
+  const summary = `${br.label} · ${osN.label} · ${deviceLabel}`;
+
+  const sep = (
+    <span
+      className="mx-0.5 inline-flex h-4 w-px shrink-0 self-center bg-border/60"
+      aria-hidden
+    />
+  );
+
+  return (
+    <div className="flex w-full items-center justify-center py-0.5">
+      <div
+        className="inline-flex min-w-0 max-w-full items-center text-xs leading-none text-foreground/90"
+        title={summary}
+      >
+        <div className="flex min-w-0 items-center gap-1.5">
+          <MicroIconBadge src={browserSrc} label={br.label} childrenFallback={<Globe className="size-3.5" />} />
+          <span className="min-w-0 max-w-[7rem] truncate font-medium sm:max-w-[9rem]">{br.label}</span>
+        </div>
+        {sep}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <MicroIconBadge
+            src={osSrc}
+            label={osN.label}
+            imgClassName={osN.slug === 'apple' ? 'dark:invert dark:opacity-95' : undefined}
+            childrenFallback={<Globe className="size-3.5" />}
+          />
+          <span className="min-w-0 max-w-[6.5rem] truncate sm:max-w-[8rem]">{osN.label}</span>
+        </div>
+        {sep}
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span
+            className="inline-flex h-4 w-4 shrink-0 items-center justify-center text-muted-foreground"
+            title={deviceLabel}
+          >
+            {deviceIcon}
+          </span>
+          <span className="min-w-0 max-w-[5rem] truncate sm:max-w-[6rem]">{deviceLabel}</span>
+        </div>
+      </div>
     </div>
   );
 }

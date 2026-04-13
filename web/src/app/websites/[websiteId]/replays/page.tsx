@@ -25,7 +25,7 @@ import { isDemo } from '@/lib/demo';
 import { demoReplays } from '@/lib/demo/replays';
 import { listSessions, deleteSessions, type ReplaySession } from '@/lib/replays-api';
 import { useToast } from '@/hooks/use-toast';
-import { SessionClientVisuals, SessionCountryVisual } from '@/components/replays/session-environment-visuals';
+import { SessionClientRowStack, SessionCountryVisual } from '@/components/replays/session-environment-visuals';
 
 
 function formatDuration(seconds: number): string {
@@ -209,20 +209,20 @@ export default function ReplaysPage() {
     {
       id: 'country',
       accessorKey: 'country',
-      header: ({ column }) => <SortableHeader column={column}>Origin</SortableHeader>,
-      size: 200,
+      header: ({ column }) => <SortableHeader column={column}>Location</SortableHeader>,
+      size: 148,
       cell: ({ row }) => {
         const s = row.original;
         return (
-          <div className="flex items-center gap-4 min-h-10">
-            <SessionCountryVisual country={s.country} />
+          <div className="flex min-w-0 items-start justify-between gap-2">
+            <SessionCountryVisual country={s.country} compact />
             {(s.has_errors || s.has_rage_clicks) && (
               <span
-                className="flex flex-col gap-1.5 shrink-0"
+                className="flex shrink-0 flex-col gap-1 pt-0.5"
                 title={[s.has_rage_clicks && 'Rage clicks', s.has_errors && 'Issues'].filter(Boolean).join(' · ')}
               >
-                {s.has_rage_clicks && <span className="size-2 rounded-full bg-amber-500 shadow-sm" aria-hidden />}
-                {s.has_errors && <span className="size-2 rounded-full bg-red-500 shadow-sm" aria-hidden />}
+                {s.has_rage_clicks && <span className="size-1.5 rounded-full bg-amber-500 shadow-sm" aria-hidden />}
+                {s.has_errors && <span className="size-1.5 rounded-full bg-red-500 shadow-sm" aria-hidden />}
               </span>
             )}
           </div>
@@ -236,19 +236,22 @@ export default function ReplaysPage() {
       size: 200,
       cell: ({ row }) => {
         const s = row.original;
-        return <SessionClientVisuals browser={s.browser} os={s.os} device={s.device} />;
+        return <SessionClientRowStack browser={s.browser} os={s.os} device={s.device} />;
       },
     },
     {
       id: 'entry_page',
       header: 'Entry page',
       accessorKey: 'entry_page',
-      size: 240,
+      size: 220,
       cell: ({ getValue }) => {
         const { display, title } = entryPathDisplay(getValue() as string, websiteId);
         return (
-          <span className="font-mono text-xs text-muted-foreground block min-w-0 max-w-[min(100%,28rem)] truncate" title={title}>
-            {display}
+          <span
+            className="inline-flex max-w-full min-w-0 items-center rounded-md border border-border/50 bg-muted/30 px-2.5 py-1.5 font-mono text-[11px] leading-snug text-foreground sm:text-xs"
+            title={title}
+          >
+            <span className="truncate">{display}</span>
           </span>
         );
       },
@@ -257,11 +260,11 @@ export default function ReplaysPage() {
       id: 'duration',
       header: ({ column }) => <SortableHeader column={column}>Duration</SortableHeader>,
       accessorKey: 'duration_seconds',
-      size: 96,
+      size: 100,
       cell: ({ getValue }) => {
         const v = getValue() as number;
         return (
-          <span className="text-sm tabular-nums text-foreground tracking-wide">
+          <span className="text-sm font-semibold tabular-nums tracking-tight text-foreground">
             {v > 0 ? formatDuration(v) : '—'}
           </span>
         );
@@ -271,9 +274,12 @@ export default function ReplaysPage() {
       id: 'when',
       header: ({ column }) => <SortableHeader column={column}>Recorded</SortableHeader>,
       accessorKey: 'start_time',
-      size: 96,
+      size: 104,
       cell: ({ getValue }) => (
-        <span className="text-sm text-muted-foreground whitespace-nowrap">{timeAgo(getValue() as string)}</span>
+        <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs text-muted-foreground">
+          <Clock className="size-3.5 shrink-0 opacity-60" aria-hidden />
+          {timeAgo(getValue() as string)}
+        </span>
       ),
     },
     {
@@ -358,11 +364,11 @@ export default function ReplaysPage() {
       ]} />
 
       <DataTable
-        className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-2.5 [&_th]:!py-3.5"
+        className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden [&_tbody_tr]:transition-colors [&_tbody_td]:align-middle [&_td]:!py-3.5 [&_th]:!py-3.5"
         data={filtered}
         columns={columns}
         isLoading={isLoading}
-        rowClassName={() => 'hover:bg-muted/40'}
+        rowClassName={() => 'hover:bg-muted/35'}
         enableRowSelection={true}
         selectionActions={(selectedRows) => (
           <>

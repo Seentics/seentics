@@ -1,64 +1,43 @@
-# Contributing to Seentics Analytics
+# Contributing to Seentics
 
-Thank you for your interest in contributing to the Seentics Analytics engine! This document provides guidelines for contributors to the Open Source analytics stack.
+Thank you for your interest in contributing. This document covers the open-source app layout in this repo.
 
-## 🚀 Getting Started
+## Getting started
 
 ### Prerequisites
-- **Node.js** 18+
-- **Go** 1.23+
-- **Docker** & Docker Compose
+
+- **Bun** (recommended) or **Node.js** 18+ for `npm run check` in `core`
+- **Docker** and Docker Compose
 - **Git**
 
-### Development Setup
-1. Fork the repository
-2. Clone your fork: `git clone https://github.com/skshohagmiah/seentics-analytics.git`
-3. Install dependencies:
+### Development setup
+
+1. Fork the repository and clone your fork.
+2. Install dependencies:
    ```bash
-   # Analytics Backend
-   cd core && go mod tidy
-   
-   # Analytics Frontend
+   cd core && bun install # or: npm install
    cd ../web && npm install
    ```
-4. Set up environment variables:
-   - Create `.env` in `core/` based on `.env.example`
-   - Create `.env.local` in `web/` based on `web/.env.example`
-5. Start infrastructure: `docker compose up -d` (Postgres, Redis, Kafka)
+3. Environment: see **`.env.example`** in this directory and **`docker-compose.yml`** for local URLs and ports.
+4. Start the stack: `docker compose up -d --build` (from the `seentics/` directory).
 
-## 📝 How to Contribute
+## How to contribute
 
-### 1. Reporting Issues
-- Use GitHub Issues for bug reports.
-- Provide clear reproduction steps and environment details.
+- Use GitHub Issues for bug reports with clear reproduction steps.
+- Use branches and PRs with focused changes; match existing code style in `core/` and `web/`.
 
-### 2. Submitting Code Changes
-1. Create a feature branch: `git checkout -b feature/your-feature-name`
-2. Make your changes and add tests.
-3. Ensure Go code is formatted: `go fmt ./...`
-4. Commit with clear messages.
-5. Open a Pull Request.
+## Code style
 
-## 🎯 Development Guidelines
+- **Core (`core/`)**: TypeScript, Hono routes, Drizzle for SQL; run `npm run check` (or `bunx tsc --noEmit`) before pushing.
+- **Frontend (`web/`)**: Next.js, Tailwind, existing component patterns.
 
-### Code Style
-- **Backend (Go)**: Follow standard Go conventions and use `zerolog` for logging.
-- **Frontend (Next.js)**: Use TailwindCSS (if enabled) and follow React best practices.
-
-### Testing
-- **Backend**: Run tests with `go test ./...`
-- **Frontend**: Run tests with `npm test`
-
-## 🔧 Project Structure
+## Project structure
 
 ```
-analytics/
-├── core/                    # Go Analytics Engine
-├── web/                     # Next.js Dashboard UI
-├── docker-compose.yml       # Standalone OSS stack
-└── README.md                # Project overview
+seentics/
+├── core/             # Bun + Hono + Drizzle — OSS API
+├── web/              # Next.js dashboard
+└── docker-compose.yml
 ```
 
----
-
-Thank you for helping make Seentics better! 🚀
+Thank you for helping improve Seentics.

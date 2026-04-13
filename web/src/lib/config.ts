@@ -53,6 +53,18 @@ function resolvedApiBase(fromEnv: string): string {
     : `${apiBase}/api/${config.apiVersion}`;
 }
 
+/**
+ * Strip trailing slashes and any `/api/v1` suffix so COLLECT = host + '/api/v1/tracker/collect'.
+ * Matches the tracker script's `data-api-host` normalization.
+ */
+export function normalizeTrackerApiHost(raw: string): string {
+  let s = raw.trim().replace(/\/+$/, '');
+  while (/\/api\/v1$/i.test(s)) {
+    s = s.replace(/\/api\/v1$/i, '');
+  }
+  return s;
+}
+
 export const getApiUrl = (endpoint: string = '') => {
   const ep = normalizeApiEndpoint(endpoint);
 

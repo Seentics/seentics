@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { CreditCard, Goal, KeyRound, LayoutGrid, LifeBuoy, Shield, Users } from 'lucide-react';
+import { CreditCard, Goal, KeyRound, LayoutGrid, LifeBuoy, Shield, User, Users, Layers } from 'lucide-react';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { isEnterprise } from '@/lib/features';
@@ -18,6 +18,18 @@ export default function SettingsPage() {
       description: 'Add sites, copy tracking snippets, edit details, or remove properties.',
       href: `/websites/${websiteId}/settings/websites`,
       icon: LayoutGrid,
+    },
+    {
+      title: 'Features',
+      description: 'Heatmaps, session replay, funnels, automations — enable, disable, and URL patterns.',
+      href: `/websites/${websiteId}/settings/features`,
+      icon: Layers,
+    },
+    {
+      title: 'Profile',
+      description: 'Your name, email, and password.',
+      href: `/websites/${websiteId}/settings/profile`,
+      icon: User,
     },
     {
       title: 'Developers',
@@ -36,12 +48,6 @@ export default function SettingsPage() {
       description: 'Control data collection and compliance options.',
       href: `/websites/${websiteId}/settings/privacy`,
       icon: Shield,
-    },
-    {
-      title: 'Support',
-      description: 'Contact us, book a call, or get help with your workspace.',
-      href: `/websites/${websiteId}/settings/support`,
-      icon: LifeBuoy,
     },
     ...(isEnterprise
       ? [
@@ -63,6 +69,12 @@ export default function SettingsPage() {
           },
         ]
       : []),
+    {
+      title: 'Support',
+      description: 'Contact us, book a call, or get help with your workspace.',
+      href: `/websites/${websiteId}/settings/support`,
+      icon: LifeBuoy,
+    },
   ];
 
   return (

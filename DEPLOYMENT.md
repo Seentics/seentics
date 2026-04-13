@@ -95,7 +95,6 @@ Go to your GitHub Repo -> **Settings** -> **Secrets and variables** -> **Actions
 | `POSTGRES_PASSWORD` | `<secure-password>` | Generate a strong password. |
 | `POSTGRES_DB` | `seentics_analytics` | Database name. |
 | `JWT_SECRET` | `<secure-random-string>` | Secret for JWT tokens. |
-| `REDIS_PASSWORD` | `<secure-password>` | Password for Redis. |
 | `GLOBAL_API_KEY` | `<secure-random-string>` | API Key for internal services. |
 | `NEXT_PUBLIC_API_URL` | `http://<your-ec2-public-ip>:3002` | **Important**: Use your EC2 IP or Domain. This is baked into the frontend build. |
 

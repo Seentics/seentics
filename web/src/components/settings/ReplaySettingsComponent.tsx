@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  getWebsiteBySiteId,
+  getWebsiteByAnyId,
   updateWebsite,
   Website
 } from '@/lib/websites-api';
@@ -32,7 +32,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
 
   const { data: website, isLoading } = useQuery<Website | null>({
     queryKey: ['website', websiteId],
-    queryFn: () => getWebsiteBySiteId(websiteId),
+    queryFn: () => getWebsiteByAnyId(websiteId),
   });
 
   useEffect(() => {

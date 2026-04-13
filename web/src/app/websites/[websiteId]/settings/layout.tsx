@@ -5,7 +5,7 @@ import { useAuth } from '@/stores/useAuthStore';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
-import { ArrowLeft, CreditCard, Goal, Settings, Shield, Users, KeyRound, LifeBuoy, LayoutGrid, Loader2 } from 'lucide-react';
+import { ArrowLeft, CreditCard, Goal, Settings, Shield, Users, KeyRound, LifeBuoy, LayoutGrid, User, Loader2, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
@@ -23,12 +23,14 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     () => [
       { href: `/websites/${websiteId}/settings`, label: 'Overview', icon: Settings },
       { href: `/websites/${websiteId}/settings/websites`, label: 'Websites', icon: LayoutGrid },
+      { href: `/websites/${websiteId}/settings/features`, label: 'Features', icon: Layers },
+      { href: `/websites/${websiteId}/settings/profile`, label: 'Profile', icon: User },
       { href: `/websites/${websiteId}/settings/developers`, label: 'Developers', icon: KeyRound },
       { href: `/websites/${websiteId}/settings/goals`, label: 'Goals', icon: Goal },
       { href: `/websites/${websiteId}/settings/privacy`, label: 'Privacy', icon: Shield },
-      { href: `/websites/${websiteId}/settings/support`, label: 'Support', icon: LifeBuoy },
       { href: `/websites/${websiteId}/settings/team`, label: 'Team', icon: Users, enterpriseOnly: true },
       { href: `/websites/${websiteId}/settings/billing`, label: 'Billing', icon: CreditCard, enterpriseOrDemoBilling: true },
+      { href: `/websites/${websiteId}/settings/support`, label: 'Support', icon: LifeBuoy },
     ],
     [websiteId],
   );
