@@ -26,7 +26,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "postinstall": "patch-package",
+    "postinstall": "patch-package && node scripts/bundle-trackers.cjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

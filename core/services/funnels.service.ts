@@ -4,6 +4,9 @@ import { db, funnels } from "../db";
 import * as ws from "./websites.service";
 import { resolveWebsiteIds } from "../lib/website-resolve";
 
+/** Event `type` values in the tracker `funnels` batch (persisted to `analytics_events`). */
+export const TRACKER_FUNNEL_EVENT_TYPES = new Set(["funnel_step", "funnel_complete"]);
+
 function mapFunnel(row: typeof funnels.$inferSelect) {
   const steps = (row.steps as Record<string, unknown>[]).map((s, i) => ({
     id: String(s.id ?? `step-${i}`),

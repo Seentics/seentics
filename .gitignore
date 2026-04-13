@@ -78,6 +78,10 @@ frontend/.next/
 frontend/node_modules/
 frontend/out/
 
+# MaxMind GeoIP database (download locally — see README)
+data/maxmind/*.mmdb
+core/db/**/*.mmdb
+
 # Misc
 *.bak
 *.tmp

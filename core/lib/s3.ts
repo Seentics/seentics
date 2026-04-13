@@ -133,6 +133,20 @@ class Mutex {
   }
 }
 
+export async function deleteS3Objects(bucket: string, keys: string[]): Promise<void> {
+  const uniq = [...new Set(keys.filter(Boolean))];
+  const chunk = 1000;
+  for (let i = 0; i < uniq.length; i += chunk) {
+    const part = uniq.slice(i, i + chunk);
+    await s3().send(
+      new DeleteObjectsCommand({
+        Bucket: bucket,
+        Delete: { Objects: part.map((Key) => ({ Key })), Quiet: true },
+      }),
+    );
+  }
+}
+
 export async function deleteSessionPrefix(bucket: string, websiteId: string, sessionId: string): Promise<void> {
   const prefix = sessionPrefix(websiteId, sessionId);
   let token: string | undefined;

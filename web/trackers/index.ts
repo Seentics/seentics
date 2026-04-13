@@ -938,7 +938,16 @@ const trackPage = (): void => {
   pushAnalytics('pageview', {
     title: document.title, referrer: document.referrer,
     ...deviceInfo(),
-    ...(utm ? { utm } : {}),
+    ...(utm
+      ? {
+          utm,
+          ...(utm.source ? { utm_source: utm.source } : {}),
+          ...(utm.medium ? { utm_medium: utm.medium } : {}),
+          ...(utm.campaign ? { utm_campaign: utm.campaign } : {}),
+          ...(utm.term ? { utm_term: utm.term } : {}),
+          ...(utm.content ? { utm_content: utm.content } : {}),
+        }
+      : {}),
   });
   evalFunnels(location.pathname);
   evalAutomations('pageview', { path: location.pathname, title: document.title });

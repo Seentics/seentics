@@ -5,19 +5,33 @@ import { useEffect, useState } from 'react';
 import { normalizeTrackerApiHost } from '@/lib/config';
 
 /**
- * Loads the Seentics tracker **only** when self-tracking is configured via env.
+ * Self-tracking (dogfood): **only** `NEXT_PUBLIC_*` env — never the URL `/websites/[id]`.
+ * Otherwise browsing another customer’s analytics would send events to the wrong site.
  *
- * We intentionally do **not** infer `data-website-id` from the URL (e.g. `/websites/[id]`).
- * Otherwise every dashboard session would pollute the **customer** website that is open in the UI.
- *
- * Set one of:
+ * Set a site UUID via one of:
  * - NEXT_PUBLIC_SEENTICS_SITE_ID
  * - NEXT_PUBLIC_SEENTICS_WEBSITE_ID
+ * - NEXT_PUBLIC_DEFAULT_SITE_ID
  *
- * Optional: NEXT_PUBLIC_SEENTICS_TRACKER_URL, NEXT_PUBLIC_SEENTICS_API_HOST
+ * Script `src` (no hardcoding in code — use env):
+ * 1. `NEXT_PUBLIC_SEENTICS_TRACKER_URL` — full URL, e.g. `http://localhost:3000/trackers/seentics.js`
+ * 2. Else `NEXT_PUBLIC_FRONTEND_URL` + `/trackers/seentics.js`
+ * 3. Else `window.location.origin` + `/trackers/seentics.js`
  *
- * Default script URL is `/trackers/seentics.js` (built from `trackers/index.ts` via `npm run bundle-trackers`).
+ * Optional: NEXT_PUBLIC_SEENTICS_API_HOST
+ *
+ * Bundle: `bundle-trackers` → `public/trackers/seentics.js`
  */
+function resolveTrackerScriptSrc(): string {
+  const explicit = process.env.NEXT_PUBLIC_SEENTICS_TRACKER_URL?.trim();
+  if (explicit) return explicit;
+
+  const frontendBase = process.env.NEXT_PUBLIC_FRONTEND_URL?.trim().replace(/\/$/, '') ?? '';
+  if (frontendBase) return `${frontendBase}/trackers/seentics.js`;
+
+  return `${window.location.origin}/trackers/seentics.js`;
+}
+
 export default function TrackerScript() {
   const [mounted, setMounted] = useState(false);
 
@@ -30,17 +44,22 @@ export default function TrackerScript() {
   const siteId =
     process.env.NEXT_PUBLIC_SEENTICS_SITE_ID?.trim() ||
     process.env.NEXT_PUBLIC_SEENTICS_WEBSITE_ID?.trim() ||
+    process.env.NEXT_PUBLIC_DEFAULT_SITE_ID?.trim() ||
     '';
 
-  const envTrackerUrl = process.env.NEXT_PUBLIC_SEENTICS_TRACKER_URL?.trim() ?? '';
   const apiHostOverride = process.env.NEXT_PUBLIC_SEENTICS_API_HOST?.trim();
 
-  // Same static bundle as install snippets: `bundle-trackers` → public/trackers/seentics.js
-  const trackerUrl =
-    envTrackerUrl ||
-    `${window.location.origin}/trackers/seentics.js`;
+  const trackerUrl = resolveTrackerScriptSrc();
 
-  if (!siteId) return null;
+  if (!siteId) {
+    if (process.env.NODE_ENV === 'development') {
+      // eslint-disable-next-line no-console -- intentional dev-only hint when /collect never fires
+      console.info(
+        '[Seentics] Self-tracking script skipped: set NEXT_PUBLIC_SEENTICS_WEBSITE_ID (or NEXT_PUBLIC_DEFAULT_SITE_ID) in .env.local to your dashboard website UUID, then restart dev.',
+      );
+    }
+    return null;
+  }
 
   return (
     <Script

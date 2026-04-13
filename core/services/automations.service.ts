@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { AutomationUpdatePatch, CreateAutomationBody } from "../lib/api-types";
-import { automationExecutions, automations, db } from "../db";
+import { automationEvents, automations, db } from "../db";
 import * as ws from "./websites.service";
 import { resolveWebsiteIds } from "../lib/website-resolve";
 
@@ -76,7 +76,7 @@ export async function update(
 export async function remove(userId: string, websiteParam: string, id: string) {
   await ws.assertWebsiteAccess(userId, websiteParam);
   const { uuidStr } = await resolveWebsiteIds(websiteParam);
-  await db.delete(automationExecutions).where(eq(automationExecutions.automationId, id));
+  await db.delete(automationEvents).where(eq(automationEvents.automationId, id));
   await db.delete(automations).where(and(eq(automations.id, id), eq(automations.websiteId, uuidStr)));
 }
 
@@ -84,7 +84,7 @@ export async function bulkDelete(userId: string, websiteParam: string, ids: stri
   await ws.assertWebsiteAccess(userId, websiteParam);
   const { uuidStr } = await resolveWebsiteIds(websiteParam);
   for (const id of ids) {
-    await db.delete(automationExecutions).where(eq(automationExecutions.automationId, id));
+    await db.delete(automationEvents).where(eq(automationEvents.automationId, id));
     await db.delete(automations).where(and(eq(automations.id, id), eq(automations.websiteId, uuidStr)));
   }
 }
@@ -100,9 +100,9 @@ export async function executions(userId: string, websiteParam: string, id: strin
   if (!a) return null;
   const rows = await db
     .select()
-    .from(automationExecutions)
-    .where(eq(automationExecutions.automationId, id))
-    .orderBy(desc(automationExecutions.createdAt))
+    .from(automationEvents)
+    .where(eq(automationEvents.automationId, id))
+    .orderBy(desc(automationEvents.createdAt))
     .limit(100);
   return { data: rows };
 }

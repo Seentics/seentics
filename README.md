@@ -200,6 +200,13 @@ Use [`.env.example`](.env.example) where present and [`docker-compose.yml`](dock
 | `GLOBAL_API_KEY` | Service-to-service / internal routes |
 | `S3_*` / `S3_ENDPOINT` | Replay & heatmap object storage |
 | `CORS_ALLOWED_ORIGINS` | Browser origins allowed to call the API |
+| `TRUST_PROXY` | When `true`, trust `X-Forwarded-For` / `cf-connecting-ip` / `x-real-ip` for client IP (needed behind a reverse proxy for accurate GeoIP + rate limits) |
+| `MAXMIND_DB_PATH` | Path inside the container to a **GeoLite2-City** or **GeoIP2-City** `.mmdb` file (local lookups only; no HTTP Geo API) |
+| `MAXMIND_GEO_CACHE_MAX` | In-memory cap on cached IP → geo entries (default `50000`) |
+
+### Geolocation (dashboard geography)
+
+Analytics ingest resolves visitor IP to **country / region / city** using MaxMind’s MMDB reader (`@maxmind/geoip2-node`). Download **GeoLite2-City.mmdb** from [MaxMind](https://dev.maxmind.com/geoip/updating-databases/) and place it in **`data/maxmind/`** next to `docker-compose.yml` (mounted at `/data/maxmind` in the API container). If the file is missing, the API still runs; geography columns may stay empty unless the CDN sends `CF-IPCountry` or the tracker sends fields in event `data`.
 
 ---
 

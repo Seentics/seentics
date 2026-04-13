@@ -49,12 +49,57 @@ export function env() {
     isProduction ? 120 : 50_000,
   );
   const rateInternal = parseIntEnv(process.env.RATE_LIMIT_INTERNAL_MAX, 2000);
+  const rateRaw = parseIntEnv(
+    process.env.RATE_LIMIT_RAW_MAX,
+    isProduction ? 240 : 4000,
+  );
+  const rateRawPerKey = parseIntEnv(
+    process.env.RATE_LIMIT_RAW_PER_KEY_MAX,
+    isProduction ? 120 : 8000,
+  );
 
-  const analyticsCacheEnabled = parseBool(process.env.ANALYTICS_CACHE_ENABLED, true);
+  /** Off in development by default so dashboards don’t stick on cached empty responses; enable in prod or set ANALYTICS_CACHE_ENABLED=true. */
+  const analyticsCacheEnabled = parseBool(process.env.ANALYTICS_CACHE_ENABLED, isProduction);
   const analyticsCacheTtlMs = parseIntEnv(process.env.ANALYTICS_CACHE_TTL_MS, 15_000);
   const analyticsCacheMaxEntries = parseIntEnv(process.env.ANALYTICS_CACHE_MAX_ENTRIES, 512);
 
+  const ingestQueueFlushMs = parseIntEnv(process.env.INGEST_QUEUE_FLUSH_MS, 1000);
+  const ingestQueueMaxEvents = parseIntEnv(process.env.INGEST_QUEUE_MAX_EVENTS_BEFORE_FLUSH, 50_000);
+  const ingestQueueMaxRecordings = parseIntEnv(process.env.INGEST_QUEUE_MAX_RECORDINGS_BEFORE_FLUSH, 50_000);
+  const ingestQueueMaxHeatmaps = parseIntEnv(process.env.INGEST_QUEUE_MAX_HEATMAPS_BEFORE_FLUSH, 25_000);
+  const ingestQueueMaxFunnels = parseIntEnv(process.env.INGEST_QUEUE_MAX_FUNNELS_BEFORE_FLUSH, 50_000);
+  const ingestQueueMaxAutomations = parseIntEnv(process.env.INGEST_QUEUE_MAX_AUTOMATIONS_BEFORE_FLUSH, 50_000);
+
+  const trackerCacheEnabled = parseBool(process.env.TRACKER_CACHE_ENABLED, true);
+  const trackerWebsiteCacheTtlMs = parseIntEnv(process.env.TRACKER_WEBSITE_CACHE_TTL_MS, 180_000);
+  const trackerOriginCacheTtlMs = parseIntEnv(process.env.TRACKER_ORIGIN_CACHE_TTL_MS, 180_000);
+  const trackerCacheMaxEntries = parseIntEnv(process.env.TRACKER_CACHE_MAX_ENTRIES, 4096);
+
+  const dataRetentionEnabled = parseBool(process.env.DATA_RETENTION_ENABLED, true);
+  const dataRetentionCron = process.env.DATA_RETENTION_CRON ?? "15 4 * * *";
+  const dataRetentionAnalyticsDays = parseIntEnv(process.env.DATA_RETENTION_ANALYTICS_DAYS, 1095);
+  const dataRetentionReplayDays = parseIntEnv(process.env.DATA_RETENTION_REPLAY_DAYS, 30);
+  const dataRetentionHeatmapDays = parseIntEnv(process.env.DATA_RETENTION_HEATMAP_DAYS, 7);
+  const dataRetentionFunnelAutomationDays = parseIntEnv(
+    process.env.DATA_RETENTION_FUNNEL_AUTOMATION_DAYS,
+    30,
+  );
+  const dataRetentionTempHours = parseIntEnv(process.env.DATA_RETENTION_TEMP_HOURS, 24);
+  const dataRetentionReplayBatch = parseIntEnv(process.env.DATA_RETENTION_REPLAY_DELETE_BATCH, 500);
+  const dataRetentionEnterpriseEnabled = parseBool(process.env.DATA_RETENTION_ENTERPRISE_ENABLED, false);
+  const enterpriseRetentionUrlRaw = process.env.ENTERPRISE_RETENTION_URL ?? "";
+  const enterpriseGatewayUrl = (process.env.ENTERPRISE_GATEWAY_URL ?? "").replace(/\/$/, "");
+  const enterpriseRetentionUrl =
+    enterpriseRetentionUrlRaw ||
+    (enterpriseGatewayUrl ? `${enterpriseGatewayUrl}/api/v1/internal/data-retention` : "");
+  const dataRetentionEnterpriseFetchMs = parseIntEnv(process.env.DATA_RETENTION_ENTERPRISE_FETCH_MS, 15_000);
+
   const logLevel = (process.env.LOG_LEVEL ?? (isProduction ? "info" : "debug")).toLowerCase();
+  /** When true, emit structured `tracker_collect` / ingest summaries at `info` (see also `LOG_LEVEL=debug`). */
+  const diagnosticLog = parseBool(process.env.SEENTICS_DIAGNOSTIC_LOG, false);
+
+  const maxmindDbPath = (process.env.MAXMIND_DB_PATH ?? "").trim();
+  const maxmindGeoCacheMax = parseIntEnv(process.env.MAXMIND_GEO_CACHE_MAX, 50_000);
 
   return {
     databaseUrl,
@@ -68,8 +113,14 @@ export function env() {
     spoolMaxAgeMs,
     port: Number(process.env.PORT ?? "8080"),
     trustProxy: parseBool(process.env.TRUST_PROXY, false),
+    /** Local GeoLite2-City / GeoIP2-City `.mmdb` path; no HTTP API — see `lib/maxmind-geo.ts`. */
+    maxmind: {
+      dbPath: maxmindDbPath,
+      geoCacheMax: Math.max(1000, maxmindGeoCacheMax),
+    },
     corsAllowedOrigins,
     logLevel,
+    diagnosticLog,
     rateLimit: {
       enabled: rateLimitEnabled,
       windowMs: rateWindowMs,
@@ -77,11 +128,43 @@ export function env() {
       authMax: rateAuth,
       trackerMax: rateTracker,
       internalMax: rateInternal,
+      /** Per client IP for `GET /api/v1/raw/*` (before API key is validated). */
+      rawMax: rateRaw,
+      /** Per verified `api_keys` row for `/api/v1/raw/*` (after successful `X-API-Key` check). */
+      rawPerKeyMax: rateRawPerKey,
     },
     analyticsCache: {
       enabled: analyticsCacheEnabled,
       ttlMs: analyticsCacheTtlMs,
       maxEntries: analyticsCacheMaxEntries,
+    },
+    ingestQueue: {
+      flushMs: Math.max(200, ingestQueueFlushMs),
+      maxEventsBeforeForceFlush: Math.max(1000, ingestQueueMaxEvents),
+      maxRecordingsBeforeForceFlush: Math.max(1000, ingestQueueMaxRecordings),
+      maxHeatmapsBeforeForceFlush: Math.max(500, ingestQueueMaxHeatmaps),
+      maxFunnelsBeforeForceFlush: Math.max(1000, ingestQueueMaxFunnels),
+      maxAutomationsBeforeForceFlush: Math.max(1000, ingestQueueMaxAutomations),
+    },
+    /** In-memory TTL caches for tracker hot paths (`resolveWebsiteForTracker`, `validateOriginDomain`). */
+    trackerCache: {
+      enabled: trackerCacheEnabled,
+      websiteTtlMs: Math.max(10_000, trackerWebsiteCacheTtlMs),
+      originTtlMs: Math.max(10_000, trackerOriginCacheTtlMs),
+      maxEntries: Math.max(64, trackerCacheMaxEntries),
+    },
+    dataRetention: {
+      enabled: dataRetentionEnabled,
+      cronExpression: dataRetentionCron,
+      analyticsDays: Math.max(1, dataRetentionAnalyticsDays),
+      replayDays: Math.max(1, dataRetentionReplayDays),
+      heatmapDays: Math.max(1, dataRetentionHeatmapDays),
+      funnelAutomationDays: Math.max(1, dataRetentionFunnelAutomationDays),
+      tempDataHours: Math.max(1, dataRetentionTempHours),
+      replayDeleteBatchSize: Math.max(10, dataRetentionReplayBatch),
+      enterpriseEnabled: dataRetentionEnterpriseEnabled,
+      enterpriseRetentionUrl: enterpriseRetentionUrl || undefined,
+      enterpriseFetchTimeoutMs: Math.max(3000, dataRetentionEnterpriseFetchMs),
     },
   };
 }

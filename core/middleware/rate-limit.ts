@@ -5,11 +5,12 @@ import type { AppConfig } from "../config";
 
 let lastPrune = 0;
 
-function tierForPath(path: string): "skip" | "auth" | "tracker" | "internal" | "general" {
+function tierForPath(path: string): "skip" | "auth" | "tracker" | "internal" | "raw" | "general" {
   if (path === "/health") return "skip";
   if (path.startsWith("/api/v1/internal")) return "internal";
   if (path.startsWith("/api/v1/auth") || path.startsWith("/api/v1/user/auth")) return "auth";
   if (path.startsWith("/api/v1/tracker")) return "tracker";
+  if (path.startsWith("/api/v1/raw")) return "raw";
   return "general";
 }
 
@@ -34,6 +35,7 @@ export function rateLimitMiddleware(cfg: AppConfig): MiddlewareHandler {
     if (tier === "auth") limit = cfg.rateLimit.authMax;
     else if (tier === "tracker") limit = cfg.rateLimit.trackerMax;
     else if (tier === "internal") limit = cfg.rateLimit.internalMax;
+    else if (tier === "raw") limit = cfg.rateLimit.rawMax;
 
     const key = `rl:${tier}:${ip}`;
     const r = takeRateToken(key, limit, windowMs);

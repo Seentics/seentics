@@ -139,8 +139,10 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
 
     const grouped: Record<string, number> = {};
     for (const r of filtered) {
-      const ref = r.referrer || '';
-      const name = isDirect(ref) ? 'Direct' : getCanonicalName(ref) || 'Direct';
+      const ref = (r.referrer || '').trim();
+      /** Parent already maps raw URLs to labels (e.g. Internal Navigation). Don’t re-parse those or we lower-case and duplicate buckets. */
+      const looksLikeUrl = /:\/\//.test(ref) || (ref.includes('.') && ref.includes('/') && !ref.includes(' '));
+      const name = isDirect(ref) ? 'Direct' : looksLikeUrl ? getCanonicalName(ref) || 'Direct' : ref || 'Direct';
       grouped[name] = (grouped[name] || 0) + r.visitors;
     }
 

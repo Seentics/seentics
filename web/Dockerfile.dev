@@ -2,8 +2,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies
+# postinstall runs `bundle-trackers` — needs these paths before `npm install`
 COPY package.json package-lock.json* ./
+COPY scripts/bundle-trackers.cjs ./scripts/
+COPY trackers ./trackers/
 RUN npm install --legacy-peer-deps
 
 COPY . .

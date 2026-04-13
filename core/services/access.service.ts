@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db, websiteMembers, websites } from "../db";
-import { resolveWebsiteIds } from "./website-resolve";
+import { resolveWebsiteIds } from "../lib/website-resolve";
 
 /** Owner shortcut: website.user_id match (dashboard owner may not be in website_members in all setups). */
 export async function assertOwnerOrMember(userId: string, websiteParam: string): Promise<void> {

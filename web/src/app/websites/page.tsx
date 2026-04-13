@@ -5,18 +5,13 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getWebsites, addWebsite } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
-import {
-  Loader2,
-  ArrowRight,
-  CheckCircle,
-  LogOut,
-  Sparkles,
-  Globe,
-} from 'lucide-react';
+import { Loader2, ArrowRight, CheckCircle, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Logo } from '@/components/ui/logo';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -137,14 +132,18 @@ export default function WebsitesOnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background selection:bg-primary/20 transition-all duration-500 flex flex-col items-center justify-center p-6 md:p-12 overflow-y-auto relative">
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-primary/10 blur-[120px] rounded-full opacity-50" />
-        <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-sky-500/10 blur-[100px] rounded-full opacity-50" />
+    <div className="min-h-screen bg-background selection:bg-primary/20">
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div className="absolute -top-40 right-0 h-[420px] w-[420px] rounded-full bg-primary/[0.07] blur-3xl" />
+        <div className="absolute bottom-0 left-0 h-[320px] w-[320px] rounded-full bg-sky-500/[0.06] blur-3xl" />
       </div>
 
-      <div className="relative z-10 w-full max-w-lg mb-12 flex flex-col items-center">
-        <div className="absolute -top-4 -right-2 md:-right-32 flex items-center gap-4">
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-lg flex-col px-4 pb-10 pt-6 sm:px-6 sm:pt-10">
+        <header className="mb-8 flex items-center justify-between gap-4">
+          <Link href="/" className="flex items-center gap-2.5 transition-opacity hover:opacity-90">
+            <Logo size="md" />
+            <span className="text-lg font-bold tracking-tight text-foreground sm:text-xl">Seentics</span>
+          </Link>
           {user && (
             <Button
               variant="ghost"
@@ -153,149 +152,153 @@ export default function WebsitesOnboardingPage() {
                 logout();
                 router.push('/signin');
               }}
-              className="text-muted-foreground hover:text-destructive transition-colors gap-2"
+              className="shrink-0 gap-2 text-muted-foreground hover:text-destructive"
             >
-              <LogOut size={16} />
-              <span className="hidden sm:inline">Logout</span>
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Log out</span>
             </Button>
           )}
-        </div>
-        <Link href="/" className="flex items-center gap-2 group mb-2">
-          <Logo size="lg" />
-          <span className="text-2xl font-bold tracking-tight text-foreground">Seentics</span>
-        </Link>
-        <div className="h-1 w-12 bg-primary/20 rounded-full" />
-      </div>
+        </header>
 
-      <div className="relative z-10 w-full flex flex-col items-center justify-center max-w-lg">
-        <AnimatePresence mode="wait">
-          {phase === 'onboarding' && (
-            <motion.div
-              key="add-form"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              className="w-full bg-card/50 backdrop-blur-xl p-8 md:p-10 rounded-xl border border-border/50 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)]"
-            >
-              <div className="mb-8 text-center">
-                <h2 className="text-3xl font-bold tracking-tight mb-3">Connect your first website</h2>
-                <p className="text-muted-foreground text-sm">Where should Seentics start tracking visitors?</p>
-              </div>
+        <main className="flex flex-1 flex-col justify-center">
+          <AnimatePresence mode="wait">
+            {phase === 'onboarding' && (
+              <motion.div
+                key="add-form"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+                className="w-full"
+              >
+                <Card className="border-border/80 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-2xl">
+                  <CardHeader className="space-y-3 px-6 pb-2 pt-8 sm:px-8">
+                    <CardTitle className="text-2xl font-bold tracking-tight">Add your website</CardTitle>
+                    <CardDescription className="text-sm leading-relaxed">
+                      Choose a dashboard label, then the site&apos;s hostname (e.g.{' '}
+                      <span className="font-mono text-xs text-foreground/80">example.com</span>
+                      ). Skip <span className="font-mono text-xs">https://</span>
+                      — we normalize the URL. You&apos;ll get the tracking snippet on the next screen.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="px-6 pb-8 pt-2 sm:px-8">
+                    <form onSubmit={handleFirstSiteSubmit} className="space-y-5">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="onboard-name" className="text-sm font-medium text-foreground">
+                          Website name
+                        </Label>
+                        <Input
+                          id="onboard-name"
+                          placeholder="My site"
+                          value={name}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                          className={cn(
+                            'h-11 rounded-lg border-border/80 bg-background px-3.5 text-sm shadow-sm',
+                            'placeholder:text-muted-foreground/50',
+                            'hover:border-muted-foreground/25',
+                            'focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0',
+                          )}
+                          autoComplete="organization"
+                          required
+                        />
+                      </div>
 
-              <form onSubmit={handleFirstSiteSubmit} className="space-y-4">
-                <div className="space-y-5">
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-foreground/70 ml-1">Friendly name</label>
-                    <div className="relative group">
-                      <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                      <Input
-                        placeholder="e.g. My Personal Blog"
-                        value={name}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-                        className="h-12 pl-12 bg-background/50 border-border focus-visible:ring-primary/20 rounded-xl"
-                        required
-                      />
+                      <div className="space-y-1.5">
+                        <Label htmlFor="onboard-url" className="text-sm font-medium text-foreground">
+                          Website domain
+                        </Label>
+                        <Input
+                          id="onboard-url"
+                          placeholder="example.com"
+                          value={url}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
+                          className={cn(
+                            'h-11 rounded-lg border-border/80 bg-background px-3.5 text-sm shadow-sm',
+                            'placeholder:text-muted-foreground/50',
+                            'font-mono text-sm',
+                            'hover:border-muted-foreground/25',
+                            'focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0',
+                          )}
+                          inputMode="url"
+                          autoCapitalize="none"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          required
+                        />
+                      </div>
+
+                      <Button type="submit" disabled={isSubmitting} className="h-11 w-full rounded-lg text-sm font-semibold">
+                        {isSubmitting ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <span className="flex items-center justify-center gap-2">
+                            Add website
+                            <ArrowRight className="h-4 w-4" />
+                          </span>
+                        )}
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {phase === 'snippet' && newlyAddedSiteId && (
+              <motion.div
+                key="tracking-code"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+                className="w-full"
+              >
+                <Card className="border-border/80 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-2xl">
+                  <CardHeader className="space-y-3 pb-2 pt-8 text-center">
+                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                      <CheckCircle className="h-5 w-5" strokeWidth={2} />
                     </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-foreground/70 ml-1">Website URL</label>
-                    <div className="relative group">
-                      <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                      <Input
-                        placeholder="e.g. my-awesome-site.com"
-                        value={url}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
-                        className="h-12 pl-12 bg-background/50 border-border focus-visible:ring-primary/20 rounded-xl"
-                        required
-                      />
+                    <CardTitle className="text-2xl font-bold tracking-tight">Tracking code</CardTitle>
+                    <CardDescription className="text-sm">
+                      Add to <span className="font-mono text-foreground/90">{'<head>'}</span> on{' '}
+                      <span className="font-medium text-foreground">{name}</span>.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6 px-6 pb-8 sm:px-8">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium text-foreground">Code</span>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(trackingCode)}
+                          className="text-xs font-medium text-primary hover:underline"
+                        >
+                          {copied ? 'Copied' : 'Copy'}
+                        </button>
+                      </div>
+                      <pre className="max-h-[220px] overflow-auto rounded-xl border border-border bg-zinc-950 p-4 text-[11px] leading-relaxed text-zinc-200 shadow-inner dark:bg-zinc-950">
+                        <code>{trackingCode}</code>
+                      </pre>
                     </div>
-                    <p className="text-[10px] text-muted-foreground px-1">
-                      Domain only, protocol will be handled automatically.
-                    </p>
-                  </div>
-                </div>
 
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="animate-spin h-5 w-5" />
-                  ) : (
-                    <span className="flex items-center gap-2">
-                      Add and start tracking <ArrowRight size={18} />
-                    </span>
-                  )}
-                </Button>
-              </form>
-            </motion.div>
-          )}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:justify-stretch">
+                      <Button className="h-11 flex-1 rounded-lg font-semibold" asChild>
+                        <Link href={`/websites/${newlyAddedSiteId}`}>Open dashboard</Link>
+                      </Button>
+                      <Button variant="outline" className="h-11 flex-1 rounded-lg font-semibold" asChild>
+                        <Link href="/websites/manage">Manage websites</Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </main>
 
-          {phase === 'snippet' && newlyAddedSiteId && (
-            <motion.div
-              key="tracking-code"
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="w-full bg-card/50 backdrop-blur-xl p-8 md:p-10 rounded-3xl border border-border/50 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] dark:shadow-[0_32px_64px_-16px_rgba(0,0,0,0.4)] relative"
-            >
-              <div className="mb-8 text-center">
-                <div className="inline-flex items-center justify-center p-3 bg-emerald-500/10 text-emerald-500 rounded-2xl mb-4">
-                  <CheckCircle size={32} />
-                </div>
-                <h2 className="text-3xl font-bold tracking-tight mb-2">Almost there!</h2>
-                <p className="text-muted-foreground text-sm">
-                  Add this snippet to the <span className="font-mono bg-muted px-1 rounded">{'<head>'}</span> of{' '}
-                  <span className="text-foreground font-semibold">{name}</span> to start collecting data.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-foreground/70">Tracking snippet</span>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(trackingCode)}
-                    className="text-[10px] font-bold uppercase tracking-widest text-primary hover:underline transition-all"
-                  >
-                    {copied ? 'Copied to clipboard!' : 'Copy to clipboard'}
-                  </button>
-                </div>
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-primary/5 rounded-xl blur-lg group-hover:bg-primary/10 transition-colors" />
-                  <pre className="relative p-6 rounded-xl bg-slate-950 text-[11px] font-mono leading-relaxed overflow-x-auto text-slate-300 border border-white/5 shadow-inner">
-                    <code>{trackingCode}</code>
-                  </pre>
-                </div>
-              </div>
-
-              <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Button
-                  className="h-12 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/20"
-                  asChild
-                >
-                  <Link href={`/websites/${newlyAddedSiteId}`}>Go to dashboard</Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-12 bg-background/50 border-border hover:bg-accent text-foreground rounded-xl font-bold"
-                  asChild
-                >
-                  <Link href="/websites/manage">Manage websites</Link>
-                </Button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div className="relative z-10 mt-8 text-center">
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground transition-colors gap-2">
-            Back to Home
+        <footer className="mt-8 text-center">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" asChild>
+            <Link href="/">Home</Link>
           </Button>
-        </Link>
+        </footer>
       </div>
     </div>
   );

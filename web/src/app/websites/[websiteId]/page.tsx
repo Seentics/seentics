@@ -32,7 +32,7 @@ import { useAuth } from '@/stores/useAuthStore';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
 import { Globe, PlusCircle, Users, X } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
 import { SummaryCards } from '@/components/analytics/SummaryCards';
 
@@ -44,8 +44,9 @@ import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection'
 
 // Pure helper — defined outside component so it's never re-created on render
 function categorizeReferrer(referrer: string): string {
-  if (!referrer || referrer === 'Direct') return 'Direct';
-  const r = referrer.toLowerCase();
+  const raw = (referrer ?? '').trim();
+  if (!raw || raw === 'Direct') return 'Direct';
+  const r = raw.toLowerCase();
   if (r.includes('accounts.google.com')) return 'Google OAuth';
   if (r.includes('google')) return 'Google';
   if (r.includes('bing')) return 'Bing';
@@ -64,10 +65,21 @@ function categorizeReferrer(referrer: string): string {
   if (r.includes('hashnode')) return 'Hashnode';
   if (r.includes('producthunt')) return 'Product Hunt';
   if (r.includes('hackernews')) return 'Hacker News';
-  if (r.includes('localhost') || r.includes('127.0.0.1') || r.includes('internal')) return 'Internal Navigation';
+  // Same-origin / dev: self-referrals, not acquisition
+  if (
+    r.includes('localhost') ||
+    r.includes('127.0.0.1') ||
+    r.includes('::1') ||
+    r.startsWith('http://0.0.0.0') ||
+    r.includes('192.168.') ||
+    r.includes('10.0.') ||
+    /\.local(\/|:|$)/.test(r)
+  ) {
+    return 'Internal Navigation';
+  }
   // Extract domain for unknown referrers instead of showing full URL
   const domain = r.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
-  return domain || referrer;
+  return domain || raw;
 }
 
 export default function WebsiteDashboardPage() {
@@ -87,6 +99,8 @@ export default function WebsiteDashboardPage() {
   const [isCustomRange, setIsCustomRange] = useState<boolean>(false);
   const [utmTab, setUtmTab] = useState<'sources' | 'mediums' | 'campaigns' | 'terms' | 'content'>('sources');
   const [advancedFilters, setAdvancedFilters] = useState<any>({});
+  /** UTM params removed from URL only after they were set via dashboard filters (not raw marketing links). */
+  const utmKeysAppliedFromFiltersRef = useRef<Set<string>>(new Set());
 
   // Comparison & Annotations state
   const [showComparison, setShowComparison] = useState(false);
@@ -135,7 +149,9 @@ export default function WebsiteDashboardPage() {
     const urlDays = searchParams.get('days');
     if (urlDays) setDateRange(parseInt(urlDays));
 
-    const filterKeys = ['country', 'device', 'browser', 'os', 'utm_source', 'utm_medium', 'utm_campaign', 'page_path'];
+    // Omit utm_* — same query params are used on this URL for self-tracking / attribution tests;
+    // treating them as dashboard filters shows a bogus "Active filters" row and narrows charts.
+    const filterKeys = ['country', 'device', 'browser', 'os', 'page_path'];
     const urlFilters: Record<string, string> = {};
     filterKeys.forEach(key => {
       const val = searchParams.get(key);
@@ -147,17 +163,39 @@ export default function WebsiteDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync filters to URL
+  // Sync filters to URL — merge into existing query so marketing params (utm_*, gclid, …) survive.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const params = new URLSearchParams();
-    if (dateRange !== 7) params.set('days', dateRange.toString());
-    Object.entries(advancedFilters).forEach(([key, value]) => {
-      if (value) params.set(key, String(value));
-    });
+    const params = new URLSearchParams(window.location.search);
+
+    if (dateRange === 7) params.delete('days');
+    else params.set('days', String(dateRange));
+
+    const standardFilterKeys = ['country', 'device', 'browser', 'os', 'page_path'] as const;
+    for (const key of standardFilterKeys) {
+      const v = advancedFilters[key];
+      if (v != null && String(v).length > 0) params.set(key, String(v));
+      else params.delete(key);
+    }
+
+    const utmKeys = ['utm_source', 'utm_medium', 'utm_campaign'] as const;
+    for (const key of utmKeys) {
+      const v = advancedFilters[key];
+      if (v != null && String(v).length > 0) {
+        params.set(key, String(v));
+        utmKeysAppliedFromFiltersRef.current.add(key);
+      } else if (utmKeysAppliedFromFiltersRef.current.has(key)) {
+        params.delete(key);
+        utmKeysAppliedFromFiltersRef.current.delete(key);
+      }
+    }
+
     const qs = params.toString();
-    const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
-    window.history.replaceState({}, '', newUrl);
+    const path = window.location.pathname;
+    const newUrl = qs ? `${path}?${qs}` : path;
+    if (newUrl !== `${path}${window.location.search}`) {
+      window.history.replaceState({}, '', newUrl);
+    }
   }, [dateRange, advancedFilters]);
 
   // Check if we're in demo mode
@@ -246,13 +284,23 @@ export default function WebsiteDashboardPage() {
 
   const transformedTopReferrers = useMemo(() => {
     const src = isDemoMode ? demoData?.topReferrers : topReferrers;
+    const merged = new Map<string, { visitors: number; page_views: number }>();
+    for (const ref of src?.top_referrers ?? []) {
+      const label = categorizeReferrer(ref.referrer ?? 'Direct');
+      const cur = merged.get(label) ?? { visitors: 0, page_views: 0 };
+      cur.visitors += ref.unique ?? 0;
+      cur.page_views += ref.views ?? 0;
+      merged.set(label, cur);
+    }
     return {
-      top_referrers: src?.top_referrers?.map((ref: any) => ({
-        referrer: categorizeReferrer(ref.referrer || 'Direct'),
-        visitors: ref.unique || 0,
-        page_views: ref.views || 0,
-        avg_session_duration: 0,
-      })) ?? [],
+      top_referrers: [...merged.entries()]
+        .map(([referrer, v]) => ({
+          referrer,
+          visitors: v.visitors,
+          page_views: v.page_views,
+          avg_session_duration: 0,
+        }))
+        .sort((a, b) => b.visitors - a.visitors),
     };
   }, [isDemoMode, demoData, topReferrers]);
 
@@ -329,7 +377,17 @@ export default function WebsiteDashboardPage() {
   // Transform custom events — filter pageview events and compute totals in one pass
   const transformedCustomEvents = useMemo(() => {
     const src = isDemoMode ? demoData?.customEvents : customEvents;
-    const emptyUtm = { sources: {}, mediums: {}, campaigns: {}, terms: {}, content: {}, avg_ctr: 0, total_campaigns: 0, total_sources: 0, total_mediums: 0 };
+    const emptyUtm = {
+      sources: [] as { source: string; unique_visitors: number; visits: number }[],
+      mediums: [] as { medium: string; unique_visitors: number; visits: number }[],
+      campaigns: [] as { campaign: string; unique_visitors: number; visits: number }[],
+      terms: [] as { term: string; unique_visitors: number; visits: number }[],
+      content: [] as { content: string; unique_visitors: number; visits: number }[],
+      avg_ctr: 0,
+      total_campaigns: 0,
+      total_sources: 0,
+      total_mediums: 0,
+    };
 
     // Filter out internal tracker events — these are already reflected in other dashboard sections
     const internalEvents = new Set(['pageview', 'page_view', 'page_exit', 'scroll_depth', 'click']);

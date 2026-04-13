@@ -1,3 +1,5 @@
+import type { AnalyticsIngestMeta } from "./analytics-ingest-meta";
+
 export type SessionMetaRow = {
   sessionId: string;
   websiteId: string;
@@ -6,7 +8,8 @@ export type SessionMetaRow = {
   os: string;
   country: string;
   entryPage: string;
-  startedAt: Date;
+  /** From SQL: driver may return `Date` or ISO string. */
+  startedAt: Date | string;
   hasRageClicks: boolean;
   hasErrors: boolean;
   durationSeconds: number;
@@ -94,4 +97,14 @@ export type AnalyticsIngestEvent = {
   url?: string;
   sid?: string;
   vid?: string;
+  /** Server-derived from IP / User-Agent for this collect request. */
+  ingestMeta?: AnalyticsIngestMeta;
+};
+
+/** Batched `automation_trigger` rows → `automation_events` ingest queue. */
+export type AutomationTriggerQueued = {
+  websiteUuid: string;
+  automationId: string;
+  occurredAt: Date;
+  detail: Record<string, unknown>;
 };

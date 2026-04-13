@@ -63,7 +63,7 @@ async function fetchAutomations(websiteId: string, limit: number = 10, offset: n
     if (isDemo(websiteId)) {
         return demoAutomations() as any;
     }
-    const response = await api.get(`/websites/${websiteId}/automations`, {
+    const response = await api.get(`/automations/${websiteId}`, {
         params: { limit, offset }
     });
     return response.data;
@@ -74,7 +74,7 @@ export async function fetchAutomation(websiteId: string, automationId: string): 
         return demoAutomations().automations.find(a => a.id === automationId) || null;
     }
     try {
-        const response = await api.get(`/websites/${websiteId}/automations/${automationId}`);
+        const response = await api.get(`/automations/${websiteId}/${automationId}`);
         return response.data;
     } catch {
         return null;
@@ -85,7 +85,7 @@ async function createAutomation(websiteId: string, data: CreateAutomationRequest
     if (demoMutationGuard(websiteId)) {
         return { id: 'demo-new', websiteId, userId: 'demo', ...data, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: data.actions } as Automation;
     }
-    const response = await api.post(`/websites/${websiteId}/automations`, data);
+    const response = await api.post(`/automations/${websiteId}`, data);
     return response.data;
 }
 
@@ -93,19 +93,19 @@ async function updateAutomation(websiteId: string, automationId: string, data: P
     if (demoMutationGuard(websiteId)) {
         return { id: automationId, websiteId, userId: 'demo', name: '', description: '', triggerType: '', triggerConfig: {}, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: [], ...data } as Automation;
     }
-    const response = await api.put(`/websites/${websiteId}/automations/${automationId}`, data);
+    const response = await api.put(`/automations/${websiteId}/${automationId}`, data);
     return response.data;
 }
 
 async function deleteAutomation(websiteId: string, automationId: string): Promise<void> {
     if (demoMutationGuard(websiteId)) return;
-    await api.delete(`/websites/${websiteId}/automations/${automationId}`);
+    await api.delete(`/automations/${websiteId}/${automationId}`);
 }
 
 async function bulkDeleteAutomations(websiteId: string, automationIds: string[]): Promise<void> {
     if (demoMutationGuard(websiteId)) return;
-    await api.delete(`/websites/${websiteId}/automations/bulk-delete`, {
-        data: { automationIds }
+    await api.delete(`/automations/${websiteId}/bulk-delete`, {
+        data: { ids: automationIds },
     });
 }
 
@@ -114,7 +114,7 @@ async function toggleAutomation(websiteId: string, automationId: string): Promis
         const demo = demoAutomations().automations.find(a => a.id === automationId);
         return { ...demo, isActive: !demo?.isActive } as any;
     }
-    const response = await api.post(`/websites/${websiteId}/automations/${automationId}/toggle`);
+    const response = await api.post(`/automations/${websiteId}/${automationId}/toggle`);
     return response.data;
 }
 
@@ -123,7 +123,7 @@ async function getAutomationStats(websiteId: string, automationId: string): Prom
         const demo = demoAutomations().automations.find(a => a.id === automationId);
         return demo?.stats || { totalExecutions: 0, successCount: 0, failureCount: 0, successRate: 0, last30Days: 0 };
     }
-    const response = await api.get(`/websites/${websiteId}/automations/${automationId}/stats`);
+    const response = await api.get(`/automations/${websiteId}/${automationId}/stats`);
     return response.data;
 }
 

@@ -1,4 +1,5 @@
-import { sql } from "../db";
+import { sql as pgSql, db, sessionReplays } from "../db";
+import { sql as dsql } from "drizzle-orm";
 import type { SessionMetaRow } from "./types";
 
 export type SessionUpsertRow = {
@@ -23,51 +24,75 @@ export async function upsertSessionMetaBatch(rows: SessionUpsertRow[]): Promise<
 
   for (const row of rows) {
     const endMs = row.latestEventMs || row.tsMs;
+    const data = { _snc_re_end: endMs } as Record<string, unknown>;
+    const websiteId = String(row.websiteId ?? "");
+    const sessionId = String(row.sessionId ?? "");
+    const browser = String(row.browser ?? "");
+    const device = String(row.device ?? "");
+    const os = String(row.os ?? "");
+    const country = String(row.country ?? "");
+    const entryPage = String(row.entryPage ?? "");
+    const pages = Number(row.pageIncrements) || 0;
+    const duration = Number(row.durationSeconds) || 0;
+    const rage = row.hasRageClicks === true;
+    const err = row.hasErrors === true;
     const ts = new Date(row.tsMs);
-    const dataObj: { _snc_re_end: number } = { _snc_re_end: endMs };
-    await sql`
-      INSERT INTO session_replays (
-        website_id, session_id, sequence, data,
-        browser, device, os, country, entry_page,
-        timestamp, pages_viewed, duration_seconds, has_rage_clicks, has_errors
-      ) VALUES (
-        ${row.websiteId},
-        ${row.sessionId},
-        0,
-        ${sql.json(dataObj)},
-        ${row.browser},
-        ${row.device},
-        ${row.os},
-        ${row.country},
-        ${row.entryPage},
-        ${ts},
-        ${row.pageIncrements},
-        ${row.durationSeconds},
-        ${row.hasRageClicks},
-        ${row.hasErrors}
-      )
-      ON CONFLICT (website_id, session_id, sequence) DO UPDATE SET
-        duration_seconds = GREATEST(
-          session_replays.duration_seconds,
-          EXCLUDED.duration_seconds,
-          GREATEST(0, EXTRACT(EPOCH FROM (
-            COALESCE(
-              CASE WHEN EXCLUDED.data ? '_snc_re_end' THEN
-                to_timestamp((EXCLUDED.data->>'_snc_re_end')::bigint / 1000.0)
-              ELSE NULL END,
-              EXCLUDED.timestamp
-            ) - session_replays.timestamp
-          ))::INT)
-        ),
-        pages_viewed = session_replays.pages_viewed + EXCLUDED.pages_viewed,
-        has_rage_clicks = CASE WHEN EXCLUDED.has_rage_clicks THEN TRUE ELSE session_replays.has_rage_clicks END,
-        has_errors = CASE WHEN EXCLUDED.has_errors THEN TRUE ELSE session_replays.has_errors END,
-        browser = CASE WHEN EXCLUDED.browser <> '' THEN EXCLUDED.browser ELSE session_replays.browser END,
-        device = CASE WHEN EXCLUDED.device <> '' THEN EXCLUDED.device ELSE session_replays.device END,
-        os = CASE WHEN EXCLUDED.os <> '' THEN EXCLUDED.os ELSE session_replays.os END,
-        country = CASE WHEN EXCLUDED.country <> '' THEN EXCLUDED.country ELSE session_replays.country END,
-        entry_page = CASE WHEN EXCLUDED.entry_page <> '' THEN EXCLUDED.entry_page ELSE session_replays.entry_page END
-    `;
+
+    await db
+      .insert(sessionReplays)
+      .values({
+        websiteId,
+        sessionId,
+        sequence: 0,
+        data,
+        browser,
+        device,
+        os,
+        country,
+        entryPage,
+        timestamp: ts,
+        pagesViewed: pages,
+        durationSeconds: duration,
+        hasRageClicks: rage,
+        hasErrors: err,
+      })
+      .onConflictDoUpdate({
+        target: [sessionReplays.websiteId, sessionReplays.sessionId, sessionReplays.sequence],
+        set: {
+          durationSeconds: dsql.raw(`GREATEST(
+            session_replays.duration_seconds,
+            excluded.duration_seconds,
+            GREATEST(0, EXTRACT(EPOCH FROM (
+              COALESCE(
+                CASE WHEN excluded.data ? '_snc_re_end' THEN
+                  to_timestamp((excluded.data->>'_snc_re_end')::bigint / 1000.0)
+                ELSE NULL END,
+                excluded.timestamp
+              ) - session_replays.timestamp
+            ))::INT)
+          )`),
+          pagesViewed: dsql.raw("session_replays.pages_viewed + excluded.pages_viewed"),
+          hasRageClicks: dsql.raw(
+            "CASE WHEN excluded.has_rage_clicks THEN TRUE ELSE session_replays.has_rage_clicks END",
+          ),
+          hasErrors: dsql.raw(
+            "CASE WHEN excluded.has_errors THEN TRUE ELSE session_replays.has_errors END",
+          ),
+          browser: dsql.raw(
+            "CASE WHEN excluded.browser <> '' THEN excluded.browser ELSE session_replays.browser END",
+          ),
+          device: dsql.raw(
+            "CASE WHEN excluded.device <> '' THEN excluded.device ELSE session_replays.device END",
+          ),
+          os: dsql.raw("CASE WHEN excluded.os <> '' THEN excluded.os ELSE session_replays.os END"),
+          country: dsql.raw(
+            "CASE WHEN excluded.country <> '' THEN excluded.country ELSE session_replays.country END",
+          ),
+          entryPage: dsql.raw(
+            "CASE WHEN excluded.entry_page <> '' THEN excluded.entry_page ELSE session_replays.entry_page END",
+          ),
+        },
+      });
   }
 }
 
@@ -77,7 +102,7 @@ export async function listSessions(
   limit: number,
   offset: number,
 ): Promise<SessionMetaRow[]> {
-  return sql<SessionMetaRow[]>`
+  return pgSql<SessionMetaRow[]>`
     SELECT * FROM (
       SELECT session_id as "sessionId", website_id as "websiteId",
         COALESCE(browser,'') as browser, COALESCE(device,'') as device, COALESCE(os,'') as os,
@@ -105,7 +130,7 @@ export async function getSessionMeta(
   uuidStr: string,
   sessionId: string,
 ): Promise<SessionMetaRow | null> {
-  const rows = await sql<SessionMetaRow[]>`
+  const rows = await pgSql<SessionMetaRow[]>`
     SELECT session_id as "sessionId", website_id as "websiteId",
       COALESCE(browser,'') as browser, COALESCE(device,'') as device, COALESCE(os,'') as os,
       COALESCE(country,'') as country, COALESCE(entry_page,'') as "entryPage",
@@ -131,7 +156,7 @@ export async function deleteSessionByEitherId(
   fallbackId: string,
   sessionId: string,
 ): Promise<void> {
-  await sql`
+  await pgSql`
     DELETE FROM session_replays
     WHERE (website_id = ${primaryId} OR website_id = ${fallbackId}) AND session_id = ${sessionId}
   `;

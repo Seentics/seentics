@@ -66,13 +66,28 @@ export function WebsiteGoalsSection({
   const [detailGoal, setDetailGoal] = useState<GoalRow | null>(null);
 
   const { data: goalData, isLoading } = useGoalStats(websiteId, days);
-  const goals = goalData?.goals ?? [];
 
   const { data: goalDefinitions = [] } = useQuery({
     queryKey: ['goals', websiteId],
     queryFn: () => getGoals(websiteId),
     enabled: !!websiteId,
   });
+
+  /** Dashboard table uses goal stats rows; API used to return an empty list while definitions existed. */
+  const goals = useMemo(() => {
+    const statsRows = goalData?.goals ?? [];
+    if (statsRows.length > 0) return statsRows;
+    if (!goalDefinitions.length) return [];
+    return goalDefinitions.map((g) => ({
+      id: g.id,
+      name: g.name,
+      goal_type: g.type,
+      target: g.identifier,
+      completions: 0,
+      conversion_rate: 0,
+      unique_visitors: 0,
+    }));
+  }, [goalData?.goals, goalDefinitions]);
 
   const deleteGoalMutation = useMutation({
     mutationFn: (goalId: string) => deleteGoal(websiteId, goalId),

@@ -1,4 +1,6 @@
+import type { AppConfig } from "../config";
 import { sql } from "../db";
+import { MemoryCache } from "./memory-cache";
 
 export type WebsiteTrackerRow = {
   id: string;
@@ -21,11 +23,34 @@ export type WebsiteTrackerRow = {
 const uuidRe =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function getWebsiteTrackerRow(
+let websiteResolveCache: MemoryCache<WebsiteTrackerRow | null> | null = null;
+let websiteResolveCacheTtlMs = 180_000;
+
+/** Call once at process start (see `index.ts`) so lookups reuse TTL-cached rows (including “not found”). */
+export function configureTrackerWebsiteCache(cfg: AppConfig): void {
+  if (!cfg.trackerCache.enabled) {
+    websiteResolveCache = null;
+    return;
+  }
+  websiteResolveCache = new MemoryCache<WebsiteTrackerRow | null>(cfg.trackerCache.maxEntries);
+  websiteResolveCacheTtlMs = cfg.trackerCache.websiteTtlMs;
+}
+
+/**
+ * Load a website by the id the tracker sends: either `websites.id` (UUID) or `websites.site_id`.
+ * Uses an in-memory TTL cache when `configureTrackerWebsiteCache` ran with cache enabled.
+ */
+export async function resolveWebsiteForTracker(
   websiteParam: string,
 ): Promise<WebsiteTrackerRow | null> {
   const p = websiteParam.trim();
   if (!p) return null;
+
+  if (websiteResolveCache) {
+    if (Math.random() < 0.05) websiteResolveCache.sweepExpired();
+    const hit = websiteResolveCache.get(p);
+    if (hit !== undefined) return hit;
+  }
 
   const rows = uuidRe.test(p)
     ? await sql<WebsiteTrackerRow[]>`
@@ -70,7 +95,11 @@ export async function getWebsiteTrackerRow(
         LIMIT 1
       `;
 
-  return rows[0] ?? null;
+  const row = rows[0] ?? null;
+  if (websiteResolveCache) {
+    websiteResolveCache.set(p, row, websiteResolveCacheTtlMs);
+  }
+  return row;
 }
 
 export type TrackerGoal = { id: string; name: string; selector: string };

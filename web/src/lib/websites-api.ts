@@ -293,10 +293,25 @@ export interface Goal {
   updatedAt: string;
 }
 
+function mapApiGoal(r: Record<string, unknown>): Goal {
+  const typ = r.type === 'pageview' ? 'pageview' : 'event';
+  return {
+    id: String(r.id ?? ''),
+    websiteId: String(r.website_id ?? r.websiteId ?? ''),
+    name: String(r.name ?? ''),
+    type: typ,
+    identifier: String(r.identifier ?? ''),
+    selector: (r.selector as string | null | undefined) ?? null,
+    createdAt: String(r.created_at ?? r.createdAt ?? ''),
+    updatedAt: String(r.updated_at ?? r.updatedAt ?? ''),
+  };
+}
+
 export const getGoals = async (websiteId: string): Promise<Goal[]> => {
   if (isDemo(websiteId)) return demoGoals();
   const response = await api.get(`/user/websites/${websiteId}/goals`);
-  return response.data.data || [];
+  const raw = (response.data?.data ?? []) as Record<string, unknown>[];
+  return raw.map(mapApiGoal);
 };
 
 export const addGoal = async (websiteId: string, data: { name: string; type: string; identifier: string; selector?: string }): Promise<Goal> => {
@@ -304,7 +319,8 @@ export const addGoal = async (websiteId: string, data: { name: string; type: str
     return { id: 'demo-goal', websiteId, name: data.name, type: data.type as any, identifier: data.identifier, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   }
   const response = await api.post(`/user/websites/${websiteId}/goals`, data);
-                      return response.data;
+  const raw = (response.data?.data ?? response.data) as Record<string, unknown>;
+  return mapApiGoal(raw);
 };
 
 export const updateGoal = async (

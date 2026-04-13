@@ -58,15 +58,24 @@ const getPageIcon = (page: string) => {
   return <Globe className="w-4 h-4 text-indigo-500" />;
 };
 
+const uuidSegRe =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 const getPageName = (page: string) => {
   if (!page) return 'Unknown Page';
   const path = getPathFromUrl(page);
   if (path === '/') return 'Homepage';
-  
+
   const segments = path.split('/').filter(Boolean);
   if (segments.length > 0) {
     const lastSegment = segments[segments.length - 1];
-    return lastSegment.split(/[-_]/).map(word => 
+    if (segments[0] === 'websites' && uuidSegRe.test(lastSegment)) {
+      return 'Website dashboard';
+    }
+    if (uuidSegRe.test(lastSegment)) {
+      return 'Page';
+    }
+    return lastSegment.split(/[-_]/).map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
   }

@@ -6,7 +6,7 @@ import * as au from "../services/automations.service";
 const r = new Hono<{ Variables: AuthVars }>();
 r.use("*", authMiddleware);
 
-r.get("/:website_id/automations", async (c) => {
+r.get("/:website_id", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   try {
@@ -17,7 +17,7 @@ r.get("/:website_id/automations", async (c) => {
   }
 });
 
-r.post("/:website_id/automations", async (c) => {
+r.post("/:website_id", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   const b = await c.req.json<Record<string, unknown>>();
@@ -29,7 +29,7 @@ r.post("/:website_id/automations", async (c) => {
   }
 });
 
-r.delete("/:website_id/automations/bulk-delete", async (c) => {
+r.delete("/:website_id/bulk-delete", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   const b = await c.req.json<{ ids?: string[] }>();
@@ -42,7 +42,7 @@ r.delete("/:website_id/automations/bulk-delete", async (c) => {
   }
 });
 
-r.get("/:website_id/automations/:id", async (c) => {
+r.get("/:website_id/:id", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   try {
@@ -55,7 +55,7 @@ r.get("/:website_id/automations/:id", async (c) => {
   }
 });
 
-r.put("/:website_id/automations/:id", async (c) => {
+r.put("/:website_id/:id", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   const b = await c.req.json<Record<string, unknown>>();
@@ -69,7 +69,7 @@ r.put("/:website_id/automations/:id", async (c) => {
   }
 });
 
-r.delete("/:website_id/automations/:id", async (c) => {
+r.delete("/:website_id/:id", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   try {
@@ -81,7 +81,7 @@ r.delete("/:website_id/automations/:id", async (c) => {
   }
 });
 
-r.get("/:website_id/automations/:id/executions", async (c) => {
+r.get("/:website_id/:id/executions", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   try {
