@@ -13,7 +13,7 @@ import { analyticsCacheMiddleware } from "./middleware/analytics-cache";
 import { corsMiddleware } from "./middleware/cors";
 import { rateLimitMiddleware } from "./middleware/rate-limit";
 import { requestLogMiddleware } from "./middleware/request-log";
-import { analyticsRoutes } from "./routes/analytics.routes";
+import { analyticsRoutes } from "./routes/analytics";
 import { authRoutes } from "./routes/auth";
 import { automationRoutes } from "./routes/automations";
 import { funnelAuthRoutes, funnelPublicRoutes } from "./routes/funnels";

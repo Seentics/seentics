@@ -114,7 +114,7 @@ trackerRoutes.get("/config/:website_id", async (c) => {
 
 /**
  * Accepts tracker batches, enqueues by kind (events, funnels, automations, recordings, heatmaps).
- * Background flush (~1s by default) runs batched DB / S3 work — see `services/ingest.service`.
+ * Background flush (~1s by default) runs batched DB / S3 work — see `services/ingest/`.
  */
 trackerRoutes.post("/collect", async (c) => {
   const cfg = env();

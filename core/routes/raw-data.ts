@@ -2,7 +2,7 @@
  * Machine-facing data API (analytics, replays, heatmaps). Auth: `X-API-Key` per website (`api_keys` table).
  * Base path: `GET /api/v1/raw/...` (mounted from `index.ts`).
  *
- * Analytics read models mirror the session dashboard (`routes/analytics.routes.ts`) — same `analytics.service` functions.
+ * Analytics read models mirror the session dashboard (`routes/analytics.ts`) — same `analytics.service` functions.
  * Shared query params where applicable: `days`, `timezone`, `limit` (see `services/analytics.service.ts`).
  *
  * Auth: `r.use("*", rawApiAuthMiddleware)` — `X-API-Key` or `x-api-key` must match `api_keys` for `:website_id`.
