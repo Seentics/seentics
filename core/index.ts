@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { env } from "./config";
-import { ensureCoreSchema } from "./db/ensure-schema";
+import { applyAnalyticsEventsWebsiteIdMigration, ensureCoreSchema } from "./db/ensure-schema";
 import { flushIngestQueuesNow, startIngestQueueFlusher, stopIngestQueueFlusher } from "./services/ingest.service";
 import { initMaxMindGeo } from "./lib/maxmind-geo";
 import { configureLogger } from "./lib/logger";
@@ -24,6 +24,11 @@ import { rawDataRoutes } from "./routes/raw-data";
 import { replayRoutes } from "./routes/replays";
 import { trackerRoutes } from "./routes/tracker";
 import { userBranchRoutes } from "./routes/user-branch";
+import { SEENTICS_PEER_IP_HEADER } from "./lib/client-ip";
+
+type BunServerWithRequestIp = {
+  requestIP: (request: Request) => { address: string } | null;
+};
 
 /**
  * Public ingest: `POST /api/v1/tracker/collect` enqueues events/funnels/automations/recordings/heatmaps and flushes
@@ -35,10 +40,12 @@ import { userBranchRoutes } from "./routes/user-branch";
  * Raw API: `GET /api/v1/raw/v1/websites/:website_id/...` (website API key); read models align with `/api/v1/analytics/*`.
  * Automations: `routes/automations.ts`.
  *
- * Schema: `db/ensure-schema.ts` runs Drizzle push when the DB has no `websites` table (dev default). See `.env.example` SKIP_DB_PUSH / FORCE_DB_PUSH / AUTO_DB_PUSH.
+ * Schema: `applyAnalyticsEventsWebsiteIdMigration` renames legacy `website_site_id` → `website_id`.
+ * `ensureCoreSchema` runs Drizzle push when the DB has no `websites` table (dev default). See `.env.example` SKIP_DB_PUSH / FORCE_DB_PUSH / AUTO_DB_PUSH.
  */
 const cfg = env();
 configureLogger(cfg);
+await applyAnalyticsEventsWebsiteIdMigration();
 await ensureCoreSchema();
 await initMaxMindGeo(cfg.maxmind);
 configureTrackerWebsiteCache(cfg);
@@ -93,9 +100,31 @@ process.on("SIGINT", () => void shutdown().finally(() => process.exit(0)));
 process.on("SIGTERM", () => void shutdown().finally(() => process.exit(0)));
 
 const port = cfg.port;
+
+/** Bun exposes the TCP peer via `server.requestIP`; forward it so GeoIP works without TRUST_PROXY / X-Forwarded-For. */
+function attachTrustedPeerIp(req: Request, server: BunServerWithRequestIp): Request {
+  try {
+    const h = new Headers(req.headers);
+    h.delete(SEENTICS_PEER_IP_HEADER);
+    const addr = server.requestIP(req);
+    if (addr?.address) {
+      h.set(SEENTICS_PEER_IP_HEADER, addr.address);
+    }
+    return new Request(req.url, {
+      method: req.method,
+      headers: h,
+      body: req.body,
+    } as RequestInit);
+  } catch {
+    return req;
+  }
+}
+
 export default {
   port,
-  fetch: app.fetch,
+  fetch(req: Request, server: BunServerWithRequestIp) {
+    return app.fetch(attachTrustedPeerIp(req, server));
+  },
 };
 
 console.log(`seentics core on :${port} (Bun + Hono + Drizzle — full OSS API)`);

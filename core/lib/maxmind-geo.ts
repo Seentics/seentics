@@ -1,6 +1,40 @@
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { isIP } from "node:net";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { AddressNotFoundError, Reader, type City } from "@maxmind/geoip2-node";
+
+/** `seentics/core/lib` → `seentics/core/db/maxmind` (no env required). */
+const BUNDLED_MAXMIND_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "db", "maxmind");
+
+/** Prefer `MAXMIND_DB_PATH` when it exists; otherwise any `*.mmdb` under `core/db/maxmind/`. */
+export function resolveCityMmdbPath(optionalEnvPath: string): string {
+  const env = (optionalEnvPath ?? "").trim();
+  if (env && existsSync(env)) return env;
+  for (const name of ["GeoLite2-City.mmdb", "GeoIP2-City.mmdb"]) {
+    const p = join(BUNDLED_MAXMIND_DIR, name);
+    if (existsSync(p)) {
+      if (env && !existsSync(env)) {
+        console.warn(`maxmind: MAXMIND_DB_PATH (${env}) not found; using ${p}`);
+      }
+      return p;
+    }
+  }
+  try {
+    const files = readdirSync(BUNDLED_MAXMIND_DIR);
+    const any = files.find((f) => f.endsWith(".mmdb"));
+    if (any) {
+      const p = join(BUNDLED_MAXMIND_DIR, any);
+      if (env && !existsSync(env)) {
+        console.warn(`maxmind: MAXMIND_DB_PATH (${env}) not found; using ${p}`);
+      }
+      return p;
+    }
+  } catch {
+    /* missing dir */
+  }
+  return env;
+}
 
 export type GeoLookup = {
   country: string | null;
@@ -15,7 +49,8 @@ let cacheMax = 50_000;
 const cache = new Map<string, GeoLookup>();
 
 function normalizeClientIp(ip: string): string | null {
-  const t = ip.trim();
+  const noZone = ip.split("%")[0]?.trim() ?? "";
+  const t = noZone.trim();
   if (!t) return null;
   if (isIP(t) === 0) return null;
   return t.includes(":") ? t.toLowerCase() : t;
@@ -26,7 +61,11 @@ function cityToGeo(city: City): GeoLookup {
   const sub = city.subdivisions?.[0];
   const region = sub?.names?.en ?? sub?.isoCode ?? null;
   const cityName = city.city?.names?.en ?? null;
-  return { country, region, city: cityName };
+  return {
+    country,
+    region,
+    city: cityName,
+  };
 }
 
 function touchCache(key: string, value: GeoLookup): GeoLookup {
@@ -51,13 +90,15 @@ export async function initMaxMindGeo(options: { dbPath: string; geoCacheMax: num
   initDone = true;
   cacheMax = Math.max(1000, options.geoCacheMax);
 
-  const dbPath = options.dbPath.trim();
+  const dbPath = resolveCityMmdbPath(options.dbPath);
   if (!dbPath) {
-    console.warn("maxmind: MAXMIND_DB_PATH not set; geolocation uses CDN headers only (cf-ipcountry)");
+    console.warn(
+      `maxmind: no City .mmdb — place GeoLite2-City.mmdb in ${BUNDLED_MAXMIND_DIR} or set MAXMIND_DB_PATH`,
+    );
     return;
   }
   if (!existsSync(dbPath)) {
-    console.warn(`maxmind: database file not found (${dbPath}); geolocation uses CDN headers only`);
+    console.warn(`maxmind: database file not found (${dbPath}); country/region/city on events will stay empty`);
     return;
   }
   try {

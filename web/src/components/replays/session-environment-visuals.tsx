@@ -48,8 +48,16 @@ function osIconSrc(slug: string): string | null {
   return m[slug] ?? null;
 }
 
+/** Drop trailing semver-style versions from Bowser-style labels (e.g. `Chrome 147.0.0.0` → `Chrome`). */
+export function stripClientVersionLabel(raw: string): string {
+  const t = raw.trim();
+  if (!t) return t;
+  const without = t.replace(/\s+\d+(?:\.\d+)*$/, '').trim();
+  return without || t;
+}
+
 function normalizeBrowser(raw: string): { slug: string | null; label: string } {
-  const label = raw?.trim() || 'Unknown';
+  const label = stripClientVersionLabel(raw?.trim() || '') || 'Unknown';
   const b = label.toLowerCase();
   if (!b || b === 'unknown') return { slug: null, label: 'Unknown browser' };
   if (b.includes('samsung')) return { slug: 'samsunginternet', label };
@@ -67,7 +75,7 @@ function normalizeBrowser(raw: string): { slug: string | null; label: string } {
 }
 
 function normalizeOS(raw: string): { slug: string | null; label: string } {
-  const label = raw?.trim() || 'Unknown';
+  const label = stripClientVersionLabel(raw?.trim() || '') || 'Unknown';
   const o = label.toLowerCase();
   if (!o || o === 'unknown') return { slug: null, label: 'Unknown OS' };
   if (o.includes('iphone') || o.includes('ipad') || o.includes('ios')) return { slug: 'apple', label };

@@ -24,6 +24,8 @@ export type TrackerEvent = {
   sid: string;
   vid?: string;
   websiteId: string;
+  /** Set on `/tracker/collect` recordings from the same request UA/geo as analytics. */
+  ingestMeta?: AnalyticsIngestMeta;
   doc_w?: number;
   doc_h?: number;
 };

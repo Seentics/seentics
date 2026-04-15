@@ -71,7 +71,8 @@ export function eventsFromChunkList(
   const tagged: Tagged[] = [];
   const customEvents: SessionCustomEvent[] = [];
 
-  (chunks ?? []).forEach((c, chunkIdx) => {
+  const ordered = [...(chunks ?? [])].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
+  ordered.forEach((c, chunkIdx) => {
     if (!c.data || !Array.isArray(c.data)) return;
     c.data.forEach((item: any, row: number) => {
       if (!item) return;

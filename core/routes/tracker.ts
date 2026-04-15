@@ -153,10 +153,11 @@ trackerRoutes.post("/collect", async (c) => {
   }
 
   const ua = c.req.header("User-Agent") ?? "";
-  const cfgCollect = env();
+  // One enrichment blob per /collect: client IP → MaxMind (country/region/city) + UA/device + optional edge/fallback headers.
+  // handleEvents / handleFunnels attach this same ingestMeta to every row before enqueue → flush → Postgres.
   const ingestMeta = buildAnalyticsIngestMeta({
     userAgent: ua,
-    clientIp: clientIpForIngest(c, cfgCollect.trustProxy, cfgCollect.isProduction),
+    clientIp: clientIpForIngest(c, cfg.trustProxy, cfg.isProduction),
     acceptLanguage: c.req.header("Accept-Language") ?? "",
     headers: c.req.raw.headers,
   });

@@ -11,6 +11,7 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import type { S3ClientConfig } from "@aws-sdk/client-s3";
 import { env } from "../config";
 import { sessionBundleKey, sessionPrefix } from "./s3-keys";
+import { compareReplayEnvelopeEvents } from "./replay-event-order";
 
 export function createS3(): S3Client {
   const c = env().s3;
@@ -97,16 +98,9 @@ export async function uploadSessionBundleGzip(
       merged = await getJsonGzip(bucket, key);
     }
     merged = merged.concat(newEvents);
-    merged.sort((a, b) => eventTs(a) - eventTs(b));
+    merged.sort(compareReplayEnvelopeEvents);
     await putGzipJson(bucket, key, merged);
   });
-}
-
-function eventTs(ev: Record<string, unknown>): number {
-  const t = ev.ts;
-  if (typeof t === "number") return t;
-  if (typeof t === "string") return Number(t) || 0;
-  return 0;
 }
 
 /** Serialize read-modify-write per bundle key (same idea as Go fnv shard mutex). */

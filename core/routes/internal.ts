@@ -76,7 +76,15 @@ internalRoutes.post("/collect/replay-events", async (c) => {
   const body = await c.req.json<InternalCollectReplayEventsBody>().catch(() => null);
   const events = body?.events;
   if (!events?.length) return c.json({ error: "events required" }, 400);
-  await getReplayEngine().processEvents(events);
+  const cfg = env();
+  const ingestMeta = buildAnalyticsIngestMeta({
+    userAgent: c.req.header("User-Agent") ?? "",
+    clientIp: clientIpForIngest(c, cfg.trustProxy, cfg.isProduction),
+    acceptLanguage: c.req.header("Accept-Language") ?? "",
+    headers: c.req.raw.headers,
+  });
+  const enriched = events.map((e) => ({ ...e, ingestMeta }));
+  await getReplayEngine().processEvents(enriched);
   return c.json({ ok: true });
 });
 

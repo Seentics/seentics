@@ -1,3 +1,8 @@
+/**
+ * Built once per `POST /tracker/collect`, then copied onto each analytics row in `handleEvents` / `handleFunnels`
+ * (`trackerRowsToAnalytics`). Flow: resolve client IP from the request → local MaxMind City DB → country/region/city.
+ * Non-production + private/docker IP: defaults to BD for localhost; override with GEO_FALLBACK_COUNTRY (e.g. US).
+ */
 import Bowser from "bowser";
 import { lookupGeo } from "./maxmind-geo";
 
@@ -11,6 +16,29 @@ export type AnalyticsIngestMeta = {
   /** First language tag from Accept-Language (e.g. en-US) */
   languageHint: string | null;
 };
+
+function isProductionEnv(): boolean {
+  return (process.env.ENVIRONMENT ?? process.env.NODE_ENV ?? "development").toLowerCase() === "production";
+}
+
+function isNonPublicClientIp(ip: string): boolean {
+  const t = ip.trim().toLowerCase();
+  if (!t) return true;
+  if (t === "::1") return true;
+  if (t.startsWith("127.") || t.includes("127.0.0.1")) return true;
+  if (t.startsWith("10.")) return true;
+  if (t.startsWith("192.168.")) return true;
+  if (t.startsWith("169.254.")) return true;
+  const m = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(t);
+  if (m) return isNonPublicClientIp(m[1]);
+  if (t.startsWith("172.")) {
+    const p = t.split(/[.:]/);
+    const second = Number(p[1] ?? "");
+    if (second >= 16 && second <= 31) return true;
+  }
+  if (t.startsWith("fc") || t.startsWith("fd")) return true;
+  return false;
+}
 
 function primaryAcceptLanguage(header: string | undefined): string | null {
   if (!header?.trim()) return null;
@@ -39,12 +67,20 @@ function parseUserAgent(ua: string): Pick<AnalyticsIngestMeta, "browser" | "devi
   }
 }
 
-/** Cloudflare / CDN country hint (ISO3166-1 alpha-2). */
-function countryFromCdn(headers: Headers): string | null {
-  const raw = headers.get("cf-ipcountry")?.trim().toUpperCase();
-  if (!raw || raw.length !== 2) return null;
-  if (raw === "XX" || raw === "T1") return null;
-  return raw;
+/** ISO2 from common edge / proxy headers when MaxMind has no country (Cloudflare, Vercel, CloudFront). */
+function countryFromEdgeHeaders(headers: Headers): string | null {
+  const candidates = [
+    headers.get("cf-ipcountry"),
+    headers.get("x-vercel-ip-country"),
+    headers.get("cloudfront-viewer-country"),
+  ];
+  for (const raw0 of candidates) {
+    const raw = raw0?.trim().toUpperCase();
+    if (!raw || raw.length !== 2 || !/^[A-Z]{2}$/.test(raw)) continue;
+    if (raw === "XX" || raw === "T1") continue;
+    return raw;
+  }
+  return null;
 }
 
 export function buildAnalyticsIngestMeta(input: {
@@ -56,20 +92,36 @@ export function buildAnalyticsIngestMeta(input: {
   const { userAgent, clientIp, acceptLanguage, headers } = input;
   const { browser, device, os } = parseUserAgent(userAgent);
 
-  let country = countryFromCdn(headers);
+  let country: string | null = null;
   let region: string | null = null;
   let city: string | null = null;
 
   if (clientIp) {
     const g = lookupGeo(clientIp);
     if (g) {
-      if (!country && g.country) country = g.country;
-      if (g.region) region = g.region;
-      if (g.city) city = g.city;
+      country = g.country;
+      region = g.region;
+      city = g.city;
     }
   }
 
+  if (!country) {
+    const edge = countryFromEdgeHeaders(headers);
+    if (edge) country = edge;
+  }
+
   const langHeader = acceptLanguage?.trim() ? acceptLanguage : (headers.get("accept-language") ?? undefined);
+
+  // Loopback / RFC1918 / Docker peer: optional explicit ISO2 (wins over dev default below).
+  const fb = process.env.GEO_FALLBACK_COUNTRY?.trim().toUpperCase();
+  if (!country && fb && /^[A-Z]{2}$/.test(fb) && isNonPublicClientIp(clientIp)) {
+    country = fb;
+  }
+
+  // Localhost / Docker: no public IP → MaxMind empty; default BD in non-production unless GEO_FALLBACK_* set above.
+  if (!country && !isProductionEnv() && isNonPublicClientIp(clientIp)) {
+    country = "BD";
+  }
 
   return {
     country,

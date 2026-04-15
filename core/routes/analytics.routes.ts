@@ -88,7 +88,7 @@ r.get("/activity-trends/:website_id", async (c) => {
 
 r.get("/page-utm-breakdown/:website_id", async (c) => {
   if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
-  return c.json(await an.getPageUtmBreakdownAnalytics(c.req.param("website_id")));
+  return c.json(await an.getPageUtmBreakdownAnalytics(c.req.param("website_id"), qs(c)));
 });
 
 r.get("/hourly-stats/:website_id", async (c) => {
@@ -128,7 +128,7 @@ r.get("/visitor-insights/:website_id", async (c) => {
 
 r.get("/recent-activity/:website_id", async (c) => {
   if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
-  const lim = Number(c.req.query("limit") ?? "50");
+  const lim = Math.max(1, Math.min(100, Number(c.req.query("limit") ?? "50") || 50));
   return c.json(await an.getRecentActivityAnalytics(c.req.param("website_id"), lim));
 });
 
@@ -139,12 +139,12 @@ r.get("/geolocation-breakdown/:website_id", async (c) => {
 
 r.get("/path-analysis/:website_id", async (c) => {
   if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
-  return c.json(await an.getPathAnalysisAnalytics(c.req.param("website_id")));
+  return c.json(await an.getPathAnalysisAnalytics(c.req.param("website_id"), qs(c)));
 });
 
 r.get("/export/:website_id", async (c) => {
   if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
-  return c.json(await an.getExportAnalytics(c.req.param("website_id")));
+  return c.json(await an.getExportAnalytics(c.req.param("website_id"), qs(c)));
 });
 
 r.post("/import", async (c) => {

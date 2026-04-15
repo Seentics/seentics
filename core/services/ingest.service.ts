@@ -45,13 +45,6 @@ function pickInt(m: Record<string, unknown> | undefined, keys: string[]): number
   return undefined;
 }
 
-/** ISO 3166-1 alpha-2 only (matches `analytics_events.country` width). */
-function pickIsoCountry2(m: Record<string, unknown> | undefined): string | null {
-  const c = pickStr(m, ["country_code", "countryCode"]);
-  if (c && /^[A-Za-z]{2}$/.test(c)) return c.toUpperCase();
-  return null;
-}
-
 /** Tracker sends `utm: { source, medium, campaign }` from URL params; also accept flat utm_* on `data`. */
 function pickUtmColumns(dm: Record<string, unknown> | undefined): {
   utmSource: string | null;
@@ -89,16 +82,16 @@ export async function ingestAnalyticsBatch(siteId: string, events: AnalyticsInge
     const ts = e.ts > 0 ? new Date(e.ts) : new Date(now);
     const utm = pickUtmColumns(dm);
     rows.push({
-      websiteSiteId: siteId,
+      websiteId: siteId,
       eventType: t,
       page: e.url ?? "",
       visitorId: e.vid || e.sid || null,
       sessionId: e.sid || null,
       properties: dm,
       referrer: ref ?? null,
-      country: meta?.country ?? pickIsoCountry2(dm) ?? null,
-      region: meta?.region ?? pickStr(dm, ["region", "region_name", "state"]) ?? null,
-      city: meta?.city ?? pickStr(dm, ["city"]) ?? null,
+      country: meta?.country ?? null,
+      region: meta?.region ?? null,
+      city: meta?.city ?? null,
       browser: meta?.browser ?? pickStr(dm, ["browser"]) ?? null,
       device: meta?.device ?? pickStr(dm, ["device", "device_type"]) ?? null,
       os: meta?.os ?? pickStr(dm, ["os", "os_name"]) ?? null,
@@ -476,12 +469,16 @@ export function parseCollectEvents(raw: unknown[]): TrackerEvent[] {
   return out;
 }
 
-function collectPrepareSessions(evs: TrackerEvent[], siteId: string): TrackerEvent[] {
+function collectPrepareSessions(
+  evs: TrackerEvent[],
+  siteId: string,
+  ingestMeta: AnalyticsIngestMeta,
+): TrackerEvent[] {
   const out: TrackerEvent[] = [];
   for (const e of evs) {
-    if (e.type !== "" && e.type !== "rrweb" && e.type !== "session_error") continue;
+    if (e.type !== "rrweb" && e.type !== "session_error") continue;
     if (!e.sid) continue;
-    out.push({ ...e, websiteId: siteId, data: e.data ?? {} });
+    out.push({ ...e, websiteId: siteId, data: e.data ?? {}, ingestMeta });
   }
   return out;
 }
@@ -559,6 +556,7 @@ export type CollectHandlerContext = {
   ingestMeta: AnalyticsIngestMeta;
 };
 
+/** Attach `ctx.ingestMeta` (geo + device from /collect) to each event and queue for DB insert. */
 export function handleEvents(ctx: CollectHandlerContext): void {
   const page = parseCollectEvents(Array.isArray(ctx.body.events) ? ctx.body.events : []);
   const filtered = page.filter(
@@ -612,7 +610,7 @@ export function handleAutomations(ctx: CollectHandlerContext): void {
 
 export function handleRecordings(ctx: CollectHandlerContext): void {
   const sessions = parseCollectEvents(Array.isArray(ctx.body.session) ? ctx.body.session : []);
-  const prepared = sortByTs(collectPrepareSessions(sessions, ctx.website.site_id));
+  const prepared = sortByTs(collectPrepareSessions(sessions, ctx.website.site_id, ctx.ingestMeta));
   if (!prepared.length) return;
   enqueueRecordings(prepared);
 }

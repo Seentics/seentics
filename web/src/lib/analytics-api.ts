@@ -913,6 +913,8 @@ export interface GeolocationData {
     name: string;
     count: number;
     percentage: number;
+    /** ISO3166-1 alpha-2 for flag */
+    code?: string;
   }>;
 }
 

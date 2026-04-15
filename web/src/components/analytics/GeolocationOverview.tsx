@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatNumber } from '@/lib/analytics-api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { Globe, MapPin } from 'lucide-react';
@@ -46,9 +45,11 @@ interface GeolocationOverviewProps {
 }
 
 export function GeolocationOverview({ data, isLoading = false, className = '', onFilter }: GeolocationOverviewProps) {
-    const [geoTab, setGeoTab] = useState<string>('map');
+    const [geoTab, setGeoTab] = useState<string>('map2d');
 
     const displayData = data;
+    const hasGeoBreakdown =
+        (displayData?.countries?.length ?? 0) > 0 || (displayData?.cities?.length ?? 0) > 0;
 
     const getContinentEmoji = (continent: string): string => {
         const continentMap: Record<string, string> = {
@@ -91,8 +92,9 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <Tabs value={geoTab} onValueChange={setGeoTab}>
-                        <TabsList className="h-8 bg-muted/50 p-0.5 rounded gap-0.5">
-                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map">Map</TabsTrigger>
+                        <TabsList className="h-8 bg-muted/50 p-0.5 rounded gap-0.5 flex-wrap">
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map2d">2D map</TabsTrigger>
+                            <TabsTrigger className='h-7 text-xs font-medium px-3 rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="map3d">3D map</TabsTrigger>
                             <TabsTrigger className='h-7 text-xs font-medium px-3 rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="countries">Countries</TabsTrigger>
                             <TabsTrigger className='h-7 text-xs font-medium px-3 rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm' value="cities">Cities</TabsTrigger>
                         </TabsList>
@@ -101,12 +103,35 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
             </CardHeader>
             <CardContent className=" pt-6">
                 <div className="min-h-[400px]">
-                    {geoTab === 'map' && (
-                        <div className="h-[450px] rounded-xl overflow-hidden">
+                    {!hasGeoBreakdown && !isLoading ? (
+                        <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-accent/5 rounded-xl border border-dashed border-border/60">
+                            <Globe className="h-14 w-14 mb-4 text-muted-foreground/25" />
+                            <p className="text-sm font-medium text-muted-foreground mb-1">No geographic data yet</p>
+                            <p className="text-xs text-muted-foreground/80 max-w-sm leading-relaxed">
+                                Needs recent <span className="font-medium text-foreground/85">pageviews</span>. In development, private/docker client IPs default to <span className="font-medium text-foreground/85">BD</span> on the map; set{' '}
+                                <code className="text-[11px] bg-muted/80 px-1 rounded">GEO_FALLBACK_COUNTRY=US</code> (etc.) if you want a different fallback.
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                    {geoTab === 'map2d' && (
+                        <div className="h-[460px] rounded-xl overflow-hidden border border-border/50 bg-muted/20">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}
                                 view="flat"
+                                showLegend
+                            />
+                        </div>
+                    )}
+
+                    {geoTab === 'map3d' && (
+                        <div className="h-[460px] rounded-xl overflow-hidden border border-border/50 bg-muted/20">
+                            <WorldMap
+                                data={displayData?.countries || []}
+                                isLoading={isLoading}
+                                view="globe"
+                                showLegend
                             />
                         </div>
                     )}
@@ -213,14 +238,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                             ))}
                         </div>
                     )}
-
-                    {/* Empty State */}
-                    {!displayData?.countries?.length && !isLoading && (
-                        <div className="flex flex-col items-center justify-center py-24 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
-                            <Globe className="h-16 w-16 mb-4 opacity-10" />
-                            <div className="text-sm font-medium text-muted-foreground mb-2">No data recorded</div>
-                            <div className="text-xs text-muted-foreground/60">Global insights will appear as visitors connect</div>
-                        </div>
+                        </>
                     )}
                 </div>
             </CardContent>

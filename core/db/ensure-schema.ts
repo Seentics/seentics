@@ -1,6 +1,40 @@
 import { join } from "path";
 import postgres from "postgres";
 
+/**
+ * Code expects `analytics_events.website_id` (Drizzle `websiteId`). Older DBs still have `website_site_id`.
+ * Runs on every core startup (independent of SKIP_DB_PUSH / drizzle push).
+ */
+export async function applyAnalyticsEventsWebsiteIdMigration(): Promise<void> {
+  if (process.env.SKIP_ANALYTICS_WEBSITE_ID_MIGRATION === "true" || process.env.SKIP_ANALYTICS_WEBSITE_ID_MIGRATION === "1") {
+    return;
+  }
+  const url = process.env.DATABASE_URL;
+  if (!url) return;
+  const client = postgres(url, { max: 1, connect_timeout: 10 });
+  try {
+    const cols = await client<{ column_name: string }[]>`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'analytics_events'
+    `;
+    const names = new Set(cols.map((c) => c.column_name));
+    if (names.has("website_site_id") && !names.has("website_id")) {
+           await client`ALTER TABLE analytics_events RENAME COLUMN website_site_id TO website_id`;
+      console.log("[schema] analytics_events: renamed website_site_id → website_id");
+    } else if (!names.has("website_id") && names.size > 0) {
+      console.warn(
+        "[schema] analytics_events has no website_id column (found:",
+        [...names].join(", "),
+        ") — fix DB manually or run drizzle-kit push",
+      );
+    }
+  } finally {
+    await client.end({ timeout: 3 });
+  }
+}
+
 async function isAnalyticsSchemaMissing(): Promise<boolean> {
   const url = process.env.DATABASE_URL;
   if (!url) return false;

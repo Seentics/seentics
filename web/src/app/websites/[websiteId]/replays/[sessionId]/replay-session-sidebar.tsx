@@ -14,6 +14,7 @@ import {
   type SessionActivityStats,
   type SessionErrorDetail,
 } from './session-replay-surface';
+import { stripClientVersionLabel } from '@/components/replays/session-environment-visuals';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -61,10 +62,13 @@ function SessionSummaryCard({
   session,
   websiteId = '',
   exitPage,
+  /** When playback is ready, rrweb timeline length (matches transport); overrides stale DB `durationSeconds`. */
+  playbackDurationSeconds,
 }: {
   session: ReplaySession | null;
   websiteId?: string;
   exitPage?: string | null;
+  playbackDurationSeconds?: number;
 }) {
   const entryDisplay = session?.entryPage
     ? displayRealtimePath(session.entryPage, websiteId ?? '', 80)
@@ -85,11 +89,11 @@ function SessionSummaryCard({
         ) : (
           <>
             <dl className="space-y-3">
-              <SummaryField label="Browser">{session.browser}</SummaryField>
+              <SummaryField label="Browser">{stripClientVersionLabel(session.browser || '') || '—'}</SummaryField>
               <SummaryField label="Device / OS">
                 {session.device}
                 <span className="text-muted-foreground"> · </span>
-                {session.os}
+                {stripClientVersionLabel(session.os || '') || '—'}
               </SummaryField>
               <SummaryField label="Country">{session.country}</SummaryField>
               <SummaryField label="Entry page">
@@ -106,7 +110,11 @@ function SessionSummaryCard({
               )}
               <SummaryField label="Started">{formatStartedAt(session.startedAt)}</SummaryField>
               <SummaryField label="Recording length">
-                {formatRecordingDuration(session.durationSeconds)}
+                {formatRecordingDuration(
+                  playbackDurationSeconds != null && playbackDurationSeconds >= 0
+                    ? playbackDurationSeconds
+                    : session.durationSeconds,
+                )}
               </SummaryField>
               <SummaryField label="Pages viewed">{String(session.pagesViewed)}</SummaryField>
             </dl>
@@ -377,6 +385,11 @@ export function ReplaySessionSidebar({
             session={session}
             websiteId={websiteId}
             exitPage={stats?.exitPage ?? null}
+            playbackDurationSeconds={
+              replayBridge && replayBridge.durationMs > 0
+                ? Math.round(replayBridge.durationMs / 1000)
+                : undefined
+            }
           />
           <TimelineCard replayBridge={replayBridge} />
         </div>

@@ -64,7 +64,7 @@ async function siteStats(siteId: string) {
     .from(analyticsEvents)
     .where(
       and(
-        eq(analyticsEvents.websiteSiteId, siteId),
+        eq(analyticsEvents.websiteId, siteId),
         gte(analyticsEvents.occurredAt, since),
         eq(analyticsEvents.eventType, "pageview"),
       ),
@@ -72,7 +72,7 @@ async function siteStats(siteId: string) {
   const [vis] = await db
     .select({ c: sql<number>`count(distinct ${analyticsEvents.visitorId})::int` })
     .from(analyticsEvents)
-    .where(and(eq(analyticsEvents.websiteSiteId, siteId), gte(analyticsEvents.occurredAt, since)));
+    .where(and(eq(analyticsEvents.websiteId, siteId), gte(analyticsEvents.occurredAt, since)));
   return {
     totalPageviews: Number(pv?.c ?? 0),
     uniqueVisitors: Number(vis?.c ?? 0),
@@ -218,7 +218,7 @@ export async function deleteForUser(userId: string, websiteParam: string) {
   const { uuidStr } = await resolveWebsiteIds(websiteParam);
   const [w] = await db.select().from(websites).where(eq(websites.id, uuidStr)).limit(1);
   if (!w) return false;
-  await db.delete(analyticsEvents).where(eq(analyticsEvents.websiteSiteId, w.siteId));
+  await db.delete(analyticsEvents).where(eq(analyticsEvents.websiteId, w.siteId));
   await db.delete(automations).where(eq(automations.websiteId, uuidStr));
   await db.delete(funnels).where(eq(funnels.websiteId, uuidStr));
   await db.delete(goals).where(eq(goals.websiteId, uuidStr));

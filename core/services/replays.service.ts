@@ -1,7 +1,8 @@
 import { env } from "../config";
 import { getReplayEngine } from "../lib/replay-engine";
 import { deleteSessionByEitherId, getSessionMeta, listSessions } from "../lib/replay-db";
-import { presignGet, locateBundle, deleteSessionPrefix } from "../lib/s3";
+import { presignGet, locateBundle, deleteSessionPrefix, getJsonGzip } from "../lib/s3";
+import { compareReplayEnvelopeEvents } from "../lib/replay-event-order";
 import { resolveWebsiteIds, resolveWebsiteIdsLenient } from "../lib/website-resolve";
 
 const replayNotReady = "replay recording is not available yet";
@@ -190,24 +191,47 @@ export async function getReplaySessionDetail(
     engine.warmChunks(siteId, sessionId) ??
     (uuidStr !== siteId ? engine.warmChunks(uuidStr, sessionId) : null);
 
-  if (warm && warm.some((ch) => ch.data?.length)) {
+  const bucket = cfg.s3.bucket;
+  const key = await locateBundle(bucket, siteId, uuidStr, sessionId);
+
+  const warmFlat: Record<string, unknown>[] = [];
+  if (warm) {
+    for (const ch of warm) {
+      if (Array.isArray(ch.data)) warmFlat.push(...(ch.data as Record<string, unknown>[]));
+    }
+  }
+
+  /** Warm buffer must merge with finalized S3 bytes; returning warm alone used to drop everything already uploaded. */
+  if (warmFlat.length > 0) {
+    let s3Events: Record<string, unknown>[] | null = null;
+    if (key) {
+      try {
+        s3Events = await getJsonGzip(bucket, key);
+      } catch {
+        s3Events = null;
+      }
+    }
+    const merged: Record<string, unknown>[] = [];
+    if (s3Events?.length) merged.push(...s3Events);
+    merged.push(...warmFlat);
+    merged.sort(compareReplayEnvelopeEvents);
     return {
       status: 200,
       body: {
         session_id: sessionId,
         meta,
-        warm_chunks: warm.map((ch) => ({
-          sequence: ch.sequence,
-          data: ch.data,
-          timestamp: timestampToIso(ch.timestamp),
-        })),
+        warm_chunks: [
+          {
+            sequence: 0,
+            data: merged as unknown[],
+            timestamp: timestampToIso(new Date()),
+          },
+        ],
         recording_pending: false,
       },
     };
   }
 
-  const bucket = cfg.s3.bucket;
-  const key = await locateBundle(bucket, siteId, uuidStr, sessionId);
   if (!key) {
     if (!meta) return { status: 404, body: { error: replayNotReady } };
     return {

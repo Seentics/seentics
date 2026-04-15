@@ -8,6 +8,20 @@ const publicOnlyRoutes = ['/signin', '/forgot-password', '/reset-password'];
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Tracker hits `/api/v1/tracker/*` via rewrite to the gateway → core. The TCP peer there is localhost,
+  // so the core must see the browser via X-Forwarded-For. Next may expose `request.ip` (e.g. on Vercel / some hosts).
+  if (pathname.startsWith('/api/v1/tracker')) {
+    const h = new Headers(request.headers);
+    if (!h.get('x-forwarded-for')?.trim()) {
+      const reqWithIp = request as NextRequest & { ip?: string | null };
+      const ip = typeof reqWithIp.ip === 'string' ? reqWithIp.ip.trim() : '';
+      if (ip) {
+        h.set('x-forwarded-for', ip);
+      }
+    }
+    return NextResponse.next({ request: { headers: h } });
+  }
+
   // OSS mode: redirect enterprise-only public routes
   if (!isEnterprise) {
     if (pathname === '/signup' || pathname.startsWith('/signup')) {
@@ -57,6 +71,8 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/api/v1/tracker',
+    '/api/v1/tracker/:path*',
     /*
      * Match all request paths except for the ones starting with:
      * - api (API routes)

@@ -1,5 +1,6 @@
 import {
   boolean,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -190,7 +191,7 @@ export const analyticsEvents = pgTable(
   "analytics_events",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    websiteSiteId: text("website_site_id").notNull(),
+    websiteId: text("website_id").notNull(),
     eventType: varchar("event_type", { length: 64 }).notNull(),
     page: text("page"),
     visitorId: text("visitor_id"),
@@ -213,8 +214,8 @@ export const analyticsEvents = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("ix_analytics_site_occurred").on(t.websiteSiteId, t.occurredAt),
-    index("ix_analytics_site_type_occurred").on(t.websiteSiteId, t.eventType, t.occurredAt),
+    index("ix_analytics_site_occurred").on(t.websiteId, t.occurredAt),
+    index("ix_analytics_site_type_occurred").on(t.websiteId, t.eventType, t.occurredAt),
   ],
 );
 

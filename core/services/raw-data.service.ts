@@ -22,7 +22,7 @@ export async function rawAnalyticsEvents(
   if (from && Number.isNaN(from.getTime())) throw new Error("bad from");
   if (to && Number.isNaN(to.getTime())) throw new Error("bad to");
 
-  const cond = [eq(analyticsEvents.websiteSiteId, siteId)];
+  const cond = [eq(analyticsEvents.websiteId, siteId)];
   if (from) cond.push(gte(analyticsEvents.occurredAt, from));
   if (to) cond.push(lte(analyticsEvents.occurredAt, to));
   if (q.event_type) cond.push(eq(analyticsEvents.eventType, q.event_type));

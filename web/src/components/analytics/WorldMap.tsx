@@ -10,12 +10,17 @@ interface TopItem {
     code?: string;
     count: number;
     percentage: number;
+    /** Optional WGS84 override; otherwise country code maps to a static centroid */
+    lat?: number;
+    lng?: number;
 }
 
 interface WorldMapProps {
     data: TopItem[];
     isLoading?: boolean;
     view?: 'globe' | 'flat';
+    /** Choropleth legend; hide when showing multiple maps to avoid duplication */
+    showLegend?: boolean;
 }
 
 const COUNTRY_COORDS: Record<string, [number, number]> = {
@@ -124,7 +129,9 @@ function GlobeView({ data }: { data: TopItem[] }) {
     const htmlMarkers = useMemo(() =>
         data.flatMap(item => {
             const coords = COUNTRY_COORDS[item.name];
-            if (!coords) return [];
+            const lat = item.lat ?? coords?.[0];
+            const lng = item.lng ?? coords?.[1];
+            if (lat == null || lng == null) return [];
             const ratio = item.percentage / maxPct;
             const dotSize = Math.round(22 + ratio * 20);
             const fontSize = Math.round(8 + ratio * 4);
@@ -133,7 +140,7 @@ function GlobeView({ data }: { data: TopItem[] }) {
             const escapedName = item.name.replace(/"/g, '&quot;');
             const pctLabel = item.percentage > 0 ? item.percentage.toFixed(2) + '%' : '';
             return [{
-                lat: coords[0], lng: coords[1], altitude: 0.02,
+                lat, lng, altitude: 0.02,
                 name: item.name, count: item.count, percentage: item.percentage,
                 __html: `<div style="position:relative;display:inline-block;">
                     <div data-name="${escapedName}" data-count="${item.count}" data-pct="${item.percentage.toFixed(2)}"
@@ -159,10 +166,12 @@ function GlobeView({ data }: { data: TopItem[] }) {
     const rings = useMemo(() =>
         data.flatMap(item => {
             const coords = COUNTRY_COORDS[item.name];
-            if (!coords) return [];
+            const lat = item.lat ?? coords?.[0];
+            const lng = item.lng ?? coords?.[1];
+            if (lat == null || lng == null) return [];
             const ratio = item.percentage / maxPct;
             const { bg } = pinColor(ratio);
-            return [{ lat: coords[0], lng: coords[1], maxR: 2.5 + ratio * 2.8,
+            return [{ lat, lng, maxR: 2.5 + ratio * 2.8,
                 propagationSpeed: 1.3, repeatPeriod: 1000 + (1-ratio)*1200, color: bg }];
         }), [data, maxPct]);
 
@@ -330,7 +339,7 @@ function Legend() {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function WorldMap({ data, isLoading, view = 'globe' }: WorldMapProps) {
+export default function WorldMap({ data, isLoading, view = 'globe', showLegend = true }: WorldMapProps) {
     if (isLoading) {
         return (
             <div className="w-full h-full flex items-center justify-center">
@@ -342,7 +351,7 @@ export default function WorldMap({ data, isLoading, view = 'globe' }: WorldMapPr
     return (
         <div className="relative w-full h-full rounded-xl overflow-hidden">
             {view === 'globe' ? <GlobeView data={data} /> : <FlatMapView data={data} />}
-            <Legend />
+            {showLegend && <Legend />}
             {data.length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <p className="text-muted-foreground/40 text-sm">No geographic data yet</p>

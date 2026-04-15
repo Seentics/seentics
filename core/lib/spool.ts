@@ -1,4 +1,5 @@
 import type { ReplayChunk } from "./types";
+import { compareReplayEnvelopeEvents } from "./replay-event-order";
 
 const maxEventsPerSession = 500_000;
 
@@ -17,14 +18,7 @@ function mapKey(siteId: string, sessionId: string): string {
 }
 
 function sortEvents(events: Record<string, unknown>[]): void {
-  events.sort((a, b) => eventTs(a) - eventTs(b));
-}
-
-function eventTs(ev: Record<string, unknown>): number {
-  const t = ev.ts;
-  if (typeof t === "number") return t;
-  if (typeof t === "string") return Number(t) || 0;
-  return 0;
+  events.sort(compareReplayEnvelopeEvents);
 }
 
 /** In-memory buffer: idle / max-age flush callbacks supplied by engine. */

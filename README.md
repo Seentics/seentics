@@ -206,7 +206,14 @@ Use [`.env.example`](.env.example) where present and [`docker-compose.yml`](dock
 
 ### Geolocation (dashboard geography)
 
-Analytics ingest resolves visitor IP to **country / region / city** using MaxMind’s MMDB reader (`@maxmind/geoip2-node`). Download **GeoLite2-City.mmdb** from [MaxMind](https://dev.maxmind.com/geoip/updating-databases/) and place it in **`data/maxmind/`** next to `docker-compose.yml` (mounted at `/data/maxmind` in the API container). If the file is missing, the API still runs; geography columns may stay empty unless the CDN sends `CF-IPCountry` or the tracker sends fields in event `data`.
+Analytics ingest resolves the **visitor IP** to **country, region, and city** via `@maxmind/geoip2-node` (GeoIP2-City / GeoLite2-City `.mmdb`). If the database is missing or has no match, **country** may still be set from edge headers (`CF-IPCountry`, `X-Vercel-IP-Country`, `CloudFront-Viewer-Country`). Values are stored on `analytics_events` (`country`, `region`, `city`).
+
+1. Download **GeoLite2-City.mmdb** from [MaxMind](https://dev.maxmind.com/geoip/updating-databases/) and point **`MAXMIND_DB_PATH`** at it (e.g. **`./db/maxmind/GeoLite2-City.mmdb`** inside the container when `./core` is bind-mounted at `/app`).
+2. **Schema:** run `bun run db:push` from `./core` so Postgres matches the Drizzle schema. If you previously added `geo_latitude` / `geo_longitude` manually, apply `core/db/sql/002_analytics_drop_geo_coordinates.sql` (or let `db:push` drop them).
+3. **Client IP:** Bun sets **`x-seentics-peer-ip`** from the TCP peer so GeoIP works without `X-Forwarded-For`. Behind **nginx / a load balancer**, set **`TRUST_PROXY=true`** and forward the real client IP (`X-Forwarded-For` / `X-Real-IP` / `CF-Connecting-IP`); otherwise the peer may be the proxy, not the visitor.
+4. **Localhost / Docker:** Private client IPs get **`BD`** as the default country in non-`production` (`ENVIRONMENT`). Override with **`GEO_FALLBACK_COUNTRY`** (e.g. `US`). For real MaxMind geo, expose the app on a public URL so **`X-Forwarded-For`** / **`CF-Connecting-IP`** carries the visitor’s public IP.
+
+If the MMDB is missing, the API still runs; **`country` / `region` / `city` on ingested events stay empty** until `MAXMIND_DB_PATH` points at a valid City database.
 
 ---
 

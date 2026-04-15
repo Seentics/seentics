@@ -3,6 +3,8 @@ import { uploadSessionBundleGzip, createBundleLocks } from "./s3";
 import { ReplaySpool } from "./spool";
 import { upsertSessionMetaBatch, type SessionUpsertRow } from "./replay-db";
 import { resolveWebsiteIdsLenient } from "./website-resolve";
+import { compareReplayEnvelopeEvents } from "./replay-event-order";
+import type { AnalyticsIngestMeta } from "./analytics-ingest-meta";
 import type { TrackerEvent } from "./types";
 
 const pgQueueCap = 16384;
@@ -13,6 +15,55 @@ const bundleLocks = createBundleLocks();
 
 type RageClick = { ts: number; x: number; y: number };
 
+/** rrweb `eventWithTime.timestamp` on tracker payloads (`type: 'rrweb'`, `data` = emit object). */
+function rrwebPayloadTimelineMs(data: unknown): number | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const raw = (data as Record<string, unknown>).timestamp;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/** Same span the web player uses (last rrweb timestamp − first), not envelope `ts` (e.g. `session_error` uses `Date.now()`). */
+function replayTimelineMinMaxMs(batch: SessionBatch): { min: number; max: number } | null {
+  let rrMin = Infinity;
+  let rrMax = -Infinity;
+  for (const e of batch.events) {
+    if (e.type !== "rrweb") continue;
+    const t = rrwebPayloadTimelineMs(e.data);
+    if (t != null) {
+      if (t < rrMin) rrMin = t;
+      if (t > rrMax) rrMax = t;
+    }
+  }
+  if (rrMin !== Infinity && rrMax !== -Infinity && rrMax >= rrMin) return { min: rrMin, max: rrMax };
+  const env: number[] = [];
+  for (const e of batch.events) {
+    if (e.type !== "rrweb") continue;
+    const n = typeof e.ts === "number" ? e.ts : Number(e.ts);
+    if (Number.isFinite(n)) env.push(n);
+  }
+  if (env.length < 2) return null;
+  const lo = Math.min(...env);
+  const hi = Math.max(...env);
+  if (hi < lo) return null;
+  return { min: lo, max: hi };
+}
+
+function replayDurationSecondsFromBatch(batch: SessionBatch): number {
+  const span = replayTimelineMinMaxMs(batch);
+  if (!span) return 0;
+  return Math.max(0, Math.floor((span.max - span.min) / 1000));
+}
+
+function replayLatestEventMsForStorage(batch: SessionBatch, fallbackEnd: number): number {
+  const span = replayTimelineMinMaxMs(batch);
+  return span ? span.max : fallbackEnd;
+}
+
 type SessionBatch = {
   websiteId: string;
   events: Record<string, unknown>[];
@@ -21,8 +72,8 @@ type SessionBatch = {
   hasFullSnapshot: boolean;
   startTs: number;
   endTs: number;
-  clientUA: string;
-  clientIP: string;
+  /** First event’s request-level UA/geo (same as analytics ingest). */
+  ingestMeta?: AnalyticsIngestMeta;
 };
 
 type SessionMetaLite = {
@@ -112,11 +163,10 @@ export class ReplayEngine {
           hasFullSnapshot: false,
           startTs: ev.ts,
           endTs: ev.ts,
-          clientUA: "",
-          clientIP: "",
         };
         grouped.set(ev.sid, b);
       }
+      if (ev.ingestMeta && !b.ingestMeta) b.ingestMeta = ev.ingestMeta;
       b.events.push({
         type: ev.type,
         ts: ev.ts,
@@ -161,13 +211,14 @@ export class ReplayEngine {
           batch.events.length > 0 && typeof batch.events[0]!.url === "string"
             ? (batch.events[0]!.url as string)
             : "";
+        const im = batch.ingestMeta;
         meta = {
           sessionId,
           websiteId: batch.websiteId,
-          browser: "Unknown",
-          device: "Unknown",
-          os: "Unknown",
-          country: "",
+          browser: (im?.browser ?? "").trim() || "Unknown",
+          device: (im?.device ?? "").trim() || "Unknown",
+          os: (im?.os ?? "").trim() || "Unknown",
+          country: (im?.country ?? "").trim(),
           entryPage: entryURL,
           startedAt: new Date(batch.startTs),
           hasRageClicks: false,
@@ -185,7 +236,7 @@ export class ReplayEngine {
         batch,
         meta,
         pageIncrements,
-        durationSeconds: Math.max(0, Math.floor((batch.endTs - batch.startTs) / 1000)),
+        durationSeconds: replayDurationSecondsFromBatch(batch),
         tsToUse,
         rageClicks: hasRageClickPattern(batch.clicks),
       });
@@ -211,7 +262,7 @@ export class ReplayEngine {
         websiteId: storageWebsiteId,
         sessionId: w.sessionId,
         tsMs: w.tsToUse,
-        latestEventMs: w.batch.endTs,
+        latestEventMs: replayLatestEventMsForStorage(w.batch, w.batch.endTs),
         browser: m?.browser ?? "",
         device: m?.device ?? "",
         os: m?.os ?? "",
@@ -236,14 +287,7 @@ export class ReplayEngine {
 }
 
 function sortBatchEvents(events: Record<string, unknown>[]): void {
-  events.sort((a, b) => eventTs(a) - eventTs(b));
-}
-
-function eventTs(ev: Record<string, unknown>): number {
-  const t = ev.ts;
-  if (typeof t === "number") return t;
-  if (typeof t === "string") return Number(t) || 0;
-  return 0;
+  events.sort(compareReplayEnvelopeEvents);
 }
 
 function hasRageClickPattern(clicks: RageClick[]): boolean {
