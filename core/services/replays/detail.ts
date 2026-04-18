@@ -54,6 +54,7 @@ export type ReplaySessionDetail =
         } | null;
         warm_chunks: { sequence: number; data: unknown; timestamp: string }[];
         recording_pending: false;
+        replay_storage?: "legacy_inline";
       };
     }
   | {
@@ -75,6 +76,7 @@ export type ReplaySessionDetail =
           pagesViewed: number;
         } | null;
         recording_pending: true;
+        replay_storage?: "pending";
       };
     }
   | {
@@ -95,6 +97,8 @@ export type ReplaySessionDetail =
           durationSeconds: number;
           pagesViewed: number;
         } | null;
+        replay_storage: "chunks";
+        replay_chunk_count: number;
         replay_chunk_urls: ReplayChunkUrlRow[];
         warm_chunks?: { sequence: number; data: unknown; timestamp: string }[];
         recording_pending: false;
@@ -118,6 +122,7 @@ export type ReplaySessionDetail =
           durationSeconds: number;
           pagesViewed: number;
         } | null;
+        replay_storage: "bundle";
         replay_url: string;
         replay_url_expires_at: string;
         recording_pending: false;
@@ -130,10 +135,11 @@ export async function getReplaySessionDetail(
   sessionId: string,
 ): Promise<ReplaySessionDetail> {
   const { siteId, uuidStr } = await resolveWebsiteIdsLenient(websiteParam);
+  const sid = sessionId.trim();
   const engine = getReplayEngine();
   const cfg = env();
 
-  const metaRow = await getSessionMeta(siteId, uuidStr, sessionId);
+  const metaRow = await getSessionMeta(siteId, uuidStr, sid);
   const meta = metaRow
     ? {
         sessionId: metaRow.sessionId,
@@ -152,14 +158,13 @@ export async function getReplaySessionDetail(
     : null;
 
   const warm =
-    engine.warmChunks(siteId, sessionId) ??
-    (uuidStr !== siteId ? engine.warmChunks(uuidStr, sessionId) : null);
+    engine.warmChunks(siteId, sid) ?? (uuidStr !== siteId ? engine.warmChunks(uuidStr, sid) : null);
 
   const bucket = cfg.s3.bucket;
   const expMs = cfg.presignTtlMs;
   const deadline = new Date(Date.now() + expMs).toISOString();
 
-  const chunkRows = await collectSessionChunkRows(bucket, siteId, uuidStr, sessionId);
+  const chunkRows = await collectSessionChunkRows(bucket, siteId, uuidStr, sid);
 
   const warmFlat: Record<string, unknown>[] = [];
   if (warm) {
@@ -192,8 +197,11 @@ export async function getReplaySessionDetail(
     return {
       status: 200,
       body: {
-        session_id: sessionId,
+        session_id: sid,
         meta,
+        /** Lets clients/DevTools confirm immutable S3 chunk path vs legacy bundle. */
+        replay_storage: "chunks" as const,
+        replay_chunk_count: chunkRows.length,
         replay_chunk_urls,
         ...(warm_chunks ? { warm_chunks } : {}),
         recording_pending: false,
@@ -201,7 +209,7 @@ export async function getReplaySessionDetail(
     };
   }
 
-  const key = await locateBundle(bucket, siteId, uuidStr, sessionId);
+  const key = await locateBundle(bucket, siteId, uuidStr, sid);
 
   /** Legacy single bundle merged with warm tail. */
   if (warmFlat.length > 0) {
@@ -220,8 +228,9 @@ export async function getReplaySessionDetail(
     return {
       status: 200,
       body: {
-        session_id: sessionId,
+        session_id: sid,
         meta,
+        replay_storage: "legacy_inline" as const,
         warm_chunks: [
           {
             sequence: 0,
@@ -239,8 +248,9 @@ export async function getReplaySessionDetail(
     return {
       status: 200,
       body: {
-        session_id: sessionId,
+        session_id: sid,
         meta,
+        replay_storage: "pending" as const,
         recording_pending: true,
       },
     };
@@ -250,8 +260,9 @@ export async function getReplaySessionDetail(
   return {
     status: 200,
     body: {
-      session_id: sessionId,
+      session_id: sid,
       meta,
+      replay_storage: "bundle" as const,
       replay_url: url,
       replay_url_expires_at: deadline,
       recording_pending: false,

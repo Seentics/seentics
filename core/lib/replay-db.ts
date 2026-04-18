@@ -115,6 +115,11 @@ export async function getSessionMeta(
   uuidStr: string,
   sessionId: string,
 ): Promise<SessionMetaRow | null> {
+  /**
+   * One row per (website_id, session_id, sequence=0). Match either resolved id
+   * (short `site_id` or UUID) so list + detail never disagree. Avoid `UNION … LIMIT 1`
+   * edge cases with driver/PLAN behavior.
+   */
   const rows = await pgSql<SessionMetaRow[]>`
     SELECT session_id as "sessionId", website_id as "websiteId",
       COALESCE(browser,'') as browser, COALESCE(device,'') as device, COALESCE(os,'') as os,
@@ -122,15 +127,8 @@ export async function getSessionMeta(
       timestamp as "startedAt", has_rage_clicks as "hasRageClicks", has_errors as "hasErrors",
       duration_seconds as "durationSeconds", pages_viewed as "pagesViewed"
     FROM session_replays
-    WHERE website_id = ${siteId} AND session_id = ${sessionId} AND sequence = 0
-    UNION ALL
-    SELECT session_id AS "sessionId", website_id AS "websiteId",
-      COALESCE(browser,'') AS browser, COALESCE(device,'') AS device, COALESCE(os,'') AS os,
-      COALESCE(country,'') AS country, COALESCE(entry_page,'') AS "entryPage",
-      timestamp AS "startedAt", has_rage_clicks AS "hasRageClicks", has_errors AS "hasErrors",
-      duration_seconds AS "durationSeconds", pages_viewed AS "pagesViewed"
-    FROM session_replays
-    WHERE website_id = ${uuidStr} AND session_id = ${sessionId} AND sequence = 0 AND ${uuidStr} <> ${siteId}
+    WHERE session_id = ${sessionId} AND sequence = 0
+      AND (website_id = ${siteId} OR website_id = ${uuidStr})
     LIMIT 1
   `;
   return rows[0] ?? null;

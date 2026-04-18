@@ -40,29 +40,81 @@ export interface SessionReplayApiResponse {
   warm_chunks?: Array<{ sequence: number; data: unknown[] }>;
   /** Immutable time-based chunks (fetch in sequence and stitch). */
   replay_chunk_urls?: Array<{ sequence: number; url: string; expires_at: string }>;
+  /** From core: how bytes are exposed (`chunks` = new path, `bundle` = legacy single file). */
+  replay_storage?: 'chunks' | 'bundle' | 'pending' | 'legacy_inline';
+  replay_chunk_count?: number;
   replay_url?: string;
   replay_url_expires_at?: string;
   /** True when metadata exists but recording bytes are not downloadable yet (retry shortly). */
   recording_pending?: boolean;
 }
 
+/** gzip magic bytes */
+function isLikelyGzip(buf: ArrayBuffer): boolean {
+  const u = new Uint8Array(buf);
+  return u.byteLength >= 2 && u[0] === 0x1f && u[1] === 0x8b;
+}
+
+/**
+ * Reads replay chunk/bundle bytes from S3/MinIO (gzip JSON array, or rare plain JSON).
+ * Network "empty" Preview in DevTools is normal for binary gzip — use Response size / arrayBuffer length.
+ */
 export async function fetchGzipJsonArray(url: string): Promise<unknown[]> {
   const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
   if (!res.ok) {
     throw new Error(`Replay bundle fetch failed: ${res.status}`);
   }
   const buf = await res.arrayBuffer();
+  if (buf.byteLength === 0) {
+    throw new Error(
+      'Replay object is empty (0 bytes). Re-upload may be needed — check core logs around replay chunk upload.',
+    );
+  }
+
+  const parseJsonArray = (label: string, text: string): unknown[] => {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch (e) {
+      const snippet = text.slice(0, 120).replace(/\s+/g, ' ');
+      throw new Error(
+        `${label}: JSON.parse failed (${e instanceof Error ? e.message : String(e)}). Starts with: ${snippet}`,
+      );
+    }
+    if (!Array.isArray(parsed)) {
+      throw new Error(`${label}: expected JSON array, got ${typeof parsed}`);
+    }
+    return parsed;
+  };
+
+  const asText = new TextDecoder().decode(buf);
+  const trimmed = asText.trimStart();
+
   if (typeof DecompressionStream === 'undefined') {
+    if (trimmed.startsWith('[')) {
+      return parseJsonArray('plain replay payload (no DecompressionStream)', asText);
+    }
     throw new Error('This browser cannot decompress replay bundles (no DecompressionStream).');
   }
-  const ds = new DecompressionStream('gzip');
-  const decompressed = await new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer();
-  const text = new TextDecoder().decode(decompressed);
-  const parsed = JSON.parse(text) as unknown;
-  if (!Array.isArray(parsed)) {
-    throw new Error('Replay bundle must be a JSON array');
+
+  if (isLikelyGzip(buf)) {
+    try {
+      const ds = new DecompressionStream('gzip');
+      const decompressed = await new Response(new Blob([buf]).stream().pipeThrough(ds)).arrayBuffer();
+      const text = new TextDecoder().decode(decompressed);
+      return parseJsonArray('gzip replay payload', text);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const head = Array.from(new Uint8Array(buf).slice(0, Math.min(8, buf.byteLength)))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join(' ');
+      throw new Error(
+        `Replay gzip decode failed (${msg}). First bytes (hex): ${head}. Confirm the object in MinIO is gzip of a JSON array (not empty, not HTML).`,
+      );
+    }
   }
-  return parsed;
+
+  return parseJsonArray('plain replay payload', asText);
 }
 
 /** Converts warm-chunk / bundle rows into rrweb `eventWithTime` list + sidecar custom events. */
@@ -146,17 +198,32 @@ export async function getSessionWithEvents(
   customEvents: SessionCustomEvent[];
   recordingPending: boolean;
 }> {
-  const res = await api.get(`/replays/${websiteId}/${sessionId}`);
+  const sid = sessionId.trim();
+  const res = await api.get(
+    `/replays/${encodeURIComponent(websiteId)}/${encodeURIComponent(sid)}`,
+  );
   const body = res.data as SessionReplayApiResponse;
 
-  const fromUrls = body.replay_chunk_urls?.length
-    ? await Promise.all(
-        [...body.replay_chunk_urls].sort((a, b) => a.sequence - b.sequence).map(async (row) => ({
-          sequence: row.sequence,
-          data: (await fetchGzipJsonArray(row.url)) as unknown[],
-        })),
-      )
-    : [];
+  const urlRows = [...(body.replay_chunk_urls ?? [])].sort((a, b) => a.sequence - b.sequence);
+  const chunkResults = await Promise.allSettled(
+    urlRows.map((row) =>
+      fetchGzipJsonArray(row.url).then((data) => ({
+        sequence: row.sequence,
+        data: data as unknown[],
+      })),
+    ),
+  );
+  const fromUrls: Array<{ sequence: number; data: unknown[] }> = [];
+  for (const r of chunkResults) {
+    if (r.status === "fulfilled") fromUrls.push(r.value);
+  }
+  if (urlRows.length > 0 && fromUrls.length === 0) {
+    const failed = chunkResults.find((x) => x.status === "rejected") as PromiseRejectedResult | undefined;
+    const msg = failed?.reason instanceof Error ? failed.reason.message : String(failed?.reason ?? "failed");
+    throw new Error(
+      `Could not load replay from storage (${msg}). Check that presigned URLs use a public S3 endpoint (e.g. S3_PUBLIC_ENDPOINT with MinIO) and CORS allows GET from your app.`,
+    );
+  }
 
   let chunks: Array<{ sequence: number; data: unknown[] }> = [...fromUrls];
   if (body.warm_chunks?.length) {
@@ -164,8 +231,15 @@ export async function getSessionWithEvents(
   }
 
   if ((!chunks || chunks.length === 0) && body.replay_url) {
-    const raw = await fetchGzipJsonArray(body.replay_url);
-    chunks = [{ sequence: 0, data: raw as unknown[] }];
+    try {
+      const raw = await fetchGzipJsonArray(body.replay_url);
+      chunks = [{ sequence: 0, data: raw as unknown[] }];
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      throw new Error(
+        `Could not load replay bundle (${msg}). Check S3_PUBLIC_ENDPOINT / CORS if using MinIO or R2.`,
+      );
+    }
   }
 
   if (!chunks?.length) {

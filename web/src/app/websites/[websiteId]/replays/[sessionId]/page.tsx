@@ -39,7 +39,7 @@ export default function ReplayDetailPage() {
   const [replayBridge, setReplayBridge] = useState<SessionReplayBridge | null>(null);
   const queryClient = useQueryClient();
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error: queryError } = useQuery({
     queryKey: ['replay', websiteId, sessionId],
     queryFn: () => getSessionWithEvents(websiteId, sessionId),
     enabled: !!websiteId && !!sessionId && !isDemoMode,
@@ -221,9 +221,11 @@ export default function ReplayDetailPage() {
                   <Video className="h-7 w-7 text-muted-foreground/50" />
                 </div>
                 <div className="max-w-md space-y-2">
-                  <p className="text-sm font-semibold text-foreground">Replay not found</p>
+                  <p className="text-sm font-semibold text-foreground">Couldn&apos;t load replay</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    The server returned an error (for example 404). The session may have been deleted, or the recording never finished uploading.
+                    {queryError instanceof Error
+                      ? queryError.message
+                      : 'The session may have been deleted, the API returned an error (for example 404), or the recording bytes could not be read from storage.'}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>

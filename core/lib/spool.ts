@@ -3,6 +3,9 @@ import { compareReplayEnvelopeEvents } from "./replay-event-order";
 
 const maxEventsPerSession = 500_000;
 
+/** Drop idle empty sessions so the spool map cannot grow forever after visitors leave. */
+const EMPTY_SESSION_IDLE_PURGE_MS = 45 * 60 * 1000;
+
 type SessionState = {
   siteId: string;
   sessionId: string;
@@ -13,6 +16,8 @@ type SessionState = {
   chunkWindowStart: number | null;
   /** Next S3 chunk index; null until resolved from storage on first flush. */
   nextChunkSeq: number | null;
+  /** Updated on ingest and flush; used to prune sessions with empty buffers after visitors leave. */
+  lastTouchedMs: number;
 };
 
 function mapKey(siteId: string, sessionId: string): string {
@@ -81,6 +86,7 @@ export class ReplaySpool {
     const k = mapKey(siteId, sessionId);
     let st = this.sessions.get(k);
     if (!st) {
+      const now = Date.now();
       st = {
         siteId,
         sessionId,
@@ -89,6 +95,7 @@ export class ReplaySpool {
         finalizing: false,
         chunkWindowStart: null,
         nextChunkSeq: null,
+        lastTouchedMs: now,
       };
       this.sessions.set(k, st);
     }
@@ -97,6 +104,7 @@ export class ReplaySpool {
     }
     const wasEmpty = st.events.length === 0;
     st.events.push(...events);
+    st.lastTouchedMs = Date.now();
     if (wasEmpty) {
       st.chunkWindowStart = Date.now();
     }
@@ -122,6 +130,15 @@ export class ReplaySpool {
 
   private async tick(): Promise<void> {
     const now = Date.now();
+    for (const [key, st] of [...this.sessions.entries()]) {
+      if (
+        st.events.length === 0 &&
+        !st.finalizing &&
+        now - st.lastTouchedMs > EMPTY_SESSION_IDLE_PURGE_MS
+      ) {
+        this.sessions.delete(key);
+      }
+    }
     for (const st of this.sessions.values()) {
       if (st.finalizing || st.events.length === 0) continue;
       if (st.chunkWindowStart == null) {
@@ -147,11 +164,15 @@ export class ReplaySpool {
       sortEvents(batch);
       await this.onChunkFlush(st.siteId, st.sessionId, seq, batch);
       st.nextChunkSeq = seq + 1;
+      st.lastTouchedMs = Date.now();
     } finally {
       st.finalizing = false;
     }
-    if (st.events.length === 0) {
-      this.sessions.delete(mapKey(st.siteId, st.sessionId));
-    }
+    /**
+     * Keep the session row even when the buffer is empty so `nextChunkSeq` survives until the next
+     * ~60s window. Deleting here forced a cold `getInitialSequence()` S3 list on the next batch;
+     * listing can briefly miss the chunk just written and return 0 → **overwrite chunk-0** and break
+     * replays longer than one flush interval.
+     */
   }
 }
