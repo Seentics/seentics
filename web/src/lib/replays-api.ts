@@ -33,11 +33,13 @@ export interface SessionCustomEvent {
   data:      Record<string, unknown>;
 }
 
-/** Core GET /replays/:websiteId/:sessionId JSON (bundle-only storage; cold path uses presigned R2 URL). */
+/** Core GET /replays/:websiteId/:sessionId JSON (chunk and/or legacy bundle storage). */
 export interface SessionReplayApiResponse {
   session_id: string;
   meta:       ReplaySession | null;
   warm_chunks?: Array<{ sequence: number; data: unknown[] }>;
+  /** Immutable time-based chunks (fetch in sequence and stitch). */
+  replay_chunk_urls?: Array<{ sequence: number; url: string; expires_at: string }>;
   replay_url?: string;
   replay_url_expires_at?: string;
   /** True when metadata exists but recording bytes are not downloadable yet (retry shortly). */
@@ -147,7 +149,20 @@ export async function getSessionWithEvents(
   const res = await api.get(`/replays/${websiteId}/${sessionId}`);
   const body = res.data as SessionReplayApiResponse;
 
-  let chunks = body.warm_chunks;
+  const fromUrls = body.replay_chunk_urls?.length
+    ? await Promise.all(
+        [...body.replay_chunk_urls].sort((a, b) => a.sequence - b.sequence).map(async (row) => ({
+          sequence: row.sequence,
+          data: (await fetchGzipJsonArray(row.url)) as unknown[],
+        })),
+      )
+    : [];
+
+  let chunks: Array<{ sequence: number; data: unknown[] }> = [...fromUrls];
+  if (body.warm_chunks?.length) {
+    chunks = [...chunks, ...body.warm_chunks];
+  }
+
   if ((!chunks || chunks.length === 0) && body.replay_url) {
     const raw = await fetchGzipJsonArray(body.replay_url);
     chunks = [{ sequence: 0, data: raw as unknown[] }];

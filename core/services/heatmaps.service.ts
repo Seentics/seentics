@@ -24,7 +24,7 @@ export async function listHeatmapPages(websiteParam: string, opts: { lenientReso
       click_count: p.click_count,
       scroll_count: p.scroll_count,
       avg_scroll: p.avg_scroll,
-      last_seen: p.last_seen.toISOString(),
+      last_seen: p.last_seen,
     })),
   };
 }
@@ -41,7 +41,7 @@ export async function listHeatmapPagesRaw(websiteParam: string) {
       click_count: p.click_count,
       scroll_count: p.scroll_count,
       avg_scroll: p.avg_scroll,
-      last_seen: p.last_seen.toISOString(),
+      last_seen: p.last_seen,
     })),
   };
 }

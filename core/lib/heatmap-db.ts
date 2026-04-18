@@ -1,6 +1,15 @@
 import { sql } from "../db";
 import type { HeatmapPointOut, HeatmapPointRow, PageSummaryRow } from "./types";
 
+function pgTimestampToIso(v: unknown): string {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString();
+  if (typeof v === "string" || typeof v === "number") {
+    const d = new Date(v);
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+  return new Date(0).toISOString();
+}
+
 export async function batchUpsertPoints(rows: HeatmapPointRow[]): Promise<void> {
   if (rows.length === 0) return;
   await sql.begin(async (tx) => {
@@ -83,7 +92,7 @@ export async function listPages(websiteId: string): Promise<PageSummaryRow[]> {
     click_count: Number(r.click_count),
     scroll_count: Number(r.scroll_count),
     avg_scroll: Math.floor(Number(r.avg_scroll_raw) / 100),
-    last_seen: r.last_seen as Date,
+    last_seen: pgTimestampToIso(r.last_seen),
   }));
 }
 

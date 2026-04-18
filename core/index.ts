@@ -28,6 +28,8 @@ import { SEENTICS_PEER_IP_HEADER } from "./lib/client-ip";
 
 type BunServerWithRequestIp = {
   requestIP: (request: Request) => { address: string } | null;
+  /** Per-request idle override (Bun); used for large `tracker/collect` uploads. */
+  timeout: (request: Request, seconds: number) => void;
 };
 
 /**
@@ -120,9 +122,23 @@ function attachTrustedPeerIp(req: Request, server: BunServerWithRequestIp): Requ
   }
 }
 
+const OSS_BODY_MAX = Math.max(
+  32 * 1024 * 1024,
+  Number(process.env.OSS_MAX_REQUEST_BODY_BYTES ?? "") || 0,
+);
+
 export default {
   port,
+  idleTimeout: Number(process.env.OSS_IDLE_TIMEOUT_SECONDS ?? "255") || 255,
+  maxRequestBodySize: OSS_BODY_MAX,
   fetch(req: Request, server: BunServerWithRequestIp) {
+    try {
+      if (new URL(req.url).pathname.includes("/tracker/collect")) {
+        server.timeout(req, 0);
+      }
+    } catch {
+      /* ignore */
+    }
     return app.fetch(attachTrustedPeerIp(req, server));
   },
 };

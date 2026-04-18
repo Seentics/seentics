@@ -4,9 +4,17 @@ import { occurredAtToIso, resolveSiteId } from "./shared";
 
 const RECENT_ACTIVITY_DEFAULT_DAYS = 30;
 
-export async function getRecentActivityAnalytics(websiteParam: string, limit: number) {
+export async function getRecentActivityAnalytics(
+  websiteParam: string,
+  limit: number,
+  opts?: { withinMinutes?: number },
+) {
   const { siteId } = await resolveSiteId(websiteParam);
-  const start = new Date(Date.now() - RECENT_ACTIVITY_DEFAULT_DAYS * 86400000);
+  const withinMin = opts?.withinMinutes;
+  const start =
+    typeof withinMin === "number" && Number.isFinite(withinMin) && withinMin > 0 && withinMin <= 24 * 60
+      ? new Date(Date.now() - withinMin * 60_000)
+      : new Date(Date.now() - RECENT_ACTIVITY_DEFAULT_DAYS * 86400000);
   const rows = await db
     .select({
       eventType: analyticsEvents.eventType,
@@ -16,6 +24,7 @@ export async function getRecentActivityAnalytics(websiteParam: string, limit: nu
       country: analyticsEvents.country,
       browser: analyticsEvents.browser,
       device: analyticsEvents.device,
+      os: analyticsEvents.os,
       referrer: analyticsEvents.referrer,
       occurredAt: analyticsEvents.occurredAt,
     })
@@ -25,7 +34,10 @@ export async function getRecentActivityAnalytics(websiteParam: string, limit: nu
     .limit(Math.min(limit, 100));
   return {
     website_id: siteId,
-    date_range: `${RECENT_ACTIVITY_DEFAULT_DAYS}d`,
+    date_range:
+      typeof withinMin === "number" && withinMin > 0 && withinMin <= 24 * 60
+        ? `${withinMin}m`
+        : `${RECENT_ACTIVITY_DEFAULT_DAYS}d`,
     activity: rows.map((e) => ({
       type: e.eventType,
       page: e.page,
@@ -34,6 +46,7 @@ export async function getRecentActivityAnalytics(websiteParam: string, limit: nu
       country: e.country,
       browser: e.browser,
       device: e.device,
+      os: e.os,
       referrer: e.referrer,
       occurred_at: occurredAtToIso(e.occurredAt as Date | string),
     })),

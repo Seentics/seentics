@@ -1,10 +1,10 @@
 import { sql as pgSql } from "../../db";
 import { resolveSiteId } from "./shared";
-import { getRealtimeStats } from "./realtime";
+import { getRealtimeStats, REALTIME_WINDOW_MS } from "./realtime";
 
 export async function getLiveVisitorsStats(websiteParam: string) {
   const { siteId } = await resolveSiteId(websiteParam);
-  const since = new Date(Date.now() - 5 * 60_000);
+  const since = new Date(Date.now() - REALTIME_WINDOW_MS);
   const sinceIso = since.toISOString();
 
   const [realtimeOut, recentVisitors] = await Promise.all([
@@ -28,6 +28,7 @@ export async function getLiveVisitorsStats(websiteParam: string) {
         occurred_at
       FROM analytics_events
       WHERE website_id = ${siteId}
+        AND event_type = 'pageview'
         AND occurred_at >= ${sinceIso}
         AND session_id IS NOT NULL
       ORDER BY coalesce(nullif(trim(visitor_id), ''), session_id), occurred_at DESC

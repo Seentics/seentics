@@ -25,11 +25,14 @@ export function RealtimeDashboardSection({ websiteId }: { websiteId: string }) {
     refetch: refetchActivity,
   } = useRecentActivity(websiteId, {
     limit: 50,
+    withinMinutes: 30,
     refetchIntervalMs: 12_000,
     staleTimeMs: 8000,
   });
 
-  const pps = data?.active_visitors ? (data.pageviews / data.active_visitors).toFixed(1) : '0.0';
+  const pageviewsN = Number(data?.pageviews ?? 0);
+  const activeN = Number(data?.active_visitors ?? 0);
+  const pps = activeN > 0 ? (pageviewsN / activeN).toFixed(1) : '0.0';
   const refreshing = statsFetching || recentFetching;
 
   return (

@@ -80,7 +80,8 @@ export type PageSummaryRow = {
   click_count: number;
   scroll_count: number;
   avg_scroll: number;
-  last_seen: Date;
+  /** ISO 8601; driver may return timestamps as strings instead of `Date`. */
+  last_seen: string;
 };
 
 export type ScreenshotJob = {

@@ -25,6 +25,8 @@ export function env() {
   const bucket = process.env.S3_BUCKET_REPLAYS ?? process.env.S3_BUCKET ?? "seentics-replays";
   const region = process.env.AWS_REGION ?? "us-east-1";
   const endpoint = process.env.S3_ENDPOINT;
+  /** Host used only in presigned GET URLs (browser must resolve it). When unset, `endpoint` is used. */
+  const s3PublicEndpoint = (process.env.S3_PUBLIC_ENDPOINT ?? "").trim() || undefined;
   const accessKey = process.env.AWS_ACCESS_KEY_ID ?? "";
   const secretKey = process.env.AWS_SECRET_ACCESS_KEY ?? "";
 
@@ -35,6 +37,7 @@ export function env() {
   );
   const spoolIdleMs = Number(process.env.REPLAY_SPOOL_IDLE_MS ?? "60000");
   const spoolMaxAgeMs = Number(process.env.REPLAY_SPOOL_MAX_AGE_MS ?? String(30 * 60 * 1000));
+  const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 60_000);
 
   const corsAllowedOrigins =
     process.env.CORS_ALLOWED_ORIGINS ??
@@ -107,10 +110,11 @@ export function env() {
     globalApiKey,
     environment,
     isProduction,
-    s3: { bucket, region, endpoint, accessKey, secretKey },
+    s3: { bucket, region, endpoint, publicEndpoint: s3PublicEndpoint, accessKey, secretKey },
     presignTtlMs: Math.max(60, presignTtlSec) * 1000,
     spoolIdleMs,
     spoolMaxAgeMs,
+    replayChunkFlushMs: Math.max(5_000, replayChunkFlushMs),
     port: Number(process.env.PORT ?? "8080"),
     trustProxy: parseBool(process.env.TRUST_PROXY, false),
     /** Local GeoLite2-City / GeoIP2-City `.mmdb` path; no HTTP API — see `lib/maxmind-geo.ts`. */

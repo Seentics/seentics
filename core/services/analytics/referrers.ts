@@ -44,8 +44,11 @@ export async function getReferrersAnalytics(
       CASE
         WHEN count(DISTINCT fr.session_id) = 0 THEN 0::float
         ELSE round(
-          sum(CASE WHEN spc.pvc = 1 THEN 1 ELSE 0 END)::float
-          / count(DISTINCT fr.session_id)::float * 100, 1
+          (
+            sum(CASE WHEN spc.pvc = 1 THEN 1 ELSE 0 END)::float
+            / count(DISTINCT fr.session_id)::float * 100
+          )::numeric,
+          1
         )
       END AS bounce_rate
     FROM first_ref fr

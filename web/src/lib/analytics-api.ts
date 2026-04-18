@@ -663,22 +663,64 @@ export const useGoalStats = (websiteId: string, days: number = 30) => {
 export type UseRecentActivityOptions = {
   /** Max rows returned (default 20). */
   limit?: number;
+  /** When set, restricts rows to this rolling window (server `within_minutes`). */
+  withinMinutes?: number;
   refetchIntervalMs?: number;
   staleTimeMs?: number;
 };
 
+function normalizeRecentActivityApiPayload(
+  raw: unknown,
+  withinMinutes?: number,
+): { activities: Array<{
+  page: string;
+  country: string;
+  device: string;
+  browser: string;
+  os: string;
+  referrer: string;
+  timestamp: string;
+}> } {
+  const o = raw as Record<string, unknown>;
+  const rows = Array.isArray(o.activity)
+    ? (o.activity as Record<string, unknown>[])
+    : Array.isArray(o.activities)
+      ? (o.activities as Record<string, unknown>[])
+      : [];
+  const filtered =
+    typeof withinMinutes === 'number' && withinMinutes > 0
+      ? rows.filter((r) => r.type === 'pageview')
+      : rows;
+  return {
+    activities: filtered.map((r) => ({
+      page: String(r.page ?? ''),
+      country: String(r.country ?? ''),
+      device: String(r.device ?? ''),
+      browser: String(r.browser ?? ''),
+      os: String(r.os ?? ''),
+      referrer: String(r.referrer ?? ''),
+      timestamp: String(r.occurred_at ?? r.timestamp ?? ''),
+    })),
+  };
+}
+
 export const useRecentActivity = (websiteId: string, options?: UseRecentActivityOptions) => {
   const limit = options?.limit ?? 20;
+  const withinMinutes = options?.withinMinutes;
   const refetchInterval = options?.refetchIntervalMs ?? 30000;
   const staleTime = options?.staleTimeMs ?? Math.min(15000, refetchInterval - 1);
   return useQuery({
-    queryKey: ['recent-activity', websiteId, limit],
+    queryKey: ['recent-activity', websiteId, limit, withinMinutes ?? 'all'],
     queryFn: async () => {
       if (isDemo(websiteId)) {
         return demoAnalyticsData().recentActivity;
       }
-      const response = await api.get(`/analytics/recent-activity/${websiteId}?limit=${limit}`);
-      return response.data;
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (typeof withinMinutes === 'number' && withinMinutes > 0) {
+        params.set('within_minutes', String(withinMinutes));
+      }
+      const response = await api.get(`/analytics/recent-activity/${websiteId}?${params.toString()}`);
+      return normalizeRecentActivityApiPayload(response.data, withinMinutes);
     },
     enabled: !!websiteId,
     refetchInterval,

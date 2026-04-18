@@ -4,8 +4,8 @@ const nextConfig = {
   // esbuild uses native platform binaries — tell Next.js not to bundle it,
   // just require() it at runtime from node_modules.
   serverExternalPackages: ['esbuild'],
-  // Allow large tracker payloads (replay FullSnapshot events can exceed 10MB)
-  middlewareClientMaxBodySize: '50mb',
+  // Allow large tracker payloads (replay FullSnapshot + session batches often exceed 10MB)
+  middlewareClientMaxBodySize: '128mb',
   images: {
     remotePatterns: [
       {

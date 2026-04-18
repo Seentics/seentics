@@ -1,5 +1,5 @@
 import { env } from "../config";
-import { uploadSessionBundleGzip, createBundleLocks } from "./s3";
+import { getNextReplayChunkSequence, uploadSessionChunkGzip } from "./s3";
 import { ReplaySpool } from "./spool";
 import { upsertSessionMetaBatch, type SessionUpsertRow } from "./replay-db";
 import { resolveWebsiteIdsLenient } from "./website-resolve";
@@ -10,8 +10,6 @@ import type { TrackerEvent } from "./types";
 const pgQueueCap = 16384;
 const pgBatchSize = 64;
 const pgBatchMs = 500;
-
-const bundleLocks = createBundleLocks();
 
 type RageClick = { ts: number; x: number; y: number };
 
@@ -111,10 +109,11 @@ export class ReplayEngine {
     const c = env();
     this.bucket = c.s3.bucket;
     this.spool = new ReplaySpool({
-      idleMs: c.spoolIdleMs,
-      maxAgeMs: c.spoolMaxAgeMs,
-      onFlush: async (siteId, sessionId, events) => {
-        await uploadSessionBundleGzip(this.bucket, siteId, sessionId, events, bundleLocks);
+      chunkFlushMs: c.replayChunkFlushMs,
+      getInitialSequence: async (siteId, sessionId) =>
+        getNextReplayChunkSequence(this.bucket, siteId, sessionId),
+      onChunkFlush: async (siteId, sessionId, sequence, events) => {
+        await uploadSessionChunkGzip(this.bucket, siteId, sessionId, sequence, events);
       },
     });
     this.spool.start();

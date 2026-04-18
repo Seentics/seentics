@@ -129,7 +129,13 @@ r.get("/visitor-insights/:website_id", async (c) => {
 r.get("/recent-activity/:website_id", async (c) => {
   if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
   const lim = Math.max(1, Math.min(100, Number(c.req.query("limit") ?? "50") || 50));
-  return c.json(await an.getRecentActivityAnalytics(c.req.param("website_id"), lim));
+  const withinRaw = c.req.query("within_minutes");
+  const withinParsed = withinRaw != null && withinRaw !== "" ? Number(withinRaw) : NaN;
+  const withinMinutes =
+    Number.isFinite(withinParsed) && withinParsed > 0 ? Math.min(24 * 60, Math.floor(withinParsed)) : undefined;
+  return c.json(
+    await an.getRecentActivityAnalytics(c.req.param("website_id"), lim, { withinMinutes }),
+  );
 });
 
 r.get("/geolocation-breakdown/:website_id", async (c) => {

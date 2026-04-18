@@ -10,10 +10,10 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { gunzipSync, gzipSync } from "node:zlib";
 import type { S3ClientConfig } from "@aws-sdk/client-s3";
 import { env } from "../config";
-import { sessionBundleKey, sessionPrefix } from "./s3-keys";
+import { sessionBundleKey, sessionChunkKey, sessionPrefix } from "./s3-keys";
 import { compareReplayEnvelopeEvents } from "./replay-event-order";
 
-export function createS3(): S3Client {
+function createS3ClientForEndpoint(endpoint: string | undefined): S3Client {
   const c = env().s3;
   const cfg: S3ClientConfig = {
     region: c.region,
@@ -22,17 +22,37 @@ export function createS3(): S3Client {
         ? { accessKeyId: c.accessKey, secretAccessKey: c.secretKey }
         : undefined,
   };
-  if (c.endpoint) {
-    cfg.endpoint = c.endpoint;
+  if (endpoint) {
+    cfg.endpoint = endpoint;
     cfg.forcePathStyle = true;
   }
   return new S3Client(cfg);
 }
 
+export function createS3(): S3Client {
+  return createS3ClientForEndpoint(env().s3.endpoint);
+}
+
 let _client: S3Client | null = null;
+/** Server-side S3/R2/MinIO access (private Docker hostname OK). */
 export function s3(): S3Client {
   if (!_client) _client = createS3();
   return _client;
+}
+
+let _presignClient: S3Client | null = null;
+
+/** Presigned URLs must use a host the **browser** can resolve (e.g. `http://localhost:9000` vs `http://minio:9000`). */
+function s3ForPresign(): S3Client {
+  const c = env().s3;
+  const publicEp = c.publicEndpoint;
+  if (!publicEp || publicEp === c.endpoint) {
+    return s3();
+  }
+  if (!_presignClient) {
+    _presignClient = createS3ClientForEndpoint(publicEp);
+  }
+  return _presignClient;
 }
 
 export async function objectExists(bucket: string, key: string): Promise<boolean> {
@@ -79,7 +99,62 @@ export async function putJpeg(bucket: string, key: string, body: Uint8Array): Pr
 
 export async function presignGet(bucket: string, key: string, expiresMs: number): Promise<string> {
   const cmd = new GetObjectCommand({ Bucket: bucket, Key: key });
-  return getSignedUrl(s3(), cmd, { expiresIn: Math.ceil(expiresMs / 1000) });
+  return getSignedUrl(s3ForPresign(), cmd, { expiresIn: Math.ceil(expiresMs / 1000) });
+}
+
+const CHUNK_OBJECT_RE = /^chunk-(\d+)\.json\.gz$/;
+
+/** List immutable chunk objects for a session (sorted by sequence). */
+export async function listSessionReplayChunks(
+  bucket: string,
+  websiteId: string,
+  sessionId: string,
+): Promise<{ sequence: number; key: string }[]> {
+  const prefix = sessionPrefix(websiteId, sessionId);
+  const out: { sequence: number; key: string }[] = [];
+  let token: string | undefined;
+  do {
+    const list = await s3().send(
+      new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix, ContinuationToken: token }),
+    );
+    for (const o of list.Contents ?? []) {
+      const key = o.Key;
+      if (!key) continue;
+      const base = key.slice(key.lastIndexOf("/") + 1);
+      const m = base.match(CHUNK_OBJECT_RE);
+      if (!m || !m[1]) continue;
+      const sequence = Number(m[1]);
+      if (!Number.isFinite(sequence)) continue;
+      out.push({ sequence, key });
+    }
+    token = list.IsTruncated ? list.NextContinuationToken : undefined;
+  } while (token);
+  out.sort((a, b) => a.sequence - b.sequence);
+  return out;
+}
+
+/** Next chunk index to write (max existing sequence + 1, or 0). */
+export async function getNextReplayChunkSequence(
+  bucket: string,
+  websiteId: string,
+  sessionId: string,
+): Promise<number> {
+  const chunks = await listSessionReplayChunks(bucket, websiteId, sessionId);
+  if (chunks.length === 0) return 0;
+  return chunks[chunks.length - 1]!.sequence + 1;
+}
+
+/** Upload one gzip JSON-array chunk without read-merge (immutable object per flush). */
+export async function uploadSessionChunkGzip(
+  bucket: string,
+  websiteId: string,
+  sessionId: string,
+  sequence: number,
+  events: Record<string, unknown>[],
+): Promise<void> {
+  if (events.length === 0) return;
+  const key = sessionChunkKey(websiteId, sessionId, sequence);
+  await putGzipJson(bucket, key, events);
 }
 
 export async function uploadSessionBundleGzip(
