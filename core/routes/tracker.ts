@@ -4,7 +4,6 @@ import type { Context } from "hono";
 import { env } from "../config";
 import type { TrackerCollectBody } from "../lib/api-types";
 import {
-  flushIngestQueuesNow,
   handleAutomations,
   handleEvents,
   handleFunnels,
@@ -22,6 +21,8 @@ import {
 } from "../lib/website-for-tracker";
 import * as autoSvc from "../services/automations.service";
 import * as funnelSvc from "../services/funnels.service";
+import { validationErrorResponse } from "../validators/validation";
+import { trackerCollectSchema } from "../validators/tracker";
 
 const maxBodyBytes = 52 * 1024 * 1024;
 const maxGunzipBytes = 50 * 1024 * 1024;
@@ -120,7 +121,10 @@ trackerRoutes.post("/collect", async (c) => {
   const cfg = env();
   let body: TrackerCollectBody;
   try {
-    body = (await readJsonBody(c)) as TrackerCollectBody;
+    const raw = await readJsonBody(c);
+    const parsed = trackerCollectSchema.safeParse(raw);
+    if (!parsed.success) return validationErrorResponse(c, parsed.error);
+    body = parsed.data as unknown as TrackerCollectBody;
   } catch {
     return c.json({ error: "invalid request body" }, 400);
   }
@@ -214,14 +218,6 @@ trackerRoutes.post("/collect", async (c) => {
   handleAutomations(ctx);
   handleRecordings(ctx);
   handleHeatmaps(ctx);
-
-  await flushIngestQueuesNow();
-
-  log.debug({
-    msg: "tracker_collect_flushed",
-    website_uuid: website.id,
-    site_id: website.site_id,
-  });
 
   return c.body(null, 204);
 });

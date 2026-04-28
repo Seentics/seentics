@@ -89,8 +89,9 @@ async function executeFlush(): Promise<void> {
   const hm = takeHeatmapsSnapshot();
   const autoRows = takeAutomationsSnapshot();
 
-  for (const [siteId, events] of evMap) {
-    if (events.length) {
+  await Promise.all(
+    [...evMap.entries()].map(async ([siteId, events]) => {
+      if (!events.length) return;
       try {
         const inserted = await ingestAnalyticsBatch(siteId, events);
         log.debug({
@@ -113,11 +114,12 @@ async function executeFlush(): Promise<void> {
           error: e instanceof Error ? e.message : String(e),
         });
       }
-    }
-  }
+    }),
+  );
 
-  for (const [siteId, events] of funnelMap) {
-    if (events.length) {
+  await Promise.all(
+    [...funnelMap.entries()].map(async ([siteId, events]) => {
+      if (!events.length) return;
       try {
         const inserted = await ingestAnalyticsBatch(siteId, events);
         log.debug({
@@ -140,8 +142,8 @@ async function executeFlush(): Promise<void> {
           error: e instanceof Error ? e.message : String(e),
         });
       }
-    }
-  }
+    }),
+  );
 
   if (rec.length) {
     try {
@@ -183,7 +185,8 @@ async function executeFlush(): Promise<void> {
 export function enqueueEvents(siteId: string, events: AnalyticsIngestEvent[]): void {
   if (!events.length) return;
   const cur = eventsBySite.get(siteId) ?? [];
-  eventsBySite.set(siteId, cur.concat(events));
+  cur.push(...events);
+  eventsBySite.set(siteId, cur);
   if (totalQueuedEvents() >= maxEventsBeforeForceFlush) {
     void scheduleFlush();
   }
@@ -208,7 +211,8 @@ export function enqueueHeatmaps(events: HeatmapIngestEvent[]): void {
 export function enqueueFunnels(siteId: string, events: AnalyticsIngestEvent[]): void {
   if (!events.length) return;
   const cur = funnelsBySite.get(siteId) ?? [];
-  funnelsBySite.set(siteId, cur.concat(events));
+  cur.push(...events);
+  funnelsBySite.set(siteId, cur);
   if (totalQueuedFunnels() >= maxFunnelsBeforeForceFlush) {
     void scheduleFlush();
   }

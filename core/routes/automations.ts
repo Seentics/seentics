@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { authMiddleware, requireUser, type AuthVars } from "../middleware/auth";
 import * as au from "../services/automations.service";
+import { parseJson, validationErrorResponse } from "../validators/validation";
+import { automationsBulkDeleteSchema, automationsUpsertBodySchema } from "../validators/automations";
 
 const r = new Hono<{ Variables: AuthVars }>();
 r.use("*", authMiddleware);
@@ -20,7 +22,10 @@ r.get("/:website_id", async (c) => {
 r.post("/:website_id", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const b = await c.req.json<Record<string, unknown>>();
+  const raw = await c.req.json().catch(() => null);
+  const ok = automationsUpsertBodySchema.safeParse(raw);
+  if (!ok.success) return validationErrorResponse(c, ok.error);
+  const b = ok.data;
   try {
     return c.json(await au.create(uid, c.req.param("website_id"), b as Parameters<typeof au.create>[2]), 201);
   } catch (e) {
@@ -32,7 +37,9 @@ r.post("/:website_id", async (c) => {
 r.delete("/:website_id/bulk-delete", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const b = await c.req.json<{ ids?: string[] }>();
+  const parsed = await parseJson(c, automationsBulkDeleteSchema);
+  if (!parsed.ok) return parsed.res;
+  const b = parsed.data;
   try {
     await au.bulkDelete(uid, c.req.param("website_id"), b.ids ?? []);
     return c.body(null, 204);
@@ -58,7 +65,10 @@ r.get("/:website_id/:id", async (c) => {
 r.put("/:website_id/:id", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
-  const b = await c.req.json<Record<string, unknown>>();
+  const raw = await c.req.json().catch(() => null);
+  const ok = automationsUpsertBodySchema.safeParse(raw);
+  if (!ok.success) return validationErrorResponse(c, ok.error);
+  const b = ok.data;
   try {
     const out = await au.update(uid, c.req.param("website_id"), c.req.param("id"), b as Parameters<typeof au.update>[3]);
     if (!out) return c.json({ error: "not found" }, 404);

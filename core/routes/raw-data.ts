@@ -14,6 +14,13 @@ import type { Context } from "hono";
 import { rawApiAuthMiddleware } from "../middleware/raw-api-auth";
 import * as analytics from "../services/analytics.service";
 import * as raw from "../services/raw-data.service";
+import { parseQuery } from "../validators/validation";
+import {
+  rawEventsQuerySchema,
+  rawHeatmapPointsQuerySchema,
+  rawRecentActivityQuerySchema,
+  rawSessionsQuerySchema,
+} from "../validators/raw-data";
 
 const r = new Hono();
 
@@ -96,20 +103,23 @@ r.get("/v1/websites/:website_id/analytics/dashboard", async (c) => {
 });
 
 r.get("/v1/websites/:website_id/analytics/recent-activity", async (c) => {
-  const lim = Number(c.req.query("limit") ?? "50");
-  const data = await analytics.getRecentActivityAnalytics(websiteId(c), lim);
+  const q = parseQuery(c, rawRecentActivityQuerySchema);
+  if (!q.ok) return q.res;
+  const data = await analytics.getRecentActivityAnalytics(websiteId(c), q.data.limit);
   return jsonWithMeta(c, data);
 });
 
 r.get("/v1/websites/:website_id/analytics/events", async (c) => {
   const ctx = c.get("rawApi");
   try {
+    const q = parseQuery(c, rawEventsQuerySchema);
+    if (!q.ok) return q.res;
     const out = await raw.rawAnalyticsEvents(websiteId(c), {
-      from: c.req.query("from") ?? undefined,
-      to: c.req.query("to") ?? undefined,
-      limit: Number(c.req.query("limit") ?? "100"),
-      offset: Number(c.req.query("offset") ?? "0"),
-      event_type: c.req.query("event_type") ?? undefined,
+      from: q.data.from || undefined,
+      to: q.data.to || undefined,
+      limit: q.data.limit,
+      offset: q.data.offset,
+      event_type: q.data.event_type || undefined,
     });
     return c.json({
       meta: {
@@ -130,11 +140,9 @@ r.get("/v1/websites/:website_id/analytics/events", async (c) => {
 
 r.get("/v1/websites/:website_id/sessions", async (c) => {
   const ctx = c.get("rawApi");
-  let limit = Number(c.req.query("limit") ?? "50");
-  let offset = Number(c.req.query("offset") ?? "0");
-  if (!Number.isFinite(limit) || limit < 1) limit = 50;
-  if (limit > 500) limit = 500;
-  if (!Number.isFinite(offset) || offset < 0) offset = 0;
+  const q = parseQuery(c, rawSessionsQuerySchema);
+  if (!q.ok) return q.res;
+  const { limit, offset } = q.data;
   const out = await raw.rawSessions(websiteId(c), limit, offset);
   return c.json({
     meta: { website_id: ctx.websiteUuid, site_id: ctx.siteId, limit: out.limit, offset: out.offset },
@@ -153,12 +161,9 @@ r.get("/v1/websites/:website_id/heatmap/pages", async (c) => {
 
 r.get("/v1/websites/:website_id/heatmap/points", async (c) => {
   const ctx = c.get("rawApi");
-  const pagePath = c.req.query("page_path") ?? "";
-  if (!pagePath.trim()) {
-    return c.json({ error: "page_path query parameter is required", code: "bad_request" }, 400);
-  }
-  const eventType = c.req.query("event_type") ?? "click";
-  const out = await raw.rawHeatmapPoints(websiteId(c), pagePath, eventType);
+  const q = parseQuery(c, rawHeatmapPointsQuerySchema);
+  if (!q.ok) return q.res;
+  const out = await raw.rawHeatmapPoints(websiteId(c), q.data.page_path, q.data.event_type);
   return c.json({
     meta: {
       website_id: ctx.websiteUuid,

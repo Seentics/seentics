@@ -4,6 +4,8 @@ import { assertOwnerOrMember } from "../services/access.service";
 import * as replaySvc from "../services/replays.service";
 import type { AuthVars } from "../middleware/auth";
 import { authMiddleware, requireUser } from "../middleware/auth";
+import { parseJson, parseQuery } from "../validators/validation";
+import { replayBatchDeleteSchema, replayListQuerySchema } from "../validators/replays";
 
 export const replayRoutes = new Hono<{ Variables: AuthVars }>();
 
@@ -20,8 +22,9 @@ replayRoutes.get("/:website_id", async (c) => {
     return c.json({ error: "forbidden" }, (st ?? 403) as ContentfulStatusCode);
   }
 
-  const limit = Number(c.req.query("limit") ?? "20");
-  const offset = Number(c.req.query("offset") ?? "0");
+  const q = parseQuery(c, replayListQuerySchema);
+  if (!q.ok) return q.res;
+  const { limit, offset } = q.data;
   const out = await replaySvc.listReplaySessions(websiteId, limit, offset, { lenientResolve: true });
   return c.json(out);
 });
@@ -37,10 +40,9 @@ replayRoutes.delete("/:website_id/batch", async (c) => {
     return c.json({ error: "forbidden" }, (st ?? 403) as ContentfulStatusCode);
   }
 
-  const body = await c.req.json<{ sessionIds?: string[] }>();
-  const sessionIds = body.sessionIds;
-  if (!sessionIds?.length) return c.json({ error: "sessionIds must not be empty" }, 400);
-  if (sessionIds.length > 500) return c.json({ error: "sessionIds exceeds maximum of 500" }, 400);
+  const parsed = await parseJson(c, replayBatchDeleteSchema);
+  if (!parsed.ok) return parsed.res;
+  const sessionIds = parsed.data.sessionIds;
 
   await replaySvc.batchDeleteReplaySessions(websiteId, sessionIds);
   return c.json({ message: "sessions deleted" });

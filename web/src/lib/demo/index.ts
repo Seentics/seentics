@@ -33,3 +33,4 @@ export { demoWebsite, demoGoals, demoMembers, demoPrivacySettings } from './sett
 export { demoBilling, demoSubscription } from './billing';
 export { demoPathAnalysis } from './paths';
 export { demoSupportTickets } from './support';
+export { demoRevenueDashboard } from './revenue';

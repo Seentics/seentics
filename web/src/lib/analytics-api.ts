@@ -25,7 +25,7 @@ import { funnelKeys } from './funnels-api';
 // =============================================================================
 
 /** Returns the user's IANA timezone (e.g. "Asia/Dhaka", "America/New_York") */
-const getUserTimezone = (): string => {
+export const getUserTimezone = (): string => {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
   } catch {
@@ -245,23 +245,28 @@ export interface GetDailyStatsResponse {
 // API FUNCTIONS - ALL BACKEND ENDPOINTS
 // =============================================================================
 
+/** Server dashboard payload; shared by useDashboardData and other callers (e.g. revenue fallback). */
+export const getDashboardData = async (
+  websiteId: string,
+  days: number = 7,
+  filters: AnalyticsFilters = {},
+) => {
+  if (isDemo(websiteId)) {
+    return demoAnalyticsData().dashboardData;
+  }
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value) params.append(key, value);
+  });
+  const response = await api.get(`/analytics/dashboard/${websiteId}?${params.toString()}`);
+  return response.data;
+};
+
 // Dashboard Data - returns comprehensive data with enhanced metrics
 export const useDashboardData = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
   return useQuery({
     queryKey: ['dashboard', websiteId, days, filters],
-    queryFn: async () => {
-      if (isDemo(websiteId)) {
-        return demoAnalyticsData().dashboardData;
-      }
-
-      const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value);
-      });
-
-      const response = await api.get(`/analytics/dashboard/${websiteId}?${params.toString()}`);
-      return response.data;
-    },
+    queryFn: () => getDashboardData(websiteId, days, filters),
     enabled: !!websiteId,
     refetchInterval: 30 * 1000, // Refetch every 30 seconds
     refetchOnWindowFocus: true,

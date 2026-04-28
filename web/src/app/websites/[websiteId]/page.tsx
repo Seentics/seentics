@@ -494,6 +494,7 @@ export default function WebsiteDashboardPage() {
             onCustomDateChange={handleCustomDateChange}
             onFiltersChange={setAdvancedFilters}
             activeFiltersCount={Object.keys(advancedFilters).length}
+            currentFilters={advancedFilters}
           />
 
 {/* Theme — same box as row controls; compact icon matches Filter button height */}

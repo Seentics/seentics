@@ -2,6 +2,7 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatNumber } from '@/lib/analytics-api';
+import { getBrowserImagePath } from '@/lib/analytics-icons';
 import { Monitor } from 'lucide-react';
 import Image from 'next/image';
 import React from 'react';
@@ -13,138 +14,18 @@ interface TopBrowsersChartProps {
   showHeader?: boolean;
 }
 
-const getBrowserIcon = (browser: string) => {
-  const lowerBrowser = browser.toLowerCase();
-
-  // Chrome
-  if (lowerBrowser.includes('chrome')) {
+const BrowserIcon = ({ browser }: { browser: string }) => {
+  const src = getBrowserImagePath(browser);
+  if (src === '/images/browser/unknown.png') {
     return (
-      <div className="w-8 h-8 rounded flex items-center justify-center shadow-sm overflow-hidden">
-        <Image
-          src="/images/chrome.png"
-          alt="Chrome"
-          width={32}
-          height={32}
-          className="object-contain"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.style.display = 'none';
-            target.nextElementSibling?.classList.remove('hidden');
-          }}
-        />
-        <div className="hidden w-8 h-8 bg-gradient-to-br from-indigo-500 via-green-500 to-yellow-500 rounded shadow-sm">
-          <svg className="w-5 h-5 text-white m-auto" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0C8.21 0 4.67 1.92 2.25 4.9l4.51 7.8L12 12l5.24 0.7 4.51-7.8C19.33 1.92 15.79 0 12 0zM12 12l-5.24-0.7L2.25 19.1C4.67 22.08 8.21 24 12 24c3.79 0 7.33-1.92 9.75-4.9L17.24 11.3 12 12z" />
-          </svg>
-        </div>
+      <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
+        <Monitor className="w-4 h-4 text-muted-foreground" />
       </div>
     );
   }
-
-  // Firefox
-  if (lowerBrowser.includes('firefox')) {
-    return (
-      <div className="w-8 h-8 rounded flex items-center justify-center shadow-sm overflow-hidden">
-        <Image
-          src="/images/firefox.png"
-          alt="Firefox"
-          width={32}
-          height={32}
-          className="object-contain"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.style.display = 'none';
-            target.nextElementSibling?.classList.remove('hidden');
-          }}
-        />
-        <div className="hidden w-8 h-8 bg-gradient-to-br from-orange-400 to-red-500 rounded flex items-center justify-center shadow-sm">
-          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm0 22C6.486 22 2 17.514 2 12S6.486 2 12 2s10 4.486 10 10-4.486 10-10 10zm-1-6h2v2h-2v-2zm0-8h2v6h-2V8z" />
-          </svg>
-        </div>
-      </div>
-    );
-  }
-
-  // Safari
-  if (lowerBrowser.includes('safari')) {
-    return (
-      <div className="w-8 h-8 rounded flex items-center justify-center shadow-sm overflow-hidden">
-        <Image
-          src="/images/safari.png"
-          alt="Safari"
-          width={32}
-          height={32}
-          className="object-contain"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.style.display = 'none';
-            target.nextElementSibling?.classList.remove('hidden');
-          }}
-        />
-        <div className="hidden w-8 h-8 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded flex items-center justify-center shadow-sm">
-          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-          </svg>
-        </div>
-      </div>
-    );
-  }
-
-  // Edge
-  if (lowerBrowser.includes('edge')) {
-    return (
-      <div className="w-8 h-8 rounded flex items-center justify-center shadow-sm overflow-hidden">
-        <Image
-          src="/images/explorer.png"
-          alt="Edge"
-          width={32}
-          height={32}
-          className="object-contain"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.style.display = 'none';
-            target.nextElementSibling?.classList.remove('hidden');
-          }}
-        />
-        <div className="hidden w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded flex items-center justify-center shadow-sm">
-          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-          </svg>
-        </div>
-      </div>
-    );
-  }
-
-  // Opera
-  if (lowerBrowser.includes('opera')) {
-    return (
-      <div className="w-8 h-8 rounded flex items-center justify-center shadow-sm overflow-hidden">
-        <Image
-          src="/images/opera.png"
-          alt="Opera"
-          width={32}
-          height={32}
-          className="object-contain"
-          onError={(e) => {
-            const target = e.target as HTMLImageElement;
-            target.style.display = 'none';
-            target.nextElementSibling?.classList.remove('hidden');
-          }}
-        />
-        <div className="hidden w-8 h-8 bg-gradient-to-br from-red-500 to-red-600 rounded flex items-center justify-center shadow-sm">
-          <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-          </svg>
-        </div>
-      </div>
-    );
-  }
-
-  // Default
   return (
-    <div className="w-8 h-8 bg-gradient-to-br from-gray-300 to-gray-400 dark:from-gray-600 dark:to-gray-700 rounded flex items-center justify-center shadow-sm">
-      <Monitor className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+    <div className="w-8 h-8 rounded overflow-hidden flex items-center justify-center">
+      <Image src={src} alt={browser} width={32} height={32} className="object-contain" />
     </div>
   );
 };
@@ -201,7 +82,7 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
             <div key={index} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="flex-shrink-0">
-                  {getBrowserIcon(item.browser)}
+                  <BrowserIcon browser={item.browser} />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-sm leading-tight text-foreground truncate group-hover:text-primary transition-colors" title={browserName}>{browserName}</div>

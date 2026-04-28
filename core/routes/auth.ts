@@ -4,6 +4,13 @@ import type { JsonRequestContext } from "../lib/hono-types";
 import { authMiddleware, type AuthVars } from "../middleware/auth";
 import * as authSvc from "../services/auth.service";
 import { toFrontendUser } from "../lib/user-mapper";
+import { parseJson, validationErrorResponse } from "../validators/validation";
+import {
+  authLoginSchema,
+  authRefreshSchema,
+  authRegisterSchema,
+  passthroughObjectSchema,
+} from "../validators/auth";
 
 const r = new Hono();
 
@@ -16,13 +23,14 @@ async function bodyJson(c: JsonRequestContext) {
 }
 
 r.post("/register", async (c) => {
-  const b = (await bodyJson(c)) as AuthRegisterJson | null;
-  if (!b?.email || !b?.password) return c.json({ error: "email and password required" }, 400);
+  const parsed = await parseJson(c, authRegisterSchema);
+  if (!parsed.ok) return parsed.res;
+  const b = parsed.data as unknown as AuthRegisterJson;
   try {
     const out = await authSvc.registerUser({
-      email: b.email,
-      password: b.password,
-      name: b.name ?? "",
+      email: String((parsed.data as { email: string }).email),
+      password: String((parsed.data as { password: string }).password),
+      name: String((parsed.data as { name: string }).name ?? ""),
     });
     return c.json(out, 201);
   } catch (e) {
@@ -32,10 +40,14 @@ r.post("/register", async (c) => {
 });
 
 r.post("/login", async (c) => {
-  const b = (await bodyJson(c)) as AuthLoginJson | null;
-  if (!b?.email || !b?.password) return c.json({ error: "email and password required" }, 400);
+  const parsed = await parseJson(c, authLoginSchema);
+  if (!parsed.ok) return parsed.res;
+  const b = parsed.data as unknown as AuthLoginJson;
   try {
-    const out = await authSvc.loginUser({ email: b.email, password: b.password });
+    const out = await authSvc.loginUser({
+      email: String((parsed.data as { email: string }).email),
+      password: String((parsed.data as { password: string }).password),
+    });
     return c.json(out);
   } catch {
     return c.json({ error: "invalid credentials" }, 401);
@@ -43,9 +55,9 @@ r.post("/login", async (c) => {
 });
 
 r.post("/refresh", async (c) => {
-  const b = (await bodyJson(c)) as AuthRefreshJson | null;
-  const refresh = b?.refresh_token?.trim();
-  if (!refresh) return c.json({ error: "refresh_token required" }, 400);
+  const parsed = await parseJson(c, authRefreshSchema);
+  if (!parsed.ok) return parsed.res;
+  const refresh = String((parsed.data as { refresh_token: string }).refresh_token).trim();
   try {
     const tokens = await authSvc.refreshSession(refresh);
     return c.json(tokens);
@@ -72,13 +84,14 @@ userAuth.get("/setup-status", async (c) => {
 });
 
 userAuth.post("/register", async (c) => {
-  const b = (await bodyJson(c)) as AuthRegisterJson | null;
-  if (!b?.email || !b?.password) return c.json({ error: "email and password required" }, 400);
+  const parsed = await parseJson(c, authRegisterSchema);
+  if (!parsed.ok) return parsed.res;
+  const b = parsed.data as unknown as AuthRegisterJson;
   try {
     const out = await authSvc.registerUser({
-      email: b.email,
-      password: b.password,
-      name: b.name ?? "",
+      email: String((parsed.data as { email: string }).email),
+      password: String((parsed.data as { password: string }).password),
+      name: String((parsed.data as { name: string }).name ?? ""),
     });
     return c.json(out, 201);
   } catch (e) {
@@ -88,10 +101,14 @@ userAuth.post("/register", async (c) => {
 });
 
 userAuth.post("/login", async (c) => {
-  const b = (await bodyJson(c)) as AuthLoginJson | null;
-  if (!b?.email || !b?.password) return c.json({ error: "email and password required" }, 400);
+  const parsed = await parseJson(c, authLoginSchema);
+  if (!parsed.ok) return parsed.res;
+  const b = parsed.data as unknown as AuthLoginJson;
   try {
-    const out = await authSvc.loginUser({ email: b.email, password: b.password });
+    const out = await authSvc.loginUser({
+      email: String((parsed.data as { email: string }).email),
+      password: String((parsed.data as { password: string }).password),
+    });
     return c.json(out);
   } catch {
     return c.json({ error: "invalid credentials" }, 401);
@@ -99,9 +116,9 @@ userAuth.post("/login", async (c) => {
 });
 
 userAuth.post("/refresh", async (c) => {
-  const b = (await bodyJson(c)) as AuthRefreshJson | null;
-  const refresh = b?.refresh_token?.trim();
-  if (!refresh) return c.json({ error: "refresh_token required" }, 400);
+  const parsed = await parseJson(c, authRefreshSchema);
+  if (!parsed.ok) return parsed.res;
+  const refresh = String((parsed.data as { refresh_token: string }).refresh_token).trim();
   try {
     const tokens = await authSvc.refreshSession(refresh);
     return c.json(tokens);
@@ -122,7 +139,10 @@ userAuth.get("/me", authMiddleware, async (c) => {
 });
 
 userAuth.post("/verify-secrets", async (c) => {
-  void c.req.json().catch(() => null);
+  // Validate JSON shape even though this endpoint is currently stubbed.
+  const body = await c.req.json().catch(() => null);
+  const ok = passthroughObjectSchema.safeParse(body);
+  if (!ok.success) return validationErrorResponse(c, ok.error);
   return c.json({ data: { verified: false } });
 });
 

@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Activity, GitBranch,
   Video, Flame, Bot, Settings,
   LogOut, PanelLeftClose,
-  User, CreditCard, LifeBuoy,
+  User, CreditCard, LifeBuoy, Banknote,
 } from 'lucide-react';
 import { Logo } from '../ui/logo';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -28,6 +28,7 @@ function buildMainNav(websiteId: string): NavItem[] {
     { label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
     { label: 'Realtime',    href: `/websites/${websiteId}/realtime`,    icon: Activity },
     { label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
+    { label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote },
     { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
   ];
 }

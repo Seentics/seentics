@@ -4,6 +4,12 @@ import { assertOwnerOrMember } from "../services/access.service";
 import * as heatmapSvc from "../services/heatmaps.service";
 import type { AuthVars } from "../middleware/auth";
 import { authMiddleware, requireUser } from "../middleware/auth";
+import { parseJson, parseQuery } from "../validators/validation";
+import {
+  heatmapBulkDeleteSchema,
+  heatmapDataQuerySchema,
+  heatmapSnapshotQuerySchema,
+} from "../validators/heatmaps";
 
 export const heatmapRoutes = new Hono<{ Variables: AuthVars }>();
 
@@ -35,10 +41,10 @@ heatmapRoutes.get("/:website_id/data", async (c) => {
     return c.json({ error: "forbidden" }, (st ?? 403) as ContentfulStatusCode);
   }
 
-  const pagePath = c.req.query("page_path") ?? "";
-  if (!pagePath) return c.json({ error: "page_path is required" }, 400);
-  let eventType = c.req.query("event_type") ?? "click";
-  if (!eventType) eventType = "click";
+  const q = parseQuery(c, heatmapDataQuerySchema);
+  if (!q.ok) return q.res;
+  const pagePath = q.data.page_path;
+  const eventType = q.data.event_type || "click";
 
   const out = await heatmapSvc.getHeatmapPoints(websiteId, pagePath, eventType, {
     lenientResolve: true,
@@ -57,8 +63,9 @@ heatmapRoutes.get("/:website_id/layout-snapshot", async (c) => {
     return c.json({ error: "forbidden" }, (st ?? 403) as ContentfulStatusCode);
   }
 
-  const pagePath = c.req.query("page_path") ?? "";
-  if (!pagePath) return c.json({ error: "page_path is required" }, 400);
+  const q = parseQuery(c, heatmapSnapshotQuerySchema);
+  if (!q.ok) return q.res;
+  const pagePath = q.data.page_path;
 
   const out = await heatmapSvc.getHeatmapLayoutSnapshot(websiteId, pagePath, {
     lenientResolve: true,
@@ -77,9 +84,9 @@ heatmapRoutes.delete("/:website_id/bulk-delete", async (c) => {
     return c.json({ error: "forbidden" }, (st ?? 403) as ContentfulStatusCode);
   }
 
-  const body = await c.req.json<{ pagePaths?: string[] }>();
-  const pagePaths = body.pagePaths;
-  if (!pagePaths?.length) return c.json({ error: "pagePaths required" }, 400);
+  const parsed = await parseJson(c, heatmapBulkDeleteSchema);
+  if (!parsed.ok) return parsed.res;
+  const pagePaths = parsed.data.pagePaths;
 
   await heatmapSvc.bulkDeleteHeatmapPages(websiteId, pagePaths, { lenientResolve: true });
   return c.body(null, 204);

@@ -62,7 +62,10 @@ export async function ingestAnalyticsBatch(siteId: string, events: AnalyticsInge
     });
     return 0;
   }
-  await db.insert(analyticsEvents).values(rows);
+  const CHUNK_SIZE = 5_000;
+  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    await db.insert(analyticsEvents).values(rows.slice(i, i + CHUNK_SIZE));
+  }
   log.debug({
     msg: "analytics_ingest_inserted",
     site_id: siteId,

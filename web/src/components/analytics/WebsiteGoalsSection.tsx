@@ -231,7 +231,10 @@ export function WebsiteGoalsSection({
       <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
         <CardHeader className="p-5 pb-3 border-b border-border/60">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h3 className="text-base font-semibold tracking-tight">Goals</h3>
+            <div>
+              <h3 className="text-base font-semibold tracking-tight">Goals</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Track conversions and measure how often visitors complete key actions.</p>
+            </div>
             <Button
               size="sm"
               className="h-8 gap-1.5 text-xs w-fit"

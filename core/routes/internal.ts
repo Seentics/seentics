@@ -15,6 +15,12 @@ import { getReplayEngine } from "../lib/replay-engine";
 import type { AnalyticsIngestEvent } from "../lib/types";
 import { runDataRetentionCleanupSafe } from "../services/retention.service";
 import { resolveWebsiteForTracker } from "../lib/website-for-tracker";
+import { parseJson } from "../validators/validation";
+import {
+  internalCollectAnalyticsSchema,
+  internalCollectHeatmapEventsSchema,
+  internalCollectReplayEventsSchema,
+} from "../validators/internal";
 
 function requireGlobalKey(c: Pick<Context, "req">) {
   return isGlobalApiKeyValid(env(), c.req.header("X-API-Key"));
@@ -41,8 +47,10 @@ internalRoutes.post("/retention-cleanup", async (c) => {
 });
 
 internalRoutes.post("/collect/analytics", async (c) => {
-  const body = await c.req.json<InternalCollectAnalyticsBody>().catch(() => null);
-  const wid = body?.website_id?.trim();
+  const parsed = await parseJson(c, internalCollectAnalyticsSchema);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.data as unknown as InternalCollectAnalyticsBody;
+  const wid = (body as { website_id?: string }).website_id?.trim();
   if (!wid) return c.json({ error: "website_id required" }, 400);
   const website = await resolveWebsiteForTracker(wid);
   if (!website) return c.json({ error: "unknown website" }, 404);
@@ -73,8 +81,10 @@ internalRoutes.post("/collect/analytics", async (c) => {
 
 /** Server-side replay batches (`GLOBAL_API_KEY`). Browser traffic uses `POST /api/v1/tracker/collect`. */
 internalRoutes.post("/collect/replay-events", async (c) => {
-  const body = await c.req.json<InternalCollectReplayEventsBody>().catch(() => null);
-  const events = body?.events;
+  const parsed = await parseJson(c, internalCollectReplayEventsSchema);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.data as unknown as InternalCollectReplayEventsBody;
+  const events = (body as { events?: unknown[] }).events;
   if (!events?.length) return c.json({ error: "events required" }, 400);
   const cfg = env();
   const ingestMeta = buildAnalyticsIngestMeta({
@@ -83,16 +93,18 @@ internalRoutes.post("/collect/replay-events", async (c) => {
     acceptLanguage: c.req.header("Accept-Language") ?? "",
     headers: c.req.raw.headers,
   });
-  const enriched = events.map((e) => ({ ...e, ingestMeta }));
-  await getReplayEngine().processEvents(enriched);
+  const enriched = events.map((e) => ({ ...(e as Record<string, unknown>), ingestMeta }));
+  await getReplayEngine().processEvents(enriched as Parameters<ReturnType<typeof getReplayEngine>["processEvents"]>[0]);
   return c.json({ ok: true });
 });
 
 /** Server-side heatmap batches (`GLOBAL_API_KEY`). Browser traffic uses `POST /api/v1/tracker/collect`. */
 internalRoutes.post("/collect/heatmap-events", async (c) => {
-  const body = await c.req.json<InternalCollectHeatmapEventsBody>().catch(() => null);
-  const events = body?.events;
+  const parsed = await parseJson(c, internalCollectHeatmapEventsSchema);
+  if (!parsed.ok) return parsed.res;
+  const body = parsed.data as unknown as InternalCollectHeatmapEventsBody;
+  const events = (body as { events?: unknown[] }).events;
   if (!events?.length) return c.json({ error: "events required" }, 400);
-  await getHeatmapEngine().processEvents(events);
+  await getHeatmapEngine().processEvents(events as Parameters<ReturnType<typeof getHeatmapEngine>["processEvents"]>[0]);
   return c.json({ ok: true });
 });

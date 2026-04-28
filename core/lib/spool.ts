@@ -139,14 +139,16 @@ export class ReplaySpool {
         this.sessions.delete(key);
       }
     }
+    const toFlush: SessionState[] = [];
     for (const st of this.sessions.values()) {
       if (st.finalizing || st.events.length === 0) continue;
       if (st.chunkWindowStart == null) {
         st.chunkWindowStart = now;
       }
       if (now - st.chunkWindowStart < this.chunkFlushMs) continue;
-      await this.flushChunk(st);
+      toFlush.push(st);
     }
+    await Promise.all(toFlush.map((st) => this.flushChunk(st)));
   }
 
   private async flushChunk(st: SessionState): Promise<void> {
@@ -165,6 +167,11 @@ export class ReplaySpool {
       await this.onChunkFlush(st.siteId, st.sessionId, seq, batch);
       st.nextChunkSeq = seq + 1;
       st.lastTouchedMs = Date.now();
+    } catch (e) {
+      // Restore events so the next tick can retry rather than silently dropping them.
+      st.events = [...batch, ...st.events];
+      st.chunkWindowStart = Date.now();
+      throw e;
     } finally {
       st.finalizing = false;
     }

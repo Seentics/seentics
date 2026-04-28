@@ -129,11 +129,13 @@ export class ReplayEngine {
 
   private async flushPg(): Promise<void> {
     if (this.pgBuf.length === 0) return;
-    const batch = this.pgBuf.splice(0, pgBatchSize);
-    try {
-      await upsertSessionMetaBatch(batch);
-    } catch (e) {
-      console.error("replay pg batch failed", e);
+    const all = this.pgBuf.splice(0);
+    for (let i = 0; i < all.length; i += pgBatchSize) {
+      try {
+        await upsertSessionMetaBatch(all.slice(i, i + pgBatchSize));
+      } catch (e) {
+        console.error("replay pg batch failed", e);
+      }
     }
   }
 

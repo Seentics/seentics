@@ -1,10 +1,11 @@
 'use client';
 
+import type React from 'react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export interface StatCard {
-  label: string;
+  label: string | React.ReactNode;
   value: string | number;
   icon?: React.ElementType;
   iconColor?: string;
@@ -62,9 +63,15 @@ export function StatCards({
                   <Icon className={cn('h-3.5 w-3.5', card.iconColor ?? 'text-muted-foreground')} />
                 </div>
               )}
-              <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground leading-tight">
-                {card.label}
-              </span>
+              {typeof card.label === 'string' ? (
+                <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground leading-tight">
+                  {card.label}
+                </span>
+              ) : (
+                <div className="text-[11px] font-medium text-muted-foreground leading-tight min-w-0">
+                  {card.label}
+                </div>
+              )}
             </div>
             <p className={cn('text-2xl sm:text-[1.75rem] font-bold tracking-tight tabular-nums', card.valueColor ?? 'text-foreground')}>
               {typeof card.value === 'number' ? card.value.toLocaleString() : card.value}

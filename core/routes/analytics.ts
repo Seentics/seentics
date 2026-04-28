@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import type { AnalyticsQueryParams } from "../lib/api-types";
 import { authMiddleware, requireUser, type AuthVars } from "../middleware/auth";
 import * as an from "../services/analytics.service";
+import { parseQuery } from "../validators/validation";
+import { analyticsRecentActivityQuerySchema } from "../validators/analytics";
 
 const r = new Hono<{ Variables: AuthVars }>();
 
@@ -128,11 +130,10 @@ r.get("/visitor-insights/:website_id", async (c) => {
 
 r.get("/recent-activity/:website_id", async (c) => {
   if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
-  const lim = Math.max(1, Math.min(100, Number(c.req.query("limit") ?? "50") || 50));
-  const withinRaw = c.req.query("within_minutes");
-  const withinParsed = withinRaw != null && withinRaw !== "" ? Number(withinRaw) : NaN;
-  const withinMinutes =
-    Number.isFinite(withinParsed) && withinParsed > 0 ? Math.min(24 * 60, Math.floor(withinParsed)) : undefined;
+  const q = parseQuery(c, analyticsRecentActivityQuerySchema);
+  if (!q.ok) return q.res;
+  const lim = q.data.limit;
+  const withinMinutes = q.data.within_minutes;
   return c.json(
     await an.getRecentActivityAnalytics(c.req.param("website_id"), lim, { withinMinutes }),
   );
@@ -151,6 +152,11 @@ r.get("/path-analysis/:website_id", async (c) => {
 r.get("/export/:website_id", async (c) => {
   if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
   return c.json(await an.getExportAnalytics(c.req.param("website_id"), qs(c)));
+});
+
+r.get("/revenue/:website_id", async (c) => {
+  if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
+  return c.json(await an.getRevenueDashboard(c.req.param("website_id"), qs(c)));
 });
 
 r.post("/import", async (c) => {

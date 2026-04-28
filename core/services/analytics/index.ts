@@ -28,6 +28,7 @@ export { getRealtimeStats } from "./realtime";
 export { getRecentActivityAnalytics } from "./recent-activity";
 export { getReferrersAnalytics } from "./referrers";
 export { getResolutionsAnalytics } from "./resolutions";
+export { getRevenueDashboard } from "./revenue";
 export { getSourcesAnalytics } from "./sources";
 export { getTrafficSummaryStats } from "./traffic-summary";
 export { getVisitorInsightsAnalytics } from "./visitor-insights";
