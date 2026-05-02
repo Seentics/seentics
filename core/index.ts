@@ -24,7 +24,6 @@ import { rawDataRoutes } from "./routes/raw-data";
 import { replayRoutes } from "./routes/replays";
 import { trackerRoutes } from "./routes/tracker";
 import { userBranchRoutes } from "./routes/user-branch";
-import { SEENTICS_PEER_IP_HEADER } from "./lib/client-ip";
 
 type BunServerWithRequestIp = {
   requestIP: (request: Request) => { address: string } | null;
@@ -103,44 +102,6 @@ process.on("SIGTERM", () => void shutdown().finally(() => process.exit(0)));
 
 const port = cfg.port;
 
-/** Bun exposes the TCP peer via `server.requestIP`; forward it so GeoIP works without TRUST_PROXY / X-Forwarded-For. */
-function attachTrustedPeerIp(req: Request, server: BunServerWithRequestIp): Request {
-  try {
-    const h = new Headers(req.headers);
-    h.delete(SEENTICS_PEER_IP_HEADER);
-    const addr = server.requestIP(req);
-    if (addr?.address) {
-      h.set(SEENTICS_PEER_IP_HEADER, addr.address);
-    }
-    return new Request(req.url, {
-      method: req.method,
-      headers: h,
-      body: req.body,
-    } as RequestInit);
-  } catch {
-    return req;
-  }
-}
 
-const OSS_BODY_MAX = Math.max(
-  32 * 1024 * 1024,
-  Number(process.env.OSS_MAX_REQUEST_BODY_BYTES ?? "") || 0,
-);
-
-export default {
-  port,
-  idleTimeout: Number(process.env.OSS_IDLE_TIMEOUT_SECONDS ?? "255") || 255,
-  maxRequestBodySize: OSS_BODY_MAX,
-  fetch(req: Request, server: BunServerWithRequestIp) {
-    try {
-      if (new URL(req.url).pathname.includes("/tracker/collect")) {
-        server.timeout(req, 0);
-      }
-    } catch {
-      /* ignore */
-    }
-    return app.fetch(attachTrustedPeerIp(req, server));
-  },
-};
 
 console.log(`seentics core on :${port} (Bun + Hono + Drizzle — full OSS API)`);

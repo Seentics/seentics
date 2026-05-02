@@ -25,6 +25,7 @@ export { getPagesAnalytics } from "./pages";
 export { getPathAnalysisAnalytics } from "./path-analysis";
 export { getPublicDashboardStats } from "./public-dashboard";
 export { getRealtimeStats } from "./realtime";
+export { getRealtimeGeoAnalytics } from "./realtime-geo";
 export { getRecentActivityAnalytics } from "./recent-activity";
 export { getReferrersAnalytics } from "./referrers";
 export { getResolutionsAnalytics } from "./resolutions";

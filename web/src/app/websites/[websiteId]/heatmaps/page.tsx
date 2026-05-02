@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Flame, Eye, MousePointer, Move, Search, Activity, Trash2,
-  Copy, ExternalLink, RefreshCw,
+  ExternalLink, RefreshCw,
 } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -85,17 +85,6 @@ export default function HeatmapsPage() {
     (pagePath: string) =>
       `/websites/${websiteId}/heatmaps/${heatmapPageSlug(pagePath)}`,
     [websiteId],
-  );
-
-  const copyHeatmapLink = useCallback(
-    (pagePath: string) => {
-      const path = heatmapHref(pagePath);
-      const full = typeof window !== 'undefined' ? `${window.location.origin}${path}` : path;
-      void navigator.clipboard.writeText(full).then(() => {
-        toast({ title: 'Heatmap link copied', description: 'Share this URL to open the same view.' });
-      });
-    },
-    [heatmapHref, toast],
   );
 
   const deleteMutation = useMutation({
@@ -213,21 +202,9 @@ export default function HeatmapsPage() {
     {
       id: 'actions',
       header: '',
-      size: 112,
+      size: 80,
       cell: ({ row }) => (
         <div className="flex justify-end items-center gap-0 pr-0.5">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-            title="Copy link to this heatmap"
-            onClick={(e) => {
-              e.stopPropagation();
-              copyHeatmapLink(row.original.url);
-            }}
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -257,7 +234,7 @@ export default function HeatmapsPage() {
         </div>
       ),
     },
-  ], [copyHeatmapLink, heatmapHref, router, deleteMutation, websiteId]);
+  ], [heatmapHref, router, deleteMutation, websiteId]);
 
 
   return (
@@ -347,6 +324,7 @@ export default function HeatmapsPage() {
         emptyIcon={<Flame className="h-6 w-6" />}
         emptyTitle="No heatmap data yet"
         emptyDescription="Install the tracker script, then open Settings → Features to enable heatmaps and adjust URL include/exclude patterns (localhost is often blocked by include rules). Run npm run bundle-trackers in seentics/web after changing the tracker."
+        pageSize={10}
       />
     </div>
   );

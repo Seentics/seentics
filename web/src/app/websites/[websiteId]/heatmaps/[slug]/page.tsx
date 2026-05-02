@@ -832,13 +832,6 @@ export default function HeatmapDetailPage() {
   };
 
   const shareHeatmapPath = `/websites/${websiteId}/heatmaps/${heatmapPageSlug(urlPath)}`;
-  const copyShareLink = () => {
-    const full =
-      typeof window !== 'undefined' ? `${window.location.origin}${shareHeatmapPath}` : shareHeatmapPath;
-    void navigator.clipboard.writeText(full).then(() => {
-      toast({ title: 'Link copied', description: 'Anyone with access can open this heatmap.' });
-    });
-  };
 
   const pathForHeading = isDemoMode ? (demoPage?.url ?? urlPath) : urlPath;
   const { subtitle: pageSubtitle } = heatmapPageHeading(
@@ -1008,9 +1001,6 @@ export default function HeatmapDetailPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuItem className="text-xs" onClick={copyShareLink}>
-                    Copy link
-                  </DropdownMenuItem>
                   {displayIframeUrl ? (
                     <DropdownMenuItem
                       className="text-xs"

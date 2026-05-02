@@ -267,8 +267,8 @@ export default function AutomationsPage() {
                 className="pl-8 h-8 text-xs w-44"
               />
             </div>
-            <Button 
-                size="sm" 
+            <Button
+                size="sm"
                 className="h-8 gap-1.5"
                 onClick={() => router.push(`/websites/${websiteId}/automations/new`)}
             >
@@ -281,6 +281,7 @@ export default function AutomationsPage() {
         emptyIcon={<Bot className="h-6 w-6" />}
         emptyTitle="No automations yet"
         emptyDescription="Create your first automation to trigger actions based on user behavior."
+        pageSize={10}
       />
     </div>
   );

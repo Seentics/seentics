@@ -30,7 +30,7 @@ export function DashboardPageHeader({
           {title}
         </h1>
         {description && (
-          <p className="max-w-2xl text-sm font-medium text-muted-foreground sm:text-base">
+          <p className="max-w-3xl text-sm font-medium text-muted-foreground sm:text-base">
             {description}
           </p>
         )}

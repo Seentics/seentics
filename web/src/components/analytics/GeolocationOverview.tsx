@@ -101,10 +101,10 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     </Tabs>
                 </div>
             </CardHeader>
-            <CardContent className=" pt-6">
+            <CardContent className=" pt-2">
                 <div className="min-h-[400px]">
                     {!hasGeoBreakdown && !isLoading ? (
-                        <div className="flex flex-col items-center justify-center py-20 px-4 text-center bg-accent/5 rounded-xl border border-dashed border-border/60">
+                        <div className="flex flex-col items-center justify-center py-20 px-4 text-center  rounded-xl border border-dashed border-border/60">
                             <Globe className="h-14 w-14 mb-4 text-muted-foreground/25" />
                             <p className="text-sm font-medium text-muted-foreground mb-1">No geographic data yet</p>
                             <p className="text-xs text-muted-foreground/80 max-w-sm leading-relaxed">
@@ -115,7 +115,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     ) : (
                         <>
                     {geoTab === 'map2d' && (
-                        <div className="h-[460px] rounded-xl overflow-hidden border border-border/50 bg-muted/20">
+                        <div className="h-[460px] rounded-xl overflow-hidden ">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}
@@ -126,7 +126,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     )}
 
                     {geoTab === 'map3d' && (
-                        <div className="h-[460px] rounded-xl overflow-hidden border border-border/50 bg-muted/20">
+                        <div className="h-[460px] rounded-xl overflow-hidden ">
                             <WorldMap
                                 data={displayData?.countries || []}
                                 isLoading={isLoading}

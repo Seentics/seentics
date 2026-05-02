@@ -139,6 +139,13 @@ r.get("/recent-activity/:website_id", async (c) => {
   );
 });
 
+r.get("/realtime-geo/:website_id", async (c) => {
+  if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
+  const withinMinutes = c.req.query("within_minutes");
+  const opts = withinMinutes ? { withinMinutes: parseInt(withinMinutes, 10) } : undefined;
+  return c.json(await an.getRealtimeGeoAnalytics(c.req.param("website_id"), opts));
+});
+
 r.get("/geolocation-breakdown/:website_id", async (c) => {
   if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
   return c.json(await an.getGeolocationAnalytics(c.req.param("website_id"), qs(c)));

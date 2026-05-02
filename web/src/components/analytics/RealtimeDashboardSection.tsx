@@ -2,6 +2,7 @@
 
 import { useRealtimeData, useRecentActivity } from '@/lib/analytics-api';
 import { RecentActivityFeed } from '@/components/analytics/RecentActivityFeed';
+import { RealtimeGeoMap } from '@/components/analytics/RealtimeGeoMap';
 import { DashboardPageHeader } from '@/components/dashboard-header';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Button } from '@/components/ui/button';
@@ -100,6 +101,10 @@ export function RealtimeDashboardSection({ websiteId }: { websiteId: string }) {
             tableScrollClassName="border-0 rounded-none shadow-none bg-transparent max-h-[min(32rem,60vh)]"
           />
         </div>
+      </div>
+
+      <div className="mt-8">
+        <RealtimeGeoMap data={recentActivityData} isLoading={recentLoading} />
       </div>
     </div>
   );

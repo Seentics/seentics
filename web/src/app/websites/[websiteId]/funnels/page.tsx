@@ -299,6 +299,7 @@ export default function FunnelsPage() {
               />
             </div>
           }
+          pageSize={10}
         />
 
       </div>

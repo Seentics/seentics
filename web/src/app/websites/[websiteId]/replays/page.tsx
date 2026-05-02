@@ -18,7 +18,6 @@ import {
   RefreshCw,
   Trash2,
   Play,
-  Copy,
   MousePointerClick,
 } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
@@ -102,15 +101,6 @@ export default function ReplaysPage() {
   const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [deviceFilter, setDeviceFilter] = useState('all');
-
-  const copySessionId = useCallback(
-    (id: string) => {
-      void navigator.clipboard.writeText(id).then(() => {
-        toast({ title: 'Session ID copied' });
-      });
-    },
-    [toast],
-  );
 
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => {
@@ -291,18 +281,6 @@ export default function ReplaysPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 text-muted-foreground hover:text-foreground"
-            title="Copy session ID"
-            onClick={(e) => {
-              e.stopPropagation();
-              copySessionId(row.original.session_id);
-            }}
-          >
-            <Copy className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
             className="h-9 w-9 text-foreground hover:bg-muted"
             title="Watch replay"
             onClick={(e) => {
@@ -329,7 +307,7 @@ export default function ReplaysPage() {
         </div>
       ),
     },
-  ], [deleteMutation, copySessionId, router, websiteId]);
+  ], [deleteMutation, router, websiteId]);
 
 
 
@@ -431,7 +409,7 @@ export default function ReplaysPage() {
         emptyDescription={isDemoMode
           ? 'No sessions match your filters.'
           : 'Install the Seentics tracker with recording enabled to capture sessions.'}
-        pageSize={15}
+        pageSize={10}
       />
 
     </div>

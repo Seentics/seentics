@@ -734,6 +734,42 @@ export const useRecentActivity = (websiteId: string, options?: UseRecentActivity
 };
 
 
+// Realtime Geo Data
+export interface RealtimeGeoVisitor {
+  name: string;
+  count: number;
+  percentage: number;
+}
+
+export interface RealtimeGeoResponse {
+  website_id: string;
+  date_range: string;
+  visitors: RealtimeGeoVisitor[];
+}
+
+export const getRealtimeGeoData = async (websiteId: string, withinMinutes = 30): Promise<RealtimeGeoResponse> => {
+  if (isDemo(websiteId)) {
+    return {
+      website_id: websiteId,
+      date_range: '30m',
+      visitors: [],
+    };
+  }
+  const params = new URLSearchParams({ within_minutes: String(withinMinutes) });
+  const response = await api.get(`/analytics/realtime-geo/${websiteId}?${params.toString()}`);
+  return response.data;
+};
+
+export const useRealtimeGeoData = (websiteId: string, withinMinutes = 30) => {
+  return useQuery<RealtimeGeoResponse>({
+    queryKey: ['realtime-geo', websiteId, withinMinutes],
+    queryFn: () => getRealtimeGeoData(websiteId, withinMinutes),
+    enabled: !!websiteId,
+    refetchInterval: 12_000,
+    staleTime: 8000,
+  });
+};
+
 
 // Visitor Insights Hook
 export const useVisitorInsights = (websiteId: string, days: number = 7) => {

@@ -201,7 +201,7 @@ export default function RevenuePage() {
       </DashboardPageHeader>
 
       {/* ── 4 stat cards (same StatCards component as Funnels, Events pages) ── */}
-      <StatCards cards={topCards} cols={4} isLoading={false} />
+      <StatCards cards={topCards} cols={4} isLoading={false} cardClassName="p-3 sm:p-4" />
 
       {/* ── Revenue & orders chart ── */}
       <Card className="border border-border/60 mb-6">
