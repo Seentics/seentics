@@ -47,6 +47,7 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-medium text-foreground mb-4">Resources</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
+              <li><Link href="/blog" className="hover:text-foreground transition-colors">Blog</Link></li>
               <li><Link href="/websites/demo" className="hover:text-foreground transition-colors">Live Demo</Link></li>
               <li><Link href="https://github.com/Seentics/seentics/issues" target="_blank" className="hover:text-foreground transition-colors">Support</Link></li>
             </ul>
