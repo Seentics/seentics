@@ -104,7 +104,7 @@ export default function WebsitesOnboardingPage() {
       setNewlyAddedSiteId(website.id);
       const origin = window.location.origin;
       setTrackingCode(
-        `<!-- Seentics Analytics -->\n<script \n  defer \n  data-website-id="${website.id}" \n  src="${origin}/trackers/seentics.js"\n></script>`,
+        `<!-- Seentics Analytics -->\n<script \n  defer \n  data-website-id="${website.id}" \n  src="${origin}/trackers/seentics.min.js"\n></script>`,
       );
       toast({ title: 'Success!', description: `${name} has been added successfully` });
       setPhase('snippet');

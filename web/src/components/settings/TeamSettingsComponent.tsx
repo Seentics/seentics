@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMembers, removeMember, updateMemberRole, listPendingInvitations, revokeInvitation, WebsiteMember, WebsiteInvitation } from '@/lib/websites-api';
+import { isValidId } from '@/lib/utils';
 import { InviteMemberModal } from '../websites/modals/InviteMemberModal';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -45,13 +46,13 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['members', websiteId],
     queryFn: () => getMembers(websiteId),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
   });
 
   const { data: pendingInvitations = [] } = useQuery({
     queryKey: ['invitations', websiteId],
     queryFn: () => listPendingInvitations(websiteId),
-    enabled: !!websiteId && canManageMembers,
+    enabled: isValidId(websiteId) && canManageMembers,
   });
 
   const deleteMutation = useMutation({

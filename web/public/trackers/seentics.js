@@ -4,12 +4,12 @@
  * Analytics:  batched, sendBeacon, single /collect endpoint
  */
 
-const script = document.currentScript as HTMLScriptElement | null;
+const script = document.currentScript;
 /** Website UUID — same value as the dashboard project id (data-website-id). */
 const websiteId = script?.getAttribute('data-website-id') ?? '';
 
 /** Strip trailing /api/v1 so COLLECT = origin + '/api/v1/tracker/collect' never doubles the prefix. */
-function normalizeApiBase(raw: string): string {
+function normalizeApiBase(raw) {
   let s = raw.trim().replace(/\/+$/, '');
   while (/\/api\/v1$/i.test(s)) {
     s = s.replace(/\/api\/v1$/i, '');
@@ -23,7 +23,7 @@ function normalizeApiBase(raw: string): string {
  * and session batches all hit your stack — not a hard-coded SaaS default.
  * Falls back to https://api.seentics.com only when `src` is missing (inline script).
  */
-function defaultApiHostFromScript(): string {
+function defaultApiHostFromScript() {
   const src = script?.src?.trim();
   if (!src) return 'https://api.seentics.com';
   try {
@@ -35,40 +35,40 @@ function defaultApiHostFromScript(): string {
   }
 }
 
-const apiHost = normalizeApiBase(script?.getAttribute('data-api-host') ?? defaultApiHostFromScript());
+const apiHost   = normalizeApiBase(script?.getAttribute('data-api-host') ?? defaultApiHostFromScript());
 const autoTrack = script?.getAttribute('data-auto-track') !== 'false';
 const domain    = window.location.hostname;
 
-// rrweb.js lives next to seentics.js; override via data-rrweb-src if needed.
+// rrweb.min.js lives next to seentics.min.js; override via data-rrweb-src if needed.
 const _scriptSrc = script?.src ?? '';
-const rrwebSrc: string =
+const rrwebSrc =
   script?.getAttribute('data-rrweb-src') ??
-  (_scriptSrc ? _scriptSrc.replace(/[^/?#]*\.js[^/]*$/, 'rrweb.js') : '');
+  (_scriptSrc ? _scriptSrc.replace(/[^/?#]*\.js[^/]*$/, 'rrweb.min.js') : '');
 
-const COLLECT       = apiHost + '/api/v1/tracker/collect';
-const FLUSH_MS      = 10_000;           // 10 s periodic flush interval
-const SESSION_MAX_MS = 30 * 60 * 1000; // 30 min hard session cap
+const COLLECT        = apiHost + '/api/v1/tracker/collect';
+const FLUSH_MS       = 10_000;           // 10 s periodic flush interval
+const SESSION_MAX_MS = 30 * 60 * 1000;  // 30 min hard session cap
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let cfg:         Record<string, unknown> = {};
-let funnels:     any[]                   = [];
-let automations: any[]                   = [];
-let flushInterval: number | null = null;
+let cfg         = {};
+let funnels     = [];
+let automations = [];
+let flushInterval = null;
 
 const queues = {
-  events:          [] as any[],
-  funnels:         [] as any[],
-  automations:     [] as any[],
-  session:         [] as any[],   // rrweb eventWithTime wrapped in TrackerEvent envelope
-  heatmaps:            [] as any[],   // heatmap_click / heatmap_scroll for /collect heatmaps
-  heatmap_screenshot:  [] as any[],   // html2canvas JPEG (base64 in data.image) for heatmap underlay
+  events:              [],
+  funnels:             [],
+  automations:         [],
+  session:             [],   // rrweb eventWithTime wrapped in TrackerEvent envelope
+  heatmaps:            [],   // heatmap_click / heatmap_scroll for /collect heatmaps
+  heatmap_screenshot:  [],   // html2canvas JPEG (base64 in data.image) for heatmap underlay
 };
 
 // ─── Visitor / Session IDs ────────────────────────────────────────────────────
-const getStore = (): Storage | null => { try { return localStorage; } catch { return null; } };
+const getStore = () => { try { return localStorage; } catch { return null; } };
 
 // Cryptographically random token; falls back to Math.random if unavailable.
-const rnd = (): string => {
+const rnd = () => {
   try {
     const arr = new Uint8Array(9);
     crypto.getRandomValues(arr);
@@ -78,7 +78,7 @@ const rnd = (): string => {
   }
 };
 
-let visitorId: string = (() => {
+let visitorId = (() => {
   const s = getStore();
   if (!s) return 'v-' + rnd();
   let id = s.getItem('snc_vid');
@@ -89,13 +89,13 @@ let visitorId: string = (() => {
   return id;
 })();
 
-const getSessionId = (): string => {
-  const s = getStore();
+const getSessionId = () => {
+  const s   = getStore();
   if (!s) return 's-' + Date.now().toString(36);
-  const now  = Date.now();
-  let id     = s.getItem('snc_sid');
-  const exp  = s.getItem('snc_se');   // inactivity expiry
-  const ss   = s.getItem('snc_ss');   // session start time (for hard cap)
+  const now = Date.now();
+  let id    = s.getItem('snc_sid');
+  const exp = s.getItem('snc_se');   // inactivity expiry
+  const ss  = s.getItem('snc_ss');   // session start time (for hard cap)
 
   const inactivityExpired = !id || !exp || now > +exp;
   const hardCapExceeded   = !!ss && (now - +ss) >= SESSION_MAX_MS;
@@ -106,23 +106,23 @@ const getSessionId = (): string => {
     s.setItem('snc_ss', String(now));
   }
   s.setItem('snc_se', String(now + SESSION_MAX_MS));
-  return id!;
+  return id;
 };
 
 // ─── Queue helpers ────────────────────────────────────────────────────────────
-const categoryOf = (type: string): keyof typeof queues => {
+const categoryOf = (type) => {
   if (type === 'funnel_step' || type === 'funnel_complete') return 'funnels';
   if (type === 'automation_trigger')                        return 'automations';
   if (type === 'heatmap_click' || type === 'heatmap_scroll') return 'heatmaps';
   return 'events';
 };
 
-const pushAnalytics = (type: string, data: Record<string, unknown>): void => {
+const pushAnalytics = (type, data) => {
   queues[categoryOf(type)].push({ type, data, ts: Date.now(), url: location.href, sid: getSessionId(), vid: visitorId });
 };
 
 // Gzip via native CompressionStream; falls back to plain JSON if unavailable.
-const sendGzip = async (json: string): Promise<void> => {
+const sendGzip = async (json) => {
   if (typeof CompressionStream !== 'undefined') {
     try {
       const cs = new CompressionStream('gzip');
@@ -148,7 +148,7 @@ const sendGzip = async (json: string): Promise<void> => {
  * Screenshots must not share a /collect body with huge `session` rrweb batches — proxies truncate → unexpected EOF.
  * POST heatmap_screenshot alone. Normal flushes use gzip; page-unload uses sync plain JSON (CompressionStream is async).
  */
-const flushHeatmapScreenshotsDedicated = (syncUnload: boolean): void => {
+const flushHeatmapScreenshotsDedicated = (syncUnload) => {
   const shot = queues.heatmap_screenshot.splice(0);
   if (!shot.length) return;
   const payload = JSON.stringify({
@@ -171,15 +171,12 @@ const flushHeatmapScreenshotsDedicated = (syncUnload: boolean): void => {
 };
 
 // ─── Unified flush — sends all queues to /collect in one request ──────────────
-const flush = (): void => {
+const flush = () => {
   // Session hard-cap check: if the session rotated since we last started rrweb,
   // restart recording so the new session gets a fresh FullSnapshot baseline.
   if (activeRecordingSessionId !== null) {
     const currentSid = getSessionId();
     if (currentSid !== activeRecordingSessionId) {
-      // Flush whatever was buffered under the old session first (handled below).
-      // Then restart rrweb for the new session — the initial FullSnapshot lands
-      // in the next flush cycle 10 s later.
       loadRrweb().then(record => {
         if (record) startRrweb(record, currentSid, computeReplaySessionEnabled());
       });
@@ -194,7 +191,7 @@ const flush = (): void => {
   const h = queues.heatmaps.splice(0);
   if (!e.length && !f.length && !a.length && !s.length && !h.length) return;
 
-  const payload: Record<string, unknown> = { website_id: websiteId, domain };
+  const payload = { website_id: websiteId, domain };
   if (e.length) payload.events      = e;
   if (f.length) payload.funnels     = f;
   if (a.length) payload.automations = a;
@@ -223,7 +220,7 @@ const flushAnalytics = flush; // keep public API name
 // Unlike flush(), it sends ALL queued data — including session recording events —
 // via sendBeacon so the browser guarantees delivery even as the page unloads.
 // Falls back to synchronous XHR if sendBeacon is unavailable or rejects the payload.
-const flushBeacon = (): void => {
+const flushBeacon = () => {
   flushHeatmapScreenshotsDedicated(true);
 
   const e = queues.events.splice(0);
@@ -232,7 +229,7 @@ const flushBeacon = (): void => {
   const h = queues.heatmaps.splice(0);
   if (!e.length && !f.length && !a.length && !s.length && !h.length) return;
 
-  const payload: Record<string, unknown> = { website_id: websiteId, domain };
+  const payload = { website_id: websiteId, domain };
   if (e.length) payload.events      = e;
   if (f.length) payload.funnels     = f;
   if (a.length) payload.automations = a;
@@ -259,20 +256,16 @@ const flushBeacon = (): void => {
 };
 
 // ─── rrweb lazy loader ────────────────────────────────────────────────────────
-// rrweb.js is loaded on demand — only when session recording is actually needed.
+// rrweb.min.js is loaded on demand — only when session recording is actually needed.
 // It sets window.__rrweb_record = record after loading.
-/** rrweb `record` function; `takeFullSnapshot` is on the same fn (see rrweb-loader). */
-type RrwebRecord = (options: Record<string, unknown>) => void | (() => void);
-type RrwebModule = RrwebRecord & { takeFullSnapshot?: (isCheckout?: boolean) => void };
-let _rrwebPromise: Promise<RrwebModule | null> | null = null;
+let _rrwebPromise = null;
 
 /** Capture window errors + unhandled rejections for replay session metadata. */
-const installSessionClientErrorCapture = (): void => {
-  const w = window as unknown as { __snc_err_cap?: boolean };
-  if (w.__snc_err_cap) return;
-  w.__snc_err_cap = true;
+const installSessionClientErrorCapture = () => {
+  if (window.__snc_err_cap) return;
+  window.__snc_err_cap = true;
 
-  const enqueue = (data: Record<string, unknown>) => {
+  const enqueue = (data) => {
     queues.session.push({
       type: 'session_error',
       data,
@@ -283,17 +276,17 @@ const installSessionClientErrorCapture = (): void => {
     });
   };
 
-  window.addEventListener('error', (ev: ErrorEvent) => {
+  window.addEventListener('error', (ev) => {
     enqueue({
       message:  ev.message  || 'Script error',
       filename: ev.filename || undefined,
       lineno:   ev.lineno   || undefined,
       colno:    ev.colno    || undefined,
-      stack:    (ev.error as Error | null)?.stack || undefined,
+      stack:    ev.error?.stack || undefined,
     });
   }, true);
 
-  window.addEventListener('unhandledrejection', (ev: PromiseRejectionEvent) => {
+  window.addEventListener('unhandledrejection', (ev) => {
     const reason = ev.reason;
     const isErr  = reason instanceof Error;
     enqueue({
@@ -303,16 +296,15 @@ const installSessionClientErrorCapture = (): void => {
   });
 };
 
-const loadRrweb = (): Promise<RrwebModule | null> => {
+const loadRrweb = () => {
   if (_rrwebPromise) return _rrwebPromise;
   _rrwebPromise = new Promise((resolve) => {
-    const w = window as any;
-    if (w.__rrweb_record) { resolve(w.__rrweb_record as RrwebModule); return; }
-    if (!rrwebSrc)        { resolve(null); return; }
-    const s    = document.createElement('script');
-    s.src      = rrwebSrc;
-    s.onload   = () => resolve((w.__rrweb_record ?? null) as RrwebModule | null);
-    s.onerror  = () => resolve(null);
+    if (window.__rrweb_record) { resolve(window.__rrweb_record); return; }
+    if (!rrwebSrc)              { resolve(null); return; }
+    const s   = document.createElement('script');
+    s.src     = rrwebSrc;
+    s.onload  = () => resolve(window.__rrweb_record ?? null);
+    s.onerror = () => resolve(null);
     document.head.appendChild(s);
   });
   return _rrwebPromise;
@@ -321,7 +313,7 @@ const loadRrweb = (): Promise<RrwebModule | null> => {
 /**
  * Per-tab, per path: one heatmap screenshot upload per pathname until navigation (saves bandwidth).
  */
-const heatmapScreenshotSentKey = (): string => {
+const heatmapScreenshotSentKey = () => {
   if (!websiteId) return '';
   try {
     return `snc_hmshot:${websiteId}:${location.pathname}`;
@@ -330,7 +322,7 @@ const heatmapScreenshotSentKey = (): string => {
   }
 };
 
-const hasSentHeatmapScreenshotForPath = (): boolean => {
+const hasSentHeatmapScreenshotForPath = () => {
   const k = heatmapScreenshotSentKey();
   if (!k) return false;
   try {
@@ -340,7 +332,7 @@ const hasSentHeatmapScreenshotForPath = (): boolean => {
   }
 };
 
-const markHeatmapScreenshotSentForPath = (): void => {
+const markHeatmapScreenshotSentForPath = () => {
   const k = heatmapScreenshotSentKey();
   if (!k) return;
   try {
@@ -351,17 +343,17 @@ const markHeatmapScreenshotSentForPath = (): void => {
 };
 
 /** Timeouts for post-load / post-nav screenshots (cleared on navigation). */
-let heatmapScreenshotRefreshTimeouts: number[] = [];
-let heatmapScreenshotLongPageInterval: number | null = null;
+let heatmapScreenshotRefreshTimeouts = [];
+let heatmapScreenshotLongPageInterval = null;
 
-const clearHeatmapScreenshotRefreshTimers = (): void => {
+const clearHeatmapScreenshotRefreshTimers = () => {
   for (const id of heatmapScreenshotRefreshTimeouts) {
     window.clearTimeout(id);
   }
   heatmapScreenshotRefreshTimeouts = [];
 };
 
-const clearHeatmapScreenshotLongPageInterval = (): void => {
+const clearHeatmapScreenshotLongPageInterval = () => {
   if (heatmapScreenshotLongPageInterval != null) {
     window.clearInterval(heatmapScreenshotLongPageInterval);
     heatmapScreenshotLongPageInterval = null;
@@ -369,8 +361,8 @@ const clearHeatmapScreenshotLongPageInterval = (): void => {
 };
 
 /** SPA / replay: ask rrweb for a fresh full snapshot when recording (checkout drift), not for heatmap JPEGs. */
-const requestRrwebFullSnapshotForNavigation = (): void => {
-  const rec = (window as unknown as { __rrweb_record?: RrwebModule }).__rrweb_record;
+const requestRrwebFullSnapshotForNavigation = () => {
+  const rec = window.__rrweb_record;
   if (!rec?.takeFullSnapshot) return;
   try {
     rec.takeFullSnapshot(false);
@@ -380,16 +372,16 @@ const requestRrwebFullSnapshotForNavigation = (): void => {
 };
 
 /** Keep screenshots small so /collect JSON is not truncated by proxies (base64 inflates ~33%). */
-const HEATMAP_SCREENSHOT_MAX_EDGE = 1440;
+const HEATMAP_SCREENSHOT_MAX_EDGE    = 1440;
 const HEATMAP_SCREENSHOT_JPEG_QUALITY = 0.68;
 /** Drop if still too large after scale/quality (avoids broken JSON / unexpected EOF upstream). */
-const HEATMAP_SCREENSHOT_MAX_B64 = 2_200_000;
+const HEATMAP_SCREENSHOT_MAX_B64     = 2_200_000;
 /** Skip capture on paths that are almost certainly the Seentics dashboard (avoids freezing when self-tracking). */
-const shouldSkipHeatmapScreenshotForPath = (): boolean => {
+const shouldSkipHeatmapScreenshotForPath = () => {
   try {
     const p = location.pathname;
     if (p.startsWith('/websites/')) return true;
-    if (p.startsWith('/preview/')) return true;
+    if (p.startsWith('/preview/'))  return true;
     return false;
   } catch {
     return false;
@@ -401,7 +393,7 @@ const HEATMAP_SCREENSHOT_MAX_DOC_EDGE = 14_000;
 /**
  * Full-page JPEG via html2canvas (same scroll-box basis as heatmap_click nx/ny).
  */
-const captureAndQueueHeatmapScreenshot = (): void => {
+const captureAndQueueHeatmapScreenshot = () => {
   if (cfg.heatmap_layout_enabled === false) return;
   if (shouldSkipHeatmapScreenshotForPath()) return;
   if (hasSentHeatmapScreenshotForPath()) return;
@@ -457,10 +449,10 @@ const captureAndQueueHeatmapScreenshot = (): void => {
  * After load or SPA navigation, delayed captures catch hydration / lazy routes.
  * Long sessions: periodic refresh so the stored image is not stale forever.
  */
-const scheduleHeatmapScreenshotAfterAppIdle = (): void => {
+const scheduleHeatmapScreenshotAfterAppIdle = () => {
   if (cfg.heatmap_layout_enabled === false) return;
   clearHeatmapScreenshotRefreshTimers();
-  const run = (): void => {
+  const run = () => {
     try {
       sessionStorage.removeItem(heatmapScreenshotSentKey());
     } catch {
@@ -482,22 +474,22 @@ const scheduleHeatmapScreenshotAfterAppIdle = (): void => {
 
 // ─── Safe regex — guards against ReDoS ───────────────────────────────────────
 // Patterns longer than 500 chars fall back to plain string.includes.
-const safeRegex = (pattern: string, subject: string): boolean => {
+const safeRegex = (pattern, subject) => {
   if (pattern.length > 500) return subject.includes(pattern);
   try { return new RegExp(pattern).test(subject); } catch { return subject.includes(pattern); }
 };
 
 // ─── rrweb recording ──────────────────────────────────────────────────────────
-const patternLines = (patterns: string | null | undefined): string[] => {
+const patternLines = (patterns) => {
   if (!patterns) return [];
   return patterns.split('\n').map(p => p.trim()).filter(Boolean);
 };
 
 /** True when there is at least one non-empty URL pattern line (after trim). */
-const hasEffectivePatterns = (patterns: string | null | undefined): boolean =>
+const hasEffectivePatterns = (patterns) =>
   patternLines(patterns).length > 0;
 
-const matchesPatterns = (patterns: string | null | undefined): boolean => {
+const matchesPatterns = (patterns) => {
   const list = patternLines(patterns);
   if (!list.length) return false;
   const url = location.href;
@@ -505,18 +497,16 @@ const matchesPatterns = (patterns: string | null | undefined): boolean => {
 };
 
 // ─── Heatmaps (click + scroll depth) ─────────────────────────────────────────
-const heatmapAllowed = (): boolean => {
+const heatmapAllowed = () => {
   if (cfg.heatmap_enabled === false) return false;
-  const inc = cfg.heatmap_include_patterns as string | null | undefined;
-  const exc = cfg.heatmap_exclude_patterns as string | null | undefined;
-  // Only enforce include/exclude when there is at least one real pattern line.
-  // Otherwise whitespace-only textarea values would block all heatmap capture.
+  const inc = cfg.heatmap_include_patterns;
+  const exc = cfg.heatmap_exclude_patterns;
   if (hasEffectivePatterns(inc) && !matchesPatterns(inc)) return false;
   if (hasEffectivePatterns(exc) && matchesPatterns(exc)) return false;
   return true;
 };
 
-const scrollDepth01 = (): number => {
+const scrollDepth01 = () => {
   const el = document.documentElement;
   const sh = el.scrollHeight - el.clientHeight;
   if (sh <= 0) return 1;
@@ -524,7 +514,7 @@ const scrollDepth01 = (): number => {
 };
 
 /** CSS layout viewport (px) at sample time — dashboard sizes the heatmap iframe to match breakpoints. */
-const heatmapViewportCss = (): { vw: number; vh: number } => {
+const heatmapViewportCss = () => {
   const vv = typeof visualViewport !== 'undefined' && visualViewport ? visualViewport : null;
   const rawW = vv?.width ?? (typeof innerWidth === 'number' ? innerWidth : 0);
   const rawH = vv?.height ?? (typeof innerHeight === 'number' ? innerHeight : 0);
@@ -535,13 +525,13 @@ const heatmapViewportCss = (): { vw: number; vh: number } => {
 };
 
 /** Last heatmap metric sample (inner scroll scans can be hot during rrweb bursts). */
-let heatmapMetricsCache: { at: number; dw: number; dh: number } | null = null;
+let heatmapMetricsCache = null;
 
 /**
  * Max layout box: html/body plus any overflow scroll regions (flex dashboards often fix body height
  * and scroll inside `main` / a div — documentElement.scrollHeight stays viewport-sized).
  */
-const heatmapDocumentMetrics = (): { dw: number; dh: number } => {
+const heatmapDocumentMetrics = () => {
   const now =
     typeof performance !== 'undefined' && typeof performance.now === 'function'
       ? performance.now()
@@ -550,10 +540,8 @@ const heatmapDocumentMetrics = (): { dw: number; dh: number } => {
     return { dw: heatmapMetricsCache.dw, dh: heatmapMetricsCache.dh };
   }
 
-  const el = document.documentElement;
+  const el   = document.documentElement;
   const body = document.body;
-  // Normalize to the scrollable document box only — do not fold in raw innerWidth/innerHeight as an
-  // extra floor (that can inflate dw/dh vs real scrollWidth/scrollHeight and shift nx/ny).
   let dw = Math.max(1, el.scrollWidth, body?.scrollWidth ?? 0, el.clientWidth || 1);
   let dh = Math.max(1, el.scrollHeight, body?.scrollHeight ?? 0, el.clientHeight || 1);
 
@@ -581,20 +569,18 @@ const heatmapDocumentMetrics = (): { dw: number; dh: number } => {
 };
 
 /**
- * rrweb MouseInteraction / MouseMove only stores **clientX/clientY** (viewport). We previously used
- * `client + window.scroll`, which matches `pageX/pageY` only when the document scrolls on the window.
- * App shells that scroll inside `overflow: auto` regions need ancestor scroll offsets too — same as a
- * real `MouseEvent.pageX/pageY` from the DOM click path.
+ * rrweb MouseInteraction / MouseMove only stores clientX/clientY (viewport).
+ * App shells that scroll inside `overflow: auto` regions need ancestor scroll offsets too.
  */
-const rrwebClientToDocumentXY = (clientX: number, clientY: number): { pageX: number; pageY: number } => {
+const rrwebClientToDocumentXY = (clientX, clientY) => {
   const docEl = document.documentElement;
-  const body = document.body;
-  const winX = window.scrollX ?? window.pageXOffset ?? 0;
-  const winY = window.scrollY ?? window.pageYOffset ?? 0;
+  const body  = document.body;
+  const winX  = window.scrollX ?? window.pageXOffset ?? 0;
+  const winY  = window.scrollY ?? window.pageYOffset ?? 0;
   let pageX = clientX + winX;
   let pageY = clientY + winY;
   try {
-    let el: Element | null = document.elementFromPoint(clientX, clientY);
+    let el = document.elementFromPoint(clientX, clientY);
     while (el && el !== docEl && el !== body) {
       if (el instanceof HTMLElement) {
         pageX += el.scrollLeft;
@@ -613,7 +599,7 @@ const rrwebClientToDocumentXY = (clientX: number, clientY: number): { pageX: num
   return { pageX, pageY };
 };
 
-const heatmapNormFromPageXY = (pageX: number, pageY: number): { nx: number; ny: number } => {
+const heatmapNormFromPageXY = (pageX, pageY) => {
   const { dw, dh } = heatmapDocumentMetrics();
   return {
     nx: Math.min(1, Math.max(0, pageX / dw)),
@@ -621,7 +607,7 @@ const heatmapNormFromPageXY = (pageX: number, pageY: number): { nx: number; ny: 
   };
 };
 
-const heatmapSelectorHint = (el: Element): string => {
+const heatmapSelectorHint = (el) => {
   const tag = el.tagName.toLowerCase();
   if (el.id) return `${tag}#${el.id.replace(/\s/g, '')}`;
   if (el.className && typeof el.className === 'string') {
@@ -631,29 +617,19 @@ const heatmapSelectorHint = (el: Element): string => {
   return tag;
 };
 
-let heatmapListenersInstalled = false;
-/**
- * Last pointerdown (capture). rrweb click incrementals only carry clientX/Y; the browser’s
- * pageX/pageY already include nested scroll offsets — we reuse them when coords line up.
- */
-let heatmapPointerBridgeInstalled = false;
-let lastPointerDocForHeatmap: {
-  pageX: number;
-  pageY: number;
-  clientX: number;
-  clientY: number;
-  at: number;
-} | null = null;
+let heatmapListenersInstalled      = false;
+let heatmapPointerBridgeInstalled  = false;
+let lastPointerDocForHeatmap       = null;
 
-const installHeatmapPointerPageBridge = (): void => {
+const installHeatmapPointerPageBridge = () => {
   if (heatmapPointerBridgeInstalled) return;
   heatmapPointerBridgeInstalled = true;
-  const onPointerDown = (ev: PointerEvent): void => {
+  const onPointerDown = (ev) => {
     if (cfg.heatmap_enabled === false) return;
     if (ev.pointerType !== 'mouse' && ev.pointerType !== 'pen' && ev.pointerType !== 'touch') return;
     lastPointerDocForHeatmap = {
-      pageX: ev.pageX,
-      pageY: ev.pageY,
+      pageX:   ev.pageX,
+      pageY:   ev.pageY,
       clientX: ev.clientX,
       clientY: ev.clientY,
       at: typeof performance !== 'undefined' ? performance.now() : Date.now(),
@@ -671,16 +647,10 @@ let heatmapMouseMoveThrottleAt = 0;
 
 /**
  * When rrweb is recording, mirror incremental snapshots into the heatmap queue.
- * DOM listeners often miss the same interactions on SPAs / shadow-heavy UIs; replay already
- * captures MouseInteraction + Scroll, so heatmaps stay aligned with "sessions work".
- *
  * rrweb: EventType.IncrementalSnapshot = 3; IncrementalSource.MouseMove = 1;
  * MouseInteraction = 2; MouseInteractions.Click = 2; IncrementalSource.Scroll = 3.
  */
-const mirrorHeatmapFromRrweb = (ev: any): void => {
-  // URL include/exclude applies to DOM listeners only. Replay already decided this page is in scope;
-  // if we mirrored heatmapAllowed() here, localhost / dev URLs often fail pattern checks while
-  // `session` still fills — looks like "heatmaps not sent to /collect".
+const mirrorHeatmapFromRrweb = (ev) => {
   if (cfg.heatmap_enabled === false) return;
   const evType = Number(ev?.type);
   if (evType !== 3) return; // IncrementalSnapshot
@@ -688,19 +658,18 @@ const mirrorHeatmapFromRrweb = (ev: any): void => {
   if (!inner || typeof inner !== 'object') return;
   const src = Number(inner.source);
 
-  // MouseMove batches (source1) — this is what most /collect `session` payloads are full of.
-  // Without mirroring these, users see replay working but `heatmaps` never appears in the wire JSON.
+  // MouseMove batches (source 1)
   if (src === 1 && Array.isArray(inner.positions) && inner.positions.length > 0) {
     const now = Date.now();
     if (now - heatmapMouseMoveThrottleAt < 350) return;
     heatmapMouseMoveThrottleAt = now;
-    const pos = inner.positions[inner.positions.length - 1] as { x?: unknown; y?: unknown };
-    const px = Number(pos.x);
-    const py = Number(pos.y);
+    const pos = inner.positions[inner.positions.length - 1];
+    const px  = Number(pos.x);
+    const py  = Number(pos.y);
     if (!Number.isFinite(px) || !Number.isFinite(py)) return;
     heatmapMetricsCache = null;
     const { pageX, pageY } = rrwebClientToDocumentXY(px, py);
-    const { nx, ny } = heatmapNormFromPageXY(pageX, pageY);
+    const { nx, ny }       = heatmapNormFromPageXY(pageX, pageY);
     const vp = heatmapViewportCss();
     queues.heatmaps.push({
       type: 'heatmap_click',
@@ -713,17 +682,16 @@ const mirrorHeatmapFromRrweb = (ev: any): void => {
     return;
   }
 
-  // Click (viewport coordinates — same convention as our DOM heatmap listener)
+  // Click (viewport coordinates)
   const miType = Number(inner.type);
   if (src === 2 && miType === 2) {
     const x = Number(inner.x);
     const y = Number(inner.y);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
     heatmapMetricsCache = null;
-    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const now    = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const bridge = lastPointerDocForHeatmap;
-    let pageX: number;
-    let pageY: number;
+    let pageX, pageY;
     if (
       bridge &&
       now - bridge.at < 900 &&
@@ -751,7 +719,7 @@ const mirrorHeatmapFromRrweb = (ev: any): void => {
     return;
   }
 
-  // Scroll depth (use live document metrics; rrweb emits many scroll incrementals)
+  // Scroll depth
   if (src === 3) {
     const d = scrollDepth01();
     if (d > heatmapScrollMax) heatmapScrollMax = d;
@@ -770,16 +738,13 @@ const mirrorHeatmapFromRrweb = (ev: any): void => {
   }
 };
 
-const installHeatmapCapture = (): void => {
-  // Hard-off only; include/exclude patterns are evaluated per-event so SPA navigations can enable later.
+const installHeatmapCapture = () => {
   if (cfg.heatmap_enabled === false) return;
   installHeatmapPointerPageBridge();
   if (heatmapListenersInstalled) return;
   heatmapListenersInstalled = true;
 
-  document.addEventListener('click', (ev: MouseEvent) => {
-    // While rrweb is active, MouseInteraction (Click) is mirrored in emit() — avoids double counts
-    // and captures clicks that never reach this capture listener reliably.
+  document.addEventListener('click', (ev) => {
     if (stopRecording != null) return;
     if (!heatmapAllowed()) return;
     const t = ev.target;
@@ -789,13 +754,7 @@ const installHeatmapCapture = (): void => {
     const vpC = heatmapViewportCss();
     queues.heatmaps.push({
       type: 'heatmap_click',
-      data: {
-        nx,
-        ny,
-        target: heatmapSelectorHint(t),
-        vw: vpC.vw,
-        vh: vpC.vh,
-      },
+      data: { nx, ny, target: heatmapSelectorHint(t), vw: vpC.vw, vh: vpC.vh },
       ts: Date.now(),
       url: location.href,
       sid: getSessionId(),
@@ -803,7 +762,7 @@ const installHeatmapCapture = (): void => {
     });
   }, true);
 
-  const onScroll = (): void => {
+  const onScroll = () => {
     if (stopRecording != null) return;
     if (!heatmapAllowed()) return;
     const d = scrollDepth01();
@@ -825,22 +784,19 @@ const installHeatmapCapture = (): void => {
 };
 
 /** Stop function returned by rrweb record(); null when recording is off. */
-let stopRecording: (() => void) | null = null;
+let stopRecording = null;
 /** The session ID that the current rrweb instance is recording under. */
-let activeRecordingSessionId: string | null = null;
+let activeRecordingSessionId = null;
 
 const RRWEB_OPTIONS = {
-  // First full snapshot runs after window `load` by default (rrweb recordAfter).
-  recordAfter: 'load' as const,
-  // Full snapshot periodically limits incremental drift ("node not found" / bad mirrors).
+  recordAfter:     'load',
   checkoutEveryNms: 60_000,
-  // Privacy: mask ALL inputs by default.
   maskAllInputs:   true,
   blockSelector:   '[data-seentics-block]',
   ignoreSelector:  '[data-seentics-ignore]',
   recordShadowDOM: true,
   sampling: {
-    mousemove: 50,   // ~20 fps mouse tracking
+    mousemove: 50,
     scroll:    150,
     media:     800,
     input:     'last',
@@ -848,29 +804,26 @@ const RRWEB_OPTIONS = {
   inlineStylesheet: true,
   collectFonts:     true,
   recordCanvas:     true,
-  errorHandler:     (_err: unknown) => { /* keep emit pipeline alive on bad mutations */ },
+  errorHandler:     (_err) => { /* keep emit pipeline alive on bad mutations */ },
 };
 
 /**
  * Whether this visitor should ship rrweb rows into `session` (replay).
- * Heatmap page screenshots use html2canvas separately when `heatmap_layout_enabled`.
  */
-const computeReplaySessionEnabled = (): boolean => {
+const computeReplaySessionEnabled = () => {
   const replayOn = cfg.replay_enabled !== false && cfg.recording !== false;
   if (!replayOn) return false;
-  const samplingRate = typeof cfg.replay_sampling_rate === 'number'
-    ? (cfg.replay_sampling_rate as number)
-    : 1.0;
+  const samplingRate = typeof cfg.replay_sampling_rate === 'number' ? cfg.replay_sampling_rate : 1.0;
   if (samplingRate < 1.0 && Math.random() > samplingRate) return false;
-  const includePatterns = cfg.replay_include_patterns as string | null | undefined;
-  const excludePatterns = cfg.replay_exclude_patterns as string | null | undefined;
+  const includePatterns = cfg.replay_include_patterns;
+  const excludePatterns = cfg.replay_exclude_patterns;
   if (hasEffectivePatterns(includePatterns) && !matchesPatterns(includePatterns)) return false;
   if (hasEffectivePatterns(excludePatterns) && matchesPatterns(excludePatterns)) return false;
   return true;
 };
 
 /** Start (or restart) rrweb under the given session ID and attach to the global stop handle. */
-const startRrweb = (record: RrwebModule, sid: string, recordSession: boolean): void => {
+const startRrweb = (record, sid, recordSession) => {
   if (stopRecording) {
     try { stopRecording(); } catch { /* ignore */ }
     stopRecording = null;
@@ -878,7 +831,7 @@ const startRrweb = (record: RrwebModule, sid: string, recordSession: boolean): v
   activeRecordingSessionId = sid;
   const stop = record({
     ...RRWEB_OPTIONS,
-    emit(event: any) {
+    emit(event) {
       mirrorHeatmapFromRrweb(event);
       if (recordSession) {
         queues.session.push({
@@ -886,17 +839,16 @@ const startRrweb = (record: RrwebModule, sid: string, recordSession: boolean): v
           data: event,
           ts:   event.timestamp,
           url:  location.href,
-          sid:  activeRecordingSessionId!,
+          sid:  activeRecordingSessionId,
           vid:  visitorId,
         });
       }
     },
   });
-  // rrweb record() returns a stop function in some versions, undefined in others.
   if (typeof stop === 'function') stopRecording = stop;
 };
 
-const initRecording = async (): Promise<void> => {
+const initRecording = async () => {
   const replayOn = cfg.replay_enabled !== false && cfg.recording !== false;
   if (!replayOn) return;
 
@@ -910,8 +862,8 @@ const initRecording = async (): Promise<void> => {
 };
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
-const utmParams = (): Record<string, string> | null => {
-  const p = new URLSearchParams(location.search), out: Record<string, string> = {};
+const utmParams = () => {
+  const p = new URLSearchParams(location.search), out = {};
   for (const k of ['source', 'medium', 'campaign', 'term', 'content']) {
     const v = p.get('utm_' + k);
     if (v) out[k] = v;
@@ -929,7 +881,7 @@ const deviceInfo = () => ({
 });
 
 // ─── Page tracking ────────────────────────────────────────────────────────────
-const trackPage = (): void => {
+const trackPage = () => {
   heatmapScrollMax = 0;
   heatmapScrollThrottleAt = 0;
   heatmapMouseMoveThrottleAt = 0;
@@ -938,29 +890,27 @@ const trackPage = (): void => {
   pushAnalytics('pageview', {
     title: document.title, referrer: document.referrer,
     ...deviceInfo(),
-    ...(utm
-      ? {
-          utm,
-          ...(utm.source ? { utm_source: utm.source } : {}),
-          ...(utm.medium ? { utm_medium: utm.medium } : {}),
-          ...(utm.campaign ? { utm_campaign: utm.campaign } : {}),
-          ...(utm.term ? { utm_term: utm.term } : {}),
-          ...(utm.content ? { utm_content: utm.content } : {}),
-        }
-      : {}),
+    ...(utm ? {
+      utm,
+      ...(utm.source   ? { utm_source:   utm.source   } : {}),
+      ...(utm.medium   ? { utm_medium:   utm.medium   } : {}),
+      ...(utm.campaign ? { utm_campaign: utm.campaign } : {}),
+      ...(utm.term     ? { utm_term:     utm.term     } : {}),
+      ...(utm.content  ? { utm_content:  utm.content  } : {}),
+    } : {}),
   });
   evalFunnels(location.pathname);
   evalAutomations('pageview', { path: location.pathname, title: document.title });
 };
 
 // ─── Funnels ──────────────────────────────────────────────────────────────────
-const funnelState: Record<string, { step: number }> = {};
-const evalFunnels = (path: string): void => {
+const funnelState = {};
+const evalFunnels = (path) => {
   for (const f of funnels) {
-    const steps: any[] = f.steps ?? [];
+    const steps = f.steps ?? [];
     if (!steps.length) continue;
     const state = funnelState[f.id] ?? (funnelState[f.id] = { step: 0 });
-    const next = steps[state.step];
+    const next  = steps[state.step];
     if (!next) continue;
     const hit = next.path ? next.path === path : next.pattern ? safeRegex(next.pattern, path) : false;
     if (!hit) continue;
@@ -973,18 +923,18 @@ const evalFunnels = (path: string): void => {
 };
 
 // ─── Automations ──────────────────────────────────────────────────────────────
-const evalAutomations = (event: string, props: Record<string, unknown>): void => {
+const evalAutomations = (event, props) => {
   for (const a of automations) {
-    const tr = a.trigger as any;
+    const tr = a.trigger;
     if (!tr || tr.event !== event) continue;
-    const ok = (tr.conditions ?? []).every((c: any) => {
+    const ok = (tr.conditions ?? []).every((c) => {
       const v = props[c.field];
       if (c.op === 'eq')       return v === c.value;
       if (c.op === 'neq')      return v !== c.value;
       if (c.op === 'contains') return v != null && String(v).includes(c.value);
       if (c.op === 'regex')    return v != null && safeRegex(c.value, String(v));
-      if (c.op === 'gt')       return +(v as number) > +c.value;
-      if (c.op === 'lt')       return +(v as number) < +c.value;
+      if (c.op === 'gt')       return +v > +c.value;
+      if (c.op === 'lt')       return +v < +c.value;
       return true;
     });
     if (ok) pushAnalytics('automation_trigger', { automation_id: a.id, name: a.name, event, props });
@@ -992,8 +942,8 @@ const evalAutomations = (event: string, props: Record<string, unknown>): void =>
 };
 
 // ─── Performance ──────────────────────────────────────────────────────────────
-const trackPerf = (): void => {
-  const entries = performance?.getEntriesByType?.('navigation') as PerformanceNavigationTiming[];
+const trackPerf = () => {
+  const entries = performance?.getEntriesByType?.('navigation');
   const t = entries?.[0];
   if (!t?.loadEventEnd) return;
   pushAnalytics('performance', {
@@ -1007,7 +957,7 @@ const trackPerf = (): void => {
 };
 
 // ─── SPA routing ──────────────────────────────────────────────────────────────
-const initRouting = (): void => {
+const initRouting = () => {
   let lastPath = location.pathname;
   const onNav = () => {
     if (location.pathname === lastPath) return;
@@ -1020,14 +970,14 @@ const initRouting = (): void => {
     }
   };
   window.addEventListener('popstate', onNav);
-  for (const m of ['pushState', 'replaceState'] as const) {
+  for (const m of ['pushState', 'replaceState']) {
     const orig = history[m].bind(history);
-    (history as any)[m] = (...a: Parameters<typeof history.pushState>) => { orig(...a); onNav(); };
+    history[m] = (...a) => { orig(...a); onNav(); };
   }
 };
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
-const init = (): void => {
+const init = () => {
   if (!websiteId) return;
   initRouting();
   document.addEventListener('visibilitychange', () => {
@@ -1035,7 +985,7 @@ const init = (): void => {
   });
   window.addEventListener('pagehide', flushBeacon);
 
-    fetch(apiHost + '/api/v1/tracker/init/' + websiteId)
+  fetch(apiHost + '/api/v1/tracker/init/' + websiteId)
     .then(async (r) => {
       if (!r.ok) {
         const t = await r.text().catch(() => '');
@@ -1044,12 +994,11 @@ const init = (): void => {
       }
       return r.json();
     })
-    .then(async (d: any) => {
+    .then(async (d) => {
       cfg         = d.config      ?? {};
       funnels     = d.funnels     ?? [];
       automations = d.automations ?? [];
       if (autoTrack) trackPage();
-      // Session replay and/or heatmap layout snapshots share one rrweb recorder when enabled.
       if (cfg.replay_enabled !== false && cfg.recording !== false) {
         installSessionClientErrorCapture();
       }
@@ -1078,12 +1027,11 @@ const init = (): void => {
 };
 
 // ─── Public API ───────────────────────────────────────────────────────────────
-(window as any).seentics = {
-  track:    (name: string, props?: Record<string, unknown>) =>
-              pushAnalytics('custom', { name, ...(props ?? {}) }),
-  identify: (userId: string, traits?: Record<string, unknown>) => {
+window.seentics = {
+  track:    (name, props) => pushAnalytics('custom', { name, ...(props ?? {}) }),
+  identify: (userId, traits) => {
               getStore()?.setItem('snc_vid', userId);
-              visitorId = userId; // update in-memory id so all subsequent events use it
+              visitorId = userId;
               pushAnalytics('identify', { user_id: userId, traits: traits ?? {} });
             },
   page:  trackPage,

@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import { getSessionWithEvents, type ReplaySession } from '@/lib/replays-api';
-import { cn } from '@/lib/utils';
+import { cn, isValidId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
   ReplayPlaybackProvider,
@@ -42,7 +42,7 @@ export default function ReplayDetailPage() {
   const { data, isLoading, isError, error: queryError } = useQuery({
     queryKey: ['replay', websiteId, sessionId],
     queryFn: () => getSessionWithEvents(websiteId, sessionId),
-    enabled: !!websiteId && !!sessionId && !isDemoMode,
+    enabled: isValidId(websiteId) && !!sessionId && !isDemoMode,
     staleTime: 5 * 60 * 1000,
     retry: 1,
     refetchInterval: (q) => (q.state.data?.recordingPending ? 3500 : false),

@@ -32,7 +32,7 @@ export function TrackingCodeModal({
     if (typeof window !== 'undefined') {
       const origin = window.location.origin;
       setTrackingCode(
-        `<!-- Seentics Analytics -->\n<script \n  defer \n  data-website-id="${siteId}" \n  src="${origin}/trackers/seentics.js"\n></script>`,
+        `<!-- Seentics Analytics -->\n<script \n  defer \n  data-website-id="${siteId}" \n  src="${origin}/trackers/seentics.min.js"\n></script>`,
       );
     }
   }, [siteId]);

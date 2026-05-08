@@ -20,13 +20,13 @@
   },
   "homepage": "https://github.com/Seentics/seentics#readme",
   "scripts": {
-    "dev": "node scripts/bundle-trackers.cjs && next dev",
-    "bundle-trackers": "node scripts/bundle-trackers.cjs",
-    "build": "node scripts/bundle-trackers.cjs && next build",
+    "dev": "node public/trackers/bundle-trackers.cjs && next dev",
+    "bundle-trackers": "node public/trackers/bundle-trackers.cjs",
+    "build": "node public/trackers/bundle-trackers.cjs && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "postinstall": "patch-package && node scripts/bundle-trackers.cjs",
+    "postinstall": "patch-package && node public/trackers/bundle-trackers.cjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, isValidId } from '@/lib/utils';
 import { apiKeysAPI, type APIKey } from '@/lib/apikeys-api';
 import {
   Code2, KeyRound, Layers, BookOpen, Plus, Copy, Check,
@@ -139,7 +139,7 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
   const { data: keys = [], isLoading } = useQuery({
     queryKey: ['apikeys', websiteId],
     queryFn: () => apiKeysAPI.list(websiteId),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
   });
 
   const createMutation = useMutation({

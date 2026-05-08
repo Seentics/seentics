@@ -14,22 +14,22 @@ import { normalizeTrackerApiHost } from '@/lib/config';
  * - NEXT_PUBLIC_DEFAULT_SITE_ID
  *
  * Script `src` (no hardcoding in code — use env):
- * 1. `NEXT_PUBLIC_SEENTICS_TRACKER_URL` — full URL, e.g. `http://localhost:3000/trackers/seentics.js`
- * 2. Else `NEXT_PUBLIC_FRONTEND_URL` + `/trackers/seentics.js`
- * 3. Else `window.location.origin` + `/trackers/seentics.js`
+ * 1. `NEXT_PUBLIC_SEENTICS_TRACKER_URL` — full URL, e.g. `http://localhost:3000/trackers/seentics.min.js`
+ * 2. Else `NEXT_PUBLIC_FRONTEND_URL` + `/trackers/seentics.min.js`
+ * 3. Else `window.location.origin` + `/trackers/seentics.min.js`
  *
  * Optional: NEXT_PUBLIC_SEENTICS_API_HOST
  *
- * Bundle: `bundle-trackers` → `public/trackers/seentics.js`
+ * Edit: `public/trackers/seentics.js`  →  build: `public/trackers/seentics.min.js`
  */
 function resolveTrackerScriptSrc(): string {
   const explicit = process.env.NEXT_PUBLIC_SEENTICS_TRACKER_URL?.trim();
   if (explicit) return explicit;
 
   const frontendBase = process.env.NEXT_PUBLIC_FRONTEND_URL?.trim().replace(/\/$/, '') ?? '';
-  if (frontendBase) return `${frontendBase}/trackers/seentics.js`;
+  if (frontendBase) return `${frontendBase}/trackers/seentics.min.js`;
 
-  return `${window.location.origin}/trackers/seentics.js`;
+  return `${window.location.origin}/trackers/seentics.min.js`;
 }
 
 export default function TrackerScript() {

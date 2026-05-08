@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from './api';
 import { isDemo, demoMutationGuard, demoAutomations } from './demo';
+import { isValidId } from './utils';
 
 // Types
 export interface AutomationAction {
@@ -132,7 +133,7 @@ export function useAutomations(websiteId: string, limit: number = 10, offset: nu
     return useQuery({
         queryKey: ['automations', websiteId, limit, offset],
         queryFn: () => fetchAutomations(websiteId, limit, offset),
-        enabled: !!websiteId,
+        enabled: isValidId(websiteId),
     });
 }
 
@@ -200,6 +201,6 @@ export function useAutomationStats(websiteId: string, automationId: string) {
     return useQuery({
         queryKey: ['automation-stats', websiteId, automationId],
         queryFn: () => getAutomationStats(websiteId, automationId),
-        enabled: !!websiteId && !!automationId,
+        enabled: isValidId(websiteId) && !!automationId,
     });
 }

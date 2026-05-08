@@ -3,6 +3,7 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getWebsiteByAnyId, updateWebsite } from '@/lib/websites-api';
+import { isValidId } from '@/lib/utils';
 import { useAuth } from '@/stores/useAuthStore';
 import { toast } from 'sonner';
 import { Loader2, Zap, Target, Info } from 'lucide-react';
@@ -17,7 +18,7 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
   const { data: website, isLoading } = useQuery({
     queryKey: ['website', websiteId],
     queryFn: () => getWebsiteByAnyId(websiteId),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
   });
 
   const updateMutation = useMutation({

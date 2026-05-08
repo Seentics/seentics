@@ -616,14 +616,14 @@ export default function DocsPage() {
           code={`<!-- Add to your site's <head> -->
 <script
   async
-  src="https://your-domain.com/trackers/seentics.js"
+  src="https://your-domain.com/trackers/seentics.min.js"
   data-site-id="YOUR_SITE_ID"
 ></script>`}
         />
 
         <div className="rounded-xl bg-muted/20 p-4 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">Self-hosted:</span> the tracker is served from your own deployment at{' '}
-          <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">/trackers/seentics.js</code>.
+          <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">/trackers/seentics.min.js</code>.
           Replace <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">your-domain.com</code> with your actual domain.
         </div>
 
@@ -699,7 +699,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <Script
-          src="https://your-domain.com/trackers/seentics.js"
+          src="https://your-domain.com/trackers/seentics.min.js"
           data-site-id="YOUR_SITE_ID"
           strategy="afterInteractive"
         />
@@ -718,7 +718,7 @@ import { useEffect } from 'react';
 export default function App() {
   useEffect(() => {
     const s = document.createElement('script');
-    s.src = 'https://your-domain.com/trackers/seentics.js';
+    s.src = 'https://your-domain.com/trackers/seentics.min.js';
     s.setAttribute('data-site-id', 'YOUR_SITE_ID');
     s.async = true;
     document.head.appendChild(s);
@@ -736,7 +736,7 @@ import { createApp } from 'vue';
 import App from './App.vue';
 
 const s = document.createElement('script');
-s.src = 'https://your-domain.com/trackers/seentics.js';
+s.src = 'https://your-domain.com/trackers/seentics.min.js';
 s.setAttribute('data-site-id', 'YOUR_SITE_ID');
 s.async = true;
 document.head.appendChild(s);

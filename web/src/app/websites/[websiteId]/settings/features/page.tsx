@@ -27,8 +27,8 @@ export default function TrackingFeaturesSettingsPage() {
           Confirm <strong>Heatmaps</strong> is enabled below, clear restrictive <strong>include</strong> patterns while testing on{' '}
           <code className="rounded bg-muted px-1">localhost</code>, then rebuild the tracker bundle{' '}
           <code className="rounded bg-muted px-1">npm run bundle-trackers</code> in <code className="rounded bg-muted px-1">seentics/web</code> so{' '}
-          <Link href="/trackers/seentics.js" className="underline underline-offset-2">
-            /trackers/seentics.js
+          <Link href="/trackers/seentics.min.js" className="underline underline-offset-2">
+            /trackers/seentics.min.js
           </Link>{' '}
           matches your source. Hard-refresh the page under test.
         </AlertDescription>

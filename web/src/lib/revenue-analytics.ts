@@ -3,6 +3,7 @@ import api from './api';
 import { isDemo } from './demo';
 import { demoRevenueDashboard as loadDemo } from './demo/revenue';
 import { getUserTimezone } from './analytics-api';
+import { isValidId } from './utils';
 
 export type RevenueDataQuality = 'full' | 'partial' | 'no_revenue';
 
@@ -83,7 +84,7 @@ export function useRevenueDashboard(websiteId: string, days: number = 30) {
   return useQuery({
     queryKey: revenueKeys.dashboard(websiteId, days),
     queryFn: () => getRevenueDashboard(websiteId, days),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 }

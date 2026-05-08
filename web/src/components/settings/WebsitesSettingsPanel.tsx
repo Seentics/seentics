@@ -63,7 +63,7 @@ function trackingSnippetFor(id: string): string {
 <script
   defer
   data-website-id="${id}"
-  src="${origin}/trackers/seentics.js"
+  src="${origin}/trackers/seentics.min.js"
 ></script>`;
 }
 

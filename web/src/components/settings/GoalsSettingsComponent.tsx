@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
+import { cn, isValidId } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { analyticsKeys } from '@/lib/analytics-api';
 import { getGoals, deleteGoal, Goal } from '@/lib/websites-api';
@@ -31,7 +31,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
   const { data: goals = [], isLoading } = useQuery({
     queryKey: ['goals', websiteId],
     queryFn: () => getGoals(websiteId),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
   });
 
   const deleteMutation = useMutation({

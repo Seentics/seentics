@@ -196,7 +196,7 @@ function SignUpFlow() {
                 url: normalizedUrl
             });
 
-            const website = response.data.data;
+            const website = response.data.data?.website ?? response.data.data;
             setNewWebsiteId(website.site_id || website.id);
             setShowTrackingModal(true);
 

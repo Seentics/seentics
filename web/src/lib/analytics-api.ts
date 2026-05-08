@@ -19,6 +19,7 @@ import type {
   FunnelAnalyticsResponse,
 } from './funnels-dashboard';
 import { funnelKeys } from './funnels-api';
+import { isValidId } from './utils';
 
 // =============================================================================
 // TIMEZONE UTILITY
@@ -267,7 +268,7 @@ export const useDashboardData = (websiteId: string, days: number = 7, filters: A
   return useQuery({
     queryKey: ['dashboard', websiteId, days, filters],
     queryFn: () => getDashboardData(websiteId, days, filters),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     refetchInterval: 30 * 1000, // Refetch every 30 seconds
     refetchOnWindowFocus: true,
     staleTime: 15 * 1000, // Consider data stale after 15 seconds
@@ -395,7 +396,7 @@ export const useRealtimeData = (websiteId: string) => {
   return useQuery<RealtimeData>({
     queryKey: ['realtime', websiteId],
     queryFn: () => getRealtimeData(websiteId),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     refetchInterval: 5000,
     staleTime: 4000,
   });
@@ -423,7 +424,7 @@ export const useTopLanguages = (websiteId: string, days: number = 7) => {
   return useQuery({
     queryKey: [...analyticsKeys.all, 'top-languages', websiteId, days],
     queryFn: () => getTopLanguages(websiteId, days),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -441,7 +442,7 @@ export const useTopCities = (websiteId: string, days: number = 7) => {
   return useQuery({
     queryKey: [...analyticsKeys.all, 'top-cities', websiteId, days],
     queryFn: () => getTopCities(websiteId, days),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -543,7 +544,7 @@ export const useTopPages = (websiteId: string, days: number = 7, filters: Analyt
   return useQuery<GetTopPagesResponse>({
     queryKey: analyticsKeys.topPages(websiteId, days, filters),
     queryFn: () => getTopPages(websiteId, days, filters),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -553,7 +554,7 @@ export const useTopReferrers = (websiteId: string, days: number = 7, filters: An
   return useQuery<GetTopReferrersResponse>({
     queryKey: analyticsKeys.topReferrers(websiteId, days, filters),
     queryFn: () => getTopReferrers(websiteId, days, filters),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -563,7 +564,7 @@ export const useTopCountries = (websiteId: string, days: number = 7, filters: An
   return useQuery<GetTopCountriesResponse>({
     queryKey: analyticsKeys.topCountries(websiteId, days, filters),
     queryFn: () => getTopCountries(websiteId, days, filters),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -573,7 +574,7 @@ export const useTopBrowsers = (websiteId: string, days: number = 7, filters: Ana
   return useQuery<GetTopBrowsersResponse>({
     queryKey: analyticsKeys.topBrowsers(websiteId, days, filters),
     queryFn: () => getTopBrowsers(websiteId, days, filters),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -583,7 +584,7 @@ export const useTopDevices = (websiteId: string, days: number = 7, filters: Anal
   return useQuery<GetTopDevicesResponse>({
     queryKey: analyticsKeys.topDevices(websiteId, days, filters),
     queryFn: () => getTopDevices(websiteId, days, filters),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -593,7 +594,7 @@ export const useTopOS = (websiteId: string, days: number = 7, filters: Analytics
   return useQuery<GetTopOSResponse>({
     queryKey: analyticsKeys.topOS(websiteId, days, filters),
     queryFn: () => getTopOS(websiteId, days, filters),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -603,7 +604,7 @@ export const useTopResolutions = (websiteId: string, days: number = 7) => {
   return useQuery<any>({
     queryKey: analyticsKeys.topResolutions(websiteId, days),
     queryFn: () => getTopResolutions(websiteId, days),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -613,7 +614,7 @@ export const useLiveVisitors = (websiteId: string) => {
   return useQuery<number>({
     queryKey: analyticsKeys.liveVisitors(websiteId),
     queryFn: () => getLiveVisitors(websiteId),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 30 * 1000, // 30 seconds
     refetchInterval: 60 * 1000, // Refresh every 60 seconds
   });
@@ -624,7 +625,7 @@ export const useHourlyStats = (websiteId: string, days: number = 1, filters: Ana
   return useQuery<GetHourlyStatsResponse>({
     queryKey: analyticsKeys.hourlyStats(websiteId, days, filters),
     queryFn: () => getHourlyStats(websiteId, days, filters),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -634,7 +635,7 @@ export const useDailyStats = (websiteId: string, days: number = 30, filters: Ana
   return useQuery<GetDailyStatsResponse>({
     queryKey: analyticsKeys.dailyStats(websiteId, days, filters),
     queryFn: () => getDailyStats(websiteId, days, filters),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 10 * 60 * 1000, // 10 minutes for daily stats
   });
 };
@@ -644,7 +645,7 @@ export const useCustomEvents = (websiteId: string, days: number = 30) => {
   return useQuery({
     queryKey: analyticsKeys.customEvents(websiteId, days),
     queryFn: () => getCustomEventsStats(websiteId, days),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
@@ -661,7 +662,7 @@ export const useGoalStats = (websiteId: string, days: number = 30) => {
       const response = await api.get(`/analytics/goals-stats/${websiteId}?days=${days}&timezone=${getUserTimezone()}`);
       return response.data;
     },
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
   });
 };
 
@@ -727,7 +728,7 @@ export const useRecentActivity = (websiteId: string, options?: UseRecentActivity
       const response = await api.get(`/analytics/recent-activity/${websiteId}?${params.toString()}`);
       return normalizeRecentActivityApiPayload(response.data, withinMinutes);
     },
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     refetchInterval,
     staleTime,
   });
@@ -764,7 +765,7 @@ export const useRealtimeGeoData = (websiteId: string, withinMinutes = 30) => {
   return useQuery<RealtimeGeoResponse>({
     queryKey: ['realtime-geo', websiteId, withinMinutes],
     queryFn: () => getRealtimeGeoData(websiteId, withinMinutes),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     refetchInterval: 12_000,
     staleTime: 8000,
   });
@@ -776,7 +777,7 @@ export const useVisitorInsights = (websiteId: string, days: number = 7) => {
   return useQuery<GetVisitorInsightsResponse>({
     queryKey: analyticsKeys.visitorInsights(websiteId, days),
     queryFn: () => getVisitorInsights(websiteId, days),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 10 * 60 * 1000, // 10 minutes for insights
   });
 };
@@ -891,7 +892,7 @@ export const useFunnels = (websiteId: string) => {
   return useQuery<Funnel[]>({
     queryKey: [...analyticsKeys.all, 'funnels', websiteId],
     queryFn: () => fetchDashboardFunnelList(websiteId),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -900,7 +901,7 @@ export const useFunnel = (websiteId: string, funnelId: string) => {
   return useQuery<Funnel>({
     queryKey: [...analyticsKeys.all, 'funnel', websiteId, funnelId],
     queryFn: () => getDashboardFunnel(websiteId, funnelId),
-    enabled: !!websiteId && !!funnelId,
+    enabled: isValidId(websiteId) && !!funnelId,
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -1015,7 +1016,7 @@ export const useGeolocationBreakdown = (websiteId: string, days: number = 7) => 
   return useQuery({
     queryKey: [...analyticsKeys.all, 'geolocation-breakdown', websiteId, days],
     queryFn: () => getGeolocationBreakdown(websiteId, days),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 2,
   });
@@ -1052,7 +1053,7 @@ export const usePreviousPeriodDailyStats = (websiteId: string, days: number = 7,
         daily_stats: previousStats,
       };
     },
-    enabled: !!websiteId && enabled,
+    enabled: isValidId(websiteId) && enabled,
     staleTime: 10 * 60 * 1000,
   });
 };

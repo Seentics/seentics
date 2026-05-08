@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { getMyRole, WebsiteRole } from '@/lib/websites-api';
+import { isValidId } from '@/lib/utils';
 
 /**
  * Hook that fetches the current user's role for a given website.
@@ -16,7 +17,7 @@ export function usePermissions(websiteId: string) {
   const { data: role = '', isLoading } = useQuery<WebsiteRole>({
     queryKey: ['my-role', websiteId],
     queryFn: () => getMyRole(websiteId),
-    enabled: !!websiteId,
+    enabled: isValidId(websiteId),
     staleTime: 5 * 60 * 1000, // cache for 5 minutes
     retry: 1,
   });

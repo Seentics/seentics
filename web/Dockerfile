@@ -7,8 +7,9 @@ FROM base AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
+# postinstall runs bundle-trackers — needs tracker sources before install
 COPY package.json package-lock.json* ./
+COPY public/trackers ./public/trackers/
 # Install all dependencies first (including dev deps for postinstall)
 RUN npm ci --legacy-peer-deps
 RUN npm install sharp --legacy-peer-deps

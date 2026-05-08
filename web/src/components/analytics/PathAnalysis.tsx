@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { isValidId } from '@/lib/utils';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -69,7 +70,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
       const response = await api.get(`/analytics/path-analysis/${websiteId}?days=${dateRange}`);
       return response.data;
     },
-    enabled: !!websiteId && (isEnterprise || isDemo(websiteId)),
+    enabled: isValidId(websiteId) && (isEnterprise || isDemo(websiteId)),
     staleTime: 60 * 1000,
   });
 
