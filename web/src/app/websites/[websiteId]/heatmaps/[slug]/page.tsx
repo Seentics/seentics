@@ -729,7 +729,7 @@ export default function HeatmapDetailPage() {
     staleTime: 60_000,
   });
 
-  const { data: pageScreenshot } = useQuery({
+  const { data: pageScreenshot, isLoading: screenshotLoading } = useQuery({
     queryKey:  ['heatmap-screenshot', websiteId, urlPath],
     queryFn:   () => getHeatmapPageScreenshot(websiteId, urlPath),
     enabled:   Boolean(websiteId && !isDemoMode),
@@ -816,6 +816,16 @@ export default function HeatmapDetailPage() {
       setPreviewUnderlay('screenshot');
     }
   }, [previewUnderlay, canLivePreview]);
+
+  // Auto-switch from screenshot → live when the screenshot query resolves with no image
+  // and the live page is embeddable. Don't override an explicit user choice.
+  useEffect(() => {
+    if (previewTouched || isDemoMode) return;
+    if (screenshotLoading || previewUnderlay !== 'screenshot') return;
+    if (!pageScreenshot?.image_url && canLivePreview) {
+      setPreviewUnderlay('live');
+    }
+  }, [screenshotLoading, pageScreenshot, canLivePreview, previewUnderlay, previewTouched, isDemoMode]);
 
   const applyUrl = () => {
     const t = customUrl.trim();
@@ -1022,24 +1032,15 @@ export default function HeatmapDetailPage() {
 
       <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-2 pb-2 pt-1.5 md:px-4 md:pb-3 md:pt-2">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card">
-          {!displayIframeUrl && !isDemoMode && !pageScreenshot?.image_url ? (
+          {!displayIframeUrl && !isDemoMode && !pageScreenshot?.image_url && points.length === 0 && !isLoading ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
               <p className="text-sm font-medium text-foreground">Add a page preview URL</p>
               <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
                 Set your site URL in Settings, or use Preview URL above so the heatmap aligns with your page.
               </p>
             </div>
-          ) : points.length === 0 && !isLoading && !isDemoMode ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
-              <p className="text-sm font-medium text-foreground">No data for this view yet</p>
-              <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
-                {heatType === 'click'
-                  ? 'Clicks will appear after visitors use this path. Check heatmaps are enabled in Settings.'
-                  : 'Scroll depth appears after traffic. Try Clicks if you expect visitors but see nothing here.'}
-              </p>
-            </div>
           ) : (
-            <div className="min-h-0 flex-1">
+            <div className="relative min-h-0 flex-1">
               <HeatmapViewer
                 key={`${websiteId}:${urlPath}`}
                 pageUrl={displayIframeUrl || suggestedPreviewUrl || heatmapPathLine}
@@ -1049,6 +1050,17 @@ export default function HeatmapDetailPage() {
                 preferredViewportWidth={preferredViewportWidth}
                 pageScreenshot={isDemoMode ? null : (pageScreenshot ?? null)}
               />
+              {points.length === 0 && !isLoading && !isDemoMode && (
+                <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2">
+                  <div className="rounded-lg border border-white/10 bg-zinc-950/80 px-3 py-2 text-center shadow-lg backdrop-blur-sm">
+                    <p className="text-xs font-medium text-white/70">
+                      {heatType === 'click'
+                        ? 'No click data yet — try switching to Scroll'
+                        : 'No scroll data yet — try switching to Clicks'}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
