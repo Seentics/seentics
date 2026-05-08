@@ -143,7 +143,7 @@ trackerRoutes.post("/collect", async (c) => {
     (Array.isArray(body.automations) ? body.automations.length : 0);
 
   if (n === 0) {
-    return c.body(null, 204);
+    return c.json({ status: "ok", message: "nothing to process" }, 200);
   }
 
   const website = await resolveWebsiteForTracker(websiteId);
@@ -219,5 +219,5 @@ trackerRoutes.post("/collect", async (c) => {
   handleRecordings(ctx);
   handleHeatmaps(ctx);
 
-  return c.body(null, 204);
+  return c.json({ status: "ok", message: "processed", queued: n }, 200);
 });
