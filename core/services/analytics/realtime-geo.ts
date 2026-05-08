@@ -4,11 +4,23 @@ import { resolveSiteId } from "./shared";
 
 const REALTIME_GEO_DEFAULT_MINUTES = 30;
 
+function iso3166Alpha2ToName(iso2: string): string {
+  const c = iso2.trim().toUpperCase();
+  if (c.length !== 2 || !/^[A-Z]{2}$/.test(c)) return iso2;
+  try {
+    const dn = new Intl.DisplayNames(["en"], { type: "region" });
+    return dn.of(c) ?? iso2;
+  } catch {
+    return iso2;
+  }
+}
+
 export interface RealtimeGeoData {
   website_id: string;
   date_range: string;
   visitors: Array<{
     name: string;
+    code?: string;
     count: number;
     percentage: number;
   }>;
@@ -46,11 +58,17 @@ export async function getRealtimeGeoAnalytics(
   const totalVisitors = rows.reduce((sum, row) => sum + row.count, 0);
 
   const visitors = rows
-    .map((row) => ({
-      name: row.country || "Unknown",
-      count: row.count,
-      percentage: totalVisitors > 0 ? (row.count / totalVisitors) * 100 : 0,
-    }))
+    .map((row) => {
+      const raw = row.country?.trim() ?? "";
+      const code = raw.length === 2 && /^[A-Z]{2}$/i.test(raw) ? raw.toUpperCase() : undefined;
+      const name = code ? iso3166Alpha2ToName(code) : (raw || "Unknown");
+      return {
+        name,
+        code,
+        count: row.count,
+        percentage: totalVisitors > 0 ? (row.count / totalVisitors) * 100 : 0,
+      };
+    })
     .sort((a, b) => b.count - a.count);
 
   return {

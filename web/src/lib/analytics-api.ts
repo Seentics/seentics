@@ -738,6 +738,7 @@ export const useRecentActivity = (websiteId: string, options?: UseRecentActivity
 // Realtime Geo Data
 export interface RealtimeGeoVisitor {
   name: string;
+  code?: string;
   count: number;
   percentage: number;
 }
@@ -753,7 +754,18 @@ export const getRealtimeGeoData = async (websiteId: string, withinMinutes = 30):
     return {
       website_id: websiteId,
       date_range: '30m',
-      visitors: [],
+      visitors: [
+        { name: 'United States', code: 'US', count: 142, percentage: 28.4 },
+        { name: 'United Kingdom', code: 'GB', count: 87,  percentage: 17.4 },
+        { name: 'Germany',        code: 'DE', count: 65,  percentage: 13.0 },
+        { name: 'India',          code: 'IN', count: 58,  percentage: 11.6 },
+        { name: 'France',         code: 'FR', count: 43,  percentage: 8.6  },
+        { name: 'Canada',         code: 'CA', count: 38,  percentage: 7.6  },
+        { name: 'Australia',      code: 'AU', count: 32,  percentage: 6.4  },
+        { name: 'Japan',          code: 'JP', count: 19,  percentage: 3.8  },
+        { name: 'Brazil',         code: 'BR', count: 15,  percentage: 3.0  },
+        { name: 'Netherlands',    code: 'NL', count: 1,   percentage: 0.2  },
+      ],
     };
   }
   const params = new URLSearchParams({ within_minutes: String(withinMinutes) });

@@ -24,6 +24,7 @@ interface WorldMapProps {
 }
 
 const COUNTRY_COORDS: Record<string, [number, number]> = {
+    // Full English names (geolocation analytics / any source that provides names)
     'United States': [37.09, -95.71], 'United Kingdom': [55.38, -3.44],
     'Germany': [51.17, 10.45], 'France': [46.23, 2.21], 'India': [20.59, 78.96],
     'China': [35.86, 104.19], 'Brazil': [-14.24, -51.93], 'Canada': [56.13, -106.35],
@@ -38,17 +39,44 @@ const COUNTRY_COORDS: Record<string, [number, number]> = {
     'Bangladesh': [23.68, 90.36], 'Philippines': [12.88, 121.77], 'Vietnam': [14.06, 108.28],
     'Thailand': [15.87, 100.99], 'Malaysia': [4.21, 101.98], 'Singapore': [1.35, 103.82],
     'New Zealand': [-40.90, 174.89], 'Portugal': [39.40, -8.22], 'Czech Republic': [49.82, 15.47],
+    'Czechia': [49.82, 15.47],
     'Romania': [45.94, 24.97], 'Hungary': [47.16, 19.50], 'Greece': [39.07, 21.82],
     'Israel': [31.05, 34.85], 'Denmark': [56.26, 9.50], 'Finland': [61.92, 25.75],
     'Ireland': [53.41, -8.24], 'Chile': [-35.68, -71.54], 'Colombia': [4.57, -74.30],
     'Peru': [-9.19, -75.02], 'Ukraine': [48.38, 31.17], 'Taiwan': [23.7, 121.0],
-    'Hong Kong': [22.32, 114.17], 'Kenya': [-0.02, 37.91], 'Morocco': [31.79, -7.09],
+    'Hong Kong': [22.32, 114.17], 'Hong Kong SAR China': [22.32, 114.17],
+    'Kenya': [-0.02, 37.91], 'Morocco': [31.79, -7.09],
     'Algeria': [28.03, 1.66], 'Iran': [32.42, 53.69], 'Iraq': [33.22, 43.68],
     'Jordan': [30.59, 36.24], 'Kuwait': [29.31, 47.48], 'Qatar': [25.35, 51.18],
     'Sri Lanka': [7.87, 80.77], 'Nepal': [28.39, 84.12], 'Cambodia': [12.57, 104.99],
     'Ghana': [7.95, -1.02], 'Croatia': [45.10, 15.20], 'Slovakia': [48.67, 19.70],
     'Bulgaria': [42.73, 25.49], 'Belarus': [53.71, 27.95], 'Kazakhstan': [48.02, 66.92],
     'Venezuela': [6.42, -66.59], 'Ecuador': [-1.83, -78.18],
+    // ISO2 codes (realtime-geo uses MaxMind ISO2 codes; this is the reliable fallback)
+    'US': [37.09, -95.71], 'GB': [55.38, -3.44], 'DE': [51.17, 10.45],
+    'FR': [46.23, 2.21],   'IN': [20.59, 78.96],  'CN': [35.86, 104.19],
+    'BR': [-14.24, -51.93],'CA': [56.13, -106.35],'AU': [-25.27, 133.78],
+    'JP': [36.2, 138.25],  'RU': [61.52, 105.32], 'KR': [35.91, 127.77],
+    'IT': [41.87, 12.57],  'ES': [40.46, -3.75],  'MX': [23.63, -102.55],
+    'ID': [-0.79, 113.92], 'NL': [52.13, 5.29],   'TR': [38.96, 35.24],
+    'SA': [23.89, 45.08],  'CH': [46.82, 8.23],   'AR': [-38.42, -63.62],
+    'PL': [51.92, 19.15],  'SE': [60.13, 18.64],  'BE': [50.50, 4.47],
+    'NO': [60.47, 8.47],   'AT': [47.52, 14.55],  'AE': [23.42, 53.85],
+    'NG': [9.08, 8.68],    'ZA': [-30.56, 22.94], 'EG': [26.82, 30.80],
+    'PK': [30.38, 69.35],  'BD': [23.68, 90.36],  'PH': [12.88, 121.77],
+    'VN': [14.06, 108.28], 'TH': [15.87, 100.99], 'MY': [4.21, 101.98],
+    'SG': [1.35, 103.82],  'NZ': [-40.90, 174.89],'PT': [39.40, -8.22],
+    'CZ': [49.82, 15.47],  'RO': [45.94, 24.97],  'HU': [47.16, 19.50],
+    'GR': [39.07, 21.82],  'IL': [31.05, 34.85],  'DK': [56.26, 9.50],
+    'FI': [61.92, 25.75],  'IE': [53.41, -8.24],  'CL': [-35.68, -71.54],
+    'CO': [4.57, -74.30],  'PE': [-9.19, -75.02], 'UA': [48.38, 31.17],
+    'TW': [23.7, 121.0],   'HK': [22.32, 114.17], 'KE': [-0.02, 37.91],
+    'MA': [31.79, -7.09],  'DZ': [28.03, 1.66],   'IR': [32.42, 53.69],
+    'IQ': [33.22, 43.68],  'JO': [30.59, 36.24],  'KW': [29.31, 47.48],
+    'QA': [25.35, 51.18],  'LK': [7.87, 80.77],   'NP': [28.39, 84.12],
+    'KH': [12.57, 104.99], 'GH': [7.95, -1.02],   'HR': [45.10, 15.20],
+    'SK': [48.67, 19.70],  'BG': [42.73, 25.49],  'BY': [53.71, 27.95],
+    'KZ': [48.02, 66.92],  'VE': [6.42, -66.59],  'EC': [-1.83, -78.18],
 };
 
 // TopoJSON uses different country names than the GeoIP/API names.
@@ -128,7 +156,7 @@ function GlobeView({ data }: { data: TopItem[] }) {
 
     const htmlMarkers = useMemo(() =>
         data.flatMap(item => {
-            const coords = COUNTRY_COORDS[item.name];
+            const coords = (item.code ? COUNTRY_COORDS[item.code] : null) ?? COUNTRY_COORDS[item.name];
             const lat = item.lat ?? coords?.[0];
             const lng = item.lng ?? coords?.[1];
             if (lat == null || lng == null) return [];
@@ -165,7 +193,7 @@ function GlobeView({ data }: { data: TopItem[] }) {
 
     const rings = useMemo(() =>
         data.flatMap(item => {
-            const coords = COUNTRY_COORDS[item.name];
+            const coords = (item.code ? COUNTRY_COORDS[item.code] : null) ?? COUNTRY_COORDS[item.name];
             const lat = item.lat ?? coords?.[0];
             const lng = item.lng ?? coords?.[1];
             if (lat == null || lng == null) return [];

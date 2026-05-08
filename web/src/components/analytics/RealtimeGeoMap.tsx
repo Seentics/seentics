@@ -27,6 +27,7 @@ export function RealtimeGeoMap({ data, isLoading: _isLoading }: RealtimeGeoMapPr
   // Convert API response to WorldMap format
   const mapData = geoData?.visitors?.map(v => ({
     name: v.name,
+    code: v.code,
     count: v.count,
     percentage: v.percentage,
   })) || [];
