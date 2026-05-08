@@ -6,6 +6,9 @@ import { resolveWebsiteIdsLenient } from "./website-resolve";
 import { compareReplayEnvelopeEvents } from "./replay-event-order";
 import type { AnalyticsIngestMeta } from "./analytics-ingest-meta";
 import type { TrackerEvent } from "./types";
+import { log as baseLog } from "./logger";
+
+const log = baseLog.child({ category: "replay" });
 
 const pgQueueCap = 16384;
 const pgBatchSize = 64;
@@ -134,14 +137,14 @@ export class ReplayEngine {
       try {
         await upsertSessionMetaBatch(all.slice(i, i + pgBatchSize));
       } catch (e) {
-        console.error("replay pg batch failed", e);
+        log.error({ msg: "replay_pg_batch_failed", err: String(e) });
       }
     }
   }
 
   private enqueuePg(row: SessionUpsertRow): void {
     if (this.pgBuf.length >= pgQueueCap) {
-      console.warn("replay: pg buffer full, dropping meta row", row.sessionId);
+      log.warn({ msg: "replay_pg_buffer_full_drop", session_id: row.sessionId });
       return;
     }
     this.pgBuf.push(row);
@@ -254,7 +257,7 @@ export class ReplayEngine {
       try {
         this.spool.push(storageWebsiteId, w.sessionId, w.batch.events);
       } catch (e) {
-        console.warn("replay spool push failed", e);
+        log.error({ msg: "replay_spool_push_failed", session_id: w.sessionId, err: String(e) });
         continue;
       }
 

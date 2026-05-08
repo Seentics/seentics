@@ -8,6 +8,9 @@ import { heatmapScreenshotKey, layoutPathSlot } from "./keys";
 import { putJpeg } from "./s3";
 import { getSiteIdByWebsiteUuid, getWebsiteBySiteId } from "./website-site";
 import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "./types";
+import { log as baseLog } from "./logger";
+
+const log = baseLog.child({ category: "heatmap" });
 
 const pgQueueCap = 50_000;
 const pgBatchSize = 128;
@@ -149,14 +152,14 @@ export class HeatmapEngine {
     try {
       await batchUpsertPoints(batch);
     } catch (e) {
-      console.error("heatmap pg batch failed", e);
+      log.error({ msg: "heatmap_pg_batch_failed", n: batch.length, err: String(e) });
     }
   }
 
   private enqueuePoints(rows: HeatmapPointRow[]): void {
     for (const row of rows) {
       if (this.pointBuf.length >= pgQueueCap) {
-        console.warn("heatmap: point buffer full, drop");
+        log.warn({ msg: "heatmap_point_buffer_full_drop", cap: pgQueueCap });
         break;
       }
       this.pointBuf.push(row);
@@ -167,7 +170,7 @@ export class HeatmapEngine {
   private enqueueShots(jobs: ScreenshotJob[]): void {
     for (const j of jobs) {
       if (this.shotBuf.length >= shotQueueCap) {
-        console.warn("heatmap: screenshot buffer full, drop");
+        log.warn({ msg: "heatmap_screenshot_buffer_full_drop", cap: shotQueueCap });
         break;
       }
       this.shotBuf.push(j);
@@ -180,7 +183,7 @@ export class HeatmapEngine {
       try {
         await this.ingestOneScreenshot(job);
       } catch (e) {
-        console.error("heatmap screenshot ingest failed", e);
+        log.error({ msg: "heatmap_screenshot_ingest_failed", url: job.url, err: String(e) });
       }
     }
   }

@@ -15,6 +15,9 @@ import {
   enqueueHeatmaps,
   enqueueRecordings,
 } from "./queues";
+import { log as baseLog } from "../../lib/logger";
+
+const log = baseLog.child({ category: "ingest" });
 
 const ROUTED_TO_AUTOMATIONS = new Set(["automation_trigger"]);
 
@@ -163,6 +166,7 @@ export function handleEvents(ctx: CollectHandlerContext): void {
   if (!filtered.length) return;
   const forDb = trackerRowsToAnalytics(sortByTs(filtered), ctx.ingestMeta);
   enqueueEvents(ctx.website.site_id, forDb);
+  log.debug({ msg: "events_queued", site_id: ctx.website.site_id, n: forDb.length });
 }
 
 export function handleFunnels(ctx: CollectHandlerContext): void {
@@ -170,7 +174,9 @@ export function handleFunnels(ctx: CollectHandlerContext): void {
   const raw = parseCollectEvents(Array.isArray(ctx.body.funnels) ? ctx.body.funnels : []);
   const only = raw.filter((e) => TRACKER_FUNNEL_EVENT_TYPES.has(e.type) && e.sid);
   if (!only.length) return;
-  enqueueFunnels(ctx.website.site_id, trackerRowsToAnalytics(sortByTs(only), ctx.ingestMeta));
+  const forDb = trackerRowsToAnalytics(sortByTs(only), ctx.ingestMeta);
+  enqueueFunnels(ctx.website.site_id, forDb);
+  log.debug({ msg: "funnel_events_queued", site_id: ctx.website.site_id, n: forDb.length });
 }
 
 export function handleAutomations(ctx: CollectHandlerContext): void {
@@ -203,7 +209,9 @@ export function handleAutomations(ctx: CollectHandlerContext): void {
       detail,
     });
   }
+  if (!rows.length) return;
   enqueueAutomations(rows);
+  log.debug({ msg: "automation_triggers_queued", website_id: ctx.website.id, n: rows.length });
 }
 
 export function handleRecordings(ctx: CollectHandlerContext): void {
@@ -211,6 +219,7 @@ export function handleRecordings(ctx: CollectHandlerContext): void {
   const prepared = sortByTs(collectPrepareSessions(sessions, ctx.website.site_id, ctx.ingestMeta));
   if (!prepared.length) return;
   enqueueRecordings(prepared);
+  log.debug({ msg: "recordings_queued", site_id: ctx.website.site_id, n: prepared.length });
 }
 
 export function handleHeatmaps(ctx: CollectHandlerContext): void {
@@ -229,4 +238,5 @@ export function handleHeatmaps(ctx: CollectHandlerContext): void {
   ];
   if (!merged.length) return;
   enqueueHeatmaps(sortByTs(merged));
+  log.debug({ msg: "heatmaps_queued", website_id: ctx.website.id, n: merged.length });
 }

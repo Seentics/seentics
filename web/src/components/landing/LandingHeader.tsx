@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/stores/useAuthStore';
 import { Menu, X, Github } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Logo } from '../ui/logo';
 import { AnimatePresence, motion } from 'framer-motion';
 
-export default function LandingHeader() {
+export default function LandingHeader({ alwaysBordered = false }: { alwaysBordered?: boolean }) {
   const { isAuthenticated } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -22,18 +24,21 @@ export default function LandingHeader() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Hash links only make sense on the home page — prefix with '/' on all other pages
+  const anchorHref = (hash: string) => pathname === '/' ? hash : `/${hash}`;
+
   const navLinks = [
-    { name: 'Features', href: '#features' },
-    { name: 'Docs', href: '/docs' },
-    { name: 'Blog', href: '/blog' },
-    { name: 'Pricing', href: '#pricing' },
-    { name: 'FAQ', href: '#faq' },
+    { name: 'Features', href: anchorHref('#features') },
+    { name: 'Docs',     href: '/docs' },
+    { name: 'Blog',     href: '/blog' },
+    { name: 'Pricing',  href: anchorHref('#pricing') },
+    { name: 'FAQ',      href: anchorHref('#faq') },
   ];
 
   return (
     <header
       className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${
-        scrolled
+        scrolled || alwaysBordered
           ? 'top-0 bg-background/70 border-b border-border/30 backdrop-blur-xl h-14'
           : 'top-0 bg-transparent h-16'
       }`}

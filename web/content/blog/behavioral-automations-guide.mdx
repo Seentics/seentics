@@ -1,0 +1,105 @@
+---
+title: Behavioral Automations — Respond to What Users Actually Do
+description: Instead of sending the same message to everyone, behavioral automations let you respond to specific visitor actions in real time. Here's how they work and when to use them.
+date: 2026-04-28
+author: Seentics
+tags: [automations, conversion, engagement]
+---
+
+Most marketing automation is built around time — send an email 3 days after signup, follow up after 7 days of inactivity, trigger a sequence when a trial expires. Time-based automation is better than nothing, but it misses the fundamental insight that users don't behave on a schedule.
+
+The user who is about to churn doesn't think "it's been 14 days since I last logged in, I should probably receive a re-engagement email." They think "I haven't figured out how to get value from this product, so I've stopped trying."
+
+Behavioral automations respond to what users actually do — or don't do — rather than how much time has passed.
+
+## What Is a Behavioral Automation
+
+A behavioral automation has three parts:
+
+**A trigger** — a specific user action (or inaction) that starts the automation. Examples: visited the pricing page, clicked a particular button, spent more than 60 seconds on a page, moved the cursor toward the browser close button, scrolled to the bottom of a post.
+
+**Conditions** — optional filters that narrow which users the trigger applies to. Examples: only fire for users who have visited more than 3 times, only on mobile devices, only when the referrer is a paid campaign, only for new visitors (not returning ones).
+
+**An action** — what happens when the trigger fires and conditions are met. Examples: show a popup, display a notification bar, fire a webhook to your CRM, run custom JavaScript, send an email.
+
+The combination of triggers, conditions, and actions lets you respond to behavior that actually signals intent — rather than guessing based on time elapsed.
+
+## Common Behavioral Triggers
+
+### Exit Intent
+
+The most widely used behavioral trigger. Detected when a user moves their cursor rapidly toward the top of the browser window on desktop (a movement pattern strongly correlated with closing the tab or switching away).
+
+Exit intent popups are everywhere and most of them are terrible (a discount offer the moment you try to leave, every single time). But the trigger itself is sound — you're catching a user at the exact moment they're about to leave, which is the right time to give them a reason to stay.
+
+Used well: show a popup only to first-time visitors, only after they've been on the pricing page for at least 30 seconds, offering a free trial instead of a discount. Used poorly: show a popup to every visitor the moment they move their mouse anywhere near the top of the screen.
+
+### Time on Page
+
+Fire when a user has been on a specific page for more than N seconds. This is a proxy for engagement or confusion — users who spend a long time on a page are either reading carefully (positive signal) or stuck (negative signal).
+
+For content-heavy pages (blog posts, documentation), long time on page is positive. Consider showing a "subscribe for more" prompt after 90 seconds of reading.
+
+For conversion pages (pricing, signup), long time on page without converting often signals confusion. Consider showing a help widget, a FAQ popup, or a live chat prompt after 60 seconds.
+
+### Scroll Depth
+
+Fire when a user scrolls to a specific depth on a page — 50%, 75%, 90%, or to a specific element.
+
+Reaching the bottom of a blog post is a strong engagement signal. Showing a newsletter signup or a "related content" suggestion at that point has much higher relevance than showing it on page load.
+
+Reaching the pricing section of a product page is a purchase intent signal. Surfacing a comparison table, a social proof widget, or a "talk to sales" prompt at that moment is far better timed than an exit popup.
+
+### Element Click
+
+Fire when a user clicks a specific element — a button, a link, an image, a tab.
+
+This is useful for sequential experiences. After a user clicks on a pricing plan, show a "most popular for teams like yours" highlight. After a user clicks on a feature in a comparison table, show the full feature description in a side panel.
+
+### Session History
+
+Trigger based on cumulative behavior across sessions. Fire when a user has visited the pricing page more than twice, or when a user has visited a product page on three separate days, or when a user has read more than 5 blog posts.
+
+Multi-session triggers catch high-intent users who are researching before making a decision — the exactly the users most worth engaging.
+
+## The Conditions That Make Automations Smart
+
+Triggers without conditions produce noise. The same behavior means different things for different users.
+
+**New vs. returning visitors.** An exit popup for a first-time visitor might capture someone who didn't find what they were looking for. The same popup for a visitor on their fifth session in two weeks is almost certainly showing it to someone who has already decided to leave.
+
+**Traffic source.** A visitor from a Google Ad for "analytics tool comparison" has different intent than someone who arrived from a Hacker News thread. The former is evaluating, the latter is probably browsing. Your automation can treat them differently.
+
+**Device type.** Exit intent detection doesn't work on mobile (there's no cursor). Time-based triggers might need longer windows on mobile where reading is slower. Form completion triggers might need to account for the keyboard behavior difference.
+
+**Page history within the session.** A user who has visited pricing → features → pricing is showing a different signal than a user who just landed on pricing from search for the first time.
+
+## Actions Worth Using
+
+### Popups and Banners
+
+Used sparingly, popups remain one of the highest-converting interventions on the web. The key is timing (behavioral triggers) and relevance (targeted conditions) rather than showing them to everyone immediately.
+
+Notification bars at the top or bottom of the page are less intrusive than center-screen overlays and work well for announcements, trial offers, and social proof.
+
+### Webhooks
+
+Sending a webhook when a behavioral trigger fires lets you connect analytics data to the rest of your stack without building a custom integration.
+
+Fire a webhook when a user visits pricing three times in a week → create a lead in your CRM with "high-intent" label. Fire a webhook when a paid user hasn't logged in for 7 days → create a task in your customer success tool. Fire a webhook when a user rage-clicks a button → create a bug report with the user ID and page URL.
+
+### Custom JavaScript
+
+For teams with developers, running arbitrary JavaScript in response to behavioral triggers is the most flexible option. Show a custom component, update the page DOM, log an event to a third-party tool, or trigger any other browser-side behavior.
+
+## What Behavioral Automations Are Not
+
+Behavioral automations are not a replacement for fixing actual product problems. If users are rage-clicking a button because it doesn't work, the right fix is to fix the button — not to show them a popup when they get frustrated.
+
+Automations add the most value when the underlying experience is good and you're using them to surface relevant information at the right moment. They add the least value (and create the most frustration) when they're papering over a poor user experience.
+
+Start with one automation, measure its impact on conversion, and iterate. A single well-targeted exit intent offer on your pricing page, shown only to visitors who have been there for more than 45 seconds, will outperform ten aggressive popups shown to everyone.
+
+---
+
+*Seentics includes a behavioral automation engine on Growth plans and above — trigger webhooks, show popups, or run custom JavaScript based on real visitor behavior.*

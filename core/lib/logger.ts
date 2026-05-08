@@ -30,17 +30,29 @@ function emit(level: Level, fields: Record<string, unknown>): void {
   else console.log(text);
 }
 
-export const log = {
-  debug(fields: Record<string, unknown>) {
-    emit("debug", fields);
-  },
-  info(fields: Record<string, unknown>) {
-    emit("info", fields);
-  },
-  warn(fields: Record<string, unknown>) {
-    emit("warn", fields);
-  },
-  error(fields: Record<string, unknown>) {
-    emit("error", fields);
+type LogFields = Record<string, unknown>;
+
+export interface Logger {
+  debug(fields: LogFields): void;
+  info(fields: LogFields): void;
+  warn(fields: LogFields): void;
+  error(fields: LogFields): void;
+  /** Returns a scoped logger that merges `defaults` into every log line. */
+  child(defaults: LogFields): Logger;
+}
+
+export const log: Logger = {
+  debug(fields) { emit("debug", fields); },
+  info(fields) { emit("info", fields); },
+  warn(fields) { emit("warn", fields); },
+  error(fields) { emit("error", fields); },
+  child(defaults) {
+    return {
+      debug(fields) { emit("debug", { ...defaults, ...fields }); },
+      info(fields)  { emit("info",  { ...defaults, ...fields }); },
+      warn(fields)  { emit("warn",  { ...defaults, ...fields }); },
+      error(fields) { emit("error", { ...defaults, ...fields }); },
+      child(more)   { return log.child({ ...defaults, ...more }); },
+    };
   },
 };

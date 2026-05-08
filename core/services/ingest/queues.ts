@@ -1,7 +1,9 @@
 import type { AppConfig } from "../../config";
 import { getHeatmapEngine } from "../../lib/heatmap-engine";
-import { log } from "../../lib/logger";
+import { log as baseLog } from "../../lib/logger";
 import { getReplayEngine } from "../../lib/replay-engine";
+
+const log = baseLog.child({ category: "ingest" });
 import type {
   AnalyticsIngestEvent,
   AutomationTriggerQueued,

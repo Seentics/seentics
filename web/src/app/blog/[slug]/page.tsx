@@ -3,15 +3,17 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, User, Tag, ArrowLeft } from 'lucide-react';
 import { getPostBySlug, getPostSlugs, getAllPosts } from '@/lib/blog';
-import { remarkGfm } from 'remark-gfm';
+import remarkGfm from 'remark-gfm';
+import BlogCover from '@/components/blog/BlogCover';
 
 export async function generateStaticParams() {
   const slugs = getPostSlugs();
   return slugs.map(slug => ({ slug }));
 }
 
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const post = getPostBySlug(params.slug);
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
   if (!post) {
     return {};
   }
@@ -21,23 +23,34 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default function BlogPostPage({ params }: { params: { slug: string } }) {
-  const post = getPostBySlug(params.slug);
+export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const post = getPostBySlug(slug);
 
   if (!post) {
     notFound();
   }
 
   const allPosts = getAllPosts();
-  const currentIndex = allPosts.findIndex(p => p.slug === params.slug);
+  const currentIndex = allPosts.findIndex(p => p.slug === slug);
   const nextPost = currentIndex > 0 ? allPosts[currentIndex - 1] : null;
   const prevPost = currentIndex < allPosts.length - 1 ? allPosts[currentIndex + 1] : null;
 
   return (
     <article className="w-full">
+      {/* Cover image */}
+      <BlogCover
+        slug={slug}
+        tags={post!.meta.tags}
+        coverImage={post!.meta.cover_image}
+        title={post!.meta.title}
+        className="w-full h-56 md:h-72"
+        priority
+      />
+
       {/* Header */}
-      <section className="max-w-3xl mx-auto px-6 py-12 md:py-16">
-        <Link href="/blog" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8">
+      <section className="max-w-3xl mx-auto px-6 py-10 md:py-14">
+        <Link href="/blog" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8">
           <ArrowLeft className="w-4 h-4" />
           Back to blog
         </Link>

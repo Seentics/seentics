@@ -3,6 +3,9 @@ import { sql } from "../../db";
 import { deleteS3Objects, deleteSessionPrefix } from "../../lib/s3";
 import type { WebsiteRetentionOverride } from "./overrides";
 import { fetchRetentionOverrides } from "./overrides";
+import { log as baseLog } from "../../lib/logger";
+
+const log = baseLog.child({ category: "retention" });
 
 export type DataCleanupStats = {
   websitesProcessed: number;
@@ -131,7 +134,7 @@ export async function runDataRetentionCleanup(cfg: AppConfig): Promise<DataClean
         try {
           await deleteSessionPrefix(bucket, row.website_id, row.session_id);
         } catch (e) {
-          console.warn("data retention: s3 replay delete", row.session_id, e);
+          log.warn({ msg: "retention_s3_replay_delete_failed", session_id: row.session_id, err: String(e) });
         }
       }
 
@@ -164,7 +167,7 @@ export async function runDataRetentionCleanup(cfg: AppConfig): Promise<DataClean
         await deleteS3Objects(bucket, keys);
         stats.heatmapSnapshotS3Deleted += keys.length;
       } catch (e) {
-        console.warn("data retention: heatmap snapshot s3", e);
+        log.warn({ msg: "retention_heatmap_snapshot_s3_failed", website_id: w.id, n: keys.length, err: String(e) });
       }
       const delShot = await sql`
         DELETE FROM heatmap_page_snapshots
@@ -184,17 +187,17 @@ export async function runDataRetentionCleanup(cfg: AppConfig): Promise<DataClean
 export async function runDataRetentionCleanupSafe(cfg: AppConfig): Promise<DataCleanupStats | null> {
   if (!cfg.dataRetention.enabled) return null;
   if (cleanupInFlight) {
-    console.warn("data retention: previous run still in progress, skipping");
+    log.warn({ msg: "retention_already_running" });
     return null;
   }
   cleanupInFlight = true;
   try {
     const started = Date.now();
     const stats = await runDataRetentionCleanup(cfg);
-    console.info("data retention cleanup done", { ms: Date.now() - started, ...stats });
+    log.info({ msg: "retention_cleanup_done", ms: Date.now() - started, ...stats });
     return stats;
   } catch (e) {
-    console.error("data retention cleanup failed", e);
+    log.error({ msg: "retention_cleanup_failed", err: String(e) });
     throw e;
   } finally {
     cleanupInFlight = false;

@@ -102,6 +102,9 @@ process.on("SIGTERM", () => void shutdown().finally(() => process.exit(0)));
 
 const port = cfg.port;
 
-
+Bun.serve({
+  fetch: app.fetch,
+  port,
+});
 
 console.log(`seentics core on :${port} (Bun + Hono + Drizzle — full OSS API)`);

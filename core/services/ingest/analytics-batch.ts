@@ -1,7 +1,9 @@
 import { analyticsEvents, db } from "../../db";
 import type { AnalyticsIngestEvent } from "../../lib/types";
-import { log } from "../../lib/logger";
+import { log as baseLog } from "../../lib/logger";
 import { pickInt, pickStr, pickUtmColumns } from "./field-pickers";
+
+const log = baseLog.child({ category: "ingest" });
 
 const ANALYTICS_SKIP = new Set([
   "rrweb",

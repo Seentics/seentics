@@ -3,6 +3,9 @@ import { isIP } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AddressNotFoundError, Reader, type City } from "@maxmind/geoip2-node";
+import { log as baseLog } from "./logger";
+
+const log = baseLog.child({ category: "geo" });
 
 /** `seentics/core/lib` → `seentics/core/db/maxmind` (no env required). */
 const BUNDLED_MAXMIND_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "db", "maxmind");
@@ -15,7 +18,7 @@ export function resolveCityMmdbPath(optionalEnvPath: string): string {
     const p = join(BUNDLED_MAXMIND_DIR, name);
     if (existsSync(p)) {
       if (env && !existsSync(env)) {
-        console.warn(`maxmind: MAXMIND_DB_PATH (${env}) not found; using ${p}`);
+        log.warn({ msg: "maxmind_env_path_missing_fallback", env_path: env, using: p });
       }
       return p;
     }
@@ -26,7 +29,7 @@ export function resolveCityMmdbPath(optionalEnvPath: string): string {
     if (any) {
       const p = join(BUNDLED_MAXMIND_DIR, any);
       if (env && !existsSync(env)) {
-        console.warn(`maxmind: MAXMIND_DB_PATH (${env}) not found; using ${p}`);
+        log.warn({ msg: "maxmind_env_path_missing_fallback", env_path: env, using: p });
       }
       return p;
     }
@@ -92,20 +95,18 @@ export async function initMaxMindGeo(options: { dbPath: string; geoCacheMax: num
 
   const dbPath = resolveCityMmdbPath(options.dbPath);
   if (!dbPath) {
-    console.warn(
-      `maxmind: no City .mmdb — place GeoLite2-City.mmdb in ${BUNDLED_MAXMIND_DIR} or set MAXMIND_DB_PATH`,
-    );
+    log.warn({ msg: "maxmind_no_db", hint: `place GeoLite2-City.mmdb in ${BUNDLED_MAXMIND_DIR} or set MAXMIND_DB_PATH` });
     return;
   }
   if (!existsSync(dbPath)) {
-    console.warn(`maxmind: database file not found (${dbPath}); country/region/city on events will stay empty`);
+    log.warn({ msg: "maxmind_db_not_found", path: dbPath });
     return;
   }
   try {
     reader = await Reader.open(dbPath);
-    console.log(`maxmind: loaded GeoIP2 City database (${dbPath}), geo cache max ${cacheMax} IPs`);
+    log.info({ msg: "maxmind_loaded", path: dbPath, cache_max: cacheMax });
   } catch (e) {
-    console.error("maxmind: failed to open database", e);
+    log.error({ msg: "maxmind_open_failed", path: dbPath, err: String(e) });
     reader = null;
   }
 }

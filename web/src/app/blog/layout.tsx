@@ -1,5 +1,5 @@
-import { LandingHeader } from '@/components/landing/LandingHeader';
-import { Footer } from '@/components/landing/Footer';
+import LandingHeader from '@/components/landing/LandingHeader';
+import Footer from '@/components/landing/Footer';
 
 export const metadata = {
   title: 'Blog | Seentics',

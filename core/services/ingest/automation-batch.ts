@@ -2,6 +2,9 @@ import { randomUUID } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import { automationEvents, automations, db } from "../../db";
 import type { AutomationTriggerQueued } from "../../lib/types";
+import { log as baseLog } from "../../lib/logger";
+
+const log = baseLog.child({ category: "ingest" });
 
 /**
  * Insert tracker-fired automation triggers. Drops unknown automation IDs and rows whose
@@ -30,6 +33,10 @@ export async function ingestAutomationTriggersBatch(rows: AutomationTriggerQueue
         ),
       );
     const ok = new Set(valid.map((v) => v.id));
+    const dropped = siteRows.length - siteRows.filter((r) => ok.has(r.automationId)).length;
+    if (dropped > 0) {
+      log.warn({ msg: "automation_triggers_dropped", website_id: websiteUuid, dropped, reason: "unknown_or_inactive_automation" });
+    }
     const inserts = siteRows
       .filter((r) => ok.has(r.automationId))
       .map((r) => {
@@ -53,5 +60,6 @@ export async function ingestAutomationTriggersBatch(rows: AutomationTriggerQueue
       });
     if (!inserts.length) continue;
     await db.insert(automationEvents).values(inserts);
+    log.info({ msg: "automation_triggers_inserted", website_id: websiteUuid, n: inserts.length });
   }
 }

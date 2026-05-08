@@ -251,7 +251,7 @@ function SignUpFlow() {
             </div>
 
             {/* Right — Auth Form (scrolls inside viewport; page body does not) */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 pb-12 pt-10 sm:px-6 sm:pb-14 sm:pt-12 lg:rounded-l-3xl lg:bg-background lg:pb-16 lg:pt-14">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 pb-12 pt-10 sm:px-6 sm:pb-14 sm:pt-12 lg:justify-center lg:rounded-l-3xl lg:bg-background lg:pb-16 lg:pt-14">
                 <div className="mx-auto w-full max-w-md lg:max-w-lg">
                     {/* Mobile: compact pitch — full bullet list only on desktop left panel */}
                     <div className="mb-5 space-y-3 text-center lg:hidden">
