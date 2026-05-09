@@ -19,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Banknote, ShoppingCart, Scale, BarChart2, Receipt, ExternalLink,
+  Banknote, ShoppingCart, Scale, BarChart2, Receipt, ExternalLink, BookOpen,
 } from 'lucide-react';
 import {
   ComposedChart, Area, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
@@ -93,6 +93,7 @@ export default function RevenuePage() {
   const [days, setDays] = useState(30);
   const { data, isLoading } = useRevenueDashboard(websiteId, days);
   const [openTx, setOpenTx] = useState<RevenueTransaction | null>(null);
+  const [showDocs, setShowDocs] = useState(false);
 
   const summary = data?.summary;
   const cur = summary?.currency ?? 'USD';
@@ -174,6 +175,15 @@ export default function RevenuePage() {
         description="Purchase revenue, order economics, and channel attribution."
       >
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => setShowDocs(true)}
+          >
+            <BookOpen className="h-3.5 w-3.5" />
+            How to track
+          </Button>
           <Badge
             variant="outline"
             className={cn(
@@ -417,6 +427,164 @@ export default function RevenuePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── Revenue docs modal ── */}
+      <Dialog open={showDocs} onOpenChange={setShowDocs}>
+        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto border border-border/60 bg-card rounded-xl shadow-xl p-0 gap-0">
+          <DialogHeader className="p-5 pb-4 border-b border-border/60 sticky top-0 bg-card z-10">
+            <DialogTitle className="text-base font-semibold tracking-tight flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-muted-foreground" />
+              Revenue tracking
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              How Seentics collects revenue data and what you can track.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="p-5 space-y-7 text-sm">
+
+            {/* How it works */}
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">How it works</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Revenue data flows from a single <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">seentics.track()</code> call on your
+                checkout confirmation page. Seentics automatically joins the purchase to the visitor&apos;s current session,
+                resolves last-non-direct attribution from their page-view history, and stores the transaction for reporting.
+              </p>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                {[
+                  { step: '1', label: 'Visitor lands', desc: 'UTM params are captured on the first pageview of the session' },
+                  { step: '2', label: 'Checkout fires', desc: 'You call seentics.track("purchase", { … }) at conversion' },
+                  { step: '3', label: 'Attribution resolved', desc: 'Last-non-direct touch is joined and the transaction stored' },
+                ].map(({ step, label, desc }) => (
+                  <div key={step} className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                    <div className="text-[10px] font-bold text-muted-foreground mb-1">Step {step}</div>
+                    <div className="font-semibold text-foreground mb-1">{label}</div>
+                    <div className="text-muted-foreground leading-snug">{desc}</div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Quick start */}
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Quick start</h3>
+              <p className="text-xs text-muted-foreground mb-2">Call this on your order confirmation / thank-you page:</p>
+              <pre className="rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs p-4 overflow-x-auto leading-relaxed font-mono">
+{`// Minimal — value + currency are all that's required
+seentics.track('purchase', {
+  value:    49.99,
+  currency: 'USD',
+});`}
+              </pre>
+              <p className="text-xs text-muted-foreground mt-3 mb-2">Full example with all optional fields:</p>
+              <pre className="rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs p-4 overflow-x-auto leading-relaxed font-mono">
+{`seentics.track('purchase', {
+  value:        149.00,      // total order value (required)
+  currency:     'USD',       // ISO 4217 code (default: 'USD')
+  order_id:     'ORD-8821',  // used for deduplication
+  product_name: 'Pro Plan',  // shows in Product/SKU breakdown
+  user_type:    'new',       // 'new' | 'returning'
+});`}
+              </pre>
+            </section>
+
+            {/* Multi-item orders */}
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Multi-item orders</h3>
+              <p className="text-xs text-muted-foreground mb-2">
+                Pass an <code className="font-mono bg-muted px-1 rounded">items</code> array to show individual line items in the transaction detail view:
+              </p>
+              <pre className="rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs p-4 overflow-x-auto leading-relaxed font-mono">
+{`seentics.track('purchase', {
+  value:    78.00,
+  currency: 'EUR',
+  order_id: 'ORD-5541',
+  items: [
+    { name: 'T-shirt',    sku: 'TSHRT-BLK-M', qty: 2, price: 29.00 },
+    { name: 'Cap',        sku: 'CAP-RED',      qty: 1, price: 20.00 },
+  ],
+});`}
+              </pre>
+            </section>
+
+            {/* Refunds */}
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Tracking refunds</h3>
+              <p className="text-xs text-muted-foreground mb-2">
+                Use the event type <code className="font-mono bg-muted px-1 rounded">refund</code> (or <code className="font-mono bg-muted px-1 rounded">refunded</code>) with the same properties.
+                Refund values are subtracted from the revenue summary:
+              </p>
+              <pre className="rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs p-4 overflow-x-auto leading-relaxed font-mono">
+{`seentics.track('refund', {
+  value:    49.99,
+  currency: 'USD',
+  order_id: 'ORD-8821',  // link back to the original order
+});`}
+              </pre>
+            </section>
+
+            {/* Properties reference */}
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Properties reference</h3>
+              <div className="overflow-x-auto rounded-lg border border-border/50">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-muted/30 border-b border-border/50">
+                      <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">Property</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">Type</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">Required</th>
+                      <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {([
+                      ['value', 'number', 'Yes', 'Order total. Also accepted as revenue, amount, or total.'],
+                      ['currency', 'string', 'No', 'ISO 4217 code (USD, EUR, GBP…). Defaults to USD.'],
+                      ['order_id', 'string', 'No', 'Unique order reference. Used for deduplication in the transaction list.'],
+                      ['product_name', 'string', 'No', 'Product or plan name. Also accepted as product or name.'],
+                      ['user_type', 'string', 'No', '"new" or "returning" — segments revenue by customer type.'],
+                      ['items', 'array', 'No', 'Line items: [{ name, sku, qty, price }]. Shown in transaction detail.'],
+                    ] as const).map(([prop, type, req, desc]) => (
+                      <tr key={prop} className="border-b border-border/30 last:border-0">
+                        <td className="px-3 py-2.5 font-mono text-foreground">{prop}</td>
+                        <td className="px-3 py-2.5 text-sky-600 dark:text-sky-400">{type}</td>
+                        <td className="px-3 py-2.5">
+                          {req === 'Yes'
+                            ? <span className="text-emerald-600 font-medium">Yes</span>
+                            : <span className="text-muted-foreground">No</span>}
+                        </td>
+                        <td className="px-3 py-2.5 text-muted-foreground">{desc}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* UTM attribution tip */}
+            <section>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">UTM attribution</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Attribution is resolved automatically from the visitor&apos;s session — no extra properties needed.
+                Add UTM parameters to your marketing links so the <strong>Source / Medium / Campaign</strong> breakdown
+                is populated:
+              </p>
+              <pre className="rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs p-4 overflow-x-auto leading-relaxed font-mono mt-2">
+{`https://yoursite.com/pricing
+  ?utm_source=newsletter
+  &utm_medium=email
+  &utm_campaign=may-launch`}
+              </pre>
+              <p className="text-xs text-muted-foreground mt-2">
+                Seentics uses <strong>last non-direct touch</strong> — if the visitor arrived via Google Ads earlier in the session,
+                that channel gets credit even if they navigated directly to the checkout page.
+              </p>
+            </section>
+
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Transaction detail dialog ── */}
       <Dialog open={!!openTx} onOpenChange={() => setOpenTx(null)}>

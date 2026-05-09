@@ -29,7 +29,7 @@
 <br />
 
 <p align="center">
-  <img src="web/public/analytics-dashboard.png" alt="Seentics Dashboard" width="100%" />
+  <img src="web/public/images/app/photo-1.png" alt="Seentics Dashboard" width="100%" />
 </p>
 
 ---
