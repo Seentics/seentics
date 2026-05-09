@@ -99,7 +99,7 @@ export default function RootLayout({
         {/* <CookieConsentManager /> */}
 
         {/* Global Chat Support */}
-        {/* <CrispChat /> */}
+        <CrispChat />
 
         {/* Lemon Squeezy Checkout Script - Enterprise only */}
         {process.env.NEXT_PUBLIC_IS_ENTERPRISE === 'true' && <LemonSqueezyScript />}

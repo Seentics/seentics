@@ -5,7 +5,7 @@
 <h1 align="center">Seentics</h1>
 
 <p align="center">
-  Open-source, privacy-first web analytics — real-time dashboards, session replays,<br />
+  Open-source, privacy-first web analytics platform — featuring real-time dashboards, session replays,<br />
   heatmaps, funnels, revenue tracking, and behavioral automations.
 </p>
 
