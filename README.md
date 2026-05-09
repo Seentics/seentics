@@ -34,6 +34,29 @@
 
 ---
 
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="web/public/images/app/photo-1.png" alt="Analytics dashboard" width="100%" />
+    </td>
+    <td width="50%">
+      <img src="web/public/images/app/photo-2.png" alt="Session replays" width="100%" />
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <img src="web/public/images/app/photo-3.png" alt="Heatmaps" width="100%" />
+    </td>
+    <td width="50%">
+      <img src="web/public/images/app/photo-4.png" alt="Funnels & revenue" width="100%" />
+    </td>
+  </tr>
+</table>
+
+---
+
 ## What is Seentics?
 
 Seentics is a self-hosted web analytics platform that helps you understand your visitors and improve conversions. Track pageviews, custom events, and user behavior with heatmaps, session replays, and funnels — all without cookies, fingerprinting, or sending data to third parties.
