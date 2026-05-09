@@ -59,30 +59,16 @@ You own your data. It runs on your infrastructure. Deploy in minutes with Docker
 
 ## ✨ Features
 
-### Analytics
-- Real-time visitor dashboard with live map and active pages
-- Historical traffic — pageviews, sessions, bounce rate, engagement time
-- Top pages, referrers, UTM campaigns, devices, browsers, and OS
-- Custom events with properties and filtering
-- Goals — page visit, custom event, or CSS selector click
-- Funnel analysis with step-by-step conversion rates
-- Revenue tracking — orders, AOV, ARPU, and channel attribution
-- Annotations and date comparisons
-
-### Behavior
-- **Session replays** — watch full visitor recordings with rage-click and error detection
-- **Heatmaps** — click maps, scroll depth, and page layout snapshots
-- **Path analysis** — see how users navigate between pages
-
-### Automations
-- Trigger webhooks or emails based on visitor behavior
-- Conditions on page visits, custom events, and properties
-
-### Developer Tools
-- Lightweight tracker script (`seentics.js`) — auto-tracks pageviews, custom events, heatmaps, and replays
-- Per-website API keys with scoped access
-- Embeddable React components (`@seentics/components`)
-- In-dashboard API documentation
+- **Real-time analytics** — live visitor map, active pages, and traffic as it happens
+- **Session replays** — watch full recordings with rage-click and JS error detection
+- **Heatmaps** — click maps, scroll depth, and captured page screenshots
+- **Funnels** — multi-step conversion analysis with drop-off rates
+- **Revenue tracking** — orders, AOV, ARPU, and UTM channel attribution
+- **Custom events** — track any action with typed properties and filtering
+- **Goals** — page visit, custom event, or CSS selector click conversions
+- **Behavioral automations** — trigger webhooks or emails based on visitor actions
+- **Path analysis** — visualize how users move between pages
+- **Privacy-first** — no cookies, no fingerprinting, fully self-hosted
 
 ---
 
