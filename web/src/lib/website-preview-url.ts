@@ -27,7 +27,7 @@ export function normalizeWebsiteOriginForPreview(
   }
   const appHost = app.hostname.toLowerCase();
   const isLocalDashboard = appHost === 'localhost' || appHost === '127.0.0.1';
-  const bogusLocalHostnames = new Set(['localhost.com', 'www.localhost.com']);
+  const bogusLocalHostnames = new Set(['localhost.com', 'www.localhost.com', 'local.com', 'www.local.com']);
   if (isLocalDashboard && bogusLocalHostnames.has(url.hostname.toLowerCase())) {
     url.protocol = app.protocol;
     url.hostname = app.hostname;

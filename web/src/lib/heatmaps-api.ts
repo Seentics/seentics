@@ -86,6 +86,21 @@ export async function getHeatmapPageScreenshot(
   const layout = (res.data as { layout?: HeatmapPageScreenshot | null }).layout;
   return layout ?? null;
 }
+export async function saveDashboardScreenshot(
+  websiteId: string,
+  pagePath: string,
+  imageBase64: string,
+  docWidth: number,
+  docHeight: number,
+): Promise<void> {
+  await api.post(`/heatmaps/${websiteId}/save-screenshot`, {
+    page_path: normalizeHeatmapPagePath(pagePath),
+    image: imageBase64,
+    doc_width: docWidth,
+    doc_height: docHeight,
+  });
+}
+
 export async function deleteHeatmaps(websiteId: string, pagePaths: string[]): Promise<void> {
   await api.delete(`/heatmaps/${websiteId}/bulk-delete`, {
     data: { pagePaths }

@@ -15,6 +15,7 @@ import { getReplayEngine } from "../lib/replay-engine";
 import type { AnalyticsIngestEvent } from "../lib/types";
 import { runDataRetentionCleanupSafe } from "../services/retention.service";
 import { resolveWebsiteForTracker } from "../lib/website-for-tracker";
+import { getUserResourceCounts } from "../lib/user-resource-counts";
 import { parseJson } from "../validators/validation";
 import {
   internalCollectAnalyticsSchema,
@@ -33,7 +34,16 @@ internalRoutes.use("*", async (c, next) => {
   return next();
 });
 
-internalRoutes.get("/user-resource-counts", (c) => c.json({ data: {} }));
+internalRoutes.get("/user-resource-counts", async (c) => {
+  const userId = c.req.query("user_id")?.trim() ?? "";
+  if (!userId) return c.json({ error: "user_id required" }, 400);
+  try {
+    const counts = await getUserResourceCounts(userId);
+    return c.json({ data: counts });
+  } catch (e) {
+    return c.json({ error: "failed to fetch counts", detail: String(e) }, 500);
+  }
+});
 internalRoutes.post("/user/sync", (c) => c.json({ data: { ok: true } }));
 internalRoutes.get("/system/stats", (c) => c.json({ data: {} }));
 internalRoutes.get("/website-owner", (c) => c.json({ data: null }));

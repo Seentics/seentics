@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -27,13 +27,14 @@ import {
   MoreHorizontal,
   ChevronLeft, ChevronRight,
   Lock, ExternalLink,
-  Globe,
+  Globe, Camera,
 } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
 import {
    getHeatmapData,
   getHeatmapPageScreenshot,
+  saveDashboardScreenshot,
   heatmapPageSlug,
   normalizeHeatmapPagePath,
   weightedHeatmapCaptureViewportWidth,
@@ -687,12 +688,15 @@ export default function HeatmapDetailPage() {
   const isDemoMode = isDemo(websiteId);
   const { toast }  = useToast();
 
+  const queryClient = useQueryClient();
+
   const [heatType,  setHeatType]  = useState<HeatType>('click');
   const [device,    setDevice]    = useState<DeviceType>('all');
   const [customUrl, setCustomUrl] = useState('');
   const [liveUrl,   setLiveUrl]   = useState('');
   const [previewTouched, setPreviewTouched] = useState(false);
   const [previewUnderlay, setPreviewUnderlay] = useState<PreviewUnderlay>('screenshot');
+  const [capturing, setCapturing] = useState(false);
 
   const urlPath = useMemo(() => {
     const raw = slug ? decodeURIComponent(slug).replace(/_/g, '/') : '/';
@@ -826,6 +830,67 @@ export default function HeatmapDetailPage() {
       setPreviewUnderlay('live');
     }
   }, [screenshotLoading, pageScreenshot, canLivePreview, previewUnderlay, previewTouched, isDemoMode]);
+
+  const captureScreenshot = async () => {
+    const url = displayIframeUrl;
+    if (!url || capturing) return;
+    setCapturing(true);
+    let iframe: HTMLIFrameElement | null = null;
+    try {
+      iframe = document.createElement('iframe');
+      iframe.style.cssText =
+        'position:fixed;left:-9999px;top:0;width:1280px;height:5000px;border:0;visibility:hidden;pointer-events:none;';
+      iframe.src = url;
+      document.body.appendChild(iframe);
+
+      await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('Page load timed out after 20 s')), 20_000);
+        iframe!.addEventListener('load', () => { clearTimeout(timer); resolve(); }, { once: true });
+        iframe!.addEventListener('error', () => { clearTimeout(timer); reject(new Error('Failed to load page')); }, { once: true });
+      });
+
+      // Give the page a moment to finish rendering
+      await new Promise(r => setTimeout(r, 800));
+
+      let doc: Document;
+      try {
+        doc = iframe.contentDocument!;
+        if (!doc?.documentElement) throw new Error('cross-origin');
+      } catch {
+        throw new Error(
+          'Cannot capture cross-origin page. The Seentics tracker automatically captures screenshots when real visitors load the page.',
+        );
+      }
+
+      const docW = Math.max(800, doc.documentElement.scrollWidth || 1280);
+      const docH = Math.max(400, doc.documentElement.scrollHeight || 2000);
+
+      const h2c = (await import('html2canvas')).default;
+      const canvas = await h2c(doc.documentElement, {
+        useCORS: true,
+        allowTaint: false,
+        width: docW,
+        height: docH,
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: docW,
+        windowHeight: docH,
+      });
+
+      const imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
+      await saveDashboardScreenshot(websiteId, urlPath, imageBase64, docW, docH);
+
+      await queryClient.invalidateQueries({ queryKey: ['heatmap-screenshot', websiteId, urlPath] });
+      setPreviewTouched(true);
+      setPreviewUnderlay('screenshot');
+      toast({ title: 'Screenshot captured', description: 'Background image saved successfully.' });
+    } catch (e) {
+      toast({ title: 'Capture failed', description: (e as Error).message ?? String(e), variant: 'destructive' });
+    } finally {
+      if (iframe?.parentNode) iframe.parentNode.removeChild(iframe);
+      setCapturing(false);
+    }
+  };
 
   const applyUrl = () => {
     const t = customUrl.trim();
@@ -1019,6 +1084,15 @@ export default function HeatmapDetailPage() {
                       Open preview tab
                     </DropdownMenuItem>
                   ) : null}
+                  <DropdownMenuItem
+                    className="text-xs"
+                    disabled={capturing || !displayIframeUrl}
+                    onClick={captureScreenshot}
+                  >
+                    <Camera className="mr-2 h-3.5 w-3.5" />
+                    {capturing ? 'Capturing…' : 'Capture screenshot'}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-xs" onClick={() => refetch()}>
                     <RefreshCw className="mr-2 h-3.5 w-3.5" />
                     Refresh data

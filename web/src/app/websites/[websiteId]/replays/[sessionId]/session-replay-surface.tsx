@@ -525,9 +525,9 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
 });
 
 /**
- * Re-apply wrapper transform after resize. Use cover (Math.max scale) so the shell is filled
- * (no side letterboxing). Anchor at the top center so overflow is clipped at the bottom, not
- * symmetric top+bottom crop that made the header feel "cut off".
+ * Re-apply wrapper transform after resize. Use contain (Math.min scale) so the full recording
+ * width is always visible without side-clipping. Anchor at the top center so any extra vertical
+ * space is letterboxed at the bottom rather than cropping the top of the page.
  */
 const PLAYER_MAX_SCALE = 100;
 
@@ -570,7 +570,7 @@ function applyReplayCoverScale(
   if (fw < 2 || fh < 2 || containerW < 2 || containerH < 2) return;
   const widthScale = containerW / fw;
   const heightScale = containerH / fh;
-  const scale = Math.min(maxScale, Math.max(widthScale, heightScale));
+  const scale = Math.min(maxScale, Math.min(widthScale, heightScale));
   replayer.wrapper.style.transformOrigin = '50% 0';
   replayer.wrapper.style.transform = `translate(-50%, 0) scale(${scale})`;
 }
