@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Users, Globe, Download, Settings, Sun } from 'lucide-react';
+import { ArrowRight, Users, Globe, Download, Settings, Sun, Sparkles } from 'lucide-react';
 import Link from 'next/link';
 import { useAuth } from '@/stores/useAuthStore';
 import { useMemo } from 'react';
@@ -156,9 +156,15 @@ export default function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 border border-border/60 text-xs font-medium text-muted-foreground mb-8"
+            className="flex items-center justify-center gap-2 mb-8"
           >
-            Open Source &middot; APIs &amp; SDKs &middot; Self-Hosted
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 border border-border/60 text-xs font-medium text-muted-foreground">
+              Open Source &middot; APIs &amp; SDKs &middot; Self-Hosted
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-xs font-semibold text-indigo-400">
+              <Sparkles className="h-3 w-3" />
+              AI-Powered
+            </span>
           </motion.div>
 
           <motion.h1
@@ -181,7 +187,7 @@ export default function Hero() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed"
           >
-           Page analytics, session recordings, heatmaps, funnels, and automations — all in one platform. With APIs, SDKs, and embeddable UI blocks. Self-hosted, open source, complete data ownership.
+            Page analytics, session recordings, heatmaps, funnels, and automations — all in one platform. Ask anything about your data with <span className="text-indigo-400 font-medium">Seentics AI</span>. With APIs, SDKs, and embeddable UI blocks. Self-hosted, open source, complete data ownership.
           </motion.p>
 
           <motion.div
