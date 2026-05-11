@@ -174,7 +174,7 @@ export default function Hero() {
             className="mb-6"
           >
             <span className="block text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.2]">
-              Analytics for Developers
+              Analytics &amp; AI for Developers
             </span>
             <span className="block text-4xl md:text-6xl font-bold tracking-tight leading-[1.2] mt-1">
               <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">& Product Teams</span>
