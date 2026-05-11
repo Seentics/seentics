@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { env } from "./config";
-import { applyAnalyticsEventsWebsiteIdMigration, ensureCoreSchema } from "./db/ensure-schema";
+import { applyAnalyticsEventsWebsiteIdMigration, applyAiQueriesMigration, ensureCoreSchema } from "./db/ensure-schema";
 import { flushIngestQueuesNow, startIngestQueueFlusher, stopIngestQueueFlusher } from "./services/ingest.service";
 import { initMaxMindGeo } from "./lib/maxmind-geo";
 import { configureLogger } from "./lib/logger";
@@ -48,6 +48,7 @@ type BunServerWithRequestIp = {
 const cfg = env();
 configureLogger(cfg);
 await applyAnalyticsEventsWebsiteIdMigration();
+await applyAiQueriesMigration();
 await ensureCoreSchema();
 await initMaxMindGeo(cfg.maxmind);
 configureTrackerWebsiteCache(cfg);

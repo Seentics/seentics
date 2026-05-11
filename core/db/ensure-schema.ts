@@ -53,6 +53,55 @@ async function isAnalyticsSchemaMissing(): Promise<boolean> {
 }
 
 /**
+ * Ensures the `ai_queries` table exists (migration 005).
+ * Safe to call on every startup — uses CREATE TABLE IF NOT EXISTS.
+ */
+export async function applyAiQueriesMigration(): Promise<void> {
+  const url = process.env.DATABASE_URL;
+  if (!url) return;
+  const client = postgres(url, { max: 1, connect_timeout: 10 });
+  try {
+    const rows = await client<{ ok: number }[]>`
+      SELECT 1 AS ok FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = 'ai_queries' LIMIT 1
+    `;
+    if (rows.length > 0) return; // already exists
+
+    await client`
+      CREATE TABLE IF NOT EXISTS ai_queries (
+        id                 UUID          PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id            UUID          NOT NULL,
+        website_id         TEXT          NOT NULL,
+        prompt             TEXT          NOT NULL,
+        system_context     TEXT,
+        generated_sql      TEXT,
+        viz_type           VARCHAR(32),
+        title              TEXT,
+        insight            TEXT,
+        x_key              TEXT,
+        y_key              TEXT,
+        columns            JSONB,
+        row_count          INTEGER,
+        model              VARCHAR(64)   NOT NULL DEFAULT 'gpt-4o-mini',
+        input_tokens       INTEGER,
+        output_tokens      INTEGER,
+        estimated_cost_usd REAL,
+        status             VARCHAR(32)   NOT NULL DEFAULT 'pending',
+        error_message      TEXT,
+        execution_time_ms  INTEGER,
+        created_at         TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+      )
+    `;
+    await client`CREATE INDEX IF NOT EXISTS ix_ai_queries_user_id      ON ai_queries (user_id)`;
+    await client`CREATE INDEX IF NOT EXISTS ix_ai_queries_website_id   ON ai_queries (website_id)`;
+    await client`CREATE INDEX IF NOT EXISTS ix_ai_queries_user_created ON ai_queries (user_id, created_at)`;
+    console.log("[schema] ai_queries: table created (migration 005)");
+  } finally {
+    await client.end({ timeout: 3 });
+  }
+}
+
+/**
  * Ensures Drizzle tables exist (`drizzle-kit push --force`) on empty or broken DBs.
  * Skips when `websites` already exists (fast path for `bun --watch` restarts), unless `FORCE_DB_PUSH=1`.
  *
