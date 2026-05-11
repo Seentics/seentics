@@ -31,6 +31,7 @@ services:
       - MAXMIND_GEO_CACHE_MAX=${MAXMIND_GEO_CACHE_MAX:-50000}
       # Optional ISO2 when ingest only sees private IPs (localhost/Docker). Example: BD. Leave unset for no fallback.
       - GEO_FALLBACK_COUNTRY=${GEO_FALLBACK_COUNTRY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - LOG_LEVEL=debug
     depends_on:
       postgres:
