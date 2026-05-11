@@ -18,6 +18,7 @@ export interface SubscriptionUsage {
   heatmaps: UsageStatus;
   replays: UsageStatus;
   monthlyEvents: UsageStatus;
+  aiAnalyses: UsageStatus;
 }
 
 export interface SubscriptionData {

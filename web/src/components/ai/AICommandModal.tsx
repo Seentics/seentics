@@ -303,7 +303,10 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
               <TrendingUp className="h-4 w-4 text-indigo-400" />
             </div>
             <div>
-              <p className="text-base font-semibold text-foreground">{title}</p>
+              <p className="text-base font-semibold text-foreground flex items-center gap-2">
+                {title}
+                <span className="rounded-md bg-indigo-500/15 px-1.5 py-0.5 text-[10px] font-bold text-indigo-400 tracking-wide shrink-0">AI</span>
+              </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {rows.length} row{rows.length !== 1 ? 's' : ''} · {execution_time_ms}ms · <span className="font-mono">{viz_type}</span>
               </p>

@@ -294,6 +294,39 @@ export const heatmapPoints = pgTable(
   ],
 );
 
+/** AI-generated analytics queries — each row is one user prompt + generated SQL + result metadata. */
+export const aiQueries = pgTable(
+  "ai_queries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    websiteId: text("website_id").notNull(),
+    prompt: text("prompt").notNull(),
+    systemContext: text("system_context"),
+    generatedSql: text("generated_sql"),
+    vizType: varchar("viz_type", { length: 32 }),
+    title: text("title"),
+    insight: text("insight"),
+    xKey: text("x_key"),
+    yKey: text("y_key"),
+    columns: jsonb("columns").$type<Array<{ key: string; label: string }>>(),
+    rowCount: integer("row_count"),
+    model: varchar("model", { length: 64 }).notNull().default("gpt-4o-mini"),
+    inputTokens: integer("input_tokens"),
+    outputTokens: integer("output_tokens"),
+    estimatedCostUsd: real("estimated_cost_usd"),
+    status: varchar("status", { length: 32 }).notNull().default("pending"),
+    errorMessage: text("error_message"),
+    executionTimeMs: integer("execution_time_ms"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ix_ai_queries_user_id").on(t.userId),
+    index("ix_ai_queries_website_id").on(t.websiteId),
+    index("ix_ai_queries_user_created").on(t.userId, t.createdAt),
+  ],
+);
+
 /** Heatmap layout screenshot metadata (JPEG in S3). */
 export const heatmapPageSnapshots = pgTable(
   "heatmap_page_snapshots",

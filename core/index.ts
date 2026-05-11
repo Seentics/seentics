@@ -13,6 +13,7 @@ import { analyticsCacheMiddleware } from "./middleware/analytics-cache";
 import { corsMiddleware } from "./middleware/cors";
 import { rateLimitMiddleware } from "./middleware/rate-limit";
 import { requestLogMiddleware } from "./middleware/request-log";
+import { aiRoutes } from "./routes/ai";
 import { analyticsRoutes } from "./routes/analytics";
 import { authRoutes } from "./routes/auth";
 import { automationRoutes } from "./routes/automations";
@@ -65,6 +66,7 @@ app.get("/health", (c) => c.text("ok"));
 
 app.route("/api/v1/auth", authRoutes);
 app.route("/api/v1/user", userBranchRoutes);
+app.route("/api/v1/ai", aiRoutes);
 app.route("/api/v1/analytics", analyticsRoutes);
 app.route("/api/v1/raw", rawDataRoutes);
 app.route("/api/v1/privacy", privacyRoutes);

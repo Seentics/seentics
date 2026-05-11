@@ -7,6 +7,7 @@ export type UserResourceCounts = {
   heatmaps: number;
   replays: number;
   monthly_events: number;
+  ai_analyses: number;
 };
 
 /**
@@ -19,7 +20,7 @@ export async function getUserResourceCounts(userId: string): Promise<UserResourc
   // Validate UUID format to avoid injecting arbitrary strings into queries.
   const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (!UUID_RE.test(userId)) {
-    return { websites: 0, funnels: 0, automations: 0, heatmaps: 0, replays: 0, monthly_events: 0 };
+    return { websites: 0, funnels: 0, automations: 0, heatmaps: 0, replays: 0, monthly_events: 0, ai_analyses: 0 };
   }
 
   // Run all counts in parallel; each is a single indexed query.
@@ -30,6 +31,7 @@ export async function getUserResourceCounts(userId: string): Promise<UserResourc
     heatmapsRes,
     replaysRes,
     eventsRes,
+    aiAnalysesRes,
   ] = await Promise.all([
     // Websites owned by this user
     sql<[{ c: string }]>`
@@ -88,6 +90,15 @@ export async function getUserResourceCounts(userId: string): Promise<UserResourc
       )
       AND occurred_at >= date_trunc('month', NOW() AT TIME ZONE 'UTC')
     `,
+
+    // AI analyses run by this user this calendar month
+    sql<[{ c: string }]>`
+      SELECT COUNT(*)::int AS c
+      FROM ai_queries
+      WHERE user_id = ${userId}::uuid
+      AND status = 'success'
+      AND created_at >= date_trunc('month', NOW() AT TIME ZONE 'UTC')
+    `,
   ]);
 
   const n = (rows: [{ c: string }]) => Math.max(0, parseInt(rows[0]?.c ?? "0", 10) || 0);
@@ -99,5 +110,6 @@ export async function getUserResourceCounts(userId: string): Promise<UserResourc
     heatmaps: n(heatmapsRes),
     replays: n(replaysRes),
     monthly_events: n(eventsRes),
+    ai_analyses: n(aiAnalysesRes),
   };
 }
