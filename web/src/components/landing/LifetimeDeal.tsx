@@ -43,6 +43,7 @@ export default function LifetimeDeal() {
     'Unlimited Websites',
     '300,000 Events/month',
     '3,000 Session Recordings',
+    '1,000 AI Analyses / month',
     'Unlimited Heatmaps',
     'Unlimited Funnels & Automations',
     '3 Year Data Retention',
