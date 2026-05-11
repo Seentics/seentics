@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BarChart3, Video, Flame, Bot, Code, Lock, Sparkles } from 'lucide-react';
+import { BarChart3, Video, Flame, Bot, Lock, Sparkles } from 'lucide-react';
 import React from 'react';
 
 const features = [
@@ -35,12 +35,6 @@ const features = [
     title: 'Automations',
     description: 'Fire webhooks, emails, or any action when users hit specific behaviors or conditions.',
     color: 'text-indigo-500 bg-indigo-500/10',
-  },
-  {
-    icon: Code,
-    title: 'APIs, SDKs & UI Blocks',
-    description: 'Full REST API, JS/Python SDKs, and embeddable widgets to integrate analytics anywhere.',
-    color: 'text-amber-500 bg-amber-500/10',
   },
   {
     icon: Lock,
