@@ -9,7 +9,7 @@ import {
 import { cn } from '@/lib/utils';
 
 export interface PlanSelection {
-  plan: 'starter' | 'basic' | 'growth' | 'pro' | 'lifetime' | 'agency' | 'agency_pro';
+  plan: 'starter' | 'basic' | 'growth' | 'pro' | 'lifetime' | 'lifetime_pro' | 'agency' | 'agency_pro';
   price: number;
   billing: 'monthly' | 'yearly';
 }
