@@ -13,6 +13,7 @@ export default function PathsPage() {
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="User Paths"
         description="Discover the most common journeys users take through your product."
       />

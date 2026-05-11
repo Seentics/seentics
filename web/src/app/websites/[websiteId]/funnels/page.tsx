@@ -238,6 +238,7 @@ export default function FunnelsPage() {
   return (
     <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Funnels"
         description="Track conversion steps and identify where users drop off in their journey."
       >

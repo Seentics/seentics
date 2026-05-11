@@ -89,6 +89,7 @@ export default function SupportPage() {
   return (
     <div className={cn(websiteWorkspaceShellClass, 'animate-in fade-in duration-500 space-y-8')}>
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Support"
         description="Ask a question, report an issue, or book time with the team."
       />

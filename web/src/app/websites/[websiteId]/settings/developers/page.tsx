@@ -642,6 +642,7 @@ export default function DevelopersPage() {
   return (
     <div className="mx-auto w-full max-w-[1200px] p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Developers"
         description="API keys, embeddable widgets, and SDK documentation."
       />

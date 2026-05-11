@@ -75,6 +75,7 @@ export default function EventsPage() {
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1200px] mx-auto">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Custom Events"
         description="All custom events tracked via seentics.track(). Click a row to see property breakdowns."
       >

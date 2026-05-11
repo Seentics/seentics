@@ -12,6 +12,7 @@ export default function GoalConversionsPage() {
   return (
     <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Goal Conversions"
         description="Define what success looks like for your website."
       />

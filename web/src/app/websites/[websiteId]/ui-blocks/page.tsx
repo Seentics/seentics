@@ -338,6 +338,7 @@ export default function UiBlocksPage() {
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[1100px] mx-auto">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="UI Blocks"
         description="Copy-paste embeddable analytics widgets, badges, and charts for your product."
       >

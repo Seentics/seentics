@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
 import { useAuth } from '@/stores/useAuthStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,8 @@ import { DashboardPageHeader } from '@/components/dashboard-header';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function ProfileSettingsPage() {
+  const params = useParams();
+  const websiteId = params?.websiteId as string;
   const { user, setUser } = useAuth();
   const { toast } = useToast();
 
@@ -73,6 +76,7 @@ export default function ProfileSettingsPage() {
   return (
     <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Profile"
         description="Your account display name, email, and password. Email is managed by your sign-in provider."
       />

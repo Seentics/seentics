@@ -148,6 +148,7 @@ export default function BillingSettingsPage() {
   return (
     <div className={cn(websiteWorkspaceShellClass, 'space-y-8 animate-in fade-in duration-500')}>
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Billing & Subscription"
         description="Manage your plan, usage limits, and billing details."
       />

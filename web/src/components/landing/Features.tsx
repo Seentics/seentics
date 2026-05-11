@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BarChart3, Video, Flame, Bot, Code, Lock } from 'lucide-react';
+import { BarChart3, Video, Flame, Bot, Code, Lock, Sparkles } from 'lucide-react';
 import React from 'react';
 
 const features = [
@@ -10,6 +10,13 @@ const features = [
     title: 'Analytics',
     description: 'Pageviews, sessions, bounce rate, top pages, referrers, devices, and geography — live and historical.',
     color: 'text-blue-500 bg-blue-500/10',
+  },
+  {
+    icon: Sparkles,
+    title: 'Seentics AI',
+    description: 'Ask anything about your data in plain English. AI generates SQL, runs it, and renders beautiful charts — across analytics, revenue, replays, heatmaps, funnels, and automations.',
+    color: 'text-indigo-500 bg-indigo-500/10',
+    badge: 'BETA',
   },
   {
     icon: Video,
@@ -90,8 +97,13 @@ export default function Features() {
               <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-4 ${feature.color}`}>
                 <feature.icon className="h-5 w-5" />
               </div>
-              <h3 className="text-sm font-semibold text-foreground mb-2">
+              <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
                 {feature.title}
+                {'badge' in feature && feature.badge && (
+                  <span className="rounded-md bg-indigo-500/15 px-1.5 py-0.5 text-[9px] font-bold text-indigo-400 tracking-wide">
+                    {feature.badge}
+                  </span>
+                )}
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {feature.description}

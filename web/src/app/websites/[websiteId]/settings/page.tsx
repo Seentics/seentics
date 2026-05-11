@@ -80,6 +80,7 @@ export default function SettingsPage() {
   return (
     <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Settings"
         description="Manage this site below. Open Websites to manage all properties and tracking snippets."
       />

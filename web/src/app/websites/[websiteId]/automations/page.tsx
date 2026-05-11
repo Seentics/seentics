@@ -209,6 +209,7 @@ export default function AutomationsPage() {
   return (
     <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Automations"
         description="Trigger actions automatically based on user behavior and analytics events."
       />

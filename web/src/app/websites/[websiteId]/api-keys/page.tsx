@@ -215,6 +215,7 @@ export default function ApiKeysPage() {
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-[900px] mx-auto">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="API Keys"
         description="Manage authentication keys for the Seentics Ingest & Analytics APIs."
       >

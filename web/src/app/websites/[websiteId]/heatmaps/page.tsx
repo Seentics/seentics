@@ -240,6 +240,7 @@ export default function HeatmapsPage() {
   return (
     <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Heatmaps"
         description="See where users click, move, and how far they scroll on each page."
       >

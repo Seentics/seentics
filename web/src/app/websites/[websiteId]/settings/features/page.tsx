@@ -16,6 +16,7 @@ export default function TrackingFeaturesSettingsPage() {
   return (
     <div className="space-y-10 p-4 sm:p-8 animate-in fade-in duration-500">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Tracking features"
         description="Turn heatmaps, session replay, funnels, and automations on or off. URL patterns here apply the next time visitors load your site with the tracker."
       />

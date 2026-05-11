@@ -171,6 +171,7 @@ export default function RevenuePage() {
 
       {/* ── Header ── */}
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Revenue"
         description="Purchase revenue, order economics, and channel attribution."
       >

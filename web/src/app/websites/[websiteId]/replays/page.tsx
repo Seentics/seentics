@@ -317,6 +317,7 @@ export default function ReplaysPage() {
   return (
     <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
       <DashboardPageHeader
+        websiteId={websiteId}
         title="Session Replays"
         description="Watch real user sessions to understand exactly how people use your product."
       >

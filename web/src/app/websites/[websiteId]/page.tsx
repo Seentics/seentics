@@ -30,7 +30,7 @@ import {
 import { getWebsites, Website } from '@/lib/websites-api';
 import { useAuth } from '@/stores/useAuthStore';
 import { demoAnalyticsData, demoWebsite } from '@/lib/demo';
-import { Globe, PlusCircle, Users, X } from 'lucide-react';
+import { Globe, PlusCircle, Sparkles, Users, X } from 'lucide-react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DetailedDataModal } from '@/components/analytics/DetailedDataModal';
@@ -41,6 +41,8 @@ import { FilterModal } from '@/components/analytics/FilterModal';
 import { ChartErrorBoundary } from '@/components/analytics/ChartErrorBoundary';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { WebsiteGoalsSection } from '@/components/analytics/WebsiteGoalsSection';
+import { AICommandModal } from '@/components/ai/AICommandModal';
+import { useSubscription } from '@/hooks/useSubscription';
 
 // Pure helper — defined outside component so it's never re-created on render
 function categorizeReferrer(referrer: string): string {
@@ -87,6 +89,8 @@ export default function WebsiteDashboardPage() {
   const websiteId = params?.websiteId as string;
   const router = useRouter();
   const { user } = useAuth();
+  const { subscription } = useSubscription();
+  const [aiOpen, setAiOpen] = useState(false);
   const [websites, setWebsites] = useState<Website[]>([]);
   const [selectedModal, setSelectedModal] = useState<string | null>(null);
   const [modalType, setModalType] = useState<string>('');
@@ -484,6 +488,18 @@ export default function WebsiteDashboardPage() {
           {/* Spacer pushes controls to the right */}
           <div className="flex-1" />
 
+          {/* AI button */}
+          <button
+            onClick={() => setAiOpen(true)}
+            title="Seentics AI (⌘K)"
+            className="group flex items-center gap-2.5 rounded-xl border border-indigo-500/40 bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-400 transition-all hover:border-indigo-500/60 hover:bg-indigo-500/15 hover:text-indigo-300"
+          >
+            <Sparkles className="h-4 w-4 shrink-0" />
+            <span>Ask Seentics AI</span>
+            <span className="rounded-md bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-400/80 tracking-wide">BETA</span>
+            <kbd className="hidden rounded border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[10px] sm:inline-block">⌘K</kbd>
+          </button>
+
           {/* Filters */}
           <FilterModal
             dateRange={dateRange}
@@ -695,6 +711,14 @@ export default function WebsiteDashboardPage() {
         open={showAddWebsiteModal}
         onOpenChange={setShowAddWebsiteModal}
         onSuccess={handleWebsiteAdded}
+      />
+
+      {/* AI Command Modal */}
+      <AICommandModal
+        websiteId={websiteId}
+        open={aiOpen}
+        onOpenChange={setAiOpen}
+        aiUsage={isDemoMode ? undefined : subscription?.usage?.aiAnalyses}
       />
     </div>
   );
