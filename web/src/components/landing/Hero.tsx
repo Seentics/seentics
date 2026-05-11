@@ -174,10 +174,10 @@ export default function Hero() {
             className="mb-6"
           >
             <span className="block text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.2]">
-              Analytics &amp; AI for Developers
+              AI-Powered Analytics for
             </span>
             <span className="block text-4xl md:text-6xl font-bold tracking-tight leading-[1.2] mt-1">
-              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">& Product Teams</span>
+              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Developers & Product Teams</span>
             </span>
           </motion.h1>
 
@@ -187,7 +187,7 @@ export default function Hero() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed"
           >
-            Page analytics, session recordings, heatmaps, funnels, and automations — all in one platform. Ask anything about your data with <span className="text-indigo-400 font-medium">Seentics AI</span>. With APIs, SDKs, and embeddable UI blocks. Self-hosted, open source, complete data ownership.
+            Page analytics, session recordings, heatmaps, funnels, and automations — all in one platform. Ask anything about your data in plain English. Self-hosted, open source, complete data ownership.
           </motion.p>
 
           <motion.div
