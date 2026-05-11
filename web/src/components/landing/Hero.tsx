@@ -156,15 +156,14 @@ export default function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex items-center justify-center gap-2 mb-8"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 border border-border/60 text-xs font-medium text-muted-foreground mb-8"
           >
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 border border-border/60 text-xs font-medium text-muted-foreground">
-              Open Source &middot; APIs &amp; SDKs &middot; Self-Hosted
-            </span>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-xs font-semibold text-indigo-400">
-              <Sparkles className="h-3 w-3" />
-              AI-Powered
-            </span>
+            <Sparkles className="h-3 w-3 text-indigo-400" />
+            <span className="text-indigo-400 font-semibold">AI-Powered</span>
+            <span className="text-border">·</span>
+            Open Source
+            <span className="text-border">·</span>
+            Self-Hosted
           </motion.div>
 
           <motion.h1
