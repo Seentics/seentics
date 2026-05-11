@@ -6,7 +6,7 @@
 
 <p align="center">
   Open-source, privacy-first web analytics platform — featuring real-time dashboards, session replays,<br />
-  heatmaps, funnels, revenue tracking, and behavioral automations.
+  heatmaps, funnels, revenue tracking, behavioral automations, and AI-powered natural language queries.
 </p>
 
 <p align="center">
@@ -24,6 +24,7 @@
   <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker" />
+  <img src="https://img.shields.io/badge/AI-GPT--4o--mini-6366f1?logo=openai&logoColor=white" alt="AI" />
 </p>
 
 <br />
@@ -59,6 +60,7 @@ You own your data. It runs on your infrastructure. Deploy in minutes with Docker
 
 ## ✨ Features
 
+- **Seentics AI** — ask anything about your data in plain English; AI generates SQL and renders charts across analytics, revenue, replays, heatmaps, funnels, and automations (`⌘K`)
 - **Real-time analytics** — live visitor map, active pages, and traffic as it happens
 - **Session replays** — watch full recordings with rage-click and JS error detection
 - **Heatmaps** — click maps, scroll depth, and captured page screenshots
