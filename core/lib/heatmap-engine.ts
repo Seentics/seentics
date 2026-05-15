@@ -38,7 +38,7 @@ function viewportCap(m: Record<string, unknown> | undefined, key: string): numbe
     typeof v === "number" ? v : typeof v === "string" ? parseFloat(v) : null;
   if (f == null || !Number.isFinite(f)) return null;
   const i = Math.round(f);
-  if (i < 1 || i > 1_000_000) return null;
+  if (i < 100 || i > 10_000) return null; // realistic CSS viewport range
   return i;
 }
 
@@ -71,8 +71,8 @@ function eventsToPoints(events: HeatmapIngestEvent[]): HeatmapPointRow[] {
     const pagePath = extractPath(ev.url ?? "");
 
     if (ev.type === "heatmap_click") {
-      const nx = toFloat(data.nx);
-      const ny = toFloat(data.ny);
+      const nx = Math.min(1, Math.max(0, toFloat(data.nx)));
+      const ny = Math.min(1, Math.max(0, toFloat(data.ny)));
       points.push({
         websiteId: ev.websiteId,
         pagePath,
@@ -85,7 +85,7 @@ function eventsToPoints(events: HeatmapIngestEvent[]): HeatmapPointRow[] {
         capVh: viewportCap(data, "vh"),
       });
     } else if (ev.type === "heatmap_scroll") {
-      const depth = toFloat(data.depth);
+      const depth = Math.min(1, Math.max(0, toFloat(data.depth)));
       points.push({
         websiteId: ev.websiteId,
         pagePath,
@@ -204,8 +204,14 @@ export class HeatmapEngine {
 
     let dW = j.docW;
     let dH = j.docH;
-    if (dW < 200) dW = 1280;
-    if (dH < 200) dH = 800;
+    if (dW < 200) {
+      log.warn({ msg: "heatmap_screenshot_missing_doc_w", url: j.url, fallback: 1280 });
+      dW = 1280;
+    }
+    if (dH < 200) {
+      log.warn({ msg: "heatmap_screenshot_missing_doc_h", url: j.url, fallback: 800 });
+      dH = 800;
+    }
 
     await upsertLayoutSnapshot(wsite.id, norm, key, sum, dW, dH);
   }

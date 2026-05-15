@@ -91,9 +91,16 @@ export async function getRevenueDashboard(
   const [row] = await pgSql<MainRow[]>`
     WITH
     -- ── Step 1: all revenue events spanning current + prior window ──────────────
+    -- event_type is kept so we can apply deduplication priority in later steps.
     revenue_base AS (
       SELECT
         id::text,
+        -- Legacy: seentics.track('purchase',…) was stored as event_type='custom' before ingest fix.
+        -- Normalise here so all downstream CTEs see the semantic event name.
+        CASE WHEN event_type = 'custom'
+             THEN lower(coalesce(nullif(trim(properties->>'name'), ''), 'custom'))
+             ELSE event_type
+        END AS event_type,
         session_id,
         visitor_id,
         occurred_at,
@@ -133,35 +140,80 @@ export async function getRevenueDashboard(
         properties->'items' AS items_json
       FROM analytics_events
       WHERE website_id = ${siteId}
-        AND event_type IN (
-          'purchase', 'order_completed', 'checkout_completed',
-          'ecommerce_purchase', 'transaction', 'refund', 'refunded'
+        AND (
+          event_type IN (
+            'purchase', 'order_completed', 'checkout_completed',
+            'ecommerce_purchase', 'transaction', 'refund', 'refunded'
+          )
+          OR (
+            event_type = 'custom'
+            AND lower(properties->>'name') IN (
+              'purchase', 'order_completed', 'checkout_completed',
+              'ecommerce_purchase', 'transaction', 'refund', 'refunded'
+            )
+          )
         )
         AND occurred_at >= ${prevStartIso}
         AND occurred_at <= ${endIso}
     ),
 
     -- ── Step 2: partition into current / prior / refunds ─────────────────────────
-    cur_purchases AS (
+    -- cur_purchases deduplicates by order_id to prevent double-counting when a site
+    -- fires multiple event types for the same transaction (e.g. both 'purchase' and
+    -- 'checkout_completed').  Priority: purchase > order_completed > ecommerce_purchase
+    --                                  > transaction > checkout_completed.
+    cur_purchases_raw AS (
       SELECT * FROM revenue_base
       WHERE occurred_at >= ${startIso} AND rev_type = 'purchase'
+    ),
+    cur_purchases AS (
+      SELECT DISTINCT ON (COALESCE(NULLIF(TRIM(order_id), ''), id))
+        *
+      FROM cur_purchases_raw
+      ORDER BY
+        COALESCE(NULLIF(TRIM(order_id), ''), id),
+        CASE event_type
+          WHEN 'purchase'           THEN 1
+          WHEN 'order_completed'    THEN 2
+          WHEN 'ecommerce_purchase' THEN 3
+          WHEN 'transaction'        THEN 4
+          WHEN 'checkout_completed' THEN 5
+          ELSE 6
+        END ASC,
+        occurred_at DESC
     ),
     cur_refunds AS (
       SELECT * FROM revenue_base
       WHERE occurred_at >= ${startIso} AND rev_type = 'refund'
     ),
-    prior_purchases AS (
+    prior_purchases_raw AS (
       SELECT * FROM revenue_base
       WHERE occurred_at < ${startIso} AND rev_type = 'purchase'
     ),
+    -- Same deduplication applied to the prior window for accurate period comparison.
+    prior_purchases AS (
+      SELECT DISTINCT ON (COALESCE(NULLIF(TRIM(order_id), ''), id))
+        *
+      FROM prior_purchases_raw
+      ORDER BY
+        COALESCE(NULLIF(TRIM(order_id), ''), id),
+        CASE event_type
+          WHEN 'purchase'           THEN 1
+          WHEN 'order_completed'    THEN 2
+          WHEN 'ecommerce_purchase' THEN 3
+          WHEN 'transaction'        THEN 4
+          WHEN 'checkout_completed' THEN 5
+          ELSE 6
+        END ASC,
+        occurred_at DESC
+    ),
 
-    -- ── Step 3: last non-direct touch attribution per purchase ────────────────────
-    -- For each purchase event, find the most-recent pageview in the same session
-    -- that carries a utm_source (i.e. a non-direct entry point).
-    -- DISTINCT ON (p.id) ensures correctness when a session contains multiple purchases.
+    -- ── Step 3: last UTM-carrying pageview in the purchase session ────────────────
+    -- Finds the most-recent pageview with a non-empty utm_source before the purchase.
+    -- Uses ix_analytics_pageview_session_occurred for the join.
     purchase_attribution AS (
       SELECT DISTINCT ON (p.id)
-        p.id          AS purchase_id,
+        p.id            AS purchase_id,
         ae.utm_source   AS attr_source,
         ae.utm_medium   AS attr_medium,
         ae.utm_campaign AS attr_campaign
@@ -176,8 +228,38 @@ export async function getRevenueDashboard(
       ORDER BY p.id, ae.occurred_at DESC
     ),
 
-    -- ── Step 4: enrich purchases with final attribution ───────────────────────────
-    -- Priority: pageview UTM → purchase-event UTM → 'direct' / 'none'
+    -- ── Step 4: referrer domain fallback ─────────────────────────────────────────
+    -- When no UTM is found in the session, use the referrer domain of the most recent
+    -- pageview before the purchase.  This correctly attributes organic traffic from
+    -- Google, Reddit, Twitter, etc. instead of incorrectly labelling it 'direct'.
+    -- Regex strips the protocol, optional www., and everything after the first / ? #.
+    purchase_referrer AS (
+      SELECT DISTINCT ON (p.id)
+        p.id AS purchase_id,
+        NULLIF(
+          lower(trim(
+            regexp_replace(
+              regexp_replace(ae.referrer, '^https?://(www\.)?', '', 'i'),
+              '[/?#].*$', ''
+            )
+          )),
+          ''
+        ) AS attr_referrer_domain
+      FROM cur_purchases p
+      JOIN analytics_events ae
+        ON ae.website_id  = ${siteId}
+       AND ae.session_id  = p.session_id
+       AND ae.event_type  = 'pageview'
+       AND ae.referrer    IS NOT NULL
+       AND length(trim(ae.referrer)) > 0
+       AND ae.occurred_at <= p.occurred_at
+      ORDER BY p.id, ae.occurred_at DESC
+    ),
+
+    -- ── Step 5: enrich purchases with final attribution ───────────────────────────
+    -- Priority: session pageview UTM → purchase-event UTM → referrer domain → 'direct'
+    -- When the source comes from the referrer (no UTM), medium is set to 'organic'
+    -- to distinguish it from direct and UTM-tagged paid traffic.
     enriched AS (
       SELECT
         p.id,
@@ -194,11 +276,13 @@ export async function getRevenueDashboard(
         COALESCE(
           NULLIF(TRIM(pa.attr_source),   ''),
           NULLIF(TRIM(p.utm_source),     ''),
+          pr.attr_referrer_domain,
           'direct'
         ) AS final_source,
         COALESCE(
           NULLIF(TRIM(pa.attr_medium),   ''),
           NULLIF(TRIM(p.utm_medium),     ''),
+          CASE WHEN pr.attr_referrer_domain IS NOT NULL THEN 'organic' END,
           'none'
         ) AS final_medium,
         COALESCE(
@@ -208,6 +292,7 @@ export async function getRevenueDashboard(
         ) AS final_campaign
       FROM cur_purchases p
       LEFT JOIN purchase_attribution pa ON pa.purchase_id = p.id
+      LEFT JOIN purchase_referrer    pr ON pr.purchase_id = p.id
     ),
 
     -- ── Step 5: scalar aggregations ───────────────────────────────────────────────

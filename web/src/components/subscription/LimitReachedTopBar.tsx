@@ -8,7 +8,7 @@ import { UpgradePlanModal } from './UpgradePlanModal';
 import { isEnterprise } from '@/lib/features';
 
 interface LimitReachedTopBarProps {
-  limitType?: 'websites' | 'workflows' | 'funnels' | 'monthlyEvents';
+  limitType?: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'replays' | 'monthlyEvents' | 'aiAnalyses';
   onClose?: () => void;
   className?: string;
 }
@@ -86,7 +86,12 @@ export const LimitReachedTopBar: React.FC<LimitReachedTopBarProps> = ({
       title: 'Recording limit reached',
       description: 'You\'ve reached your session recording limit. Upgrade for more recordings.',
       icon: <AlertTriangle className="h-4 w-4" />
-    }
+    },
+    aiAnalyses: {
+      title: 'AI analysis limit reached',
+      description: 'You\'ve reached your AI analysis limit. Upgrade for more AI queries.',
+      icon: <AlertTriangle className="h-4 w-4" />
+    },
   };
 
   const message = limitMessages[reachedLimit];

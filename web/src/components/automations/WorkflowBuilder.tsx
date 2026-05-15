@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useMemo, useEffect, MutableRefObject } from 'react';
 import ReactFlow, {
   addEdge,
   Background,
@@ -100,7 +100,36 @@ const emptyPanelDraft = (): PanelDraft => ({
   configPayload: '',
 });
 
-function WorkflowBuilderInner({ className }: { className?: string }) {
+/** Serialise nodes + edges into the definition JSONB stored by the backend. */
+function serializeDefinition(nodes: Node[], edges: Edge[]): Record<string, unknown> {
+  const triggerNode = nodes.find((n) => n.type === 'triggerNode');
+  const actionNodes = nodes.filter((n) => n.type === 'actionNode');
+  return {
+    trigger: {
+      event:        triggerNode?.data?.triggerType ?? 'page_view',
+      pageUrlMatch: triggerNode?.data?.pageUrlMatch ?? undefined,
+      rateLimitSec: triggerNode?.data?.rateLimitSec ?? undefined,
+    },
+    actions: actionNodes.map((n, i) => ({
+      id:           n.id,
+      type:         n.data?.actionType ?? 'webhook',
+      actionType:   n.data?.actionType ?? 'webhook',
+      label:        n.data?.label      ?? '',
+      configPayload: n.data?.configPayload ?? '',
+      orderIndex:   i,
+    })),
+    nodes,
+    edges,
+  };
+}
+
+function WorkflowBuilderInner({
+  className,
+  saveRef,
+}: {
+  className?: string;
+  saveRef?: MutableRefObject<(() => Record<string, unknown>) | null>;
+}) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [nodes, setNodes] = useNodesState(initialNodes);
   const [edges, setEdges] = useEdgesState(initialEdges);
@@ -129,6 +158,13 @@ function WorkflowBuilderInner({ className }: { className?: string }) {
       configPayload: typeof d.configPayload === 'string' ? d.configPayload : '',
     });
   }, [selectedNode?.id]);
+
+  // Keep saveRef up-to-date with latest nodes/edges so the parent can call it anytime.
+  useEffect(() => {
+    if (!saveRef) return;
+    saveRef.current = () => serializeDefinition(nodes, edges);
+    return () => { if (saveRef) saveRef.current = null; };
+  }, [nodes, edges, saveRef]);
 
   const filteredSections = useMemo(() => {
     const q = paletteQuery.trim().toLowerCase();
@@ -563,10 +599,16 @@ function WorkflowBuilderInner({ className }: { className?: string }) {
   );
 }
 
-export function WorkflowEditor({ className }: { className?: string }) {
+export function WorkflowEditor({
+  className,
+  saveRef,
+}: {
+  className?: string;
+  saveRef?: MutableRefObject<(() => Record<string, unknown>) | null>;
+}) {
   return (
     <ReactFlowProvider>
-      <WorkflowBuilderInner className={className} />
+      <WorkflowBuilderInner className={className} saveRef={saveRef} />
     </ReactFlowProvider>
   );
 }

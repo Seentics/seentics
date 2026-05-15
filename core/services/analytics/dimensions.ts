@@ -33,14 +33,9 @@ async function topDimensionAnalytics(
         AND length(trim(session_id)) > 0
     ),
     session_pvc AS (
+      -- Reuse the pv CTE instead of re-scanning analytics_events a second time.
       SELECT session_id, count(*)::int AS pvc
-      FROM analytics_events
-      WHERE website_id = ${siteId}
-        AND event_type = 'pageview'
-        AND occurred_at >= ${startIso}
-        AND session_id IS NOT NULL
-        AND length(trim(session_id)) > 0
-      GROUP BY session_id
+      FROM pv GROUP BY session_id
     )
     SELECT
       pv.dim AS k,

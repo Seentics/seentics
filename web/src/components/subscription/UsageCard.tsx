@@ -16,13 +16,14 @@ interface UsageCardProps {
   description?: string;
 }
 
-const typeLabels = {
+const typeLabels: Record<string, string> = {
   websites: 'Websites',
-  workflows: 'Workflows', 
+  workflows: 'Workflows',
   funnels: 'Funnels',
   monthlyEvents: 'Monthly Events',
   heatmaps: 'Heatmaps',
-  replays: 'Session Recordings'
+  replays: 'Session Recordings',
+  aiAnalyses: 'AI Analyses',
 };
 
 export const UsageCard: React.FC<UsageCardProps> = ({

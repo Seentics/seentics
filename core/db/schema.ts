@@ -85,6 +85,26 @@ export const websiteMembers = pgTable(
   ],
 );
 
+export const websiteInvitations = pgTable(
+  "website_invitations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    websiteId: uuid("website_id").notNull(),
+    email: varchar("email", { length: 255 }).notNull(),
+    role: varchar("role", { length: 32 }).notNull().default("viewer"),
+    token: text("token").notNull(),
+    invitedBy: uuid("invited_by").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ix_website_invitations_token").on(t.token),
+    index("ix_website_invitations_website").on(t.websiteId),
+    index("ix_website_invitations_email").on(t.email),
+  ],
+);
+
 export const goals = pgTable(
   "goals",
   {
@@ -307,6 +327,8 @@ export const aiQueries = pgTable(
     vizType: varchar("viz_type", { length: 32 }),
     title: text("title"),
     insight: text("insight"),
+    tips: text("tips"),
+    componentCode: text("component_code"),
     xKey: text("x_key"),
     yKey: text("y_key"),
     columns: jsonb("columns").$type<Array<{ key: string; label: string }>>(),

@@ -59,8 +59,12 @@ export async function getGoalsStats(websiteParam: string, query: Record<string, 
         )
         OR (
           (g."type" = 'event' OR g."type" = 'click')
-          AND ae.event_type = 'custom'
-          AND coalesce(ae.properties->>'name', '') = g.identifier
+          AND (
+            -- New data: ingest promotes data.name to event_type (e.g. 'button_click')
+            ae.event_type = g.identifier
+            -- Legacy data: stored as event_type='custom' with name in properties
+            OR (ae.event_type = 'custom' AND coalesce(ae.properties->>'name', '') = g.identifier)
+          )
         )
       )
     WHERE g.website_id = ${uuid}::uuid

@@ -1,6 +1,6 @@
 import { and, asc, desc, eq } from "drizzle-orm";
 import type { CreateFunnelBody, FunnelUpdatePatch } from "../lib/api-types";
-import { db, funnels } from "../db";
+import { db, funnels, sql as pgSql } from "../db";
 import * as ws from "./websites.service";
 import { resolveWebsiteIds } from "../lib/website-resolve";
 
@@ -8,14 +8,17 @@ import { resolveWebsiteIds } from "../lib/website-resolve";
 export const TRACKER_FUNNEL_EVENT_TYPES = new Set(["funnel_step", "funnel_complete"]);
 
 function mapFunnel(row: typeof funnels.$inferSelect) {
-  const steps = (row.steps as Record<string, unknown>[]).map((s, i) => ({
-    id: String(s.id ?? `step-${i}`),
-    name: String(s.name ?? ""),
-    order: Number(s.order ?? i),
-    step_type: String(s.step_type ?? s.stepType ?? "page_view"),
-    page_path: (s.page_path ?? s.pagePath) as string | undefined,
-    event_type: (s.event_type ?? s.eventType) as string | undefined,
-  }));
+  const steps = (row.steps as Record<string, unknown>[])
+    .map((s, i) => ({
+      id: String(s.id ?? `step-${i}`),
+      name: String(s.name ?? ""),
+      order: Number(s.order ?? i),
+      step_type: String(s.step_type ?? s.stepType ?? "page_view"),
+      page_path: (s.page_path ?? s.pagePath) as string | undefined,
+      event_type: (s.event_type ?? s.eventType) as string | undefined,
+      match_type: String(s.match_type ?? s.matchType ?? "exact") as "exact" | "contains" | "starts_with" | "regex",
+    }))
+    .sort((a, b) => a.order - b.order);
   return {
     id: row.id,
     website_id: row.websiteId,
@@ -115,15 +118,77 @@ export async function bulkDelete(userId: string, websiteParam: string, ids: stri
   }
 }
 
-export async function stats(userId: string, websiteParam: string, funnelId: string) {
+export async function stats(
+  userId: string,
+  websiteParam: string,
+  funnelId: string,
+  query: Record<string, string | undefined> = {},
+) {
   const g = await get(userId, websiteParam, funnelId);
   if (!g) return null;
+
+  const { siteId } = await resolveWebsiteIds(websiteParam);
+  const days = Math.min(366, Math.max(1, Math.floor(Number(query.days ?? 30) || 30)));
+  const end = new Date();
+  const start = new Date(end.getTime() - days * 86400000);
+  const startIso = start.toISOString();
+  const endIso = end.toISOString();
+
+  const [stepRows, compRows] = await Promise.all([
+    pgSql<{ step_order: number; cnt: number }[]>`
+      SELECT
+        (properties->>'step')::int AS step_order,
+        COUNT(DISTINCT COALESCE(NULLIF(TRIM(visitor_id), ''), session_id))::int AS cnt
+      FROM analytics_events
+      WHERE website_id = ${siteId}
+        AND event_type = 'funnel_step'
+        AND properties->>'funnel_id' = ${funnelId}
+        AND occurred_at >= ${startIso}::timestamptz
+        AND occurred_at <= ${endIso}::timestamptz
+      GROUP BY step_order
+      ORDER BY step_order ASC
+    `,
+    pgSql<{ cnt: number }[]>`
+      SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(visitor_id), ''), session_id))::int AS cnt
+      FROM analytics_events
+      WHERE website_id = ${siteId}
+        AND event_type = 'funnel_complete'
+        AND properties->>'funnel_id' = ${funnelId}
+        AND occurred_at >= ${startIso}::timestamptz
+        AND occurred_at <= ${endIso}::timestamptz
+    `,
+  ]);
+
+  const totalEntries = stepRows.find((r) => r.step_order === 0)?.cnt ?? 0;
+  const completions = compRows[0]?.cnt ?? 0;
+  const conversionRate =
+    totalEntries > 0 ? Math.round((completions / totalEntries) * 1000) / 10 : 0;
+
+  const steps = g.data.steps;
+  const stepBreakdown = steps.map((s, idx) => {
+    const current = stepRows.find((r) => r.step_order === idx)?.cnt ?? 0;
+    const prev =
+      idx === 0
+        ? totalEntries
+        : (stepRows.find((r) => r.step_order === idx - 1)?.cnt ?? 0);
+    const dropoffCount = Math.max(0, prev - current);
+    const dropoffRate =
+      prev > 0 ? Math.round((dropoffCount / prev) * 1000) / 10 : 0;
+    return {
+      stepOrder: idx,
+      stepName: s.name,
+      count: current,
+      dropoffCount,
+      dropoffRate,
+    };
+  });
+
   return {
     data: {
-      totalEntries: 0,
-      completions: 0,
-      conversionRate: 0,
-      stepBreakdown: [],
+      totalEntries,
+      completions,
+      conversionRate,
+      stepBreakdown,
     },
   };
 }

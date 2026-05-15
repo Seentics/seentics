@@ -104,4 +104,30 @@ r.get("/:website_id/:id/executions", async (c) => {
   }
 });
 
+r.post("/:website_id/:id/toggle", async (c) => {
+  const uid = requireUser(c);
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  try {
+    const out = await au.toggle(uid, c.req.param("website_id"), c.req.param("id"));
+    if (!out) return c.json({ error: "not found" }, 404);
+    return c.json(out);
+  } catch (e) {
+    const st = (e as Error & { status?: number }).status;
+    return c.json({ error: "forbidden" }, (st ?? 403) as ContentfulStatusCode);
+  }
+});
+
+r.get("/:website_id/:id/stats", async (c) => {
+  const uid = requireUser(c);
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  try {
+    const out = await au.stats(uid, c.req.param("website_id"), c.req.param("id"));
+    if (!out) return c.json({ error: "not found" }, 404);
+    return c.json(out);
+  } catch (e) {
+    const st = (e as Error & { status?: number }).status;
+    return c.json({ error: "forbidden" }, (st ?? 403) as ContentfulStatusCode);
+  }
+});
+
 export const automationRoutes = r;

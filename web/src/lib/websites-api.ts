@@ -365,7 +365,17 @@ export interface WebsiteMember {
 export const getMembers = async (websiteId: string): Promise<WebsiteMember[]> => {
   if (isDemo(websiteId)) return demoMembers();
   const response = await api.get(`/user/websites/${websiteId}/members`);
-  return response.data.data || [];
+  const raw: Record<string, unknown>[] = response.data.data || [];
+  return raw.map((m) => ({
+    id:        String(m.id ?? ''),
+    websiteId: String(m.websiteId ?? m.website_id ?? ''),
+    userId:    String(m.userId ?? m.user_id ?? ''),
+    role:      String(m.role ?? 'viewer') as WebsiteMember['role'],
+    createdAt: String(m.createdAt ?? m.created_at ?? ''),
+    updatedAt: String(m.updatedAt ?? m.updated_at ?? ''),
+    userName:  String(m.userName ?? m.user_name ?? ''),
+    userEmail: String(m.userEmail ?? m.user_email ?? ''),
+  }));
 };
 
 export const addMember = async (websiteId: string, data: { email: string; role: string }): Promise<WebsiteMember> => {
@@ -415,18 +425,33 @@ export interface WebsiteInvitation {
   websiteName?: string;
 }
 
+function normalizeInvitation(raw: Record<string, unknown>): WebsiteInvitation {
+  return {
+    id:          String(raw.id ?? ''),
+    websiteId:   String(raw.websiteId ?? raw.website_id ?? ''),
+    email:       String(raw.email ?? ''),
+    role:        String(raw.role ?? 'viewer'),
+    token:       String(raw.token ?? ''),
+    invitedBy:   String(raw.invitedBy ?? raw.invited_by ?? ''),
+    expiresAt:   String(raw.expiresAt ?? raw.expires_at ?? ''),
+    acceptedAt:  raw.acceptedAt || raw.accepted_at ? String(raw.acceptedAt ?? raw.accepted_at) : undefined,
+    createdAt:   String(raw.createdAt ?? raw.created_at ?? ''),
+  };
+}
+
 export const inviteMemberByToken = async (websiteId: string, data: { email: string; role: string }): Promise<WebsiteInvitation> => {
   if (demoMutationGuard(websiteId)) {
     return { id: 'demo-inv', websiteId, email: data.email, role: data.role, token: 'demo-token', invitedBy: 'demo', expiresAt: new Date().toISOString(), createdAt: new Date().toISOString() };
   }
   const response = await api.post(`/user/websites/${websiteId}/invitations`, data);
-  return response.data.data;
+  return normalizeInvitation(response.data.data as Record<string, unknown>);
 };
 
 export const listPendingInvitations = async (websiteId: string): Promise<WebsiteInvitation[]> => {
   if (isDemo(websiteId)) return [];
   const response = await api.get(`/user/websites/${websiteId}/invitations`);
-  return response.data.data || [];
+  const raw: Record<string, unknown>[] = response.data.data || [];
+  return raw.map(normalizeInvitation);
 };
 
 export const revokeInvitation = async (websiteId: string, invitationId: string): Promise<void> => {

@@ -38,6 +38,7 @@ export const demoSubscription = () => ({
     heatmaps: { current: 1, limit: -1, canCreate: true },
     replays: { current: 1240, limit: 50000, canCreate: true },
     monthlyEvents: { current: 245000, limit: 2000000, canCreate: true },
+    aiAnalyses: { current: 3, limit: -1, canCreate: true },
   },
   features: ['all'],
   isActive: true,

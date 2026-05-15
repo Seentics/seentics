@@ -13,6 +13,7 @@ export async function getSourcesAnalytics(
   const rows = await pgSql<{ source: string; views: number; unique_visitors: number; bounce_rate: number }[]>`
     WITH pv AS (
       SELECT
+        id,
         utm_source,
         session_id,
         coalesce(nullif(trim(visitor_id), ''), session_id) AS vid,
@@ -27,8 +28,9 @@ export async function getSourcesAnalytics(
         AND length(trim(session_id)) > 0
     ),
     first_src AS (
+      -- id as tiebreaker so result is deterministic when two pageviews share the same timestamp
       SELECT DISTINCT ON (session_id) session_id, utm_source
-      FROM pv ORDER BY session_id, occurred_at ASC
+      FROM pv ORDER BY session_id, occurred_at ASC, id ASC
     ),
     session_pvc AS (
       SELECT session_id, count(*)::int AS pvc

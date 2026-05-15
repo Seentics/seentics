@@ -1,11 +1,12 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { Bot, ArrowLeft, Save, Play } from 'lucide-react';
+import { Bot, ArrowLeft, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { WorkflowEditor } from '@/components/automations/WorkflowBuilder';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { useCreateAutomation } from '@/lib/automations-api';
 
 export default function NewAutomationPage() {
   const params = useParams();
@@ -13,6 +14,38 @@ export default function NewAutomationPage() {
   const websiteId = params?.websiteId as string;
 
   const [name, setName] = useState('Untitled Automation');
+  const saveRef = useRef<(() => Record<string, unknown>) | null>(null);
+  const createMutation = useCreateAutomation();
+
+  const handleSave = () => {
+    const definition = saveRef.current?.();
+    if (!definition) return;
+
+    const trigger = definition.trigger as Record<string, unknown> | undefined;
+    const actions = (definition.actions as Record<string, unknown>[] | undefined) ?? [];
+
+    createMutation.mutate(
+      {
+        websiteId,
+        data: {
+          name: name.trim() || 'Untitled Automation',
+          triggerType: String(trigger?.event ?? 'page_view'),
+          triggerConfig: {
+            pageUrlMatch: trigger?.pageUrlMatch,
+            rateLimitSec: trigger?.rateLimitSec,
+          },
+          actions: actions.map((a, i) => ({
+            actionType: String(a.actionType ?? 'webhook') as any,
+            actionConfig: { payload: a.configPayload ?? '' },
+            orderIndex: i,
+          })),
+        },
+      },
+      {
+        onSuccess: () => router.push(`/websites/${websiteId}/automations`),
+      },
+    );
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background">
@@ -46,22 +79,19 @@ export default function NewAutomationPage() {
 
         <div className="flex shrink-0 items-center gap-2">
           <Button
-            variant="outline"
             size="sm"
-            className="hidden h-9 gap-2 font-semibold text-xs sm:inline-flex"
+            className="h-9 gap-2 font-semibold text-xs shadow-sm"
+            onClick={handleSave}
+            disabled={createMutation.isPending}
           >
-            <Play className="h-3.5 w-3.5" />
-            Dry run
-          </Button>
-          <Button size="sm" className="h-9 gap-2 font-semibold text-xs shadow-sm">
             <Save className="h-3.5 w-3.5" />
-            Save
+            {createMutation.isPending ? 'Saving…' : 'Save'}
           </Button>
         </div>
       </header>
 
       <div className="relative min-h-0 flex-1">
-        <WorkflowEditor className="absolute inset-0" />
+        <WorkflowEditor className="absolute inset-0" saveRef={saveRef} />
       </div>
     </div>
   );

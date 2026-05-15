@@ -24,42 +24,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { FunnelBuilder } from '@/components/analytics/FunnelBuilder';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// List page: real sites use list_summary from GET /websites/:id/funnels (single batch). Demo still uses analytics API.
-function FunnelCellStats({ funnel, dateRange, isDemoMode }: { funnel: Funnel; dateRange: number; isDemoMode: boolean }) {
-  const { data: analytics, isLoading } = useFunnelAnalytics(isDemoMode ? funnel.id : '', dateRange);
+function FunnelCellStats({ funnel, dateRange, websiteId }: { funnel: Funnel; dateRange: number; websiteId: string }) {
+  const { data: analytics, isLoading } = useFunnelAnalytics(funnel.id, dateRange, websiteId);
 
-  if (isDemoMode) {
-    const item = analytics?.analytics?.[0];
-    if (isLoading) {
-      return <Skeleton className="h-4 w-24" />;
-    }
-    if (!item) return <span className="text-muted-foreground">—</span>;
-    return (
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">{(item.conversion_rate || 0).toFixed(1)}%</span>
-          <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Conv.</span>
-        </div>
-        <div className="text-[10px] text-muted-foreground">
-          {item.total_conversions?.toLocaleString()} of {item.total_starts?.toLocaleString()}
-        </div>
-      </div>
-    );
-  }
-
-  const s = funnel.list_summary;
-  if (!s) {
+  if (isLoading) return <Skeleton className="h-4 w-24" />;
+  const item = analytics?.analytics?.[0];
+  if (!item || (!item.total_starts && !item.total_conversions)) {
     return <span className="text-muted-foreground">—</span>;
   }
 
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        <span className="text-sm font-semibold">{(s.conversion_rate || 0).toFixed(1)}%</span>
+        <span className="text-sm font-semibold">{(item.conversion_rate || 0).toFixed(1)}%</span>
         <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Conv.</span>
       </div>
       <div className="text-[10px] text-muted-foreground">
-        {s.total_conversions.toLocaleString()} of {s.total_starts.toLocaleString()}
+        {item.total_conversions?.toLocaleString()} of {item.total_starts?.toLocaleString()}
       </div>
     </div>
   );
@@ -167,7 +148,7 @@ export default function FunnelsPage() {
       id: 'performance',
       header: 'Performance (30d)',
       cell: ({ row }: { row: any }) => (
-        <FunnelCellStats funnel={row.original} dateRange={dateRange} isDemoMode={isDemoMode} />
+        <FunnelCellStats funnel={row.original} dateRange={dateRange} websiteId={websiteId} />
       )
     },
     {
@@ -209,7 +190,7 @@ export default function FunnelsPage() {
         </div>
       )
     }
-  ], [websiteId, dateRange, router, isDemoMode]);
+  ], [websiteId, dateRange, router]);
 
 
   // Summary Metrics

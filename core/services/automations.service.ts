@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { AutomationUpdatePatch, CreateAutomationBody } from "../lib/api-types";
-import { automationEvents, automations, db } from "../db";
+import { automationEvents, automations, db, sql as pgSql } from "../db";
 import * as ws from "./websites.service";
 import { resolveWebsiteIds } from "../lib/website-resolve";
 
@@ -105,6 +105,62 @@ export async function executions(userId: string, websiteParam: string, id: strin
     .orderBy(desc(automationEvents.createdAt))
     .limit(100);
   return { data: rows };
+}
+
+export async function toggle(userId: string, websiteParam: string, id: string) {
+  await ws.assertWebsiteAccess(userId, websiteParam);
+  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+  const [current] = await db
+    .select()
+    .from(automations)
+    .where(and(eq(automations.id, id), eq(automations.websiteId, uuidStr)))
+    .limit(1);
+  if (!current) return null;
+  const [row] = await db
+    .update(automations)
+    .set({ isActive: !current.isActive, updatedAt: new Date() })
+    .where(and(eq(automations.id, id), eq(automations.websiteId, uuidStr)))
+    .returning();
+  return row ? { data: row } : null;
+}
+
+export async function stats(userId: string, websiteParam: string, id: string) {
+  await ws.assertWebsiteAccess(userId, websiteParam);
+  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+  const [a] = await db
+    .select()
+    .from(automations)
+    .where(and(eq(automations.id, id), eq(automations.websiteId, uuidStr)))
+    .limit(1);
+  if (!a) return null;
+
+  const [totals] = await pgSql<{ total: number; success: number; failure: number }[]>`
+    SELECT
+      COUNT(*)::int                                            AS total,
+      COUNT(*) FILTER (WHERE status = 'success')::int         AS success,
+      COUNT(*) FILTER (WHERE status = 'failure')::int         AS failure
+    FROM automation_events
+    WHERE automation_id = ${id}
+  `;
+  const [last30] = await pgSql<{ cnt: number }[]>`
+    SELECT COUNT(*)::int AS cnt
+    FROM automation_events
+    WHERE automation_id = ${id}
+      AND created_at >= NOW() - INTERVAL '30 days'
+  `;
+
+  const total   = totals?.total   ?? 0;
+  const success = totals?.success ?? 0;
+  const failure = totals?.failure ?? 0;
+  return {
+    data: {
+      totalExecutions: total,
+      successCount:    success,
+      failureCount:    failure,
+      successRate:     total > 0 ? Math.round((success / total) * 1000) / 10 : 0,
+      last30Days:      last30?.cnt ?? 0,
+    },
+  };
 }
 
 export async function activeForTracker(websiteParam: string) {

@@ -59,6 +59,66 @@ export interface AutomationsResponse {
     offset: number;
 }
 
+// Normalize a raw backend automation row (definition JSONB) into the frontend Automation shape
+function normalizeAutomationFromApi(raw: Record<string, unknown>): Automation {
+    const definition = (raw.definition ?? {}) as Record<string, unknown>;
+    const trigger = (definition.trigger ?? {}) as Record<string, unknown>;
+    const rawActions = Array.isArray(definition.actions) ? definition.actions as Record<string, unknown>[] : [];
+    const rawConditions = Array.isArray(trigger.conditions) ? trigger.conditions as Record<string, unknown>[] : [];
+    const id = String(raw.id ?? '');
+    return {
+        id,
+        websiteId: String(raw.website_id ?? raw.websiteId ?? ''),
+        userId: String(raw.user_id ?? raw.userId ?? ''),
+        name: String(raw.name ?? ''),
+        description: String(raw.description ?? ''),
+        triggerType: String(trigger.event ?? trigger.triggerType ?? ''),
+        triggerConfig: {
+            pageUrlMatch: trigger.pageUrlMatch,
+            rateLimitSec: trigger.rateLimitSec,
+            ...(rawConditions.length ? { conditions: rawConditions } : {}),
+        } as Record<string, any>,
+        isActive: Boolean(raw.is_active ?? raw.isActive),
+        createdAt: String(raw.created_at ?? raw.createdAt ?? ''),
+        updatedAt: String(raw.updated_at ?? raw.updatedAt ?? ''),
+        actions: rawActions.map((a, i) => ({
+            id: String(a.id ?? `action-${i}`),
+            automationId: id,
+            actionType: String(a.actionType ?? a.type ?? 'webhook') as AutomationAction['actionType'],
+            actionConfig: a.configPayload
+                ? { payload: a.configPayload }
+                : ((a.config ?? {}) as Record<string, any>),
+            orderIndex: i,
+        })),
+        conditions: rawConditions.map((c, i) => ({
+            id: String(c.id ?? `cond-${i}`),
+            automationId: id,
+            conditionType: String(c.op ?? c.conditionType ?? 'eq'),
+            conditionConfig: c as Record<string, any>,
+        })),
+    };
+}
+
+// Serialize a CreateAutomationRequest into the backend's definition JSONB shape
+function serializeAutomationDefinition(data: CreateAutomationRequest): Record<string, unknown> {
+    return {
+        trigger: {
+            event: data.triggerType,
+            ...data.triggerConfig,
+            ...(data.conditions?.length ? { conditions: data.conditions.map(c => c.conditionConfig) } : {}),
+        },
+        actions: data.actions.map((a, i) => ({
+            id: a.id ?? `action-${i}`,
+            type: a.actionType,
+            actionType: a.actionType,
+            label: a.actionType,
+            configPayload: a.actionConfig?.payload ?? '',
+            config: a.actionConfig,
+            orderIndex: a.orderIndex ?? i,
+        })),
+    };
+}
+
 // API Functions
 async function fetchAutomations(websiteId: string, limit: number = 10, offset: number = 0): Promise<AutomationsResponse> {
     if (isDemo(websiteId)) {
@@ -67,7 +127,12 @@ async function fetchAutomations(websiteId: string, limit: number = 10, offset: n
     const response = await api.get(`/automations/${websiteId}`, {
         params: { limit, offset }
     });
-    return response.data;
+    const payload = response.data;
+    const raw: Record<string, unknown>[] =
+        Array.isArray(payload?.data) ? payload.data :
+        Array.isArray(payload) ? payload : [];
+    const automationsList = raw.map(normalizeAutomationFromApi);
+    return { automations: automationsList, total: automationsList.length, limit, offset };
 }
 
 export async function fetchAutomation(websiteId: string, automationId: string): Promise<Automation | null> {
@@ -76,7 +141,9 @@ export async function fetchAutomation(websiteId: string, automationId: string): 
     }
     try {
         const response = await api.get(`/automations/${websiteId}/${automationId}`);
-        return response.data;
+        const payload = response.data as Record<string, unknown>;
+        const raw = (payload?.data as Record<string, unknown>) ?? payload;
+        return normalizeAutomationFromApi(raw);
     } catch {
         return null;
     }
@@ -86,16 +153,32 @@ async function createAutomation(websiteId: string, data: CreateAutomationRequest
     if (demoMutationGuard(websiteId)) {
         return { id: 'demo-new', websiteId, userId: 'demo', ...data, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: data.actions } as Automation;
     }
-    const response = await api.post(`/automations/${websiteId}`, data);
-    return response.data;
+    const response = await api.post(`/automations/${websiteId}`, {
+        name: data.name,
+        description: data.description ?? '',
+        definition: serializeAutomationDefinition(data),
+        is_active: true,
+    });
+    const payload = response.data as Record<string, unknown>;
+    const raw = (payload?.data as Record<string, unknown>) ?? payload;
+    return normalizeAutomationFromApi(raw);
 }
 
 async function updateAutomation(websiteId: string, automationId: string, data: Partial<CreateAutomationRequest>): Promise<Automation> {
     if (demoMutationGuard(websiteId)) {
         return { id: automationId, websiteId, userId: 'demo', name: '', description: '', triggerType: '', triggerConfig: {}, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: [], ...data } as Automation;
     }
-    const response = await api.put(`/automations/${websiteId}/${automationId}`, data);
-    return response.data;
+    const body: Record<string, unknown> = {};
+    if (data.name !== undefined) body.name = data.name;
+    if (data.description !== undefined) body.description = data.description;
+    const fullData = data as CreateAutomationRequest;
+    if (data.triggerType !== undefined || data.actions !== undefined) {
+        body.definition = serializeAutomationDefinition(fullData);
+    }
+    const response = await api.put(`/automations/${websiteId}/${automationId}`, body);
+    const payload = response.data as Record<string, unknown>;
+    const raw = (payload?.data as Record<string, unknown>) ?? payload;
+    return normalizeAutomationFromApi(raw);
 }
 
 async function deleteAutomation(websiteId: string, automationId: string): Promise<void> {
@@ -116,7 +199,9 @@ async function toggleAutomation(websiteId: string, automationId: string): Promis
         return { ...demo, isActive: !demo?.isActive } as any;
     }
     const response = await api.post(`/automations/${websiteId}/${automationId}/toggle`);
-    return response.data;
+    const payload = response.data as Record<string, unknown>;
+    const raw = (payload?.data as Record<string, unknown>) ?? payload;
+    return normalizeAutomationFromApi(raw);
 }
 
 async function getAutomationStats(websiteId: string, automationId: string): Promise<AutomationStats> {
@@ -125,7 +210,15 @@ async function getAutomationStats(websiteId: string, automationId: string): Prom
         return demo?.stats || { totalExecutions: 0, successCount: 0, failureCount: 0, successRate: 0, last30Days: 0 };
     }
     const response = await api.get(`/automations/${websiteId}/${automationId}/stats`);
-    return response.data;
+    const payload = response.data as Record<string, unknown>;
+    const d = (payload?.data as Record<string, unknown>) ?? payload;
+    return {
+        totalExecutions: Number(d.totalExecutions ?? 0),
+        successCount:    Number(d.successCount    ?? 0),
+        failureCount:    Number(d.failureCount     ?? 0),
+        successRate:     Number(d.successRate      ?? 0),
+        last30Days:      Number(d.last30Days        ?? 0),
+    };
 }
 
 // React Query Hooks

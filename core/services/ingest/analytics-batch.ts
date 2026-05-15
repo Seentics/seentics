@@ -20,9 +20,14 @@ export async function ingestAnalyticsBatch(siteId: string, events: AnalyticsInge
   const now = Date.now();
   const rows: (typeof analyticsEvents.$inferInsert)[] = [];
   for (const e of events) {
-    const t = e.type || "event";
-    if (ANALYTICS_SKIP.has(t)) continue;
+    const rawType = e.type || "event";
+    if (ANALYTICS_SKIP.has(rawType)) continue;
     const dm = e.data ?? {};
+    // seentics.track('purchase', {...}) sends type='custom', data.name='purchase'.
+    // Promote the name to event_type so revenue/goals queries work without special-casing.
+    const t = rawType === "custom" && typeof dm.name === "string" && dm.name.trim()
+      ? dm.name.trim()
+      : rawType;
     const meta = e.ingestMeta;
     const ref = pickStr(dm, ["referrer", "referer"]);
     const lang =

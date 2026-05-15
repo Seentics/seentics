@@ -20,9 +20,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { inviteMemberByToken } from '@/lib/websites-api';
+import { inviteMemberByToken, type WebsiteInvitation } from '@/lib/websites-api';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Check, Copy, Loader2 } from 'lucide-react';
 import { isEnterprise } from '@/lib/features';
 
 interface InviteMemberModalProps {
@@ -33,23 +33,23 @@ interface InviteMemberModalProps {
 
 export function InviteMemberModal({ open, onOpenChange, websiteId }: InviteMemberModalProps) {
   if (!isEnterprise) return null;
+
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<'admin' | 'viewer'>('viewer');
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
     mutationFn: (data: { email: string; role: string }) =>
       inviteMemberByToken(websiteId, data),
-    onSuccess: () => {
-      toast.success('Invitation sent! The user will receive an email to join.');
-      queryClient.invalidateQueries({ queryKey: ['members', websiteId] });
+    onSuccess: (inv: WebsiteInvitation) => {
       queryClient.invalidateQueries({ queryKey: ['invitations', websiteId] });
-      onOpenChange(false);
-      setEmail('');
-      setRole('viewer');
+      const link = `${window.location.origin}/accept-invite?token=${inv.token}`;
+      setInviteLink(link);
     },
     onError: (error: any) => {
-      const msg = error.response?.data?.error || error.message || 'Failed to send invitation';
+      const msg = error.response?.data?.error || error.message || 'Failed to create invitation';
       toast.error(msg);
     },
   });
@@ -63,61 +63,98 @@ export function InviteMemberModal({ open, onOpenChange, websiteId }: InviteMembe
     mutation.mutate({ email, role });
   };
 
+  const handleCopy = () => {
+    if (!inviteLink) return;
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      setCopied(true);
+      toast.success('Invite link copied!');
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const handleClose = () => {
+    onOpenChange(false);
+    // Reset state after animation
+    setTimeout(() => {
+      setEmail('');
+      setRole('viewer');
+      setInviteLink(null);
+      setCopied(false);
+    }, 200);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
-        <form onSubmit={handleSubmit}>
-          <DialogHeader>
-            <DialogTitle>Invite Team Member</DialogTitle>
-            <DialogDescription>
-              Send an invitation link to add a new member. They'll receive an email to accept.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="user@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
+        {inviteLink ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Invitation Created</DialogTitle>
+              <DialogDescription>
+                Share this link with <strong>{email}</strong>. It expires in 7 days.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-3">
+              <div className="flex items-center gap-2 p-3 rounded-md bg-muted border border-border/60 text-xs font-mono break-all">
+                <span className="flex-1 min-w-0 truncate">{inviteLink}</span>
+              </div>
+              <Button className="w-full gap-2" onClick={handleCopy}>
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? 'Copied!' : 'Copy Invite Link'}
+              </Button>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="role">Role</Label>
-              <Select value={role} onValueChange={(v: any) => setRole(v)}>
-                <SelectTrigger id="role">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="admin">Admin (Full Access)</SelectItem>
-                  <SelectItem value="viewer">Viewer (Read Only)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                {role === 'admin'
-                  ? 'Admins can manage settings, invite members, and view all analytics.'
-                  : 'Viewers have read-only access to all analytics and reports.'}
-              </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={handleClose}>Done</Button>
+            </DialogFooter>
+          </>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
+              <DialogTitle>Invite Team Member</DialogTitle>
+              <DialogDescription>
+                Create an invite link to add a new member to this website.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="user@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="role">Role</Label>
+                <Select value={role} onValueChange={(v: any) => setRole(v)}>
+                  <SelectTrigger id="role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Admin (Full Access)</SelectItem>
+                    <SelectItem value="viewer">Viewer (Read Only)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  {role === 'admin'
+                    ? 'Admins can manage settings, invite members, and view all analytics.'
+                    : 'Viewers have read-only access to all analytics and reports.'}
+                </p>
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
-              {mutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Send Invitation
-            </Button>
-          </DialogFooter>
-        </form>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={mutation.isPending}>
+                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Create Invite Link
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

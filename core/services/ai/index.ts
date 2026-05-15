@@ -4,37 +4,40 @@ import { db, sql, aiQueries, websites, websiteMembers } from "../../db";
 import {
   AI_MODEL, COST_INPUT_PER_TOKEN, COST_OUTPUT_PER_TOKEN,
   validateAndSanitizeSQL,
-  type AIDomain, type AIHistoryItem, type AIResponse, type AIQueryResult,
+  type AIDomain, type AIVizType, type AIHistoryItem, type AIResponse, type AIQueryResult,
 } from "./shared";
+
 import { ANALYTICS_PROMPT, ANALYTICS_TABLES } from "./domains/analytics";
 import { REVENUE_PROMPT, REVENUE_TABLES } from "./domains/revenue";
 import { REPLAYS_PROMPT, REPLAYS_TABLES } from "./domains/replays";
 import { HEATMAPS_PROMPT, HEATMAPS_TABLES } from "./domains/heatmaps";
 import { FUNNELS_PROMPT, FUNNELS_TABLES } from "./domains/funnels";
 import { AUTOMATIONS_PROMPT, AUTOMATIONS_TABLES } from "./domains/automations";
+import { resolveSiteId } from "../analytics/shared";
+
+// ─── OpenAI singleton ─────────────────────────────────────────────────────────
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY is not configured");
+  if (!_openai) _openai = new OpenAI({ apiKey: key });
+  return _openai;
+}
 
 // ─── Domain config registry ───────────────────────────────────────────────────
 
 const DOMAIN_CONFIG: Record<AIDomain, { prompt: string; tables: string[] }> = {
-  analytics:   { prompt: ANALYTICS_PROMPT,   tables: ANALYTICS_TABLES },
-  revenue:     { prompt: REVENUE_PROMPT,     tables: REVENUE_TABLES },
-  replays:     { prompt: REPLAYS_PROMPT,     tables: REPLAYS_TABLES },
-  heatmaps:    { prompt: HEATMAPS_PROMPT,    tables: HEATMAPS_TABLES },
-  funnels:     { prompt: FUNNELS_PROMPT,     tables: FUNNELS_TABLES },
+  analytics: { prompt: ANALYTICS_PROMPT, tables: ANALYTICS_TABLES },
+  revenue: { prompt: REVENUE_PROMPT, tables: REVENUE_TABLES },
+  replays: { prompt: REPLAYS_PROMPT, tables: REPLAYS_TABLES },
+  heatmaps: { prompt: HEATMAPS_PROMPT, tables: HEATMAPS_TABLES },
+  funnels: { prompt: FUNNELS_PROMPT, tables: FUNNELS_TABLES },
   automations: { prompt: AUTOMATIONS_PROMPT, tables: AUTOMATIONS_TABLES },
 };
 
 // ─── Website access check ─────────────────────────────────────────────────────
 
 export async function checkWebsiteAccess(websiteId: string, userId: string): Promise<boolean> {
-  const [site] = await db
-    .select({ id: websites.id })
-    .from(websites)
-    .where(eq(websites.id, websiteId))
-    .limit(1);
-
-  if (!site) return false;
-
   const [owner] = await db
     .select({ id: websites.id })
     .from(websites)
@@ -52,19 +55,61 @@ export async function checkWebsiteAccess(websiteId: string, userId: string): Pro
   return !!member;
 }
 
+// ─── Domain Detection ─────────────────────────────────────────────────────────
+
+async function detectDomain(prompt: string): Promise<AIDomain> {
+  try {
+    const response = await getOpenAI().chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content: "You are a routing assistant. Classify the user's analytics query into ONE of these domains: 'analytics', 'revenue', 'replays', 'heatmaps', 'funnels', 'automations'. Return ONLY the domain name as a lowercase string.",
+        },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 10,
+      temperature: 0,
+    });
+
+    const domain = response.choices[0].message.content?.trim().toLowerCase() as AIDomain;
+    const validDomains: AIDomain[] = ['analytics', 'revenue', 'replays', 'heatmaps', 'funnels', 'automations'];
+    return validDomains.includes(domain) ? domain : 'analytics';
+  } catch (err) {
+    console.error("[AI] domain detection failed", err);
+    return 'analytics';
+  }
+}
+
 // ─── Main query function ──────────────────────────────────────────────────────
 
 export async function runAIQuery(
   userId: string,
   websiteId: string,
   prompt: string,
-  domain: AIDomain = "analytics",
+  initialDomain: AIDomain | 'auto' = "auto",
 ): Promise<AIQueryResult> {
-  const openaiKey = process.env.OPENAI_API_KEY;
-  if (!openaiKey) throw new Error("OPENAI_API_KEY is not configured");
+  const domain = initialDomain === 'auto' ? await detectDomain(prompt) : initialDomain;
+  // domain resolved — no log needed here
 
   const { prompt: systemPrompt, tables: allowedTables } = DOMAIN_CONFIG[domain] ?? DOMAIN_CONFIG.analytics;
   const startedAt = Date.now();
+
+  // ── Intelligent ID Resolution ──────────────────────────────────────────────
+  // Map domains to their required ID format:
+  // - Legacy 'site_id' string for Analytics, Revenue, and Replays.
+  // - Modern 'uuid' for Heatmaps, Funnels, and Automations.
+  const ID_STRATEGY: Record<AIDomain, "site_id" | "uuid"> = {
+    analytics: "site_id",
+    revenue: "site_id",
+    replays: "site_id",
+    heatmaps: "uuid",
+    funnels: "uuid",
+    automations: "uuid",
+  };
+
+  const { siteId, uuid } = await resolveSiteId(websiteId);
+  const dbBoundId = ID_STRATEGY[domain] === "site_id" ? siteId : uuid;
 
   // Insert pending record to track the attempt
   const [inserted] = await db
@@ -74,13 +119,9 @@ export async function runAIQuery(
 
   const queryId = inserted?.id ?? null;
 
-  console.log("[AI] query start", { queryId, domain, userId, websiteId, prompt: prompt.slice(0, 120) });
-
   try {
     // ── Call GPT-4o-mini ─────────────────────────────────────────────────────
-    const openai = new OpenAI({ apiKey: openaiKey });
-
-    console.log("[AI] openai request", { model: AI_MODEL, domain, max_tokens: 800, temperature: 0.1 });
+    const openai = getOpenAI();
 
     const completion = await openai.chat.completions.create({
       model: AI_MODEL,
@@ -99,17 +140,6 @@ export async function runAIQuery(
     const totalTokens = completion.usage?.total_tokens ?? 0;
     const estimatedCostUsd = (inputTokens * COST_INPUT_PER_TOKEN) + (outputTokens * COST_OUTPUT_PER_TOKEN);
 
-    console.log("[AI] openai response", {
-      model: completion.model,
-      domain,
-      finish_reason: completion.choices[0]?.finish_reason,
-      input_tokens: inputTokens,
-      output_tokens: outputTokens,
-      total_tokens: totalTokens,
-      cost_usd: `$${estimatedCostUsd.toFixed(6)}`,
-      latency_ms: Date.now() - startedAt,
-    });
-
     // ── Parse AI response ─────────────────────────────────────────────────────
     let aiResp: AIResponse;
     try {
@@ -122,64 +152,52 @@ export async function runAIQuery(
       throw new Error("AI did not return a SQL query");
     }
 
-    console.log("[AI] ai parsed", {
-      domain,
-      viz_type: aiResp.viz_type,
-      title: aiResp.title,
-      x_key: aiResp.x_key,
-      y_key: aiResp.y_key,
-      columns: aiResp.columns?.map((c) => c.key),
-    });
-
-    console.log("[AI] generated SQL:\n" + aiResp.sql);
-
     // ── Validate & sanitise SQL ───────────────────────────────────────────────
     const validation = validateAndSanitizeSQL(aiResp.sql, allowedTables);
     if (!validation.ok) {
-      console.log("[AI] sql rejected", { domain, reason: validation.reason, sql: aiResp.sql.slice(0, 200) });
       throw new Error(`Unsafe SQL: ${validation.reason}`);
     }
     const safeSql = validation.sql;
 
-    const sqlModified = safeSql !== aiResp.sql.trim().replace(/;+$/, "");
-    console.log("[AI] sql validated", { domain, modified: sqlModified, ...(sqlModified && { safe_sql: safeSql }) });
-
     // ── Execute query (website_id is always $1) ───────────────────────────────
-    const sqlStartedAt = Date.now();
     let rows: Record<string, unknown>[];
     try {
-      rows = (await sql.unsafe(safeSql, [websiteId])) as Record<string, unknown>[];
+      rows = (await sql.unsafe(safeSql, [dbBoundId])) as Record<string, unknown>[];
     } catch (dbErr) {
       const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
-      console.log("[AI] sql error", { domain, error: msg, sql: safeSql.slice(0, 200) });
       throw new Error(`Query execution failed: ${msg}`);
     }
-
-    const sqlMs = Date.now() - sqlStartedAt;
-    console.log("[AI] sql executed", { domain, rows: rows.length, sql_ms: sqlMs });
 
     // ── Derive column list ────────────────────────────────────────────────────
     const columns: Array<{ key: string; label: string }> = aiResp.columns?.length
       ? aiResp.columns
       : rows.length > 0
         ? Object.keys(rows[0]).map((k) => ({
-            key: k,
-            label: k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-          }))
+          key: k,
+          label: k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        }))
         : [];
 
     const executionTimeMs = Date.now() - startedAt;
 
     // ── Persist success record ────────────────────────────────────────────────
     if (queryId) {
+      const title = aiResp.title || "Query Results";
+      const insight = aiResp.insight || null;
+      const tips = Array.isArray(aiResp.tips) ? aiResp.tips.join("\n") : (aiResp.tips || null);
+      const vizType = aiResp.viz_type ?? "table";
+      const xKey = aiResp.x_key ?? null;
+      const yKey = aiResp.y_key ?? null;
+
       await db.update(aiQueries).set({
         systemContext: systemPrompt.slice(0, 2000),
         generatedSql: safeSql,
-        vizType: aiResp.viz_type ?? "table",
-        title: aiResp.title ?? "Query Results",
-        insight: aiResp.insight ?? null,
-        xKey: aiResp.x_key ?? null,
-        yKey: aiResp.y_key ?? null,
+        vizType,
+        title,
+        insight,
+        tips,
+        xKey,
+        yKey,
         columns,
         rowCount: rows.length,
         inputTokens,
@@ -190,21 +208,12 @@ export async function runAIQuery(
       }).where(eq(aiQueries.id, queryId));
     }
 
-    console.log("[AI] query complete", {
-      queryId,
-      domain,
-      total_ms: executionTimeMs,
-      rows: rows.length,
-      input_tokens: inputTokens,
-      output_tokens: outputTokens,
-      cost_usd: `$${estimatedCostUsd.toFixed(6)}`,
-    });
-
     return {
       rows,
-      viz_type: aiResp.viz_type ?? "table",
+      viz_type: (aiResp.viz_type ?? "table") as AIVizType,
       title: aiResp.title ?? "Query Results",
       insight: aiResp.insight ?? null,
+      tips: Array.isArray(aiResp.tips) ? aiResp.tips.join("\n") : (aiResp.tips || null),
       x_key: aiResp.x_key ?? null,
       y_key: aiResp.y_key ?? null,
       columns,
@@ -215,12 +224,6 @@ export async function runAIQuery(
     };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.log("[AI] query failed", {
-      queryId,
-      domain,
-      error: errorMessage,
-      total_ms: Date.now() - startedAt,
-    });
     if (queryId) {
       await db.update(aiQueries).set({
         status: "error",

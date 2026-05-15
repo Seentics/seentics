@@ -107,7 +107,9 @@ auth.get("/:website_id/funnels/:funnel_id/stats", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   try {
-    const out = await fn.stats(uid, c.req.param("website_id"), c.req.param("funnel_id"));
+    const out = await fn.stats(uid, c.req.param("website_id"), c.req.param("funnel_id"), {
+      days: c.req.query("days"),
+    });
     if (!out) return c.json({ error: "not found" }, 404);
     return c.json(out);
   } catch (e) {

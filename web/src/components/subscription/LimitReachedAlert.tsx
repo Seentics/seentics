@@ -23,7 +23,8 @@ const defaultMessages: Record<string, string> = {
   funnels: 'You\'ve reached your funnel limit. Upgrade to build more conversion funnels.',
   monthlyEvents: 'You\'ve reached your monthly events limit. Upgrade to track more events.',
   heatmaps: 'You\'ve reached your heatmap limit. Upgrade to track more pages.',
-  replays: 'You\'ve reached your session recording limit. Upgrade for more recordings.'
+  replays: 'You\'ve reached your session recording limit. Upgrade for more recordings.',
+  aiAnalyses: 'You\'ve reached your AI analysis limit. Upgrade for more AI queries.',
 };
 
 export const LimitReachedAlert: React.FC<LimitReachedAlertProps> = ({

@@ -32,6 +32,7 @@ export interface AIResponse {
   viz_type: AIVizType;
   title: string;
   insight: string;
+  tips: string | string[];
   x_key: string | null;
   y_key: string | null;
   columns: Array<{ key: string; label: string }>;
@@ -42,6 +43,7 @@ export interface AIQueryResult {
   viz_type: AIVizType;
   title: string;
   insight: string | null;
+  tips: string | null;
   x_key: string | null;
   y_key: string | null;
   columns: Array<{ key: string; label: string }>;

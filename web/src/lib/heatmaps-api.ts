@@ -101,6 +101,47 @@ export async function saveDashboardScreenshot(
   });
 }
 
+export interface PlaywrightScreenshotResult {
+  stored: boolean;
+  s3_key?: string;
+  image_hash?: string;
+}
+
+/**
+ * Trigger a server-side Playwright screenshot for the given page.
+ * Uses three-tier check: in-memory cache → DB → Playwright (only launches browser if no existing screenshot).
+ * Pass `force: true` to re-capture even if a screenshot already exists.
+ */
+export async function triggerPlaywrightScreenshot(
+  websiteId: string,
+  pageUrl: string,
+  pagePath: string,
+  options?: {
+    viewportWidth?: number;
+    viewportHeight?: number;
+    waitForSelector?: string;
+    jpegQuality?: number;
+    force?: boolean;
+    checkOnly?: boolean;
+  },
+): Promise<PlaywrightScreenshotResult | null> {
+  try {
+    const res = await api.post(`/heatmaps/${websiteId}/playwright-screenshot`, {
+      page_url: pageUrl,
+      page_path: normalizeHeatmapPagePath(pagePath),
+      viewport_width: options?.viewportWidth,
+      viewport_height: options?.viewportHeight,
+      wait_for_selector: options?.waitForSelector,
+      jpeg_quality: options?.jpegQuality,
+      force: options?.force,
+      check_only: options?.checkOnly,
+    });
+    return (res.data?.data ?? null) as PlaywrightScreenshotResult | null;
+  } catch {
+    return null;
+  }
+}
+
 export async function deleteHeatmaps(websiteId: string, pagePaths: string[]): Promise<void> {
   await api.delete(`/heatmaps/${websiteId}/bulk-delete`, {
     data: { pagePaths }

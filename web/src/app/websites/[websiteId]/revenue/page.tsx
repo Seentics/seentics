@@ -327,8 +327,8 @@ export default function RevenuePage() {
       <Card className="border border-border/60 mb-8">
         <CardContent className="p-0">
           <Tabs defaultValue="source" className="w-full">
-            <div className="border-b border-border/50 px-4 pt-2">
-              <TabsList className="h-9 w-full justify-start overflow-x-auto bg-transparent gap-0">
+            <div className="border-b border-border/50 overflow-x-auto">
+              <TabsList className="h-auto w-full justify-start rounded-none bg-transparent p-0 min-w-max">
                 {([
                   ['source', 'Source / referrer'],
                   ['medium', 'Medium'],
@@ -339,7 +339,7 @@ export default function RevenuePage() {
                   <TabsTrigger
                     key={val}
                     value={val}
-                    className="text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary"
+                    className="-mb-px rounded-none border-b-2 border-transparent px-4 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
                   >
                     {label}
                   </TabsTrigger>
@@ -454,7 +454,7 @@ export default function RevenuePage() {
               </p>
               <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
                 {[
-                  { step: '1', label: 'Visitor lands', desc: 'UTM params are captured on the first pageview of the session' },
+                  { step: '1', label: 'Visitor lands', desc: 'UTM params are captured on every pageview where they appear in the URL' },
                   { step: '2', label: 'Checkout fires', desc: 'You call seentics.track("purchase", { … }) at conversion' },
                   { step: '3', label: 'Attribution resolved', desc: 'Last-non-direct touch is joined and the transaction stored' },
                 ].map(({ step, label, desc }) => (

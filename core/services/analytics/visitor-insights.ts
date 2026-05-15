@@ -83,9 +83,10 @@ export async function getVisitorInsightsAnalytics(
         AND occurred_at < ${startIso}
     )
     SELECT
-      count(*) FILTER (WHERE vid NOT IN (SELECT vid FROM prev_vids))::int AS new_visitors,
-      count(*) FILTER (WHERE vid IN (SELECT vid FROM prev_vids))::int AS returning_visitors
-    FROM period_vids
+      count(CASE WHEN prev.vid IS NULL     THEN 1 END)::int AS new_visitors,
+      count(CASE WHEN prev.vid IS NOT NULL THEN 1 END)::int AS returning_visitors
+    FROM period_vids cur
+    LEFT JOIN prev_vids prev ON prev.vid = cur.vid
   `;
 
   const avgDurSql = pgSql<{ avg_dur: number }[]>`

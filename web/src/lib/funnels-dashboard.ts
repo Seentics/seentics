@@ -30,6 +30,7 @@ export interface DashboardFunnelStep {
     custom?: string;
   };
   order: number;
+  matchType?: 'exact' | 'contains' | 'starts_with' | 'regex';
 }
 
 export interface FunnelListSummary {
@@ -82,6 +83,7 @@ function normalizeDashboardStep(raw: Record<string, unknown>): DashboardFunnelSt
   const st = String(raw.stepType ?? raw.step_type ?? 'page_view').toLowerCase();
   const type: DashboardFunnelStep['type'] =
     st === 'event' ? 'event' : st === 'custom' ? 'custom' : 'page';
+  const matchType = (raw.matchType ?? raw.match_type ?? 'exact') as DashboardFunnelStep['matchType'];
   return {
     id: String(raw.id ?? ''),
     name: String(raw.name ?? ''),
@@ -91,6 +93,7 @@ function normalizeDashboardStep(raw: Record<string, unknown>): DashboardFunnelSt
       page: (raw.pagePath ?? raw.page_path) as string | undefined,
       event: (raw.eventType ?? raw.event_type) as string | undefined,
     },
+    matchType,
   };
 }
 
@@ -128,7 +131,7 @@ export function normalizeDashboardFunnelFromApi(raw: Record<string, unknown>): D
 
 function dashboardStepsToCore(steps: DashboardFunnelStep[]) {
   return steps.map((s) => {
-    const matchType = 'contains';
+    const matchType = s.matchType ?? 'exact';
     if (s.type === 'page') {
       return {
         id: s.id || undefined,
@@ -171,7 +174,7 @@ export function funnelStatsToAnalyticsResponse(
   const drop_off_rate = totalStarts > 0 ? ((totalStarts - totalConv) / totalStarts) * 100 : 0;
   const step_metrics = Array.isArray(s.stepBreakdown)
     ? s.stepBreakdown.map(sb => ({
-        step: sb.stepOrder,
+        step: sb.stepOrder + 1,
         count: sb.count,
         drop_off: Number(sb.dropoffCount ?? 0),
         drop_off_rate: Number(sb.dropoffRate ?? 0),
@@ -320,7 +323,8 @@ export async function getDashboardFunnelAnalytics(
       const response = await api.get(`/websites/${websiteId}/funnels/${funnelId}/stats`, {
         params: { days },
       });
-      const s = response.data as FunnelStatsPayload;
+      const raw = response.data as Record<string, unknown>;
+      const s = (raw?.data ?? raw) as FunnelStatsPayload;
       return funnelStatsToAnalyticsResponse(funnelId, websiteId, s);
     } catch (error) {
       console.warn(`Failed to fetch funnel stats for ${funnelId}:`, error);

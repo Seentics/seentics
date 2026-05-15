@@ -194,9 +194,45 @@ r.put("/:id/members/:user_id/role", async (c) => {
   }
 });
 
-r.get("/:id/invitations", (c) => c.json({ data: [] }));
-r.post("/:id/invitations", (c) => c.json({ data: { ok: true } }));
-r.delete("/:id/invitations/:invitation_id", (c) => c.body(null, 204));
+r.get("/:id/invitations", async (c) => {
+  const uid = requireUser(c);
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  try {
+    return c.json(await ws.listInvitations(uid, c.req.param("id")));
+  } catch (e) {
+    const st = (e as Error & { status?: number }).status;
+    return c.json({ error: "forbidden" }, (st ?? 403) as ContentfulStatusCode);
+  }
+});
+
+r.post("/:id/invitations", async (c) => {
+  const uid = requireUser(c);
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  const b = await c.req.json<{ email?: string; role?: string }>().catch((): { email?: string; role?: string } => ({}));
+  if (!b.email) return c.json({ error: "email is required" }, 400);
+  try {
+    return c.json(
+      await ws.createInvitation(uid, c.req.param("id"), { email: b.email, role: b.role ?? "viewer" }),
+      201,
+    );
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "failed";
+    const st = (e as Error & { status?: number }).status ?? 400;
+    return c.json({ error: msg }, st as ContentfulStatusCode);
+  }
+});
+
+r.delete("/:id/invitations/:invitation_id", async (c) => {
+  const uid = requireUser(c);
+  if (!uid) return c.json({ error: "unauthorized" }, 401);
+  try {
+    await ws.revokeInvitation(uid, c.req.param("id"), c.req.param("invitation_id"));
+    return c.body(null, 204);
+  } catch (e) {
+    const st = (e as Error & { status?: number }).status;
+    return c.json({ error: "forbidden" }, (st ?? 403) as ContentfulStatusCode);
+  }
+});
 
 r.post("/:id/share", async (c) => {
   const uid = requireUser(c);

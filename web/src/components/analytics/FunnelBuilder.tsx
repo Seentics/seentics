@@ -30,7 +30,8 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
         name: 'Landing Page',
         type: 'page',
         condition: { page: '/' },
-        order: 1
+        order: 1,
+        matchType: 'exact' as const,
       }
     ]
   );
@@ -193,7 +194,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                             </div>
 
                             {/* Step Configuration */}
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4">
                               {/* Step Name */}
                               <div>
                                 <Label className="text-xs">Step Name</Label>
@@ -210,7 +211,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                                 <Label className="text-xs">Type</Label>
                                 <Select
                                   value={step.type}
-                                  onValueChange={(value: 'page' | 'event' | 'custom') => 
+                                  onValueChange={(value: 'page' | 'event' | 'custom') =>
                                     updateStep(step.id, { type: value, condition: {} })
                                   }
                                 >
@@ -225,10 +226,32 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                                 </Select>
                               </div>
 
+                              {/* Match Type (page steps only) */}
+                              <div>
+                                <Label className="text-xs">Match</Label>
+                                <Select
+                                  value={step.matchType || 'exact'}
+                                  onValueChange={(value: 'exact' | 'contains' | 'starts_with' | 'regex') =>
+                                    updateStep(step.id, { matchType: value })
+                                  }
+                                  disabled={step.type !== 'page'}
+                                >
+                                  <SelectTrigger className="h-8">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="exact">Exact</SelectItem>
+                                    <SelectItem value="contains">Contains</SelectItem>
+                                    <SelectItem value="starts_with">Starts with</SelectItem>
+                                    <SelectItem value="regex">Regex</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
                               {/* Condition */}
                               <div>
                                 <Label className="text-xs">
-                                  {step.type === 'page' ? 'Page URL' : 
+                                  {step.type === 'page' ? 'Page URL' :
                                    step.type === 'event' ? 'Event Name' : 'Custom Condition'}
                                 </Label>
                                 <Input

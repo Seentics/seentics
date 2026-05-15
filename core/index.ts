@@ -9,6 +9,7 @@ import { getReplayEngine } from "./lib/replay-engine";
 import { configureTrackerOriginCache } from "./lib/origin";
 import { startDataRetentionCron } from "./services/retention.service";
 import { configureTrackerWebsiteCache } from "./lib/website-for-tracker";
+import { initializeScreenshotCache } from "./lib/heatmap-screenshot-cache";
 import { analyticsCacheMiddleware } from "./middleware/analytics-cache";
 import { corsMiddleware } from "./middleware/cors";
 import { rateLimitMiddleware } from "./middleware/rate-limit";
@@ -41,8 +42,6 @@ type BunServerWithRequestIp = {
  *
  * Raw API: `GET /api/v1/raw/v1/websites/:website_id/...` (website API key); read models align with `/api/v1/analytics/*`.
  * Automations: `routes/automations.ts`.
- *
- * Schema: `applyAnalyticsEventsWebsiteIdMigration` renames legacy `website_site_id` → `website_id`.
  * `ensureCoreSchema` runs Drizzle push when the DB has no `websites` table (dev default). See `.env.example` SKIP_DB_PUSH / FORCE_DB_PUSH / AUTO_DB_PUSH.
  */
 const cfg = env();
@@ -53,6 +52,9 @@ await ensureCoreSchema();
 await initMaxMindGeo(cfg.maxmind);
 configureTrackerWebsiteCache(cfg);
 configureTrackerOriginCache(cfg);
+if (cfg.screenshotCache.enabled) {
+  initializeScreenshotCache(cfg.screenshotCache.ttlMs, cfg.screenshotCache.maxEntries);
+}
 startIngestQueueFlusher(cfg);
 startDataRetentionCron(cfg);
 
@@ -110,4 +112,4 @@ Bun.serve({
   port,
 });
 
-console.log(`seentics core on :${port} (Bun + Hono + Drizzle — full OSS API)`);
+console.log(`Seentics core on :${port} (Bun + Hono + Drizzle)`);

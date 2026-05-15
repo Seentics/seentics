@@ -5,7 +5,7 @@ import { useAuth } from '@/stores/useAuthStore';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
-import { ArrowLeft, CreditCard, Goal, Settings, Shield, Users, KeyRound, LifeBuoy, LayoutGrid, User, Loader2, Layers } from 'lucide-react';
+import { ArrowLeft, CreditCard, Goal, Shield, Users, KeyRound, LifeBuoy, LayoutGrid, User, Loader2, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
@@ -21,7 +21,6 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
   const links = useMemo(
     () => [
-      { href: `/websites/${websiteId}/settings`, label: 'Overview', icon: Settings },
       { href: `/websites/${websiteId}/settings/websites`, label: 'Websites', icon: LayoutGrid },
       { href: `/websites/${websiteId}/settings/features`, label: 'Features', icon: Layers },
       { href: `/websites/${websiteId}/settings/profile`, label: 'Profile', icon: User },

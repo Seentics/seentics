@@ -790,20 +790,20 @@ let activeRecordingSessionId = null;
 
 const RRWEB_OPTIONS = {
   recordAfter:     'load',
-  checkoutEveryNms: 60_000,
+  checkoutEveryNms: 120_000,  // Full snapshot every 2 min instead of 1 min — halves snapshot frequency
   maskAllInputs:   true,
   blockSelector:   '[data-seentics-block]',
   ignoreSelector:  '[data-seentics-ignore]',
   recordShadowDOM: true,
   sampling: {
-    mousemove: 50,
+    mousemove: 100,   // Every 100ms instead of 50ms — halves mouse move event volume
     scroll:    150,
     media:     800,
     input:     'last',
   },
-  inlineStylesheet: true,
-  collectFonts:     true,
-  recordCanvas:     true,
+  inlineStylesheet: false,  // Don't inline full CSS text — stylesheet URLs are enough for replay
+  collectFonts:     false,  // Don't base64-embed font files — they can be MB per snapshot
+  recordCanvas:     false,  // Don't capture canvas frames — major data sink (charts, maps, etc.)
   errorHandler:     (_err) => { /* keep emit pipeline alive on bad mutations */ },
 };
 
@@ -904,22 +904,96 @@ const trackPage = () => {
 };
 
 // ─── Funnels ──────────────────────────────────────────────────────────────────
+// Persist funnel progress in sessionStorage so a mid-funnel refresh doesn't reset state.
+const _fsFsKey  = (fid) => `snc_fs:${websiteId}:${fid}`;
+const _loadFs   = (fid) => {
+  try { const v = sessionStorage.getItem(_fsFsKey(fid)); return v != null ? { step: parseInt(v, 10) || 0 } : null; } catch { return null; }
+};
+const _saveFs   = (fid, step) => { try { sessionStorage.setItem(_fsFsKey(fid), String(step)); } catch {} };
+
 const funnelState = {};
+
+/** Emit funnel_step (and funnel_complete when last step reached) then persist state. */
+const _advanceFs = (f, state, stepName, path) => {
+  pushAnalytics('funnel_step', { funnel_id: f.id, name: f.name, step: state.step, step_name: stepName, path });
+  state.step++;
+  if (state.step >= (f.steps ?? []).length) {
+    pushAnalytics('funnel_complete', { funnel_id: f.id, name: f.name });
+    state.step = 0;
+  }
+  _saveFs(f.id, state.step);
+};
+
+/** Called on every SPA page navigation — evaluates page_view-type funnel steps. */
 const evalFunnels = (path) => {
   for (const f of funnels) {
     const steps = f.steps ?? [];
     if (!steps.length) continue;
-    const state = funnelState[f.id] ?? (funnelState[f.id] = { step: 0 });
+    const state = funnelState[f.id] ?? (funnelState[f.id] = _loadFs(f.id) ?? { step: 0 });
     const next  = steps[state.step];
     if (!next) continue;
-    const hit = next.path ? next.path === path : next.pattern ? safeRegex(next.pattern, path) : false;
-    if (!hit) continue;
-    pushAnalytics('funnel_step', { funnel_id: f.id, name: f.name, step: state.step, step_name: next.name, path });
-    if (++state.step >= steps.length) {
-      pushAnalytics('funnel_complete', { funnel_id: f.id, name: f.name });
-      state.step = 0;
+    const stepType = next.step_type ?? next.stepType ?? 'page_view';
+    if (stepType !== 'page_view') continue; // event steps handled by evalFunnelsForEvent
+    const pagePath  = next.page_path ?? next.path;
+    const matchType = next.match_type ?? next.matchType ?? 'exact';
+    let hit = false;
+    if (pagePath) {
+      if (matchType === 'contains')         hit = path.includes(pagePath);
+      else if (matchType === 'starts_with') hit = path.startsWith(pagePath);
+      else if (matchType === 'regex')       hit = safeRegex(pagePath, path);
+      else                                  hit = path === pagePath;
+    } else if (next.pattern) {
+      hit = safeRegex(next.pattern, path);
     }
+    if (hit) _advanceFs(f, state, next.name, path);
   }
+};
+
+/** Called from seentics.track() — evaluates event-type funnel steps. */
+const evalFunnelsForEvent = (eventName) => {
+  for (const f of funnels) {
+    const steps = f.steps ?? [];
+    if (!steps.length) continue;
+    const state = funnelState[f.id] ?? (funnelState[f.id] = _loadFs(f.id) ?? { step: 0 });
+    const next  = steps[state.step];
+    if (!next) continue;
+    const stepType = next.step_type ?? next.stepType ?? 'page_view';
+    if (stepType !== 'event') continue;
+    const target = next.event_type ?? next.eventType ?? '';
+    if (target && target === eventName) _advanceFs(f, state, next.name, location.pathname);
+  }
+};
+
+// ─── Exit-intent trigger ──────────────────────────────────────────────────────
+let _exitIntentCooldown = false;
+const _installExitIntent = () => {
+  document.addEventListener('mouseleave', (e) => {
+    if (e.clientY > 0) return;          // cursor must leave through the top edge
+    if (_exitIntentCooldown) return;
+    _exitIntentCooldown = true;
+    evalAutomations('exit_intent', { path: location.pathname });
+    setTimeout(() => { _exitIntentCooldown = false; }, 30_000); // 30 s cool-down
+  });
+};
+
+// ─── Inactivity trigger ───────────────────────────────────────────────────────
+const _INACTIVITY_MS = 30_000;
+let _inactivityTimer = null;
+let _inactivityInstalled = false;
+const _resetInactivityTimer = () => {
+  if (_inactivityTimer) clearTimeout(_inactivityTimer);
+  _inactivityTimer = setTimeout(() => {
+    evalAutomations('inactivity', { path: location.pathname, inactivity_ms: _INACTIVITY_MS });
+    _inactivityTimer = null;
+  }, _INACTIVITY_MS);
+};
+const _installInactivity = () => {
+  if (_inactivityInstalled) return;
+  _inactivityInstalled = true;
+  for (const ev of ['mousemove', 'keydown', 'scroll', 'click', 'touchstart']) {
+    window.addEventListener(ev, _resetInactivityTimer, { passive: true });
+  }
+  _resetInactivityTimer();
 };
 
 // ─── Automations ──────────────────────────────────────────────────────────────
@@ -1009,6 +1083,8 @@ const init = () => {
         scheduleHeatmapScreenshotAfterAppIdle();
       }
       installHeatmapCapture();
+      _installExitIntent();
+      _installInactivity();
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
       flush(); // first load: send pageview + rrweb snapshot immediately
       flushInterval = window.setInterval(flush, FLUSH_MS);
@@ -1020,6 +1096,8 @@ const init = () => {
       );
       if (autoTrack) trackPage();
       installHeatmapCapture();
+      _installExitIntent();
+      _installInactivity();
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
       flush();
       flushInterval = window.setInterval(flush, FLUSH_MS);
@@ -1028,7 +1106,11 @@ const init = () => {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 window.seentics = {
-  track:    (name, props) => pushAnalytics('custom', { name, ...(props ?? {}) }),
+  track: (name, props) => {
+    pushAnalytics('custom', { name, ...(props ?? {}) });
+    evalFunnelsForEvent(name);
+    evalAutomations('custom', { name, ...(props ?? {}) });
+  },
   identify: (userId, traits) => {
               getStore()?.setItem('snc_vid', userId);
               visitorId = userId;

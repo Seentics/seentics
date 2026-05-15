@@ -78,6 +78,10 @@ export function env() {
   const trackerOriginCacheTtlMs = parseIntEnv(process.env.TRACKER_ORIGIN_CACHE_TTL_MS, 180_000);
   const trackerCacheMaxEntries = parseIntEnv(process.env.TRACKER_CACHE_MAX_ENTRIES, 4096);
 
+  const screenshotCacheEnabled = parseBool(process.env.SCREENSHOT_CACHE_ENABLED, true);
+  const screenshotCacheTtlMs = parseIntEnv(process.env.SCREENSHOT_CACHE_TTL_MS, 60 * 60 * 1000); // 1 hour (60 minutes)
+  const screenshotCacheMaxEntries = parseIntEnv(process.env.SCREENSHOT_CACHE_MAX_ENTRIES, 1000);
+
   const dataRetentionEnabled = parseBool(process.env.DATA_RETENTION_ENABLED, true);
   const dataRetentionCron = process.env.DATA_RETENTION_CRON ?? "15 4 * * *";
   const dataRetentionAnalyticsDays = parseIntEnv(process.env.DATA_RETENTION_ANALYTICS_DAYS, 1095);
@@ -156,6 +160,12 @@ export function env() {
       websiteTtlMs: Math.max(10_000, trackerWebsiteCacheTtlMs),
       originTtlMs: Math.max(10_000, trackerOriginCacheTtlMs),
       maxEntries: Math.max(64, trackerCacheMaxEntries),
+    },
+    /** In-memory cache for heatmap screenshot lookups (avoid redundant DB queries). */
+    screenshotCache: {
+      enabled: screenshotCacheEnabled,
+      ttlMs: Math.max(10_000, screenshotCacheTtlMs),
+      maxEntries: Math.max(10, screenshotCacheMaxEntries),
     },
     dataRetention: {
       enabled: dataRetentionEnabled,

@@ -14,7 +14,7 @@ interface UpgradePlanModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentPlan: string;
-  limitType: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'replays' | 'monthlyEvents';
+  limitType: 'websites' | 'workflows' | 'funnels' | 'heatmaps' | 'replays' | 'monthlyEvents' | 'aiAnalyses';
   currentUsage: number;
   limit: number;
 }
@@ -91,6 +91,7 @@ const limitMessages: Record<string, string> = {
   heatmaps: "You've reached your heatmap limit",
   replays: "You've reached your session recording limit",
   monthlyEvents: "You've reached your monthly events limit",
+  aiAnalyses: "You've reached your AI analysis limit",
 };
 
 const limitLabels: Record<string, string> = {
@@ -100,6 +101,7 @@ const limitLabels: Record<string, string> = {
   heatmaps: 'heatmap pages',
   replays: 'session recordings',
   monthlyEvents: 'monthly events',
+  aiAnalyses: 'AI analyses',
 };
 
 const formatNum = (n: number) => {

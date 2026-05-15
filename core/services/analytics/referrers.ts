@@ -18,6 +18,7 @@ export async function getReferrersAnalytics(
   }[]>`
     WITH pv AS (
       SELECT
+        id,
         referrer,
         session_id,
         coalesce(nullif(trim(visitor_id), ''), session_id) AS vid,
@@ -30,8 +31,9 @@ export async function getReferrersAnalytics(
         AND length(trim(session_id)) > 0
     ),
     first_ref AS (
+      -- id as tiebreaker so result is deterministic when two pageviews share the same timestamp
       SELECT DISTINCT ON (session_id) session_id, referrer
-      FROM pv ORDER BY session_id, occurred_at ASC
+      FROM pv ORDER BY session_id, occurred_at ASC, id ASC
     ),
     session_pvc AS (
       SELECT session_id, count(*)::int AS pvc
