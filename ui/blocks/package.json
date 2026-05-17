@@ -1,5 +1,5 @@
 {
-  "name": "@seentics/ui-blocks",
+  "name": "@seentics/ui",
   "version": "0.1.0",
   "description": "Reusable UI blocks for Seentics analytics — drop-in React components for traffic, heatmaps, replays, funnels",
   "main": "dist/index.umd.js",
@@ -37,6 +37,6 @@
     "vite-plugin-css-injected-by-js": "^3.5.0",
     "vite-plugin-dts": "^3.0.0"
   },
-  "keywords": ["seentics", "analytics", "observability", "ui-blocks", "components", "react"],
+  "keywords": ["seentics", "analytics", "observability", "ui", "components", "react"],
   "license": "MIT"
 }

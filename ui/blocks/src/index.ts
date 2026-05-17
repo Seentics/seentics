@@ -1,7 +1,7 @@
-// @seentics/ui-blocks — reusable UI blocks for Seentics analytics
+// @seentics/ui — reusable UI blocks for Seentics analytics
 //
 // Usage:
-//   import { SeenticsProvider, TrafficChart, AnalyticsSummary } from '@seentics/ui-blocks'
+//   import { SeenticsProvider, TrafficChart, AnalyticsSummary } from '@seentics/ui'
 //
 //   <SeenticsProvider apiKey="sk_age_..." baseUrl="https://api.yourdomain.com">
 //     <AnalyticsSummary siteId="site_abc" days={30} />
