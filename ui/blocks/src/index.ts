@@ -1,7 +1,7 @@
-// @seentics/components — embeddable React components for Seentics
+// @seentics/ui-blocks — reusable UI blocks for Seentics analytics
 //
 // Usage:
-//   import { SeenticsProvider, TrafficChart, AnalyticsSummary } from '@seentics/components'
+//   import { SeenticsProvider, TrafficChart, AnalyticsSummary } from '@seentics/ui-blocks'
 //
 //   <SeenticsProvider apiKey="sk_age_..." baseUrl="https://api.yourdomain.com">
 //     <AnalyticsSummary siteId="site_abc" days={30} />
