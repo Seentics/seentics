@@ -46,7 +46,13 @@ internalRoutes.get("/user-resource-counts", async (c) => {
 });
 internalRoutes.post("/user/sync", (c) => c.json({ data: { ok: true } }));
 internalRoutes.get("/system/stats", (c) => c.json({ data: {} }));
-internalRoutes.get("/website-owner", (c) => c.json({ data: null }));
+internalRoutes.get("/website-owner", async (c) => {
+  const websiteId = c.req.query("website_id")?.trim() ?? "";
+  if (!websiteId) return c.json({ error: "website_id required" }, 400);
+  const website = await resolveWebsiteForTracker(websiteId);
+  if (!website) return c.json({ data: null });
+  return c.json({ data: { user_id: website.user_id } });
+});
 internalRoutes.post("/retention-cleanup", async (c) => {
   try {
     const stats = await runDataRetentionCleanupSafe(env());
