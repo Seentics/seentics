@@ -13,6 +13,7 @@
   <a href="#-quick-start">Quick Start</a> ·
   <a href="#-features">Features</a> ·
   <a href="#-tracking">Tracking</a> ·
+  <a href="#-seenticsui">@seentics/ui</a> ·
   <a href="#-self-hosting">Self-Hosting</a> ·
   <a href="#-contributing">Contributing</a>
 </p>
@@ -193,11 +194,51 @@ seentics/
 │       ├── lib/            # API clients
 │       └── hooks/          # Custom React hooks
 │
-├── packages/
-│   └── components/         # @seentics/components — embeddable React charts (MIT)
+├── ui/
+│   └── blocks/             # @seentics/ui — embeddable React UI blocks (MIT)
 │
 └── docker-compose.yml
 ```
+
+---
+
+## 📦 @seentics/ui
+
+Drop Seentics analytics charts and widgets directly into your own React app — no dashboard login required.
+
+```bash
+npm install @seentics/ui
+```
+
+```tsx
+import { SeenticsProvider, TrafficChart, AnalyticsSummary, HeatmapViewer, SessionReplayPlayer } from '@seentics/ui'
+
+export default function MyDashboard() {
+  return (
+    <SeenticsProvider apiKey="sk_..." baseUrl="https://your-seentics-domain.com">
+      <AnalyticsSummary siteId="site_abc" days={30} />
+      <TrafficChart     siteId="site_abc" days={30} />
+      <HeatmapViewer    siteId="site_abc" pageUrl="/pricing" />
+    </SeenticsProvider>
+  )
+}
+```
+
+**Available blocks:**
+
+| Block | Description |
+|---|---|
+| `<AnalyticsSummary />` | Pageviews, visitors, bounce rate, session duration cards |
+| `<TrafficChart />` | Daily traffic timeseries chart |
+| `<TopPages />` | Top pages by pageviews |
+| `<TopSources />` | Referrer / UTM source breakdown |
+| `<GoalConversions />` | Goal completion rates |
+| `<FunnelChart />` | Multi-step funnel with drop-off |
+| `<RealtimeCounter />` | Live visitor count |
+| `<HeatmapViewer />` | Click and scroll heatmap overlay |
+| `<SessionReplayPlayer />` | Embedded rrweb session replay player |
+
+Source lives in [`ui/blocks/`](ui/blocks). Licensed under MIT — use it in any project.
 
 ---
 
@@ -278,7 +319,7 @@ Please open an issue first for significant changes so we can discuss the approac
 Seentics is licensed under the [GNU AGPL v3.0](LICENSE).  
 You may self-host freely. Any modifications must be released under the same license.
 
-The `@seentics/components` package is separately licensed under the [MIT License](packages/components/LICENSE).
+The [`@seentics/ui`](ui/blocks) package is separately licensed under the [MIT License](ui/blocks/LICENSE).
 
 ---
 
