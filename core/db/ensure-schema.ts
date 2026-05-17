@@ -102,6 +102,25 @@ export async function applyAiQueriesMigration(): Promise<void> {
 }
 
 /**
+ * Ensures monthly partitions exist for analytics_events (current month + 3 ahead).
+ * Calls the ensure_analytics_partitions() SQL function installed by migration 007.
+ * Safe to call on every startup — the function is a no-op for partitions that exist.
+ */
+export async function ensureAnalyticsPartitions(): Promise<void> {
+  const url = process.env.DATABASE_URL;
+  if (!url) return;
+  const client = postgres(url, { max: 1, connect_timeout: 10 });
+  try {
+    // Quietly skip if the function hasn't been installed yet (pre-migration DBs).
+    await client`SELECT ensure_analytics_partitions(3)`;
+  } catch {
+    // Function doesn't exist (migration 007 not yet applied) — not an error.
+  } finally {
+    await client.end({ timeout: 3 });
+  }
+}
+
+/**
  * Ensures Drizzle tables exist (`drizzle-kit push --force`) on empty or broken DBs.
  * Skips when `websites` already exists (fast path for `bun --watch` restarts), unless `FORCE_DB_PUSH=1`.
  *

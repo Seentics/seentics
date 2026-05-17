@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { env } from "./config";
-import { applyAnalyticsEventsWebsiteIdMigration, applyAiQueriesMigration, ensureCoreSchema } from "./db/ensure-schema";
+import { runCoreMigrations } from "./db/migrate";
 import { flushIngestQueuesNow, startIngestQueueFlusher, stopIngestQueueFlusher } from "./services/ingest.service";
 import { initMaxMindGeo } from "./lib/maxmind-geo";
 import { configureLogger } from "./lib/logger";
@@ -42,13 +42,11 @@ type BunServerWithRequestIp = {
  *
  * Raw API: `GET /api/v1/raw/v1/websites/:website_id/...` (website API key); read models align with `/api/v1/analytics/*`.
  * Automations: `routes/automations.ts`.
- * `ensureCoreSchema` runs Drizzle push when the DB has no `websites` table (dev default). See `.env.example` SKIP_DB_PUSH / FORCE_DB_PUSH / AUTO_DB_PUSH.
+ * `runCoreMigrations` runs Drizzle push + tracked SQL migrations (core analytics + gateway billing when accessible). See `.env.example` SKIP_DB_PUSH / FORCE_DB_PUSH / AUTO_DB_PUSH.
  */
 const cfg = env();
 configureLogger(cfg);
-await applyAnalyticsEventsWebsiteIdMigration();
-await applyAiQueriesMigration();
-await ensureCoreSchema();
+await runCoreMigrations(cfg.databaseUrl);
 await initMaxMindGeo(cfg.maxmind);
 configureTrackerWebsiteCache(cfg);
 configureTrackerOriginCache(cfg);
