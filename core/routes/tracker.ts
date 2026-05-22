@@ -21,6 +21,7 @@ import {
 } from "../lib/website-for-tracker";
 import * as autoSvc from "../services/automations.service";
 import * as funnelSvc from "../services/funnels.service";
+import * as playwrightSvc from "../services/heatmap-playwright.service";
 import { validationErrorResponse } from "../validators/validation";
 import { trackerCollectSchema } from "../validators/tracker";
 
@@ -220,4 +221,52 @@ trackerRoutes.post("/collect", async (c) => {
   handleHeatmaps(ctx);
 
   return c.json({ status: "ok", message: "processed", queued: n }, 200);
+});
+
+/**
+ * POST /api/v1/tracker/request-screenshot
+ * Called by seentics.js when a visitor lands on a page with no screenshot yet.
+ * Validates origin + websiteId like other tracker endpoints (no auth required).
+ * Responds 202 immediately; Playwright capture runs in background (fire-and-forget).
+ * Server-side deduplication (cache → DB → Playwright) ensures the browser only
+ * launches when no screenshot already exists for this page.
+ */
+trackerRoutes.post("/request-screenshot", async (c) => {
+  const cfg = env();
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await c.req.json()) as Record<string, unknown>;
+  } catch {
+    return c.json({ error: "invalid json" }, 400);
+  }
+
+  const websiteId = typeof body.website_id === "string" ? body.website_id.trim() : "";
+  if (!websiteId) return c.json({ error: "website_id required" }, 400);
+
+  const pageUrl = typeof body.page_url === "string" ? body.page_url.trim() : "";
+  const pagePath = typeof body.page_path === "string" ? body.page_path.trim() : "";
+  if (!pageUrl || !pagePath) return c.json({ error: "page_url and page_path required" }, 400);
+
+  try {
+    new URL(pageUrl);
+  } catch {
+    return c.json({ error: "invalid page_url" }, 400);
+  }
+
+  const website = await resolveWebsiteForTracker(websiteId);
+  if (!website || !website.is_active) {
+    return c.json({ error: "website not found or inactive" }, 404);
+  }
+
+  const origin = originFromRequest(c.req.raw.headers);
+  if (!validateOriginDomain(origin, website.url, cfg.environment)) {
+    return c.json({ error: "domain mismatch" }, 403);
+  }
+
+  void playwrightSvc
+    .captureHeatmapScreenshot(websiteId, { pageUrl, pagePath, force: false }, { lenientResolve: true })
+    .catch(() => { /* best-effort */ });
+
+  return c.json({ status: "queued" }, 202);
 });

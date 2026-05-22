@@ -2,22 +2,26 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { CreditCard, ChevronLeft, ChevronRight, Activity, Users, BarChart3, LogOut } from 'lucide-react';
-import { fetchAdminSubscriptions, clearAdminToken, getAdminToken } from '@/lib/admin-api';
-import Link from 'next/link';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { fetchAdminSubscriptions, getAdminToken, clearAdminToken } from '@/lib/admin-api';
+import { AdminSidebar } from '@/components/admin-sidebar';
 
-type Sub = { id: string; userId: string; userName: string; userEmail: string; planId: string; planName: string; priceMonthly: number; status: string; periodStart: string | null; periodEnd: string | null; createdAt: string };
+type Sub = {
+  id: string; userId: string; userName: string; userEmail: string;
+  planId: string; planName: string; priceMonthly: number;
+  status: string; periodStart: string | null; periodEnd: string | null; createdAt: string;
+};
 
-const PLAN_COLORS: Record<string, string> = {
-  starter: 'bg-gray-700 text-gray-300',
-  basic: 'bg-blue-900/50 text-blue-300',
-  growth: 'bg-emerald-900/50 text-emerald-300',
-  pro: 'bg-violet-900/50 text-violet-300',
-  agency: 'bg-amber-900/50 text-amber-300',
-  agency_pro: 'bg-orange-900/50 text-orange-300',
-  lifetime: 'bg-yellow-900/50 text-yellow-300',
-  lifetime_pro: 'bg-rose-900/50 text-rose-300',
-  enterprise: 'bg-pink-900/50 text-pink-300',
+const PLAN_BADGE: Record<string, string> = {
+  starter:      'bg-white/5 text-gray-400 border border-white/8',
+  basic:        'bg-blue-500/10 text-blue-300 border border-blue-500/20',
+  growth:       'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20',
+  pro:          'bg-violet-500/10 text-violet-300 border border-violet-500/20',
+  agency:       'bg-amber-500/10 text-amber-300 border border-amber-500/20',
+  agency_pro:   'bg-orange-500/10 text-orange-300 border border-orange-500/20',
+  lifetime:     'bg-yellow-500/10 text-yellow-300 border border-yellow-500/20',
+  lifetime_pro: 'bg-rose-500/10 text-rose-300 border border-rose-500/20',
+  enterprise:   'bg-pink-500/10 text-pink-300 border border-pink-500/20',
 };
 
 export default function AdminSubscriptionsPage() {
@@ -42,81 +46,72 @@ export default function AdminSubscriptionsPage() {
 
   useEffect(() => { load(pagination.page); }, [pagination.page, load]);
 
-  function logout() { clearAdminToken(); router.replace('/admin'); }
-
   return (
-    <div className="min-h-screen bg-gray-950 text-white flex">
-      {/* Sidebar */}
-      <aside className="w-56 border-r border-gray-800 flex flex-col py-6 px-4 shrink-0">
-        <div className="flex items-center gap-2 mb-8 px-2">
-          <BarChart3 className="w-5 h-5 text-indigo-400" />
-          <span className="font-bold text-sm">Seentics Admin</span>
-        </div>
-        <nav className="flex flex-col gap-1 flex-1">
-          <Link href="/admin/dashboard" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 text-sm transition-colors">
-            <Activity className="w-4 h-4" /> Overview
-          </Link>
-          <Link href="/admin/users" className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 text-sm transition-colors">
-            <Users className="w-4 h-4" /> Users
-          </Link>
-          <Link href="/admin/subscriptions" className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-indigo-600/20 text-indigo-300 text-sm font-medium">
-            <CreditCard className="w-4 h-4" /> Subscriptions
-          </Link>
-        </nav>
-        <button onClick={logout} className="flex items-center gap-2 px-3 py-2 text-gray-500 hover:text-red-400 text-sm transition-colors rounded-lg hover:bg-red-400/10">
-          <LogOut className="w-4 h-4" /> Sign out
-        </button>
-      </aside>
+    <div className="min-h-screen bg-[#0c0c12] text-white flex">
+      <AdminSidebar />
 
-      {/* Main */}
       <main className="flex-1 p-8 overflow-auto">
-        <div className="mb-6">
-          <h1 className="text-xl font-bold">Subscriptions</h1>
+        <div className="mb-8">
+          <h1 className="text-lg font-bold tracking-tight">Subscriptions</h1>
           <p className="text-gray-500 text-sm mt-0.5">{pagination.total.toLocaleString()} total</p>
         </div>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div className="bg-[#111116] border border-white/[0.06] rounded-xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-800 text-gray-400 text-left">
-                <th className="px-4 py-3 font-medium">User</th>
-                <th className="px-4 py-3 font-medium">Plan</th>
-                <th className="px-4 py-3 font-medium">Price</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Period End</th>
-                <th className="px-4 py-3 font-medium">Created</th>
+              <tr className="border-b border-white/[0.06]">
+                <th className="px-5 py-3.5 text-left text-[11px] text-gray-500 uppercase tracking-wide font-medium">User</th>
+                <th className="px-5 py-3.5 text-left text-[11px] text-gray-500 uppercase tracking-wide font-medium">Plan</th>
+                <th className="px-5 py-3.5 text-left text-[11px] text-gray-500 uppercase tracking-wide font-medium">Price</th>
+                <th className="px-5 py-3.5 text-left text-[11px] text-gray-500 uppercase tracking-wide font-medium">Status</th>
+                <th className="px-5 py-3.5 text-left text-[11px] text-gray-500 uppercase tracking-wide font-medium">Period End</th>
+                <th className="px-5 py-3.5 text-left text-[11px] text-gray-500 uppercase tracking-wide font-medium">Created</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
+                <tr><td colSpan={6} className="px-5 py-16 text-center text-gray-600">Loading…</td></tr>
               )}
               {!loading && subs.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">No subscriptions found</td></tr>
+                <tr><td colSpan={6} className="px-5 py-16 text-center text-gray-600">No subscriptions found</td></tr>
               )}
               {!loading && subs.map((s, i) => (
-                <tr key={s.id} className={`border-b border-gray-800/50 hover:bg-gray-800/40 transition-colors ${i === subs.length - 1 ? 'border-b-0' : ''}`}>
-                  <td className="px-4 py-3">
-                    <p className="text-white font-medium">{s.userName || '—'}</p>
-                    <p className="text-gray-500 text-xs">{s.userEmail}</p>
+                <tr
+                  key={s.id}
+                  className={`border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors ${i === subs.length - 1 ? 'border-b-0' : ''}`}
+                >
+                  <td className="px-5 py-3.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-600/30 flex items-center justify-center text-xs font-bold text-indigo-300 shrink-0">
+                        {s.userName?.[0]?.toUpperCase() ?? '?'}
+                      </div>
+                      <div>
+                        <p className="text-white font-medium text-[13px]">{s.userName || '—'}</p>
+                        <p className="text-gray-500 text-xs">{s.userEmail}</p>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PLAN_COLORS[s.planId] ?? 'bg-gray-700 text-gray-300'}`}>
+                  <td className="px-5 py-3.5">
+                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium capitalize ${PLAN_BADGE[s.planId] ?? 'bg-white/5 text-gray-400 border border-white/8'}`}>
                       {s.planName}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-300">
-                    {s.priceMonthly > 0 ? `$${s.priceMonthly}/mo` : 'Free'}
+                  <td className="px-5 py-3.5 text-gray-300 font-medium tabular-nums">
+                    {s.priceMonthly > 0 ? `$${s.priceMonthly}/mo` : <span className="text-gray-600">Free</span>}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${s.status === 'active' ? 'bg-emerald-900/50 text-emerald-300' : 'bg-gray-700 text-gray-400'}`}>
+                  <td className="px-5 py-3.5">
+                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${
+                      s.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                      s.status === 'on_trial' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' :
+                      'bg-white/5 text-gray-500 border border-white/8'
+                    }`}>
                       {s.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">
+                  <td className="px-5 py-3.5 text-gray-500 text-xs tabular-nums">
                     {s.periodEnd ? new Date(s.periodEnd).toLocaleDateString() : '—'}
                   </td>
-                  <td className="px-4 py-3 text-gray-400 text-xs">
+                  <td className="px-5 py-3.5 text-gray-500 text-xs tabular-nums">
                     {new Date(s.createdAt).toLocaleDateString()}
                   </td>
                 </tr>
@@ -126,22 +121,22 @@ export default function AdminSubscriptionsPage() {
         </div>
 
         {pagination.pages > 1 && (
-          <div className="flex items-center justify-between mt-4 text-sm text-gray-400">
+          <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
             <span>Page {pagination.page} of {pagination.pages}</span>
             <div className="flex gap-2">
               <button
                 onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
                 disabled={pagination.page <= 1}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-700 hover:border-gray-600 disabled:opacity-40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 hover:bg-white/8 disabled:opacity-30 transition-colors text-sm"
               >
-                <ChevronLeft className="w-4 h-4" /> Prev
+                <ChevronLeft className="w-3.5 h-3.5" /> Prev
               </button>
               <button
                 onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
                 disabled={pagination.page >= pagination.pages}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-gray-700 hover:border-gray-600 disabled:opacity-40 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 hover:bg-white/8 disabled:opacity-30 transition-colors text-sm"
               >
-                Next <ChevronRight className="w-4 h-4" />
+                Next <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>

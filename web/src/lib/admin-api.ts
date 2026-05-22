@@ -45,13 +45,14 @@ export async function adminLogin(email: string, password: string): Promise<strin
 export async function fetchAdminStats() {
   return adminFetch<{
     users: { total: number; newThisMonth: number; newLastMonth: number };
-    subscriptions: { active: number; byPlan: { plan: string; count: number }[] };
+    subscriptions: { paid: number; free: number; byPlan: { plan: string; count: number }[] };
     websites: { total: number };
     events: { total: number; thisMonth: number };
     sessions: { total: number; thisMonth: number };
     heatmaps: { totalPages: number };
     aiQueries: { thisMonth: number };
     revenue: { totalUsd: number };
+    storage: { eventsMb: number; replaysMb: number; heatmapsMb: number; totalMb: number };
   }>('/admin/stats');
 }
 
@@ -80,6 +81,13 @@ export async function fetchAdminPlans() {
   return adminFetch<{
     plans: { id: string; name: string; price_monthly: number; max_monthly_events: number; max_replays: number; subscriber_count: number }[];
   }>('/admin/plans');
+}
+
+export async function fetchAdminStorage() {
+  return adminFetch<{
+    tables: { name: string; rows: number; dataBytes: number; indexBytes: number; totalBytes: number }[];
+    dbTotalBytes: number;
+  }>('/admin/storage');
 }
 
 export async function fetchRecentSignups() {

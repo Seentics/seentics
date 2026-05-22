@@ -20,7 +20,7 @@ export async function runCoreMigrations(databaseUrl: string): Promise<void> {
   await ensureCoreSchema();
 
   // 2. Core SQL migrations
-  const sql = postgres(databaseUrl, { max: 1, connect_timeout: 15 });
+  const sql = postgres(databaseUrl, { max: 1, connect_timeout: 15, onnotice: () => {} });
   try {
     const dir = join(import.meta.dir, 'sql');
     const files = readdirSync(dir)
@@ -28,7 +28,18 @@ export async function runCoreMigrations(databaseUrl: string): Promise<void> {
       .sort();
     for (const filename of files) {
       const content = readFileSync(join(dir, filename), 'utf-8');
-      await sql.unsafe(content);
+      if (content.includes('CONCURRENTLY')) {
+        // CONCURRENTLY cannot run inside a transaction block — execute each statement separately
+        const statements = content
+          .split(';')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0 && !s.startsWith('--'));
+        for (const stmt of statements) {
+          await sql.unsafe(stmt);
+        }
+      } else {
+        await sql.unsafe(content);
+      }
     }
   } finally {
     await sql.end({ timeout: 5 });

@@ -56,12 +56,11 @@ let automations = [];
 let flushInterval = null;
 
 const queues = {
-  events:              [],
-  funnels:             [],
-  automations:         [],
-  session:             [],   // rrweb eventWithTime wrapped in TrackerEvent envelope
-  heatmaps:            [],   // heatmap_click / heatmap_scroll for /collect heatmaps
-  heatmap_screenshot:  [],   // html2canvas JPEG (base64 in data.image) for heatmap underlay
+  events:     [],
+  funnels:    [],
+  automations:[],
+  session:    [],   // rrweb eventWithTime wrapped in TrackerEvent envelope
+  heatmaps:   [],   // heatmap_click / heatmap_scroll for /collect heatmaps
 };
 
 // ─── Visitor / Session IDs ────────────────────────────────────────────────────
@@ -144,32 +143,6 @@ const sendGzip = async (json) => {
   xhr.send(json);
 };
 
-/**
- * Screenshots must not share a /collect body with huge `session` rrweb batches — proxies truncate → unexpected EOF.
- * POST heatmap_screenshot alone. Normal flushes use gzip; page-unload uses sync plain JSON (CompressionStream is async).
- */
-const flushHeatmapScreenshotsDedicated = (syncUnload) => {
-  const shot = queues.heatmap_screenshot.splice(0);
-  if (!shot.length) return;
-  const payload = JSON.stringify({
-    website_id: websiteId,
-    domain,
-    heatmap_screenshot: shot,
-  });
-  if (syncUnload) {
-    try {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', COLLECT, false);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.send(payload);
-    } catch {
-      /* ignore */
-    }
-    return;
-  }
-  void sendGzip(payload);
-};
-
 // ─── Unified flush — sends all queues to /collect in one request ──────────────
 const flush = () => {
   // Session hard-cap check: if the session rotated since we last started rrweb,
@@ -182,8 +155,6 @@ const flush = () => {
       });
     }
   }
-
-  flushHeatmapScreenshotsDedicated(false);
 
   const e = queues.events.splice(0);
   const f = queues.funnels.splice(0), a = queues.automations.splice(0);
@@ -221,8 +192,6 @@ const flushAnalytics = flush; // keep public API name
 // via sendBeacon so the browser guarantees delivery even as the page unloads.
 // Falls back to synchronous XHR if sendBeacon is unavailable or rejects the payload.
 const flushBeacon = () => {
-  flushHeatmapScreenshotsDedicated(true);
-
   const e = queues.events.splice(0);
   const f = queues.funnels.splice(0), a = queues.automations.splice(0);
   const s = queues.session.splice(0);
@@ -371,12 +340,7 @@ const requestRrwebFullSnapshotForNavigation = () => {
   }
 };
 
-/** Keep screenshots small so /collect JSON is not truncated by proxies (base64 inflates ~33%). */
-const HEATMAP_SCREENSHOT_MAX_EDGE    = 1440;
-const HEATMAP_SCREENSHOT_JPEG_QUALITY = 0.68;
-/** Drop if still too large after scale/quality (avoids broken JSON / unexpected EOF upstream). */
-const HEATMAP_SCREENSHOT_MAX_B64     = 2_200_000;
-/** Skip capture on paths that are almost certainly the Seentics dashboard (avoids freezing when self-tracking). */
+/** Skip capture on paths that are almost certainly the Seentics dashboard. */
 const shouldSkipHeatmapScreenshotForPath = () => {
   try {
     const p = location.pathname;
@@ -387,89 +351,48 @@ const shouldSkipHeatmapScreenshotForPath = () => {
     return false;
   }
 };
-/** html2canvas on documents larger than this is likely to freeze the main thread. */
-const HEATMAP_SCREENSHOT_MAX_DOC_EDGE = 14_000;
 
 /**
- * Full-page JPEG via html2canvas (same scroll-box basis as heatmap_click nx/ny).
+ * Request a server-side Playwright screenshot for the current page.
+ * Sends a single lightweight POST to /api/v1/tracker/request-screenshot; the server
+ * captures the page with headless Chrome and stores it in S3.
+ * Server-side deduplication (cache → DB → Playwright) means the browser only
+ * launches once — repeated calls for the same path are fast no-ops.
  */
-const captureAndQueueHeatmapScreenshot = () => {
+const requestPlaywrightScreenshot = () => {
   if (cfg.heatmap_layout_enabled === false) return;
   if (shouldSkipHeatmapScreenshotForPath()) return;
   if (hasSentHeatmapScreenshotForPath()) return;
-  void (async () => {
-    try {
-      const { default: html2canvas } = await import('html2canvas');
-      heatmapMetricsCache = null;
-      const { dw, dh } = heatmapDocumentMetrics();
-      if (
-        dw > HEATMAP_SCREENSHOT_MAX_DOC_EDGE ||
-        dh > HEATMAP_SCREENSHOT_MAX_DOC_EDGE ||
-        dw * dh > HEATMAP_SCREENSHOT_MAX_DOC_EDGE * 8_000
-      ) {
-        return;
-      }
-      const el = document.documentElement;
-      const longEdge = Math.max(dw, dh, 1);
-      const scale = Math.min(1, HEATMAP_SCREENSHOT_MAX_EDGE / longEdge);
-      const canvas = await html2canvas(el, {
-        scale,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        scrollX: -window.scrollX,
-        scrollY: -window.scrollY,
-        windowWidth: el.scrollWidth,
-        windowHeight: el.scrollHeight,
-        backgroundColor: '#ffffff',
-      });
-      const dataUrl = canvas.toDataURL('image/jpeg', HEATMAP_SCREENSHOT_JPEG_QUALITY);
-      const b64 = dataUrl.replace(/^data:image\/jpeg;base64,/, '');
-      if (!b64 || b64.length < 200 || b64.length > HEATMAP_SCREENSHOT_MAX_B64) return;
-      queues.heatmap_screenshot.push({
-        type: 'heatmap_screenshot',
-        data: { image: b64 },
-        ts: Date.now(),
-        url: location.href,
-        sid: getSessionId(),
-        vid: visitorId,
-        doc_w: Math.max(1, Math.round(dw)),
-        doc_h: Math.max(1, Math.round(dh)),
-      });
-      markHeatmapScreenshotSentForPath();
-      flushHeatmapScreenshotsDedicated(false);
-      flush();
-    } catch {
-      /* cross-origin assets / huge DOM — skip silently */
-    }
-  })();
+  try {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', apiHost + '/api/v1/tracker/request-screenshot', true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onload = () => {
+      if (xhr.status === 200 || xhr.status === 202) markHeatmapScreenshotSentForPath();
+    };
+    xhr.send(JSON.stringify({
+      website_id: websiteId,
+      page_url: location.href,
+      page_path: location.pathname,
+    }));
+  } catch {
+    /* ignore */
+  }
 };
 
 /**
- * After load or SPA navigation, delayed captures catch hydration / lazy routes.
- * Long sessions: periodic refresh so the stored image is not stale forever.
+ * After load or SPA navigation, schedule screenshot requests with staggered delays
+ * so the page has time to fully render before Playwright fetches it server-side.
+ * Once the first request succeeds (202), sessionStorage dedup prevents duplicates.
  */
 const scheduleHeatmapScreenshotAfterAppIdle = () => {
   if (cfg.heatmap_layout_enabled === false) return;
   clearHeatmapScreenshotRefreshTimers();
-  const run = () => {
-    try {
-      sessionStorage.removeItem(heatmapScreenshotSentKey());
-    } catch {
-      /* ignore */
-    }
-    captureAndQueueHeatmapScreenshot();
-  };
-  const delaysMs = [900, 2_500, 6_000];
-  for (const ms of delaysMs) {
-    heatmapScreenshotRefreshTimeouts.push(window.setTimeout(run, ms));
-  }
-
   clearHeatmapScreenshotLongPageInterval();
-  heatmapScreenshotLongPageInterval = window.setInterval(() => {
-    if (cfg.heatmap_layout_enabled === false) return;
-    run();
-  }, 90_000);
+  const delaysMs = [1_500, 4_000];
+  for (const ms of delaysMs) {
+    heatmapScreenshotRefreshTimeouts.push(window.setTimeout(requestPlaywrightScreenshot, ms));
+  }
 };
 
 // ─── Safe regex — guards against ReDoS ───────────────────────────────────────

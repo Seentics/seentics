@@ -56,6 +56,25 @@ interface CaptureResult {
  *
  * @throws Error if the page cannot be loaded or screenshot fails
  */
+/**
+ * In Docker, `localhost` inside the container refers to the container itself,
+ * not the host machine. Rewrite localhost URLs to host.docker.internal so
+ * Playwright can reach sites running on the developer's machine.
+ * Only applied when the PLAYWRIGHT_REWRITE_LOCALHOST env var is set to "true"
+ * (set automatically by docker-compose in dev; never set in production).
+ */
+function rewriteLocalhostForDocker(url: string): string {
+  if (process.env.PLAYWRIGHT_REWRITE_LOCALHOST !== "true") return url;
+  try {
+    const u = new URL(url);
+    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
+      u.hostname = "host.docker.internal";
+      return u.toString();
+    }
+  } catch { /* ignore */ }
+  return url;
+}
+
 export async function captureWebPageScreenshot(options: ScreenshotOptions): Promise<CaptureResult> {
   let page: Page | null = null;
 
@@ -66,6 +85,8 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
     } catch {
       throw new Error(`Invalid URL: ${options.url}`);
     }
+
+    const resolvedUrl = rewriteLocalhostForDocker(options.url);
 
     page = await createScreenshotPage();
 
@@ -80,7 +101,7 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
     };
 
     try {
-      await page.goto(options.url, navigationOpts);
+      await page.goto(resolvedUrl, navigationOpts);
     } catch (error) {
       throw new Error(
         `Failed to navigate to URL: ${error instanceof Error ? error.message : String(error)}`,

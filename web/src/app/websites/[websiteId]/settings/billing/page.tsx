@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   CreditCard, Zap, Check, BarChart3, Filter, Workflow, Loader2,
   Map, Video, Globe, ExternalLink, Calendar, AlertTriangle, ArrowUpRight,
-  Users, Building2,
+  Users, Building2, Sparkles,
 } from 'lucide-react';
 import { useSubscription, type SubscriptionUsage } from '@/hooks/useSubscription';
 import { toast } from 'sonner';
@@ -135,6 +135,7 @@ export default function BillingSettingsPage() {
     { name: 'Automations',         key: 'workflows',     icon: Workflow,  current: subscription?.usage?.workflows?.current || 0,      limit: subscription?.usage?.workflows?.limit || 1 },
     { name: 'Heatmaps',            key: 'heatmaps',      icon: Map,       current: subscription?.usage?.heatmaps?.current || 0,       limit: subscription?.usage?.heatmaps?.limit || 3 },
     { name: 'Session Recordings',  key: 'replays',       icon: Video,     current: subscription?.usage?.replays?.current || 0,        limit: subscription?.usage?.replays?.limit ?? 5 },
+    { name: 'AI Analyses',         key: 'aiAnalyses',    icon: Sparkles,  current: subscription?.usage?.aiAnalyses?.current || 0,      limit: subscription?.usage?.aiAnalyses?.limit ?? 5 },
   ];
 
   if (loading) {

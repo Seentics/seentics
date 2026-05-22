@@ -32,9 +32,9 @@ import {
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
 import {
-   getHeatmapData,
+  getHeatmapData,
   getHeatmapPageScreenshot,
-  saveDashboardScreenshot,
+  triggerPlaywrightScreenshot,
   heatmapPageSlug,
   normalizeHeatmapPagePath,
   weightedHeatmapCaptureViewportWidth,
@@ -176,7 +176,7 @@ function documentPixelHeightForHeatmap(
   }
   const pad = heatType === 'scroll' ? 0.04 : 0.1;
   const maxNyRaw = Math.max(...points.map(p => p.ny), heatType === 'scroll' ? 0.05 : 0.08);
-  // Don’t force bottom ≥ 1 before we have snapshot/doc metrics — avoids inflated shells on sparse data.
+  // Don't force bottom ≥ 1 before we have snapshot/doc metrics — avoids inflated shells on sparse data.
   const bottom = heatType === 'click'
     ? Math.min(1.55, Math.max(0.08, maxNyRaw + pad))
     : Math.min(1.55, Math.max(0.1, maxNyRaw + pad));
@@ -743,8 +743,8 @@ export default function HeatmapDetailPage() {
 
   const previewModeOptions = useMemo(() => {
     const pageHint = pageScreenshot
-      ? 'JPEG captured in visitors’ browsers (html2canvas) for this path when layout capture is enabled.'
-      : 'Visitors with the tracker send a page screenshot; ensure “heatmap layout” is enabled for the site.';
+      ? 'Server-side screenshot captured for this page path.'
+      : 'No screenshot yet. Use “Capture screenshot” from the menu, or enable heatmap layout so the tracker captures it automatically.';
     const liveHint =
       'Embeds the real page. Blank if the site blocks iframes (X-Frame-Options / CSP frame-ancestors).';
     return [
@@ -832,54 +832,16 @@ export default function HeatmapDetailPage() {
   }, [screenshotLoading, pageScreenshot, canLivePreview, previewUnderlay, previewTouched, isDemoMode]);
 
   const captureScreenshot = async () => {
-    const url = displayIframeUrl;
+    const url = displayIframeUrl || suggestedPreviewUrl;
     if (!url || capturing) return;
+    if (!isAbsoluteHttpUrl(url)) {
+      toast({ title: 'No preview URL', description: 'Set an https:// preview URL first.', variant: 'destructive' });
+      return;
+    }
     setCapturing(true);
-    let iframe: HTMLIFrameElement | null = null;
     try {
-      iframe = document.createElement('iframe');
-      iframe.style.cssText =
-        'position:fixed;left:-9999px;top:0;width:1280px;height:5000px;border:0;visibility:hidden;pointer-events:none;';
-      iframe.src = url;
-      document.body.appendChild(iframe);
-
-      await new Promise<void>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('Page load timed out after 20 s')), 20_000);
-        iframe!.addEventListener('load', () => { clearTimeout(timer); resolve(); }, { once: true });
-        iframe!.addEventListener('error', () => { clearTimeout(timer); reject(new Error('Failed to load page')); }, { once: true });
-      });
-
-      // Give the page a moment to finish rendering
-      await new Promise(r => setTimeout(r, 800));
-
-      let doc: Document;
-      try {
-        doc = iframe.contentDocument!;
-        if (!doc?.documentElement) throw new Error('cross-origin');
-      } catch {
-        throw new Error(
-          'Cannot capture cross-origin page. The Seentics tracker automatically captures screenshots when real visitors load the page.',
-        );
-      }
-
-      const docW = Math.max(800, doc.documentElement.scrollWidth || 1280);
-      const docH = Math.max(400, doc.documentElement.scrollHeight || 2000);
-
-      const h2c = (await import('html2canvas')).default;
-      const canvas = await h2c(doc.documentElement, {
-        useCORS: true,
-        allowTaint: false,
-        width: docW,
-        height: docH,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: docW,
-        windowHeight: docH,
-      });
-
-      const imageBase64 = canvas.toDataURL('image/jpeg', 0.85);
-      await saveDashboardScreenshot(websiteId, urlPath, imageBase64, docW, docH);
-
+      const result = await triggerPlaywrightScreenshot(websiteId, url, urlPath, { force: true });
+      if (!result) throw new Error('Screenshot capture failed — check that the page URL is reachable.');
       await queryClient.invalidateQueries({ queryKey: ['heatmap-screenshot', websiteId, urlPath] });
       setPreviewTouched(true);
       setPreviewUnderlay('screenshot');
@@ -887,7 +849,6 @@ export default function HeatmapDetailPage() {
     } catch (e) {
       toast({ title: 'Capture failed', description: (e as Error).message ?? String(e), variant: 'destructive' });
     } finally {
-      if (iframe?.parentNode) iframe.parentNode.removeChild(iframe);
       setCapturing(false);
     }
   };

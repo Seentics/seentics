@@ -44,11 +44,19 @@ const api = axios.create({
   timeout: 30000, // 30s timeout
 });
 
+// In-memory token — avoids localStorage timing issues after navigation (e.g., signup step 2).
+// Set by setApiToken() from useAuthStore actions; falls back to localStorage on cold page load.
+let _currentToken: string | null = null;
+
+export function setApiToken(token: string | null) {
+  _currentToken = token;
+}
+
 // Request interceptor — attach Authorization header from persisted tokens
 api.interceptors.request.use((config) => {
-  const { access_token } = getPersistedAuth();
-  if (access_token) {
-    config.headers.Authorization = `Bearer ${access_token}`;
+  const token = _currentToken ?? getPersistedAuth().access_token;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
@@ -121,6 +129,7 @@ api.interceptors.response.use(
 
         // Update persisted tokens with the new ones
         const newTokens = refreshResponse.data;
+        setApiToken(newTokens.access_token);
         const raw = localStorage.getItem('auth-storage');
         if (raw) {
           const parsed = JSON.parse(raw);

@@ -122,10 +122,30 @@ BEGIN
     partition_name  := 'analytics_events_' || to_char(partition_start, 'YYYY_MM');
 
     IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = partition_name) THEN
+      -- PostgreSQL blocks creating a named partition when the default partition
+      -- already contains rows whose occurred_at falls within the new range.
+      -- Fix: stash conflicting rows in a temp table, create the partition, then
+      -- reinsert (they route to the new partition automatically).
+      EXECUTE format(
+        'CREATE TEMP TABLE IF NOT EXISTS _partition_migrate_rows AS
+           SELECT * FROM analytics_events_default WHERE FALSE',
+        partition_name
+      );
+      EXECUTE format(
+        'WITH moved AS (
+           DELETE FROM analytics_events_default
+           WHERE occurred_at >= %L AND occurred_at < %L
+           RETURNING *
+         )
+         INSERT INTO _partition_migrate_rows SELECT * FROM moved',
+        partition_start, partition_end
+      );
       EXECUTE format(
         'CREATE TABLE %I PARTITION OF analytics_events FOR VALUES FROM (%L) TO (%L)',
         partition_name, partition_start, partition_end
       );
+      INSERT INTO analytics_events SELECT * FROM _partition_migrate_rows;
+      DROP TABLE IF EXISTS _partition_migrate_rows;
       RAISE NOTICE 'Created partition: %', partition_name;
     END IF;
   END LOOP;

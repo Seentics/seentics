@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthState, User } from '@/types';
+import { setApiToken } from '@/lib/api';
 
 export const useAuth = create<AuthState>()(
   persist(
@@ -16,15 +17,17 @@ export const useAuth = create<AuthState>()(
 
       setAdminVerified: (isAdminVerified: boolean) => set({ isAdminVerified }),
 
-      setAuth: ({ user, access_token, refresh_token, rememberMe = false }) =>
-        set(() => ({
+      setAuth: ({ user, access_token, refresh_token, rememberMe = false }) => {
+        setApiToken(access_token);
+        return set(() => ({
           user,
           access_token,
           refresh_token,
           isAuthenticated: true,
           rememberMe,
           isLoading: false,
-        })),
+        }));
+      },
 
       setUser: (user) =>
         set(() => ({
@@ -32,12 +35,14 @@ export const useAuth = create<AuthState>()(
           isAuthenticated: !!user,
         })),
 
-      setTokens: ({ access_token, refresh_token }) =>
-        set(() => ({
+      setTokens: ({ access_token, refresh_token }) => {
+        setApiToken(access_token);
+        return set(() => ({
           access_token,
           refresh_token,
           isAuthenticated: true,
-        })),
+        }));
+      },
 
       setRememberMe: (rememberMe) =>
         set(() => ({
@@ -54,8 +59,9 @@ export const useAuth = create<AuthState>()(
           isLoading: false,
         })),
 
-      logout: () =>
-        set(() => ({
+      logout: () => {
+        setApiToken(null);
+        return set(() => ({
           user: null,
           access_token: null,
           refresh_token: null,
@@ -63,10 +69,12 @@ export const useAuth = create<AuthState>()(
           rememberMe: false,
           isLoading: false,
           isAdminVerified: false,
-        })),
+        }));
+      },
 
-      resetAuth: () =>
-        set(() => ({
+      resetAuth: () => {
+        setApiToken(null);
+        return set(() => ({
           user: null,
           access_token: null,
           refresh_token: null,
@@ -74,7 +82,8 @@ export const useAuth = create<AuthState>()(
           rememberMe: false,
           isLoading: false,
           isAdminVerified: false,
-        })),
+        }));
+      },
 
       isTokenExpired: () => {
         const { access_token } = get();

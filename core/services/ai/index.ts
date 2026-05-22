@@ -38,10 +38,19 @@ const DOMAIN_CONFIG: Record<AIDomain, { prompt: string; tables: string[] }> = {
 // ─── Website access check ─────────────────────────────────────────────────────
 
 export async function checkWebsiteAccess(websiteId: string, userId: string): Promise<boolean> {
+  // websiteId may be a site_id (short string) or a UUID — resolve to UUID for the websites table
+  let resolvedUuid = websiteId;
+  try {
+    const { uuid } = await resolveSiteId(websiteId);
+    resolvedUuid = uuid;
+  } catch {
+    // resolution failed — proceed with original value, access check will return false
+  }
+
   const [owner] = await db
     .select({ id: websites.id })
     .from(websites)
-    .where(and(eq(websites.id, websiteId), eq(websites.userId, userId)))
+    .where(and(eq(websites.id, resolvedUuid), eq(websites.userId, userId)))
     .limit(1);
 
   if (owner) return true;
@@ -49,7 +58,7 @@ export async function checkWebsiteAccess(websiteId: string, userId: string): Pro
   const [member] = await db
     .select({ id: websiteMembers.id })
     .from(websiteMembers)
-    .where(and(eq(websiteMembers.websiteId, websiteId), eq(websiteMembers.userId, userId)))
+    .where(and(eq(websiteMembers.websiteId, resolvedUuid), eq(websiteMembers.userId, userId)))
     .limit(1);
 
   return !!member;
