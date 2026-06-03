@@ -3,7 +3,7 @@ import { env } from "./config";
 import { runCoreMigrations } from "./db/migrate";
 import { flushIngestQueuesNow, startIngestQueueFlusher, stopIngestQueueFlusher } from "./services/ingest.service";
 import { initMaxMindGeo } from "./lib/maxmind-geo";
-import { configureLogger } from "./lib/logger";
+import { configureLogger, log } from "./lib/logger";
 import { getHeatmapEngine } from "./lib/heatmap-engine";
 import { getReplayEngine } from "./lib/replay-engine";
 import { configureTrackerOriginCache } from "./lib/origin";
@@ -46,6 +46,7 @@ type BunServerWithRequestIp = {
  */
 const cfg = env();
 configureLogger(cfg);
+const core_log = log.child({ category: 'startup' });
 await runCoreMigrations(cfg.databaseUrl);
 await initMaxMindGeo(cfg.maxmind);
 configureTrackerWebsiteCache(cfg);
@@ -82,21 +83,22 @@ app.route("/api/v1/heatmaps", heatmapRoutes);
 app.route("/api/v1/tracker", trackerRoutes);
 
 async function shutdown() {
+  core_log.info({ msg: 'shutdown_started' });
   stopIngestQueueFlusher();
   try {
     await flushIngestQueuesNow();
   } catch (e) {
-    console.error("ingest queues flush", e);
+    core_log.error({ msg: 'ingest_flush_error', err: String(e) });
   }
   try {
     await getReplayEngine().shutdown();
   } catch (e) {
-    console.error("replay shutdown", e);
+    core_log.error({ msg: 'replay_shutdown_error', err: String(e) });
   }
   try {
     await getHeatmapEngine().shutdown();
   } catch (e) {
-    console.error("heatmap shutdown", e);
+    core_log.error({ msg: 'heatmap_shutdown_error', err: String(e) });
   }
 }
 
@@ -110,4 +112,4 @@ Bun.serve({
   port,
 });
 
-console.log(`Seentics core on :${port} (Bun + Hono + Drizzle)`);
+core_log.info({ msg: 'startup', service: 'seentics-core', port });

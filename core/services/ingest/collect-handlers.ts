@@ -112,6 +112,7 @@ function collectPrepareHeatmapScreenshots(
   evs: TrackerEvent[],
   websiteUuid: string,
   siteId: string,
+  heatmapLayoutEnabled: boolean,
   clientUA: string,
 ): HeatmapIngestEvent[] {
   const out: HeatmapIngestEvent[] = [];
@@ -126,6 +127,7 @@ function collectPrepareHeatmapScreenshots(
       vid: e.vid,
       websiteId: websiteUuid,
       siteId,
+      heatmapLayoutEnabled,
       clientUa: clientUA,
       docW: e.doc_w,
       docH: e.doc_h,
@@ -233,6 +235,7 @@ export function handleHeatmaps(ctx: CollectHandlerContext): void {
       screenshots,
       ctx.website.id,
       ctx.website.site_id,
+      ctx.website.heatmap_layout_enabled,
       ctx.userAgent,
     ),
   ];

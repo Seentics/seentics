@@ -46,6 +46,7 @@ export type HeatmapIngestEvent = {
   vid?: string;
   websiteId: string;
   siteId?: string;
+  heatmapLayoutEnabled?: boolean;
   clientUa?: string;
   docW?: number;
   docH?: number;
@@ -86,6 +87,8 @@ export type PageSummaryRow = {
 
 export type ScreenshotJob = {
   siteId: string;
+  websiteId: string;
+  heatmapLayoutEnabled: boolean;
   url: string;
   jpeg: Uint8Array;
   docW: number;

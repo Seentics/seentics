@@ -1,5 +1,21 @@
 import { sql } from "../db";
 
+// 3-minute TTL sha256 cache — skips the regex-heavy SELECT on the common "nothing changed" path.
+// Only stores sha256; callers that need full snapshot data must use getLayoutSnapshot directly.
+const snapshotSha256Cache = new Map<string, { sha256: string; at: number }>();
+const SNAPSHOT_TTL_MS = 3 * 60_000;
+
+function snapshotCacheKey(websiteId: string, pagePath: string): string {
+  return `${websiteId}:${pagePath}`;
+}
+
+function sweepSnapshotCache(): void {
+  const cutoff = Date.now() - SNAPSHOT_TTL_MS;
+  for (const [k, v] of snapshotSha256Cache) {
+    if (v.at < cutoff) snapshotSha256Cache.delete(k);
+  }
+}
+
 export type LayoutSnapshotRow = {
   page_path: string;
   s3_key: string;
@@ -8,6 +24,17 @@ export type LayoutSnapshotRow = {
   doc_height: number;
   updated_at: Date;
 };
+
+/**
+ * Returns the cached sha256 for a (websiteId, pagePath) pair, or null on cache miss.
+ * Use this in the ingest path to skip re-uploading identical screenshots without
+ * fetching the full snapshot row from the DB.
+ */
+export function getCachedSnapshotSha256(websiteId: string, pagePath: string): string | null {
+  const hit = snapshotSha256Cache.get(snapshotCacheKey(websiteId, pagePath));
+  if (hit && Date.now() - hit.at < SNAPSHOT_TTL_MS) return hit.sha256;
+  return null;
+}
 
 export async function getLayoutSnapshot(
   websiteId: string,
@@ -23,7 +50,7 @@ export async function getLayoutSnapshot(
   `;
   const r = rows[0] as Record<string, unknown> | undefined;
   if (!r) return null;
-  return {
+  const row: LayoutSnapshotRow = {
     page_path: String(r.page_path),
     s3_key: String(r.s3_key),
     content_sha256: String(r.content_sha256),
@@ -31,6 +58,9 @@ export async function getLayoutSnapshot(
     doc_height: Number(r.doc_height),
     updated_at: r.updated_at as Date,
   };
+  if (Math.random() < 0.05) sweepSnapshotCache();
+  snapshotSha256Cache.set(snapshotCacheKey(websiteId, pagePath), { sha256: row.content_sha256, at: Date.now() });
+  return row;
 }
 
 export async function upsertLayoutSnapshot(
@@ -51,4 +81,6 @@ export async function upsertLayoutSnapshot(
       doc_height = EXCLUDED.doc_height,
       updated_at = NOW()
   `;
+  if (Math.random() < 0.05) sweepSnapshotCache();
+  snapshotSha256Cache.set(snapshotCacheKey(websiteId, pagePath), { sha256, at: Date.now() });
 }

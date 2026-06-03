@@ -39,6 +39,10 @@ const apiHost   = normalizeApiBase(script?.getAttribute('data-api-host') ?? defa
 const autoTrack = script?.getAttribute('data-auto-track') !== 'false';
 const domain    = window.location.hostname;
 
+if (!websiteId) {
+  console.warn('[Seentics] data-website-id is missing or empty. If the script tag has async or defer, remove it — the tracker must execute synchronously to read its own attributes.');
+}
+
 // rrweb.min.js lives next to seentics.min.js; override via data-rrweb-src if needed.
 const _scriptSrc = script?.src ?? '';
 const rrwebSrc =
@@ -88,23 +92,46 @@ let visitorId = (() => {
   return id;
 })();
 
-const getSessionId = () => {
-  const s   = getStore();
-  if (!s) return 's-' + Date.now().toString(36);
-  const now = Date.now();
-  let id    = s.getItem('snc_sid');
-  const exp = s.getItem('snc_se');   // inactivity expiry
-  const ss  = s.getItem('snc_ss');   // session start time (for hard cap)
+// In-memory session cache — avoids 3 synchronous localStorage ops on every pushAnalytics call.
+// Storage is only re-read when the in-memory expiry lapses (i.e. after real inactivity).
+let _cachedSid       = null;
+let _cachedSidExpiry = 0;    // absolute ms when the cached sid should be treated as expired
+let _lastExpiryWrite = 0;    // last time we wrote snc_se to storage
 
+const getSessionId = () => {
+  const now = Date.now();
+  // Fast path: in-memory cache is still warm.
+  if (_cachedSid && now < _cachedSidExpiry) {
+    // Throttle the storage write to once per minute so other tabs can observe activity
+    // without paying a localStorage write on every single event.
+    if (now - _lastExpiryWrite > 60_000) {
+      _lastExpiryWrite = now;
+      _cachedSidExpiry = now + SESSION_MAX_MS;
+      getStore()?.setItem('snc_se', String(_cachedSidExpiry));
+    }
+    return _cachedSid;
+  }
+  // Cache miss — fall back to storage (first call, or after genuine inactivity).
+  const s = getStore();
+  if (!s) {
+    _cachedSid       = 's-' + now.toString(36);
+    _cachedSidExpiry = now + SESSION_MAX_MS;
+    return _cachedSid;
+  }
+  let id          = s.getItem('snc_sid');
+  const exp       = s.getItem('snc_se');
+  const ss        = s.getItem('snc_ss');
   const inactivityExpired = !id || !exp || now > +exp;
   const hardCapExceeded   = !!ss && (now - +ss) >= SESSION_MAX_MS;
-
   if (inactivityExpired || hardCapExceeded) {
     id = 's-' + rnd() + now.toString(36);
     s.setItem('snc_sid', id);
     s.setItem('snc_ss', String(now));
   }
-  s.setItem('snc_se', String(now + SESSION_MAX_MS));
+  _cachedSidExpiry = now + SESSION_MAX_MS;
+  s.setItem('snc_se', String(_cachedSidExpiry));
+  _cachedSid       = id;
+  _lastExpiryWrite = now;
   return id;
 };
 
@@ -206,22 +233,13 @@ const flushBeacon = () => {
   if (h.length) payload.heatmaps    = h;
   const json = JSON.stringify(payload);
   if (s.length > 0 || h.length > 400 || json.length > 55_000) {
-    try {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', COLLECT, false);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.send(json);
-    } catch { /* ignore */ }
+    // keepalive fetch continues after the page is unloaded — sync XHR is deprecated in modern browsers.
+    try { fetch(COLLECT, { method: 'POST', body: json, headers: { 'Content-Type': 'application/json' }, keepalive: true }); } catch { /* ignore */ }
     return;
   }
   const blob = new Blob([json], { type: 'application/json' });
   if (navigator.sendBeacon && navigator.sendBeacon(COLLECT, blob)) return;
-  try {
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', COLLECT, false); // synchronous
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.send(json);
-  } catch { /* ignore — page is already closing */ }
+  try { fetch(COLLECT, { method: 'POST', body: json, headers: { 'Content-Type': 'application/json' }, keepalive: true }); } catch { /* ignore — page is already closing */ }
 };
 
 // ─── rrweb lazy loader ────────────────────────────────────────────────────────
@@ -459,7 +477,7 @@ const heatmapDocumentMetrics = () => {
     typeof performance !== 'undefined' && typeof performance.now === 'function'
       ? performance.now()
       : Date.now();
-  if (heatmapMetricsCache && now - heatmapMetricsCache.at < 80) {
+  if (heatmapMetricsCache && now - heatmapMetricsCache.at < 1_000) {
     return { dw: heatmapMetricsCache.dw, dh: heatmapMetricsCache.dh };
   }
 
@@ -471,7 +489,7 @@ const heatmapDocumentMetrics = () => {
   if (body) {
     try {
       const nodes = body.getElementsByTagName('*');
-      const cap = Math.min(nodes.length, 12_000);
+      const cap = Math.min(nodes.length, 3_000);
       for (let i = 0; i < cap; i++) {
         const node = nodes[i];
         if (!(node instanceof HTMLElement)) continue;

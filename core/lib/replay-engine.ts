@@ -133,13 +133,15 @@ export class ReplayEngine {
   private async flushPg(): Promise<void> {
     if (this.pgBuf.length === 0) return;
     const all = this.pgBuf.splice(0);
-    for (let i = 0; i < all.length; i += pgBatchSize) {
-      try {
-        await upsertSessionMetaBatch(all.slice(i, i + pgBatchSize));
-      } catch (e) {
-        log.error({ msg: "replay_pg_batch_failed", err: String(e) });
-      }
-    }
+    const chunks: SessionUpsertRow[][] = [];
+    for (let i = 0; i < all.length; i += pgBatchSize) chunks.push(all.slice(i, i + pgBatchSize));
+    await Promise.all(
+      chunks.map((chunk) =>
+        upsertSessionMetaBatch(chunk).catch((e: unknown) =>
+          log.error({ msg: "replay_pg_batch_failed", err: String(e) }),
+        ),
+      ),
+    );
   }
 
   private enqueuePg(row: SessionUpsertRow): void {
@@ -246,12 +248,13 @@ export class ReplayEngine {
       });
     }
 
-    const ctx = new Map<string, { siteId: string; uuidStr: string }>();
+    // Resolve all unique website IDs in parallel rather than sequentially.
+    const uniqueWids = [...new Set(work.map((w) => w.batch.websiteId))];
+    const resolved = await Promise.all(uniqueWids.map((wid) => resolveWebsiteIdsLenient(wid)));
+    const ctx = new Map(uniqueWids.map((wid, i) => [wid, resolved[i]!]));
+
     for (const w of work) {
       const wid = w.batch.websiteId;
-      if (!ctx.has(wid)) {
-        ctx.set(wid, await resolveWebsiteIdsLenient(wid));
-      }
       const { siteId: storageWebsiteId } = ctx.get(wid)!;
 
       try {

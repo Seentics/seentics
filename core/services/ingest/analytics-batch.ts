@@ -70,8 +70,16 @@ export async function ingestAnalyticsBatch(siteId: string, events: AnalyticsInge
     return 0;
   }
   const CHUNK_SIZE = 5_000;
-  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-    await db.insert(analyticsEvents).values(rows.slice(i, i + CHUNK_SIZE));
+  if (rows.length <= CHUNK_SIZE) {
+    await db.insert(analyticsEvents).values(rows);
+  } else {
+    // Wrap multi-chunk inserts in a transaction so a partial failure doesn't
+    // leave half a batch committed with the rest silently dropped.
+    await db.transaction(async (tx) => {
+      for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+        await tx.insert(analyticsEvents).values(rows.slice(i, i + CHUNK_SIZE));
+      }
+    });
   }
   log.debug({
     msg: "analytics_ingest_inserted",

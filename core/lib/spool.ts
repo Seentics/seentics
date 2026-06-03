@@ -1,5 +1,8 @@
 import type { ReplayChunk } from "./types";
 import { compareReplayEnvelopeEvents } from "./replay-event-order";
+import { log as baseLog } from "./logger";
+
+const log = baseLog.child({ category: "replay" });
 
 const maxEventsPerSession = 500_000;
 
@@ -99,11 +102,17 @@ export class ReplaySpool {
       };
       this.sessions.set(k, st);
     }
-    if (st.events.length + events.length > maxEventsPerSession) {
-      throw new Error(`replay spool: session ${sessionId} exceeds max events`);
+    const room = maxEventsPerSession - st.events.length;
+    if (room <= 0) {
+      log.warn({ msg: "replay_spool_overflow_drop", session_id: sessionId, dropped: events.length });
+      return;
+    }
+    if (events.length > room) {
+      log.warn({ msg: "replay_spool_overflow_truncate", session_id: sessionId, kept: room, dropped: events.length - room });
+      events = events.slice(0, room);
     }
     const wasEmpty = st.events.length === 0;
-    st.events.push(...events);
+    Array.prototype.push.apply(st.events, events);
     st.lastTouchedMs = Date.now();
     if (wasEmpty) {
       st.chunkWindowStart = Date.now();

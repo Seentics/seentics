@@ -3,7 +3,7 @@ import { zNonEmptyString } from "./validation";
 
 export const heatmapDataQuerySchema = z.object({
   page_path: zNonEmptyString.max(2048),
-  event_type: z.string().trim().max(32).optional().default("click"),
+  event_type: z.enum(["click", "scroll"]).optional().default("click"),
 });
 
 export const heatmapSnapshotQuerySchema = z.object({

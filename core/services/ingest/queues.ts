@@ -91,103 +91,65 @@ async function executeFlush(): Promise<void> {
   const hm = takeHeatmapsSnapshot();
   const autoRows = takeAutomationsSnapshot();
 
-  await Promise.all(
-    [...evMap.entries()].map(async ([siteId, events]) => {
+  // All five branches are independent — run them in parallel.
+  await Promise.all([
+    // Analytics: one concurrent insert per site
+    ...[...evMap.entries()].map(async ([siteId, events]) => {
       if (!events.length) return;
       try {
         const inserted = await ingestAnalyticsBatch(siteId, events);
-        log.debug({
-          msg: "ingest_flush_events",
-          site_id: siteId,
-          batch_in: events.length,
-          inserted,
-        });
-        if (inserted > 0) {
-          log.info({
-            msg: "analytics_rows_persisted",
-            site_id: siteId,
-            rows: inserted,
-          });
-        }
+        log.debug({ msg: "ingest_flush_events", site_id: siteId, batch_in: events.length, inserted });
+        if (inserted > 0) log.info({ msg: "analytics_rows_persisted", site_id: siteId, rows: inserted });
       } catch (e) {
-        log.error({
-          msg: "ingest_analytics_batch_failed",
-          site_id: siteId,
-          error: e instanceof Error ? e.message : String(e),
-        });
+        log.error({ msg: "ingest_analytics_batch_failed", site_id: siteId, error: e instanceof Error ? e.message : String(e) });
       }
     }),
-  );
 
-  await Promise.all(
-    [...funnelMap.entries()].map(async ([siteId, events]) => {
+    // Funnels: one concurrent insert per site
+    ...[...funnelMap.entries()].map(async ([siteId, events]) => {
       if (!events.length) return;
       try {
         const inserted = await ingestAnalyticsBatch(siteId, events);
-        log.debug({
-          msg: "ingest_flush_funnels",
-          site_id: siteId,
-          batch_in: events.length,
-          inserted,
-        });
-        if (inserted > 0) {
-          log.info({
-            msg: "analytics_rows_persisted_funnel",
-            site_id: siteId,
-            rows: inserted,
-          });
-        }
+        log.debug({ msg: "ingest_flush_funnels", site_id: siteId, batch_in: events.length, inserted });
+        if (inserted > 0) log.info({ msg: "analytics_rows_persisted_funnel", site_id: siteId, rows: inserted });
       } catch (e) {
-        log.error({
-          msg: "ingest_funnel_analytics_batch_failed",
-          site_id: siteId,
-          error: e instanceof Error ? e.message : String(e),
-        });
+        log.error({ msg: "ingest_funnel_analytics_batch_failed", site_id: siteId, error: e instanceof Error ? e.message : String(e) });
       }
     }),
-  );
 
-  if (rec.length) {
-    try {
-      await getReplayEngine().processEvents(rec);
-      log.debug({ msg: "ingest_flush_recordings", n: rec.length });
-    } catch (e) {
-      log.error({
-        msg: "ingest_recordings_failed",
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
-  }
+    // Recordings
+    rec.length
+      ? getReplayEngine().processEvents(rec)
+          .then(() => log.debug({ msg: "ingest_flush_recordings", n: rec.length }))
+          .catch((e: unknown) => log.error({ msg: "ingest_recordings_failed", error: e instanceof Error ? e.message : String(e) }))
+      : undefined,
 
-  if (hm.length) {
-    try {
-      await getHeatmapEngine().processEvents(hm);
-      log.debug({ msg: "ingest_flush_heatmaps", n: hm.length });
-    } catch (e) {
-      log.error({
-        msg: "ingest_heatmaps_failed",
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
-  }
+    // Heatmaps
+    hm.length
+      ? getHeatmapEngine().processEvents(hm)
+          .then(() => log.debug({ msg: "ingest_flush_heatmaps", n: hm.length }))
+          .catch((e: unknown) => log.error({ msg: "ingest_heatmaps_failed", error: e instanceof Error ? e.message : String(e) }))
+      : undefined,
 
-  if (autoRows.length) {
-    try {
-      await ingestAutomationTriggersBatch(autoRows);
-      log.debug({ msg: "ingest_flush_automations", n: autoRows.length });
-    } catch (e) {
-      log.error({
-        msg: "ingest_automations_failed",
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
-  }
+    // Automations
+    autoRows.length
+      ? ingestAutomationTriggersBatch(autoRows)
+          .then(() => log.debug({ msg: "ingest_flush_automations", n: autoRows.length }))
+          .catch((e: unknown) => log.error({ msg: "ingest_automations_failed", error: e instanceof Error ? e.message : String(e) }))
+      : undefined,
+  ]);
+}
+
+// Use Array.prototype.push.apply rather than spread (...) to avoid stack overflow
+// when the incoming array is large (tens of thousands of events per collect call).
+function pushAll<T>(target: T[], src: T[]): void {
+  Array.prototype.push.apply(target, src);
 }
 
 export function enqueueEvents(siteId: string, events: AnalyticsIngestEvent[]): void {
   if (!events.length) return;
   const cur = eventsBySite.get(siteId) ?? [];
-  cur.push(...events);
+  pushAll(cur, events);
   eventsBySite.set(siteId, cur);
   if (totalQueuedEvents() >= maxEventsBeforeForceFlush) {
     void scheduleFlush();
@@ -196,7 +158,7 @@ export function enqueueEvents(siteId: string, events: AnalyticsIngestEvent[]): v
 
 export function enqueueRecordings(events: TrackerEvent[]): void {
   if (!events.length) return;
-  recordingsQueue.push(...events);
+  pushAll(recordingsQueue, events);
   if (recordingsQueue.length >= maxRecordingsBeforeForceFlush) {
     void scheduleFlush();
   }
@@ -204,7 +166,7 @@ export function enqueueRecordings(events: TrackerEvent[]): void {
 
 export function enqueueHeatmaps(events: HeatmapIngestEvent[]): void {
   if (!events.length) return;
-  heatmapsQueue.push(...events);
+  pushAll(heatmapsQueue, events);
   if (heatmapsQueue.length >= maxHeatmapsBeforeForceFlush) {
     void scheduleFlush();
   }
@@ -213,7 +175,7 @@ export function enqueueHeatmaps(events: HeatmapIngestEvent[]): void {
 export function enqueueFunnels(siteId: string, events: AnalyticsIngestEvent[]): void {
   if (!events.length) return;
   const cur = funnelsBySite.get(siteId) ?? [];
-  cur.push(...events);
+  pushAll(cur, events);
   funnelsBySite.set(siteId, cur);
   if (totalQueuedFunnels() >= maxFunnelsBeforeForceFlush) {
     void scheduleFlush();
@@ -222,7 +184,7 @@ export function enqueueFunnels(siteId: string, events: AnalyticsIngestEvent[]): 
 
 export function enqueueAutomations(rows: AutomationTriggerQueued[]): void {
   if (!rows.length) return;
-  automationsQueue.push(...rows);
+  pushAll(automationsQueue, rows);
   if (automationsQueue.length >= maxAutomationsBeforeForceFlush) {
     void scheduleFlush();
   }

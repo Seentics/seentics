@@ -1,19 +1,18 @@
 import { createHash } from "node:crypto";
 import { env } from "../config";
 import { batchUpsertPoints } from "./heatmap-db";
-import { getLayoutSnapshot, upsertLayoutSnapshot } from "./layout-db";
+import { getCachedSnapshotSha256, getLayoutSnapshot, upsertLayoutSnapshot } from "./layout-db";
 import { deviceTypeFromUA } from "./device";
 import { extractPath, normalizeHeatmapPagePath } from "./paths";
 import { heatmapScreenshotKey, layoutPathSlot } from "./keys";
 import { putJpeg } from "./s3";
-import { getSiteIdByWebsiteUuid, getWebsiteBySiteId } from "./website-site";
+import { getSiteIdByWebsiteUuid } from "./website-site";
 import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "./types";
 import { log as baseLog } from "./logger";
 
 const log = baseLog.child({ category: "heatmap" });
 
 const pgQueueCap = 50_000;
-const pgBatchSize = 128;
 const pgBatchMs = 400;
 const shotQueueCap = 512;
 const maxScreenshotBytes = 4 << 20;
@@ -115,7 +114,15 @@ function eventsToScreenshotJobs(siteId: string, events: HeatmapIngestEvent[]): S
     const dhData = toInt(dm.doc_h);
     if (dwData > 0) dw = dwData;
     if (dhData > 0) dh = dhData;
-    jobs.push({ siteId, url: ev.url ?? "", jpeg: raw, docW: dw, docH: dh });
+    jobs.push({
+      siteId,
+      websiteId: ev.websiteId,
+      heatmapLayoutEnabled: ev.heatmapLayoutEnabled ?? false,
+      url: ev.url ?? "",
+      jpeg: raw,
+      docW: dw,
+      docH: dh,
+    });
   }
   return jobs;
 }
@@ -137,7 +144,12 @@ export class HeatmapEngine {
 
   constructor() {
     this.bucket = env().s3.bucket;
-    this.pgTimer = setInterval(() => void this.flushPoints(), pgBatchMs);
+    // Both points and screenshots are flushed by the same timer so screenshots
+    // are never left stranded in the buffer between processEvents calls.
+    this.pgTimer = setInterval(() => {
+      void this.flushPoints();
+      void this.flushScreenshots();
+    }, pgBatchMs);
   }
 
   async shutdown(): Promise<void> {
@@ -148,23 +160,32 @@ export class HeatmapEngine {
 
   private async flushPoints(): Promise<void> {
     if (this.pointBuf.length === 0) return;
-    const batch = this.pointBuf.splice(0, pgBatchSize);
-    try {
-      await batchUpsertPoints(batch);
-    } catch (e) {
-      log.error({ msg: "heatmap_pg_batch_failed", n: batch.length, err: String(e) });
-    }
+    // Drain the full buffer so a single timer tick clears large spikes.
+    const batch = this.pointBuf.splice(0);
+    const CHUNK = 500;
+    const chunks: HeatmapPointRow[][] = [];
+    for (let i = 0; i < batch.length; i += CHUNK) chunks.push(batch.slice(i, i + CHUNK));
+    await Promise.all(
+      chunks.map((chunk) =>
+        batchUpsertPoints(chunk).catch((e: unknown) =>
+          log.error({ msg: "heatmap_pg_batch_failed", n: chunk.length, err: String(e) }),
+        ),
+      ),
+    );
   }
 
   private enqueuePoints(rows: HeatmapPointRow[]): void {
+    let dropped = 0;
     for (const row of rows) {
       if (this.pointBuf.length >= pgQueueCap) {
-        log.warn({ msg: "heatmap_point_buffer_full_drop", cap: pgQueueCap });
-        break;
+        dropped++;
+        continue;
       }
       this.pointBuf.push(row);
     }
-    if (this.pointBuf.length >= pgBatchSize) void this.flushPoints();
+    if (dropped > 0) {
+      log.warn({ msg: "heatmap_point_buffer_full_drop", dropped, cap: pgQueueCap });
+    }
   }
 
   private enqueueShots(jobs: ScreenshotJob[]): void {
@@ -189,15 +210,19 @@ export class HeatmapEngine {
   }
 
   private async ingestOneScreenshot(j: ScreenshotJob): Promise<void> {
-    if (!j.siteId || j.jpeg.length < 400 || !isJpeg(j.jpeg)) return;
-    const wsite = await getWebsiteBySiteId(j.siteId);
-    if (!wsite || !wsite.heatmapLayoutEnabled) return;
+    if (!j.siteId || !j.websiteId || !j.heatmapLayoutEnabled || j.jpeg.length < 400 || !isJpeg(j.jpeg)) return;
 
     const norm = normalizeHeatmapPagePath(extractPath(j.url));
     const sum = createHash("sha256").update(j.jpeg).digest("hex");
 
-    const existing = await getLayoutSnapshot(wsite.id, norm);
-    if (existing && existing.content_sha256 === sum) return;
+    const cachedSha256 = getCachedSnapshotSha256(j.websiteId, norm);
+    if (cachedSha256 === sum) return;
+
+    // Cache miss — fall back to DB to avoid re-uploading on cold cache or restart.
+    if (cachedSha256 === null) {
+      const existing = await getLayoutSnapshot(j.websiteId, norm);
+      if (existing?.content_sha256 === sum) return;
+    }
 
     const key = heatmapScreenshotKey(j.siteId, layoutPathSlot(j.siteId, norm));
     await putJpeg(this.bucket, key, j.jpeg);
@@ -213,7 +238,7 @@ export class HeatmapEngine {
       dH = 800;
     }
 
-    await upsertLayoutSnapshot(wsite.id, norm, key, sum, dW, dH);
+    await upsertLayoutSnapshot(j.websiteId, norm, key, sum, dW, dH);
   }
 
   /** Ingest tracker-shaped rows; each must include `websiteId` (UUID). Screenshots resolve `site_id` via DB from that UUID. */
@@ -221,14 +246,25 @@ export class HeatmapEngine {
     if (events.length === 0) return;
     this.enqueuePoints(eventsToPoints(events));
 
-    const shots = events.filter((e) => e.type === "heatmap_screenshot");
-    for (const ev of shots) {
-      const sid = ev.siteId ?? (ev.websiteId ? await getSiteIdByWebsiteUuid(ev.websiteId) : null);
-      if (sid) this.enqueueShots(eventsToScreenshotJobs(sid, [ev]));
+    // Only process screenshots where layout capture is enabled — skip siteId resolution otherwise.
+    const shots = events.filter((e) => e.type === "heatmap_screenshot" && e.heatmapLayoutEnabled);
+    if (shots.length > 0) {
+      // Resolve all screenshot site IDs in parallel instead of serially.
+      const sids = await Promise.all(
+        shots.map((ev) =>
+          ev.siteId
+            ? Promise.resolve(ev.siteId)
+            : ev.websiteId
+              ? getSiteIdByWebsiteUuid(ev.websiteId)
+              : Promise.resolve(null),
+        ),
+      );
+      for (let i = 0; i < shots.length; i++) {
+        const sid = sids[i];
+        if (sid) this.enqueueShots(eventsToScreenshotJobs(sid, [shots[i]!]));
+      }
     }
-
-    while (this.pointBuf.length > 0) await this.flushPoints();
-    await this.flushScreenshots();
+    // Points and screenshots are drained by the timer — no blocking flush here.
   }
 }
 

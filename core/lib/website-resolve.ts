@@ -4,6 +4,13 @@ import { db, websites } from "../db";
 const idCache = new Map<string, { siteId: string; uuidStr: string; exp: number }>();
 const TTL_MS = 5 * 60 * 1000;
 
+function sweepIdCache(): void {
+  const now = Date.now();
+  for (const [k, v] of idCache) {
+    if (v.exp <= now) idCache.delete(k);
+  }
+}
+
 /** Resolve public website param (UUID or site_id) to storage site_id + canonical UUID string. */
 export async function resolveWebsiteIds(websiteParam: string): Promise<{ siteId: string; uuidStr: string }> {
   const now = Date.now();
@@ -32,6 +39,7 @@ export async function resolveWebsiteIds(websiteParam: string): Promise<{ siteId:
     uuidStr = w.id;
   }
 
+  if (Math.random() < 0.05) sweepIdCache();
   idCache.set(websiteParam, { siteId, uuidStr, exp: now + TTL_MS });
   return { siteId, uuidStr };
 }

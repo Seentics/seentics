@@ -8,6 +8,6 @@ if (!url) {
 }
 
 /** Shared client: Drizzle + raw tagged-template SQL */
-export const sql = postgres(url, { max: 12 });
+export const sql = postgres(url, { max: 25 });
 export const db = drizzle(sql, { schema });
 export * from "./schema";
