@@ -27,10 +27,13 @@ function GoogleAuthCallback() {
       return;
     }
 
+    const state = searchParams.get('state');
+
     if (code) {
       const exchangeCode = async () => {
         try {
-          const response = await api.get(`/user/auth/google/callback?code=${code}`);
+          const stateParam = state ? `&state=${encodeURIComponent(state)}` : '';
+          const response = await api.get(`/user/auth/google/callback?code=${encodeURIComponent(code)}${stateParam}&format=json`);
           const data = response.data;
 
           if (data.data?.tokens && data.data?.user) {
