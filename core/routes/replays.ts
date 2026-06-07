@@ -60,7 +60,17 @@ replayRoutes.get("/:website_id/:session_id", async (c) => {
     return c.json({ error: "forbidden" }, (st ?? 403) as ContentfulStatusCode);
   }
 
-  const d = await replaySvc.getReplaySessionDetail(websiteId, sessionId);
+  let d: Awaited<ReturnType<typeof replaySvc.getReplaySessionDetail>>;
+  try {
+    d = await replaySvc.getReplaySessionDetail(websiteId, sessionId);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const isStorage = /s3|r2|minio|endpoint|credential|bucket|ECONNREFUSED|socket/i.test(msg);
+    return c.json(
+      { error: isStorage ? 'Replay storage is not configured. Set up S3/R2 credentials to load recordings.' : 'Failed to load replay' },
+      500,
+    );
+  }
   if (d.status === 404) return c.json(d.body, 404);
   return c.json(d.body);
 });
