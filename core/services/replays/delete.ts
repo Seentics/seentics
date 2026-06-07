@@ -12,7 +12,11 @@ export async function batchDeleteReplaySessions(websiteParam: string, sessionIds
   for (const sid of sessionIds) {
     engine.removeSpool(siteId, sid);
     if (uuidStr !== siteId) engine.removeSpool(uuidStr, sid);
-    await deleteSessionPrefix(bucket, siteId, sid);
+    try {
+      await deleteSessionPrefix(bucket, siteId, sid);
+    } catch {
+      // S3 delete is best-effort — still remove the DB record
+    }
     await deleteSessionByEitherId(siteId, uuidStr, sid);
   }
 }

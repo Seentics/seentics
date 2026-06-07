@@ -44,7 +44,16 @@ replayRoutes.delete("/:website_id/batch", async (c) => {
   if (!parsed.ok) return parsed.res;
   const sessionIds = parsed.data.sessionIds;
 
-  await replaySvc.batchDeleteReplaySessions(websiteId, sessionIds);
+  try {
+    await replaySvc.batchDeleteReplaySessions(websiteId, sessionIds);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const isStorage = /s3|r2|minio|endpoint|credential|bucket|ECONNREFUSED|socket/i.test(msg);
+    return c.json(
+      { error: isStorage ? 'Replay storage is not configured. Set up S3/R2 credentials to delete recordings.' : 'Failed to delete sessions' },
+      500,
+    );
+  }
   return c.json({ message: "sessions deleted" });
 });
 
