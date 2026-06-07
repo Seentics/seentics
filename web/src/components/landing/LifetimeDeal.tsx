@@ -1,11 +1,7 @@
 'use client';
 
-import { useAuth } from '@/stores/useAuthStore';
 import { isEnterprise } from '@/lib/features';
-import api from '@/lib/api';
-import { openCheckout } from '@/lib/checkout';
-import { toast } from 'sonner';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Check, Zap, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -65,30 +61,10 @@ const PLANS = [
 export default function LifetimeDeal() {
   if (!isEnterprise) return null;
 
-  const { isAuthenticated } = useAuth();
-  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const router = useRouter();
 
-  const handleSubscribe = async (planId: 'lifetime' | 'lifetime_pro') => {
-    if (!isAuthenticated) {
-      window.location.href = '/signup';
-      return;
-    }
-
-    try {
-      setLoadingPlan(planId);
-      const response = await api.post('/user/billing/checkout', {
-        plan: planId,
-        billing: 'monthly',
-      });
-
-      if (response.data.success && response.data.data.checkoutUrl) {
-        openCheckout(response.data.data.checkoutUrl);
-      }
-    } catch {
-      toast.error('Failed to initialize checkout. Please try again.');
-    } finally {
-      setLoadingPlan(null);
-    }
+  const handleSubscribe = (planId: 'lifetime' | 'lifetime_pro') => {
+    router.push(`/checkout?plan=${planId}&billing=monthly`);
   };
 
   return (
@@ -109,7 +85,6 @@ export default function LifetimeDeal() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
           {PLANS.map((plan, index) => {
             const Icon = plan.icon;
-            const isLoading = loadingPlan === plan.id;
 
             return (
               <motion.div
@@ -165,11 +140,10 @@ export default function LifetimeDeal() {
 
                 <Button
                   onClick={() => handleSubscribe(plan.id)}
-                  disabled={!!loadingPlan}
                   size="lg"
                   className={cn('w-full text-sm font-semibold mb-5', plan.buttonClass)}
                 >
-                  {isLoading ? 'Processing...' : `Get ${plan.name}`}
+                  Get {plan.name}
                 </Button>
 
                 <div className="space-y-2.5 border-t border-border/50 pt-5">
