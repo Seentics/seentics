@@ -173,10 +173,10 @@ export default function Hero() {
             className="mb-6"
           >
             <span className="block text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.2]">
-              Know Exactly What&apos;s
+              The Open-Source
             </span>
             <span className="block text-4xl md:text-6xl font-bold tracking-tight leading-[1.2] mt-1">
-              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Happening on Your Website</span>
+              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Google Analytics Alternative</span>
             </span>
           </motion.h1>
 
@@ -186,7 +186,7 @@ export default function Hero() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            Session replays, heatmaps, funnels, and analytics in one open-source platform.
+            Session recordings, heatmaps, funnels, automations, and analytics — all in one platform.
             Self-hosted, so your data never leaves your server.
           </motion.p>
 
