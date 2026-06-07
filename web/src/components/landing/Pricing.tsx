@@ -1,10 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useAuth } from '@/stores/useAuthStore';
 import { motion } from 'framer-motion';
 import { isEnterprise } from '@/lib/features';
 import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilder';
+import api from '@/lib/api';
+import { openCheckout } from '@/lib/checkout';
+import { toast } from 'sonner';
 import { useState } from 'react';
 import { Users, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -12,15 +15,33 @@ import { cn } from '@/lib/utils';
 export default function Pricing() {
   if (!isEnterprise) return null;
 
-  const router = useRouter();
+  const { isAuthenticated } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'individual' | 'agency'>('individual');
 
-  const handleSubscribe = (selection: PlanSelection) => {
-    if (selection.price === 0) {
-      router.push('/websites');
+  const handleSubscribe = async (selection: PlanSelection) => {
+    if (!isAuthenticated) {
+      window.location.href = '/signup';
       return;
     }
-    router.push(`/checkout?plan=${selection.plan}&billing=${selection.billing}`);
+    try {
+      setLoading(true);
+      if (selection.price === 0) {
+        window.location.href = '/websites';
+        return;
+      }
+      const response = await api.post('/user/billing/checkout', {
+        plan: selection.plan,
+        billing: selection.billing,
+      });
+      if (response.data.success && response.data.data.checkoutUrl) {
+        window.location.href = response.data.data.checkoutUrl;
+      }
+    } catch {
+      toast.error('Failed to initialize checkout. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -110,7 +131,7 @@ export default function Pricing() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
         >
-          <PlanBuilder onSubscribe={handleSubscribe} mode={mode} />
+          <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode={mode} />
         </motion.div>
       </div>
     </section>
