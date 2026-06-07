@@ -23,12 +23,12 @@ export function env() {
   const isProduction = environment === "production";
 
   const bucket = process.env.S3_BUCKET_REPLAYS ?? process.env.S3_BUCKET ?? "seentics-replays";
-  const region = process.env.AWS_REGION ?? "us-east-1";
+  const region = process.env.S3_REGION ?? process.env.AWS_REGION ?? "auto";
   const endpoint = process.env.S3_ENDPOINT;
   /** Host used only in presigned GET URLs (browser must resolve it). When unset, `endpoint` is used. */
   const s3PublicEndpoint = (process.env.S3_PUBLIC_ENDPOINT ?? "").trim() || undefined;
-  const accessKey = process.env.AWS_ACCESS_KEY_ID ?? "";
-  const secretKey = process.env.AWS_SECRET_ACCESS_KEY ?? "";
+  const accessKey = process.env.S3_ACCESS_KEY ?? process.env.AWS_ACCESS_KEY_ID ?? "";
+  const secretKey = process.env.S3_SECRET_KEY ?? process.env.AWS_SECRET_ACCESS_KEY ?? "";
 
   const presignTtlSec = Number(
     process.env.HEATMAP_PRESIGN_TTL_SECONDS ??
