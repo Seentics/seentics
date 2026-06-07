@@ -173,10 +173,10 @@ export default function Hero() {
             className="mb-6"
           >
             <span className="block text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.2]">
-              AI-Powered Analytics for
+              See What Users Do.
             </span>
             <span className="block text-4xl md:text-6xl font-bold tracking-tight leading-[1.2] mt-1">
-              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Developers & Product Teams</span>
+              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Then Ask Why.</span>
             </span>
           </motion.h1>
 
@@ -184,9 +184,11 @@ export default function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed"
+            className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
           >
-            Page analytics, session recordings, heatmaps, funnels, and automations — all in one platform. Ask anything about your data in plain English. Self-hosted, open source, complete data ownership.
+            Analytics, session replays, heatmaps, funnels, and automations in one platform.
+            Ask your data anything in plain English — and get instant answers.
+            Open source and self-hosted, so your data stays yours.
           </motion.p>
 
           <motion.div
