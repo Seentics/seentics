@@ -26,8 +26,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json bun.lock* ./
-# bun install runs @playwright/browser-chromium post-install which downloads Chromium
 RUN bun install && bun add openai
+# Explicitly download Playwright's Chromium (bun doesn't run post-install scripts)
+RUN ./node_modules/.bin/playwright install chromium
 
 COPY . .
 
