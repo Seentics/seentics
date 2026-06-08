@@ -27,7 +27,7 @@ import {
   MoreHorizontal,
   ChevronLeft, ChevronRight,
   Lock, ExternalLink,
-  Globe, Camera,
+  Camera,
 } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
 import { demoHeatmapPages, demoHeatmapPoints } from '@/lib/demo/heatmaps';
@@ -353,7 +353,7 @@ function HeatOnlyUnderlay() {
   );
 }
 
-type PreviewUnderlay = 'live' | 'screenshot' | 'heat-only';
+type PreviewUnderlay = 'screenshot' | 'heat-only';
 
 /** Single-row browser-style chrome (traffic dots, nav, omnibox, open). */
 function HeatmapPreviewBrowserChrome({
@@ -373,13 +373,11 @@ function HeatmapPreviewBrowserChrome({
   const statusLead =
     underlay === 'heat-only'
       ? 'Heat only · '
-      : underlay === 'live'
-        ? 'Live page · '
-        : usingPageVisual
-          ? loadState === 'loading'
-            ? 'Loading screenshot · '
-            : 'Captured screenshot · '
-          : 'No screenshot yet · ';
+      : usingPageVisual
+        ? loadState === 'loading'
+          ? 'Loading screenshot · '
+          : 'Captured screenshot · '
+        : 'No screenshot yet · ';
   const barTitle = `${statusLead}${displayUrl}`;
 
   const openExternal = () => {
@@ -465,7 +463,6 @@ function HeatmapViewer({
 
   const screenshotActive =
     underlay === 'screenshot' && !!pageScreenshot?.image_url?.trim();
-  const liveActive = underlay === 'live' && isAbsoluteHttpUrl(pageUrl);
 
   const docHeightHint = useMemo(
     () => heatmapDocHeightHintPx(points, heatType, viewPort.w),
@@ -530,10 +527,6 @@ function HeatmapViewer({
       setLoadState('idle');
       return;
     }
-    if (underlay === 'live' && isAbsoluteHttpUrl(pageUrl)) {
-      setLoadState('loaded');
-      return;
-    }
     if (screenshotActive && pageScreenshot?.image_url) {
       setLoadState('loading');
     } else {
@@ -555,8 +548,7 @@ function HeatmapViewer({
     }
   }, [points, dims, heatType]);
 
-  const showHeatOnlyFallback =
-    underlay === 'heat-only' || (!screenshotActive && !liveActive);
+  const showHeatOnlyFallback = underlay === 'heat-only' || !screenshotActive;
   const showLoadingOverlay = screenshotActive && loadState === 'loading';
 
   return (
@@ -565,7 +557,7 @@ function HeatmapViewer({
         pageUrl={pageUrl}
         underlay={underlay}
         loadState={loadState}
-        usingPageVisual={screenshotActive || liveActive}
+        usingPageVisual={screenshotActive}
       />
       <div
         ref={scrollRef}
@@ -591,31 +583,6 @@ function HeatmapViewer({
               transformOrigin: 'top left',
             }}
           >
-            {liveActive ? (
-              <div
-                className="absolute left-0 top-0 z-0 overflow-hidden bg-white"
-                style={{
-                  width: dims.w,
-                  minWidth: dims.w,
-                  height: dims.h,
-                  minHeight: dims.h,
-                }}
-              >
-                <iframe
-                  title={`Heatmap live preview: ${pageUrl}`}
-                  src={pageUrl.trim()}
-                  className="pointer-events-none block border-0"
-                  style={{
-                    width: dims.w,
-                    height: dims.h,
-                    minWidth: dims.w,
-                    minHeight: dims.h,
-                  }}
-                  referrerPolicy="no-referrer-when-downgrade"
-                  loading="eager"
-                />
-              </div>
-            ) : null}
             {screenshotActive && pageScreenshot ? (
               <div
                 className="absolute left-0 top-0 z-0 overflow-hidden bg-white"
@@ -693,7 +660,6 @@ export default function HeatmapDetailPage() {
   const [heatType,  setHeatType]  = useState<HeatType>('click');
   const [device,    setDevice]    = useState<DeviceType>('all');
   const [customUrl, setCustomUrl] = useState('');
-  const [liveUrl,   setLiveUrl]   = useState('');
   const [previewTouched, setPreviewTouched] = useState(false);
   const [previewUnderlay, setPreviewUnderlay] = useState<PreviewUnderlay>('screenshot');
   const [capturing, setCapturing] = useState(false);
@@ -745,10 +711,7 @@ export default function HeatmapDetailPage() {
     const pageHint = pageScreenshot
       ? 'Server-side screenshot captured for this page path.'
       : 'No screenshot yet. Use “Capture screenshot” from the menu, or enable heatmap layout so the tracker captures it automatically.';
-    const liveHint =
-      'Embeds the real page. Blank if the site blocks iframes (X-Frame-Options / CSP frame-ancestors).';
     return [
-      ['live', Globe, 'Live page', liveHint] as const,
       ['screenshot', ImageIcon, 'Screenshot', pageHint] as const,
       ['heat-only', Layers, 'Heat only', 'Heat only, no page underlay.'] as const,
     ];
@@ -794,45 +757,10 @@ export default function HeatmapDetailPage() {
     ? allPoints
     : allPoints.filter(p => (p.device ?? 'desktop').toLowerCase() === device);
 
-  const demoIframeFallback =
-    typeof window !== 'undefined' && isDemoMode
-      ? `${window.location.origin}${demoPage?.url ?? '/'}`
-      : '';
-
-  useEffect(() => {
-    if (previewTouched) return;
-    if (isDemoMode && demoIframeFallback) {
-      setLiveUrl(demoIframeFallback);
-      return;
-    }
-    if (!isDemoMode && suggestedPreviewUrl) setLiveUrl(suggestedPreviewUrl);
-  }, [isDemoMode, demoIframeFallback, suggestedPreviewUrl, previewTouched]);
-
-  const displayIframeUrl = liveUrl || suggestedPreviewUrl || demoIframeFallback;
-
-  const canLivePreview = useMemo(
-    () => isAbsoluteHttpUrl((displayIframeUrl || '').trim()),
-    [displayIframeUrl],
-  );
-
-  useEffect(() => {
-    if (previewUnderlay === 'live' && !canLivePreview) {
-      setPreviewUnderlay('screenshot');
-    }
-  }, [previewUnderlay, canLivePreview]);
-
-  // Auto-switch from screenshot → live when the screenshot query resolves with no image
-  // and the live page is embeddable. Don't override an explicit user choice.
-  useEffect(() => {
-    if (previewTouched || isDemoMode) return;
-    if (screenshotLoading || previewUnderlay !== 'screenshot') return;
-    if (!pageScreenshot?.image_url && canLivePreview) {
-      setPreviewUnderlay('live');
-    }
-  }, [screenshotLoading, pageScreenshot, canLivePreview, previewUnderlay, previewTouched, isDemoMode]);
+  const activePreviewUrl = (customUrl.trim() || suggestedPreviewUrl).trim();
 
   const captureScreenshot = async () => {
-    const url = displayIframeUrl || suggestedPreviewUrl;
+    const url = activePreviewUrl;
     if (!url || capturing) return;
     if (!isAbsoluteHttpUrl(url)) {
       toast({ title: 'No preview URL', description: 'Set an https:// preview URL first.', variant: 'destructive' });
@@ -857,14 +785,12 @@ export default function HeatmapDetailPage() {
     const t = customUrl.trim();
     if (!t) return;
     setPreviewTouched(true);
-    setLiveUrl(t.startsWith('http') ? t : `https://${t}`);
+    setCustomUrl(t.startsWith('http') ? t : `https://${t}`);
   };
 
   const resetPreviewUrl = () => {
     setPreviewTouched(false);
     setCustomUrl('');
-    if (isDemoMode && demoIframeFallback) setLiveUrl(demoIframeFallback);
-    else setLiveUrl(suggestedPreviewUrl);
   };
 
   const shareHeatmapPath = `/websites/${websiteId}/heatmaps/${heatmapPageSlug(urlPath)}`;
@@ -892,7 +818,7 @@ export default function HeatmapDetailPage() {
           value={customUrl}
           onChange={e => setCustomUrl(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && applyUrl()}
-          placeholder={displayIframeUrl || 'https://…'}
+          placeholder={suggestedPreviewUrl || 'https://…'}
           className="h-9 font-mono text-xs"
         />
         <Button type="button" size="sm" className="h-9 shrink-0" onClick={applyUrl}>
@@ -994,39 +920,30 @@ export default function HeatmapDetailPage() {
             </Select>
 
             <div className="flex rounded-md border border-border bg-background p-0.5">
-              {previewModeOptions.map(([mode, Icon, label, hint]) => {
-                const liveDisabled = mode === 'live' && !canLivePreview;
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    title={
-                      liveDisabled
-                        ? 'Set a full https:// preview URL in Settings or Preview URL to embed the live page.'
-                        : hint
-                    }
-                    disabled={liveDisabled}
-                    onClick={() => setPreviewUnderlay(mode)}
-                    className={cn(
-                      'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
-                      previewUnderlay === mode
-                        ? 'bg-muted text-foreground'
-                        : 'text-muted-foreground hover:text-foreground',
-                      liveDisabled && 'pointer-events-none opacity-40',
-                    )}
-                  >
-                    <Icon className="h-3 w-3 opacity-80" />
-                    {mode === 'screenshot' || mode === 'live' ? (
-                      <>
-                        <span className="sm:hidden">{mode === 'live' ? 'Live' : 'Shot'}</span>
-                        <span className="hidden sm:inline">{label}</span>
-                      </>
-                    ) : (
-                      <span>{label}</span>
-                    )}
-                  </button>
-                );
-              })}
+              {previewModeOptions.map(([mode, Icon, label, hint]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  title={hint}
+                  onClick={() => setPreviewUnderlay(mode)}
+                  className={cn(
+                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    previewUnderlay === mode
+                      ? 'bg-muted text-foreground'
+                      : 'text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <Icon className="h-3 w-3 opacity-80" />
+                  {mode === 'screenshot' ? (
+                    <>
+                      <span className="sm:hidden">Shot</span>
+                      <span className="hidden sm:inline">{label}</span>
+                    </>
+                  ) : (
+                    <span>{label}</span>
+                  )}
+                </button>
+              ))}
             </div>
 
             {!isDemoMode && (
@@ -1037,17 +954,17 @@ export default function HeatmapDetailPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
-                  {displayIframeUrl ? (
+                  {activePreviewUrl ? (
                     <DropdownMenuItem
                       className="text-xs"
-                      onClick={() => window.open(displayIframeUrl, '_blank', 'noopener,noreferrer')}
+                      onClick={() => window.open(activePreviewUrl, '_blank', 'noopener,noreferrer')}
                     >
                       Open preview tab
                     </DropdownMenuItem>
                   ) : null}
                   <DropdownMenuItem
                     className="text-xs"
-                    disabled={capturing || !displayIframeUrl}
+                    disabled={capturing || !activePreviewUrl}
                     onClick={captureScreenshot}
                   >
                     <Camera className="mr-2 h-3.5 w-3.5" />
@@ -1067,7 +984,7 @@ export default function HeatmapDetailPage() {
 
       <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-2 pb-2 pt-1.5 md:px-4 md:pb-3 md:pt-2">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card">
-          {!displayIframeUrl && !isDemoMode && !pageScreenshot?.image_url && points.length === 0 && !isLoading ? (
+          {!activePreviewUrl && !isDemoMode && !pageScreenshot?.image_url && points.length === 0 && !isLoading ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
               <p className="text-sm font-medium text-foreground">Add a page preview URL</p>
               <p className="max-w-md text-xs leading-relaxed text-muted-foreground">
@@ -1078,7 +995,7 @@ export default function HeatmapDetailPage() {
             <div className="relative min-h-0 flex-1">
               <HeatmapViewer
                 key={`${websiteId}:${urlPath}`}
-                pageUrl={displayIframeUrl || suggestedPreviewUrl || heatmapPathLine}
+                pageUrl={activePreviewUrl || heatmapPathLine}
                 points={points}
                 heatType={heatType}
                 underlay={previewUnderlay}
