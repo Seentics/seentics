@@ -18,35 +18,44 @@ async function resolve(
   return { uuidStr };
 }
 
+function mergeNormalizedPages(pages: Awaited<ReturnType<typeof listPages>>) {
+  type Acc = { page_path: string; click_count: number; scroll_count: number; scroll_sum: number; scroll_n: number; last_seen: string };
+  const by = new Map<string, Acc>();
+  for (const p of pages) {
+    const key = normalizeHeatmapPagePath(p.page_path);
+    const e = by.get(key);
+    if (e) {
+      e.click_count  += p.click_count;
+      e.scroll_count += p.scroll_count;
+      e.scroll_sum   += p.avg_scroll;
+      e.scroll_n     += 1;
+      if (p.last_seen > e.last_seen) e.last_seen = p.last_seen;
+    } else {
+      by.set(key, { page_path: key, click_count: p.click_count, scroll_count: p.scroll_count, scroll_sum: p.avg_scroll, scroll_n: 1, last_seen: p.last_seen });
+    }
+  }
+  return [...by.values()]
+    .sort((a, b) => b.click_count - a.click_count)
+    .map((e) => ({
+      page_path:    e.page_path,
+      click_count:  e.click_count,
+      scroll_count: e.scroll_count,
+      avg_scroll:   e.scroll_n > 0 ? Math.round(e.scroll_sum / e.scroll_n) : 0,
+      last_seen:    e.last_seen,
+    }));
+}
+
 export async function listHeatmapPages(websiteParam: string, opts: { lenientResolve: boolean }) {
   const { uuidStr } = await resolve(websiteParam, opts.lenientResolve);
   const pages = await listPages(uuidStr);
-  return {
-    pages: pages.map((p) => ({
-      page_path: p.page_path,
-      click_count: p.click_count,
-      scroll_count: p.scroll_count,
-      avg_scroll: p.avg_scroll,
-      last_seen: p.last_seen,
-    })),
-  };
+  return { pages: mergeNormalizedPages(pages) };
 }
 
 /** Raw API: pages + site ids for envelope. */
 export async function listHeatmapPagesRaw(websiteParam: string) {
   const { uuidStr, siteId } = await resolveWebsiteIds(websiteParam);
   const pages = await listPages(uuidStr);
-  return {
-    siteId,
-    uuidStr,
-    pages: pages.map((p) => ({
-      page_path: p.page_path,
-      click_count: p.click_count,
-      scroll_count: p.scroll_count,
-      avg_scroll: p.avg_scroll,
-      last_seen: p.last_seen,
-    })),
-  };
+  return { siteId, uuidStr, pages: mergeNormalizedPages(pages) };
 }
 
 export async function getHeatmapPoints(

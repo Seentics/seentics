@@ -62,6 +62,22 @@ export async function batchUpsertPoints(rows: HeatmapPointRow[]): Promise<void> 
   }
 }
 
+/**
+ * SQL expression: normalize dynamic-ID segments in `page_path` so that
+ * old rows stored with raw session/UUID IDs can be matched by their `:id` form.
+ * Only static SQL — no user input.
+ */
+const NORM_PAGE_PATH_EXPR = sql.unsafe(`
+  regexp_replace(
+    regexp_replace(
+      regexp_replace(
+        regexp_replace(page_path,
+          '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '/:id', 'gi'),
+        '/[a-z]-[a-z0-9]{16,}', '/:id', 'gi'),
+      '/[a-z0-9]{24,}', '/:id', 'gi'),
+    '/[0-9]{6,}', '/:id', 'g')
+`);
+
 export async function getHeatmapData(
   websiteId: string,
   pagePath: string,
@@ -74,13 +90,12 @@ export async function getHeatmapData(
     FROM heatmap_points
     WHERE website_id = ${websiteId}::uuid
       AND event_type = ${eventType}
-      AND regexp_replace(
-            COALESCE(NULLIF(BTRIM(page_path), ''), '/'),
-            '/$', ''
-          ) = regexp_replace(
-            COALESCE(NULLIF(BTRIM(${pagePath}), ''), '/'),
-            '/$', ''
-          )
+      AND (
+        regexp_replace(COALESCE(NULLIF(BTRIM(page_path), ''), '/'), '/$', '')
+          = regexp_replace(COALESCE(NULLIF(BTRIM(${pagePath}), ''), '/'), '/$', '')
+        OR regexp_replace(${NORM_PAGE_PATH_EXPR}, '/$', '')
+          = regexp_replace(COALESCE(NULLIF(BTRIM(${pagePath}), ''), '/'), '/$', '')
+      )
     ORDER BY intensity DESC
   `;
   return (rows as Record<string, unknown>[]).map((r) => ({
@@ -121,6 +136,10 @@ export async function deleteHeatmaps(websiteId: string, pagePaths: string[]): Pr
   if (pagePaths.length === 0) return;
   await sql`
     DELETE FROM heatmap_points
-    WHERE website_id = ${websiteId}::uuid AND page_path = ANY(${pagePaths})
+    WHERE website_id = ${websiteId}::uuid
+      AND (
+        page_path = ANY(${pagePaths})
+        OR ${NORM_PAGE_PATH_EXPR} = ANY(${pagePaths})
+      )
   `;
 }

@@ -67,7 +67,7 @@ function eventsToPoints(events: HeatmapIngestEvent[]): HeatmapPointRow[] {
     const ua = ev.clientUa ?? "";
     const device = deviceTypeFromUA(ua);
     const data = ev.data ?? {};
-    const pagePath = extractPath(ev.url ?? "");
+    const pagePath = normalizeHeatmapPagePath(extractPath(ev.url ?? ""));
 
     if (ev.type === "heatmap_click") {
       const nx = Math.min(1, Math.max(0, toFloat(data.nx)));

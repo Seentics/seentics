@@ -14,6 +14,14 @@ export function extractPath(rawURL: string): string {
   }
 }
 
+/**
+ * Segments that look like opaque IDs — UUIDs, session slugs (s-xxx),
+ * long base36/hex strings (24+ chars), and long numeric IDs (6+ digits).
+ * Replaced with `:id` so dynamic-route pages collapse to one heatmap entry.
+ */
+const DYNAMIC_SEGMENT_RE =
+  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z]-[a-z0-9]{16,}|[a-z0-9]{24,}|\d{6,})$/i;
+
 /** Canonical path for DB matching (matches Go `NormalizeHeatmapPagePath`). */
 export function normalizeHeatmapPagePath(path: string): string {
   let p = (path ?? "").trim();
@@ -22,5 +30,11 @@ export function normalizeHeatmapPagePath(path: string): string {
   if (q >= 0) p = p.slice(0, q);
   if (!p.startsWith("/")) p = `/${p}`;
   p = p.replace(/\/+$/, "");
+  // Collapse dynamic-ID segments so /replays/s-abc123 and /replays/s-xyz789
+  // both become /replays/:id and share one heatmap entry.
+  p = p
+    .split("/")
+    .map((seg) => (DYNAMIC_SEGMENT_RE.test(seg) ? ":id" : seg))
+    .join("/");
   return p || "/";
 }

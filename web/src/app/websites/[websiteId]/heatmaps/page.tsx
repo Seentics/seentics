@@ -40,6 +40,20 @@ function stripWebsiteDashboardPrefix(path: string, websiteId: string): string {
   return path;
 }
 
+/**
+ * Collapse dynamic-ID path segments to `:id` — same rule as the backend
+ * `normalizeHeatmapPagePath`. Handles legacy rows already stored with raw IDs.
+ */
+const DYNAMIC_SEGMENT_RE =
+  /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[a-z]-[a-z0-9]{16,}|[a-z0-9]{24,}|\d{6,})$/i;
+
+function normalizeDynamicIds(path: string): string {
+  return path
+    .split('/')
+    .map((seg) => (DYNAMIC_SEGMENT_RE.test(seg) ? ':id' : seg))
+    .join('/');
+}
+
 function heatmapPathDisplay(raw: string, websiteId: string): { display: string; title: string } {
   const t = raw?.trim() || '/';
   let path = t;
@@ -53,8 +67,8 @@ function heatmapPathDisplay(raw: string, websiteId: string): { display: string; 
   }
   if (!path.startsWith('/')) path = `/${path}`;
 
-  const title = path;
-  const relative = stripWebsiteDashboardPrefix(path, websiteId);
+  const title = normalizeDynamicIds(stripWebsiteDashboardPrefix(path, websiteId));
+  const relative = title;
   const display =
     relative.length <= HEATMAP_PATH_MAX
       ? relative
