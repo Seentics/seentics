@@ -80,7 +80,6 @@ frontend/out/
 
 # MaxMind GeoIP database (download locally — see README)
 data/maxmind/*.mmdb
-core/db/**/*.mmdb
 
 # Misc
 *.bak
