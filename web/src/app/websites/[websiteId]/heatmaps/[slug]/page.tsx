@@ -688,6 +688,9 @@ export default function HeatmapDetailPage() {
 
   const suggestedPreviewUrl = useMemo(() => {
     if (!sitePreviewBase) return '';
+    // urlPath may contain `:id` placeholders from path normalization (e.g. /replays/:id).
+    // A URL with `:id` is not a real page — skip the suggestion so the user enters a specific URL.
+    if (urlPath.includes(':id')) return '';
     const p = urlPath.startsWith('/') ? urlPath : `/${urlPath}`;
     return `${sitePreviewBase}${p}`;
   }, [sitePreviewBase, urlPath]);

@@ -36,6 +36,18 @@ export function getCachedSnapshotSha256(websiteId: string, pagePath: string): st
   return null;
 }
 
+/** Same normalization as NORM_PAGE_PATH_EXPR in heatmap-db — static SQL, no user input. */
+const NORM_SNAPSHOT_PATH = sql.unsafe(`
+  regexp_replace(
+    regexp_replace(
+      regexp_replace(
+        regexp_replace(page_path,
+          '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '/:id', 'gi'),
+        '/[a-z]-[a-z0-9]{16,}', '/:id', 'gi'),
+      '/[a-z0-9]{24,}', '/:id', 'gi'),
+    '/[0-9]{6,}', '/:id', 'g')
+`);
+
 export async function getLayoutSnapshot(
   websiteId: string,
   pagePath: string,
@@ -44,8 +56,13 @@ export async function getLayoutSnapshot(
     SELECT page_path, s3_key, content_sha256, doc_width, doc_height, updated_at
     FROM heatmap_page_snapshots
     WHERE website_id = ${websiteId}::uuid
-      AND regexp_replace(COALESCE(NULLIF(BTRIM(page_path), ''), '/'), '/$', '') =
-          regexp_replace(COALESCE(NULLIF(BTRIM(${pagePath}), ''), '/'), '/$', '')
+      AND (
+        regexp_replace(COALESCE(NULLIF(BTRIM(page_path), ''), '/'), '/$', '')
+          = regexp_replace(COALESCE(NULLIF(BTRIM(${pagePath}), ''), '/'), '/$', '')
+        OR regexp_replace(${NORM_SNAPSHOT_PATH}, '/$', '')
+          = regexp_replace(COALESCE(NULLIF(BTRIM(${pagePath}), ''), '/'), '/$', '')
+      )
+    ORDER BY updated_at DESC
     LIMIT 1
   `;
   const r = rows[0] as Record<string, unknown> | undefined;
