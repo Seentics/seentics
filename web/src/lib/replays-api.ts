@@ -220,9 +220,12 @@ export async function getSessionWithEvents(
   if (urlRows.length > 0 && fromUrls.length === 0) {
     const failed = chunkResults.find((x) => x.status === "rejected") as PromiseRejectedResult | undefined;
     const msg = failed?.reason instanceof Error ? failed.reason.message : String(failed?.reason ?? "failed");
-    throw new Error(
-      `Could not load replay from storage (${msg}). Check that presigned URLs use a public S3 endpoint (e.g. S3_PUBLIC_ENDPOINT with MinIO) and CORS allows GET from your app.`,
-    );
+    const hint = msg.includes("404")
+      ? "Got 404 — the presigned URL path is wrong. If you set S3_PUBLIC_ENDPOINT to a custom domain (e.g. Cloudflare R2 custom domain), unset it — R2's API endpoint is already public and custom domains add an extra bucket prefix that causes 404. Only set S3_PUBLIC_ENDPOINT for MinIO where the internal Docker hostname differs from the host-accessible address."
+      : msg.includes("403")
+      ? "Got 403 — CORS or signature mismatch. If using a custom domain for presigned URLs, R2 does not support presigned URL auth via custom domains — unset S3_PUBLIC_ENDPOINT and use the R2 API endpoint directly."
+      : "Check S3_PUBLIC_ENDPOINT and CORS settings.";
+    throw new Error(`Could not load replay from storage (${msg}). ${hint}`);
   }
 
   let chunks: Array<{ sequence: number; data: unknown[] }> = [...fromUrls];
@@ -236,9 +239,10 @@ export async function getSessionWithEvents(
       chunks = [{ sequence: 0, data: raw as unknown[] }];
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      throw new Error(
-        `Could not load replay bundle (${msg}). Check S3_PUBLIC_ENDPOINT / CORS if using MinIO or R2.`,
-      );
+      const hint = msg.includes("404")
+        ? "Got 404 on legacy bundle URL — if S3_PUBLIC_ENDPOINT is set to a Cloudflare R2 custom domain, unset it (custom domains prepend the bucket name to the path, causing 404). Use the R2 API endpoint directly."
+        : "Check S3_PUBLIC_ENDPOINT / CORS if using MinIO or R2.";
+      throw new Error(`Could not load replay bundle (${msg}). ${hint}`);
     }
   }
 
