@@ -71,21 +71,36 @@ export function getClientIp(c: Context, trustProxy: boolean): string {
 
 /**
  * GeoIP source IP: honors proxy headers when TRUST_PROXY=true.
- * When TRUST_PROXY=false and the TCP peer is private (typical Next → gateway → core), development uses
- * XFF / CF headers if present so MaxMind still sees the visitor without extra env.
+ * When TRUST_PROXY=false and the TCP peer is private (typical Cloudflare → gateway → core),
+ * cf-connecting-ip is still used unconditionally — Cloudflare strips any client-supplied value
+ * before setting its own, so it is safe without TRUST_PROXY. Other forwarded headers
+ * (x-real-ip, x-forwarded-for) are only trusted in non-production to avoid spoofing.
  */
 export function clientIpForIngest(c: Context, trustProxy: boolean, isProduction: boolean): string {
-  const fromHeaders = clientIpFromRequestHeaders(c.req.raw.headers);
+  const headers = c.req.raw.headers;
   const peer = c.req.header(SEENTICS_PEER_IP_HEADER)?.trim() ?? "";
 
   if (trustProxy) {
+    const fromHeaders = clientIpFromRequestHeaders(headers);
     if (fromHeaders) return fromHeaders;
     if (peer) return peer;
     return "";
   }
 
+  // Direct public connection — peer is the actual visitor.
   if (peer && !isNonPublicClientIp(peer)) return peer;
-  if (!isProduction && fromHeaders) return fromHeaders;
+
+  // Behind Cloudflare: cf-connecting-ip is injected by CF infrastructure and
+  // is not spoofable by the client, so safe to trust for geo even without TRUST_PROXY.
+  const cfIp = headers.get("cf-connecting-ip")?.trim();
+  if (cfIp) return cfIp;
+
+  // Development fallback: trust any forwarded header so MaxMind resolves locally.
+  if (!isProduction) {
+    const fromHeaders = clientIpFromRequestHeaders(headers);
+    if (fromHeaders) return fromHeaders;
+  }
+
   if (peer) return peer;
   return "";
 }
