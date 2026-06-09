@@ -128,16 +128,16 @@ function NumberCard({ rows, yKey, title, insight }: {
   const formatted = isNaN(num) ? String(raw ?? '—') : num.toLocaleString();
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-5 py-8">
+    <div className="flex flex-col items-center justify-center min-h-[220px] gap-4 py-8">
       <div className="relative flex items-center justify-center">
-        <div className="absolute inset-0 rounded-full bg-indigo-500/10 blur-3xl scale-150" />
-        <span className="relative text-7xl sm:text-8xl font-black bg-gradient-to-br from-indigo-300 via-violet-300 to-indigo-500 bg-clip-text text-transparent tabular-nums">
+        <div className="absolute inset-0 rounded-full bg-indigo-400/15 blur-3xl scale-150 dark:bg-indigo-500/10" />
+        <span className="relative text-7xl sm:text-8xl font-black bg-gradient-to-br from-indigo-500 via-violet-500 to-indigo-700 bg-clip-text text-transparent tabular-nums dark:from-indigo-300 dark:via-violet-300 dark:to-indigo-500">
           {formatted}
         </span>
       </div>
-      <p className="text-base font-medium text-muted-foreground">{title}</p>
+      <p className="text-base font-semibold text-foreground">{title}</p>
       {insight && (
-        <p className="max-w-sm text-center text-sm text-foreground/60 leading-relaxed">
+        <p className="max-w-sm text-center text-sm text-muted-foreground leading-relaxed">
           {insight}
         </p>
       )}
@@ -163,7 +163,7 @@ function StatGrid({ rows, columns }: { rows: Record<string, unknown>[]; columns:
         return (
           <div
             key={col.key}
-            className="relative overflow-hidden rounded-xl border border-border/60 bg-muted/20 p-4 flex flex-col gap-2"
+            className="relative overflow-hidden rounded-xl border border-border bg-muted/40 p-4 flex flex-col gap-2 dark:bg-muted/20"
           >
             <div className="absolute top-0 right-0 h-16 w-16 rounded-bl-full opacity-10" style={{ background: color }} />
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{col.label}</p>
@@ -255,26 +255,44 @@ function ResultAreaChart({ rows, xKey, yKey, columns }: {
   }));
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={data} margin={{ left: 0, right: 16, top: 8, bottom: 8 }}>
-        <defs>
-          <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%"  stopColor="#818cf8" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.35)" />
-        <XAxis dataKey={xk} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={48} />
-        <Tooltip
-          contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 24px rgb(0 0 0 / 0.15)' }}
-          labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
-          formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? 'Value'] as [string, string]}
-        />
-        <Area type="monotone" dataKey={yk} stroke="#818cf8" strokeWidth={2.5}
-          fill="url(#areaGrad)" dot={false} activeDot={{ r: 5, fill: '#818cf8', strokeWidth: 0 }} />
-      </AreaChart>
-    </ResponsiveContainer>
+    <div className="h-[300px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ left: 0, right: 16, top: 16, bottom: 4 }}>
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stopColor="#6366f1" stopOpacity={0.25} />
+              <stop offset="75%" stopColor="#6366f1" stopOpacity={0.04} />
+              <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.4)" vertical={false} />
+          <XAxis
+            dataKey={xk}
+            tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+            axisLine={false} tickLine={false}
+            tickMargin={8}
+          />
+          <YAxis
+            tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+            axisLine={false} tickLine={false} width={52}
+            tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : v}
+          />
+          <Tooltip
+            contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 24px rgb(0 0 0 / 0.12)' }}
+            labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
+            formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? 'Value'] as [string, string]}
+            cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1, strokeDasharray: '4 4' }}
+          />
+          <Area
+            type="monotone" dataKey={yk}
+            stroke="#6366f1" strokeWidth={2.5}
+            fill="url(#areaGrad)"
+            dot={false}
+            activeDot={{ r: 5, fill: '#6366f1', stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -292,20 +310,35 @@ function ResultLineChart({ rows, xKey, yKey, columns }: {
   }));
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ left: 0, right: 16, top: 8, bottom: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.35)" />
-        <XAxis dataKey={xk} tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={48} />
-        <Tooltip
-          contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 24px rgb(0 0 0 / 0.15)' }}
-          labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
-          formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? 'Value'] as [string, string]}
-        />
-        <Line type="monotone" dataKey={yk} stroke="#818cf8" strokeWidth={2.5}
-          dot={false} activeDot={{ r: 5, fill: '#818cf8', strokeWidth: 0 }} />
-      </LineChart>
-    </ResponsiveContainer>
+    <div className="h-[300px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data} margin={{ left: 0, right: 16, top: 16, bottom: 4 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.4)" vertical={false} />
+          <XAxis
+            dataKey={xk}
+            tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+            axisLine={false} tickLine={false} tickMargin={8}
+          />
+          <YAxis
+            tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+            axisLine={false} tickLine={false} width={52}
+            tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : v}
+          />
+          <Tooltip
+            contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 24px rgb(0 0 0 / 0.12)' }}
+            labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
+            formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? 'Value'] as [string, string]}
+            cursor={{ stroke: 'hsl(var(--border))', strokeWidth: 1, strokeDasharray: '4 4' }}
+          />
+          <Line
+            type="monotone" dataKey={yk}
+            stroke="#6366f1" strokeWidth={2.5}
+            dot={false}
+            activeDot={{ r: 5, fill: '#6366f1', stroke: 'hsl(var(--background))', strokeWidth: 2 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -324,46 +357,49 @@ function ResultPieChart({ rows, xKey, yKey, columns }: {
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
-    <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-8 h-full min-h-[240px]">
-      <div className="w-full sm:w-[55%] h-48 sm:h-full min-h-[200px]">
+    <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-10 min-h-[280px]">
+      <div className="w-full sm:w-[44%] h-56 sm:h-64 shrink-0">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <defs>
               {CHART_COLORS.map((c, i) => (
                 <radialGradient key={i} id={`pieGrad${i}`} cx="50%" cy="50%" r="50%">
                   <stop offset="0%" stopColor={c} stopOpacity={1} />
-                  <stop offset="100%" stopColor={c} stopOpacity={0.75} />
+                  <stop offset="100%" stopColor={c} stopOpacity={0.8} />
                 </radialGradient>
               ))}
             </defs>
             <Pie data={data} dataKey="value" nameKey="name"
-              cx="50%" cy="50%" innerRadius="38%" outerRadius="72%" paddingAngle={3}>
+              cx="50%" cy="50%" innerRadius="40%" outerRadius="75%" paddingAngle={2}>
               {data.map((_, i) => (
                 <Cell key={i} fill={`url(#pieGrad${i % CHART_COLORS.length})`} strokeWidth={0} />
               ))}
             </Pie>
             <Tooltip
-              contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12 }}
-              formatter={(v: number) => [v.toLocaleString(), ''] as [string, string]}
+              contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 24px rgb(0 0 0 / 0.12)' }}
+              formatter={(v: number, _: unknown, entry: { name?: string }) => [v.toLocaleString(), entry?.name ?? ''] as [string, string]}
             />
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex-1 space-y-2.5 w-full">
+      <div className="flex-1 space-y-2 w-full min-w-0">
         {data.map((d, i) => {
           const pct = total > 0 ? (d.value / total) * 100 : 0;
           return (
             <div key={i} className="space-y-1">
-              <div className="flex items-center justify-between gap-2 text-sm">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                  <span className="truncate text-muted-foreground text-xs">{d.name}</span>
+                  <span className="truncate text-foreground/80 text-xs font-medium">{d.name}</span>
                 </div>
-                <span className="shrink-0 text-xs font-semibold text-foreground">
-                  {total > 0 ? `${pct.toFixed(1)}%` : d.value.toLocaleString()}
-                </span>
+                <div className="shrink-0 flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground tabular-nums">{d.value.toLocaleString()}</span>
+                  <span className="text-xs font-bold tabular-nums" style={{ color: CHART_COLORS[i % CHART_COLORS.length] }}>
+                    {pct.toFixed(1)}%
+                  </span>
+                </div>
               </div>
-              <div className="h-1 w-full rounded-full bg-border/40 overflow-hidden">
+              <div className="h-1.5 w-full rounded-full bg-border/50 overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all"
                   style={{ width: `${pct}%`, background: CHART_COLORS[i % CHART_COLORS.length] }}
@@ -379,13 +415,13 @@ function ResultPieChart({ rows, xKey, yKey, columns }: {
 
 function ResultTable({ rows, columns }: { rows: Record<string, unknown>[]; columns: Column[] }) {
   return (
-    <div className="overflow-auto rounded-xl border border-border/60 h-full text-sm">
+    <div className="overflow-auto rounded-xl border border-border text-sm">
       <table className="w-full border-collapse">
         <thead>
-          <tr className="sticky top-0 z-10 bg-muted/80 backdrop-blur-sm">
+          <tr className="sticky top-0 z-10 bg-muted dark:bg-muted/80 backdrop-blur-sm">
             {columns.map((col) => (
               <th key={col.key}
-                className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap text-[11px] uppercase tracking-wider border-b border-border/50">
+                className="px-4 py-3 text-left font-semibold text-muted-foreground whitespace-nowrap text-[11px] uppercase tracking-wider border-b border-border">
                 {col.label}
               </th>
             ))}
@@ -394,11 +430,11 @@ function ResultTable({ rows, columns }: { rows: Record<string, unknown>[]; colum
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className={cn(
-              'transition-colors hover:bg-muted/30',
-              i % 2 === 0 ? 'bg-transparent' : 'bg-muted/10',
+              'transition-colors hover:bg-muted/50',
+              i % 2 === 0 ? 'bg-transparent' : 'bg-muted/30',
             )}>
               {columns.map((col) => (
-                <td key={col.key} className="px-4 py-2.5 text-foreground/85 whitespace-nowrap border-b border-border/20 text-sm">
+                <td key={col.key} className="px-4 py-2.5 text-foreground/90 whitespace-nowrap border-b border-border/40 text-sm">
                   {formatValue(row[col.key])}
                 </td>
               ))}
@@ -434,8 +470,8 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
   const chart = (() => {
     if (!rows.length) return (
       <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-        <div className="rounded-full border border-border/50 bg-muted/30 p-5">
-          <BarChart2 className="h-8 w-8 opacity-30" />
+        <div className="rounded-full border border-border bg-muted/50 p-5">
+          <BarChart2 className="h-8 w-8 opacity-40" />
         </div>
         <div className="text-center">
           <p className="text-sm font-medium">No data returned</p>
