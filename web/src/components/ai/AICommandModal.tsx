@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BarChart, Bar, AreaChart, Area, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList,
 } from 'recharts';
 import {
   Sparkles, Send, X, Loader2, AlertCircle, TrendingUp,
@@ -186,18 +186,21 @@ function ResultBarChart({ rows, xKey, yKey, columns }: {
   const xk = xKey ?? columns[0]?.key ?? 'name';
   const yk = yKey ?? columns[1]?.key ?? 'count';
   const data = rows.slice(0, 20).map((r) => ({ ...r, [xk]: String(r[xk] ?? '') }));
-  const perRowPx = 52;
-  const minH = 240;
-  const chartH = Math.max(minH, data.length * perRowPx + 60);
+  const perRowPx = 48;
+  const chartH = Math.max(220, data.length * perRowPx + 40);
+
+  // Dynamic label column: measure longest truncated label, cap at 200px
+  const maxLabelLen = Math.max(...data.map((d) => formatLabel(String(d[xk] ?? ''), 32).length));
+  const labelW = Math.min(200, Math.max(60, maxLabelLen * 6.5));
 
   return (
     <div style={{ height: chartH }} className="w-full">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ left: 16, right: 56, top: 8, bottom: 8 }}>
+        <BarChart data={data} layout="vertical" margin={{ left: 0, right: 10, top: 4, bottom: 4 }}>
           <defs>
             <linearGradient id="barGrad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="#818cf8" stopOpacity={0.7} />
+              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.85} />
+              <stop offset="100%" stopColor="#818cf8" stopOpacity={0.65} />
             </linearGradient>
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border) / 0.4)" horizontal={false} />
@@ -205,26 +208,33 @@ function ResultBarChart({ rows, xKey, yKey, columns }: {
             type="number"
             tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
             axisLine={false} tickLine={false} allowDecimals={false}
-            domain={[0, 'dataMax + 1']}
+            domain={[0, 'dataMax']}
           />
           <YAxis
-            type="category" dataKey={xk} width={320} axisLine={false} tickLine={false} interval={0}
+            type="category" dataKey={xk} width={labelW} axisLine={false} tickLine={false} interval={0}
             tick={({ x, y, payload }) => (
               <g transform={`translate(${x},${y})`}>
-                <text x={-10} y={0} dy={4} textAnchor="end"
+                <text x={-8} y={0} dy={4} textAnchor="end"
                   fill="hsl(var(--muted-foreground))" fontSize={11}>
-                  {formatLabel(payload.value, 42)}
+                  {formatLabel(payload.value, 32)}
                 </text>
               </g>
             )}
           />
           <Tooltip
-            contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 24px rgb(0 0 0 / 0.15)' }}
+            contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 10, fontSize: 12, boxShadow: '0 8px 24px rgb(0 0 0 / 0.12)' }}
             labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600, marginBottom: 4 }}
             cursor={{ fill: 'hsl(var(--muted) / 0.3)' }}
             formatter={(v: number) => [v.toLocaleString(), columns.find((c) => c.key === yk)?.label ?? 'Value'] as [string, string]}
           />
-          <Bar dataKey={yk} fill="url(#barGrad)" radius={[0, 6, 6, 0]} barSize={26} />
+          <Bar dataKey={yk} fill="url(#barGrad)" radius={[0, 5, 5, 0]} barSize={26}>
+            <LabelList
+              dataKey={yk}
+              position="right"
+              style={{ fill: 'hsl(var(--foreground) / 0.7)', fontSize: 11, fontWeight: 600 }}
+              formatter={(v: unknown) => typeof v === 'number' ? v.toLocaleString() : String(v)}
+            />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -509,22 +519,22 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
           </div>
         </div>
 
-        {/* ── Body: chart + insights sidebar ── */}
-        <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden">
+        {/* ── Body: chart full-width, insights below ── */}
+        <div className="flex-1 min-h-0 overflow-auto">
 
-          {/* Chart area */}
-          <div className={cn('overflow-auto p-4 sm:p-6', hasInsights ? 'flex-1 min-w-0' : 'w-full')}>
-            <div className={cn('w-full', viz_type === 'number' ? 'h-full min-h-[220px]' : 'min-h-[280px]')}>
+          {/* Chart — full modal width */}
+          <div className="p-4 sm:p-6 pb-2">
+            <div className={cn('w-full', viz_type === 'number' ? 'min-h-[220px]' : '')}>
               {chart}
             </div>
           </div>
 
-          {/* Insights sidebar — shown on lg+ as right panel, below on mobile */}
-          {hasInsights && (
-            <div className="lg:w-72 lg:shrink-0 lg:border-l border-t lg:border-t-0 border-border overflow-y-auto">
+          {/* Insights row — two cards side by side below chart */}
+          {hasInsights && viz_type !== 'number' && (
+            <div className="px-4 sm:px-6 pb-5 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-border mt-2">
               {insight && (
-                <div className="p-4 sm:p-5 border-b border-border/60">
-                  <div className="flex items-center gap-2 mb-3">
+                <div className="rounded-xl border border-border bg-muted/40 p-4 dark:bg-muted/20">
+                  <div className="flex items-center gap-2 mb-2.5">
                     <div className="flex h-5 w-5 items-center justify-center rounded-md bg-indigo-100 dark:bg-indigo-500/15">
                       <Bot className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
                     </div>
@@ -535,17 +545,17 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
               )}
 
               {tipList.length > 0 && (
-                <div className="p-4 sm:p-5">
-                  <div className="flex items-center gap-2 mb-3">
+                <div className="rounded-xl border border-border bg-muted/40 p-4 dark:bg-muted/20">
+                  <div className="flex items-center gap-2 mb-2.5">
                     <div className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-500/15">
                       <Zap className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                     </div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600/80 dark:text-amber-400/80">Improvement Tips</p>
                   </div>
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     {tipList.map((tip, i) => (
                       <div key={i} className="flex gap-2.5 text-xs text-foreground/70 leading-relaxed">
-                        <span className="shrink-0 mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-400/60" />
+                        <span className="shrink-0 mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500/50" />
                         <span>{tip.replace(/^[•\-*]\s*/, '')}</span>
                       </div>
                     ))}
