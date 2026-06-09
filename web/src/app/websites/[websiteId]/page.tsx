@@ -492,12 +492,11 @@ export default function WebsiteDashboardPage() {
           <button
             onClick={() => setAiOpen(true)}
             title="Seentics AI (⌘K)"
-            className="group flex items-center gap-2 rounded-md border border-indigo-500/40 bg-indigo-500/10 px-2 py-1 text-sm font-medium text-indigo-400 transition-all hover:border-indigo-500/60 hover:bg-indigo-500/15 hover:text-indigo-300"
+            className="group flex h-8 items-center gap-1.5 rounded-md border border-indigo-500/40 bg-indigo-500/10 px-2.5 text-xs font-medium text-indigo-400 transition-all hover:border-indigo-500/60 hover:bg-indigo-500/15 hover:text-indigo-300"
           >
-            <Sparkles className="h-4 w-4 shrink-0" />
+            <Sparkles className="h-3.5 w-3.5 shrink-0" />
             <span>Ask Seentics AI</span>
-            {/* <span className="rounded-md bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-400/80 tracking-wide">BETA</span> */}
-            <kbd className="hidden rounded border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[10px] sm:inline-block">⌘K</kbd>
+            <kbd className="hidden rounded border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-px font-mono text-[10px] sm:inline-block">⌘K</kbd>
           </button>
 
           {/* Filters */}
