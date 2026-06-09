@@ -55,18 +55,17 @@ export function DashboardPageHeader({
               onClick={() => setAiOpen(true)}
               title="Seentics AI (⌘K)"
               className={cn(
-                'group flex items-center gap-2 rounded-md border border-indigo-500/40 bg-indigo-500/10 px-2 py-1',
-                'text-sm font-medium text-indigo-400 transition-all',
-                'hover:border-indigo-500/60 hover:bg-indigo-500/15 hover:text-indigo-300',
+                'group flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-all',
+                'border-indigo-200 bg-indigo-50 text-indigo-600',
+                'hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700',
+                'dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-400',
+                'dark:hover:border-indigo-500/60 dark:hover:bg-indigo-500/15 dark:hover:text-indigo-300',
                 aiUsage && !aiUsage.canCreate && 'opacity-60',
               )}
             >
-              <Sparkles className="h-4 w-4 shrink-0" />
+              <Sparkles className="h-3.5 w-3.5 shrink-0" />
               <span>Ask Seentics AI</span>
-              {/* <span className="rounded-md bg-indigo-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-indigo-400/80 tracking-wide">
-                BETA
-              </span> */}
-              <kbd className="hidden rounded border border-indigo-500/30 bg-indigo-500/10 px-1.5 py-0.5 font-mono text-[10px] sm:inline-block">
+              <kbd className="hidden rounded border border-indigo-200 bg-white px-1.5 py-px font-mono text-[10px] sm:inline-block dark:border-indigo-500/30 dark:bg-indigo-500/10">
                 ⌘K
               </kbd>
             </button>

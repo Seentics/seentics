@@ -70,12 +70,12 @@ const LOADING_STEPS = [
 ];
 
 const GLOBAL_SUGGESTIONS = [
-  { label: 'Top 10 pages this week',          icon: BarChart2,    color: 'text-violet-400',  bg: 'bg-violet-500/10' },
-  { label: 'Revenue by country last month',   icon: DollarSign,   color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-  { label: 'Sessions with rage clicks',       icon: Zap,          color: 'text-red-400',     bg: 'bg-red-500/10' },
-  { label: 'Daily visitors trend last 14 days', icon: Activity,   color: 'text-indigo-400',  bg: 'bg-indigo-500/10' },
-  { label: 'Where are users dropping off?',   icon: Filter,       color: 'text-orange-400',  bg: 'bg-orange-500/10' },
-  { label: 'Total recorded sessions',         icon: Video,        color: 'text-purple-400',  bg: 'bg-purple-500/10' },
+  { label: 'Top 10 pages this week',          icon: BarChart2,    color: 'text-violet-600 dark:text-violet-400',  bg: 'bg-violet-100 dark:bg-violet-500/10' },
+  { label: 'Revenue by country last month',   icon: DollarSign,   color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/10' },
+  { label: 'Sessions with rage clicks',       icon: Zap,          color: 'text-red-600 dark:text-red-400',     bg: 'bg-red-100 dark:bg-red-500/10' },
+  { label: 'Daily visitors trend last 14 days', icon: Activity,   color: 'text-indigo-600 dark:text-indigo-400',  bg: 'bg-indigo-100 dark:bg-indigo-500/10' },
+  { label: 'Where are users dropping off?',   icon: Filter,       color: 'text-orange-600 dark:text-orange-400',  bg: 'bg-orange-100 dark:bg-orange-500/10' },
+  { label: 'Total recorded sessions',         icon: Video,        color: 'text-purple-600 dark:text-purple-400',  bg: 'bg-purple-100 dark:bg-purple-500/10' },
 ];
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -458,13 +458,13 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
         {/* ── Header ── */}
         <div className="shrink-0 flex items-start sm:items-center justify-between gap-3 px-4 sm:px-6 pt-4 pb-3.5 border-b border-border/50">
           <div className="flex items-start sm:items-center gap-3 min-w-0">
-            <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20">
-              <TrendingUp className="h-4 w-4 text-indigo-400" />
+            <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 border border-indigo-200 dark:from-indigo-500/20 dark:to-violet-500/20 dark:border-indigo-500/20">
+              <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm sm:text-base font-semibold text-foreground leading-tight">{title}</p>
-                <span className="shrink-0 rounded-md bg-indigo-500/15 px-1.5 py-0.5 text-[10px] font-bold text-indigo-400 tracking-wide">AI</span>
+                <span className="shrink-0 rounded-md bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-600 tracking-wide dark:bg-indigo-500/15 dark:text-indigo-400">AI</span>
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 <span className="flex items-center gap-1 text-[11px] text-muted-foreground/70">
@@ -525,10 +525,10 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
               {insight && (
                 <div className="p-4 sm:p-5 border-b border-border/40">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-md bg-indigo-500/15">
-                      <Bot className="h-3 w-3 text-indigo-400" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-md bg-indigo-100 dark:bg-indigo-500/15">
+                      <Bot className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-400/80">Key Insight</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-600/80 dark:text-indigo-400/80">Key Insight</p>
                   </div>
                   <p className="text-sm text-foreground/80 leading-relaxed">{insight}</p>
                 </div>
@@ -537,10 +537,10 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
               {tipList.length > 0 && (
                 <div className="p-4 sm:p-5">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-500/15">
-                      <Zap className="h-3 w-3 text-amber-400" />
+                    <div className="flex h-5 w-5 items-center justify-center rounded-md bg-amber-100 dark:bg-amber-500/15">
+                      <Zap className="h-3 w-3 text-amber-600 dark:text-amber-400" />
                     </div>
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400/80">Improvement Tips</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600/80 dark:text-amber-400/80">Improvement Tips</p>
                   </div>
                   <div className="space-y-2.5">
                     {tipList.map((tip, i) => (
@@ -978,8 +978,8 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
           {/* Header */}
           <div className="flex items-center justify-between px-4 sm:px-5 pt-4 pb-3.5 border-b border-border/50">
             <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20">
-                <Sparkles className="h-4 w-4 text-indigo-400" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 border border-indigo-200 dark:from-indigo-500/20 dark:to-violet-500/20 dark:border-indigo-500/20">
+                <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">Seentics AI</p>
@@ -1120,7 +1120,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                           disabled={!!limitReached}
                           className="group w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-muted/40 transition-colors disabled:opacity-40"
                         >
-                          <RotateCcw className="h-3 w-3 shrink-0 text-muted-foreground/40 group-hover:text-indigo-400 transition-colors" />
+                          <RotateCcw className="h-3 w-3 shrink-0 text-muted-foreground/40 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-xs text-foreground/75 group-hover:text-foreground">{item.prompt}</p>
                             {item.title && item.title !== item.prompt && (
@@ -1170,11 +1170,11 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
 
             {/* Loading */}
             {loading && (
-              <div className="flex flex-col items-center gap-5 rounded-xl border border-indigo-500/20 bg-indigo-500/5 px-5 py-8">
+              <div className="flex flex-col items-center gap-5 rounded-xl border border-indigo-200 bg-indigo-50/60 px-5 py-8 dark:border-indigo-500/20 dark:bg-indigo-500/5">
                 <div className="relative flex h-12 w-12 items-center justify-center">
-                  <div className="absolute inset-0 rounded-full bg-indigo-500/15 animate-ping" style={{ animationDuration: '1.5s' }} />
-                  <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-indigo-500/20">
-                    <Sparkles className="h-5 w-5 text-indigo-400" />
+                  <div className="absolute inset-0 rounded-full bg-indigo-400/20 animate-ping dark:bg-indigo-500/15" style={{ animationDuration: '1.5s' }} />
+                  <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-500/20">
+                    <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
                 </div>
                 <div className="w-full space-y-3">
@@ -1184,18 +1184,18 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                     return (
                       <div key={i} className={cn(
                         'flex items-center gap-3 text-sm transition-all duration-300',
-                        done ? 'text-emerald-400' : active ? 'text-foreground' : 'text-muted-foreground/40',
+                        done ? 'text-emerald-600 dark:text-emerald-400' : active ? 'text-foreground' : 'text-muted-foreground/40',
                       )}>
                         <span className={cn(
                           'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all',
                           done ? 'border-emerald-500/50 bg-emerald-500/15' :
-                          active ? 'border-indigo-500/60 bg-indigo-500/15' :
+                          active ? 'border-indigo-400 bg-indigo-100 dark:border-indigo-500/60 dark:bg-indigo-500/15' :
                           'border-border/40 bg-transparent',
                         )}>
                           {done
-                            ? <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                            ? <CheckCircle2 className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />
                             : active
-                              ? <Loader2 className="h-3 w-3 text-indigo-400 animate-spin" />
+                              ? <Loader2 className="h-3 w-3 text-indigo-600 animate-spin dark:text-indigo-400" />
                               : <Icon className="h-2.5 w-2.5 opacity-30" />
                           }
                         </span>
