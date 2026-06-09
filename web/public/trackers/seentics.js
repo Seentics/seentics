@@ -95,11 +95,12 @@ let flushInterval = null;
  * All queues are drained together into a single /collect POST every FLUSH_MS.
  */
 const queues = {
-  events:      [], // pageviews, custom events, performance, identify
-  funnels:     [], // funnel_step, funnel_complete
-  automations: [], // automation_trigger
-  session:     [], // rrweb eventWithTime wrapped in a TrackerEvent envelope
-  heatmaps:    [], // heatmap_click, heatmap_scroll
+  events:             [], // pageviews, custom events, performance, identify
+  funnels:            [], // funnel_step, funnel_complete
+  automations:        [], // automation_trigger
+  session:            [], // rrweb eventWithTime wrapped in a TrackerEvent envelope
+  heatmaps:           [], // heatmap_click, heatmap_scroll
+  heatmap_screenshot: [], // browser-captured JPEG screenshots (html2canvas)
 };
 
 // ─── Visitor / Session IDs ────────────────────────────────────────────────────
@@ -246,19 +247,21 @@ const drainQueues = () => {
   const autoEvts    = queues.automations.splice(0);
   const sessionEvts = queues.session.splice(0);
   const heatmapEvts = queues.heatmaps.splice(0);
+  const shotEvts    = queues.heatmap_screenshot.splice(0);
 
-  if (!events.length && !funnelEvts.length && !autoEvts.length && !sessionEvts.length && !heatmapEvts.length) {
+  if (!events.length && !funnelEvts.length && !autoEvts.length && !sessionEvts.length && !heatmapEvts.length && !shotEvts.length) {
     return null;
   }
 
   const payload = { website_id: websiteId, domain };
-  if (events.length)      payload.events      = events;
-  if (funnelEvts.length)  payload.funnels     = funnelEvts;
-  if (autoEvts.length)    payload.automations = autoEvts;
-  if (sessionEvts.length) payload.session     = sessionEvts;
-  if (heatmapEvts.length) payload.heatmaps    = heatmapEvts;
+  if (events.length)      payload.events             = events;
+  if (funnelEvts.length)  payload.funnels            = funnelEvts;
+  if (autoEvts.length)    payload.automations        = autoEvts;
+  if (sessionEvts.length) payload.session            = sessionEvts;
+  if (heatmapEvts.length) payload.heatmaps           = heatmapEvts;
+  if (shotEvts.length)    payload.heatmap_screenshot = shotEvts;
 
-  return { payload, json: JSON.stringify(payload), sessionEvts, heatmapEvts };
+  return { payload, json: JSON.stringify(payload), sessionEvts, heatmapEvts, shotEvts };
 };
 
 // ─── Flush functions ──────────────────────────────────────────────────────────
@@ -281,10 +284,10 @@ const flush = () => {
 
   const drained = drainQueues();
   if (!drained) return;
-  const { json, sessionEvts, heatmapEvts } = drained;
+  const { json, sessionEvts, heatmapEvts, shotEvts } = drained;
 
-  // Session recording or large heatmap batches: gzip to stay under the sendBeacon limit.
-  if (sessionEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
+  // Session recording, screenshot payloads, or large batches: gzip to stay under the sendBeacon limit.
+  if (sessionEvts.length > 0 || shotEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
     sendGzip(json);
     return;
   }
@@ -308,10 +311,10 @@ const flush = () => {
 const flushBeacon = () => {
   const drained = drainQueues();
   if (!drained) return;
-  const { json, sessionEvts, heatmapEvts } = drained;
+  const { json, sessionEvts, heatmapEvts, shotEvts } = drained;
 
   // Large payloads exceed sendBeacon's ~64 KB limit — use keepalive fetch instead.
-  if (sessionEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
+  if (sessionEvts.length > 0 || shotEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
     try {
       fetch(COLLECT, {
         method: 'POST',
@@ -445,14 +448,6 @@ const clearScreenshotLongPageInterval = () => {
   }
 };
 
-/** Avoid capturing the Seentics dashboard itself. */
-const shouldSkipScreenshotForPath = () => {
-  try {
-    const p = location.pathname;
-    return p.startsWith('/websites/') || p.startsWith('/preview/');
-  } catch { return false; }
-};
-
 /**
  * Fire a lightweight POST to /tracker/request-screenshot.
  * The server handles deduplication (in-memory cache → DB → Playwright), so
@@ -460,7 +455,6 @@ const shouldSkipScreenshotForPath = () => {
  */
 const requestPlaywrightScreenshot = () => {
   if (cfg.heatmap_layout_enabled === false) return;
-  if (shouldSkipScreenshotForPath()) return;
   if (hasSentHeatmapScreenshotForPath()) return;
   try {
     const xhr = new XMLHttpRequest();
@@ -490,6 +484,63 @@ const scheduleHeatmapScreenshotAfterAppIdle = () => {
   for (const delayMs of [1_500, 4_000]) {
     screenshotScheduleTimeouts.push(window.setTimeout(requestPlaywrightScreenshot, delayMs));
   }
+  // Also schedule a browser-side capture (html2canvas) for pages Playwright can't
+  // reach (e.g. authenticated pages). Runs once per path per session.
+  screenshotScheduleTimeouts.push(window.setTimeout(captureAndQueueBrowserScreenshot, 3_000));
+};
+
+/**
+ * Lazy-load html2canvas from CDN and return the constructor, or null on failure.
+ * Cached after the first load so subsequent calls are instant.
+ */
+let _html2canvasPromise = null;
+const loadHtml2Canvas = () => {
+  if (_html2canvasPromise) return _html2canvasPromise;
+  _html2canvasPromise = new Promise((resolve) => {
+    try {
+      const s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+      s.crossOrigin = 'anonymous';
+      s.onload = () => resolve(typeof window.html2canvas === 'function' ? window.html2canvas : null);
+      s.onerror = () => resolve(null);
+      document.head.appendChild(s);
+    } catch { resolve(null); }
+  });
+  return _html2canvasPromise;
+};
+
+/**
+ * Capture the current viewport as a JPEG using html2canvas and push it onto
+ * the heatmap_screenshot queue so it's sent on the next flush.
+ * Runs once per path per session — skips if a Playwright screenshot was already
+ * successfully requested for this path.
+ */
+const captureAndQueueBrowserScreenshot = async () => {
+  if (cfg.heatmap_layout_enabled === false) return;
+  if (hasSentHeatmapScreenshotForPath()) return;
+  try {
+    const h2c = await loadHtml2Canvas();
+    if (!h2c) return;
+    const canvas = await h2c(document.body, {
+      useCORS: true,
+      allowTaint: false,
+      scale: Math.min(window.devicePixelRatio || 1, 2),
+      logging: false,
+    });
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+    if (!dataUrl || dataUrl.length < 500) return;
+    queues.heatmap_screenshot.push({
+      type:  'heatmap_screenshot',
+      ts:    Date.now(),
+      url:   location.href,
+      sid:   getSessionId(),
+      vid:   getVisitorId(),
+      doc_w: document.documentElement.scrollWidth || document.body.scrollWidth || window.innerWidth,
+      doc_h: document.documentElement.scrollHeight || document.body.scrollHeight || window.innerHeight,
+      data:  { image: dataUrl },
+    });
+    flush();
+  } catch { /* ignore — html2canvas failures are non-critical */ }
 };
 
 // ─── Safe regex ───────────────────────────────────────────────────────────────
