@@ -1,12 +1,52 @@
 import { createHash } from "node:crypto";
+import { and, desc, eq } from "drizzle-orm";
 import { env } from "../config";
 import { getHeatmapData, listPages, deleteHeatmaps } from "../lib/heatmap-db";
 import { getLayoutSnapshot, upsertLayoutSnapshot } from "../lib/layout-db";
-import { normalizeHeatmapPagePath } from "../lib/paths";
+import { extractPath, normalizeHeatmapPagePath } from "../lib/paths";
 import { presignGet, putJpeg } from "../lib/s3";
 import { resolveWebsiteIds, resolveWebsiteIdsLenient } from "../lib/website-resolve";
 import { heatmapScreenshotKey, layoutPathSlot } from "../lib/keys";
 import { getWebsiteBySiteId } from "../lib/website-site";
+import { analyticsEvents, db } from "../db";
+import { captureHeatmapScreenshot } from "./heatmap-playwright.service";
+
+/** Paths currently being captured — prevents concurrent Playwright launches for the same path. */
+const _capturing = new Set<string>();
+
+/**
+ * Find a concrete pageview URL from analytics events that normalizes to `norm`,
+ * then trigger a Playwright screenshot capture in the background.
+ * No-ops if a capture is already in flight for this path.
+ */
+async function autoCapture(
+  websiteParam: string,
+  websiteUuid: string,
+  norm: string,
+  opts: { lenientResolve: boolean },
+): Promise<void> {
+  const captureKey = `${websiteUuid}:${norm}`;
+  if (_capturing.has(captureKey)) return;
+  _capturing.add(captureKey);
+  try {
+    const rows = await db
+      .select({ page: analyticsEvents.page })
+      .from(analyticsEvents)
+      .where(and(eq(analyticsEvents.websiteId, websiteUuid), eq(analyticsEvents.eventType, "pageview")))
+      .orderBy(desc(analyticsEvents.occurredAt))
+      .limit(50);
+
+    const pageUrl = rows
+      .map((r) => r.page)
+      .find((p) => !!p && normalizeHeatmapPagePath(extractPath(p ?? "")) === norm);
+
+    if (!pageUrl) return;
+
+    await captureHeatmapScreenshot(websiteParam, { pageUrl, pagePath: norm }, opts);
+  } finally {
+    _capturing.delete(captureKey);
+  }
+}
 
 async function resolve(
   websiteParam: string,
@@ -91,6 +131,8 @@ export async function getHeatmapLayoutSnapshot(
   const norm = normalizeHeatmapPagePath(pagePath);
   const row = await getLayoutSnapshot(uuidStr, norm);
   if (!row?.s3_key) {
+    // No snapshot — find a real URL from analytics events and trigger Playwright in background.
+    void autoCapture(websiteParam, uuidStr, norm, opts).catch(() => {});
     return { layout: null as null };
   }
 
