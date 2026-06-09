@@ -10,6 +10,9 @@ import { heatmapScreenshotKey, layoutPathSlot } from "../lib/keys";
 import { getWebsiteBySiteId } from "../lib/website-site";
 import { analyticsEvents, db } from "../db";
 import { captureHeatmapScreenshot } from "./heatmap-playwright.service";
+import { log as baseLog } from "../lib/logger";
+
+const log = baseLog.child({ category: "heatmap_screenshot" });
 
 /** Paths currently being captured — prevents concurrent Playwright launches for the same path. */
 const _capturing = new Set<string>();
@@ -26,8 +29,12 @@ async function autoCapture(
   opts: { lenientResolve: boolean },
 ): Promise<void> {
   const captureKey = `${websiteUuid}:${norm}`;
-  if (_capturing.has(captureKey)) return;
+  if (_capturing.has(captureKey)) {
+    log.info({ msg: "heatmap_autocapture_skipped_in_flight", website_uuid: websiteUuid, norm });
+    return;
+  }
   _capturing.add(captureKey);
+  log.info({ msg: "heatmap_autocapture_start", website_uuid: websiteUuid, norm });
   try {
     const rows = await db
       .select({ page: analyticsEvents.page })
@@ -36,13 +43,26 @@ async function autoCapture(
       .orderBy(desc(analyticsEvents.occurredAt))
       .limit(50);
 
+    log.info({ msg: "heatmap_autocapture_events_query", website_uuid: websiteUuid, norm, rows_found: rows.length, sample: rows.slice(0, 3).map(r => r.page) });
+
     const pageUrl = rows
       .map((r) => r.page)
       .find((p) => !!p && normalizeHeatmapPagePath(extractPath(p ?? "")) === norm);
 
-    if (!pageUrl) return;
+    if (!pageUrl) {
+      log.warn({ msg: "heatmap_autocapture_no_matching_url", website_uuid: websiteUuid, norm, rows_checked: rows.length });
+      return;
+    }
 
-    await captureHeatmapScreenshot(websiteParam, { pageUrl, pagePath: norm }, opts);
+    log.info({ msg: "heatmap_autocapture_playwright_start", website_uuid: websiteUuid, norm, page_url: pageUrl });
+    try {
+      const result = await captureHeatmapScreenshot(websiteParam, { pageUrl, pagePath: norm }, opts);
+      log.info({ msg: "heatmap_autocapture_playwright_done", website_uuid: websiteUuid, norm, stored: result.stored, s3_key: result.s3Key });
+    } catch (captureErr) {
+      log.warn({ msg: "heatmap_autocapture_playwright_failed", website_uuid: websiteUuid, norm, page_url: pageUrl, err: String(captureErr) });
+    }
+  } catch (err) {
+    log.error({ msg: "heatmap_autocapture_error", website_uuid: websiteUuid, norm, err: String(err) });
   } finally {
     _capturing.delete(captureKey);
   }
@@ -131,8 +151,9 @@ export async function getHeatmapLayoutSnapshot(
   const norm = normalizeHeatmapPagePath(pagePath);
   const row = await getLayoutSnapshot(uuidStr, norm);
   if (!row?.s3_key) {
+    log.info({ msg: "heatmap_snapshot_miss", website_uuid: uuidStr, norm, triggering_autocapture: true });
     // No snapshot — find a real URL from analytics events and trigger Playwright in background.
-    void autoCapture(websiteParam, uuidStr, norm, opts).catch(() => {});
+    void autoCapture(websiteParam, uuidStr, norm, opts);
     return { layout: null as null };
   }
 

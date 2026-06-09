@@ -4,6 +4,9 @@ import { createScreenshotPage, closeBrowser } from "./playwright-browser";
 import { putJpeg } from "./s3";
 import { heatmapScreenshotKey, layoutPathSlot } from "./keys";
 import { getScreenshotCache } from "./heatmap-screenshot-cache";
+import { log as baseLog } from "./logger";
+
+const log = baseLog.child({ category: "playwright" });
 
 export interface ScreenshotOptions {
   /**
@@ -87,6 +90,7 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
     }
 
     const resolvedUrl = rewriteLocalhostForDocker(options.url);
+    log.info({ msg: "playwright_capture_start", url: resolvedUrl });
 
     page = await createScreenshotPage();
 
@@ -119,6 +123,7 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
         finalPath !== requestedPath &&
         /\/(login|signin|sign-in|auth|sso|oauth|account\/login)/i.test(finalPath);
       if (looksLikeAuthRedirect) {
+        log.warn({ msg: "playwright_auth_redirect", url: options.url, requested_path: requestedPath, final_path: finalPath });
         throw new Error(`Auth redirect detected: requested ${requestedPath}, landed on ${finalPath}`);
       }
     } catch (e) {
@@ -165,6 +170,7 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
 
     // Calculate hash
     const hash = createHash("sha256").update(screenshotBuffer).digest("hex");
+    log.info({ msg: "playwright_capture_success", url: options.url, width, height, bytes: screenshotBuffer.length });
 
     return {
       buffer: screenshotBuffer,

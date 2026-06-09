@@ -230,9 +230,13 @@ export class HeatmapEngine {
   }
 
   private async ingestOneScreenshot(j: ScreenshotJob): Promise<void> {
-    if (!j.siteId || !j.websiteId || !j.heatmapLayoutEnabled || j.jpeg.length < 400 || !isJpeg(j.jpeg)) return;
+    if (!j.siteId || !j.websiteId || !j.heatmapLayoutEnabled || j.jpeg.length < 400 || !isJpeg(j.jpeg)) {
+      log.info({ msg: "heatmap_tracker_screenshot_skipped", url: j.url, site_id: j.siteId, website_id: j.websiteId, layout_enabled: j.heatmapLayoutEnabled, jpeg_bytes: j.jpeg.length });
+      return;
+    }
 
     const norm = normalizeHeatmapPagePath(extractPath(j.url));
+    log.info({ msg: "heatmap_tracker_screenshot_received", url: j.url, norm, website_id: j.websiteId, jpeg_bytes: j.jpeg.length });
 
     // Use the real URL from the tracker event to automatically capture a Playwright
     // screenshot in the background. html2canvas quality is limited; Playwright gives
@@ -264,6 +268,7 @@ export class HeatmapEngine {
     }
 
     await upsertLayoutSnapshot(j.websiteId, norm, key, sum, dW, dH);
+    log.info({ msg: "heatmap_tracker_screenshot_stored", url: j.url, norm, website_id: j.websiteId, s3_key: key, doc_w: dW, doc_h: dH });
   }
 
   /** Ingest tracker-shaped rows; each must include `websiteId` (UUID). Screenshots resolve `site_id` via DB from that UUID. */
