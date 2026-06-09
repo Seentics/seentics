@@ -663,11 +663,14 @@ export default function HeatmapDetailPage() {
   const [previewTouched, setPreviewTouched] = useState(false);
   const [previewUnderlay, setPreviewUnderlay] = useState<PreviewUnderlay>('screenshot');
   const [capturing, setCapturing] = useState(false);
+  const [previewPopoverOpen, setPreviewPopoverOpen] = useState(false);
 
   const urlPath = useMemo(() => {
     const raw = slug ? decodeURIComponent(slug).replace(/_/g, '/') : '/';
     return normalizeHeatmapPagePath(raw);
   }, [slug]);
+
+  const isParamPath = urlPath.includes(':id');
 
   const demoPages = isDemoMode ? demoHeatmapPages() : [];
   const demoPage  = demoPages.find(p => p.url === urlPath) ?? demoPages[0];
@@ -810,6 +813,12 @@ export default function HeatmapDetailPage() {
 
   const previewUrlPopoverInner = (
     <>
+      {isParamPath && (
+        <div className="rounded-md border border-amber-200/70 bg-amber-50/80 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+          <span className="font-medium">Parameterized path</span> — enter a real example URL
+          (e.g. replace <code className="font-mono">{urlPath.replace(/:id/g, 'abc123')}</code>) to capture a screenshot.
+        </div>
+      )}
       <div>
         <p className="text-sm font-medium text-foreground">Preview URL</p>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -873,7 +882,7 @@ export default function HeatmapDetailPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
-            <Popover>
+            <Popover open={previewPopoverOpen} onOpenChange={setPreviewPopoverOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="icon" className="h-8 w-8" title="Preview URL" aria-label="Preview URL">
                   <Link2 className="h-3.5 w-3.5" />
@@ -967,11 +976,11 @@ export default function HeatmapDetailPage() {
                   ) : null}
                   <DropdownMenuItem
                     className="text-xs"
-                    disabled={capturing || !activePreviewUrl}
-                    onClick={captureScreenshot}
+                    disabled={capturing || (!activePreviewUrl && !isParamPath)}
+                    onClick={isParamPath && !activePreviewUrl ? () => setPreviewPopoverOpen(true) : captureScreenshot}
                   >
                     <Camera className="mr-2 h-3.5 w-3.5" />
-                    {capturing ? 'Capturing…' : 'Capture screenshot'}
+                    {capturing ? 'Capturing…' : isParamPath && !activePreviewUrl ? 'Set preview URL…' : 'Capture screenshot'}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-xs" onClick={() => refetch()}>
@@ -984,6 +993,23 @@ export default function HeatmapDetailPage() {
           </div>
         </div>
       </header>
+
+      {isParamPath && !pageScreenshot && !isDemoMode && (
+        <div className="shrink-0 border-b border-amber-200/60 bg-amber-50/80 px-4 py-2 dark:border-amber-500/20 dark:bg-amber-500/5">
+          <p className="text-xs text-amber-800 dark:text-amber-400">
+            <span className="font-medium">Parameterized path</span> — <code className="rounded bg-amber-100/80 px-0.5 font-mono dark:bg-amber-500/10">{urlPath}</code> aggregates
+            all matching URLs. Screenshots come from real visitors via the tracker, or enter a specific example URL in{' '}
+            <button
+              type="button"
+              className="font-medium underline underline-offset-2 hover:no-underline"
+              onClick={() => setPreviewPopoverOpen(true)}
+            >
+              Preview URL
+            </button>{' '}
+            and use <span className="font-medium">Capture screenshot</span> from the menu.
+          </p>
+        </div>
+      )}
 
       <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-2 pb-2 pt-1.5 md:px-4 md:pb-3 md:pt-2">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card">

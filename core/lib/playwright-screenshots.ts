@@ -108,6 +108,24 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
       );
     }
 
+    // Detect auth/login redirects — if the final URL path differs significantly from the
+    // requested one (e.g. redirected to /login or /auth/...), the page is protected and
+    // Playwright can't capture it. Throwing here prevents storing a login-page screenshot
+    // under the original path key.
+    try {
+      const requestedPath = new URL(options.url).pathname.replace(/\/$/, '') || '/';
+      const finalPath = new URL(page.url()).pathname.replace(/\/$/, '') || '/';
+      const looksLikeAuthRedirect =
+        finalPath !== requestedPath &&
+        /\/(login|signin|sign-in|auth|sso|oauth|account\/login)/i.test(finalPath);
+      if (looksLikeAuthRedirect) {
+        throw new Error(`Auth redirect detected: requested ${requestedPath}, landed on ${finalPath}`);
+      }
+    } catch (e) {
+      if ((e as Error).message.startsWith('Auth redirect')) throw e;
+      // URL parse error — ignore and proceed
+    }
+
     // Wait for optional selector
     if (options.waitForSelector) {
       try {
