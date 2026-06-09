@@ -26,6 +26,9 @@ r.post("/query/:website_id", async (c) => {
     return c.json({ data: result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "AI query failed";
+    if (message.includes("not configured") || message.includes("API key")) {
+      return c.json({ error: "AI is not available — API key not configured." }, 503);
+    }
     return c.json({ error: message }, 500);
   }
 });

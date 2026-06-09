@@ -204,15 +204,6 @@ trackerRoutes.post("/collect", async (c) => {
   if (cfg.diagnosticLog) {
     log.info(collectFields);
   }
-  if (lenEvents === 0 && n > 0) {
-    log.warn({
-      msg: "tracker_collect_no_events_array",
-      website_uuid: website.id,
-      site_id: website.site_id,
-      note: "Payload has session/heatmaps/etc. but no `events` — dashboard pageviews only grow when `events` includes pageview rows.",
-      len_session: lenSession,
-    });
-  }
 
   handleEvents(ctx);
   handleFunnels(ctx);
