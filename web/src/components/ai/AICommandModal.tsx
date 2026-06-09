@@ -448,15 +448,15 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        'flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border/60 shadow-2xl',
-        'bg-background/97 backdrop-blur-xl',
+        'flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-3xl border border-border shadow-2xl',
+        'bg-background',
         'w-[96vw] max-w-[1160px] h-[92vh]',
         '[&>button:last-child]:hidden',
       )}>
         <DialogTitle className="sr-only">{title}</DialogTitle>
 
         {/* ── Header ── */}
-        <div className="shrink-0 flex items-start sm:items-center justify-between gap-3 px-4 sm:px-6 pt-4 pb-3.5 border-b border-border/50">
+        <div className="shrink-0 flex items-start sm:items-center justify-between gap-3 px-4 sm:px-6 pt-4 pb-3.5 border-b border-border">
           <div className="flex items-start sm:items-center gap-3 min-w-0">
             <div className="shrink-0 flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 border border-indigo-200 dark:from-indigo-500/20 dark:to-violet-500/20 dark:border-indigo-500/20">
               <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
@@ -488,14 +488,14 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
             <button
               onClick={() => exportCSV(rows, columns, title)}
               title="Download CSV"
-              className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">CSV</span>
             </button>
             <button
               onClick={onNewQuery}
-              className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/30 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">New query</span>
@@ -521,9 +521,9 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
 
           {/* Insights sidebar — shown on lg+ as right panel, below on mobile */}
           {hasInsights && (
-            <div className="lg:w-72 lg:shrink-0 lg:border-l border-t lg:border-t-0 border-border/50 overflow-y-auto">
+            <div className="lg:w-72 lg:shrink-0 lg:border-l border-t lg:border-t-0 border-border overflow-y-auto">
               {insight && (
-                <div className="p-4 sm:p-5 border-b border-border/40">
+                <div className="p-4 sm:p-5 border-b border-border/60">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="flex h-5 w-5 items-center justify-center rounded-md bg-indigo-100 dark:bg-indigo-500/15">
                       <Bot className="h-3 w-3 text-indigo-600 dark:text-indigo-400" />
@@ -557,11 +557,11 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
         </div>
 
         {/* ── Footer: prompt + SQL viewer ── */}
-        <div className="shrink-0 border-t border-border/40 bg-muted/20">
+        <div className="shrink-0 border-t border-border bg-muted/50 dark:bg-muted/20">
           {/* Prompt bar */}
           <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/40">Query</span>
-            <span className="flex-1 truncate text-[11px] text-muted-foreground/70">{prompt}</span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Query</span>
+            <span className="flex-1 truncate text-[11px] text-muted-foreground/80">{prompt}</span>
             {sql && (
               <button
                 onClick={() => setSqlOpen(!sqlOpen)}
@@ -576,7 +576,7 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
 
           {/* SQL drawer */}
           {sqlOpen && sql && (
-            <div className="border-t border-border/30 px-4 sm:px-6 py-3 bg-muted/30 max-h-36 overflow-auto">
+            <div className="border-t border-border/60 px-4 sm:px-6 py-3 bg-muted/60 dark:bg-muted/30 max-h-36 overflow-auto">
               <pre className="text-[11px] text-foreground/70 font-mono leading-relaxed whitespace-pre-wrap break-all">
                 {sql}
               </pre>
@@ -968,15 +968,15 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className={cn(
           'flex flex-col p-0 gap-0 overflow-hidden rounded-2xl sm:rounded-3xl',
-          'border border-border/60 shadow-2xl',
-          'bg-background/97 backdrop-blur-xl',
+          'border border-border shadow-2xl',
+          'bg-background',
           'w-[calc(100vw-1rem)] max-w-[700px]',
           '[&>button:last-child]:hidden',
         )}>
           <DialogTitle className="sr-only">Seentics AI</DialogTitle>
 
           {/* Header */}
-          <div className="flex items-center justify-between px-4 sm:px-5 pt-4 pb-3.5 border-b border-border/50">
+          <div className="flex items-center justify-between px-4 sm:px-5 pt-4 pb-3.5 border-b border-border">
             <div className="flex items-center gap-3">
               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 border border-indigo-200 dark:from-indigo-500/20 dark:to-violet-500/20 dark:border-indigo-500/20">
                 <Sparkles className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
@@ -991,9 +991,9 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
               {aiUsage && !isDemoMode && (
                 <div className={cn(
                   'flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs',
-                  isAtLimit   ? 'border-red-500/30 bg-red-500/10 text-red-400'
-                  : isNearLimit ? 'border-amber-500/30 bg-amber-500/10 text-amber-400'
-                  :               'border-border/60 bg-muted/50 text-muted-foreground',
+                  isAtLimit   ? 'border-red-300 bg-red-50 text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400'
+                  : isNearLimit ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400'
+                  :               'border-border bg-muted/60 text-muted-foreground',
                 )}>
                   {unlimited ? (
                     <span>{aiUsage.current} used</span>
@@ -1001,7 +1001,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                     <div className="flex items-center gap-1.5">
                       <div className="h-1.5 w-12 rounded-full bg-border overflow-hidden">
                         <div
-                          className={cn('h-full rounded-full transition-all', isAtLimit ? 'bg-red-400' : isNearLimit ? 'bg-amber-400' : 'bg-indigo-400')}
+                          className={cn('h-full rounded-full transition-all', isAtLimit ? 'bg-red-500' : isNearLimit ? 'bg-amber-500' : 'bg-indigo-500')}
                           style={{ width: `${usagePct}%` }}
                         />
                       </div>
@@ -1024,10 +1024,10 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
 
             {/* Limit warning */}
             {limitReached && !isDemoMode && (
-              <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/8 px-4 py-3">
-                <Lock className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-500/20 dark:bg-red-500/8">
+                <Lock className="h-4 w-4 text-red-600 shrink-0 mt-0.5 dark:text-red-400" />
                 <div>
-                  <p className="text-sm font-medium text-red-400">Monthly limit reached</p>
+                  <p className="text-sm font-medium text-red-700 dark:text-red-400">Monthly limit reached</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     You&apos;ve used all {aiUsage?.limit} AI analyses. Upgrade to continue.
                   </p>
@@ -1038,10 +1038,11 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
             {/* Input */}
             <form onSubmit={handleSubmit}>
               <div className={cn(
-                'relative rounded-xl border bg-muted/30 transition-all duration-200',
-                loading ? 'border-indigo-500/40 bg-indigo-500/5'
+                'relative rounded-xl border transition-all duration-200',
+                'bg-muted/40 dark:bg-muted/30',
+                loading ? 'border-indigo-400 dark:border-indigo-500/40'
                 : limitReached && !isDemoMode ? 'pointer-events-none opacity-50'
-                : 'border-border hover:border-indigo-500/40 focus-within:border-indigo-500/60 focus-within:bg-muted/20',
+                : 'border-border hover:border-indigo-400/70 focus-within:border-indigo-500 dark:hover:border-indigo-500/40 dark:focus-within:border-indigo-500/60',
               )}>
                 <textarea
                   ref={textareaRef}
@@ -1060,7 +1061,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                   className="w-full resize-none rounded-xl bg-transparent px-4 pt-3.5 pb-12 text-sm placeholder:text-muted-foreground/50 focus:outline-none leading-relaxed"
                 />
                 <div className="absolute bottom-2.5 left-4 right-2.5 flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground/40">{prompt.length}/500</span>
+                  <span className="text-[10px] text-muted-foreground/60">{prompt.length}/500</span>
                   <button
                     type="submit"
                     disabled={!prompt.trim() || loading || (!isDemoMode && !!limitReached)}
@@ -1085,7 +1086,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
               <div className="space-y-4">
                 {/* Suggestions */}
                 <div className="space-y-2">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
                     Quick questions
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
@@ -1094,7 +1095,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                         key={label}
                         onClick={() => handleSuggestion(label)}
                         disabled={!isDemoMode && !!limitReached}
-                        className="group flex items-center gap-2.5 rounded-xl border border-border/50 bg-muted/20 px-3 py-2.5 text-left text-xs text-foreground/75 transition-all hover:border-border hover:bg-muted/50 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="group flex items-center gap-2.5 rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-left text-xs text-foreground/80 transition-all hover:border-border hover:bg-muted/70 hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed dark:bg-muted/20 dark:text-foreground/75 dark:hover:bg-muted/50"
                       >
                         <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-lg', bg)}>
                           <Icon className={cn('h-3.5 w-3.5', color)} />
@@ -1109,16 +1110,16 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                 {/* History */}
                 {history.length > 0 && !isDemoMode && (
                   <div className="space-y-2">
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1.5">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
                       <History className="h-3 w-3" /> Recent
                     </p>
-                    <div className="rounded-xl border border-border/40 divide-y divide-border/30 overflow-hidden">
+                    <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
                       {history.map((item) => (
                         <button
                           key={item.id}
                           onClick={() => handleSuggestion(item.prompt)}
                           disabled={!!limitReached}
-                          className="group w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-muted/40 transition-colors disabled:opacity-40"
+                          className="group w-full flex items-center gap-3 px-3.5 py-2.5 text-left hover:bg-muted/60 transition-colors disabled:opacity-40"
                         >
                           <RotateCcw className="h-3 w-3 shrink-0 text-muted-foreground/40 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors" />
                           <div className="min-w-0 flex-1">
@@ -1142,24 +1143,24 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                 {/* Dev/Demo previews */}
                 {showDemoPreviews && (
                   <div className="space-y-2">
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-amber-500/60 flex items-center gap-1.5">
-                      <span className="rounded px-1 py-0.5 bg-amber-500/10 text-amber-500 text-[9px] font-bold tracking-wider">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-amber-700 flex items-center gap-1.5 dark:text-amber-500/60">
+                      <span className="rounded px-1 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold tracking-wider dark:bg-amber-500/10 dark:text-amber-500">
                         {isDemoMode ? 'DEMO' : 'DEV'}
                       </span>
                       Preview components
                     </p>
-                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 divide-y divide-amber-500/10 overflow-hidden">
+                    <div className="rounded-xl border border-amber-200 bg-amber-50/60 divide-y divide-amber-200 overflow-hidden dark:border-amber-500/20 dark:bg-amber-500/5 dark:divide-amber-500/10">
                       {DEMO_BUTTONS_BY_DOMAIN[domain].map(({ key, label, desc }) => (
                         <button
                           key={key}
                           onClick={() => openResult(DEMO_RESULTS[key])}
-                          className="w-full flex items-center justify-between px-3.5 py-2.5 text-left hover:bg-amber-500/8 transition-colors"
+                          className="w-full flex items-center justify-between px-3.5 py-2.5 text-left hover:bg-amber-100 transition-colors dark:hover:bg-amber-500/8"
                         >
                           <div>
-                            <p className="text-xs font-medium text-foreground/80">{label}</p>
+                            <p className="text-xs font-medium text-foreground/90">{label}</p>
                             <p className="text-[10px] text-muted-foreground">{desc}</p>
                           </div>
-                          <span className="text-[10px] text-amber-500/60 font-mono">{key}</span>
+                          <span className="text-[10px] text-amber-700/70 font-mono dark:text-amber-500/60">{key}</span>
                         </button>
                       ))}
                     </div>
@@ -1209,10 +1210,10 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
 
             {/* Error */}
             {error && !loading && (
-              <div className="flex items-start gap-3 rounded-xl border border-red-500/20 bg-red-500/8 px-4 py-3.5">
-                <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3.5 dark:border-red-500/20 dark:bg-red-500/8">
+                <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5 dark:text-red-400" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-red-400 leading-snug">{error}</p>
+                  <p className="text-sm text-red-700 leading-snug dark:text-red-400">{error}</p>
                   <button
                     onClick={() => setError(null)}
                     className="mt-1.5 text-xs text-muted-foreground hover:text-foreground underline transition-colors"
@@ -1225,17 +1226,17 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
           </div>
 
           {/* Footer */}
-          <div className="border-t border-border/40 bg-muted/20 px-4 sm:px-5 py-2 flex items-center gap-3 text-[10px] text-muted-foreground/50">
+          <div className="border-t border-border bg-muted/50 px-4 sm:px-5 py-2 flex items-center gap-3 text-[10px] text-muted-foreground dark:bg-muted/20 dark:text-muted-foreground/60">
             <span className="flex items-center gap-1">
-              <kbd className="rounded border border-border/60 bg-background px-1.5 py-0.5 font-mono">↵</kbd>
+              <kbd className="rounded border border-border bg-background shadow-sm px-1.5 py-0.5 font-mono text-foreground/70">↵</kbd>
               <span>send</span>
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="rounded border border-border/60 bg-background px-1.5 py-0.5 font-mono">⇧↵</kbd>
+              <kbd className="rounded border border-border bg-background shadow-sm px-1.5 py-0.5 font-mono text-foreground/70">⇧↵</kbd>
               <span>newline</span>
             </span>
             <span className="ml-auto flex items-center gap-1">
-              <kbd className="rounded border border-border/60 bg-background px-1.5 py-0.5 font-mono">⌘K</kbd>
+              <kbd className="rounded border border-border bg-background shadow-sm px-1.5 py-0.5 font-mono text-foreground/70">⌘K</kbd>
               <span>toggle</span>
             </span>
           </div>
