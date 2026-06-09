@@ -7,9 +7,10 @@ export async function getHourlyStatsAnalytics(
   query: Record<string, string | undefined>,
 ) {
   const days = Math.min(parseDays(query.days, 1), 7);
+  const tz = (query.timezone ?? 'UTC').trim() || 'UTC';
   const { siteId } = await resolveSiteId(websiteParam);
   const start = new Date(Date.now() - days * 86400000);
-  const hourBucket = dsql<number>`extract(hour from ${analyticsEvents.occurredAt} AT TIME ZONE 'UTC')::int`;
+  const hourBucket = dsql<number>`extract(hour from ${analyticsEvents.occurredAt} AT TIME ZONE ${tz})::int`;
   const rows = await db
     .select({
       h: hourBucket,

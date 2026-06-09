@@ -40,9 +40,9 @@ export const HourlyTrafficChart: React.FC<HourlyTrafficChartProps> = ({
   }
 
   const chartData = (data?.hourly_stats || []).map((item: any) => ({
-    hour: `${item.hour}:00`,
-    views: item.views,
-    unique: item.unique
+    hour: item.hour_label ?? `${String(item.hour).padStart(2, '0')}:00`,
+    views: item.views ?? 0,
+    unique: item.unique ?? 0,
   }));
 
   return (
@@ -60,6 +60,7 @@ export const HourlyTrafficChart: React.FC<HourlyTrafficChartProps> = ({
           fontSize={11}
           tickLine={false}
           axisLine={false}
+          interval={2}
         />
         <YAxis
           stroke="hsl(var(--muted-foreground))"

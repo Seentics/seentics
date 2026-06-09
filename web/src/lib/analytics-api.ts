@@ -456,21 +456,17 @@ export const getHourlyStats = async (websiteId: string, days: number = 7, filter
   Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
   const response = await api.get(`/analytics/hourly-stats/${websiteId}?${params.toString()}`);
 
-  // Backend already returns hours in the user's timezone via toStartOfHour(timestamp, tz).
-  // Parse the hour number from the backend's "YYYY-MM-DD HH:00:00" string.
+  // Backend returns hour as a number (0–23). Build a full 24-hour scaffold so
+  // the chart always renders every hour on the x-axis, even hours with no traffic.
   if (response.data.hourly_stats) {
-    response.data.hourly_stats = response.data.hourly_stats.map((stat: any) => {
-      // stat.hour is e.g. "2026-02-27 06:00:00" — extract the hour part
-      const hourStr = typeof stat.hour === 'string' ? stat.hour : '';
-      const match = hourStr.match(/(\d{2}):(\d{2}):\d{2}$/);
-      const h = match ? parseInt(match[1], 10) : 0;
-
-      return {
-        ...stat,
-        hour: h,
-        hour_label: `${h.toString().padStart(2, '0')}:00`,
-      };
-    });
+    const byHour = new Map<number, any>();
+    for (const stat of response.data.hourly_stats) {
+      const h = typeof stat.hour === 'number' ? stat.hour : parseInt(stat.hour, 10);
+      byHour.set(h, { ...stat, hour: h, hour_label: `${String(h).padStart(2, '0')}:00` });
+    }
+    response.data.hourly_stats = Array.from({ length: 24 }, (_, h) =>
+      byHour.get(h) ?? { hour: h, hour_label: `${String(h).padStart(2, '0')}:00`, views: 0, unique: 0 }
+    );
   }
 
   return response.data;
