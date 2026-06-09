@@ -28,7 +28,7 @@ const slugImageMap: Record<string, string> = {
   'analytics-for-agencies':                     '/blog/analytics-agencies.jpg',
 };
 
-function resolveImage(slug?: string, tags?: string[], coverImage?: string): string {
+export function resolveImage(slug?: string, tags?: string[], coverImage?: string): string {
   if (coverImage) return coverImage;
   if (slug && slugImageMap[slug]) return slugImageMap[slug];
   if (tags) {

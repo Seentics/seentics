@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Calendar, User, Tag, ArrowLeft } from 'lucide-react';
 import { getPostBySlug, getPostSlugs, getAllPosts } from '@/lib/blog';
 import remarkGfm from 'remark-gfm';
-import BlogCover from '@/components/blog/BlogCover';
+import BlogCover, { resolveImage } from '@/components/blog/BlogCover';
 
 export async function generateStaticParams() {
   const slugs = getPostSlugs();
@@ -17,9 +17,25 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!post) {
     return {};
   }
+  const coverPath = resolveImage(slug, post.meta.tags, post.meta.cover_image);
+  const coverImage = `https://seentics.com${coverPath}`;
   return {
     title: `${post.meta.title} | Seentics Blog`,
     description: post.meta.description,
+    openGraph: {
+      title: post.meta.title,
+      description: post.meta.description,
+      url: `https://seentics.com/blog/${slug}`,
+      siteName: 'Seentics',
+      images: [{ url: coverImage, alt: post.meta.title }],
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.meta.title,
+      description: post.meta.description,
+      images: [coverImage],
+    },
   };
 }
 

@@ -37,9 +37,9 @@ export const metadata: Metadata = {
     siteName: 'Seentics',
     images: [
       {
-        url: 'https://seentics.com/analytics-dashboard.png',
-        width: 1200,
-        height: 630,
+        url: 'https://seentics.com/images/app/photo-1.png',
+        width: 2940,
+        height: 1598,
         alt: 'Seentics Analytics Dashboard',
       },
     ],
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Seentics | Analytics that actually drives growth',
     description: 'Privacy-focused real-time website analytics with built-in behavioral automations.',
-    images: ['https://seentics.com/analytics-dashboard.png'],
+    images: ['https://seentics.com/images/app/photo-1.png'],
   },
 };
 

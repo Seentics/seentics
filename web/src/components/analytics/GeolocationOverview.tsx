@@ -175,6 +175,15 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
 
                     {geoTab === 'cities' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
+                            {(!displayData?.cities?.length) && (
+                                <div className="col-span-2 flex flex-col items-center justify-center py-16 text-center">
+                                    <MapPin className="h-10 w-10 mb-3 text-muted-foreground/25" />
+                                    <p className="text-sm font-medium text-muted-foreground mb-1">No city data yet</p>
+                                    <p className="text-xs text-muted-foreground/70 max-w-xs leading-relaxed">
+                                        City-level resolution requires the MaxMind GeoIP database or Cloudflare city headers. New pageviews will populate this tab going forward.
+                                    </p>
+                                </div>
+                            )}
                             {displayData?.cities?.slice(0, 14).map((city, index) => (
                                 <div key={city.name} className="flex items-center justify-between py-3 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1">
                                     <div className="flex items-center gap-4 min-w-0">
