@@ -55,7 +55,7 @@ export function DashboardPageHeader({
               onClick={() => setAiOpen(true)}
               title="Seentics AI (⌘K)"
               className={cn(
-                'group flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-all',
+                'group flex h-7 items-center gap-1 rounded border px-2 text-[11px] font-medium transition-all',
                 'border-indigo-200 bg-indigo-50 text-indigo-600',
                 'hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700',
                 'dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-400',
@@ -63,11 +63,8 @@ export function DashboardPageHeader({
                 aiUsage && !aiUsage.canCreate && 'opacity-60',
               )}
             >
-              <Sparkles className="h-3.5 w-3.5 shrink-0" />
-              <span>Ask Seentics AI</span>
-              <kbd className="hidden rounded border border-indigo-200 bg-white px-1.5 py-px font-mono text-[10px] sm:inline-block dark:border-indigo-500/30 dark:bg-indigo-500/10">
-                ⌘K
-              </kbd>
+              <Sparkles className="h-3 w-3 shrink-0" />
+              <span>Ask AI</span>
             </button>
           )}
 
