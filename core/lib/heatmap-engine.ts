@@ -7,6 +7,7 @@ import { extractPath, normalizeHeatmapPagePath } from "./paths";
 import { heatmapScreenshotKey, layoutPathSlot } from "./keys";
 import { putJpeg } from "./s3";
 import { getSiteIdByWebsiteUuid } from "./website-site";
+import { captureAndStoreScreenshot } from "./playwright-screenshots";
 import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "./types";
 import { log as baseLog } from "./logger";
 
@@ -141,6 +142,8 @@ export class HeatmapEngine {
   private shotBuf: ScreenshotJob[] = [];
   private pgTimer: ReturnType<typeof setInterval>;
   private bucket: string;
+  /** Paths that have already had a Playwright capture triggered this lifecycle — prevents spam. */
+  private playwrightTriggered = new Set<string>();
 
   constructor() {
     this.bucket = env().s3.bucket;
@@ -209,10 +212,32 @@ export class HeatmapEngine {
     }
   }
 
+  private triggerPlaywrightCapture(websiteId: string, siteId: string, norm: string, url: string): void {
+    const key = `${websiteId}:${norm}`;
+    if (this.playwrightTriggered.has(key)) return;
+    try {
+      const u = new URL(url);
+      if (u.protocol !== "http:" && u.protocol !== "https:") return;
+    } catch {
+      return;
+    }
+    this.playwrightTriggered.add(key);
+    captureAndStoreScreenshot(url, this.bucket, siteId, norm, websiteId, { force: true })
+      .then(r => {
+        if (r?.stored) log.info({ msg: "heatmap_playwright_auto_captured", url, norm });
+      })
+      .catch(err => log.warn({ msg: "heatmap_playwright_auto_failed", url, norm, err: String(err) }));
+  }
+
   private async ingestOneScreenshot(j: ScreenshotJob): Promise<void> {
     if (!j.siteId || !j.websiteId || !j.heatmapLayoutEnabled || j.jpeg.length < 400 || !isJpeg(j.jpeg)) return;
 
     const norm = normalizeHeatmapPagePath(extractPath(j.url));
+
+    // Use the real URL from the tracker event to automatically capture a Playwright
+    // screenshot in the background. html2canvas quality is limited; Playwright gives
+    // a full, accurate page screenshot. Runs once per path per server lifecycle.
+    this.triggerPlaywrightCapture(j.websiteId, j.siteId, norm, j.url);
     const sum = createHash("sha256").update(j.jpeg).digest("hex");
 
     const cachedSha256 = getCachedSnapshotSha256(j.websiteId, norm);
