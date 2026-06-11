@@ -26,8 +26,8 @@ import { websiteWorkspaceShellClass } from '@/lib/website-shell';
 
 const planPriceMap: Record<string, number> = {
   free: 0, starter: 0,
-  basic: 9, growth: 19, pro: 49,
-  agency: 99, agency_pro: 249,
+  basic: 14, growth: 29, pro: 69,
+  agency: 129, agency_pro: 329,
 };
 
 const planNameMap: Record<string, string> = {
@@ -47,11 +47,11 @@ const planDescriptions: Record<string, string> = {
 };
 
 const planFeatures: Record<string, string[]> = {
-  free:       ['Unlimited Websites', '10K Monthly Events', '5 Session Recordings', '3 Heatmap Pages', '1 Funnel', '1 Automation', '30 Day Retention', 'API, SDK & UI Blocks', '1 Team Member', 'Community Support'],
-  starter:    ['Unlimited Websites', '10K Monthly Events', '5 Session Recordings', '3 Heatmap Pages', '1 Funnel', '1 Automation', '30 Day Retention', 'API, SDK & UI Blocks', '1 Team Member', 'Community Support'],
-  basic:      ['Unlimited Websites', '100K Monthly Events', '1,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels & Automations', '1 Year Retention', 'API, SDK & UI Blocks', '3 Team Members', 'Email Support'],
-  growth:     ['Unlimited Websites', '500K Monthly Events', '10,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels & Automations', '2 Year Retention', 'API, SDK & UI Blocks', '5 Team Members', 'Email Support'],
-  pro:        ['Unlimited Websites', '2M Monthly Events', '50,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels & Automations', '5 Year Retention', 'API, SDK & UI Blocks', '10 Team Members', 'Priority Support'],
+  free:       ['Unlimited Websites', '15K Monthly Events', '5 Session Recordings', '3 Heatmap Pages', '1 Funnel', '1 Automation', '30 Day Retention', 'API, SDK & UI Blocks', '1 Team Member', 'Community Support'],
+  starter:    ['Unlimited Websites', '15K Monthly Events', '5 Session Recordings', '3 Heatmap Pages', '1 Funnel', '1 Automation', '30 Day Retention', 'API, SDK & UI Blocks', '1 Team Member', 'Community Support'],
+  basic:      ['Unlimited Websites', '200K Monthly Events', '1,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels & Automations', '1 Year Retention', 'API, SDK & UI Blocks', '3 Team Members', 'Email Support'],
+  growth:     ['Unlimited Websites', '1M Monthly Events', '5,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels & Automations', '2 Year Retention', 'API, SDK & UI Blocks', '5 Team Members', 'Email Support'],
+  pro:        ['Unlimited Websites', '5M Monthly Events', '10,000 Session Recordings', 'Unlimited Heatmaps', 'Unlimited Funnels & Automations', '5 Year Retention', 'API, SDK & UI Blocks', '10 Team Members', 'Priority Support'],
   agency:     ['Unlimited Client Workspaces', '5M Monthly Events', '100K Session Recordings', 'Unlimited Heatmaps', 'White Label', 'Custom Domain', '3 Year Retention', 'API, SDK & UI Blocks', 'Priority Support'],
   agency_pro: ['Unlimited Client Workspaces', '20M Monthly Events', '500K Session Recordings', 'Unlimited Heatmaps', 'White Label', 'Custom Domain', 'Client Portal', '7 Year Retention', 'API, SDK & UI Blocks', 'Dedicated Support & SLA'],
 };
