@@ -43,7 +43,7 @@ export async function getRealtimeGeoAnalytics(
   const rows = await db
     .select({
       country: analyticsEvents.country,
-      count: sql<number>`COUNT(DISTINCT ${analyticsEvents.visitorId})`.as("count"),
+      count: sql<number>`COUNT(DISTINCT COALESCE(NULLIF(TRIM(${analyticsEvents.visitorId}), ''), ${analyticsEvents.sessionId}))`.as("count"),
     })
     .from(analyticsEvents)
     .where(
