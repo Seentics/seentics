@@ -9,8 +9,10 @@ import api from '@/lib/api';
 import { openCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
 import { useState } from 'react';
-import { Users, Building2 } from 'lucide-react';
+import { Users, Building2, FlaskConical, ArrowRight, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const TEST_CHECKOUT_URL = 'https://seentics.lemonsqueezy.com/checkout/buy/2ccc5601-1010-488b-8cf3-7784c0eb31aa?checkout%5Bcustom%5D%5Bplan%5D=pro';
 
 export default function Pricing() {
   if (!isEnterprise) return null;
@@ -132,6 +134,44 @@ export default function Pricing() {
           transition={{ duration: 0.4 }}
         >
           <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode={mode} />
+        </motion.div>
+
+        {/* Test / Sandbox checkout card */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="mt-10 max-w-sm mx-auto"
+        >
+          <div className="relative flex flex-col rounded-xl border-2 border-dashed border-amber-400/60 bg-amber-50/30 dark:bg-amber-950/10 p-5">
+            <div className="absolute -top-3 left-4">
+              <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-400 text-amber-950">
+                <FlaskConical className="h-3 w-3" />
+                Sandbox / Test Only
+              </span>
+            </div>
+            <div className="mb-3 pt-1">
+              <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-400">Test Checkout</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Test the full payment &amp; subscription webhook flow with Lemon Squeezy test mode.</p>
+            </div>
+            <ul className="space-y-1.5 mb-4">
+              {['Triggers real webhook flow', 'Sets subscription to Pro plan', 'Use LS test card: 4242 4242 4242 4242'].map((f) => (
+                <li key={f} className="flex items-start gap-2">
+                  <Check className="h-3 w-3 mt-0.5 shrink-0 text-amber-500" />
+                  <span className="text-[11px] text-muted-foreground">{f}</span>
+                </li>
+              ))}
+            </ul>
+            <a
+              href={TEST_CHECKOUT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 w-full rounded-lg border border-amber-400 bg-amber-400/10 hover:bg-amber-400/20 text-amber-700 dark:text-amber-400 text-xs font-semibold py-2 transition-colors"
+            >
+              Open Test Checkout <ArrowRight className="h-3.5 w-3.5" />
+            </a>
+          </div>
         </motion.div>
       </div>
     </section>
