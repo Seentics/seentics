@@ -151,11 +151,7 @@ export default function Pricing() {
             </div>
             <div className="mb-3 pt-1">
               <h3 className="text-sm font-semibold text-amber-700 dark:text-amber-400">Test Checkout</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {isAuthenticated
-                  ? 'Starts a real Pro checkout with your user ID embedded so the webhook can update your plan.'
-                  : 'Log in first — so the checkout can link the subscription to your account.'}
-              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">Test the full payment &amp; subscription webhook flow with Lemon Squeezy test mode.</p>
             </div>
             <ul className="space-y-1.5 mb-4">
               {['Triggers real webhook flow', 'Sets subscription to Pro plan', 'Use LS test card: 4242 4242 4242 4242'].map((f) => (
@@ -165,13 +161,14 @@ export default function Pricing() {
                 </li>
               ))}
             </ul>
-            <button
-              onClick={() => isAuthenticated ? handleSubscribe({ plan: 'pro', price: 69, billing: 'monthly' }) : (window.location.href = '/login')}
-              disabled={loading}
-              className="flex items-center justify-center gap-1.5 w-full rounded-lg border border-amber-400 bg-amber-400/10 hover:bg-amber-400/20 text-amber-700 dark:text-amber-400 text-xs font-semibold py-2 transition-colors disabled:opacity-50"
+            <a
+              href="https://seentics.lemonsqueezy.com/checkout/buy/2ccc5601-1010-488b-8cf3-7784c0eb31aa"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 w-full rounded-lg border border-amber-400 bg-amber-400/10 hover:bg-amber-400/20 text-amber-700 dark:text-amber-400 text-xs font-semibold py-2 transition-colors"
             >
-              {isAuthenticated ? <>Open Test Checkout <ArrowRight className="h-3.5 w-3.5" /></> : 'Log in to Test'}
-            </button>
+              Open Test Checkout <ArrowRight className="h-3.5 w-3.5" />
+            </a>
           </div>
         </motion.div>
       </div>
