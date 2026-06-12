@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 export default function Pricing() {
   if (!isEnterprise) return null;
 
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'individual' | 'agency'>('individual');
 
@@ -162,7 +162,11 @@ export default function Pricing() {
               ))}
             </ul>
             <a
-              href="https://seentics.lemonsqueezy.com/checkout/buy/2ccc5601-1010-488b-8cf3-7784c0eb31aa"
+              href={
+                isAuthenticated && user?.id
+                  ? `https://seentics.lemonsqueezy.com/checkout/buy/2ccc5601-1010-488b-8cf3-7784c0eb31aa?checkout%5Bcustom%5D%5Buser_id%5D=${encodeURIComponent(user.id)}&checkout%5Bcustom%5D%5Bplan%5D=pro`
+                  : 'https://seentics.lemonsqueezy.com/checkout/buy/2ccc5601-1010-488b-8cf3-7784c0eb31aa'
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-1.5 w-full rounded-lg border border-amber-400 bg-amber-400/10 hover:bg-amber-400/20 text-amber-700 dark:text-amber-400 text-xs font-semibold py-2 transition-colors"
