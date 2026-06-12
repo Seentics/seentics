@@ -45,6 +45,23 @@ const getPageIcon = (page: string) => {
   const path = getPathFromUrl(page).toLowerCase();
 
   if (path === '/') return <Home className="w-4 h-4 text-indigo-500" />;
+
+  // App-specific paths
+  if (path.includes('/heatmaps')) return <Zap className="w-4 h-4 text-orange-500" />;
+  if (path.includes('/replays')) return <Workflow className="w-4 h-4 text-purple-500" />;
+  if (path.includes('/realtime')) return <BarChart3 className="w-4 h-4 text-green-500" />;
+  if (path.includes('/funnels')) return <Workflow className="w-4 h-4 text-indigo-500" />;
+  if (path.includes('/automations')) return <Zap className="w-4 h-4 text-yellow-500" />;
+  if (path.includes('/revenue')) return <DollarSign className="w-4 h-4 text-green-600" />;
+  if (path.includes('/dashboard')) return <BarChart3 className="w-4 h-4 text-indigo-500" />;
+  if (path.includes('/admin')) return <Shield className="w-4 h-4 text-red-500" />;
+  if (path.includes('/websites')) return <Globe className="w-4 h-4 text-indigo-500" />;
+  if (path.includes('/billing') || path.includes('/subscriptions')) return <CreditCard className="w-4 h-4 text-indigo-500" />;
+  if (path.includes('/team')) return <Users className="w-4 h-4 text-blue-500" />;
+  if (path.includes('/users')) return <Users className="w-4 h-4 text-blue-500" />;
+  if (path.includes('/storage')) return <Package className="w-4 h-4 text-gray-500" />;
+
+  // Generic patterns
   if (path.includes('/blog') || path.includes('/post')) return <FileText className="w-4 h-4 text-green-500" />;
   if (path.includes('/about')) return <Info className="w-4 h-4 text-indigo-500" />;
   if (path.includes('/contact')) return <Phone className="w-4 h-4 text-orange-500" />;
@@ -54,7 +71,7 @@ const getPageIcon = (page: string) => {
   if (path.includes('/auth') || path.includes('/login')) return <LogIn className="w-4 h-4 text-gray-500" />;
   if (path.includes('/settings')) return <Settings className="w-4 h-4 text-gray-600" />;
   if (path.includes('/cart')) return <ShoppingCart className="w-4 h-4 text-indigo-600" />;
-  
+
   return <Globe className="w-4 h-4 text-indigo-500" />;
 };
 

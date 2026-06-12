@@ -25,6 +25,7 @@ const _capturing = new Set<string>();
 async function autoCapture(
   websiteParam: string,
   websiteUuid: string,
+  siteId: string,
   norm: string,
   opts: { lenientResolve: boolean },
 ): Promise<void> {
@@ -36,10 +37,11 @@ async function autoCapture(
   _capturing.add(captureKey);
   log.info({ msg: "heatmap_autocapture_start", website_uuid: websiteUuid, norm });
   try {
+    // analytics_events.website_id stores the short site_id, not the UUID.
     const rows = await db
       .select({ page: analyticsEvents.page })
       .from(analyticsEvents)
-      .where(and(eq(analyticsEvents.websiteId, websiteUuid), eq(analyticsEvents.eventType, "pageview")))
+      .where(and(eq(analyticsEvents.websiteId, siteId), eq(analyticsEvents.eventType, "pageview")))
       .orderBy(desc(analyticsEvents.occurredAt))
       .limit(50);
 
@@ -71,11 +73,11 @@ async function autoCapture(
 async function resolve(
   websiteParam: string,
   lenientResolve: boolean,
-): Promise<{ uuidStr: string }> {
-  const { uuidStr } = lenientResolve
+): Promise<{ uuidStr: string; siteId: string }> {
+  const result = lenientResolve
     ? await resolveWebsiteIdsLenient(websiteParam)
     : await resolveWebsiteIds(websiteParam);
-  return { uuidStr };
+  return { uuidStr: result.uuidStr, siteId: result.siteId };
 }
 
 function mergeNormalizedPages(pages: Awaited<ReturnType<typeof listPages>>) {
@@ -106,7 +108,7 @@ function mergeNormalizedPages(pages: Awaited<ReturnType<typeof listPages>>) {
 }
 
 export async function listHeatmapPages(websiteParam: string, opts: { lenientResolve: boolean }) {
-  const { uuidStr } = await resolve(websiteParam, opts.lenientResolve);
+  const { uuidStr } = await resolve(websiteParam, opts.lenientResolve); // siteId not needed here
   const pages = await listPages(uuidStr);
   return { pages: mergeNormalizedPages(pages) };
 }
@@ -147,13 +149,13 @@ export async function getHeatmapLayoutSnapshot(
   pagePath: string,
   opts: { lenientResolve: boolean },
 ) {
-  const { uuidStr } = await resolve(websiteParam, opts.lenientResolve);
+  const { uuidStr, siteId } = await resolve(websiteParam, opts.lenientResolve);
   const norm = normalizeHeatmapPagePath(pagePath);
   const row = await getLayoutSnapshot(uuidStr, norm);
   if (!row?.s3_key) {
     log.info({ msg: "heatmap_snapshot_miss", website_uuid: uuidStr, norm, triggering_autocapture: true });
     // No snapshot — find a real URL from analytics events and trigger Playwright in background.
-    void autoCapture(websiteParam, uuidStr, norm, opts);
+    void autoCapture(websiteParam, uuidStr, siteId, norm, opts);
     return { layout: null as null };
   }
 
