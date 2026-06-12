@@ -1,32 +1,30 @@
-import { and, eq, gte, sql as dsql } from "drizzle-orm";
-import { analyticsEvents, db } from "../../db";
-import { countDistinctVisitorsSql, parseDays, resolveSiteId } from "./shared";
+import { sql as pgSql } from "../../db";
+import { parseDays, resolveSiteId } from "./shared";
 
 export async function getHourlyStatsAnalytics(
   websiteParam: string,
   query: Record<string, string | undefined>,
 ) {
   const days = Math.min(parseDays(query.days, 1), 7);
-  const tz = (query.timezone ?? 'UTC').trim() || 'UTC';
+  const tz = (query.timezone ?? "UTC").trim() || "UTC";
   const { siteId } = await resolveSiteId(websiteParam);
-  const start = new Date(Date.now() - days * 86400000);
-  const hourBucket = dsql<number>`extract(hour from ${analyticsEvents.occurredAt} AT TIME ZONE ${tz})::int`;
-  const rows = await db
-    .select({
-      h: hourBucket,
-      views: dsql<number>`count(*)::int`,
-      unique: countDistinctVisitorsSql(),
-    })
-    .from(analyticsEvents)
-    .where(
-      and(
-        eq(analyticsEvents.websiteId, siteId),
-        gte(analyticsEvents.occurredAt, start),
-        eq(analyticsEvents.eventType, "pageview"),
-      ),
-    )
-    .groupBy(hourBucket)
-    .orderBy(hourBucket);
+  const start = new Date(Date.now() - days * 86400000).toISOString();
+
+  // Raw SQL avoids Drizzle generating separate parameter bindings for the same
+  // timezone expression in SELECT vs GROUP BY, which causes Postgres error 42803.
+  const rows = await pgSql<{ h: number; views: number; unique: number }[]>`
+    SELECT
+      extract(hour from occurred_at AT TIME ZONE ${tz})::int AS h,
+      count(*)::int AS views,
+      count(distinct coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique
+    FROM analytics_events
+    WHERE website_id = ${siteId}
+      AND event_type = 'pageview'
+      AND occurred_at >= ${start}
+    GROUP BY extract(hour from occurred_at AT TIME ZONE ${tz})::int
+    ORDER BY h
+  `;
+
   const todayUtcMidnight = new Date();
   todayUtcMidnight.setUTCHours(0, 0, 0, 0);
   return {
