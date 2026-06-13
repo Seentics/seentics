@@ -25,11 +25,11 @@ export function openCheckout(rawUrl: string) {
     url += (url.includes('?') ? '&' : '?') + 'embed=1';
   }
 
-  // After successful payment, redirect back into the app
+  // After successful payment, land on our success page which polls for plan activation
   const successUrl = encodeURIComponent(
     typeof window !== 'undefined'
-      ? `${window.location.origin}/websites`
-      : `${config.frontendUrl}/websites`
+      ? `${window.location.origin}/checkout/success`
+      : `${config.frontendUrl}/checkout/success`
   );
   if (!url.includes('checkout[success_url]')) {
     url += `&checkout[success_url]=${successUrl}`;
