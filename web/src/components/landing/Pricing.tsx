@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { useAuth } from '@/stores/useAuthStore';
 import { motion } from 'framer-motion';
 import { isEnterprise } from '@/lib/features';
@@ -9,15 +8,18 @@ import api from '@/lib/api';
 import { openCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
 import { useState } from 'react';
-import { Users, Building2, FlaskConical, ArrowRight, Check } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Users, Building2, FlaskConical, ArrowRight, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Pricing() {
   if (!isEnterprise) return null;
 
+  const router = useRouter();
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'individual' | 'agency'>('individual');
+  const [waitingForPayment, setWaitingForPayment] = useState(false);
 
   const handleSubscribe = async (selection: PlanSelection) => {
     if (!isAuthenticated) {
@@ -27,7 +29,7 @@ export default function Pricing() {
     try {
       setLoading(true);
       if (selection.price === 0) {
-        window.location.href = '/websites';
+        router.push('/websites');
         return;
       }
       const response = await api.post('/user/billing/checkout', {
@@ -35,7 +37,19 @@ export default function Pricing() {
         billing: selection.billing,
       });
       if (response.data.success && response.data.data.checkoutUrl) {
-        openCheckout(response.data.data.checkoutUrl);
+        setWaitingForPayment(true);
+        openCheckout(
+          response.data.data.checkoutUrl,
+          () => {
+            toast.success('Plan activated! Taking you to your dashboard…');
+            router.push('/websites');
+          },
+          () => {
+            setWaitingForPayment(false);
+            toast.info('Payment received — your plan will activate shortly.');
+            router.push('/websites');
+          },
+        );
       }
     } catch {
       toast.error('Failed to initialize checkout. Please try again.');
@@ -43,6 +57,22 @@ export default function Pricing() {
       setLoading(false);
     }
   };
+
+  if (waitingForPayment) {
+    return (
+      <section id="pricing" className="py-24 md:py-32 bg-background flex items-center justify-center min-h-[400px]">
+        <div className="text-center max-w-sm px-6">
+          <div className="flex justify-center mb-4">
+            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+              <Loader2 className="h-7 w-7 text-primary animate-spin" />
+            </div>
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Complete your payment</h2>
+          <p className="text-sm text-muted-foreground">Finish the checkout in the tab that just opened. Your plan will activate automatically once payment is confirmed.</p>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section id="pricing" className="py-24 md:py-32 bg-background">

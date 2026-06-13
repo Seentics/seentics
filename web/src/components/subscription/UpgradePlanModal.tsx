@@ -3,12 +3,14 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Crown, ArrowRight, X, Rocket, TrendingUp } from 'lucide-react';
+import { CheckCircle, Crown, ArrowRight, X, Rocket, TrendingUp, Loader2 } from 'lucide-react';
 import { useAuth } from '@/stores/useAuthStore';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { openCheckout } from '@/lib/checkout';
 import { isEnterprise } from '@/lib/features';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface UpgradePlanModalProps {
   isOpen: boolean;
@@ -138,9 +140,11 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
 }) => {
   if (!isEnterprise) return null;
 
+  const router = useRouter();
   const { isAuthenticated } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [billing, setBilling] = React.useState<'monthly' | 'yearly'>('monthly');
+  const [waitingForPayment, setWaitingForPayment] = React.useState(false);
 
   const normalizedPlan = currentPlan === 'free' ? 'starter' : currentPlan;
   const upgradePlans = (['basic', 'growth', 'pro'] as const).filter(p => p !== normalizedPlan);
@@ -156,8 +160,20 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
       const response = await api.post('/user/billing/checkout', { plan, billing });
 
       if (response.data.success && response.data.data.checkoutUrl) {
-        onClose();
-        openCheckout(response.data.data.checkoutUrl);
+        setWaitingForPayment(true);
+        openCheckout(
+          response.data.data.checkoutUrl,
+          () => {
+            toast.success('Plan activated! Taking you to your dashboard…');
+            onClose();
+            router.push('/websites');
+          },
+          () => {
+            toast.info('Payment received — your plan will activate shortly.');
+            onClose();
+            router.push('/websites');
+          },
+        );
       } else {
         throw new Error(response.data.message || 'Failed to create checkout session');
       }
@@ -168,6 +184,24 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
       setLoading(false);
     }
   };
+
+  if (waitingForPayment) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-sm">
+          <div className="flex flex-col items-center text-center py-8 gap-4">
+            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+              <Loader2 className="h-7 w-7 text-primary animate-spin" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-1">Complete your payment</h3>
+              <p className="text-sm text-muted-foreground">Finish the checkout in the tab that just opened. Your plan will activate automatically.</p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
