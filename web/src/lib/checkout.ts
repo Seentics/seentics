@@ -43,7 +43,7 @@ export function openCheckout(
       if (initialPlan === null) {
         initialPlan = plan;
       } else if (plan !== initialPlan) {
-        onActivated();
+        onActivated?.();
         return;
       }
     } catch {
