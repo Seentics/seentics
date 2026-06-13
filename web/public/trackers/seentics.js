@@ -62,7 +62,7 @@ const rrwebSrc =
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const COLLECT        = apiHost + '/api/v1/tracker/collect';
-const FLUSH_MS       = 10_000;          // periodic flush interval (10 s)
+const FLUSH_MS       = 5_000;           // periodic flush interval (5 s — shorter window reduces unload data on mobile)
 const SESSION_MAX_MS = 30 * 60 * 1000; // hard session cap (30 min)
 
 /**
@@ -311,10 +311,13 @@ const flush = () => {
 const flushBeacon = () => {
   const drained = drainQueues();
   if (!drained) return;
-  const { json, sessionEvts, heatmapEvts, shotEvts } = drained;
+  const { json, heatmapEvts, shotEvts } = drained;
 
-  // Large payloads exceed sendBeacon's ~64 KB limit — use keepalive fetch instead.
-  if (sessionEvts.length > 0 || shotEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
+  // Screenshots or very large batches must use keepalive fetch.
+  // NOTE: iOS Safari limits keepalive request bodies to 64 KB. Full DOM snapshots
+  // are flushed immediately when captured (see emit handler above) so by the time
+  // pagehide fires, only incremental events remain — typically well under 64 KB.
+  if (shotEvts.length > 0 || heatmapEvts.length > 400 || json.length > 55_000) {
     try {
       fetch(COLLECT, {
         method: 'POST',
@@ -326,7 +329,8 @@ const flushBeacon = () => {
     return;
   }
 
-  // Small payload: prefer sendBeacon (guaranteed delivery, no keepalive size concerns).
+  // Small payload (including incremental session events): sendBeacon is the most
+  // reliable delivery mechanism across browsers during page unload.
   const blob = new Blob([json], { type: 'application/json' });
   if (navigator.sendBeacon && navigator.sendBeacon(COLLECT, blob)) return;
 
@@ -917,16 +921,17 @@ let activeRecordingSessionId = null;
  */
 const RRWEB_OPTIONS = {
   recordAfter:      'load',
-  checkoutEveryNms: 120_000, // full DOM snapshot every 2 min (default is 1 min)
+  checkoutEveryNms: 60_000, // full DOM snapshot every 60 s — shorter helps mobile tab resume recovery
   maskAllInputs:    true,
   blockSelector:    '[data-seentics-block]',
   ignoreSelector:   '[data-seentics-ignore]',
   recordShadowDOM:  true,
   sampling: {
-    mousemove: 100,    // sample every 100 ms (rrweb default is 50 ms)
-    scroll:    150,
-    media:     800,
-    input:     'last', // only send the final input value, not every keystroke
+    mousemove:  100,    // sample every 100 ms (rrweb default is 50 ms)
+    touchmove:  100,    // mobile: throttle touchmove (default is every event — floods queue on scroll)
+    scroll:     150,
+    media:      800,
+    input:      'last', // only send the final input value, not every keystroke
   },
   inlineStylesheet: false, // send stylesheet URLs, not the full CSS text
   collectFonts:     false, // skip base64-embedded fonts (can be several MB per snapshot)
@@ -970,6 +975,12 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
           sid:  activeRecordingSessionId,
           vid:  visitorId,
         });
+        // Full snapshots (type 2) can be 50–200 KB. Flush immediately so the data
+        // is already sent before the user navigates away — iOS Safari's keepalive
+        // fetch hard-cap of 64 KB would otherwise silently drop it on pagehide.
+        if (event.type === 2 /* FullSnapshot */) {
+          setTimeout(flush, 0);
+        }
       }
     },
   });
