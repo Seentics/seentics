@@ -35,7 +35,7 @@ export default function Pricing() {
         billing: selection.billing,
       });
       if (response.data.success && response.data.data.checkoutUrl) {
-        window.location.href = response.data.data.checkoutUrl;
+        openCheckout(response.data.data.checkoutUrl);
       }
     } catch {
       toast.error('Failed to initialize checkout. Please try again.');
