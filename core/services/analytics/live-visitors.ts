@@ -1,10 +1,10 @@
 import { sql as pgSql } from "../../db";
 import { resolveSiteId } from "./shared";
-import { getRealtimeStats, REALTIME_WINDOW_MS } from "./realtime";
+import { getRealtimeStats, LIVE_VISITOR_WINDOW_MS } from "./realtime";
 
 export async function getLiveVisitorsStats(websiteParam: string) {
   const { siteId } = await resolveSiteId(websiteParam);
-  const since = new Date(Date.now() - REALTIME_WINDOW_MS);
+  const since = new Date(Date.now() - LIVE_VISITOR_WINDOW_MS);
   const sinceIso = since.toISOString();
 
   const [realtimeOut, recentVisitors] = await Promise.all([

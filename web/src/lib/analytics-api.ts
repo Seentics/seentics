@@ -397,8 +397,8 @@ export const useRealtimeData = (websiteId: string) => {
     queryKey: ['realtime', websiteId],
     queryFn: () => getRealtimeData(websiteId),
     enabled: isValidId(websiteId),
-    refetchInterval: 5000,
-    staleTime: 4000,
+    refetchInterval: 60_000,
+    staleTime: 55_000,
   });
 };
 

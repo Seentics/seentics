@@ -4,6 +4,9 @@ import { resolveSiteId } from "./shared";
 /** Rolling window for `/analytics/realtime` (matches dashboard “last ~30 minutes”). */
 export const REALTIME_WINDOW_MS = 30 * 60_000;
 
+/** Window for “Live Visitors” badge — people with a pageview in the last 30 seconds. */
+export const LIVE_VISITOR_WINDOW_MS = 30_000;
+
 function utcMinuteKey(d: Date): string {
   return `${d.getUTCHours().toString().padStart(2, "0")}:${d.getUTCMinutes().toString().padStart(2, "0")}`;
 }

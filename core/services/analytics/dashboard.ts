@@ -2,7 +2,7 @@
 import { sql as pgSql } from "../../db";
 import { log } from "../../lib/logger";
 import { parseDays, resolveSiteId } from "./shared";
-import { getRealtimeStats } from "./realtime";
+import { getRealtimeStats, LIVE_VISITOR_WINDOW_MS } from "./realtime";
 
 export async function getDashboardStats(
   websiteParam: string,
@@ -18,7 +18,7 @@ export async function getDashboardStats(
   const startIso = start.toISOString();
   const prevStartIso = prevStart.toISOString();
 
-  const [[agg], [sess], live] = await Promise.all([
+  const [[agg], [sess], live, liveRow] = await Promise.all([
     pgSql<
       {
         pv: number;
@@ -139,6 +139,13 @@ export async function getDashboardStats(
         ) AS prev_bounce_pct
     `,
     getRealtimeStats(websiteParam),
+    pgSql<{ c: number }[]>`
+      SELECT count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS c
+      FROM analytics_events
+      WHERE website_id = ${siteId}
+        AND event_type = 'pageview'
+        AND occurred_at >= ${new Date(Date.now() - LIVE_VISITOR_WINDOW_MS).toISOString()}
+    `,
   ]);
 
   const pageViews = Number(agg?.pv ?? 0);
@@ -153,7 +160,7 @@ export async function getDashboardStats(
   const prevAvgSessionSec = Number(sess?.prev_avg_session_sec ?? 0);
   const prevBouncePct = Number(sess?.prev_bounce_pct ?? 0);
 
-  const liveVisitors = Number(live.live_visitors ?? 0);
+  const liveVisitors = Number(liveRow[0]?.c ?? 0);
   const pagesPerSession = sessionCnt > 0 ? pageViews / sessionCnt : 0;
 
   const visitorChange = prevUv ? ((uniqueVisitors - prevUv) / prevUv) * 100 : 0;
