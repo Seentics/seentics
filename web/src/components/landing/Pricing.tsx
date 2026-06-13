@@ -9,7 +9,7 @@ import { openCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Users, Building2, FlaskConical, ArrowRight, Check, Loader2 } from 'lucide-react';
+import { Users, Building2, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function Pricing() {
@@ -164,7 +164,7 @@ export default function Pricing() {
           <PlanBuilder onSubscribe={handleSubscribe} loading={loading} mode={mode} />
         </motion.div>
 
-        {/* Test / Sandbox checkout card */}
+        {/* Test / Sandbox checkout card — disabled in production
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -200,6 +200,7 @@ export default function Pricing() {
             </button>
           </div>
         </motion.div>
+        */}
       </div>
     </section>
   );

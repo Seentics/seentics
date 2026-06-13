@@ -859,7 +859,7 @@ function SessionReplayTransportBar({
 }) {
   const { currentMs, playing, syncNow } = useReplayPlayback();
   const [speed, setSpeed] = useState(1);
-  const [skipInactive, setSkipInactive] = useState(false);
+  const [skipInactive, setSkipInactive] = useState(true);
 
   const seekRel = (deltaMs: number) => {
     const next = Math.min(durationMs, Math.max(0, currentMs + deltaMs));
@@ -1201,7 +1201,7 @@ export function SessionReplaySurface({
           autoPlay: true,
           speed: 1,
           speedOption: [...SPEED_OPTIONS],
-          skipInactive: false,
+          skipInactive: true,
           showController: false,
           maxScale: PLAYER_MAX_SCALE,
           inactiveColor: 'rgba(255, 255, 255, 0.18)',

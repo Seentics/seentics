@@ -8,8 +8,56 @@ import { StatCards } from '@/components/seentics-ui/StatCards';
 import { Button } from '@/components/ui/button';
 import { isDemo } from '@/lib/demo';
 import { cn } from '@/lib/utils';
-import { Eye, Layers, Radio, RefreshCw, Users } from 'lucide-react';
+import { Eye, Layers, Radio, RefreshCw, Users, Globe, Home, BarChart3, Zap, Workflow, DollarSign, Shield, CreditCard, Users2, Package, FileText, Info, Phone, LogIn, Settings, ShoppingCart } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+
+function getPathFromUrl(url: string) {
+  if (!url) return '/';
+  try { return new URL(url).pathname; } catch { return url.split('?')[0]; }
+}
+
+function getPageIcon(page: string) {
+  if (!page) return <Globe className="w-3.5 h-3.5 text-muted-foreground" />;
+  const path = getPathFromUrl(page).toLowerCase();
+  if (path === '/') return <Home className="w-3.5 h-3.5 text-indigo-500" />;
+  if (path.includes('/heatmaps')) return <Zap className="w-3.5 h-3.5 text-orange-500" />;
+  if (path.includes('/replays')) return <Workflow className="w-3.5 h-3.5 text-purple-500" />;
+  if (path.includes('/realtime')) return <BarChart3 className="w-3.5 h-3.5 text-green-500" />;
+  if (path.includes('/funnels')) return <Workflow className="w-3.5 h-3.5 text-indigo-500" />;
+  if (path.includes('/revenue')) return <DollarSign className="w-3.5 h-3.5 text-green-600" />;
+  if (path.includes('/dashboard')) return <BarChart3 className="w-3.5 h-3.5 text-indigo-500" />;
+  if (path.includes('/admin')) return <Shield className="w-3.5 h-3.5 text-red-500" />;
+  if (path.includes('/websites')) return <Globe className="w-3.5 h-3.5 text-indigo-500" />;
+  if (path.includes('/billing') || path.includes('/subscriptions')) return <CreditCard className="w-3.5 h-3.5 text-indigo-500" />;
+  if (path.includes('/team') || path.includes('/users')) return <Users2 className="w-3.5 h-3.5 text-blue-500" />;
+  if (path.includes('/storage')) return <Package className="w-3.5 h-3.5 text-gray-500" />;
+  if (path.includes('/blog') || path.includes('/post')) return <FileText className="w-3.5 h-3.5 text-green-500" />;
+  if (path.includes('/about')) return <Info className="w-3.5 h-3.5 text-indigo-500" />;
+  if (path.includes('/contact')) return <Phone className="w-3.5 h-3.5 text-orange-500" />;
+  if (path.includes('/pricing')) return <DollarSign className="w-3.5 h-3.5 text-yellow-500" />;
+  if (path.includes('/analytics')) return <BarChart3 className="w-3.5 h-3.5 text-indigo-500" />;
+  if (path.includes('/auth') || path.includes('/login')) return <LogIn className="w-3.5 h-3.5 text-gray-500" />;
+  if (path.includes('/settings')) return <Settings className="w-3.5 h-3.5 text-gray-600" />;
+  if (path.includes('/cart')) return <ShoppingCart className="w-3.5 h-3.5 text-indigo-600" />;
+  return <Globe className="w-3.5 h-3.5 text-indigo-500" />;
+}
+
+function getPageLabel(page: string) {
+  const path = getPathFromUrl(page);
+  if (path === '/') return 'Homepage';
+  const segs = path.split('/').filter(Boolean);
+  if (!segs.length) return path;
+  const last = segs[segs.length - 1];
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(last)) {
+    return segs[0] === 'websites' ? 'Website dashboard' : 'Detail page';
+  }
+  return last.split(/[-_]/).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function countryFlag(code: string) {
+  if (!code || code.length !== 2) return '🌐';
+  return code.toUpperCase().replace(/./g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+}
 
 function RealtimeTimelineChart({ timeline, isLoading }: { timeline?: RealtimeMinute[]; isLoading: boolean }) {
   if (isLoading) {
@@ -71,10 +119,11 @@ function RealtimeTimelineChart({ timeline, isLoading }: { timeline?: RealtimeMin
   );
 }
 
-function TopList({ title, rows, isLoading }: {
+function TopList({ title, rows, isLoading, type = 'pages' }: {
   title: string;
   rows?: Array<{ name?: string; page?: string; visitors: number }>;
   isLoading: boolean;
+  type?: 'pages' | 'countries';
 }) {
   const items = rows ?? [];
   const max = items[0]?.visitors ?? 1;
@@ -90,12 +139,31 @@ function TopList({ title, rows, isLoading }: {
           <p className="text-xs text-muted-foreground py-4 text-center">No data yet</p>
         ) : (
           items.slice(0, 8).map((r, i) => {
-            const label = r.page ?? r.name ?? '—';
             const pct = Math.round((r.visitors / max) * 100);
+            if (type === 'countries') {
+              const code = r.name ?? '';
+              const flag = countryFlag(code);
+              return (
+                <div key={i} className="relative flex items-center justify-between gap-2 px-2 py-1 rounded text-xs">
+                  <div className="absolute inset-0 rounded bg-primary/5" style={{ width: `${pct}%` }} />
+                  <span className="relative flex items-center gap-1.5 truncate text-foreground">
+                    <span className="text-sm leading-none">{flag}</span>
+                    <span className="truncate">{code || '—'}</span>
+                  </span>
+                  <span className="relative shrink-0 tabular-nums text-muted-foreground">{r.visitors}</span>
+                </div>
+              );
+            }
+            const page = r.page ?? r.name ?? '';
+            const label = getPageLabel(page);
+            const icon = getPageIcon(page);
             return (
               <div key={i} className="relative flex items-center justify-between gap-2 px-2 py-1 rounded text-xs">
                 <div className="absolute inset-0 rounded bg-primary/5" style={{ width: `${pct}%` }} />
-                <span className="relative truncate font-mono text-foreground" title={label}>{label}</span>
+                <span className="relative flex items-center gap-1.5 truncate text-foreground" title={page}>
+                  {icon}
+                  <span className="truncate">{label}</span>
+                </span>
                 <span className="relative shrink-0 tabular-nums text-muted-foreground">{r.visitors}</span>
               </div>
             );
@@ -183,8 +251,8 @@ export function RealtimeDashboardSection({ websiteId }: { websiteId: string }) {
       <RealtimeTimelineChart timeline={data?.timeline} isLoading={statsLoading} />
 
       <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <TopList title="Top pages" rows={data?.top_pages} isLoading={statsLoading} />
-        <TopList title="Top countries" rows={data?.top_countries} isLoading={statsLoading} />
+        <TopList title="Top pages" rows={data?.top_pages} isLoading={statsLoading} type="pages" />
+        <TopList title="Top countries" rows={data?.top_countries} isLoading={statsLoading} type="countries" />
       </div>
 
       <div className="mt-6 border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden">
