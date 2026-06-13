@@ -191,8 +191,8 @@ export function RealtimeDashboardSection({ websiteId }: { websiteId: string }) {
   } = useRecentActivity(websiteId, {
     limit: 50,
     withinMinutes: 30,
-    refetchIntervalMs: 60_000,
-    staleTimeMs: 55_000,
+    refetchIntervalMs: 15_000,
+    staleTimeMs: 12_000,
   });
 
   const pageviewsN = Number(data?.pageviews ?? 0);

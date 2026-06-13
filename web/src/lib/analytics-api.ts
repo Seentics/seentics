@@ -397,8 +397,8 @@ export const useRealtimeData = (websiteId: string) => {
     queryKey: ['realtime', websiteId],
     queryFn: () => getRealtimeData(websiteId),
     enabled: isValidId(websiteId),
-    refetchInterval: 60_000,
-    staleTime: 55_000,
+    refetchInterval: 15_000,
+    staleTime: 12_000,
   });
 };
 
@@ -611,8 +611,8 @@ export const useLiveVisitors = (websiteId: string) => {
     queryKey: analyticsKeys.liveVisitors(websiteId),
     queryFn: () => getLiveVisitors(websiteId),
     enabled: isValidId(websiteId),
-    staleTime: 30 * 1000, // 30 seconds
-    refetchInterval: 60 * 1000, // Refresh every 60 seconds
+    staleTime: 12_000,
+    refetchInterval: 15_000,
   });
 };
 
