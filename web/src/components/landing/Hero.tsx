@@ -23,16 +23,15 @@ export default function Hero() {
 
           <h1 className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:50ms] mb-6">
             <span className="block text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.2]">
-              The Open-Source
+              Analytics You'll Actually
             </span>
             <span className="block text-4xl md:text-6xl font-bold tracking-tight leading-[1.2] mt-1">
-              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Google Analytics Alternative</span>
+              <span className="text-primary underline decoration-primary/30 decoration-4 underline-offset-4">Understand</span>
             </span>
           </h1>
 
           <p className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:100ms] text-lg text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            Session recordings, heatmaps, funnels, automations, and analytics — all in one platform.
-            Self-hosted, so your data never leaves your server.
+            See who visits your site, what they do, and why they leave. Self-hosted, open source, no cookie banners needed.
           </p>
 
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:150ms]">
