@@ -21,11 +21,11 @@ export default function Hero() {
             Self-Hosted
           </div>
 
-          <h1 className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:50ms] mb-6 space-y-1">
-            <span className="block text-3xl md:text-5xl font-bold tracking-tight text-foreground">
+          <h1 className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:50ms] mb-6 leading-tight">
+            <span className="block text-2xl md:text-3xl font-bold tracking-tight text-foreground">
               Not Just Analytics —
             </span>
-            <span className="block text-4xl md:text-7xl font-bold tracking-tight">
+            <span className="block text-3xl md:text-5xl font-bold tracking-tight">
               <span className="text-primary">Act</span> With Automations
             </span>
           </h1>
