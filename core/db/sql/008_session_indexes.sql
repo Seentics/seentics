@@ -1,5 +1,5 @@
 -- Session-scoped indexes for faster aggregation and join queries.
--- CONCURRENTLY means no table lock; safe to run on a live database.
+-- CONCURRENTLY means no table lock — safe to run on a live database.
 
 CREATE INDEX CONCURRENTLY IF NOT EXISTS ix_analytics_session_visitor
   ON analytics_events (website_id, session_id, occurred_at DESC)
