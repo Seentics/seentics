@@ -47,15 +47,8 @@ type BunServerWithRequestIp = {
 const cfg = env();
 configureLogger(cfg);
 const core_log = log.child({ category: 'startup' });
-await runCoreMigrations(cfg.databaseUrl);
-await initMaxMindGeo(cfg.maxmind);
-configureTrackerWebsiteCache(cfg);
-configureTrackerOriginCache(cfg);
-if (cfg.screenshotCache.enabled) {
-  initializeScreenshotCache(cfg.screenshotCache.ttlMs, cfg.screenshotCache.maxEntries);
-}
-startIngestQueueFlusher(cfg);
-startDataRetentionCron(cfg);
+
+let ready = false;
 
 const app = new Hono();
 
@@ -64,7 +57,8 @@ app.use("*", rateLimitMiddleware(cfg));
 app.use("*", corsMiddleware(cfg.corsAllowedOrigins));
 app.use("*", analyticsCacheMiddleware(cfg));
 
-app.get("/health", (c) => c.text("ok"));
+// Return 503 while migrations are running so the healthcheck waits without counting failures
+app.get("/health", (c) => ready ? c.text("ok") : c.text("starting", 503));
 
 app.route("/api/v1/auth", authRoutes);
 app.route("/api/v1/user", userBranchRoutes);
@@ -81,6 +75,34 @@ app.route("/api/v1/automations", automationRoutes);
 app.route("/api/v1/replays", replayRoutes);
 app.route("/api/v1/heatmaps", heatmapRoutes);
 app.route("/api/v1/tracker", trackerRoutes);
+
+const port = cfg.port;
+
+Bun.serve({
+  fetch: app.fetch,
+  port,
+});
+
+core_log.info({ msg: 'http_listening', service: 'seentics-core', port });
+
+// Run migrations and init after the HTTP server is already accepting connections.
+// /health returns 503 until this completes, so Docker healthcheck waits correctly.
+try {
+  await runCoreMigrations(cfg.databaseUrl);
+  await initMaxMindGeo(cfg.maxmind);
+  configureTrackerWebsiteCache(cfg);
+  configureTrackerOriginCache(cfg);
+  if (cfg.screenshotCache.enabled) {
+    initializeScreenshotCache(cfg.screenshotCache.ttlMs, cfg.screenshotCache.maxEntries);
+  }
+  startIngestQueueFlusher(cfg);
+  startDataRetentionCron(cfg);
+  ready = true;
+  core_log.info({ msg: 'startup_complete', service: 'seentics-core', port });
+} catch (err) {
+  core_log.error({ msg: 'startup_failed', err: String(err) });
+  process.exit(1);
+}
 
 async function shutdown() {
   core_log.info({ msg: 'shutdown_started' });
@@ -104,12 +126,3 @@ async function shutdown() {
 
 process.on("SIGINT", () => void shutdown().finally(() => process.exit(0)));
 process.on("SIGTERM", () => void shutdown().finally(() => process.exit(0)));
-
-const port = cfg.port;
-
-Bun.serve({
-  fetch: app.fetch,
-  port,
-});
-
-core_log.info({ msg: 'startup', service: 'seentics-core', port });
