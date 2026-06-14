@@ -49,7 +49,7 @@ const examples = [
     trigger: { icon: Target, label: 'Goal Reached: Purchase', color: 'text-emerald-500' },
     action: { icon: Mail, label: 'Send Email', color: 'text-pink-500' },
     title: 'Trigger post-purchase flows',
-    desc: 'When a visitor hits your thank-you page, send an email to your team or trigger an upsell sequence via your email provider's webhook.',
+    desc: "When a visitor hits your thank-you page, send an email to your team or trigger an upsell sequence via your email provider's webhook.",
     tag: 'Revenue',
     tagColor: 'bg-emerald-500/10 text-emerald-500',
   },
