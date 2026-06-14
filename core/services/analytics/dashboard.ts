@@ -2,7 +2,7 @@
 import { sql as pgSql } from "../../db";
 import { log } from "../../lib/logger";
 import { parseDays, resolveSiteId } from "./shared";
-import { getRealtimeStats, LIVE_VISITOR_WINDOW_MS } from "./realtime";
+import { LIVE_VISITOR_WINDOW_MS } from "./realtime";
 
 export async function getDashboardStats(
   websiteParam: string,
@@ -18,7 +18,7 @@ export async function getDashboardStats(
   const startIso = start.toISOString();
   const prevStartIso = prevStart.toISOString();
 
-  const [[agg], [sess], live, liveRow] = await Promise.all([
+  const [[agg], [sess], liveRow] = await Promise.all([
     pgSql<
       {
         pv: number;
@@ -138,7 +138,6 @@ export async function getDashboardStats(
           0
         ) AS prev_bounce_pct
     `,
-    getRealtimeStats(websiteParam),
     pgSql<{ c: number }[]>`
       SELECT count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS c
       FROM analytics_events

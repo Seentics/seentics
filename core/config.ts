@@ -63,7 +63,7 @@ export function env() {
 
   /** Off in development by default so dashboards don’t stick on cached empty responses; enable in prod or set ANALYTICS_CACHE_ENABLED=true. */
   const analyticsCacheEnabled = parseBool(process.env.ANALYTICS_CACHE_ENABLED, isProduction);
-  const analyticsCacheTtlMs = parseIntEnv(process.env.ANALYTICS_CACHE_TTL_MS, 15_000);
+  const analyticsCacheTtlMs = parseIntEnv(process.env.ANALYTICS_CACHE_TTL_MS, 45_000);
   const analyticsCacheMaxEntries = parseIntEnv(process.env.ANALYTICS_CACHE_MAX_ENTRIES, 512);
 
   const ingestQueueFlushMs = parseIntEnv(process.env.INGEST_QUEUE_FLUSH_MS, 1000);

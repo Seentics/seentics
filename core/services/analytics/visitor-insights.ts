@@ -95,6 +95,7 @@ export async function getVisitorInsightsAnalytics(
       SELECT session_id, min(occurred_at) AS mn, max(occurred_at) AS mx
       FROM analytics_events
       WHERE website_id = ${siteId}
+        AND event_type = 'pageview'
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
         AND session_id IS NOT NULL
