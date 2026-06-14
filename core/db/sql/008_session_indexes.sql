@@ -1,5 +1,5 @@
 -- Session-scoped indexes for faster aggregation and join queries.
--- analytics_events is a partitioned table; CONCURRENTLY is not supported on partitioned tables.
+-- analytics_events is a partitioned table so plain CREATE INDEX is used.
 
 CREATE INDEX IF NOT EXISTS ix_analytics_session_visitor
   ON analytics_events (website_id, session_id, occurred_at DESC)
