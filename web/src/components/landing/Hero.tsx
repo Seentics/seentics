@@ -1,12 +1,6 @@
 import { Sparkles } from 'lucide-react';
-import dynamic from 'next/dynamic';
 import { HeroCTA } from './HeroCTA';
-
-// Lazy-load the heavy dashboard preview — not needed for first paint
-const DashboardPreview = dynamic(() => import('./HeroDashboardPreview'), {
-  ssr: false,
-  loading: () => <div className="h-[420px]" />,
-});
+import { HeroDashboardPreviewLazy } from './HeroDashboardPreviewLazy';
 
 export default function Hero() {
   return (
@@ -49,7 +43,7 @@ export default function Hero() {
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 [animation-delay:200ms] relative max-w-5xl mx-auto [perspective:1200px]">
             <div className="absolute -inset-8 bg-primary/[0.04] rounded-3xl blur-3xl" />
             <div className="relative [transform:perspective(1200px)_rotateX(2deg)] origin-bottom">
-              <DashboardPreview />
+              <HeroDashboardPreviewLazy />
             </div>
           </div>
         </div>
