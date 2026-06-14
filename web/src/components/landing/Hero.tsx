@@ -23,12 +23,12 @@ export default function Hero() {
 
           <h1 className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:50ms] mb-6">
             <span className="block text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.2]">
-              See. Analyze. <span className="text-primary">Act.</span>
+              Not Just Analytics — <span className="text-primary">Act</span> With Automations
             </span>
           </h1>
 
           <p className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:100ms] text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-            Seentics gives you session replays, heatmaps, funnels and revenue tracking — then trigger popups, webhooks or API calls based on what your visitors do. Self-hosted, open source, no cookies.
+            Go beyond data. Seentics gives you session replays, heatmaps, funnels and revenue tracking to understand exactly how visitors use your site — then trigger popups, webhooks or API calls automatically based on their behavior. Self-hosted, open source, and no cookies required.
           </p>
 
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:150ms]">
