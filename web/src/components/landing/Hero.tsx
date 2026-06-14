@@ -23,7 +23,7 @@ export default function Hero() {
 
           <h1 className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:50ms] mb-6">
             <span className="block text-4xl md:text-6xl font-bold tracking-tight text-foreground leading-[1.2]">
-              <span className="text-primary">See.</span> <span className="text-primary">Analyze.</span> <span className="text-primary">Act.</span>
+              See. Analyze. <span className="text-primary">Act.</span>
             </span>
           </h1>
 
