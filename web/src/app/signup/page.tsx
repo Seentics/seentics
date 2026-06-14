@@ -102,7 +102,8 @@ function SignUpFlow() {
             try { await api.post('/user/billing/select-free'); } catch { /* non-critical */ }
 
             toast({ title: 'Account created!', description: 'Welcome to Seentics.' });
-            router.push('/websites');
+            const hasCheckoutIntent = !!sessionStorage.getItem('seentics_checkout_intent');
+            router.push(hasCheckoutIntent ? '/#pricing' : '/websites');
 
         } catch (error: any) {
             const msg = error.response?.data?.error || error.message || 'Registration failed';

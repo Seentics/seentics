@@ -7,8 +7,10 @@ import { PlanBuilder, PlanSelection } from '@/components/subscription/PlanBuilde
 import api from '@/lib/api';
 import { openCheckout } from '@/lib/checkout';
 import { toast } from 'sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+
+const CHECKOUT_INTENT_KEY = 'seentics_checkout_intent';
 import { Users, Building2, ArrowRight, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -21,9 +23,25 @@ export default function Pricing() {
   const [mode, setMode] = useState<'individual' | 'agency'>('individual');
   const [waitingForPayment, setWaitingForPayment] = useState(false);
 
+  // Auto-trigger checkout if user just signed up with a plan intent
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const raw = sessionStorage.getItem(CHECKOUT_INTENT_KEY);
+    if (!raw) return;
+    try {
+      const intent = JSON.parse(raw) as PlanSelection;
+      sessionStorage.removeItem(CHECKOUT_INTENT_KEY);
+      handleSubscribe(intent);
+    } catch {
+      sessionStorage.removeItem(CHECKOUT_INTENT_KEY);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
   const handleSubscribe = async (selection: PlanSelection) => {
     if (!isAuthenticated) {
-      window.location.href = '/signup';
+      sessionStorage.setItem(CHECKOUT_INTENT_KEY, JSON.stringify(selection));
+      router.push('/signup');
       return;
     }
     try {
