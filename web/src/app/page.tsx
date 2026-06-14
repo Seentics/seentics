@@ -3,6 +3,7 @@ import OSSLanding from '@/components/landing/OSSLanding';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
 import Features from '@/components/landing/Features';
+import HowAutomationsWork from '@/components/landing/HowAutomationsWork';
 import Pricing from '@/components/landing/Pricing';
 import WhySwitch from '@/components/landing/WhySwitch';
 import LifetimeDeal from '@/components/landing/LifetimeDeal';
@@ -22,6 +23,7 @@ export default function LandingPage() {
       <main>
         <Hero />
         <Features />
+        <HowAutomationsWork />
         <Pricing />
         <WhySwitch />
         <LifetimeDeal />
