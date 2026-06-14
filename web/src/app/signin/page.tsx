@@ -166,7 +166,6 @@ export default function SignInPage() {
                         </button>
                     </div>
 
-                    {(!isEnterprise || isLocal) && (
                     <>
                         <div className="relative my-5">
                             <div className="absolute inset-0 flex items-center">
@@ -241,7 +240,6 @@ export default function SignInPage() {
                             </Button>
                         </form>
                     </>
-                    )}
 
                     <div className="mt-6 border-t border-border/60 pt-6 text-center">
                         <p className="text-sm text-muted-foreground">
