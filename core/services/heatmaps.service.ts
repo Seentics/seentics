@@ -8,7 +8,7 @@ import { presignGet, putJpeg } from "../lib/s3";
 import { resolveWebsiteIds, resolveWebsiteIdsLenient } from "../lib/website-resolve";
 import { heatmapScreenshotKey, layoutPathSlot } from "../lib/keys";
 import { getWebsiteBySiteId } from "../lib/website-site";
-import { analyticsEvents, db } from "../db";
+import { analyticsEvents, db, websites } from "../db";
 import { captureHeatmapScreenshot } from "./heatmap-playwright.service";
 import { log as baseLog } from "../lib/logger";
 
@@ -37,22 +37,43 @@ async function autoCapture(
   _capturing.add(captureKey);
   log.info({ msg: "heatmap_autocapture_start", website_uuid: websiteUuid, norm });
   try {
-    // analytics_events.website_id stores the short site_id, not the UUID.
-    const rows = await db
-      .select({ page: analyticsEvents.page })
-      .from(analyticsEvents)
-      .where(and(eq(analyticsEvents.websiteId, siteId), eq(analyticsEvents.eventType, "pageview")))
-      .orderBy(desc(analyticsEvents.occurredAt))
-      .limit(50);
+    // 1. Build URL from the website's stored domain (most reliable).
+    let pageUrl: string | undefined;
+    try {
+      const siteRows = await db
+        .select({ url: websites.url })
+        .from(websites)
+        .where(eq(websites.siteId, siteId))
+        .limit(1);
+      const storedUrl = siteRows[0]?.url?.trim();
+      if (storedUrl) {
+        const base = storedUrl.replace(/\/+$/, "");
+        pageUrl = norm === "/" ? `${base}/` : `${base}${norm}`;
+        log.info({ msg: "heatmap_autocapture_url_from_website", website_uuid: websiteUuid, norm, page_url: pageUrl });
+      }
+    } catch (e) {
+      log.warn({ msg: "heatmap_autocapture_website_url_failed", err: String(e) });
+    }
 
-    log.info({ msg: "heatmap_autocapture_events_query", website_uuid: websiteUuid, norm, rows_found: rows.length, sample: rows.slice(0, 3).map(r => r.page) });
+    // 2. Fall back to scanning recent analytics events if website URL wasn't available.
+    if (!pageUrl) {
+      // analytics_events.website_id stores the short site_id, not the UUID.
+      const rows = await db
+        .select({ page: analyticsEvents.page })
+        .from(analyticsEvents)
+        .where(and(eq(analyticsEvents.websiteId, siteId), eq(analyticsEvents.eventType, "pageview")))
+        .orderBy(desc(analyticsEvents.occurredAt))
+        .limit(200);
 
-    const pageUrl = rows
-      .map((r) => r.page)
-      .find((p) => !!p && normalizeHeatmapPagePath(extractPath(p ?? "")) === norm);
+      log.info({ msg: "heatmap_autocapture_events_query", website_uuid: websiteUuid, norm, rows_found: rows.length, sample: rows.slice(0, 3).map(r => r.page) });
+
+      pageUrl = rows
+        .map((r) => r.page)
+        .find((p) => !!p && normalizeHeatmapPagePath(extractPath(p ?? "")) === norm);
+    }
 
     if (!pageUrl) {
-      log.warn({ msg: "heatmap_autocapture_no_matching_url", website_uuid: websiteUuid, norm, rows_checked: rows.length });
+      log.warn({ msg: "heatmap_autocapture_no_matching_url", website_uuid: websiteUuid, norm });
       return;
     }
 
