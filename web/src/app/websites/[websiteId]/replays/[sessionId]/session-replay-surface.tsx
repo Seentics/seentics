@@ -1312,21 +1312,21 @@ export function SessionReplaySurface({
     <div
       ref={wrapRef}
       className={cn(
-        'flex w-full min-w-0 max-w-full flex-1 flex-col',
+        'flex w-full min-w-0 max-w-full flex-col',
         className,
-        'min-h-[85dvh]',
       )}
     >
-      <div className="flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden mb-4 border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
-        <div ref={measureRef} className="relative flex min-h-0 min-w-0 flex-1 basis-0 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 max-w-full flex-col overflow-hidden mb-4 rounded-xl border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
+        <div ref={measureRef} className="relative flex min-h-0 min-w-0 flex-col overflow-hidden">
           <div
             ref={measureInnerRef}
-            className="relative min-h-0 min-w-0 w-full max-w-full flex-1 basis-0 overflow-hidden bg-black"
+            className="relative min-h-0 min-w-0 w-full max-w-full overflow-hidden bg-black"
+            style={{ aspectRatio: '16/9', maxHeight: '68dvh' }}
           >
             <div
               ref={shellRef}
               className={cn(
-                'absolute inset-0 overflow-hidden rounded-lg bg-black',
+                'absolute inset-0 overflow-hidden rounded-t-xl bg-black',
                 'outline outline-1 -outline-offset-1 outline-white/[0.06]',
                 '[&_.rrweb-player-root]:h-full [&_.rrweb-player-root]:w-full [&_.rrweb-player-root]:flow-root',
                 '[&_.rr-player]:!float-none [&_.rr-player]:!m-0 [&_.rr-player]:!block [&_.rr-player]:!rounded-none [&_.rr-player]:!border-0 [&_.rr-player]:!bg-transparent [&_.rr-player]:!shadow-none [&_.rr-player]:!ring-0 [&_.rr-player]:!outline-none',

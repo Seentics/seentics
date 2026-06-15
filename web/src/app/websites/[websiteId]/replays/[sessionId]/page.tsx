@@ -39,14 +39,29 @@ export default function ReplayDetailPage() {
   const [replayBridge, setReplayBridge] = useState<SessionReplayBridge | null>(null);
   const queryClient = useQueryClient();
 
+  const [chunkProgress, setChunkProgress] = useState<{ loaded: number; total: number } | null>(null);
+
   const { data, isLoading, isError, error: queryError } = useQuery({
     queryKey: ['replay', websiteId, sessionId],
-    queryFn: () => getSessionWithEvents(websiteId, sessionId),
+    queryFn: () => {
+      setChunkProgress(null);
+      return getSessionWithEvents(websiteId, sessionId, (loaded, total) => {
+        setChunkProgress({ loaded, total });
+      });
+    },
     enabled: isValidId(websiteId) && !!sessionId && !isDemoMode,
     staleTime: 5 * 60 * 1000,
     retry: 1,
     refetchInterval: (q) => (q.state.data?.recordingPending ? 3500 : false),
   });
+
+  // Pre-warm the rrweb-player bundle while chunks are downloading so the dynamic
+  // import doesn't add a serial RTT after all chunk data is ready.
+  useEffect(() => {
+    if (isLoading && !isDemoMode) {
+      void import('rrweb-player');
+    }
+  }, [isLoading, isDemoMode]);
 
   const session = isDemoMode
     ? ({
@@ -213,7 +228,19 @@ export default function ReplayDetailPage() {
             {isLoading ? (
               <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-3">
                 <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                <p className="text-xs font-medium text-muted-foreground">Loading recording…</p>
+                <p className="text-xs font-medium text-muted-foreground">
+                  {chunkProgress && chunkProgress.total > 1
+                    ? `Loading recording… ${chunkProgress.loaded} / ${chunkProgress.total} chunks`
+                    : 'Loading recording…'}
+                </p>
+                {chunkProgress && chunkProgress.total > 1 && (
+                  <div className="w-40 h-1 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-200"
+                      style={{ width: `${Math.round((chunkProgress.loaded / chunkProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                )}
               </div>
             ) : !isDemoMode && isError ? (
               <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">

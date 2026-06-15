@@ -192,6 +192,7 @@ export async function listSessions(websiteId: string, limit = 20, offset = 0) {
 export async function getSessionWithEvents(
   websiteId: string,
   sessionId: string,
+  onProgress?: (loaded: number, total: number) => void,
 ): Promise<{
   meta: ReplaySession | null;
   events: RRWebEvent[];
@@ -205,12 +206,15 @@ export async function getSessionWithEvents(
   const body = res.data as SessionReplayApiResponse;
 
   const urlRows = [...(body.replay_chunk_urls ?? [])].sort((a, b) => a.sequence - b.sequence);
+  const total = urlRows.length;
+  let loaded = 0;
+  if (total > 0) onProgress?.(0, total);
   const chunkResults = await Promise.allSettled(
     urlRows.map((row) =>
-      fetchGzipJsonArray(row.url).then((data) => ({
-        sequence: row.sequence,
-        data: data as unknown[],
-      })),
+      fetchGzipJsonArray(row.url).then((data) => {
+        onProgress?.(++loaded, total);
+        return { sequence: row.sequence, data: data as unknown[] };
+      }),
     ),
   );
   const fromUrls: Array<{ sequence: number; data: unknown[] }> = [];

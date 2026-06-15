@@ -76,9 +76,9 @@ function SessionSummaryCard({
   const exitDisplay = exitPage ? displayRealtimePath(exitPage, websiteId ?? '', 80) : null;
 
   return (
-    <Card className="flex min-h-0 flex-col shadow-sm">
-      <CardHeader className="space-y-1 pb-3">
-        <CardTitle className="text-base font-semibold text-foreground">Session summary</CardTitle>
+    <Card className="flex min-h-0 flex-col shadow-sm rounded-xl">
+      <CardHeader className="space-y-0.5 pb-4">
+        <CardTitle className="text-sm font-semibold text-foreground">Session summary</CardTitle>
         <CardDescription className="text-xs leading-relaxed">
           Who this was, where they started, and how long the recording runs.
         </CardDescription>
@@ -151,16 +151,20 @@ function StatPill({
   icon: Icon,
   value,
   label,
+  accent,
 }: {
   icon: React.ElementType;
   value: string;
   label: string;
+  accent?: string;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card/60 px-3 py-2.5 min-w-0">
-      <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+    <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-card px-3.5 py-3 min-w-0 shadow-sm">
+      <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', accent ?? 'bg-muted')}>
+        <Icon className="h-3.5 w-3.5 text-foreground/70" />
+      </div>
       <div className="min-w-0">
-        <p className="text-sm font-semibold tabular-nums text-foreground leading-tight">{value}</p>
+        <p className="text-sm font-bold tabular-nums text-foreground leading-tight truncate">{value}</p>
         <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{label}</p>
       </div>
     </div>
@@ -176,14 +180,15 @@ function ActivityStatsStrip({ stats }: { stats: SessionActivityStats }) {
       : '0 px';
 
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      <StatPill icon={MousePointerClick} value={String(stats.totalClicks)} label="Clicks" />
-      <StatPill icon={ScanLine} value={scrollLabel} label="Max scroll" />
-      <StatPill icon={Keyboard} value={String(stats.inputInteractions)} label="Inputs" />
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+      <StatPill icon={MousePointerClick} value={String(stats.totalClicks)} label="Clicks" accent="bg-blue-500/10 dark:bg-blue-500/15" />
+      <StatPill icon={ScanLine} value={scrollLabel} label="Max scroll" accent="bg-violet-500/10 dark:bg-violet-500/15" />
+      <StatPill icon={Keyboard} value={String(stats.inputInteractions)} label="Inputs" accent="bg-emerald-500/10 dark:bg-emerald-500/15" />
       <StatPill
         icon={LogOut}
         value={stats.exitPage ? displayRealtimePath(stats.exitPage, '', 18) : '—'}
         label="Exit page"
+        accent="bg-orange-500/10 dark:bg-orange-500/15"
       />
     </div>
   );
@@ -276,10 +281,10 @@ function ErrorDetailsCard({
 }) {
   if (errors.length === 0) return null;
   return (
-    <Card className="shadow-sm col-span-full">
-      <CardHeader className="space-y-1 pb-3">
+    <Card className="shadow-sm col-span-full rounded-xl">
+      <CardHeader className="space-y-0.5 pb-4">
         <div className="flex items-center gap-2">
-          <CardTitle className="text-base font-semibold text-foreground">JS Errors</CardTitle>
+          <CardTitle className="text-sm font-semibold text-foreground">JS Errors</CardTitle>
           <Badge
             variant="outline"
             className="text-[10px] border-red-500/50 text-red-800 dark:text-red-300 bg-red-500/10"
@@ -309,9 +314,9 @@ function TimelineCard({ replayBridge }: { replayBridge: SessionReplayBridge | nu
   const { currentMs, playing } = useReplayPlayback();
 
   return (
-    <Card className="flex min-w-0 flex-col shadow-sm">
-      <CardHeader className="space-y-1 pb-3">
-        <CardTitle className="text-base font-semibold text-foreground">Timeline</CardTitle>
+    <Card className="flex min-w-0 flex-col shadow-sm rounded-xl">
+      <CardHeader className="space-y-0.5 pb-4">
+        <CardTitle className="text-sm font-semibold text-foreground">Timeline</CardTitle>
         <CardDescription className="text-xs leading-relaxed">
           Jump to each distinct URL (repeated snapshots on the same page are folded). Rage clicks and
           errors appear when captured. Use the scrubber under the player for every full snapshot.
@@ -369,8 +374,7 @@ export function ReplaySessionSidebar({
   return (
     <section
       className={cn(
-        'shrink-0 border-t border-border/80 bg-muted/20 px-3 py-5 sm:px-5',
-        'backdrop-blur-sm',
+        'shrink-0 border-t border-border/60 bg-background/60 px-3 py-6 sm:px-5',
       )}
     >
       <div className="mx-auto max-w-7xl space-y-4 lg:space-y-5">

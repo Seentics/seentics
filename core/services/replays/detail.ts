@@ -20,8 +20,10 @@ async function collectSessionChunkRows(
       if (!bySeq.has(r.sequence)) bySeq.set(r.sequence, r.key);
     }
   };
-  await ingest(siteId);
-  if (uuidStr !== siteId) await ingest(uuidStr);
+  await Promise.all([
+    ingest(siteId),
+    ...(uuidStr !== siteId ? [ingest(uuidStr)] : []),
+  ]);
   return [...bySeq.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([sequence, key]) => ({ sequence, key }));

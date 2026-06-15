@@ -711,17 +711,26 @@ export default function HeatmapDetailPage() {
     enabled:   Boolean(websiteId && !isDemoMode),
     staleTime: 180_000,
     refetchOnWindowFocus: false,
+    // Poll every 5s while null — server fires auto-capture in background on miss.
+    // Stop after ~60s to avoid infinite polling when Playwright is unavailable.
+    refetchInterval: (q) => {
+      if (q.state.data) return false;
+      const age = Date.now() - (q.state.dataUpdatedAt ?? Date.now());
+      return age < 60_000 ? 5_000 : false;
+    },
   });
 
   const previewModeOptions = useMemo(() => {
     const pageHint = pageScreenshot
       ? 'Server-side screenshot captured for this page path.'
-      : 'No screenshot yet. Use “Capture screenshot” from the menu, or enable heatmap layout so the tracker captures it automatically.';
+      : screenshotLoading
+        ? 'Capturing screenshot…'
+        : 'No screenshot yet. Use “Capture screenshot” from the menu, or enable heatmap layout so the tracker captures it automatically.';
     return [
       ['screenshot', ImageIcon, 'Screenshot', pageHint] as const,
       ['heat-only', Layers, 'Heat only', 'Heat only, no page underlay.'] as const,
     ];
-  }, [pageScreenshot]);
+  }, [pageScreenshot, screenshotLoading]);
 
   const demoPointsNormalized: HeatPoint[] = useMemo(() => {
     const raw = demoHeatmapPoints(heatType === 'scroll' ? 'move' : 'click');
