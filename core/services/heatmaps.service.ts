@@ -58,7 +58,11 @@ async function autoCapture(
         .from(websites)
         .where(eq(websites.siteId, siteId))
         .limit(1);
-      const storedUrl = siteRows[0]?.url?.trim();
+      let storedUrl = siteRows[0]?.url?.trim();
+      // Ensure the stored URL has a protocol — DB values like "seentics.com" lack one
+      if (storedUrl && !/^https?:\/\//i.test(storedUrl)) {
+        storedUrl = `https://${storedUrl}`;
+      }
       void wh("autocapture_website_lookup", { websiteUuid, norm, storedUrl: storedUrl ?? null, rowsFound: siteRows.length });
       if (storedUrl) {
         const base = storedUrl.replace(/\/+$/, "");
