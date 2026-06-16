@@ -334,8 +334,21 @@ export async function captureAndStoreScreenshot(
       stored: true,
     };
   } catch (error) {
-    // If DB check fails, still try to capture
+    // Only retry capture if the error came from the DB/cache layer, not from Playwright itself.
+    // Retrying on a Playwright error (e.g. pool exhausted, navigation failed) would double-fire
+    // the browser, leak pool slots, and mask the real error.
     if (checkOnly) return null;
+    const errMsg = error instanceof Error ? error.message : String(error);
+    if (
+      errMsg.includes("pool exhausted") ||
+      errMsg.includes("Failed to navigate") ||
+      errMsg.includes("Auth redirect") ||
+      errMsg.includes("Invalid URL") ||
+      errMsg.includes("Screenshot capture failed") ||
+      errMsg.includes("Failed to launch browser")
+    ) {
+      throw error;
+    }
 
     const result = await captureWebPageScreenshot({
       url,
