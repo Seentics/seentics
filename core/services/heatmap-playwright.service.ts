@@ -109,7 +109,6 @@ export async function captureHeatmapScreenshot(
       jpegQuality: request.jpegQuality,
       force: request.force,
       checkOnly: request.checkOnly,
-      waitForNetworkIdle: true,
       timeoutMs: 30000,
     },
   );

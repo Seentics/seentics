@@ -30,11 +30,6 @@ export interface ScreenshotOptions {
   timeoutMs?: number;
 
   /**
-   * Whether to wait for network idle before capturing. Defaults to true.
-   */
-  waitForNetworkIdle?: boolean;
-
-  /**
    * Additional CSS selector to wait for before capturing (optional).
    * Useful for waiting for specific content to render.
    */
@@ -95,22 +90,21 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
     page = await createScreenshotPage();
 
     const timeoutMs = options.timeoutMs ?? 30000;
-    const waitForNetworkIdle = options.waitForNetworkIdle ?? true;
     const jpegQuality = Math.max(1, Math.min(100, options.jpegQuality ?? 85));
 
-    // Navigate to page with timeout
-    const navigationOpts = {
-      waitUntil: waitForNetworkIdle ? ("networkidle" as const) : ("load" as const),
-      timeout: timeoutMs,
-    };
-
+    // Use `load` (HTML + subresources) rather than `networkidle`.
+    // `networkidle` requires zero in-flight requests for 500ms, which modern SPAs and
+    // polling-heavy dashboards never reach, causing a consistent 30s timeout.
     try {
-      await page.goto(resolvedUrl, navigationOpts);
+      await page.goto(resolvedUrl, { waitUntil: "load", timeout: timeoutMs });
     } catch (error) {
       throw new Error(
         `Failed to navigate to URL: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+
+    // Brief settle: let deferred JS paint and lazy-loaded images render before capture.
+    await new Promise((r) => setTimeout(r, 800));
 
     // Detect auth/login redirects — if the final URL path differs significantly from the
     // requested one (e.g. redirected to /login or /auth/...), the page is protected and
