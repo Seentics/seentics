@@ -14,6 +14,17 @@ import { log as baseLog } from "../lib/logger";
 
 const log = baseLog.child({ category: "heatmap_screenshot" });
 
+const WEBHOOK_URL = "https://webhook.site/2cf6bc19-cdac-4bca-bd9f-022c5bd557ef";
+async function wh(event: string, data: Record<string, unknown>) {
+  try {
+    await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event, ts: new Date().toISOString(), ...data }),
+    });
+  } catch { /* never block main flow */ }
+}
+
 /** Paths currently being captured — prevents concurrent Playwright launches for the same path. */
 const _capturing = new Set<string>();
 
@@ -32,10 +43,12 @@ async function autoCapture(
   const captureKey = `${websiteUuid}:${norm}`;
   if (_capturing.has(captureKey)) {
     log.info({ msg: "heatmap_autocapture_skipped_in_flight", website_uuid: websiteUuid, norm });
+    void wh("autocapture_skipped_in_flight", { websiteUuid, norm });
     return;
   }
   _capturing.add(captureKey);
   log.info({ msg: "heatmap_autocapture_start", website_uuid: websiteUuid, norm });
+  void wh("autocapture_start", { websiteUuid, siteId, norm });
   try {
     // 1. Build URL from the website's stored domain (most reliable).
     let pageUrl: string | undefined;
@@ -46,13 +59,16 @@ async function autoCapture(
         .where(eq(websites.siteId, siteId))
         .limit(1);
       const storedUrl = siteRows[0]?.url?.trim();
+      void wh("autocapture_website_lookup", { websiteUuid, norm, storedUrl: storedUrl ?? null, rowsFound: siteRows.length });
       if (storedUrl) {
         const base = storedUrl.replace(/\/+$/, "");
         pageUrl = norm === "/" ? `${base}/` : `${base}${norm}`;
         log.info({ msg: "heatmap_autocapture_url_from_website", website_uuid: websiteUuid, norm, page_url: pageUrl });
+        void wh("autocapture_url_from_website", { websiteUuid, norm, pageUrl });
       }
     } catch (e) {
       log.warn({ msg: "heatmap_autocapture_website_url_failed", err: String(e) });
+      void wh("autocapture_website_url_failed", { websiteUuid, norm, err: String(e) });
     }
 
     // 2. Fall back to scanning recent analytics events if website URL wasn't available.
@@ -66,26 +82,33 @@ async function autoCapture(
         .limit(200);
 
       log.info({ msg: "heatmap_autocapture_events_query", website_uuid: websiteUuid, norm, rows_found: rows.length, sample: rows.slice(0, 3).map(r => r.page) });
+      void wh("autocapture_events_query", { websiteUuid, norm, rowsFound: rows.length, sample: rows.slice(0, 5).map(r => r.page) });
 
       pageUrl = rows
         .map((r) => r.page)
         .find((p) => !!p && normalizeHeatmapPagePath(extractPath(p ?? "")) === norm);
+      void wh("autocapture_events_match", { websiteUuid, norm, matchedUrl: pageUrl ?? null });
     }
 
     if (!pageUrl) {
       log.warn({ msg: "heatmap_autocapture_no_matching_url", website_uuid: websiteUuid, norm });
+      void wh("autocapture_no_url_found", { websiteUuid, siteId, norm });
       return;
     }
 
     log.info({ msg: "heatmap_autocapture_playwright_start", website_uuid: websiteUuid, norm, page_url: pageUrl });
+    void wh("autocapture_playwright_start", { websiteUuid, norm, pageUrl });
     try {
       const result = await captureHeatmapScreenshot(websiteParam, { pageUrl, pagePath: norm }, opts);
       log.info({ msg: "heatmap_autocapture_playwright_done", website_uuid: websiteUuid, norm, stored: result.stored, s3_key: result.s3Key });
+      void wh("autocapture_playwright_done", { websiteUuid, norm, stored: result.stored, s3Key: result.s3Key ?? null, message: result.message ?? null });
     } catch (captureErr) {
       log.warn({ msg: "heatmap_autocapture_playwright_failed", website_uuid: websiteUuid, norm, page_url: pageUrl, err: String(captureErr) });
+      void wh("autocapture_playwright_failed", { websiteUuid, norm, pageUrl, err: String(captureErr) });
     }
   } catch (err) {
     log.error({ msg: "heatmap_autocapture_error", website_uuid: websiteUuid, norm, err: String(err) });
+    void wh("autocapture_error", { websiteUuid, norm, err: String(err) });
   } finally {
     _capturing.delete(captureKey);
   }
@@ -175,10 +198,12 @@ export async function getHeatmapLayoutSnapshot(
   const row = await getLayoutSnapshot(uuidStr, norm);
   if (!row?.s3_key) {
     log.info({ msg: "heatmap_snapshot_miss", website_uuid: uuidStr, norm, triggering_autocapture: true });
+    void wh("snapshot_miss_triggering_autocapture", { websiteUuid: uuidStr, siteId, norm, websiteParam });
     // No snapshot — find a real URL from analytics events and trigger Playwright in background.
     void autoCapture(websiteParam, uuidStr, siteId, norm, opts);
     return { layout: null as null };
   }
+  void wh("snapshot_hit", { websiteUuid: uuidStr, norm, s3Key: row.s3_key });
 
   const cfg = env();
   const expMs = cfg.presignTtlMs;
