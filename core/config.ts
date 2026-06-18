@@ -37,7 +37,7 @@ export function env() {
   );
   const spoolIdleMs = Number(process.env.REPLAY_SPOOL_IDLE_MS ?? "60000");
   const spoolMaxAgeMs = Number(process.env.REPLAY_SPOOL_MAX_AGE_MS ?? String(30 * 60 * 1000));
-  const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 60_000);
+  const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 10_000);
 
   const corsAllowedOrigins =
     process.env.CORS_ALLOWED_ORIGINS ??
