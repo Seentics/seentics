@@ -150,6 +150,8 @@ export const automations = pgTable(
     name: text("name").notNull(),
     definition: jsonb("definition").notNull().$type<Record<string, unknown>>(),
     isActive: boolean("is_active").notNull().default(true),
+    priority: integer("priority").notNull().default(50),
+    status: text("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -365,5 +367,85 @@ export const heatmapPageSnapshots = pgTable(
   (t) => [
     uniqueIndex("heatmap_page_snapshots_website_page_uq").on(t.websiteId, t.pagePath),
     index("ix_heatmap_snapshots_website_updated").on(t.websiteId, t.updatedAt),
+  ],
+);
+
+export const automationImpressions = pgTable(
+  "automation_impressions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    automationId: uuid("automation_id").notNull(),
+    anonymousId: text("anonymous_id").notNull(),
+    userId: text("user_id"),
+    websiteId: uuid("website_id").notNull(),
+    sessionId: text("session_id").notNull(),
+    shownAt: timestamp("shown_at", { withTimezone: true }).notNull().defaultNow(),
+    actionTaken: text("action_taken"),
+    variant: text("variant"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ix_auto_imp_auto_anon").on(t.automationId, t.anonymousId),
+    index("ix_auto_imp_website").on(t.websiteId, t.shownAt),
+  ],
+);
+
+export const userProfiles = pgTable(
+  "user_profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    websiteId: uuid("website_id").notNull(),
+    anonymousId: text("anonymous_id").notNull(),
+    userId: text("user_id"),
+    properties: jsonb("properties").notNull().default({}).$type<Record<string, unknown>>(),
+    computed: jsonb("computed").notNull().default({}).$type<Record<string, unknown>>(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    visitCount: integer("visit_count").notNull().default(1),
+    totalPageViews: integer("total_page_views").notNull().default(0),
+    country: text("country"),
+    city: text("city"),
+    device: text("device"),
+    browser: text("browser"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ix_user_profiles_website_anon_uq").on(t.websiteId, t.anonymousId),
+    index("ix_user_profiles_website_user").on(t.websiteId, t.userId),
+  ],
+);
+
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    automationId: uuid("automation_id").notNull(),
+    runId: uuid("run_id"),
+    url: text("url").notNull(),
+    statusCode: integer("status_code"),
+    success: boolean("success"),
+    attemptCount: integer("attempt_count").notNull().default(1),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    responseMs: integer("response_ms"),
+    error: text("error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("ix_webhook_deliveries_auto").on(t.automationId, t.createdAt),
+  ],
+);
+
+export const identityAliases = pgTable(
+  "identity_aliases",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    anonymousId: text("anonymous_id").notNull(),
+    userId: text("user_id").notNull(),
+    websiteId: uuid("website_id").notNull(),
+    linkedAt: timestamp("linked_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ix_identity_aliases_anon_uq").on(t.anonymousId, t.websiteId),
+    index("ix_identity_aliases_user").on(t.userId, t.websiteId),
   ],
 );

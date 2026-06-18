@@ -1169,7 +1169,7 @@ const trackPage = () => {
     } : {}),
   });
   evalFunnels(location.pathname);
-  evalAutomations('pageview', { path: location.pathname, title: document.title });
+  void fireAutomationTrigger('page_view', { path: location.pathname, title: document.title });
 };
 
 // ─── Funnels ──────────────────────────────────────────────────────────────────
@@ -1261,36 +1261,219 @@ const evalFunnelsForEvent = (eventName) => {
   }
 };
 
-// ─── Automation triggers ──────────────────────────────────────────────────────
+// ─── Automation engine ────────────────────────────────────────────────────────
+
+/** localStorage key prefix for client-side frequency-cap cache. */
+const AUTO_CAP_PREFIX = 'snc_ac:';
+
+/** Read a client-side frequency-cap entry. Returns { count, lastMs } or null. */
+const readCapCache = (automationId) => {
+  try {
+    const raw = localStorage.getItem(AUTO_CAP_PREFIX + automationId);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+
+/** Write / increment the client-side frequency-cap entry. */
+const writeCapCache = (automationId) => {
+  try {
+    const prev = readCapCache(automationId) ?? { count: 0 };
+    localStorage.setItem(AUTO_CAP_PREFIX + automationId, JSON.stringify({
+      count:  prev.count + 1,
+      lastMs: Date.now(),
+    }));
+  } catch { /* private mode */ }
+};
+
+/** Client-side action renderer — handles all on-site action types. */
+const executeClientActions = (actions) => {
+  for (const action of (actions ?? [])) {
+    try {
+      switch (action.type) {
+        case 'show_modal':    renderModal(action);   break;
+        case 'show_toast':    renderToast(action);   break;
+        case 'show_banner':   renderBanner(action);  break;
+        case 'highlight_element': renderHighlight(action); break;
+        case 'show_tooltip':  renderTooltip(action); break;
+        case 'personalize_content': renderPersonalize(action); break;
+        case 'redirect':      renderRedirect(action); break;
+        case 'tag_session':
+          pushAnalytics('custom', { name: 'session_tag', tag: action.tag, automation_id: action.automation_id });
+          break;
+        default: break;
+      }
+    } catch { /* never crash the page */ }
+  }
+};
+
+/** Inject minimal shared styles once. */
+const ensureAutoStyles = (() => {
+  let done = false;
+  return () => {
+    if (done) return;
+    done = true;
+    const s = document.createElement('style');
+    s.textContent = `
+      .snc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2147483646;display:flex;align-items:center;justify-content:center}
+      .snc-modal{background:#fff;border-radius:8px;padding:24px;max-width:480px;width:90%;position:relative;box-shadow:0 8px 32px rgba(0,0,0,.2);font-family:inherit}
+      .snc-modal h2{margin:0 0 12px;font-size:20px}
+      .snc-modal p{margin:0 0 16px;line-height:1.5}
+      .snc-modal-close{position:absolute;top:10px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;line-height:1}
+      .snc-modal-btn{display:inline-block;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;cursor:pointer;border:none;font-size:14px}
+      .snc-toast{position:fixed;z-index:2147483647;padding:12px 20px;border-radius:8px;background:#1a1a1a;color:#fff;font-size:14px;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:360px;pointer-events:auto;transition:opacity .3s}
+      .snc-toast.top-left{top:20px;left:20px}
+      .snc-toast.top-right{top:20px;right:20px}
+      .snc-toast.bottom-left{bottom:20px;left:20px}
+      .snc-toast.bottom-right{bottom:20px;right:20px}
+      .snc-banner{position:fixed;left:0;right:0;z-index:2147483646;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+      .snc-banner.top{top:0} .snc-banner.bottom{bottom:0}
+      .snc-banner-close{background:none;border:none;font-size:18px;cursor:pointer;padding:0;line-height:1;opacity:.7}
+      .snc-highlight-pulse{outline:3px solid #f59e0b!important;outline-offset:2px;animation:snc-pulse 1.5s infinite}
+      @keyframes snc-pulse{0%,100%{outline-color:#f59e0b}50%{outline-color:#ef4444}}
+      .snc-tooltip{position:absolute;background:#1a1a1a;color:#fff;padding:8px 12px;border-radius:6px;font-size:13px;z-index:2147483647;pointer-events:none;max-width:240px;line-height:1.4}
+      .snc-tooltip::before{content:'';position:absolute;border:6px solid transparent}
+    `;
+    document.head.appendChild(s);
+  };
+})();
+
+const renderModal = (action) => {
+  ensureAutoStyles();
+  const overlay = document.createElement('div');
+  overlay.className = 'snc-overlay';
+  const bgColor  = action.background_color ?? '#ffffff';
+  const textColor = action.text_color      ?? '#000000';
+  const btnColor  = action.button_color    ?? '#2563eb';
+  const btnText   = action.button_color    ?? '#ffffff';
+  overlay.innerHTML = `
+    <div class="snc-modal" style="background:${bgColor};color:${textColor}">
+      <button class="snc-modal-close" aria-label="Close">&times;</button>
+      ${action.image_url ? `<img src="${action.image_url}" style="width:100%;border-radius:4px;margin-bottom:12px" alt="">` : ''}
+      ${action.title   ? `<h2>${action.title}</h2>` : ''}
+      ${action.body    ? `<p>${action.body}</p>`    : ''}
+      ${action.button_text ? `<a href="${action.button_url ?? '#'}" class="snc-modal-btn" style="background:${btnColor};color:${btnText}" ${action.button_url ? '' : 'onclick="return false"'}>${action.button_text}</a>` : ''}
+    </div>`;
+  overlay.querySelector('.snc-modal-close').onclick = () => overlay.remove();
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+};
+
+const renderToast = (action) => {
+  ensureAutoStyles();
+  const pos   = action.position ?? 'bottom-right';
+  const toast = document.createElement('div');
+  toast.className = `snc-toast ${pos}`;
+  toast.style.background = action.background_color ?? '#1a1a1a';
+  toast.style.color       = action.text_color       ?? '#ffffff';
+  toast.textContent = action.message ?? '';
+  document.body.appendChild(toast);
+  const dur = (action.duration_ms ?? 4000);
+  setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, dur);
+};
+
+const renderBanner = (action) => {
+  ensureAutoStyles();
+  const pos    = action.position ?? 'top';
+  const banner = document.createElement('div');
+  banner.className = `snc-banner ${pos}`;
+  banner.style.background = action.background_color ?? '#1e40af';
+  banner.style.color       = action.text_color       ?? '#ffffff';
+  banner.innerHTML = `
+    <span>${action.message ?? ''}</span>
+    ${action.button_text ? `<a href="${action.button_url ?? '#'}" style="color:inherit;font-weight:600;text-decoration:underline;white-space:nowrap">${action.button_text}</a>` : ''}
+    <button class="snc-banner-close" aria-label="Close">&times;</button>
+  `;
+  banner.querySelector('.snc-banner-close').onclick = () => banner.remove();
+  document.body.appendChild(banner);
+  if (action.duration_ms) setTimeout(() => banner.remove(), action.duration_ms);
+};
+
+const renderHighlight = (action) => {
+  ensureAutoStyles();
+  const el = action.selector ? document.querySelector(action.selector) : null;
+  if (!el) return;
+  el.classList.add('snc-highlight-pulse');
+  if (action.scroll_into_view !== false) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  setTimeout(() => el.classList.remove('snc-highlight-pulse'), action.duration_ms ?? 4000);
+};
+
+const renderTooltip = (action) => {
+  ensureAutoStyles();
+  const anchor = action.selector ? document.querySelector(action.selector) : null;
+  if (!anchor) return;
+  const tip = document.createElement('div');
+  tip.className = 'snc-tooltip';
+  tip.textContent = action.message ?? '';
+  document.body.appendChild(tip);
+  const rect = anchor.getBoundingClientRect();
+  const top  = rect.top + window.scrollY - tip.offsetHeight - 10;
+  tip.style.left = `${rect.left + window.scrollX}px`;
+  tip.style.top  = `${top}px`;
+  setTimeout(() => tip.remove(), action.duration_ms ?? 5000);
+};
+
+const renderPersonalize = (action) => {
+  const els = action.selector ? document.querySelectorAll(action.selector) : [];
+  for (const el of els) {
+    if (action.html) el.innerHTML = action.html;
+    else if (action.text != null) el.textContent = action.text;
+  }
+};
+
+const renderRedirect = (action) => {
+  const url = action.url;
+  if (!url) return;
+  const delay = action.delay_ms ?? 0;
+  const open  = () => {
+    if (action.new_tab) window.open(url, '_blank');
+    else location.href = url;
+  };
+  if (delay > 0) setTimeout(open, delay);
+  else open();
+};
 
 /**
- * Evaluate all automation rules for a given trigger event.
- * If an automation's trigger event matches and all its conditions pass,
- * an automation_trigger event is queued.
+ * Fire an automation trigger: POST to /tracker/automations/evaluate,
+ * parse response, execute client-side actions.
  */
-const evalAutomations = (triggerEvent, props) => {
-  for (const automation of automations) {
-    const trigger = automation.trigger;
-    if (!trigger || trigger.event !== triggerEvent) continue;
-    const conditionsMet = (trigger.conditions ?? []).every((condition) => {
-      const value = props[condition.field];
-      if (condition.op === 'eq')       return value === condition.value;
-      if (condition.op === 'neq')      return value !== condition.value;
-      if (condition.op === 'contains') return value != null && String(value).includes(condition.value);
-      if (condition.op === 'regex')    return value != null && safeRegex(condition.value, String(value));
-      if (condition.op === 'gt')       return +value > +condition.value;
-      if (condition.op === 'lt')       return +value < +condition.value;
-      return true;
+const fireAutomationTrigger = async (triggerType, triggerData) => {
+  if (!websiteId || !automations.length) return;
+
+  // Quick client-side check: skip if any automation with this trigger type is exhausted
+  // (server is authoritative, but this avoids a round-trip for obviously capped automations)
+  const relevant = automations.filter((a) => {
+    const t = a.trigger ?? a;
+    return (t.type ?? t.event) === triggerType;
+  });
+  if (!relevant.length) return;
+
+  // Also queue analytics trigger event for backwards compat
+  pushAnalytics('automation_trigger', { event: triggerType, props: triggerData });
+
+  try {
+    const res = await fetch(apiHost + '/api/v1/tracker/automations/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        website_id:   websiteId,
+        anonymous_id: visitorId,
+        session_id:   getSessionId(),
+        trigger:      { type: triggerType, ...triggerData },
+        context: {
+          page:    location.pathname,
+          url:     location.href,
+          title:   document.title,
+          referrer: document.referrer,
+        },
+      }),
     });
-    if (conditionsMet) {
-      pushAnalytics('automation_trigger', {
-        automation_id: automation.id,
-        name:          automation.name,
-        event:         triggerEvent,
-        props,
-      });
+    if (!res.ok) return;
+    const { actions } = await res.json();
+    if (actions?.length) {
+      for (const a of actions) writeCapCache(a.automation_id);
+      executeClientActions(actions);
     }
-  }
+  } catch { /* best-effort */ }
 };
 
 // ─── Exit-intent trigger ──────────────────────────────────────────────────────
@@ -1303,7 +1486,7 @@ const installExitIntent = () => {
     if (ev.clientY > 0) return; // only fire when leaving through the top edge
     if (exitIntentCooldown) return;
     exitIntentCooldown = true;
-    evalAutomations('exit_intent', { path: location.pathname });
+    void fireAutomationTrigger('exit_intent', { path: location.pathname });
     setTimeout(() => { exitIntentCooldown = false; }, 30_000); // 30 s cooldown
   });
 };
@@ -1317,7 +1500,7 @@ let inactivityInstalled = false;
 const resetInactivityTimer = () => {
   if (inactivityTimer) clearTimeout(inactivityTimer);
   inactivityTimer = setTimeout(() => {
-    evalAutomations('inactivity', { path: location.pathname, inactivity_ms: INACTIVITY_TRIGGER_MS });
+    void fireAutomationTrigger('inactivity', { path: location.pathname, inactivity_ms: INACTIVITY_TRIGGER_MS });
     inactivityTimer = null;
   }, INACTIVITY_TRIGGER_MS);
 };
@@ -1330,6 +1513,139 @@ const installInactivity = () => {
     window.addEventListener(eventName, resetInactivityTimer, { passive: true });
   }
   resetInactivityTimer();
+};
+
+// ─── Scroll depth trigger ─────────────────────────────────────────────────────
+
+const installScrollDepth = () => {
+  const milestones = [25, 50, 75, 90];
+  const fired = new Set();
+  const check = () => {
+    const docH = Math.max(document.documentElement.scrollHeight, 1);
+    const pct  = Math.round(((window.scrollY + window.innerHeight) / docH) * 100);
+    for (const m of milestones) {
+      if (pct >= m && !fired.has(m)) {
+        fired.add(m);
+        void fireAutomationTrigger('scroll_depth', { depth: m, path: location.pathname });
+      }
+    }
+  };
+  window.addEventListener('scroll', check, { passive: true });
+};
+
+// ─── Time on page trigger ─────────────────────────────────────────────────────
+
+const installTimeOnPage = () => {
+  const thresholds = [15, 30, 60, 120, 300]; // seconds
+  const fired = new Set();
+  const start = Date.now();
+  const tick = () => {
+    const elapsed = Math.floor((Date.now() - start) / 1000);
+    for (const t of thresholds) {
+      if (elapsed >= t && !fired.has(t)) {
+        fired.add(t);
+        void fireAutomationTrigger('time_on_page', { seconds: t, path: location.pathname });
+      }
+    }
+  };
+  setInterval(tick, 5_000);
+};
+
+// ─── Rage-click trigger ───────────────────────────────────────────────────────
+
+const installRageClick = () => {
+  const WINDOW_MS  = 1_000;
+  const RADIUS_PX  = 80;
+  const MIN_CLICKS = 3;
+  let clicks = [];
+  let fired = false;
+  document.addEventListener('click', (ev) => {
+    const now = Date.now();
+    clicks = clicks.filter((c) => now - c.t < WINDOW_MS);
+    clicks.push({ x: ev.clientX, y: ev.clientY, t: now });
+    if (clicks.length < MIN_CLICKS) return;
+    const cx = clicks.reduce((s, c) => s + c.x, 0) / clicks.length;
+    const cy = clicks.reduce((s, c) => s + c.y, 0) / clicks.length;
+    const inRadius = clicks.every((c) => Math.hypot(c.x - cx, c.y - cy) < RADIUS_PX);
+    if (inRadius && !fired) {
+      fired = true;
+      void fireAutomationTrigger('rage_click', {
+        path:   location.pathname,
+        count:  clicks.length,
+        x:      Math.round(cx),
+        y:      Math.round(cy),
+        target: (ev.target?.tagName ?? '').toLowerCase(),
+      });
+      setTimeout(() => { fired = false; clicks = []; }, 5_000);
+    }
+  });
+};
+
+// ─── Form abandon trigger ─────────────────────────────────────────────────────
+
+const installFormAbandon = () => {
+  const touched = new Set();
+  let submitted = false;
+  document.addEventListener('focusin', (ev) => {
+    if (ev.target?.form) touched.add(ev.target.form);
+  }, true);
+  document.addEventListener('submit', () => { submitted = true; }, true);
+  const onLeave = () => {
+    if (submitted || !touched.size) return;
+    for (const form of touched) {
+      const id = form.id || form.name || form.action || 'unknown';
+      void fireAutomationTrigger('form_abandon', { path: location.pathname, form_id: id });
+    }
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') onLeave();
+  });
+};
+
+// ─── JS error trigger ─────────────────────────────────────────────────────────
+
+const installJsErrorTrigger = () => {
+  let errorCount = 0;
+  const MAX_FIRES = 3;
+  const fire = (message, source) => {
+    if (++errorCount > MAX_FIRES) return;
+    void fireAutomationTrigger('js_error', { path: location.pathname, message: String(message).slice(0, 200), source: String(source ?? '').slice(0, 100) });
+  };
+  window.addEventListener('error', (ev) => fire(ev.message, ev.filename));
+  window.addEventListener('unhandledrejection', (ev) => fire(String(ev.reason), 'promise'));
+};
+
+// ─── Tab visibility trigger ───────────────────────────────────────────────────
+
+const installTabVisibility = () => {
+  document.addEventListener('visibilitychange', () => {
+    const type = document.visibilityState === 'hidden' ? 'tab_hidden' : 'tab_visible';
+    void fireAutomationTrigger(type, { path: location.pathname });
+  });
+};
+
+// ─── Click trigger (delegated, CSS-selector-based) ────────────────────────────
+
+const installClickTrigger = () => {
+  document.addEventListener('click', (ev) => {
+    const el = ev.target;
+    if (!el) return;
+    for (const auto of automations) {
+      const t = auto.trigger ?? auto;
+      if ((t.type ?? t.event) !== 'click') continue;
+      const sel = t.selector;
+      if (!sel) continue;
+      try {
+        if (el.matches(sel) || el.closest(sel)) {
+          void fireAutomationTrigger('click', {
+            path:     location.pathname,
+            selector: sel,
+            text:     (el.textContent ?? '').trim().slice(0, 100),
+          });
+        }
+      } catch { /* invalid selector */ }
+    }
+  });
 };
 
 // ─── Performance timing ───────────────────────────────────────────────────────
@@ -1429,6 +1745,13 @@ const init = () => {
       installHeatmapCapture();
       installExitIntent();
       installInactivity();
+      installScrollDepth();
+      installTimeOnPage();
+      installRageClick();
+      installFormAbandon();
+      installJsErrorTrigger();
+      installTabVisibility();
+      installClickTrigger();
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
 
       flush(); // send the initial pageview + rrweb snapshot immediately
@@ -1445,6 +1768,13 @@ const init = () => {
       installHeatmapCapture();
       installExitIntent();
       installInactivity();
+      installScrollDepth();
+      installTimeOnPage();
+      installRageClick();
+      installFormAbandon();
+      installJsErrorTrigger();
+      installTabVisibility();
+      installClickTrigger();
       window.addEventListener('load', () => setTimeout(trackPerf, 100));
       flush();
       flushInterval = window.setInterval(flush, FLUSH_MS);
@@ -1462,7 +1792,7 @@ window.seentics = {
   track(name, props) {
     pushAnalytics('custom', { name, ...(props ?? {}) });
     evalFunnelsForEvent(name);
-    evalAutomations('custom', { name, ...(props ?? {}) });
+    void fireAutomationTrigger('custom_event', { name, ...(props ?? {}) });
   },
 
   /**

@@ -20,6 +20,7 @@ import {
   resolveWebsiteForTracker,
 } from "../lib/website-for-tracker";
 import * as autoSvc from "../services/automations.service";
+import * as autoEval from "../services/automations-evaluate.service";
 import * as funnelSvc from "../services/funnels.service";
 import * as playwrightSvc from "../services/heatmap-playwright.service";
 import { validationErrorResponse } from "../validators/validation";
@@ -260,4 +261,62 @@ trackerRoutes.post("/request-screenshot", async (c) => {
     .catch(() => { /* best-effort */ });
 
   return c.json({ status: "queued" }, 202);
+});
+
+/**
+ * POST /api/v1/tracker/automations/evaluate
+ * Called by seentics.js when a behavioral trigger fires client-side.
+ * Returns client-side action payloads (show_modal, redirect, etc.) and
+ * dispatches webhook actions async. No auth — origin + websiteId validated.
+ */
+trackerRoutes.post("/automations/evaluate", async (c) => {
+  const cfg = env();
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await c.req.json()) as Record<string, unknown>;
+  } catch {
+    return c.json({ error: "invalid json" }, 400);
+  }
+
+  const websiteId = typeof body.website_id === "string" ? body.website_id.trim() : "";
+  if (!websiteId) return c.json({ error: "website_id required" }, 400);
+
+  const anonymousId = typeof body.anonymous_id === "string" ? body.anonymous_id.trim() : "";
+  const sessionId   = typeof body.session_id   === "string" ? body.session_id.trim()   : "";
+  if (!anonymousId || !sessionId) return c.json({ error: "anonymous_id and session_id required" }, 400);
+
+  const triggerRaw = body.trigger;
+  if (!triggerRaw || typeof triggerRaw !== "object" || Array.isArray(triggerRaw)) {
+    return c.json({ error: "trigger object required" }, 400);
+  }
+  const trigger = triggerRaw as { type: string; [k: string]: unknown };
+  if (!trigger.type) return c.json({ error: "trigger.type required" }, 400);
+
+  const website = await resolveWebsiteForTracker(websiteId);
+  if (!website || !website.is_active) {
+    return c.json({ error: "website not found or inactive" }, 404);
+  }
+
+  const origin = originFromRequest(c.req.raw.headers);
+  if (!validateOriginDomain(origin, website.url, cfg.environment)) {
+    return c.json({ error: "domain mismatch" }, 403);
+  }
+
+  try {
+    const result = await autoEval.evaluate({
+      websiteId:   website.id,
+      anonymousId,
+      userId:      typeof body.user_id === "string" ? body.user_id : null,
+      sessionId,
+      trigger,
+      context:     (body.context && typeof body.context === "object" && !Array.isArray(body.context))
+                     ? (body.context as Record<string, unknown>)
+                     : {},
+    });
+    return c.json({ status: "ok", matched: result.matched, actions: result.actions });
+  } catch (err) {
+    log.error({ msg: "automations_evaluate_error", websiteId, err });
+    return c.json({ error: "evaluation failed" }, 500);
+  }
 });
