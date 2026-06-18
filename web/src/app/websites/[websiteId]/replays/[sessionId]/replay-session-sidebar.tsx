@@ -6,13 +6,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { ReplaySession } from '@/lib/replays-api';
 import { displayRealtimePath } from '@/lib/realtime-path';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronRight, MousePointerClick, ScanLine, Keyboard, LogOut, AlertTriangle } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronRight,
+  MousePointerClick,
+  ScanLine,
+  Keyboard,
+  LogOut,
+  AlertTriangle,
+  Terminal,
+  Network,
+  Info,
+  Bug,
+  Minus,
+} from 'lucide-react';
 import {
   ReplaySessionTimelineLog,
   useReplayPlayback,
   type SessionReplayBridge,
   type SessionActivityStats,
   type SessionErrorDetail,
+  type SessionConsoleDetail,
+  type SessionNetworkDetail,
 } from './session-replay-surface';
 import { stripClientVersionLabel } from '@/components/replays/session-environment-visuals';
 
@@ -356,6 +371,250 @@ function TimelineCard({ replayBridge }: { replayBridge: SessionReplayBridge | nu
   );
 }
 
+// ── DevTools panel (Console + Network) ───────────────────────────────────────
+
+const CONSOLE_LEVEL_STYLES: Record<SessionConsoleDetail['level'], { row: string; icon: React.ElementType; iconCls: string }> = {
+  error: { row: 'bg-red-500/5 hover:bg-red-500/10',   icon: AlertTriangle, iconCls: 'text-red-400' },
+  warn:  { row: 'hover:bg-muted/40',                   icon: AlertTriangle, iconCls: 'text-amber-400' },
+  info:  { row: 'hover:bg-muted/40',                   icon: Info,          iconCls: 'text-sky-400' },
+  debug: { row: 'hover:bg-muted/40',                   icon: Bug,           iconCls: 'text-violet-400' },
+  log:   { row: 'hover:bg-muted/40',                   icon: Minus,         iconCls: 'text-muted-foreground/60' },
+};
+
+function ConsoleRow({
+  entry,
+  durationMs,
+  player,
+}: {
+  entry: SessionConsoleDetail;
+  durationMs: number;
+  player: SessionReplayBridge['player'];
+}) {
+  const { playing, syncNow } = useReplayPlayback();
+  const canSeek = entry.offsetMs !== null && durationMs > 0;
+  const timeLabel = entry.offsetMs !== null ? fmtOffsetClock(entry.offsetMs) : '—';
+  const styles = CONSOLE_LEVEL_STYLES[entry.level] ?? CONSOLE_LEVEL_STYLES.log;
+  const IconEl = styles.icon;
+  const message = entry.args.join(' ');
+
+  return (
+    <li className={cn('border-b border-border/40 last:border-b-0', styles.row)}>
+      <div className="flex w-full min-w-0 items-start gap-2 px-2.5 py-1.5">
+        <IconEl className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', styles.iconCls)} />
+        <span className="min-w-0 flex-1 font-mono text-[11px] text-foreground break-words leading-relaxed">
+          {message || <span className="text-muted-foreground/50 italic">empty</span>}
+        </span>
+        <button
+          type="button"
+          disabled={!canSeek}
+          title={canSeek ? 'Jump to this moment' : undefined}
+          className={cn(
+            'shrink-0 tabular-nums text-[10px] text-muted-foreground',
+            canSeek && 'cursor-pointer hover:text-foreground transition-colors',
+          )}
+          onClick={() => {
+            if (entry.offsetMs === null) return;
+            try { player.goto(Math.min(durationMs, Math.max(0, entry.offsetMs)), playing); } catch { /* ignore */ }
+            requestAnimationFrame(() => syncNow());
+          }}
+        >
+          {timeLabel}
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function statusColor(status: number): string {
+  if (status === 0)            return 'text-muted-foreground/60';
+  if (status < 300)            return 'text-emerald-500 dark:text-emerald-400';
+  if (status < 400)            return 'text-sky-500 dark:text-sky-400';
+  if (status < 500)            return 'text-amber-500 dark:text-amber-400';
+  return 'text-red-500 dark:text-red-400';
+}
+
+function methodBadgeColor(method: string): string {
+  switch (method.toUpperCase()) {
+    case 'GET':    return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+    case 'POST':   return 'bg-sky-500/10 text-sky-700 dark:text-sky-300';
+    case 'PUT':
+    case 'PATCH':  return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
+    case 'DELETE': return 'bg-red-500/10 text-red-700 dark:text-red-300';
+    default:       return 'bg-muted text-muted-foreground';
+  }
+}
+
+function NetworkRow({
+  entry,
+  durationMs,
+  player,
+}: {
+  entry: SessionNetworkDetail;
+  durationMs: number;
+  player: SessionReplayBridge['player'];
+}) {
+  const { playing, syncNow } = useReplayPlayback();
+  const [expanded, setExpanded] = useState(false);
+  const canSeek = entry.offsetMs !== null && durationMs > 0;
+  const timeLabel = entry.offsetMs !== null ? fmtOffsetClock(entry.offsetMs) : '—';
+  const hasError = !!entry.error;
+  const shortUrl = (() => {
+    try { return new URL(entry.url).pathname + new URL(entry.url).search; }
+    catch { return entry.url; }
+  })();
+
+  return (
+    <li className={cn('border-b border-border/40 last:border-b-0', hasError ? 'bg-red-500/5' : 'hover:bg-muted/40')}>
+      <div className="flex w-full min-w-0 items-center gap-2 px-2.5 py-1.5">
+        <span className={cn('shrink-0 rounded px-1 py-px text-[10px] font-semibold uppercase leading-none tabular-nums', methodBadgeColor(entry.method))}>
+          {entry.method}
+        </span>
+        <button
+          type="button"
+          className="min-w-0 flex-1 text-left"
+          onClick={() => setExpanded(e => !e)}
+          title={entry.url}
+        >
+          <span className="block truncate font-mono text-[11px] text-foreground">{shortUrl}</span>
+        </button>
+        <span className={cn('shrink-0 tabular-nums text-[11px] font-semibold', statusColor(entry.status))}>
+          {entry.status === 0 ? 'ERR' : entry.status}
+        </span>
+        <span className="shrink-0 tabular-nums text-[10px] text-muted-foreground/70 w-10 text-right">
+          {entry.duration < 1000 ? `${entry.duration}ms` : `${(entry.duration / 1000).toFixed(1)}s`}
+        </span>
+        <button
+          type="button"
+          disabled={!canSeek}
+          title={canSeek ? 'Jump to this moment' : undefined}
+          className={cn(
+            'shrink-0 tabular-nums text-[10px] text-muted-foreground w-10 text-right',
+            canSeek && 'cursor-pointer hover:text-foreground transition-colors',
+          )}
+          onClick={() => {
+            if (entry.offsetMs === null) return;
+            try { player.goto(Math.min(durationMs, Math.max(0, entry.offsetMs)), playing); } catch { /* ignore */ }
+            requestAnimationFrame(() => syncNow());
+          }}
+        >
+          {timeLabel}
+        </button>
+      </div>
+      {expanded && (
+        <div className="px-2.5 pb-2 font-mono text-[10px] text-muted-foreground space-y-0.5">
+          <div className="break-all">{entry.url}</div>
+          {entry.error && <div className="text-red-400 break-all">{entry.error}</div>}
+        </div>
+      )}
+    </li>
+  );
+}
+
+function DevToolsPanel({
+  consoleDetails,
+  networkDetails,
+  durationMs,
+  player,
+}: {
+  consoleDetails: SessionConsoleDetail[];
+  networkDetails: SessionNetworkDetail[];
+  durationMs: number;
+  player: SessionReplayBridge['player'];
+}) {
+  const [tab, setTab] = useState<'console' | 'network'>('console');
+
+  const errorCount = consoleDetails.filter(e => e.level === 'error').length;
+  const warnCount  = consoleDetails.filter(e => e.level === 'warn').length;
+  const failCount  = networkDetails.filter(e => e.status >= 400 || e.status === 0).length;
+
+  return (
+    <Card className="shadow-sm rounded-xl overflow-hidden">
+      <CardHeader className="pb-0 pt-4 px-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <CardTitle className="text-sm font-semibold text-foreground">DevTools</CardTitle>
+          <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
+            <button
+              type="button"
+              onClick={() => setTab('console')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                tab === 'console'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Terminal className="h-3 w-3 shrink-0" />
+              Console
+              {(errorCount > 0 || warnCount > 0) && (
+                <span className={cn('ml-0.5 tabular-nums text-[10px] font-semibold', errorCount > 0 ? 'text-red-400' : 'text-amber-400')}>
+                  {errorCount > 0 ? errorCount : warnCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('network')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                tab === 'network'
+                  ? 'bg-background text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Network className="h-3 w-3 shrink-0" />
+              Network
+              {failCount > 0 && (
+                <span className="ml-0.5 tabular-nums text-[10px] font-semibold text-red-400">{failCount}</span>
+              )}
+            </button>
+          </div>
+          <span className="text-xs text-muted-foreground ml-auto">
+            {tab === 'console'
+              ? `${consoleDetails.length} entries`
+              : `${networkDetails.length} requests`}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-3 px-0 pb-0">
+        {tab === 'console' ? (
+          consoleDetails.length === 0 ? (
+            <div className="px-4 pb-4 text-xs text-muted-foreground">
+              No console events captured. Sessions recorded before console capture was enabled will not have this data.
+            </div>
+          ) : (
+            <ul className="max-h-64 overflow-y-auto overscroll-contain">
+              {consoleDetails.map((entry, i) => (
+                <ConsoleRow key={i} entry={entry} durationMs={durationMs} player={player} />
+              ))}
+            </ul>
+          )
+        ) : (
+          networkDetails.length === 0 ? (
+            <div className="px-4 pb-4 text-xs text-muted-foreground">
+              No network events captured. Sessions recorded before network capture was enabled will not have this data.
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-3 px-2.5 py-1 border-b border-border/40 text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wide">
+                <span className="w-10 shrink-0">Method</span>
+                <span className="flex-1 min-w-0">URL</span>
+                <span className="w-8 text-right shrink-0">Status</span>
+                <span className="w-10 text-right shrink-0">Time</span>
+                <span className="w-10 text-right shrink-0">At</span>
+              </div>
+              <ul className="max-h-64 overflow-y-auto overscroll-contain">
+                {networkDetails.map((entry, i) => (
+                  <NetworkRow key={i} entry={entry} durationMs={durationMs} player={player} />
+                ))}
+              </ul>
+            </>
+          )
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Root export ───────────────────────────────────────────────────────────────
 
 export function ReplaySessionSidebar({
@@ -367,9 +626,11 @@ export function ReplaySessionSidebar({
   session?: ReplaySession | null;
   websiteId?: string;
 }) {
-  const hasActivity = replayBridge !== null;
-  const stats       = replayBridge?.activityStats ?? null;
-  const errors      = replayBridge?.errorDetails ?? [];
+  const hasActivity     = replayBridge !== null;
+  const stats           = replayBridge?.activityStats ?? null;
+  const errors          = replayBridge?.errorDetails ?? [];
+  const consoleDetails  = replayBridge?.consoleDetails ?? [];
+  const networkDetails  = replayBridge?.networkDetails ?? [];
 
   return (
     <section
@@ -407,6 +668,16 @@ export function ReplaySessionSidebar({
               player={replayBridge.player}
             />
           </div>
+        )}
+
+        {/* DevTools: Console + Network tabs */}
+        {replayBridge && (
+          <DevToolsPanel
+            consoleDetails={consoleDetails}
+            networkDetails={networkDetails}
+            durationMs={replayBridge.durationMs}
+            player={replayBridge.player}
+          />
         )}
       </div>
     </section>

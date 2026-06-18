@@ -461,8 +461,10 @@ function HeatmapViewer({
   /** Natural JPEG size when loaded — refines doc box if API metadata differs slightly. */
   const [shotNatural, setShotNatural] = useState<{ w: number; h: number } | null>(null);
 
+  const hasHtmlSnapshot = !!pageScreenshot?.html_url?.trim();
+  const hasJpegSnapshot = !!pageScreenshot?.image_url?.trim();
   const screenshotActive =
-    underlay === 'screenshot' && !!pageScreenshot?.image_url?.trim();
+    underlay === 'screenshot' && (hasHtmlSnapshot || hasJpegSnapshot);
 
   const docHeightHint = useMemo(
     () => heatmapDocHeightHintPx(points, heatType, viewPort.w),
@@ -527,16 +529,16 @@ function HeatmapViewer({
       setLoadState('idle');
       return;
     }
-    if (screenshotActive && pageScreenshot?.image_url) {
+    if (screenshotActive && (pageScreenshot?.html_url || pageScreenshot?.image_url)) {
       setLoadState('loading');
     } else {
       setLoadState('idle');
     }
-  }, [underlay, screenshotActive, pageScreenshot?.image_url, pageUrl]);
+  }, [underlay, screenshotActive, pageScreenshot?.html_url, pageScreenshot?.image_url, pageUrl]);
 
   useEffect(() => {
     setShotNatural(null);
-  }, [pageScreenshot?.image_url, underlay, screenshotActive]);
+  }, [pageScreenshot?.image_url, pageScreenshot?.html_url, underlay, screenshotActive]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -593,23 +595,36 @@ function HeatmapViewer({
                   minHeight: dims.h,
                 }}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={pageScreenshot.image_url}
-                  alt=""
-                  className="pointer-events-none block h-full w-full object-fill"
-                  onLoad={e => {
-                    const im = e.currentTarget;
-                    setShotNatural({
-                      w: Math.max(1, im.naturalWidth),
-                      h: Math.max(1, im.naturalHeight),
-                    });
-                    setLoadState('loaded');
-                  }}
-                  onError={() => setLoadState('error')}
-                  loading="eager"
-                  decoding="async"
-                />
+                {hasHtmlSnapshot && pageScreenshot.html_url ? (
+                  <iframe
+                    src={pageScreenshot.html_url}
+                    title="Page snapshot"
+                    sandbox="allow-same-origin"
+                    scrolling="no"
+                    className="pointer-events-none block border-0"
+                    style={{ width: dims.w, height: dims.h }}
+                    onLoad={() => setLoadState('loaded')}
+                    onError={() => setLoadState('error')}
+                  />
+                ) : pageScreenshot.image_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={pageScreenshot.image_url}
+                    alt=""
+                    className="pointer-events-none block h-full w-full object-fill"
+                    onLoad={e => {
+                      const im = e.currentTarget;
+                      setShotNatural({
+                        w: Math.max(1, im.naturalWidth),
+                        h: Math.max(1, im.naturalHeight),
+                      });
+                      setLoadState('loaded');
+                    }}
+                    onError={() => setLoadState('error')}
+                    loading="eager"
+                    decoding="async"
+                  />
+                ) : null}
               </div>
             ) : null}
 

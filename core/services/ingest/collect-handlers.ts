@@ -136,6 +136,34 @@ function collectPrepareHeatmapScreenshots(
   return out;
 }
 
+function collectPrepareDomSnapshots(
+  evs: TrackerEvent[],
+  websiteUuid: string,
+  siteId: string,
+  heatmapLayoutEnabled: boolean,
+  clientUA: string,
+): HeatmapIngestEvent[] {
+  const out: HeatmapIngestEvent[] = [];
+  for (const e of evs) {
+    if (e.type !== "heatmap_dom_snapshot") continue;
+    out.push({
+      type: "heatmap_dom_snapshot",
+      data: e.data ?? {},
+      ts: e.ts,
+      url: e.url,
+      sid: e.sid,
+      vid: e.vid,
+      websiteId: websiteUuid,
+      siteId,
+      heatmapLayoutEnabled,
+      clientUa: clientUA,
+      docW: e.doc_w,
+      docH: e.doc_h,
+    });
+  }
+  return out;
+}
+
 function sortByTs<T extends { ts: number }>(rows: T[]): T[] {
   return [...rows].sort((a, b) => a.ts - b.ts);
 }
@@ -229,10 +257,20 @@ export function handleHeatmaps(ctx: CollectHandlerContext): void {
   const screenshots = parseCollectEvents(
     Array.isArray(ctx.body.heatmap_screenshot) ? ctx.body.heatmap_screenshot : [],
   );
+  const domSnapshots = parseCollectEvents(
+    Array.isArray(ctx.body.heatmap_dom_snapshot) ? ctx.body.heatmap_dom_snapshot : [],
+  );
   const merged: HeatmapIngestEvent[] = [
     ...collectPrepareHeatmaps(heatmaps, ctx.website.id, ctx.userAgent),
     ...collectPrepareHeatmapScreenshots(
       screenshots,
+      ctx.website.id,
+      ctx.website.site_id,
+      ctx.website.heatmap_layout_enabled,
+      ctx.userAgent,
+    ),
+    ...collectPrepareDomSnapshots(
+      domSnapshots,
       ctx.website.id,
       ctx.website.site_id,
       ctx.website.heatmap_layout_enabled,

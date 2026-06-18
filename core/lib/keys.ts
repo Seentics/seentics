@@ -8,3 +8,7 @@ export function layoutPathSlot(siteId: string, normPath: string): string {
 export function heatmapScreenshotKey(siteId: string, pathSlot: string): string {
   return `heatmap-screenshots/${siteId}/${pathSlot}.jpg`;
 }
+
+export function heatmapHtmlSnapshotKey(siteId: string, pathSlot: string): string {
+  return `heatmap-screenshots/${siteId}/${pathSlot}.html`;
+}

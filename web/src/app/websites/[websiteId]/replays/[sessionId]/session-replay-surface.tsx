@@ -177,6 +177,47 @@ export function buildSessionErrorDetails(
     });
 }
 
+/** Extracts console log entries from console_event custom events. */
+export function buildConsoleDetails(
+  customEvents: SessionCustomEvent[],
+  t0: number,
+): SessionConsoleDetail[] {
+  return customEvents
+    .filter(e => e.eventType === 'console_event')
+    .map(e => {
+      const d = e.data as Record<string, unknown>;
+      const level = (['log', 'info', 'warn', 'error', 'debug'].includes(d.level as string)
+        ? d.level
+        : 'log') as SessionConsoleDetail['level'];
+      const args: string[] = Array.isArray(d.args)
+        ? d.args.map(a => (typeof a === 'string' ? a : String(a)))
+        : [];
+      const ts = e.timestamp;
+      const offsetMs = t0 > 0 && ts > 0 ? Math.max(0, ts - t0) : null;
+      return { level, args, timestamp: ts, offsetMs };
+    });
+}
+
+/** Extracts network request entries from network_event custom events. */
+export function buildNetworkDetails(
+  customEvents: SessionCustomEvent[],
+  t0: number,
+): SessionNetworkDetail[] {
+  return customEvents
+    .filter(e => e.eventType === 'network_event')
+    .map(e => {
+      const d = e.data as Record<string, unknown>;
+      const method   = typeof d.method === 'string' ? d.method : 'GET';
+      const url      = typeof d.url === 'string' ? d.url : '';
+      const status   = typeof d.status === 'number' ? d.status : 0;
+      const duration = typeof d.duration === 'number' ? d.duration : 0;
+      const error    = typeof d.error === 'string' ? d.error : undefined;
+      const ts = e.timestamp;
+      const offsetMs = t0 > 0 && ts > 0 ? Math.max(0, ts - t0) : null;
+      return { method, url, status, duration, error, timestamp: ts, offsetMs };
+    });
+}
+
 /** Page boundaries + approximate rage moments derived from the recording (not server flags). */
 export function buildReplayTimelineMarkers(events: RRWebEvent[]): ReplayTimelineMarker[] {
   if (events.length < 2) return [];
@@ -225,6 +266,25 @@ export type SessionErrorDetail = {
   /** Epoch ms from the stored event (0 when missing). */
   timestamp: number;
   /** Playback seek offset (ms from recording start); null when timestamp is unavailable. */
+  offsetMs:  number | null;
+};
+
+/** One console log entry extracted from a console_event custom event. */
+export type SessionConsoleDetail = {
+  level:     'log' | 'info' | 'warn' | 'error' | 'debug';
+  args:      string[];
+  timestamp: number;
+  offsetMs:  number | null;
+};
+
+/** One network request extracted from a network_event custom event. */
+export type SessionNetworkDetail = {
+  method:    string;
+  url:       string;
+  status:    number;
+  duration:  number;
+  error?:    string;
+  timestamp: number;
   offsetMs:  number | null;
 };
 
@@ -591,6 +651,8 @@ export type SessionReplayBridge = {
   logEntries: ReplayLogEntry[];
   activityStats: SessionActivityStats;
   errorDetails: SessionErrorDetail[];
+  consoleDetails: SessionConsoleDetail[];
+  networkDetails: SessionNetworkDetail[];
 };
 
 /** Throttle UI updates while playing — avoids 60 React commits/sec from duplicate RAF loops. */
@@ -1055,6 +1117,18 @@ export function SessionReplaySurface({
     [customEvents, t0],
   );
 
+  const consoleDetails = useMemo(
+    () => buildConsoleDetails(customEvents ?? [], t0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customEvents, t0],
+  );
+
+  const networkDetails = useMemo(
+    () => buildNetworkDetails(customEvents ?? [], t0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [customEvents, t0],
+  );
+
   const timelineMarkers = useMemo(() => buildReplayTimelineMarkers(events), [events]);
 
   const logEntries = useMemo(
@@ -1082,11 +1156,13 @@ export function SessionReplaySurface({
         logEntries,
         activityStats,
         errorDetails,
+        consoleDetails,
+        networkDetails,
       });
     } else {
       notify(null);
     }
-  }, [bridge, durationMs, timelineMarkers, logEntries, activityStats, errorDetails, events.length]);
+  }, [bridge, durationMs, timelineMarkers, logEntries, activityStats, errorDetails, consoleDetails, networkDetails, events.length]);
 
   useEffect(() => {
     return () => {

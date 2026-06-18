@@ -22,6 +22,7 @@ export type LayoutSnapshotRow = {
   content_sha256: string;
   doc_width: number;
   doc_height: number;
+  html_s3_key: string | null;
   updated_at: Date;
 };
 
@@ -53,7 +54,7 @@ export async function getLayoutSnapshot(
   pagePath: string,
 ): Promise<LayoutSnapshotRow | null> {
   const rows = await sql`
-    SELECT page_path, s3_key, content_sha256, doc_width, doc_height, updated_at
+    SELECT page_path, s3_key, content_sha256, doc_width, doc_height, html_s3_key, updated_at
     FROM heatmap_page_snapshots
     WHERE website_id = ${websiteId}::uuid
       AND (
@@ -73,6 +74,7 @@ export async function getLayoutSnapshot(
     content_sha256: String(r.content_sha256),
     doc_width: Number(r.doc_width),
     doc_height: Number(r.doc_height),
+    html_s3_key: r.html_s3_key != null ? String(r.html_s3_key) : null,
     updated_at: r.updated_at as Date,
   };
   if (Math.random() < 0.05) sweepSnapshotCache();
@@ -100,4 +102,28 @@ export async function upsertLayoutSnapshot(
   `;
   if (Math.random() < 0.05) sweepSnapshotCache();
   snapshotSha256Cache.set(snapshotCacheKey(websiteId, pagePath), { sha256, at: Date.now() });
+}
+
+/**
+ * Upsert a DOM HTML snapshot for a heatmap page.
+ * Creates the row if absent (using placeholder JPEG key values), or sets html_s3_key on existing row.
+ */
+export async function upsertLayoutHtmlSnapshot(
+  websiteId: string,
+  pagePath: string,
+  htmlS3Key: string,
+  docW: number,
+  docH: number,
+): Promise<void> {
+  await sql`
+    INSERT INTO heatmap_page_snapshots
+      (website_id, page_path, s3_key, content_sha256, doc_width, doc_height, html_s3_key, updated_at)
+    VALUES
+      (${websiteId}::uuid, ${pagePath}, '', '', ${docW}, ${docH}, ${htmlS3Key}, NOW())
+    ON CONFLICT (website_id, page_path) DO UPDATE SET
+      html_s3_key = EXCLUDED.html_s3_key,
+      doc_width   = EXCLUDED.doc_width,
+      doc_height  = EXCLUDED.doc_height,
+      updated_at  = NOW()
+  `;
 }

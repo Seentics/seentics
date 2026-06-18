@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 import { env } from "../config";
 import { batchUpsertPoints } from "./heatmap-db";
-import { getCachedSnapshotSha256, getLayoutSnapshot, upsertLayoutSnapshot } from "./layout-db";
+import { getCachedSnapshotSha256, getLayoutSnapshot, upsertLayoutSnapshot, upsertLayoutHtmlSnapshot } from "./layout-db";
 import { deviceTypeFromUA } from "./device";
 import { extractPath, normalizeHeatmapPagePath } from "./paths";
-import { heatmapScreenshotKey, layoutPathSlot } from "./keys";
-import { putJpeg } from "./s3";
+import { heatmapScreenshotKey, heatmapHtmlSnapshotKey, layoutPathSlot } from "./keys";
+import { putJpeg, putHtml } from "./s3";
 import { getSiteIdByWebsiteUuid } from "./website-site";
 import { captureAndStoreScreenshot } from "./playwright-screenshots";
 import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "./types";
@@ -271,10 +271,43 @@ export class HeatmapEngine {
     log.info({ msg: "heatmap_tracker_screenshot_stored", url: j.url, norm, website_id: j.websiteId, s3_key: key, doc_w: dW, doc_h: dH });
   }
 
+  private async ingestOneDomSnapshot(ev: HeatmapIngestEvent): Promise<void> {
+    if (!ev.siteId || !ev.websiteId || !ev.heatmapLayoutEnabled) return;
+
+    const html = typeof ev.data?.html === "string" ? ev.data.html : null;
+    if (!html || html.length < 100) return;
+
+    const norm = normalizeHeatmapPagePath(extractPath(ev.url ?? ""));
+    log.info({ msg: "heatmap_dom_snapshot_received", url: ev.url, norm, website_id: ev.websiteId, html_bytes: html.length });
+
+    const sum = createHash("sha256").update(html).digest("hex");
+    const existing = await getLayoutSnapshot(ev.websiteId, norm);
+    // Skip if the HTML content is identical to what we already have
+    if (existing?.html_s3_key && existing.content_sha256 === sum) return;
+
+    let dW = Math.trunc(ev.docW ?? 0);
+    let dH = Math.trunc(ev.docH ?? 0);
+    if (dW < 200) dW = 1280;
+    if (dH < 200) dH = 800;
+
+    const key = heatmapHtmlSnapshotKey(ev.siteId, layoutPathSlot(ev.siteId, norm));
+    await putHtml(this.bucket, key, html);
+    await upsertLayoutHtmlSnapshot(ev.websiteId, norm, key, dW, dH);
+    log.info({ msg: "heatmap_dom_snapshot_stored", url: ev.url, norm, website_id: ev.websiteId, s3_key: key });
+  }
+
   /** Ingest tracker-shaped rows; each must include `websiteId` (UUID). Screenshots resolve `site_id` via DB from that UUID. */
   async processEvents(events: HeatmapIngestEvent[]): Promise<void> {
     if (events.length === 0) return;
     this.enqueuePoints(eventsToPoints(events));
+
+    // Process DOM snapshots inline (not queued — they're rare, one per page per session).
+    const domSnapshots = events.filter((e) => e.type === "heatmap_dom_snapshot" && e.heatmapLayoutEnabled);
+    for (const ev of domSnapshots) {
+      this.ingestOneDomSnapshot(ev).catch((err) =>
+        log.error({ msg: "heatmap_dom_snapshot_failed", url: ev.url, err: String(err) }),
+      );
+    }
 
     // Only process screenshots where layout capture is enabled — skip siteId resolution otherwise.
     const shots = events.filter((e) => e.type === "heatmap_screenshot" && e.heatmapLayoutEnabled);

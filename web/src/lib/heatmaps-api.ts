@@ -68,12 +68,14 @@ export async function getHeatmapData(
   return res.data as HeatmapData;
 }
 
-/** Presigned JPEG from tracker html2canvas capture for heatmap underlay. */
+/** Heatmap page layout snapshot — HTML DOM snapshot (primary) and/or JPEG fallback. */
 export interface HeatmapPageScreenshot {
-  image_url:            string;
-  image_url_expires_at: string;
-  doc_width:            number;
-  doc_height:           number;
+  image_url?:            string;
+  image_url_expires_at?: string;
+  html_url?:             string;
+  html_url_expires_at?:  string;
+  doc_width:             number;
+  doc_height:            number;
 }
 
 export async function getHeatmapPageScreenshot(

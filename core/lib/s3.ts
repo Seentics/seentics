@@ -86,6 +86,17 @@ export async function putGzipJson(bucket: string, key: string, value: unknown[])
   );
 }
 
+export async function putHtml(bucket: string, key: string, body: string): Promise<void> {
+  await s3().send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      ContentType: "text/html; charset=utf-8",
+    }),
+  );
+}
+
 export async function putJpeg(bucket: string, key: string, body: Uint8Array): Promise<void> {
   await s3().send(
     new PutObjectCommand({

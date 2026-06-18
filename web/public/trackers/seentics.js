@@ -100,7 +100,8 @@ const queues = {
   automations:        [], // automation_trigger
   session:            [], // rrweb eventWithTime wrapped in a TrackerEvent envelope
   heatmaps:           [], // heatmap_click, heatmap_scroll
-  heatmap_screenshot: [], // browser-captured JPEG screenshots (html2canvas)
+  heatmap_screenshot:    [], // browser-captured JPEG screenshots (html2canvas, fallback)
+  heatmap_dom_snapshot: [], // full DOM HTML snapshots (primary layout capture)
 };
 
 // ─── Visitor / Session IDs ────────────────────────────────────────────────────
@@ -247,19 +248,21 @@ const drainQueues = () => {
   const autoEvts    = queues.automations.splice(0);
   const sessionEvts = queues.session.splice(0);
   const heatmapEvts = queues.heatmaps.splice(0);
-  const shotEvts    = queues.heatmap_screenshot.splice(0);
+  const shotEvts        = queues.heatmap_screenshot.splice(0);
+  const domSnapshotEvts = queues.heatmap_dom_snapshot.splice(0);
 
-  if (!events.length && !funnelEvts.length && !autoEvts.length && !sessionEvts.length && !heatmapEvts.length && !shotEvts.length) {
+  if (!events.length && !funnelEvts.length && !autoEvts.length && !sessionEvts.length && !heatmapEvts.length && !shotEvts.length && !domSnapshotEvts.length) {
     return null;
   }
 
   const payload = { website_id: websiteId, domain };
-  if (events.length)      payload.events             = events;
-  if (funnelEvts.length)  payload.funnels            = funnelEvts;
-  if (autoEvts.length)    payload.automations        = autoEvts;
-  if (sessionEvts.length) payload.session            = sessionEvts;
-  if (heatmapEvts.length) payload.heatmaps           = heatmapEvts;
-  if (shotEvts.length)    payload.heatmap_screenshot = shotEvts;
+  if (events.length)            payload.events               = events;
+  if (funnelEvts.length)        payload.funnels              = funnelEvts;
+  if (autoEvts.length)          payload.automations          = autoEvts;
+  if (sessionEvts.length)       payload.session              = sessionEvts;
+  if (heatmapEvts.length)       payload.heatmaps             = heatmapEvts;
+  if (shotEvts.length)          payload.heatmap_screenshot   = shotEvts;
+  if (domSnapshotEvts.length)   payload.heatmap_dom_snapshot = domSnapshotEvts;
 
   return { payload, json: JSON.stringify(payload), sessionEvts, heatmapEvts, shotEvts };
 };
@@ -409,6 +412,118 @@ const installSessionClientErrorCapture = () => {
   });
 };
 
+// ─── Session console capture ──────────────────────────────────────────────────
+
+/**
+ * Override console methods to push log entries into the session queue so they
+ * appear in the replay DevTools panel. Originals are still called unchanged.
+ * Guards against double-installation with a window flag.
+ */
+const installSessionConsoleCapture = () => {
+  if (window.__snc_con_cap) return;
+  window.__snc_con_cap = true;
+
+  const enqueueConsole = (level, args) => {
+    const serialized = args.map(a => {
+      if (typeof a === 'string') return a;
+      try { return JSON.stringify(a); } catch { return String(a); }
+    });
+    queues.session.push({
+      type: 'console_event',
+      data: { level, args: serialized },
+      ts:   Date.now(),
+      url:  location.href,
+      sid:  getSessionId(),
+      vid:  visitorId,
+    });
+  };
+
+  ['log', 'info', 'warn', 'error', 'debug'].forEach(level => {
+    const orig = console[level];
+    console[level] = function() {
+      orig.apply(console, arguments);
+      try { enqueueConsole(level, Array.prototype.slice.call(arguments)); } catch { /* ignore */ }
+    };
+  });
+};
+
+// ─── Session network capture ──────────────────────────────────────────────────
+
+/**
+ * Intercept fetch and XHR to record network requests as session events.
+ * Excludes the tracker's own /collect calls to avoid infinite event loops.
+ * Guards against double-installation with a window flag.
+ */
+const installSessionNetworkCapture = () => {
+  if (window.__snc_net_cap) return;
+  window.__snc_net_cap = true;
+
+  const enqueueNetwork = (data) => {
+    queues.session.push({
+      type: 'network_event',
+      data,
+      ts:   data.startTs,
+      url:  location.href,
+      sid:  getSessionId(),
+      vid:  visitorId,
+    });
+  };
+
+  // ── fetch interception ──
+  const origFetch = window.fetch;
+  window.fetch = function(input, init) {
+    const method  = ((init && init.method) || 'GET').toUpperCase();
+    const reqUrl  = typeof input === 'string' ? input
+      : (input instanceof URL ? input.href : (input && typeof input.url === 'string' ? input.url : ''));
+    if (!reqUrl || reqUrl === COLLECT || reqUrl.startsWith(COLLECT + '?')) {
+      return origFetch.apply(this, arguments);
+    }
+    const startTs = Date.now();
+    const p = origFetch.apply(this, arguments);
+    p.then(
+      function(response) {
+        try { enqueueNetwork({ method, url: reqUrl, status: response.status, duration: Date.now() - startTs, startTs }); } catch { /* ignore */ }
+        return response;
+      },
+      function(err) {
+        try { enqueueNetwork({ method, url: reqUrl, status: 0, duration: Date.now() - startTs, startTs, error: String(err) }); } catch { /* ignore */ }
+        throw err;
+      }
+    );
+    return p;
+  };
+
+  // ── XHR interception ──
+  const origOpen = XMLHttpRequest.prototype.open;
+  const origSend = XMLHttpRequest.prototype.send;
+
+  XMLHttpRequest.prototype.open = function(method, url) {
+    this._snc_method = String(method || 'GET');
+    this._snc_url    = String(url || '');
+    this._snc_start  = 0;
+    return origOpen.apply(this, arguments);
+  };
+
+  XMLHttpRequest.prototype.send = function() {
+    const req = this;
+    if (req._snc_url && req._snc_url !== COLLECT && !req._snc_url.startsWith(COLLECT + '?')) {
+      req._snc_start = Date.now();
+      req.addEventListener('loadend', function() {
+        try {
+          enqueueNetwork({
+            method:   (req._snc_method || 'GET').toUpperCase(),
+            url:      req._snc_url,
+            status:   req.status,
+            duration: Date.now() - req._snc_start,
+            startTs:  req._snc_start,
+          });
+        } catch { /* ignore */ }
+      });
+    }
+    return origSend.apply(this, arguments);
+  };
+};
+
 // ─── Heatmap screenshot (server-side Playwright) ──────────────────────────────
 
 /**
@@ -485,66 +600,72 @@ const scheduleHeatmapScreenshotAfterAppIdle = () => {
   if (cfg.heatmap_layout_enabled === false) return;
   clearScreenshotScheduleTimers();
   clearScreenshotLongPageInterval();
-  for (const delayMs of [1_500, 4_000]) {
-    screenshotScheduleTimeouts.push(window.setTimeout(requestPlaywrightScreenshot, delayMs));
-  }
-  // Also schedule a browser-side capture (html2canvas) for pages Playwright can't
-  // reach (e.g. authenticated pages). Runs once per path per session.
-  screenshotScheduleTimeouts.push(window.setTimeout(captureAndQueueBrowserScreenshot, 3_000));
+  // Primary: capture DOM snapshot directly from the browser — always works,
+  // no authentication or X-Frame-Options issues.
+  screenshotScheduleTimeouts.push(window.setTimeout(captureAndQueueDomSnapshot, 2_500));
 };
 
 /**
- * Lazy-load html2canvas from CDN and return the constructor, or null on failure.
- * Cached after the first load so subsequent calls are instant.
+ * Capture the current page as a DOM snapshot (serialized HTML) and push it onto
+ * the heatmap_dom_snapshot queue so it's sent on the next flush.
+ *
+ * Approach (Hotjar/Clarity style):
+ * - Clone the live DOM so we don't mutate the page
+ * - Insert <base href> so relative asset URLs resolve correctly when rendered
+ * - Remove <script> tags so the snapshot is inert and safe to render in a sandboxed iframe
+ * - Remove <iframe> to avoid cross-origin complications
+ * - Runs once per path per session — deduped via sessionStorage
  */
-let _html2canvasPromise = null;
-const loadHtml2Canvas = () => {
-  if (_html2canvasPromise) return _html2canvasPromise;
-  _html2canvasPromise = new Promise((resolve) => {
-    try {
-      const s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
-      s.crossOrigin = 'anonymous';
-      s.onload = () => resolve(typeof window.html2canvas === 'function' ? window.html2canvas : null);
-      s.onerror = () => resolve(null);
-      document.head.appendChild(s);
-    } catch { resolve(null); }
-  });
-  return _html2canvasPromise;
-};
-
-/**
- * Capture the current viewport as a JPEG using html2canvas and push it onto
- * the heatmap_screenshot queue so it's sent on the next flush.
- * Runs once per path per session — skips if a Playwright screenshot was already
- * successfully requested for this path.
- */
-const captureAndQueueBrowserScreenshot = async () => {
+const captureAndQueueDomSnapshot = () => {
   if (cfg.heatmap_layout_enabled === false) return;
   if (hasSentHeatmapScreenshotForPath()) return;
   try {
-    const h2c = await loadHtml2Canvas();
-    if (!h2c) return;
-    const canvas = await h2c(document.body, {
-      useCORS: true,
-      allowTaint: false,
-      scale: Math.min(window.devicePixelRatio || 1, 2),
-      logging: false,
+    const clone = document.documentElement.cloneNode(true);
+
+    // Insert <base href> so relative URLs resolve against the original origin
+    const head = clone.querySelector('head');
+    if (head) {
+      const existingBase = head.querySelector('base');
+      if (!existingBase) {
+        const base = document.createElement('base');
+        base.href = location.origin + '/';
+        head.insertBefore(base, head.firstChild);
+      }
+    }
+
+    // Remove elements that are unsafe or unnecessary in a static snapshot
+    clone.querySelectorAll('script, noscript').forEach(el => el.remove());
+    // Replace cross-origin iframes with a placeholder (same-origin iframes could be captured,
+    // but the added complexity and payload size aren't worth it for a layout snapshot)
+    clone.querySelectorAll('iframe').forEach(el => {
+      const ph = document.createElement('div');
+      ph.style.cssText = 'background:#f3f4f6;border:1px dashed #d1d5db;display:flex;align-items:center;justify-content:center;color:#9ca3af;font-size:12px;';
+      ph.setAttribute('data-snc-placeholder', 'iframe');
+      ph.textContent = '[embedded content]';
+      el.replaceWith(ph);
     });
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-    if (!dataUrl || dataUrl.length < 500) return;
-    queues.heatmap_screenshot.push({
-      type:  'heatmap_screenshot',
+
+    const html = '<!DOCTYPE html>' + clone.outerHTML;
+
+    // Skip if snapshot is too large (> 1.2 MB) to avoid oversized payloads
+    if (html.length > 1_200_000) return;
+
+    queues.heatmap_dom_snapshot.push({
+      type:  'heatmap_dom_snapshot',
       ts:    Date.now(),
       url:   location.href,
       sid:   getSessionId(),
       vid:   getVisitorId(),
       doc_w: document.documentElement.scrollWidth || document.body.scrollWidth || window.innerWidth,
       doc_h: document.documentElement.scrollHeight || document.body.scrollHeight || window.innerHeight,
-      data:  { image: dataUrl },
+      vw:    window.innerWidth,
+      vh:    window.innerHeight,
+      data:  { html },
     });
+
+    markHeatmapScreenshotSentForPath();
     flush();
-  } catch { /* ignore — html2canvas failures are non-critical */ }
+  } catch { /* non-critical — DOM serialization failures must not break the page */ }
 };
 
 // ─── Safe regex ───────────────────────────────────────────────────────────────
@@ -1295,6 +1416,8 @@ const init = () => {
       // Session recording setup.
       if (cfg.replay_enabled !== false && cfg.recording !== false) {
         installSessionClientErrorCapture();
+        installSessionConsoleCapture();
+        installSessionNetworkCapture();
         await initRecording();
       }
 

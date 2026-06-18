@@ -64,6 +64,7 @@ export type TrackerCollectBody = {
   session?: unknown[];
   heatmaps?: unknown[];
   heatmap_screenshot?: unknown[];
+  heatmap_dom_snapshot?: unknown[];
   funnels?: unknown[];
   automations?: unknown[];
 };

@@ -349,7 +349,7 @@ export const aiQueries = pgTable(
   ],
 );
 
-/** Heatmap layout screenshot metadata (JPEG in S3). */
+/** Heatmap layout screenshot metadata (JPEG and/or HTML DOM snapshot in S3). */
 export const heatmapPageSnapshots = pgTable(
   "heatmap_page_snapshots",
   {
@@ -359,6 +359,7 @@ export const heatmapPageSnapshots = pgTable(
     contentSha256: text("content_sha256").notNull(),
     docWidth: integer("doc_width").notNull(),
     docHeight: integer("doc_height").notNull(),
+    htmlS3Key: text("html_s3_key"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

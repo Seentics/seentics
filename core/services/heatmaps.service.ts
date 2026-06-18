@@ -211,12 +211,22 @@ export async function getHeatmapLayoutSnapshot(
 
   const cfg = env();
   const expMs = cfg.presignTtlMs;
-  const url = await presignGet(cfg.s3.bucket, row.s3_key, expMs);
   const deadline = new Date(Date.now() + expMs).toISOString();
+
+  // Presign HTML snapshot URL if available (primary — DOM snapshot approach)
+  const htmlUrl = row.html_s3_key
+    ? await presignGet(cfg.s3.bucket, row.html_s3_key, expMs)
+    : undefined;
+
+  // Presign JPEG URL if available (fallback — only when html snapshot absent)
+  const imageUrl = row.s3_key ? await presignGet(cfg.s3.bucket, row.s3_key, expMs) : undefined;
+
   return {
     layout: {
-      image_url: url,
+      image_url: imageUrl,
       image_url_expires_at: deadline,
+      html_url: htmlUrl,
+      html_url_expires_at: htmlUrl ? deadline : undefined,
       doc_width: row.doc_width,
       doc_height: row.doc_height,
     },
