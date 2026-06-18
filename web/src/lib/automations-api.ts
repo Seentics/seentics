@@ -46,9 +46,12 @@ export interface Automation {
 export interface CreateAutomationRequest {
     name: string;
     description?: string;
-    triggerType: string;
-    triggerConfig?: Record<string, any>;
-    actions: AutomationAction[];
+    // New format: pass the full definition directly from AutomationBuilder
+    definition?: Record<string, unknown>;
+    // Legacy format fields (kept for backwards compat)
+    triggerType?: string;
+    triggerConfig?: Record<string, unknown>;
+    actions?: AutomationAction[];
     conditions?: AutomationCondition[];
 }
 
@@ -72,7 +75,7 @@ function normalizeAutomationFromApi(raw: Record<string, unknown>): Automation {
         userId: String(raw.user_id ?? raw.userId ?? ''),
         name: String(raw.name ?? ''),
         description: String(raw.description ?? ''),
-        triggerType: String(trigger.event ?? trigger.triggerType ?? ''),
+        triggerType: String(trigger.type ?? trigger.event ?? trigger.triggerType ?? ''),
         triggerConfig: {
             pageUrlMatch: trigger.pageUrlMatch,
             rateLimitSec: trigger.rateLimitSec,
@@ -107,7 +110,7 @@ function serializeAutomationDefinition(data: CreateAutomationRequest): Record<st
             ...data.triggerConfig,
             ...(data.conditions?.length ? { conditions: data.conditions.map(c => c.conditionConfig) } : {}),
         },
-        actions: data.actions.map((a, i) => ({
+        actions: (data.actions ?? []).map((a, i) => ({
             id: a.id ?? `action-${i}`,
             type: a.actionType,
             actionType: a.actionType,
@@ -151,12 +154,13 @@ export async function fetchAutomation(websiteId: string, automationId: string): 
 
 async function createAutomation(websiteId: string, data: CreateAutomationRequest): Promise<Automation> {
     if (demoMutationGuard(websiteId)) {
-        return { id: 'demo-new', websiteId, userId: 'demo', ...data, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: data.actions } as Automation;
+        return { id: 'demo-new', websiteId, userId: 'demo', name: data.name, description: '', triggerType: '', triggerConfig: {}, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: [] } as Automation;
     }
+    const definition = data.definition ?? serializeAutomationDefinition(data as Required<CreateAutomationRequest>);
     const response = await api.post(`/automations/${websiteId}`, {
         name: data.name,
         description: data.description ?? '',
-        definition: serializeAutomationDefinition(data),
+        definition,
         is_active: true,
     });
     const payload = response.data as Record<string, unknown>;
@@ -166,14 +170,15 @@ async function createAutomation(websiteId: string, data: CreateAutomationRequest
 
 async function updateAutomation(websiteId: string, automationId: string, data: Partial<CreateAutomationRequest>): Promise<Automation> {
     if (demoMutationGuard(websiteId)) {
-        return { id: automationId, websiteId, userId: 'demo', name: '', description: '', triggerType: '', triggerConfig: {}, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: [], ...data } as Automation;
+        return { id: automationId, websiteId, userId: 'demo', name: data.name ?? '', description: '', triggerType: '', triggerConfig: {}, isActive: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), actions: [] } as Automation;
     }
     const body: Record<string, unknown> = {};
     if (data.name !== undefined) body.name = data.name;
     if (data.description !== undefined) body.description = data.description;
-    const fullData = data as CreateAutomationRequest;
-    if (data.triggerType !== undefined || data.actions !== undefined) {
-        body.definition = serializeAutomationDefinition(fullData);
+    if (data.definition !== undefined) {
+        body.definition = data.definition;
+    } else if (data.triggerType !== undefined || data.actions !== undefined) {
+        body.definition = serializeAutomationDefinition({ ...data, actions: data.actions ?? [] } as Required<CreateAutomationRequest>);
     }
     const response = await api.put(`/automations/${websiteId}/${automationId}`, body);
     const payload = response.data as Record<string, unknown>;

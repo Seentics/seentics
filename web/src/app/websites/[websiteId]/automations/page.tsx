@@ -11,8 +11,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
-  Bot, Plus, Play, Pause, Trash2, MoreVertical,
-  Zap, Mail, Webhook, Bell, MousePointer, MessageSquare, Eye, Code2,
+  Bot, Plus, Play, Pause, Trash2, MoreVertical, LayoutTemplate,
+  Zap, Webhook, Bell, MessageSquare, Eye, Megaphone,
+  Highlighter, Info, Feather, ExternalLink, Tag,
   CheckCircle2, TrendingUp, Search, Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -26,24 +27,39 @@ import {
 
 
 const TRIGGER_LABELS: Record<string, string> = {
-  custom_event:  'Custom Event',
   page_view:     'Page View',
+  click:         'Element Click',
+  scroll_depth:  'Scroll Depth',
+  time_on_page:  'Time on Page',
   exit_intent:   'Exit Intent',
   inactivity:    'Inactivity',
-  error_rate:    'Error Rate Spike',
-  traffic_spike: 'Traffic Spike',
+  rage_click:    'Rage Click',
+  form_abandon:  'Form Abandonment',
+  js_error:      'JS Error',
+  tab_hidden:    'Tab Hidden',
+  tab_visible:   'Tab Visible',
+  custom_event:  'Custom Event',
+  identify:      'Identify',
   goal_reached:  'Goal Reached',
 };
 
 const ACTION_ICONS: Record<string, React.ElementType> = {
-  email:        Mail,
-  webhook:      Webhook,
-  banner:       Bell,
-  modal:        MessageSquare,
-  notification: Bell,
-  redirect:     MousePointer,
-  hide_element: Eye,
-  script:       Code2,
+  show_modal:          MessageSquare,
+  show_toast:          Bell,
+  show_banner:         Megaphone,
+  highlight_element:   Highlighter,
+  show_tooltip:        Info,
+  personalize_content: Feather,
+  redirect:            ExternalLink,
+  tag_session:         Tag,
+  webhook:             Webhook,
+  // legacy
+  email:               Zap,
+  banner:              Megaphone,
+  modal:               MessageSquare,
+  notification:        Bell,
+  hide_element:        Eye,
+  script:              Zap,
 };
 
 function ActionsCell({ automation, websiteId }: { automation: Automation; websiteId: string }) {
@@ -269,9 +285,18 @@ export default function AutomationsPage() {
               />
             </div>
             <Button
-                size="sm"
-                className="h-8 gap-1.5"
-                onClick={() => router.push(`/websites/${websiteId}/automations/new`)}
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}
+            >
+              <LayoutTemplate className="h-3.5 w-3.5" />
+              Templates
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => router.push(`/websites/${websiteId}/automations/new`)}
             >
               <Plus className="h-3.5 w-3.5" />
               New Automation

@@ -1,49 +1,47 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Bot, ArrowLeft, Save } from 'lucide-react';
+import { Bot, ArrowLeft, LayoutTemplate } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { WorkflowEditor } from '@/components/automations/WorkflowBuilder';
 import { Input } from '@/components/ui/input';
-import { useRef, useState } from 'react';
+import { AutomationBuilder, type AutomationDefinition } from '@/components/automations/AutomationBuilder';
 import { useCreateAutomation } from '@/lib/automations-api';
 
+const TPL_KEY = 'snc_auto_tpl';
+
 export default function NewAutomationPage() {
-  const params = useParams();
-  const router = useRouter();
+  const params    = useParams();
+  const router    = useRouter();
   const websiteId = params?.websiteId as string;
 
   const [name, setName] = useState('Untitled Automation');
-  const saveRef = useRef<(() => Record<string, unknown>) | null>(null);
+  const [initial, setInitial] = useState<AutomationDefinition | undefined>(undefined);
   const createMutation = useCreateAutomation();
 
-  const handleSave = () => {
-    const definition = saveRef.current?.();
-    if (!definition) return;
+  // Load template pre-fill from localStorage (set by templates page)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(TPL_KEY);
+      if (raw) {
+        const tpl = JSON.parse(raw) as { name?: string; definition?: AutomationDefinition };
+        if (tpl.name)       setName(tpl.name);
+        if (tpl.definition) setInitial(tpl.definition);
+        localStorage.removeItem(TPL_KEY);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
-    const trigger = definition.trigger as Record<string, unknown> | undefined;
-    const actions = (definition.actions as Record<string, unknown>[] | undefined) ?? [];
-
+  const handleSave = (definition: AutomationDefinition) => {
     createMutation.mutate(
       {
         websiteId,
         data: {
-          name: name.trim() || 'Untitled Automation',
-          triggerType: String(trigger?.event ?? 'page_view'),
-          triggerConfig: {
-            pageUrlMatch: trigger?.pageUrlMatch,
-            rateLimitSec: trigger?.rateLimitSec,
-          },
-          actions: actions.map((a, i) => ({
-            actionType: String(a.actionType ?? 'webhook') as any,
-            actionConfig: { payload: a.configPayload ?? '' },
-            orderIndex: i,
-          })),
+          name:       name.trim() || 'Untitled Automation',
+          definition: definition as unknown as Record<string, unknown>,
         },
       },
-      {
-        onSuccess: () => router.push(`/websites/${websiteId}/automations`),
-      },
+      { onSuccess: () => router.push(`/websites/${websiteId}/automations`) },
     );
   };
 
@@ -66,9 +64,9 @@ export default function NewAutomationPage() {
               <Bot className="h-4 w-4 shrink-0 text-primary" />
               <Input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={e => setName(e.target.value)}
                 className="h-8 min-w-0 border-none bg-transparent px-0 py-0 text-sm font-semibold shadow-none focus-visible:ring-0 md:h-9 md:text-base md:font-bold"
-                placeholder="Workflow name"
+                placeholder="Automation name"
               />
             </div>
             <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
@@ -76,22 +74,25 @@ export default function NewAutomationPage() {
             </p>
           </div>
         </div>
-
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            size="sm"
-            className="h-9 gap-2 font-semibold text-xs shadow-sm"
-            onClick={handleSave}
-            disabled={createMutation.isPending}
-          >
-            <Save className="h-3.5 w-3.5" />
-            {createMutation.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 text-xs"
+          onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}
+        >
+          <LayoutTemplate className="h-3.5 w-3.5" />
+          Browse templates
+        </Button>
       </header>
 
       <div className="relative min-h-0 flex-1">
-        <WorkflowEditor className="absolute inset-0" saveRef={saveRef} />
+        <AutomationBuilder
+          key={initial ? 'tpl' : 'empty'}
+          initialDefinition={initial}
+          onSave={handleSave}
+          isSaving={createMutation.isPending}
+          className="absolute inset-0"
+        />
       </div>
     </div>
   );
