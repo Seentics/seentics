@@ -34,10 +34,13 @@ export function corsMiddleware(allowedOriginsRaw: string) {
     const origin = c.req.header("Origin") ?? "";
     const path   = new URL(c.req.url).pathname;
 
-    // Tracker endpoints are public — allow any origin (per-route domain check handles auth)
+    // Tracker endpoints are public — allow any origin (per-route domain check handles auth).
+    // sendBeacon sends with credentials: 'include', so we must echo a specific origin
+    // and set Access-Control-Allow-Credentials: true (never use * with credentials).
     if (isTrackerPath(path)) {
       if (origin) {
         c.header("Access-Control-Allow-Origin", origin);
+        c.header("Access-Control-Allow-Credentials", "true");
         c.header("Vary", "Origin");
       } else {
         c.header("Access-Control-Allow-Origin", "*");

@@ -23,18 +23,26 @@ const GATEWAY = process.env.API_GATEWAY_URL ?? 'http://gateway:8080';
 export const maxDuration = 30;
 export const dynamic = 'force-dynamic';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Methods':  'GET, POST, PUT, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers':
-    'Content-Type, Content-Length, Accept-Encoding, Content-Encoding, Authorization, X-API-Key, X-Site-ID, X-Requested-With, Cache-Control',
-  'Access-Control-Max-Age': '86400',
-};
-
+// sendBeacon uses credentials: 'include' — must reflect specific origin + set Credentials: true.
+// Never use wildcard '*' with Access-Control-Allow-Credentials: true.
 function corsHeaders(origin: string): Record<string, string> {
+  if (origin) {
+    return {
+      'Access-Control-Allow-Origin':      origin,
+      'Access-Control-Allow-Credentials': 'true',
+      'Access-Control-Allow-Methods':     'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers':
+        'Content-Type, Content-Length, Accept-Encoding, Content-Encoding, Authorization, X-API-Key, X-Site-ID, X-Requested-With, Cache-Control',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin',
+    };
+  }
   return {
-    ...CORS_HEADERS,
-    'Access-Control-Allow-Origin': origin || '*',
-    ...(origin ? { Vary: 'Origin' } : {}),
+    'Access-Control-Allow-Origin':  '*',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers':
+      'Content-Type, Content-Length, Accept-Encoding, Content-Encoding, Authorization, X-API-Key, X-Site-ID, X-Requested-With, Cache-Control',
+    'Access-Control-Max-Age': '86400',
   };
 }
 

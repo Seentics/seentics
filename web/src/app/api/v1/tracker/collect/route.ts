@@ -28,10 +28,17 @@ const CORS_HEADERS = {
 };
 
 function corsHeaders(origin: string): Record<string, string> {
+  if (origin) {
+    return {
+      ...CORS_HEADERS,
+      'Access-Control-Allow-Origin':      origin,
+      'Access-Control-Allow-Credentials': 'true',
+      'Vary': 'Origin',
+    };
+  }
   return {
     ...CORS_HEADERS,
-    'Access-Control-Allow-Origin': origin || '*',
-    ...(origin ? { Vary: 'Origin' } : {}),
+    'Access-Control-Allow-Origin': '*',
   };
 }
 
