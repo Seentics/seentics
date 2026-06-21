@@ -240,9 +240,8 @@ export default function WebsiteDashboardPage() {
   const { data: hourlyStats } = useHourlyStats(websiteId, dateRange, advancedFilters);
   const { data: visitorInsights, isLoading: visitorInsightsLoading } = useVisitorInsights(websiteId, dateRange);
 
-  // ── DEFERRED: below-the-fold data (loads after primary data arrives) ──
-  // Pass empty websiteId to disable hooks until dashboard data is ready
-  const deferredId = (isDemoMode || !!dashboardData) ? websiteId : '';
+  // All queries fire in parallel — each component handles its own isLoading skeleton.
+  const deferredId = websiteId;
 
   const { data: topPages, isLoading: pagesLoading, error: pagesError } = useTopPages(deferredId, dateRange, advancedFilters);
   const { data: topReferrers, isLoading: referrersLoading, error: referrersError } = useTopReferrers(deferredId, dateRange, advancedFilters);
