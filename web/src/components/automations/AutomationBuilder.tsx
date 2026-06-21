@@ -16,7 +16,7 @@ import {
   AlertTriangle, EyeOff, Eye, UserCheck, MessageSquare, Bell, Layout,
   Highlighter, FileText, ExternalLink, Tag, Webhook, Plus, Trash2,
   Settings, ZoomIn, ZoomOut, Maximize2, X, Save, Filter, Layers,
-  GripVertical, ChevronDown, ChevronRight, ListChecks,
+  GripVertical, ChevronDown, ChevronRight, ListChecks, Braces, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -847,6 +847,121 @@ function AddNodeModal({
   );
 }
 
+// ─── JSON Editor Modal ────────────────────────────────────────────────────────
+
+function JsonEditorModal({
+  definition,
+  onApply,
+  onClose,
+}: {
+  definition: AutomationDefinition;
+  onApply: (def: AutomationDefinition) => void;
+  onClose: () => void;
+}) {
+  const [text, setText] = useState(() => JSON.stringify(definition, null, 2));
+  const [error, setError] = useState<string | null>(null);
+  const [applied, setApplied] = useState(false);
+
+  const handleApply = () => {
+    try {
+      const parsed = JSON.parse(text) as AutomationDefinition;
+      if (!parsed.trigger || !Array.isArray(parsed.actions)) {
+        setError('JSON must have "trigger" and "actions" fields.');
+        return;
+      }
+      onApply(parsed);
+      setError(null);
+      setApplied(true);
+      setTimeout(() => setApplied(false), 2000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invalid JSON');
+    }
+  };
+
+  const handleFormat = () => {
+    try {
+      setText(JSON.stringify(JSON.parse(text), null, 2));
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invalid JSON');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      <div
+        className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-[#14141b] shadow-2xl flex flex-col overflow-hidden"
+        style={{ maxHeight: '85dvh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <Braces className="h-4 w-4 text-violet-400" />
+            <span className="text-sm font-semibold text-white/90">JSON Config</span>
+            <span className="text-[10px] text-white/30 bg-white/5 border border-white/8 rounded px-1.5 py-0.5">AutomationDefinition</span>
+          </div>
+          <button type="button" onClick={onClose} className="text-white/30 hover:text-white transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Editor */}
+        <div className="flex-1 overflow-hidden p-4">
+          <textarea
+            value={text}
+            onChange={e => { setText(e.target.value); setError(null); setApplied(false); }}
+            spellCheck={false}
+            className="w-full h-full min-h-[340px] rounded-xl border border-white/8 bg-[#0d0d12] text-[13px] font-mono text-white/85 p-4 resize-none focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 leading-relaxed placeholder:text-white/20"
+            placeholder="Paste or edit your automation JSON here…"
+          />
+        </div>
+
+        {/* Status bar */}
+        <div className="px-4 pb-2 shrink-0">
+          {error && (
+            <div className="flex items-center gap-2 text-xs text-red-400 bg-red-500/8 border border-red-500/15 rounded-lg px-3 py-2">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-mono">{error}</span>
+            </div>
+          )}
+          {applied && !error && (
+            <div className="flex items-center gap-2 text-xs text-emerald-400 bg-emerald-500/8 border border-emerald-500/15 rounded-lg px-3 py-2">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              <span>Applied — canvas updated.</span>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-5 py-3.5 border-t border-white/8 shrink-0">
+          <button
+            type="button"
+            onClick={handleFormat}
+            className="text-xs text-white/40 hover:text-white/70 transition-colors underline underline-offset-2"
+          >
+            Format JSON
+          </button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-white/50 hover:text-white" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 text-xs bg-violet-600 hover:bg-violet-500 text-white border-0 px-4"
+              onClick={handleApply}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Apply
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const DEFAULT_DEFINITION: AutomationDefinition = {
@@ -866,6 +981,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
   const [addAfterIndex, setAddAfterIndex] = useState<number | null>(null);
   const [dragSrc, setDragSrc] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  const [showJson, setShowJson] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const panRef = useRef({ active: false, startX: 0, startY: 0, fromX: 0, fromY: 0 });
@@ -989,6 +1105,15 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
             title="Workflow settings"
           >
             <Settings className="h-4 w-4" />
+          </button>
+          <div className="h-4 w-px bg-white/10 mx-1" />
+          <button
+            type="button"
+            onClick={() => setShowJson(true)}
+            className={cn('h-8 w-8 rounded-lg flex items-center justify-center transition-colors', showJson ? 'text-violet-400 bg-violet-500/15' : 'text-white/50 hover:text-white hover:bg-white/8')}
+            title="View / edit JSON config"
+          >
+            <Braces className="h-4 w-4" />
           </button>
           <div className="h-4 w-px bg-white/10 mx-1" />
           <Button
@@ -1162,6 +1287,15 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
           hasCondition={hasCondition}
           onAdd={handleAddNode}
           onClose={() => setAddAfterIndex(null)}
+        />
+      )}
+
+      {/* JSON editor modal */}
+      {showJson && (
+        <JsonEditorModal
+          definition={definition}
+          onApply={def => setDefinition(def)}
+          onClose={() => setShowJson(false)}
         />
       )}
     </div>
