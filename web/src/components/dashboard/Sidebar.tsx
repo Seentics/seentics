@@ -24,12 +24,12 @@ interface NavItem {
 function buildMainNav(websiteId: string): NavItem[] {
   return [
     { label: 'Overview',    href: `/websites/${websiteId}`,             icon: LayoutDashboard },
+    { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
     { label: 'Realtime',    href: `/websites/${websiteId}/realtime`,    icon: Activity },
     { label: 'Recording',   href: `/websites/${websiteId}/replays`,     icon: Video },
     { label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
     { label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
     { label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote },
-    { label: 'Automations', href: `/websites/${websiteId}/automations`, icon: Bot },
   ];
 }
 
