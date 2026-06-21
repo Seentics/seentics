@@ -150,18 +150,28 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
       }
     }
 
-    // Get viewport dimensions for metadata
+    // Get full page dimensions — scrollWidth/Height gives the true document size including
+    // all content below the fold, which is what the heatmap coordinate system references.
     const viewportSize = page.viewportSize();
-    const width = viewportSize?.width ?? options.viewportWidth ?? 1920;
-    const height = viewportSize?.height ?? options.viewportHeight ?? 1080;
+    const viewportWidth = viewportSize?.width ?? options.viewportWidth ?? 1920;
+    let width = viewportWidth;
+    let height = viewportSize?.height ?? options.viewportHeight ?? 1080;
+    try {
+      const dims = await page.evaluate(() => ({
+        w: Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth ?? 0),
+        h: Math.max(document.documentElement.scrollHeight, document.body?.scrollHeight ?? 0),
+      }));
+      if (dims.w >= 200) width = dims.w;
+      if (dims.h >= 200) height = dims.h;
+    } catch { /* evaluate may fail on error pages */ }
 
-    // Capture screenshot
+    // Capture full-page screenshot so the image covers the entire scrollable document.
     let screenshotBuffer: Buffer;
     try {
       screenshotBuffer = await page.screenshot({
         type: "jpeg",
         quality: jpegQuality,
-        fullPage: false, // Use viewport size only
+        fullPage: true,
       });
     } catch (error) {
       throw new Error(

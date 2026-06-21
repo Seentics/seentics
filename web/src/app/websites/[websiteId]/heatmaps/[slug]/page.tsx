@@ -475,16 +475,19 @@ function HeatmapViewer({
   const docPx = useMemo(() => {
     const dataH = documentPixelHeightForHeatmap(points, heatType, viewPort.w, null);
     const natH = shotNatural && shotNatural.h > 200 ? shotNatural.h : 0;
-    // Measured height (iframe scrollHeight or JPEG natural height) is the ground truth.
-    // Still take max with dataH so click points that extend beyond the snapshot aren't cut off.
+    // Measured height (iframe scrollHeight or JPEG natural height) is ground truth.
     if (natH > 200) {
       return Math.min(HEATMAP_DIM_CAP, Math.max(natH, points.length > 0 ? dataH : 0));
     }
-    const hint = docHeightHint;
     if (screenshotActive && pageScreenshot) {
       const sh = pageScreenshot.doc_height > 200 ? pageScreenshot.doc_height : 0;
-      return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, hint, sh));
+      if (sh > 200) {
+        // Stored doc_height is measured from the real page — trust it, don't let the
+        // viewport-stack hint override it and create empty space or clip the content.
+        return Math.min(HEATMAP_DIM_CAP, Math.max(sh, dataH));
+      }
     }
+    const hint = docHeightHint;
     return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, hint));
   }, [points, heatType, viewPort.w, docHeightHint, screenshotActive, pageScreenshot, shotNatural]);
 
