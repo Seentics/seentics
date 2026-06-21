@@ -171,6 +171,8 @@ const COUNTRY_ISO2: Record<string, string> = {
 function countryFlagUrl(name: string): string | null {
   const k = name.trim().toLowerCase();
   if (!k || k === 'unknown') return null;
+  // Input is already an ISO 3166-1 alpha-2 code (e.g. "BD", "US")
+  if (/^[a-z]{2}$/.test(k)) return `https://flagcdn.com/w40/${k}.png`;
   const code = COUNTRY_ISO2[k];
   if (!code) return null;
   return `https://flagcdn.com/w40/${code}.png`;

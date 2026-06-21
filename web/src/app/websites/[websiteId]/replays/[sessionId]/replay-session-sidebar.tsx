@@ -505,7 +505,7 @@ export function ReplaySessionSidebar({
     <section className="shrink-0 border-t border-border/60 bg-background/60">
       {/* Tab bar */}
       <div className="border-b border-border/60 bg-background/80 px-3 sm:px-5">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto" style={{ maxWidth: 'calc(68dvh * 16 / 9)' }}>
           <div className="flex items-center gap-0 overflow-x-auto">
             {tabs.map(tab => (
               <button
@@ -532,7 +532,7 @@ export function ReplaySessionSidebar({
       </div>
 
       {/* Tab panels */}
-      <div className="mx-auto max-w-7xl px-3 py-5 sm:px-5">
+      <div className="mx-auto px-3 py-5 sm:px-5" style={{ maxWidth: 'calc(68dvh * 16 / 9)' }}>
         {activeTab === 'summary' && (
           <SessionSummaryCard
             session={session}
