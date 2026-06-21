@@ -655,7 +655,7 @@ const captureAndQueueDomSnapshot = () => {
       ts:    Date.now(),
       url:   location.href,
       sid:   getSessionId(),
-      vid:   getVisitorId(),
+      vid:   visitorId,
       doc_w: document.documentElement.scrollWidth || document.body.scrollWidth || window.innerWidth,
       doc_h: document.documentElement.scrollHeight || document.body.scrollHeight || window.innerHeight,
       vw:    window.innerWidth,
