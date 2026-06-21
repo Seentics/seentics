@@ -123,9 +123,21 @@ export default function WebsitesOnboardingPage() {
   if (phase === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="h-10 w-10 animate-spin mx-auto mb-6 text-primary" />
-          <p className="text-muted-foreground font-medium animate-pulse">Loading...</p>
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Logo className="h-8 w-auto opacity-90" />
+          <div>
+            <p className="text-sm font-semibold text-foreground">Loading your workspace</p>
+            <p className="mt-1 text-xs text-muted-foreground">Checking your websites…</p>
+          </div>
+          <div className="flex gap-1">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
         </div>
       </div>
     );
