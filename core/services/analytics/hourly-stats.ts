@@ -21,7 +21,7 @@ export async function getHourlyStatsAnalytics(
     WHERE website_id = ${siteId}
       AND event_type = 'pageview'
       AND occurred_at >= ${start}
-    GROUP BY extract(hour from occurred_at AT TIME ZONE ${tz})::int
+    GROUP BY 1
     ORDER BY h
   `;
 

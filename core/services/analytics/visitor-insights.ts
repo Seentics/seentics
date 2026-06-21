@@ -77,7 +77,7 @@ export async function getVisitorInsightsAnalytics(
         GROUP BY session_id
       ) s
     ),
-    -- New vs returning — `prev_vids` lookback is capped at 365 days
+    -- New vs returning: prev_vids lookback is capped at 365 days
     period_vids AS (
       SELECT DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id) AS vid
       FROM base
