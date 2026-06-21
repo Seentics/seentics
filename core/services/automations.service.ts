@@ -7,21 +7,47 @@ import { resolveWebsiteIds } from "../lib/website-resolve";
 export async function list(userId: string, websiteParam: string) {
   await ws.assertWebsiteAccess(userId, websiteParam);
   const { uuidStr } = await resolveWebsiteIds(websiteParam);
-  const rows = await db
-    .select()
-    .from(automations)
-    .where(eq(automations.websiteId, uuidStr))
-    .orderBy(desc(automations.createdAt));
+  const rows = await pgSql<{
+    id: string; website_id: string; name: string;
+    definition: Record<string, unknown>; is_active: boolean;
+    created_at: Date; updated_at: Date;
+    total: number; success_count: number; failure_count: number; last30: number;
+  }[]>`
+    SELECT
+      a.id, a.website_id, a.name, a.definition, a.is_active,
+      a.created_at, a.updated_at,
+      COUNT(e.id)::int                                                          AS total,
+      COUNT(e.id) FILTER (WHERE e.status = 'success')::int                     AS success_count,
+      COUNT(e.id) FILTER (WHERE e.status = 'failed')::int                      AS failure_count,
+      COUNT(e.id) FILTER (WHERE e.created_at >= NOW() - INTERVAL '30 days')::int AS last30
+    FROM automations a
+    LEFT JOIN automation_events e ON e.automation_id = a.id
+    WHERE a.website_id = ${uuidStr}
+    GROUP BY a.id
+    ORDER BY a.created_at DESC
+  `;
   return {
-    data: rows.map((a) => ({
-      id: a.id,
-      website_id: a.websiteId,
-      name: a.name,
-      definition: a.definition,
-      is_active: a.isActive,
-      created_at: a.createdAt.toISOString(),
-      updated_at: a.updatedAt.toISOString(),
-    })),
+    data: rows.map((a) => {
+      const total   = Number(a.total   ?? 0);
+      const success = Number(a.success_count ?? 0);
+      const failure = Number(a.failure_count ?? 0);
+      return {
+        id:         a.id,
+        website_id: a.website_id,
+        name:       a.name,
+        definition: a.definition,
+        is_active:  a.is_active,
+        created_at: a.created_at instanceof Date ? a.created_at.toISOString() : String(a.created_at),
+        updated_at: a.updated_at instanceof Date ? a.updated_at.toISOString() : String(a.updated_at),
+        stats: {
+          totalExecutions: total,
+          successCount:    success,
+          failureCount:    failure,
+          successRate:     total > 0 ? Math.round((success / total) * 1000) / 10 : 0,
+          last30Days:      Number(a.last30 ?? 0),
+        },
+      };
+    }),
   };
 }
 
@@ -138,7 +164,7 @@ export async function stats(userId: string, websiteParam: string, id: string) {
     SELECT
       COUNT(*)::int                                            AS total,
       COUNT(*) FILTER (WHERE status = 'success')::int         AS success,
-      COUNT(*) FILTER (WHERE status = 'failure')::int         AS failure
+      COUNT(*) FILTER (WHERE status = 'failed')::int          AS failure
     FROM automation_events
     WHERE automation_id = ${id}
   `;
@@ -161,6 +187,36 @@ export async function stats(userId: string, websiteParam: string, id: string) {
       last30Days:      last30?.cnt ?? 0,
     },
   };
+}
+
+export async function dailyStats(userId: string, websiteParam: string, id: string) {
+  await ws.assertWebsiteAccess(userId, websiteParam);
+  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+  const [a] = await db
+    .select()
+    .from(automations)
+    .where(and(eq(automations.id, id), eq(automations.websiteId, uuidStr)))
+    .limit(1);
+  if (!a) return null;
+
+  const rows = await pgSql<{ day: string; runs: number }[]>`
+    SELECT
+      to_char(date_trunc('day', created_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS day,
+      COUNT(*)::int AS runs
+    FROM automation_events
+    WHERE automation_id = ${id}
+      AND created_at >= NOW() - INTERVAL '14 days'
+    GROUP BY 1
+    ORDER BY 1
+  `;
+
+  const map = new Map(rows.map((r) => [r.day, Number(r.runs)]));
+  const data = Array.from({ length: 14 }, (_, i) => {
+    const d   = new Date(Date.now() - (13 - i) * 86400000);
+    const key = d.toISOString().slice(0, 10);
+    return { day: `D${i + 1}`, runs: map.get(key) ?? 0 };
+  });
+  return { data };
 }
 
 export async function activeForTracker(websiteParam: string) {

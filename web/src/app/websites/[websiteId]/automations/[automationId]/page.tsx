@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import {
   useAutomations, useToggleAutomation, useDeleteAutomation, useUpdateAutomation,
+  useAutomationDailyStats,
 } from '@/lib/automations-api';
 import { AutomationBuilder, type AutomationDefinition } from '@/components/automations/AutomationBuilder';
 import {
@@ -86,13 +87,6 @@ const ACTION_LABELS: Record<string, string> = {
   webhook:             'Webhook',
 };
 
-function demoRunHistory(totalRuns: number) {
-  return Array.from({ length: 14 }, (_, i) => ({
-    day: `D${i + 1}`,
-    runs: Math.max(0, Math.floor((totalRuns / 14) * (0.6 + Math.random() * 0.8))),
-  }));
-}
-
 export default function AutomationDetailPage() {
   const params        = useParams();
   const router        = useRouter();
@@ -106,6 +100,7 @@ export default function AutomationDetailPage() {
   const { mutate: toggle, isPending: toggling } = useToggleAutomation();
   const { mutate: remove, isPending: deleting } = useDeleteAutomation();
   const { mutate: update, isPending: saving }   = useUpdateAutomation();
+  const { data: dailyStatsData } = useAutomationDailyStats(websiteId, automationId);
 
   const automation = (data?.automations ?? []).find(a => a.id === automationId);
 
@@ -122,7 +117,7 @@ export default function AutomationDetailPage() {
   if (!automation) return null;
 
   const TriggerIcon = TRIGGER_ICONS[automation.triggerType] ?? Zap;
-  const runHistory  = demoRunHistory(automation.stats?.totalExecutions ?? 0);
+  const runHistory  = dailyStatsData ?? Array.from({ length: 14 }, (_, i) => ({ day: `D${i + 1}`, runs: 0 }));
 
   // Use the stored definition JSON directly — it contains the full state including conditions, frequency, abTest, priority
   const def = automation.definition ?? {};

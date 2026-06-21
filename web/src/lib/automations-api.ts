@@ -102,6 +102,13 @@ function normalizeAutomationFromApi(raw: Record<string, unknown>): Automation {
             conditionType: String(c.op ?? c.conditionType ?? 'eq'),
             conditionConfig: c as Record<string, any>,
         })),
+        stats: raw.stats ? {
+            totalExecutions: Number((raw.stats as AutomationStats).totalExecutions ?? 0),
+            successCount:    Number((raw.stats as AutomationStats).successCount    ?? 0),
+            failureCount:    Number((raw.stats as AutomationStats).failureCount    ?? 0),
+            successRate:     Number((raw.stats as AutomationStats).successRate     ?? 0),
+            last30Days:      Number((raw.stats as AutomationStats).last30Days      ?? 0),
+        } : undefined,
     };
 }
 
@@ -302,6 +309,29 @@ export function useAutomationStats(websiteId: string, automationId: string) {
     return useQuery({
         queryKey: ['automation-stats', websiteId, automationId],
         queryFn: () => getAutomationStats(websiteId, automationId),
+        enabled: isValidId(websiteId) && !!automationId,
+    });
+}
+
+async function getAutomationDailyStats(websiteId: string, automationId: string): Promise<{ day: string; runs: number }[]> {
+    if (isDemo(websiteId)) {
+        const demo = demoAutomations().automations.find(a => a.id === automationId);
+        const total = demo?.stats?.totalExecutions ?? 0;
+        return Array.from({ length: 14 }, (_, i) => ({
+            day: `D${i + 1}`,
+            runs: Math.max(0, Math.floor((total / 14) * (0.6 + Math.random() * 0.8))),
+        }));
+    }
+    const response = await api.get(`/automations/${websiteId}/${automationId}/stats/daily`);
+    const payload = response.data as Record<string, unknown>;
+    const rows = Array.isArray(payload?.data) ? payload.data as { day: string; runs: number }[] : [];
+    return rows;
+}
+
+export function useAutomationDailyStats(websiteId: string, automationId: string) {
+    return useQuery({
+        queryKey: ['automation-daily-stats', websiteId, automationId],
+        queryFn: () => getAutomationDailyStats(websiteId, automationId),
         enabled: isValidId(websiteId) && !!automationId,
     });
 }
