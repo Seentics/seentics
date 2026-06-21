@@ -458,8 +458,9 @@ function HeatmapViewer({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [loadState, setLoadState] = useState<'idle' | 'loading' | 'loaded' | 'error'>('idle');
   const [viewPort, setViewPort] = useState<{ w: number; h: number }>({ w: 1280, h: 0 });
-  /** Natural JPEG size when loaded — refines doc box if API metadata differs slightly. */
+  /** Natural size when loaded — from JPEG naturalWidth/Height or HTML iframe scrollWidth/Height. */
   const [shotNatural, setShotNatural] = useState<{ w: number; h: number } | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const hasHtmlSnapshot = !!pageScreenshot?.html_url?.trim();
   const hasJpegSnapshot = !!pageScreenshot?.image_url?.trim();
@@ -473,13 +474,18 @@ function HeatmapViewer({
 
   const docPx = useMemo(() => {
     const dataH = documentPixelHeightForHeatmap(points, heatType, viewPort.w, null);
-    const hint = docHeightHint;
     const natH = shotNatural && shotNatural.h > 200 ? shotNatural.h : 0;
+    // Measured height (iframe scrollHeight or JPEG natural height) is the ground truth.
+    // Still take max with dataH so click points that extend beyond the snapshot aren't cut off.
+    if (natH > 200) {
+      return Math.min(HEATMAP_DIM_CAP, Math.max(natH, points.length > 0 ? dataH : 0));
+    }
+    const hint = docHeightHint;
     if (screenshotActive && pageScreenshot) {
       const sh = pageScreenshot.doc_height > 200 ? pageScreenshot.doc_height : 0;
-      return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, hint, sh, natH));
+      return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, hint, sh));
     }
-    return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, hint, natH));
+    return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, hint));
   }, [points, heatType, viewPort.w, docHeightHint, screenshotActive, pageScreenshot, shotNatural]);
 
   const dims = useMemo(() => {
@@ -597,13 +603,23 @@ function HeatmapViewer({
               >
                 {hasHtmlSnapshot && pageScreenshot.html_url ? (
                   <iframe
+                    ref={iframeRef}
                     src={pageScreenshot.html_url}
                     title="Page snapshot"
                     sandbox="allow-same-origin"
                     scrolling="no"
                     className="pointer-events-none block border-0"
                     style={{ width: dims.w, height: dims.h }}
-                    onLoad={() => setLoadState('loaded')}
+                    onLoad={() => {
+                      setLoadState('loaded');
+                      try {
+                        const doc = iframeRef.current?.contentDocument;
+                        if (!doc) return;
+                        const h = doc.documentElement.scrollHeight;
+                        const w = doc.documentElement.scrollWidth;
+                        if (h > 100) setShotNatural({ w: w > 200 ? w : dims.w, h });
+                      } catch { /* cross-origin guard */ }
+                    }}
                     onError={() => setLoadState('error')}
                   />
                 ) : pageScreenshot.image_url ? (
