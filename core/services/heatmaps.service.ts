@@ -200,14 +200,17 @@ export async function getHeatmapLayoutSnapshot(
   const { uuidStr, siteId } = await resolve(websiteParam, opts.lenientResolve);
   const norm = normalizeHeatmapPagePath(pagePath);
   const row = await getLayoutSnapshot(uuidStr, norm);
-  if (!row?.s3_key) {
+  // A row exists if either a JPEG screenshot (s3_key) or a DOM HTML snapshot (html_s3_key) is stored.
+  // upsertLayoutHtmlSnapshot inserts with s3_key='' so checking only s3_key would treat a valid
+  // DOM snapshot as a miss and suppress it behind an unnecessary Playwright autoCapture.
+  if (!row?.s3_key && !row?.html_s3_key) {
     log.info({ msg: "heatmap_snapshot_miss", website_uuid: uuidStr, norm, triggering_autocapture: true });
     void wh("snapshot_miss_triggering_autocapture", { websiteUuid: uuidStr, siteId, norm, websiteParam });
-    // No snapshot — find a real URL from analytics events and trigger Playwright in background.
+    // No snapshot at all — find a real URL from analytics events and trigger Playwright in background.
     void autoCapture(websiteParam, uuidStr, siteId, norm, opts);
     return { layout: null as null };
   }
-  void wh("snapshot_hit", { websiteUuid: uuidStr, norm, s3Key: row.s3_key });
+  void wh("snapshot_hit", { websiteUuid: uuidStr, norm, s3Key: row.s3_key, htmlS3Key: row.html_s3_key });
 
   const cfg = env();
   const expMs = cfg.presignTtlMs;

@@ -292,7 +292,7 @@ export class HeatmapEngine {
 
     const key = heatmapHtmlSnapshotKey(ev.siteId, layoutPathSlot(ev.siteId, norm));
     await putHtml(this.bucket, key, html);
-    await upsertLayoutHtmlSnapshot(ev.websiteId, norm, key, dW, dH);
+    await upsertLayoutHtmlSnapshot(ev.websiteId, norm, key, sum, dW, dH);
     log.info({ msg: "heatmap_dom_snapshot_stored", url: ev.url, norm, website_id: ev.websiteId, s3_key: key });
   }
 

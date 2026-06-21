@@ -112,6 +112,7 @@ export async function upsertLayoutHtmlSnapshot(
   websiteId: string,
   pagePath: string,
   htmlS3Key: string,
+  sha256: string,
   docW: number,
   docH: number,
 ): Promise<void> {
@@ -119,11 +120,13 @@ export async function upsertLayoutHtmlSnapshot(
     INSERT INTO heatmap_page_snapshots
       (website_id, page_path, s3_key, content_sha256, doc_width, doc_height, html_s3_key, updated_at)
     VALUES
-      (${websiteId}::uuid, ${pagePath}, '', '', ${docW}, ${docH}, ${htmlS3Key}, NOW())
+      (${websiteId}::uuid, ${pagePath}, '', ${sha256}, ${docW}, ${docH}, ${htmlS3Key}, NOW())
     ON CONFLICT (website_id, page_path) DO UPDATE SET
-      html_s3_key = EXCLUDED.html_s3_key,
-      doc_width   = EXCLUDED.doc_width,
-      doc_height  = EXCLUDED.doc_height,
-      updated_at  = NOW()
+      html_s3_key    = EXCLUDED.html_s3_key,
+      content_sha256 = EXCLUDED.content_sha256,
+      doc_width      = EXCLUDED.doc_width,
+      doc_height     = EXCLUDED.doc_height,
+      updated_at     = NOW()
   `;
+  snapshotSha256Cache.set(snapshotCacheKey(websiteId, pagePath), { sha256, at: Date.now() });
 }
