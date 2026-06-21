@@ -76,10 +76,13 @@ export async function getVisitorInsightsAnalytics(
         AND occurred_at <= ${endIso}
     ),
     prev_vids AS (
+      -- Cap the lookback at 365 days — scanning unbounded history is a full table scan.
+      -- Visitors unseen in 12 months are treated as new, which is correct UX-wise too.
       SELECT DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id) AS vid
       FROM analytics_events
       WHERE website_id = ${siteId}
         AND event_type = 'pageview'
+        AND occurred_at >= ${new Date(start.getTime() - 365 * 86400000).toISOString()}
         AND occurred_at < ${startIso}
     )
     SELECT
