@@ -8,6 +8,8 @@ const log = baseLog.child({ category: "ingest" });
 const ANALYTICS_SKIP = new Set([
   "rrweb",
   "session_error",
+  "console_event",
+  "network_event",
   "heatmap_click",
   "heatmap_scroll",
   "heatmap_screenshot",

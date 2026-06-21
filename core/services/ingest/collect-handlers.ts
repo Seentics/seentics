@@ -77,7 +77,7 @@ function collectPrepareSessions(
 ): TrackerEvent[] {
   const out: TrackerEvent[] = [];
   for (const e of evs) {
-    if (e.type !== "rrweb" && e.type !== "session_error") continue;
+    if (e.type !== "rrweb" && e.type !== "session_error" && e.type !== "console_event" && e.type !== "network_event") continue;
     if (!e.sid) continue;
     out.push({ ...e, websiteId: siteId, data: e.data ?? {}, ingestMeta });
   }

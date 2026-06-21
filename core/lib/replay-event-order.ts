@@ -24,8 +24,9 @@ export function replayEventOrderingMs(ev: Record<string, unknown>): number {
 function envelopeKindOrder(ev: Record<string, unknown>): number {
   const ty = ev.type;
   if (ty === "rrweb") return 0;
+  if (ty === "console_event" || ty === "network_event") return 1;
   if (ty === "session_error") return 2;
-  return 1;
+  return 3;
 }
 
 export function compareReplayEnvelopeEvents(
