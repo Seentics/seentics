@@ -1392,11 +1392,14 @@ export function SessionReplaySurface({
         className,
       )}
     >
-      <div className="flex min-h-0 min-w-0 max-w-full flex-col overflow-hidden mb-4 rounded-xl border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
+      <div
+        className="mx-auto w-full flex min-h-0 min-w-0 flex-col overflow-hidden mb-4 rounded-xl border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]"
+        style={{ maxWidth: 'calc(68dvh * 16 / 9)' }}
+      >
         <div ref={measureRef} className="relative flex min-h-0 min-w-0 flex-col overflow-hidden">
           <div
             ref={measureInnerRef}
-            className="relative min-h-0 min-w-0 w-full max-w-full overflow-hidden bg-black"
+            className="relative min-h-0 min-w-0 w-full overflow-hidden bg-black"
             style={{ aspectRatio: '16/9', maxHeight: '68dvh' }}
           >
             <div
