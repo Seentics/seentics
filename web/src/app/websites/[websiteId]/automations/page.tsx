@@ -13,7 +13,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import {
   Bot, Plus, Play, Pause, Trash2, MoreVertical, LayoutTemplate,
   Zap, Webhook, Bell, MessageSquare, Eye, Megaphone,
-  Highlighter, Info, Feather, ExternalLink, Tag,
+  Highlighter, Info, Feather, ExternalLink, Tag, Pencil,
   CheckCircle2, TrendingUp, Search, Activity,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -62,7 +62,7 @@ const ACTION_ICONS: Record<string, React.ElementType> = {
   script:              Zap,
 };
 
-function ActionsCell({ automation, websiteId }: { automation: Automation; websiteId: string }) {
+function ActionsCell({ automation, websiteId, onEdit }: { automation: Automation; websiteId: string; onEdit: () => void }) {
   const { mutate: toggle, isPending: toggling } = useToggleAutomation();
   const { mutate: remove, isPending: deleting } = useDeleteAutomation();
 
@@ -79,6 +79,11 @@ function ActionsCell({ automation, websiteId }: { automation: Automation; websit
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-36">
+        <DropdownMenuItem
+          onClick={e => { e.stopPropagation(); onEdit(); }}
+        >
+          <Pencil className="h-3.5 w-3.5 mr-2" />Edit
+        </DropdownMenuItem>
         <DropdownMenuItem
           onClick={e => {
             e.stopPropagation();
@@ -217,7 +222,11 @@ export default function AutomationsPage() {
       size: 48,
       enableSorting: false,
       cell: ({ row }) => (
-        <ActionsCell automation={row.original} websiteId={websiteId} />
+        <ActionsCell
+          automation={row.original}
+          websiteId={websiteId}
+          onEdit={() => router.push(`/websites/${websiteId}/automations/${row.original.id}`)}
+        />
       ),
     },
   ];

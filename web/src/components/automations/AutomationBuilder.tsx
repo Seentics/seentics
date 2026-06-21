@@ -1070,8 +1070,11 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
         onMouseUp={onCanvasMouseUp}
         onMouseLeave={onCanvasMouseUp}
       >
-        {/* Toolbar */}
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 rounded-xl border border-white/10 bg-[#18181f]/95 backdrop-blur px-2 py-1.5 shadow-2xl">
+        {/* Toolbar — stop mousedown propagation so canvas pan/select-null don't fire on toolbar clicks */}
+        <div
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 rounded-xl border border-white/10 bg-[#18181f]/95 backdrop-blur px-2 py-1.5 shadow-2xl"
+          onMouseDown={e => e.stopPropagation()}
+        >
           <button
             type="button"
             onClick={() => setZoom(z => Math.min(2, z + 0.1))}
@@ -1109,7 +1112,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
           <div className="h-4 w-px bg-white/10 mx-1" />
           <button
             type="button"
-            onClick={() => setShowJson(true)}
+            onClick={() => setShowJson(v => !v)}
             className={cn('h-8 w-8 rounded-lg flex items-center justify-center transition-colors', showJson ? 'text-violet-400 bg-violet-500/15' : 'text-white/50 hover:text-white hover:bg-white/8')}
             title="View / edit JSON config"
           >

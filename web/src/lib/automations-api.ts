@@ -41,6 +41,8 @@ export interface Automation {
     actions: AutomationAction[];
     conditions?: AutomationCondition[];
     stats?: AutomationStats;
+    /** Full raw definition as stored in the DB — use this for editing */
+    definition?: Record<string, unknown>;
 }
 
 export interface CreateAutomationRequest {
@@ -82,6 +84,7 @@ function normalizeAutomationFromApi(raw: Record<string, unknown>): Automation {
             ...(rawConditions.length ? { conditions: rawConditions } : {}),
         } as Record<string, any>,
         isActive: Boolean(raw.is_active ?? raw.isActive),
+        definition: definition as Record<string, unknown>,
         createdAt: String(raw.created_at ?? raw.createdAt ?? ''),
         updatedAt: String(raw.updated_at ?? raw.updatedAt ?? ''),
         actions: rawActions.map((a, i) => ({

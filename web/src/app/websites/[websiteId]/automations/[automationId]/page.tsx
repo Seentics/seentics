@@ -124,21 +124,18 @@ export default function AutomationDetailPage() {
   const TriggerIcon = TRIGGER_ICONS[automation.triggerType] ?? Zap;
   const runHistory  = demoRunHistory(automation.stats?.totalExecutions ?? 0);
 
-  // Extract raw definition for the builder
+  // Use the stored definition JSON directly — it contains the full state including conditions, frequency, abTest, priority
+  const def = automation.definition ?? {};
   const rawDefinition: AutomationDefinition = {
-    trigger:    (automation.triggerConfig as AutomationDefinition['trigger'] | undefined) ?? { type: automation.triggerType },
-    conditions: null,
-    actions:    automation.actions.map(a => ({
-      type: a.actionType,
-      ...a.actionConfig,
-    })),
-    frequency: {},
-    priority:  50,
+    trigger:    (def.trigger as AutomationDefinition['trigger'] | undefined) ?? { type: automation.triggerType },
+    conditions: (def.conditions as AutomationDefinition['conditions'] | undefined) ?? null,
+    actions:    Array.isArray(def.actions)
+      ? (def.actions as AutomationDefinition['actions'])
+      : automation.actions.map(a => ({ type: a.actionType, ...a.actionConfig })),
+    frequency:  (def.frequency as AutomationDefinition['frequency'] | undefined) ?? {},
+    abTest:     (def.abTest as AutomationDefinition['abTest'] | undefined) ?? { enabled: false, variants: [] },
+    priority:   typeof def.priority === 'number' ? def.priority : 50,
   };
-  // Try to read full definition from triggerConfig if it was stored that way
-  if (automation.triggerConfig && 'type' in automation.triggerConfig) {
-    rawDefinition.trigger = automation.triggerConfig as AutomationDefinition['trigger'];
-  }
 
   const handleEditSave = (definition: AutomationDefinition) => {
     update(
@@ -242,8 +239,9 @@ export default function AutomationDetailPage() {
 
       {/* Edit mode — full-height builder */}
       {editMode ? (
-        <div className="rounded-xl border border-border overflow-hidden" style={{ height: 'calc(100vh - 260px)' }}>
+        <div className="rounded-xl border border-border overflow-hidden" style={{ height: 'calc(100vh - 220px)' }}>
           <AutomationBuilder
+            key={`edit-${automationId}`}
             initialDefinition={rawDefinition}
             onSave={handleEditSave}
             isSaving={saving}
