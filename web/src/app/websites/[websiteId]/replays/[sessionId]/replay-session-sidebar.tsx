@@ -9,13 +9,7 @@ import { cn } from '@/lib/utils';
 import {
   ChevronDown,
   ChevronRight,
-  MousePointerClick,
-  ScanLine,
-  Keyboard,
-  LogOut,
   AlertTriangle,
-  Terminal,
-  Network,
   Info,
   Bug,
   Minus,
@@ -24,7 +18,6 @@ import {
   ReplaySessionTimelineLog,
   useReplayPlayback,
   type SessionReplayBridge,
-  type SessionActivityStats,
   type SessionErrorDetail,
   type SessionConsoleDetail,
   type SessionNetworkDetail,
@@ -157,55 +150,6 @@ function SessionSummaryCard({
         )}
       </CardContent>
     </Card>
-  );
-}
-
-// ── Activity stats strip ──────────────────────────────────────────────────────
-
-function StatPill({
-  icon: Icon,
-  value,
-  label,
-  accent,
-}: {
-  icon: React.ElementType;
-  value: string;
-  label: string;
-  accent?: string;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-card px-3.5 py-3 min-w-0 shadow-sm">
-      <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg', accent ?? 'bg-muted')}>
-        <Icon className="h-3.5 w-3.5 text-foreground/70" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm font-bold tabular-nums text-foreground leading-tight truncate">{value}</p>
-        <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">{label}</p>
-      </div>
-    </div>
-  );
-}
-
-function ActivityStatsStrip({ stats }: { stats: SessionActivityStats }) {
-  const scrollLabel =
-    stats.maxScrollPx > 0
-      ? stats.maxScrollPx >= 1000
-        ? `${(stats.maxScrollPx / 1000).toFixed(1)}k px`
-        : `${stats.maxScrollPx} px`
-      : '0 px';
-
-  return (
-    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-      <StatPill icon={MousePointerClick} value={String(stats.totalClicks)} label="Clicks" accent="bg-blue-500/10 dark:bg-blue-500/15" />
-      <StatPill icon={ScanLine} value={scrollLabel} label="Max scroll" accent="bg-violet-500/10 dark:bg-violet-500/15" />
-      <StatPill icon={Keyboard} value={String(stats.inputInteractions)} label="Inputs" accent="bg-emerald-500/10 dark:bg-emerald-500/15" />
-      <StatPill
-        icon={LogOut}
-        value={stats.exitPage ? displayRealtimePath(stats.exitPage, '', 18) : '—'}
-        label="Exit page"
-        accent="bg-orange-500/10 dark:bg-orange-500/15"
-      />
-    </div>
   );
 }
 
@@ -371,7 +315,7 @@ function TimelineCard({ replayBridge }: { replayBridge: SessionReplayBridge | nu
   );
 }
 
-// ── DevTools panel (Console + Network) ───────────────────────────────────────
+// ── Console / Network rows ────────────────────────────────────────────────────
 
 const CONSOLE_LEVEL_STYLES: Record<SessionConsoleDetail['level'], { row: string; icon: React.ElementType; iconCls: string }> = {
   error: { row: 'bg-red-500/5 hover:bg-red-500/10',   icon: AlertTriangle, iconCls: 'text-red-400' },
@@ -510,112 +454,9 @@ function NetworkRow({
   );
 }
 
-function DevToolsPanel({
-  consoleDetails,
-  networkDetails,
-  durationMs,
-  player,
-}: {
-  consoleDetails: SessionConsoleDetail[];
-  networkDetails: SessionNetworkDetail[];
-  durationMs: number;
-  player: SessionReplayBridge['player'];
-}) {
-  const [tab, setTab] = useState<'console' | 'network'>('console');
-
-  const errorCount = consoleDetails.filter(e => e.level === 'error').length;
-  const warnCount  = consoleDetails.filter(e => e.level === 'warn').length;
-  const failCount  = networkDetails.filter(e => e.status >= 400 || e.status === 0).length;
-
-  return (
-    <Card className="shadow-sm rounded-xl overflow-hidden">
-      <CardHeader className="pb-0 pt-4 px-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <CardTitle className="text-sm font-semibold text-foreground">DevTools</CardTitle>
-          <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-muted/30 p-0.5">
-            <button
-              type="button"
-              onClick={() => setTab('console')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                tab === 'console'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Terminal className="h-3 w-3 shrink-0" />
-              Console
-              {(errorCount > 0 || warnCount > 0) && (
-                <span className={cn('ml-0.5 tabular-nums text-[10px] font-semibold', errorCount > 0 ? 'text-red-400' : 'text-amber-400')}>
-                  {errorCount > 0 ? errorCount : warnCount}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('network')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
-                tab === 'network'
-                  ? 'bg-background text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              <Network className="h-3 w-3 shrink-0" />
-              Network
-              {failCount > 0 && (
-                <span className="ml-0.5 tabular-nums text-[10px] font-semibold text-red-400">{failCount}</span>
-              )}
-            </button>
-          </div>
-          <span className="text-xs text-muted-foreground ml-auto">
-            {tab === 'console'
-              ? `${consoleDetails.length} entries`
-              : `${networkDetails.length} requests`}
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-3 px-0 pb-0">
-        {tab === 'console' ? (
-          consoleDetails.length === 0 ? (
-            <div className="px-4 pb-4 text-xs text-muted-foreground">
-              No console events captured. Sessions recorded before console capture was enabled will not have this data.
-            </div>
-          ) : (
-            <ul className="max-h-64 overflow-y-auto overscroll-contain">
-              {consoleDetails.map((entry, i) => (
-                <ConsoleRow key={i} entry={entry} durationMs={durationMs} player={player} />
-              ))}
-            </ul>
-          )
-        ) : (
-          networkDetails.length === 0 ? (
-            <div className="px-4 pb-4 text-xs text-muted-foreground">
-              No network events captured. Sessions recorded before network capture was enabled will not have this data.
-            </div>
-          ) : (
-            <>
-              <div className="flex items-center gap-3 px-2.5 py-1 border-b border-border/40 text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wide">
-                <span className="w-10 shrink-0">Method</span>
-                <span className="flex-1 min-w-0">URL</span>
-                <span className="w-8 text-right shrink-0">Status</span>
-                <span className="w-10 text-right shrink-0">Time</span>
-                <span className="w-10 text-right shrink-0">At</span>
-              </div>
-              <ul className="max-h-64 overflow-y-auto overscroll-contain">
-                {networkDetails.map((entry, i) => (
-                  <NetworkRow key={i} entry={entry} durationMs={durationMs} player={player} />
-                ))}
-              </ul>
-            </>
-          )
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 // ── Root export ───────────────────────────────────────────────────────────────
+
+type SidebarTab = 'summary' | 'timeline' | 'errors' | 'console' | 'network';
 
 export function ReplaySessionSidebar({
   replayBridge = null,
@@ -626,26 +467,73 @@ export function ReplaySessionSidebar({
   session?: ReplaySession | null;
   websiteId?: string;
 }) {
-  const hasActivity     = replayBridge !== null;
-  const stats           = replayBridge?.activityStats ?? null;
-  const errors          = replayBridge?.errorDetails ?? [];
-  const consoleDetails  = replayBridge?.consoleDetails ?? [];
-  const networkDetails  = replayBridge?.networkDetails ?? [];
+  const [activeTab, setActiveTab] = useState<SidebarTab>('summary');
+
+  const stats          = replayBridge?.activityStats ?? null;
+  const errors         = replayBridge?.errorDetails ?? [];
+  const consoleDetails = replayBridge?.consoleDetails ?? [];
+  const networkDetails = replayBridge?.networkDetails ?? [];
+
+  const errorCount   = consoleDetails.filter(e => e.level === 'error').length;
+  const warnCount    = consoleDetails.filter(e => e.level === 'warn').length;
+  const netFailCount = networkDetails.filter(e => e.status >= 400 || e.status === 0).length;
+
+  const tabs: { id: SidebarTab; label: string; badge?: number; badgeStyle?: string }[] = [
+    { id: 'summary',  label: 'Summary' },
+    { id: 'timeline', label: 'Timeline' },
+    {
+      id: 'errors',
+      label: 'Errors',
+      badge: errors.length || undefined,
+      badgeStyle: errors.length ? 'text-red-400' : undefined,
+    },
+    {
+      id: 'console',
+      label: 'Console',
+      badge: errorCount > 0 ? errorCount : warnCount > 0 ? warnCount : undefined,
+      badgeStyle: errorCount > 0 ? 'text-red-400' : 'text-amber-400',
+    },
+    {
+      id: 'network',
+      label: 'Network',
+      badge: netFailCount || undefined,
+      badgeStyle: 'text-red-400',
+    },
+  ];
 
   return (
-    <section
-      className={cn(
-        'shrink-0 border-t border-border/60 bg-background/60 px-3 py-6 sm:px-5',
-      )}
-    >
-      <div className="mx-auto max-w-7xl space-y-4 lg:space-y-5">
-        {/* Activity stats strip */}
-        {hasActivity && stats && (
-          <ActivityStatsStrip stats={stats} />
-        )}
+    <section className="shrink-0 border-t border-border/60 bg-background/60">
+      {/* Tab bar */}
+      <div className="border-b border-border/60 bg-background/80 px-3 sm:px-5">
+        <div className="mx-auto max-w-7xl">
+          <div className="flex items-center gap-0 overflow-x-auto">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'flex shrink-0 items-center gap-1.5 border-b-2 px-4 py-3 text-xs font-medium transition-colors whitespace-nowrap',
+                  activeTab === tab.id
+                    ? 'border-primary text-foreground'
+                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border',
+                )}
+              >
+                {tab.label}
+                {tab.badge != null && (
+                  <span className={cn('tabular-nums text-[10px] font-semibold', tab.badgeStyle)}>
+                    {tab.badge}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
 
-        {/* Summary + Timeline side-by-side */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5 lg:items-start">
+      {/* Tab panels */}
+      <div className="mx-auto max-w-7xl px-3 py-5 sm:px-5">
+        {activeTab === 'summary' && (
           <SessionSummaryCard
             session={session}
             websiteId={websiteId}
@@ -656,28 +544,65 @@ export function ReplaySessionSidebar({
                 : undefined
             }
           />
-          <TimelineCard replayBridge={replayBridge} />
-        </div>
+        )}
 
-        {/* JS Errors full-width card (only when errors exist) */}
-        {errors.length > 0 && replayBridge && (
-          <div className="grid grid-cols-1 gap-4">
+        {activeTab === 'timeline' && (
+          <TimelineCard replayBridge={replayBridge} />
+        )}
+
+        {activeTab === 'errors' && (
+          errors.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">No JavaScript errors captured during this session.</p>
+          ) : replayBridge ? (
             <ErrorDetailsCard
               errors={errors}
               durationMs={replayBridge.durationMs}
               player={replayBridge.player}
             />
-          </div>
+          ) : null
         )}
 
-        {/* DevTools: Console + Network tabs */}
-        {replayBridge && (
-          <DevToolsPanel
-            consoleDetails={consoleDetails}
-            networkDetails={networkDetails}
-            durationMs={replayBridge.durationMs}
-            player={replayBridge.player}
-          />
+        {activeTab === 'console' && replayBridge && (
+          consoleDetails.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">
+              No console events captured. Sessions recorded before console capture was enabled will not have this data.
+            </p>
+          ) : (
+            <Card className="shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-0">
+                <ul className="max-h-96 overflow-y-auto overscroll-contain divide-y-0">
+                  {consoleDetails.map((entry, i) => (
+                    <ConsoleRow key={i} entry={entry} durationMs={replayBridge.durationMs} player={replayBridge.player} />
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )
+        )}
+
+        {activeTab === 'network' && replayBridge && (
+          networkDetails.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-2">
+              No network events captured. Sessions recorded before network capture was enabled will not have this data.
+            </p>
+          ) : (
+            <Card className="shadow-sm rounded-xl overflow-hidden">
+              <CardContent className="p-0">
+                <div className="flex items-center gap-3 px-2.5 py-1.5 border-b border-border/40 text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wide">
+                  <span className="w-10 shrink-0">Method</span>
+                  <span className="flex-1 min-w-0">URL</span>
+                  <span className="w-8 text-right shrink-0">Status</span>
+                  <span className="w-10 text-right shrink-0">Time</span>
+                  <span className="w-10 text-right shrink-0">At</span>
+                </div>
+                <ul className="max-h-96 overflow-y-auto overscroll-contain">
+                  {networkDetails.map((entry, i) => (
+                    <NetworkRow key={i} entry={entry} durationMs={replayBridge.durationMs} player={replayBridge.player} />
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )
         )}
       </div>
     </section>
