@@ -75,18 +75,21 @@ const TRIGGER_TYPES: TriggerType[] = [
   { value: 'identify',     label: 'Identify',         icon: UserCheck,     description: 'Triggers when a user is identified',          hasConfig: false },
 ];
 
-type ActionType = { value: string; label: string; icon: React.ElementType; accent: string };
+type ActionType = {
+  value: string; label: string; icon: React.ElementType;
+  strip: string; iconBg: string; iconColor: string; description: string;
+};
 
 const ACTION_TYPES: ActionType[] = [
-  { value: 'show_modal',          label: 'Show Modal',          icon: MessageSquare, accent: 'bg-blue-500' },
-  { value: 'show_toast',          label: 'Show Toast',          icon: Bell,          accent: 'bg-green-500' },
-  { value: 'show_banner',         label: 'Show Banner',         icon: Layout,        accent: 'bg-purple-500' },
-  { value: 'highlight_element',   label: 'Highlight Element',   icon: Highlighter,   accent: 'bg-yellow-500' },
-  { value: 'show_tooltip',        label: 'Show Tooltip',        icon: FileText,      accent: 'bg-indigo-500' },
-  { value: 'personalize_content', label: 'Personalize Content', icon: FileText,      accent: 'bg-teal-500' },
-  { value: 'redirect',            label: 'Redirect',            icon: ExternalLink,  accent: 'bg-orange-500' },
-  { value: 'tag_session',         label: 'Tag Session',         icon: Tag,           accent: 'bg-pink-500' },
-  { value: 'webhook',             label: 'Webhook',             icon: Webhook,       accent: 'bg-slate-400' },
+  { value: 'show_modal',          label: 'Show Modal',          icon: MessageSquare, strip: 'bg-blue-500',    iconBg: 'bg-blue-500/15',    iconColor: 'text-blue-400',    description: 'Display a popup modal to the visitor' },
+  { value: 'show_toast',          label: 'Show Toast',          icon: Bell,          strip: 'bg-emerald-500', iconBg: 'bg-emerald-500/15', iconColor: 'text-emerald-400', description: 'Show a small notification toast' },
+  { value: 'show_banner',         label: 'Show Banner',         icon: Layout,        strip: 'bg-violet-500',  iconBg: 'bg-violet-500/15',  iconColor: 'text-violet-400',  description: 'Display a full-width page banner' },
+  { value: 'highlight_element',   label: 'Highlight Element',   icon: Highlighter,   strip: 'bg-yellow-500',  iconBg: 'bg-yellow-500/15',  iconColor: 'text-yellow-400',  description: 'Draw attention to a page element' },
+  { value: 'show_tooltip',        label: 'Show Tooltip',        icon: FileText,      strip: 'bg-indigo-500',  iconBg: 'bg-indigo-500/15',  iconColor: 'text-indigo-400',  description: 'Attach a tooltip to any element' },
+  { value: 'personalize_content', label: 'Personalize Content', icon: FileText,      strip: 'bg-teal-500',    iconBg: 'bg-teal-500/15',    iconColor: 'text-teal-400',    description: 'Swap text or HTML on the page' },
+  { value: 'redirect',            label: 'Redirect',            icon: ExternalLink,  strip: 'bg-orange-500',  iconBg: 'bg-orange-500/15',  iconColor: 'text-orange-400',  description: 'Send the visitor to another URL' },
+  { value: 'tag_session',         label: 'Tag Session',         icon: Tag,           strip: 'bg-pink-500',    iconBg: 'bg-pink-500/15',    iconColor: 'text-pink-400',    description: 'Label the session for filtering' },
+  { value: 'webhook',             label: 'Webhook',             icon: Webhook,       strip: 'bg-slate-400',   iconBg: 'bg-slate-400/15',   iconColor: 'text-slate-300',   description: 'POST data to an external endpoint' },
 ];
 
 const CONDITION_OPERATORS = [
@@ -465,11 +468,15 @@ function NodeConnector({ onAdd }: { onAdd: () => void }) {
 // ─── Canvas Node Cards ────────────────────────────────────────────────────────
 
 function NodeCard({
-  accentColor, icon: Icon, title, subtitle, selected, onClick, onDelete, draggable,
+  strip, iconBg, iconColor, icon: Icon, label, title, subtitle,
+  selected, onClick, onDelete, draggable,
   onDragStart, onDragOver, onDrop, dragIndicator,
 }: {
-  accentColor: string;
+  strip: string;
+  iconBg: string;
+  iconColor: string;
   icon: React.ElementType;
+  label: string;
   title: string;
   subtitle: string;
   selected: boolean;
@@ -489,36 +496,47 @@ function NodeCard({
       onDragOver={onDragOver}
       onDrop={onDrop}
       className={cn(
-        'w-60 rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden select-none',
+        'w-64 rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden select-none group',
         selected
-          ? 'border-white/30 shadow-[0_0_0_2px_rgba(255,255,255,0.12)] bg-[#1e1e28]'
-          : 'border-white/10 bg-[#17171f] hover:border-white/20 hover:bg-[#1c1c24]',
-        dragIndicator && 'border-emerald-500/60 shadow-[0_0_0_2px_rgba(16,185,129,0.2)]',
+          ? 'border-white/25 shadow-[0_0_0_2px_rgba(255,255,255,0.10)] bg-[#1e1e2a]'
+          : 'border-white/8 bg-[#16161e] hover:border-white/18 hover:bg-[#1b1b24]',
+        dragIndicator && 'border-emerald-500/50 shadow-[0_0_0_2px_rgba(16,185,129,0.15)]',
       )}
       onClick={onClick}
     >
-      {/* Colored top strip */}
-      <div className={cn('h-0.5 w-full', accentColor)} />
-      <div className="flex items-center gap-3 px-3.5 py-3">
-        {draggable && (
-          <GripVertical className="h-3.5 w-3.5 text-white/20 shrink-0 -ml-1" />
-        )}
-        <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center shrink-0', accentColor, 'bg-opacity-20')}>
-          <Icon className="h-4 w-4 text-white/80" />
+      {/* Colored left strip */}
+      <div className="flex">
+        <div className={cn('w-1 shrink-0 rounded-l-xl', strip)} />
+        <div className="flex-1 px-3 py-3">
+          {/* Node type label */}
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/25">{label}</span>
+            <div className="flex items-center gap-1">
+              {draggable && (
+                <GripVertical className="h-3.5 w-3.5 text-white/15 group-hover:text-white/30 transition-colors" />
+              )}
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); onDelete(); }}
+                  className="h-5 w-5 rounded flex items-center justify-center text-white/15 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          </div>
+          {/* Icon + title row */}
+          <div className="flex items-center gap-2.5">
+            <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', iconBg)}>
+              <Icon className={cn('h-4.5 w-4.5', iconColor)} style={{ width: 18, height: 18 }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-white/90 truncate leading-tight">{title}</p>
+              <p className="text-[11px] text-white/35 truncate mt-0.5 leading-tight">{subtitle}</p>
+            </div>
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-white/90 truncate">{title}</p>
-          <p className="text-[11px] text-white/40 truncate mt-0.5">{subtitle}</p>
-        </div>
-        {onDelete && (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); onDelete(); }}
-            className="h-6 w-6 rounded flex items-center justify-center text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
       </div>
     </div>
   );
@@ -808,13 +826,16 @@ function AddNodeModal({
                   <button
                     key={at.value}
                     type="button"
-                    className="flex flex-col items-start gap-2 rounded-xl border border-white/8 bg-white/3 hover:bg-white/7 p-3 text-left transition-colors"
+                    className="flex flex-col items-start gap-2.5 rounded-xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/15 p-3.5 text-left transition-all duration-150"
                     onClick={() => onAdd({ nodeKind: 'action', actionType: at.value })}
                   >
-                    <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center', at.accent, 'bg-opacity-20')}>
-                      <Icon className="h-3.5 w-3.5 text-white/80" />
+                    <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', at.iconBg)}>
+                      <Icon className={cn('h-[18px] w-[18px]', at.iconColor)} />
                     </div>
-                    <p className="text-xs font-medium text-white/80 leading-tight">{at.label}</p>
+                    <div>
+                      <p className="text-xs font-semibold text-white/85 leading-tight">{at.label}</p>
+                      <p className="text-[10px] text-white/30 leading-tight mt-0.5 line-clamp-2">{at.description}</p>
+                    </div>
                   </button>
                 );
               })}
@@ -993,8 +1014,11 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
 
             {/* Trigger Node */}
             <NodeCard
-              accentColor="bg-emerald-500"
+              strip="bg-emerald-500"
+              iconBg="bg-emerald-500/15"
+              iconColor="text-emerald-400"
               icon={td.icon}
+              label="Trigger"
               title={td.label}
               subtitle={
                 definition.trigger.type === 'page_view' && definition.trigger.path
@@ -1011,9 +1035,12 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
             {hasCondition && (
               <>
                 <NodeCard
-                  accentColor="bg-amber-500"
+                  strip="bg-amber-500"
+                  iconBg="bg-amber-500/15"
+                  iconColor="text-amber-400"
                   icon={Filter}
-                  title="Conditions"
+                  label="Condition"
+                  title="Filter Rules"
                   subtitle={`${definition.conditions!.rules.length} rule${definition.conditions!.rules.length !== 1 ? 's' : ''} · ${definition.conditions!.operator}`}
                   selected={selected?.kind === 'condition'}
                   onClick={() => setSelected({ kind: 'condition' })}
@@ -1029,8 +1056,11 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
               return (
                 <React.Fragment key={i}>
                   <NodeCard
-                    accentColor={at.accent}
+                    strip={at.strip}
+                    iconBg={at.iconBg}
+                    iconColor={at.iconColor}
                     icon={at.icon}
+                    label={`Action ${definition.actions.length > 1 ? i + 1 : ''}`}
                     title={at.label}
                     subtitle={actionSummary(action)}
                     selected={selected?.kind === 'action' && selected.index === i}
@@ -1051,19 +1081,22 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
             {definition.actions.length === 0 && (
               <div
                 data-node="true"
-                className="w-60 rounded-xl border-2 border-dashed border-white/10 bg-transparent flex flex-col items-center justify-center py-6 gap-2 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
+                className="w-64 rounded-xl border-2 border-dashed border-white/10 bg-transparent flex flex-col items-center justify-center py-7 gap-2 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
                 onClick={() => setAddAfterIndex(0)}
               >
                 <Layers className="h-6 w-6 text-white/20" />
-                <p className="text-xs text-white/25">Click to add an action</p>
+                <p className="text-xs text-white/25">Click + to add an action</p>
               </div>
             )}
 
             {/* Settings node (always last) */}
             <NodeCard
-              accentColor="bg-slate-500"
+              strip="bg-slate-500"
+              iconBg="bg-slate-500/15"
+              iconColor="text-slate-300"
               icon={Settings}
-              title="Settings"
+              label="Settings"
+              title="Workflow Settings"
               subtitle={`Priority ${definition.priority ?? 50} · ${definition.abTest?.enabled ? `A/B (${definition.abTest.variants.length} variants)` : 'No A/B test'}`}
               selected={selected?.kind === 'settings'}
               onClick={() => setSelected({ kind: 'settings' })}
@@ -1082,14 +1115,14 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
 
       {/* Right sidebar */}
       {selected && (
-        <aside className="w-72 shrink-0 border-l border-white/8 bg-[#121218] flex flex-col overflow-hidden">
+        <aside className="w-[320px] shrink-0 border-l border-white/8 bg-[#111117] flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/8 shrink-0">
-            <div className="flex items-center gap-2">
-              {selected.kind === 'trigger' && <><div className="h-2 w-2 rounded-full bg-emerald-500" /><span className="text-sm font-semibold text-white/90">Trigger</span></>}
-              {selected.kind === 'condition' && <><div className="h-2 w-2 rounded-full bg-amber-500" /><span className="text-sm font-semibold text-white/90">Conditions</span></>}
-              {selected.kind === 'action' && <><div className={cn('h-2 w-2 rounded-full', getActionType(definition.actions[selected.index]?.type ?? '').accent)} /><span className="text-sm font-semibold text-white/90">Action</span></>}
-              {selected.kind === 'settings' && <><div className="h-2 w-2 rounded-full bg-slate-500" /><span className="text-sm font-semibold text-white/90">Settings</span></>}
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8 shrink-0">
+            <div className="flex items-center gap-2.5">
+              {selected.kind === 'trigger' && <><div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" /><span className="text-sm font-semibold text-white/90">Trigger</span></>}
+              {selected.kind === 'condition' && <><div className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)]" /><span className="text-sm font-semibold text-white/90">Conditions</span></>}
+              {selected.kind === 'action' && <><div className={cn('h-2 w-2 rounded-full', getActionType(definition.actions[selected.index]?.type ?? '').strip, 'shadow-[0_0_6px_rgba(255,255,255,0.3)]')} /><span className="text-sm font-semibold text-white/90">{getActionType(definition.actions[selected.index]?.type ?? '').label}</span></>}
+              {selected.kind === 'settings' && <><div className="h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_6px_rgba(148,163,184,0.6)]" /><span className="text-sm font-semibold text-white/90">Settings</span></>}
             </div>
             <button type="button" onClick={() => setSelected(null)} className="text-white/25 hover:text-white/70 transition-colors">
               <X className="h-4 w-4" />
@@ -1097,7 +1130,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
           </div>
 
           {/* Panel content */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto p-5">
             {selected.kind === 'trigger' && (
               <TriggerPanel trigger={definition.trigger} onChange={updateTrigger} />
             )}
