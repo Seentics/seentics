@@ -356,6 +356,36 @@ export const getTopOS = async (websiteId: string, days: number = 7, filters: Ana
   return response.data;
 };
 
+// All six dimension breakdowns in a single request
+export const getDimensionsBulk = async (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}): Promise<{
+  website_id: string;
+  date_range: string;
+  top_pages:     { page: string; views: number; unique: number }[];
+  top_referrers: { referrer: string; views: number; unique: number }[];
+  top_countries: { country: string; views: number; unique: number }[];
+  top_browsers:  { browser: string; views: number; unique: number }[];
+  top_devices:   { device: string; views: number; unique: number }[];
+  top_os:        { os: string; views: number; unique: number }[];
+}> => {
+  if (isDemo(websiteId)) {
+    const d = demoAnalyticsData();
+    return {
+      website_id: websiteId,
+      date_range: `${days}d`,
+      top_pages:     (d.topPages as any)?.top_pages     ?? [],
+      top_referrers: (d.topReferrers as any)?.top_referrers ?? [],
+      top_countries: (d.topCountries as any)?.top_countries ?? [],
+      top_browsers:  (d.topBrowsers as any)?.top_browsers  ?? [],
+      top_devices:   (d.topDevices as any)?.top_devices   ?? [],
+      top_os:        (d.topOS as any)?.top_os         ?? [],
+    };
+  }
+  const params = new URLSearchParams({ days: days.toString(), timezone: getUserTimezone() });
+  Object.entries(filters).forEach(([key, value]) => { if (value) params.append(key, value); });
+  const response = await api.get(`/analytics/dimensions-bulk/${websiteId}?${params.toString()}`);
+  return response.data;
+};
+
 // Top Resolutions
 export const getTopResolutions = async (websiteId: string, days: number = 7, limit: number = 10): Promise<any> => {
   if (isDemo(websiteId)) {
@@ -524,6 +554,7 @@ export const analyticsKeys = {
   topBrowsers: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-browsers', websiteId, days, filters] as const,
   topDevices: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-devices', websiteId, days, filters] as const,
   topOS: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'top-os', websiteId, days, filters] as const,
+  dimensionsBulk: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'dimensions-bulk', websiteId, days, filters] as const,
   liveVisitors: (websiteId: string) => [...analyticsKeys.all, 'live-visitors', websiteId] as const,
   trafficSummary: (websiteId: string, days: number) => [...analyticsKeys.all, 'traffic-summary', websiteId, days] as const,
   hourlyStats: (websiteId: string, days: number, filters: AnalyticsFilters = {}) => [...analyticsKeys.all, 'hourly-stats', websiteId, days, filters] as const,
@@ -591,6 +622,16 @@ export const useTopOS = (websiteId: string, days: number = 7, filters: Analytics
     queryKey: analyticsKeys.topOS(websiteId, days, filters),
     queryFn: () => getTopOS(websiteId, days, filters),
     enabled: isValidId(websiteId),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+// Single hook that fetches all 6 dimension breakdowns in one request
+export const useDimensionsBulk = (websiteId: string, days: number = 7, filters: AnalyticsFilters = {}) => {
+  return useQuery({
+    queryKey: analyticsKeys.dimensionsBulk(websiteId, days, filters),
+    queryFn:  () => getDimensionsBulk(websiteId, days, filters),
+    enabled:  isValidId(websiteId),
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -843,6 +884,7 @@ export default {
   getTopCountries,
   getTopBrowsers,
   getTopDevices,
+  getDimensionsBulk,
 
   getHourlyStats,
   getDailyStats,
@@ -858,6 +900,7 @@ export default {
   useTopCountries,
   useTopBrowsers,
   useTopDevices,
+  useDimensionsBulk,
 
   useHourlyStats,
   useDailyStats,

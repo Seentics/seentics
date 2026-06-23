@@ -645,6 +645,15 @@ const captureAndQueueDomSnapshot = () => {
       el.replaceWith(ph);
     });
 
+    // Inject a measurement script so the preview iframe can report its actual rendered
+    // height via postMessage (works cross-origin). The snapshot HTML is served from S3
+    // (different origin), so the viewer cannot read scrollHeight via contentDocument.
+    if (head) {
+      const measureScript = document.createElement('script');
+      measureScript.textContent = '(function(){function m(){var h=Math.max(document.documentElement.scrollHeight||0,(document.body||{}).scrollHeight||0),w=Math.max(document.documentElement.scrollWidth||0,(document.body||{}).scrollWidth||0);try{window.parent.postMessage({type:"snc_snap_dims",w:w,h:h},"*")}catch(e){}}if(document.readyState==="complete"){m()}else{window.addEventListener("load",m)}}());';
+      head.appendChild(measureScript);
+    }
+
     const html = '<!DOCTYPE html>' + clone.outerHTML;
 
     // Skip if snapshot is too large (> 1.2 MB) to avoid oversized payloads

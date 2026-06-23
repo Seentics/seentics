@@ -33,3 +33,4 @@ export { getRevenueDashboard } from "./revenue";
 export { getSourcesAnalytics } from "./sources";
 export { getTrafficSummaryStats } from "./traffic-summary";
 export { getVisitorInsightsAnalytics } from "./visitor-insights";
+export { getDimensionsBulkAnalytics } from "./dimensions-bulk";

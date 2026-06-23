@@ -559,6 +559,23 @@ function HeatmapViewer({
     }
   }, [points, dims, heatType]);
 
+  // Listen for the postMessage sent by the injected measurement script inside the HTML
+  // snapshot iframe. The snapshot is served from S3 (cross-origin), so contentDocument
+  // is inaccessible — postMessage is the only way to get the actual rendered height.
+  useEffect(() => {
+    if (!hasHtmlSnapshot) return;
+    const handler = (e: MessageEvent) => {
+      if (!iframeRef.current) return;
+      if (e.source !== iframeRef.current.contentWindow) return;
+      if (!e.data || typeof e.data !== 'object' || e.data.type !== 'snc_snap_dims') return;
+      const h = typeof e.data.h === 'number' && Number.isFinite(e.data.h) ? Math.round(e.data.h) : 0;
+      const w = typeof e.data.w === 'number' && Number.isFinite(e.data.w) ? Math.round(e.data.w) : 0;
+      if (h > 100) setShotNatural({ w: w > 200 ? w : dims.w, h });
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [hasHtmlSnapshot, dims.w]);
+
   const showHeatOnlyFallback = underlay === 'heat-only' || !screenshotActive;
   const showLoadingOverlay = screenshotActive && loadState === 'loading';
 
@@ -609,7 +626,7 @@ function HeatmapViewer({
                     ref={iframeRef}
                     src={pageScreenshot.html_url}
                     title="Page snapshot"
-                    sandbox="allow-same-origin"
+                    sandbox="allow-same-origin allow-scripts"
                     scrolling="no"
                     className="pointer-events-none block border-0"
                     style={{ width: dims.w, height: dims.h }}

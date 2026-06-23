@@ -5,10 +5,26 @@ import { MemoryCache } from "../lib/memory-cache";
 
 type Cached = { body: Uint8Array; headers: [string, string][] };
 
+/** Extract stable user identity from JWT without full verification (cache key only). */
+function jwtSub(authHeader: string): string {
+  try {
+    const token = authHeader.replace(/^[Bb]earer\s+/, "").trim();
+    const [, payload] = token.split(".");
+    if (!payload) return token;
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return String(decoded.sub ?? decoded.user_id ?? decoded.id ?? token);
+  } catch {
+    return authHeader;
+  }
+}
+
 function cacheKey(c: Pick<Context, "req">): string {
   const url = c.req.url;
   const auth = c.req.header("authorization") ?? "";
-  return createHash("sha256").update(`${url}\n${auth}`).digest("base64url");
+  // Use stable user subject so the cache survives JWT refreshes.
+  // Auth is still validated by authMiddleware on every cache miss.
+  const userCtx = jwtSub(auth);
+  return createHash("sha256").update(`${url}\n${userCtx}`).digest("base64url");
 }
 
 function shouldCachePath(path: string): boolean {

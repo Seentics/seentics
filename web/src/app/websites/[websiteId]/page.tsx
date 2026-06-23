@@ -17,13 +17,8 @@ import {
   useDashboardData,
   useGeolocationBreakdown,
   useHourlyStats,
-  useTopBrowsers,
-  useTopCountries,
-  useTopDevices,
-  useTopOS,
+  useDimensionsBulk,
   useTopResolutions,
-  useTopPages,
-  useTopReferrers,
   useVisitorInsights,
   usePreviousPeriodDailyStats,
 } from '@/lib/analytics-api';
@@ -243,12 +238,25 @@ export default function WebsiteDashboardPage() {
   // All queries fire in parallel — each component handles its own isLoading skeleton.
   const deferredId = websiteId;
 
-  const { data: topPages, isLoading: pagesLoading, error: pagesError } = useTopPages(deferredId, dateRange, advancedFilters);
-  const { data: topReferrers, isLoading: referrersLoading, error: referrersError } = useTopReferrers(deferredId, dateRange, advancedFilters);
-  const { data: topCountries, isLoading: countriesLoading, error: countriesError } = useTopCountries(deferredId, dateRange, advancedFilters);
-  const { data: topBrowsers, isLoading: browsersLoading, error: browsersError } = useTopBrowsers(deferredId, dateRange, advancedFilters);
-  const { data: topDevices, isLoading: devicesLoading, error: devicesError } = useTopDevices(deferredId, dateRange, advancedFilters);
-  const { data: topOS, isLoading: osLoading, error: osError } = useTopOS(deferredId, dateRange, advancedFilters);
+  const { data: dimensionsData, isLoading: dimensionsLoading, error: dimensionsError } = useDimensionsBulk(deferredId, dateRange, advancedFilters);
+  const topPages     = dimensionsData ? { top_pages:     dimensionsData.top_pages }     : undefined;
+  const topReferrers = dimensionsData ? { top_referrers: dimensionsData.top_referrers } : undefined;
+  const topCountries = dimensionsData ? { top_countries: dimensionsData.top_countries } : undefined;
+  const topBrowsers  = dimensionsData ? { top_browsers:  dimensionsData.top_browsers }  : undefined;
+  const topDevices   = dimensionsData ? { top_devices:   dimensionsData.top_devices }   : undefined;
+  const topOS        = dimensionsData ? { top_os:        dimensionsData.top_os }        : undefined;
+  const pagesLoading    = dimensionsLoading;
+  const referrersLoading = dimensionsLoading;
+  const countriesLoading = dimensionsLoading;
+  const browsersLoading  = dimensionsLoading;
+  const devicesLoading   = dimensionsLoading;
+  const osLoading        = dimensionsLoading;
+  const pagesError    = dimensionsError;
+  const referrersError = dimensionsError;
+  const countriesError = dimensionsError;
+  const browsersError  = dimensionsError;
+  const devicesError   = dimensionsError;
+  const osError        = dimensionsError;
   const { data: topResolutions, isLoading: resolutionsLoading } = useTopResolutions(deferredId, dateRange);
   const { data: geolocationData, isLoading: geolocationLoading, error: geolocationError } = useGeolocationBreakdown(deferredId, dateRange);
   const { data: customEvents, isLoading: customEventsLoading } = useCustomEvents(deferredId, dateRange);

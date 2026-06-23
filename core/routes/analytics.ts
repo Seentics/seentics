@@ -63,6 +63,11 @@ r.get("/top-os/:website_id", async (c) => {
   return c.json(await an.getOsAnalytics(c.req.param("website_id"), qs(c)));
 });
 
+r.get("/dimensions-bulk/:website_id", async (c) => {
+  if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
+  return c.json(await an.getDimensionsBulkAnalytics(c.req.param("website_id"), qs(c)));
+});
+
 r.get("/top-resolutions/:website_id", async (c) => {
   if (!requireUser(c)) return c.json({ error: "unauthorized" }, 401);
   return c.json(await an.getResolutionsAnalytics(c.req.param("website_id"), qs(c)));

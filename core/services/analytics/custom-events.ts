@@ -13,41 +13,29 @@ export async function getCustomEventsAnalytics(
   const startIso = start.toISOString();
   const endIso = end.toISOString();
 
-  const rows = await db
-    .select({
-      eventType: analyticsEvents.eventType,
-      c: dsql<number>`count(*)::int`,
-      uniqueVisitors: countDistinctVisitorsSql(),
-      uniqueSessions: dsql<number>`count(distinct ${analyticsEvents.sessionId})::int`,
-    })
-    .from(analyticsEvents)
-    .where(
-      and(
-        eq(analyticsEvents.websiteId, siteId),
-        gte(analyticsEvents.occurredAt, start),
-        lte(analyticsEvents.occurredAt, end),
-        dsql`${analyticsEvents.eventType} <> 'pageview'`,
-      ),
-    )
-    .groupBy(analyticsEvents.eventType)
-    .orderBy(desc(dsql`count(*)`))
-    .limit(100);
-
-  const eventPayload = rows.map((x) => ({
-    event_type: x.eventType,
-    count: x.c,
-    description: "",
-    common_properties: {},
-    sample_properties: {},
-    sample_event: {},
-    unique_visitors: Number(x.uniqueVisitors),
-    unique_sessions: Number(x.uniqueSessions),
-    engagement_rate: 0,
-    expected_properties: [] as string[],
-  }));
-
   type UtmRow = { visits: number; unique_visitors: number; label: string };
-  const [sourceRows, mediumRows, campaignRows] = await Promise.all([
+
+  const [rows, sourceRows, mediumRows, campaignRows] = await Promise.all([
+    db
+      .select({
+        eventType: analyticsEvents.eventType,
+        c: dsql<number>`count(*)::int`,
+        uniqueVisitors: countDistinctVisitorsSql(),
+        uniqueSessions: dsql<number>`count(distinct ${analyticsEvents.sessionId})::int`,
+      })
+      .from(analyticsEvents)
+      .where(
+        and(
+          eq(analyticsEvents.websiteId, siteId),
+          gte(analyticsEvents.occurredAt, start),
+          lte(analyticsEvents.occurredAt, end),
+          dsql`${analyticsEvents.eventType} <> 'pageview'`,
+        ),
+      )
+      .groupBy(analyticsEvents.eventType)
+      .orderBy(desc(dsql`count(*)`))
+      .limit(100),
+
     pgSql<UtmRow[]>`
       SELECT
         utm_source AS label,
@@ -64,6 +52,7 @@ export async function getCustomEventsAnalytics(
       ORDER BY visits DESC
       LIMIT 50
     `,
+
     pgSql<UtmRow[]>`
       SELECT
         utm_medium AS label,
@@ -80,6 +69,7 @@ export async function getCustomEventsAnalytics(
       ORDER BY visits DESC
       LIMIT 50
     `,
+
     pgSql<UtmRow[]>`
       SELECT
         utm_campaign AS label,
@@ -98,24 +88,25 @@ export async function getCustomEventsAnalytics(
     `,
   ]);
 
-  const mapSrc = (r: UtmRow) => ({
-    source: r.label,
-    unique_visitors: Number(r.unique_visitors ?? 0),
-    visits: Number(r.visits ?? 0),
-  });
-  const mapMed = (r: UtmRow) => ({
-    medium: r.label,
-    unique_visitors: Number(r.unique_visitors ?? 0),
-    visits: Number(r.visits ?? 0),
-  });
-  const mapCamp = (r: UtmRow) => ({
-    campaign: r.label,
-    unique_visitors: Number(r.unique_visitors ?? 0),
-    visits: Number(r.visits ?? 0),
-  });
+  const eventPayload = rows.map((x) => ({
+    event_type: x.eventType,
+    count: x.c,
+    description: "",
+    common_properties: {},
+    sample_properties: {},
+    sample_event: {},
+    unique_visitors: Number(x.uniqueVisitors),
+    unique_sessions: Number(x.uniqueSessions),
+    engagement_rate: 0,
+    expected_properties: [] as string[],
+  }));
 
-  const sources = sourceRows.map(mapSrc);
-  const mediums = mediumRows.map(mapMed);
+  const mapSrc  = (r: UtmRow) => ({ source:   r.label, unique_visitors: Number(r.unique_visitors ?? 0), visits: Number(r.visits ?? 0) });
+  const mapMed  = (r: UtmRow) => ({ medium:   r.label, unique_visitors: Number(r.unique_visitors ?? 0), visits: Number(r.visits ?? 0) });
+  const mapCamp = (r: UtmRow) => ({ campaign: r.label, unique_visitors: Number(r.unique_visitors ?? 0), visits: Number(r.visits ?? 0) });
+
+  const sources   = sourceRows.map(mapSrc);
+  const mediums   = mediumRows.map(mapMed);
   const campaigns = campaignRows.map(mapCamp);
 
   return {
@@ -126,14 +117,14 @@ export async function getCustomEventsAnalytics(
       sources,
       mediums,
       campaigns,
-      terms: [] as { term: string; unique_visitors: number; visits: number }[],
+      terms:   [] as { term:    string; unique_visitors: number; visits: number }[],
       content: [] as { content: string; unique_visitors: number; visits: number }[],
-      avg_ctr: 0,
-      total_campaigns: campaigns.length,
-      total_sources: sources.length,
-      total_mediums: mediums.length,
+      avg_ctr:          0,
+      total_campaigns:  campaigns.length,
+      total_sources:    sources.length,
+      total_mediums:    mediums.length,
     },
-    total_events: rows.length,
+    total_events:      rows.length,
     total_occurrences: rows.reduce((a, x) => a + x.c, 0),
   };
 }
