@@ -104,6 +104,8 @@ export function env() {
   const logLevel = (process.env.LOG_LEVEL ?? (isProduction ? "info" : "debug")).toLowerCase();
   /** When true, emit structured `tracker_collect` / ingest summaries at `info` (see also `LOG_LEVEL=debug`). */
   const diagnosticLog = parseBool(process.env.SEENTICS_DIAGNOSTIC_LOG, false);
+  /** Requests that exceed this duration emit an additional slow_request warn log. 0 disables. */
+  const slowRequestThresholdMs = parseIntEnv(process.env.SLOW_REQUEST_THRESHOLD_MS, 500);
 
   const maxmindDbPath = (process.env.MAXMIND_DB_PATH ?? "").trim();
   const maxmindGeoCacheMax = parseIntEnv(process.env.MAXMIND_GEO_CACHE_MAX, 50_000);
@@ -129,6 +131,7 @@ export function env() {
     corsAllowedOrigins,
     logLevel,
     diagnosticLog,
+    slowRequestThresholdMs,
     rateLimit: {
       enabled: rateLimitEnabled,
       windowMs: rateWindowMs,
