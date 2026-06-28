@@ -48,6 +48,8 @@ export type SessionReplaySurfaceAPI = {
   goto: (offsetMs: number, shouldPlay?: boolean) => void;
   toggle: () => void;
   toggleFullscreen: () => void;
+  /** Append rrweb events to the running player without re-mounting it. */
+  addEvents: (events: RRWebEvent[]) => void;
 };
 
 function fmtClock(ms: number): string {
@@ -1075,6 +1077,7 @@ export function SessionReplaySurface({
   onBridgeReady,
   sessionSummary,
   websiteId,
+  knownDurationMs,
   className,
 }: {
   events: RRWebEvent[];
@@ -1085,6 +1088,11 @@ export function SessionReplaySurface({
   sessionSummary?: { entryPage?: string; hasErrors?: boolean; hasRageClicks?: boolean };
   /** Used to normalize dashboard URLs in the timeline and session summary. */
   websiteId?: string;
+  /**
+   * Known total duration from session metadata. Used to size the scrubber
+   * correctly before all streaming chunks arrive.
+   */
+  knownDurationMs?: number;
   className?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -1097,15 +1105,21 @@ export function SessionReplaySurface({
   onReadyRef.current = onReady;
   const onBridgeReadyRef = useRef(onBridgeReady);
   onBridgeReadyRef.current = onBridgeReady;
+  /** Impl set when player mounts; cleared on destroy. Appends events without re-mounting. */
+  const addEventsImplRef = useRef<((evs: RRWebEvent[]) => void) | null>(null);
 
   const [bridge, setBridge] = useState<{ player: PlayerInstance; replayer: SessionReplayerCore } | null>(null);
   /** Start small until ResizeObserver runs — avoids a huge iframe flash before the first layout pass. */
   const [playerSize, setPlayerSize] = useState({ w: 640, h: 360 });
+  /** Grows as streaming chunks extend the timeline beyond the initial event set. */
+  const [streamedDurationMs, setStreamedDurationMs] = useState(0);
 
   const durationMs = useMemo(() => {
-    if (events.length < 2) return 0;
-    return Math.max(0, events[events.length - 1].timestamp - events[0].timestamp);
-  }, [events]);
+    const fromEvents = events.length < 2
+      ? 0
+      : Math.max(0, events[events.length - 1].timestamp - events[0].timestamp);
+    return Math.max(fromEvents, streamedDurationMs, knownDurationMs ?? 0);
+  }, [events, streamedDurationMs, knownDurationMs]);
 
   const t0 = events.length > 0 ? events[0].timestamp : 0;
 
@@ -1289,8 +1303,22 @@ export function SessionReplaySurface({
       });
 
       playerRef.current = player;
-      const replayer = player.getReplayer() as SessionReplayerCore;
+      const replayer = player.getReplayer() as SessionReplayerCore & {
+        addEvent?: (ev: unknown) => void;
+      };
       setBridge({ player, replayer });
+
+      const t0 = events.length > 0 ? events[0].timestamp : 0;
+      addEventsImplRef.current = (newEvs: RRWebEvent[]) => {
+        if (!replayer.addEvent || newEvs.length === 0) return;
+        for (const ev of newEvs) {
+          try { replayer.addEvent(ev); } catch { /* ignore — stale replayer */ }
+        }
+        if (t0 > 0) {
+          const lastTs = newEvs[newEvs.length - 1].timestamp;
+          setStreamedDurationMs(prev => Math.max(prev, lastTs - t0));
+        }
+      };
 
       requestAnimationFrame(() => {
         try {
@@ -1337,13 +1365,16 @@ export function SessionReplaySurface({
             /* ignore */
           }
         },
+        addEvents: (evs: RRWebEvent[]) => addEventsImplRef.current?.(evs),
       });
 
     })();
 
     return () => {
       cancelled = true;
+      addEventsImplRef.current = null;
       setBridge(null);
+      setStreamedDurationMs(0);
       try {
         (playerRef.current as { $destroy?: () => void } | null)?.$destroy?.();
       } catch {

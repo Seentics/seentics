@@ -263,6 +263,21 @@ export async function getSessionWithEvents(
   return { meta: body.meta ?? null, events, customEvents, recordingPending: false };
 }
 
+/**
+ * Fetch only the session API response (metadata + signed chunk URLs) without
+ * downloading any S3 bytes. Use this to start progressive chunk streaming.
+ */
+export async function getSessionApiResponse(
+  websiteId: string,
+  sessionId: string,
+): Promise<SessionReplayApiResponse> {
+  const sid = sessionId.trim();
+  const res = await api.get(
+    `/replays/${encodeURIComponent(websiteId)}/${encodeURIComponent(sid)}`,
+  );
+  return res.data as SessionReplayApiResponse;
+}
+
 export async function deleteSessions(websiteId: string, sessionIds: string[]) {
   const res = await api.delete(`/replays/${websiteId}/batch`, {
     data: { sessionIds },

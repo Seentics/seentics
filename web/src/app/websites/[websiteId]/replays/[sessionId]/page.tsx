@@ -14,7 +14,13 @@ import {
   Link2,
 } from 'lucide-react';
 import { isDemo } from '@/lib/demo';
-import { getSessionWithEvents, type ReplaySession } from '@/lib/replays-api';
+import {
+  getSessionApiResponse,
+  fetchGzipJsonArray,
+  eventsFromChunkList,
+  type ReplaySession,
+  type RRWebEvent,
+} from '@/lib/replays-api';
 import { cn, isValidId } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -39,29 +45,160 @@ export default function ReplayDetailPage() {
   const [replayBridge, setReplayBridge] = useState<SessionReplayBridge | null>(null);
   const queryClient = useQueryClient();
 
-  const [chunkProgress, setChunkProgress] = useState<{ loaded: number; total: number } | null>(null);
-
-  const { data, isLoading, isError, error: queryError } = useQuery({
+  // Phase 1: fetch session metadata + signed chunk URLs (fast — no S3 bytes)
+  const { data: sessionApiResp, isLoading: metaLoading, isError, error: queryError } = useQuery({
     queryKey: ['replay', websiteId, sessionId],
-    queryFn: () => {
-      setChunkProgress(null);
-      return getSessionWithEvents(websiteId, sessionId, (loaded, total) => {
-        setChunkProgress({ loaded, total });
-      });
-    },
+    queryFn: () => getSessionApiResponse(websiteId, sessionId),
     enabled: isValidId(websiteId) && !!sessionId && !isDemoMode,
     staleTime: 5 * 60 * 1000,
     retry: 1,
-    refetchInterval: (q) => (q.state.data?.recordingPending ? 3500 : false),
+    refetchInterval: (q) => (q.state.data?.recording_pending ? 3500 : false),
   });
 
-  // Pre-warm the rrweb-player bundle while chunks are downloading so the dynamic
-  // import doesn't add a serial RTT after all chunk data is ready.
+  // Phase 2: progressive chunk loading state
+  const [initialEvents, setInitialEvents] = useState<RRWebEvent[]>([]);
+  const [initialCustomEvents, setInitialCustomEvents] = useState<ReturnType<typeof eventsFromChunkList>['customEvents']>([]);
+  const [chunkProgress, setChunkProgress] = useState<{ loaded: number; total: number } | null>(null);
+  const [chunksError, setChunksError] = useState<string | null>(null);
+
+  /** Populated when rrweb-player mounts; null between mount cycles. */
+  const addEventsRef = useRef<((evs: RRWebEvent[]) => void) | null>(null);
+  /** Queue for events that arrive before the player has mounted. */
+  const pendingEventsRef = useRef<RRWebEvent[]>([]);
+
+  // Stable fingerprint so the effect only re-runs when the chunk list actually changes
+  const chunkUrlsFingerprint = sessionApiResp?.replay_chunk_urls
+    ?.map(c => c.sequence).join(',') ?? '';
+
   useEffect(() => {
-    if (isLoading && !isDemoMode) {
-      void import('rrweb-player');
-    }
-  }, [isLoading, isDemoMode]);
+    if (!sessionApiResp) return;
+
+    const urlRows = [...(sessionApiResp.replay_chunk_urls ?? [])].sort(
+      (a, b) => a.sequence - b.sequence,
+    );
+    const warmChunks = sessionApiResp.warm_chunks;
+    const bundleUrl  = sessionApiResp.replay_url;
+    const total      = urlRows.length;
+
+    setInitialEvents([]);
+    setInitialCustomEvents([]);
+    setChunkProgress(null);
+    setChunksError(null);
+    addEventsRef.current = null;
+    pendingEventsRef.current = [];
+
+    if (total === 0 && !warmChunks?.length && !bundleUrl) return;
+
+    let cancelled = false;
+    const INITIAL_BATCH = 2;
+
+    (async () => {
+      // Warm-chunks-only or legacy bundle: load everything at once (no incremental gain)
+      if (total === 0) {
+        let chunks: Array<{ sequence: number; data: unknown[] }> = [];
+        if (warmChunks?.length) chunks = [...warmChunks];
+        if (!chunks.length && bundleUrl) {
+          try {
+            const raw = await fetchGzipJsonArray(bundleUrl);
+            chunks = [{ sequence: 0, data: raw as unknown[] }];
+          } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            const hint = msg.includes('404')
+              ? 'Got 404 on legacy bundle URL — if S3_PUBLIC_ENDPOINT is set to a Cloudflare R2 custom domain, unset it. Use the R2 API endpoint directly.'
+              : 'Check S3_PUBLIC_ENDPOINT / CORS if using MinIO or R2.';
+            if (!cancelled) setChunksError(`Could not load replay bundle (${msg}). ${hint}`);
+            return;
+          }
+        }
+        if (cancelled) return;
+        const { events, customEvents } = eventsFromChunkList(chunks);
+        setInitialEvents(events);
+        setInitialCustomEvents(customEvents);
+        return;
+      }
+
+      // Fetch initial batch to unblock the player
+      if (total > 0) setChunkProgress({ loaded: 0, total });
+      const initBatch = urlRows.slice(0, INITIAL_BATCH);
+      const initResults = await Promise.allSettled(
+        initBatch.map(row =>
+          fetchGzipJsonArray(row.url).then(data => ({ sequence: row.sequence, data: data as unknown[] })),
+        ),
+      );
+      if (cancelled) return;
+
+      let loaded = initBatch.length;
+      setChunkProgress({ loaded, total });
+
+      const initChunks = initResults
+        .filter((r): r is PromiseFulfilledResult<{ sequence: number; data: unknown[] }> => r.status === 'fulfilled')
+        .map(r => r.value);
+
+      if (initChunks.length === 0 && loaded === total) {
+        // All chunks failed — surface the first error
+        const failed = initResults.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
+        const msg = failed?.reason instanceof Error ? failed.reason.message : String(failed?.reason ?? 'failed');
+        const hint = msg.includes('404')
+          ? 'Got 404 — check S3_PUBLIC_ENDPOINT. If using Cloudflare R2 custom domain, unset it.'
+          : msg.includes('403')
+          ? 'Got 403 — CORS or signature mismatch. Check S3_PUBLIC_ENDPOINT and CORS settings.'
+          : 'Check S3_PUBLIC_ENDPOINT and CORS settings.';
+        setChunksError(`Could not load replay from storage (${msg}). ${hint}`);
+        return;
+      }
+
+      // Include warm chunks in the initial set
+      const allInitChunks = warmChunks?.length
+        ? [...initChunks, ...warmChunks]
+        : initChunks;
+
+      const { events: initEvs, customEvents: initCevs } = eventsFromChunkList(allInitChunks);
+      setInitialEvents(initEvs);
+      setInitialCustomEvents(initCevs);
+
+      // Stream remaining chunks; append via addEvent so player doesn't re-mount
+      for (let i = INITIAL_BATCH; i < total; i++) {
+        if (cancelled) break;
+        const row = urlRows[i];
+        try {
+          const data = await fetchGzipJsonArray(row.url);
+          if (!cancelled) {
+            const { events: newEvs } = eventsFromChunkList([{ sequence: row.sequence, data: data as unknown[] }]);
+            if (newEvs.length > 0) {
+              if (addEventsRef.current) {
+                addEventsRef.current(newEvs);
+              } else {
+                pendingEventsRef.current.push(...newEvs);
+              }
+            }
+          }
+        } catch {
+          // Skip failed chunks — partial replay is better than nothing
+        }
+        loaded++;
+        if (!cancelled) setChunkProgress({ loaded, total });
+      }
+    })();
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chunkUrlsFingerprint, sessionApiResp?.recording_pending]);
+
+  // Pre-warm rrweb-player bundle while metadata is loading
+  useEffect(() => {
+    if (metaLoading && !isDemoMode) void import('rrweb-player');
+  }, [metaLoading, isDemoMode]);
+
+  const chunkDataAvailable = !!(
+    (sessionApiResp?.replay_chunk_urls?.length ?? 0) > 0 ||
+    sessionApiResp?.replay_url ||
+    (sessionApiResp?.warm_chunks?.length ?? 0) > 0
+  );
+  const isLoading =
+    metaLoading ||
+    (!sessionApiResp && !isError) ||
+    // API responded with chunk data but first batch not yet parsed into events
+    (chunkDataAvailable && initialEvents.length === 0 && !chunksError && !sessionApiResp?.recording_pending);
 
   const session = isDemoMode
     ? ({
@@ -78,11 +215,22 @@ export default function ReplayDetailPage() {
         sessionId,
         websiteId,
       } as ReplaySession)
-    : data?.meta ?? undefined;
+    : sessionApiResp?.meta ?? undefined;
 
-  const events            = isDemoMode ? [] : (data?.events ?? []);
-  const customEvents      = isDemoMode ? [] : (data?.customEvents ?? []);
-  const recordingPending  = !isDemoMode && (data?.recordingPending ?? false);
+  const events            = isDemoMode ? [] : initialEvents;
+  const customEvents      = isDemoMode ? [] : initialCustomEvents;
+  const recordingPending  = !isDemoMode && (sessionApiResp?.recording_pending === true);
+
+  const handlePlayerReady = useCallback((api: SessionReplaySurfaceAPI) => {
+    playerApiRef.current = api;
+    // Wire the streaming addEvents ref
+    addEventsRef.current = (evs: RRWebEvent[]) => api.addEvents(evs);
+    // Flush events that arrived before the player was ready
+    if (pendingEventsRef.current.length > 0) {
+      api.addEvents(pendingEventsRef.current);
+      pendingEventsRef.current = [];
+    }
+  }, []);
 
   const copyShareLink = useCallback(() => {
     const full = typeof window !== 'undefined' ? window.location.href : '';
@@ -242,7 +390,7 @@ export default function ReplayDetailPage() {
                   </div>
                 )}
               </div>
-            ) : !isDemoMode && isError ? (
+            ) : !isDemoMode && (isError || chunksError) ? (
               <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">
                 <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
                   <Video className="h-7 w-7 text-muted-foreground/50" />
@@ -250,9 +398,9 @@ export default function ReplayDetailPage() {
                 <div className="max-w-md space-y-2">
                   <p className="text-sm font-semibold text-foreground">Couldn&apos;t load replay</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    {queryError instanceof Error
+                    {chunksError ?? (queryError instanceof Error
                       ? queryError.message
-                      : 'The session may have been deleted, the API returned an error (for example 404), or the recording bytes could not be read from storage.'}
+                      : 'The session may have been deleted, the API returned an error (for example 404), or the recording bytes could not be read from storage.')}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => router.push(listHref)}>
@@ -322,25 +470,40 @@ export default function ReplayDetailPage() {
                 </Button>
               </div>
             ) : (
-              <SessionReplaySurface
-                className="mt-0 flex min-w-0 w-full flex-col sm:!mt-0"
-                events={events}
-                customEvents={customEvents}
-                websiteId={websiteId}
-                sessionSummary={
-                  session
-                    ? {
-                        entryPage: session.entryPage,
-                        hasErrors: Boolean(session.hasErrors),
-                        hasRageClicks: Boolean(session.hasRageClicks),
-                      }
-                    : undefined
-                }
-                onReady={(api) => {
-                  playerApiRef.current = api;
-                }}
-                onBridgeReady={setReplayBridge}
-              />
+              <>
+                {/* Non-blocking streaming progress bar — shows while background chunks load */}
+                {chunkProgress && chunkProgress.loaded < chunkProgress.total && (
+                  <div className="mb-2 flex items-center gap-2 px-1">
+                    <div className="h-1 flex-1 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full bg-primary/60 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.round((chunkProgress.loaded / chunkProgress.total) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                      {chunkProgress.loaded}/{chunkProgress.total}
+                    </span>
+                  </div>
+                )}
+                <SessionReplaySurface
+                  className="mt-0 flex min-w-0 w-full flex-col sm:!mt-0"
+                  events={events}
+                  customEvents={customEvents}
+                  websiteId={websiteId}
+                  knownDurationMs={(session?.durationSeconds ?? 0) * 1000 || undefined}
+                  sessionSummary={
+                    session
+                      ? {
+                          entryPage: session.entryPage,
+                          hasErrors: Boolean(session.hasErrors),
+                          hasRageClicks: Boolean(session.hasRageClicks),
+                        }
+                      : undefined
+                  }
+                  onReady={handlePlayerReady}
+                  onBridgeReady={setReplayBridge}
+                />
+              </>
             )}
           </div>
 
