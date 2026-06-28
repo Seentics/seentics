@@ -16,10 +16,10 @@ export async function list(userId: string, websiteParam: string) {
     SELECT
       a.id, a.website_id, a.name, a.definition, a.is_active,
       a.created_at, a.updated_at,
-      COUNT(e.id)::int                                                          AS total,
-      COUNT(e.id) FILTER (WHERE e.status = 'success')::int                     AS success_count,
-      COUNT(e.id) FILTER (WHERE e.status = 'failed')::int                      AS failure_count,
-      COUNT(e.id) FILTER (WHERE e.created_at >= NOW() - INTERVAL '30 days')::int AS last30
+      COUNT(e.id) FILTER (WHERE e.record_type = 'server_run')::int              AS total,
+      COUNT(e.id) FILTER (WHERE e.record_type = 'action' AND e.status = 'success')::int  AS success_count,
+      COUNT(e.id) FILTER (WHERE e.record_type = 'action' AND e.status = 'failed')::int   AS failure_count,
+      COUNT(e.id) FILTER (WHERE e.record_type = 'server_run' AND e.created_at >= NOW() - INTERVAL '30 days')::int AS last30
     FROM automations a
     LEFT JOIN automation_events e ON e.automation_id = a.id
     WHERE a.website_id = ${uuidStr}
@@ -31,6 +31,7 @@ export async function list(userId: string, websiteParam: string) {
       const total   = Number(a.total   ?? 0);
       const success = Number(a.success_count ?? 0);
       const failure = Number(a.failure_count ?? 0);
+      const actionTotal = success + failure;
       return {
         id:         a.id,
         website_id: a.website_id,
@@ -43,7 +44,7 @@ export async function list(userId: string, websiteParam: string) {
           totalExecutions: total,
           successCount:    success,
           failureCount:    failure,
-          successRate:     total > 0 ? Math.round((success / total) * 1000) / 10 : 0,
+          successRate:     actionTotal > 0 ? Math.round((success / actionTotal) * 1000) / 10 : (total > 0 ? 100 : 0),
           last30Days:      Number(a.last30 ?? 0),
         },
       };
@@ -162,9 +163,9 @@ export async function stats(userId: string, websiteParam: string, id: string) {
 
   const [totals] = await pgSql<{ total: number; success: number; failure: number }[]>`
     SELECT
-      COUNT(*)::int                                            AS total,
-      COUNT(*) FILTER (WHERE status = 'success')::int         AS success,
-      COUNT(*) FILTER (WHERE status = 'failed')::int          AS failure
+      COUNT(*) FILTER (WHERE record_type = 'server_run')::int                             AS total,
+      COUNT(*) FILTER (WHERE record_type = 'action' AND status = 'success')::int          AS success,
+      COUNT(*) FILTER (WHERE record_type = 'action' AND status = 'failed')::int           AS failure
     FROM automation_events
     WHERE automation_id = ${id}
   `;
@@ -172,18 +173,20 @@ export async function stats(userId: string, websiteParam: string, id: string) {
     SELECT COUNT(*)::int AS cnt
     FROM automation_events
     WHERE automation_id = ${id}
+      AND record_type = 'server_run'
       AND created_at >= NOW() - INTERVAL '30 days'
   `;
 
   const total   = totals?.total   ?? 0;
   const success = totals?.success ?? 0;
   const failure = totals?.failure ?? 0;
+  const actionTotal = success + failure;
   return {
     data: {
       totalExecutions: total,
       successCount:    success,
       failureCount:    failure,
-      successRate:     total > 0 ? Math.round((success / total) * 1000) / 10 : 0,
+      successRate:     actionTotal > 0 ? Math.round((success / actionTotal) * 1000) / 10 : (total > 0 ? 100 : 0),
       last30Days:      last30?.cnt ?? 0,
     },
   };
