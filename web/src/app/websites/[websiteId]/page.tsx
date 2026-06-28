@@ -92,7 +92,7 @@ export default function WebsiteDashboardPage() {
   const [showAddWebsiteModal, setShowAddWebsiteModal] = useState(false);
 
   // Filter state
-  const [dateRange, setDateRange] = useState<number>(7);
+  const [dateRange, setDateRange] = useState<number>(30);
   const [customStartDate, setCustomStartDate] = useState<Date | undefined>(undefined);
   const [customEndDate, setCustomEndDate] = useState<Date | undefined>(undefined);
   const [isCustomRange, setIsCustomRange] = useState<boolean>(false);
