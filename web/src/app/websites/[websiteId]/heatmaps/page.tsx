@@ -123,7 +123,8 @@ export default function HeatmapsPage() {
     queryKey:  ['heatmap-pages', websiteId],
     queryFn:   () => listHeatmapPages(websiteId),
     enabled:   !isDemoMode,
-    staleTime: 60_000,
+    staleTime: 5 * 60 * 1000,
+    gcTime:    15 * 60 * 1000,
   });
 
   // Normalise data to a common shape

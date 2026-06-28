@@ -134,7 +134,8 @@ export default function ReplaysPage() {
     queryKey: ['sessions', websiteId],
     queryFn: () => listSessions(websiteId, 100, 0),
     enabled: !isDemoMode,
-    staleTime: 30_000,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 
   // Normalise to common row shape

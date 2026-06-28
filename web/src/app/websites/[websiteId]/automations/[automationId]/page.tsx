@@ -16,7 +16,7 @@ import {
 import { cn } from '@/lib/utils';
 import { StatCards } from '@/components/seentics-ui/StatCards';
 import {
-  useAutomations, useToggleAutomation, useDeleteAutomation, useUpdateAutomation,
+  useFetchAutomation, useToggleAutomation, useDeleteAutomation, useUpdateAutomation,
   useAutomationDailyStats,
 } from '@/lib/automations-api';
 import { AutomationBuilder, type AutomationDefinition } from '@/components/automations/AutomationBuilder';
@@ -96,13 +96,11 @@ export default function AutomationDetailPage() {
   const [editMode, setEditMode] = useState(false);
   const [editName, setEditName] = useState('');
 
-  const { data, isLoading }            = useAutomations(websiteId);
+  const { data: automation, isLoading }         = useFetchAutomation(websiteId, automationId);
   const { mutate: toggle, isPending: toggling } = useToggleAutomation();
   const { mutate: remove, isPending: deleting } = useDeleteAutomation();
   const { mutate: update, isPending: saving }   = useUpdateAutomation();
   const { data: dailyStatsData } = useAutomationDailyStats(websiteId, automationId);
-
-  const automation = (data?.automations ?? []).find(a => a.id === automationId);
 
   if (!automation && !isLoading) {
     return (
