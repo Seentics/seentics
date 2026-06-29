@@ -65,13 +65,11 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
 
         {/* Right section */}
         <div className="flex items-center gap-3 ml-auto">
-          <Link
-            href="https://github.com/Seentics/seentics"
-            target="_blank"
-            className="hidden sm:flex p-1.5 hover:bg-accent rounded-md transition-colors text-muted-foreground hover:text-foreground"
-            title="GitHub"
-          >
-            <Github className="h-4 w-4" />
+          <Link href="https://github.com/Seentics/seentics" target="_blank" className="hidden sm:block">
+            <Button variant="outline" size="sm" className="h-8 px-3 text-xs font-semibold gap-1.5 border-border">
+              <Github className="h-3.5 w-3.5" />
+              GitHub
+            </Button>
           </Link>
           <ThemeToggle />
           {isAuthenticated ? (
