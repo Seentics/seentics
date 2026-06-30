@@ -158,7 +158,20 @@ trackerRoutes.post("/collect", async (c) => {
     return c.json({ error: "domain mismatch" }, 403);
   }
 
-  const ua = c.req.header("User-Agent") ?? "";
+  // Prefer the HTTP User-Agent header. Fallback to navigator.userAgent from the pageview event body
+  // when the UA is missing or is a server runtime (e.g. Bun default "Bun/x.x" added when proxies
+  // don't forward User-Agent through the Next.js → gateway → core chain).
+  let ua = c.req.header("User-Agent") ?? "";
+  if (!ua || /^(bun\/|node\/|node-fetch|undici|got\/|axios\/)/i.test(ua)) {
+    const eventsArr = Array.isArray(body.events) ? body.events : [];
+    for (const ev of eventsArr) {
+      const evUa = (ev as Record<string, unknown> | null)?.data;
+      const candidate = typeof (evUa as Record<string, unknown> | null)?.ua === "string"
+        ? ((evUa as Record<string, unknown>).ua as string).trim()
+        : "";
+      if (candidate) { ua = candidate; break; }
+    }
+  }
   // One enrichment blob per /collect: client IP → MaxMind (country/region/city) + UA/device + optional edge/fallback headers.
   // handleEvents / handleFunnels attach this same ingestMeta to every row before enqueue → flush → Postgres.
   const ingestMeta = buildAnalyticsIngestMeta({

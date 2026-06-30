@@ -60,6 +60,8 @@ export default function ReplayDetailPage() {
   const [initialCustomEvents, setInitialCustomEvents] = useState<ReturnType<typeof eventsFromChunkList>['customEvents']>([]);
   const [chunkProgress, setChunkProgress] = useState<{ loaded: number; total: number } | null>(null);
   const [chunksError, setChunksError] = useState<string | null>(null);
+  /** True once the initial S3 batch has been fetched and processed (success, empty, or error). */
+  const [initialBatchDone, setInitialBatchDone] = useState(false);
 
   /** Populated when rrweb-player mounts; null between mount cycles. */
   const addEventsRef = useRef<((evs: RRWebEvent[]) => void) | null>(null);
@@ -84,6 +86,7 @@ export default function ReplayDetailPage() {
     setInitialCustomEvents([]);
     setChunkProgress(null);
     setChunksError(null);
+    setInitialBatchDone(false);
     addEventsRef.current = null;
     pendingEventsRef.current = [];
 
@@ -106,7 +109,7 @@ export default function ReplayDetailPage() {
             const hint = msg.includes('404')
               ? 'Got 404 on legacy bundle URL — if S3_PUBLIC_ENDPOINT is set to a Cloudflare R2 custom domain, unset it. Use the R2 API endpoint directly.'
               : 'Check S3_PUBLIC_ENDPOINT / CORS if using MinIO or R2.';
-            if (!cancelled) setChunksError(`Could not load replay bundle (${msg}). ${hint}`);
+            if (!cancelled) { setChunksError(`Could not load replay bundle (${msg}). ${hint}`); setInitialBatchDone(true); }
             return;
           }
         }
@@ -114,6 +117,7 @@ export default function ReplayDetailPage() {
         const { events, customEvents } = eventsFromChunkList(chunks);
         setInitialEvents(events);
         setInitialCustomEvents(customEvents);
+        setInitialBatchDone(true);
         return;
       }
 
@@ -134,16 +138,20 @@ export default function ReplayDetailPage() {
         .filter((r): r is PromiseFulfilledResult<{ sequence: number; data: unknown[] }> => r.status === 'fulfilled')
         .map(r => r.value);
 
-      if (initChunks.length === 0 && loaded === total) {
-        // All chunks failed — surface the first error
+      if (initChunks.length === 0) {
+        // All initial-batch chunks failed — surface the first error immediately
         const failed = initResults.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
         const msg = failed?.reason instanceof Error ? failed.reason.message : String(failed?.reason ?? 'failed');
+        const lmsg = msg.toLowerCase();
         const hint = msg.includes('404')
           ? 'Got 404 — check S3_PUBLIC_ENDPOINT. If using Cloudflare R2 custom domain, unset it.'
           : msg.includes('403')
           ? 'Got 403 — CORS or signature mismatch. Check S3_PUBLIC_ENDPOINT and CORS settings.'
+          : lmsg.includes('failed to fetch') || lmsg.includes('networkerror') || lmsg.includes('network error') || lmsg.includes('load')
+          ? 'Network or CORS error — check that MinIO/S3 CORS is configured for browser access (see docker-compose.yml createbuckets) and that S3_PUBLIC_ENDPOINT is a hostname the browser can reach.'
           : 'Check S3_PUBLIC_ENDPOINT and CORS settings.';
         setChunksError(`Could not load replay from storage (${msg}). ${hint}`);
+        setInitialBatchDone(true);
         return;
       }
 
@@ -155,6 +163,7 @@ export default function ReplayDetailPage() {
       const { events: initEvs, customEvents: initCevs } = eventsFromChunkList(allInitChunks);
       setInitialEvents(initEvs);
       setInitialCustomEvents(initCevs);
+      setInitialBatchDone(true);
 
       // Stream remaining chunks; append via addEvent so player doesn't re-mount
       for (let i = INITIAL_BATCH; i < total; i++) {
@@ -197,8 +206,8 @@ export default function ReplayDetailPage() {
   const isLoading =
     metaLoading ||
     (!sessionApiResp && !isError) ||
-    // API responded with chunk data but first batch not yet parsed into events
-    (chunkDataAvailable && initialEvents.length === 0 && !chunksError && !sessionApiResp?.recording_pending);
+    // API responded with chunk data but initial S3 batch not yet fetched/processed
+    (chunkDataAvailable && !initialBatchDone && !chunksError && !sessionApiResp?.recording_pending);
 
   const session = isDemoMode
     ? ({
