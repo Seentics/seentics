@@ -3,7 +3,7 @@ import { HeroDashboardPreviewLazy } from './HeroDashboardPreviewLazy';
 
 export default function Hero() {
   return (
-    <section className="relative pt-28 pb-16 md:pt-36 md:pb-24 bg-muted/40 overflow-hidden">
+    <section className="relative pt-32 pb-24 md:pt-44 md:pb-32 bg-muted/40 overflow-hidden">
       {/* Fade edge into page background */}
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-background" />
 
@@ -15,7 +15,7 @@ export default function Hero() {
             </span>
           </h1>
 
-          <p className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:80ms] text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:80ms] text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
             Seentics gives you session replays, heatmaps, funnels and AI insights — with built-in automations to act on what you find. Self-hosted, open source, no cookies.
           </p>
 
