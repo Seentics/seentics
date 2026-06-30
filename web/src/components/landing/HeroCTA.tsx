@@ -26,7 +26,7 @@ export function HeroCTA() {
         </Link>
       )}
       <Link href="/websites/demo">
-        <Button variant="outline" className="h-14 px-10 text-base font-semibold rounded-xl gap-2 border-border text-foreground hover:bg-accent">
+        <Button variant="outline" className="h-14 px-10 text-base font-semibold rounded-xl gap-2 border-2 border-border text-foreground hover:bg-accent">
           <span className="relative flex h-2.5 w-2.5 shrink-0">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
