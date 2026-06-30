@@ -255,7 +255,7 @@ const drainQueues = () => {
     return null;
   }
 
-  const payload = { website_id: websiteId, domain };
+  const payload = { website_id: websiteId, domain, ua: navigator.userAgent };
   if (events.length)            payload.events               = events;
   if (funnelEvts.length)        payload.funnels              = funnelEvts;
   if (autoEvts.length)          payload.automations          = autoEvts;

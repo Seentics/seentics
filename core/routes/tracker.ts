@@ -158,18 +158,25 @@ trackerRoutes.post("/collect", async (c) => {
     return c.json({ error: "domain mismatch" }, 403);
   }
 
-  // Prefer the HTTP User-Agent header. Fallback to navigator.userAgent from the pageview event body
-  // when the UA is missing or is a server runtime (e.g. Bun default "Bun/x.x" added when proxies
-  // don't forward User-Agent through the Next.js → gateway → core chain).
+  // Prefer the HTTP User-Agent header. Fallback to navigator.userAgent embedded in the payload
+  // body when the UA is missing or is a server runtime (e.g. Bun/x.x injected by Bun fetch()
+  // when proxying through the gateway → core chain).
   let ua = c.req.header("User-Agent") ?? "";
   if (!ua || /^(bun\/|node\/|node-fetch|undici|got\/|axios\/)/i.test(ua)) {
-    const eventsArr = Array.isArray(body.events) ? body.events : [];
-    for (const ev of eventsArr) {
-      const evUa = (ev as Record<string, unknown> | null)?.data;
-      const candidate = typeof (evUa as Record<string, unknown> | null)?.ua === "string"
-        ? ((evUa as Record<string, unknown>).ua as string).trim()
-        : "";
-      if (candidate) { ua = candidate; break; }
+    // Primary fallback: top-level body.ua (sent with every payload since tracker v2)
+    const bodyUa = typeof body.ua === "string" ? body.ua.trim() : "";
+    if (bodyUa) {
+      ua = bodyUa;
+    } else {
+      // Secondary fallback: ua inside a pageview event's data object
+      const eventsArr = Array.isArray(body.events) ? body.events : [];
+      for (const ev of eventsArr) {
+        const evUa = (ev as Record<string, unknown> | null)?.data;
+        const candidate = typeof (evUa as Record<string, unknown> | null)?.ua === "string"
+          ? ((evUa as Record<string, unknown>).ua as string).trim()
+          : "";
+        if (candidate) { ua = candidate; break; }
+      }
     }
   }
   // One enrichment blob per /collect: client IP → MaxMind (country/region/city) + UA/device + optional edge/fallback headers.

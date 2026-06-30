@@ -60,6 +60,7 @@ export type InternalCollectHeatmapEventsBody = {
 export type TrackerCollectBody = {
   website_id?: string;
   domain?: string;
+  ua?: string;
   events?: unknown[];
   session?: unknown[];
   heatmaps?: unknown[];
