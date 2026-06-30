@@ -1,4 +1,3 @@
-import { Sparkles } from 'lucide-react';
 import { HeroCTA } from './HeroCTA';
 import { HeroDashboardPreviewLazy } from './HeroDashboardPreviewLazy';
 
@@ -10,23 +9,14 @@ export default function Hero() {
 
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-muted/50 border border-border/60 text-xs font-medium text-muted-foreground mb-8">
-            <Sparkles className="h-3 w-3 text-indigo-400" />
-            <span className="text-indigo-400 font-semibold">AI-Powered</span>
-            <span className="text-border">·</span>
-            Open Source
-            <span className="text-border">·</span>
-            Self-Hosted
-          </div>
-
-          <h1 className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:50ms] mb-6">
+          <h1 className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-6">
             <span className="block text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter text-foreground leading-[1.1]">
               See. Analyze. <span className="text-primary">Act.</span>
             </span>
           </h1>
 
-          <p className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:100ms] text-lg text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-            Seentics gives you session replays, heatmaps, funnels and revenue tracking — then trigger popups, webhooks or API calls based on what your visitors do. Self-hosted, open source, no cookies.
+          <p className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:80ms] text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
+            Session replays, heatmaps, funnels and AI insights — with built-in automations to act on what you find. Self-hosted, open source, no cookies.
           </p>
 
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:150ms]">
