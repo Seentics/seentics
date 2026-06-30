@@ -1,12 +1,13 @@
-import { eq } from "drizzle-orm";
-import { db, websites } from "../../db";
+import { sql as pgSql } from "../../db";
 import { getDashboardStats } from "./dashboard";
 
 export async function getPublicDashboardStats(
   publicId: string,
   query: Record<string, string | undefined>,
 ) {
-  const [w] = await db.select().from(websites).where(eq(websites.publicShareId, publicId)).limit(1);
-  if (!w) return null;
-  return getDashboardStats(w.id, query);
+  const rows = await pgSql<{ id: string }[]>`
+    SELECT id FROM websites WHERE public_share_id = ${publicId} LIMIT 1
+  `;
+  if (!rows.length) return null;
+  return getDashboardStats(rows[0]!.id, query);
 }

@@ -1,6 +1,5 @@
-import { and, desc, eq, gte, sql as dsql } from "drizzle-orm";
-import { analyticsEvents, db } from "../../db";
-import { countDistinctVisitorsSql, parseDays, resolveSiteId } from "./shared";
+import { sql as pgSql } from "../../db";
+import { parseDays, resolveSiteId } from "./shared";
 
 export async function getCitiesAnalytics(
   websiteParam: string,
@@ -8,28 +7,26 @@ export async function getCitiesAnalytics(
 ) {
   const days = parseDays(query.days);
   const { siteId } = await resolveSiteId(websiteParam);
-  const start = new Date(Date.now() - days * 86400000);
-  const rows = await db
-    .select({
-      city: analyticsEvents.city,
-      views: dsql<number>`count(*)::int`,
-      unique: countDistinctVisitorsSql(),
-    })
-    .from(analyticsEvents)
-    .where(
-      and(
-        eq(analyticsEvents.websiteId, siteId),
-        gte(analyticsEvents.occurredAt, start),
-        eq(analyticsEvents.eventType, "pageview"),
-      ),
-    )
-    .groupBy(analyticsEvents.city)
-    .orderBy(desc(dsql`count(*)`))
-    .limit(30);
+  const startIso = new Date(Date.now() - days * 86400000).toISOString();
+
+  const rows = await pgSql<{ city: string; views: number; unique: number }[]>`
+    SELECT
+      city,
+      count(*)::int                                                                       AS views,
+      count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int             AS unique
+    FROM analytics_events
+    WHERE website_id  = ${siteId}
+      AND event_type  = 'pageview'
+      AND occurred_at >= ${startIso}
+      AND city IS NOT NULL
+      AND length(trim(city)) > 0
+    GROUP BY city
+    ORDER BY views DESC
+    LIMIT 30
+  `;
+
   return {
     website_id: siteId,
-    top_cities: rows
-      .filter((r) => r.city)
-      .map((r) => ({ city: r.city!, views: r.views, unique: r.unique })),
+    top_cities: rows.map((r) => ({ city: r.city, views: r.views, unique: r.unique })),
   };
 }
