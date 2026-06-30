@@ -4,11 +4,9 @@ import { HeroDashboardPreviewLazy } from './HeroDashboardPreviewLazy';
 
 export default function Hero() {
   return (
-    <section className="relative pt-28 pb-16 md:pt-36 md:pb-24 bg-background overflow-hidden">
-      {/* Dot pattern background */}
-      <div className="absolute inset-0 [background-image:radial-gradient(hsl(var(--border)/0.4)_1px,transparent_1px)] [background-size:24px_24px]" />
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,hsl(var(--background))_70%)]" />
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/[0.07] rounded-full blur-[120px]" />
+    <section className="relative pt-28 pb-16 md:pt-36 md:pb-24 bg-muted/40 overflow-hidden">
+      {/* Fade edge into page background */}
+      <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-background" />
 
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
@@ -37,7 +35,6 @@ export default function Hero() {
 
           {/* 3D Perspective Dashboard Preview — loaded lazily after first paint */}
           <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 [animation-delay:200ms] relative max-w-5xl mx-auto [perspective:1200px]">
-            <div className="absolute -inset-8 bg-primary/[0.04] rounded-3xl blur-3xl" />
             <div className="relative [transform:perspective(1200px)_rotateX(2deg)] origin-bottom">
               <HeroDashboardPreviewLazy />
             </div>
