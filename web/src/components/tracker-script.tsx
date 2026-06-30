@@ -50,6 +50,7 @@ export default function TrackerScript() {
   const apiHostOverride = process.env.NEXT_PUBLIC_SEENTICS_API_HOST?.trim();
 
   const trackerUrl = resolveTrackerScriptSrc();
+  const rrwebUrl = trackerUrl.replace(/[^/?#]*\.js[^/?#]*$/, 'rrweb.min.js');
 
   if (!siteId) {
     if (process.env.NODE_ENV === 'development') {
@@ -64,9 +65,9 @@ export default function TrackerScript() {
   return (
     <Script
       id="seentics-tracker"
-      defer
       src={trackerUrl}
       data-website-id={siteId}
+      data-rrweb-src={rrwebUrl}
       {...(apiHostOverride ? { 'data-api-host': normalizeTrackerApiHost(apiHostOverride) } : {})}
       strategy="afterInteractive"
     />
