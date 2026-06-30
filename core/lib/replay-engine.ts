@@ -95,7 +95,7 @@ type SessionMetaLite = {
 type SessionWork = {
   sessionId: string;
   batch: SessionBatch;
-  meta: SessionMetaLite | null;
+  meta: SessionMetaLite;
   pageIncrements: number;
   durationSeconds: number;
   tsToUse: number;
@@ -209,30 +209,29 @@ export class ReplayEngine {
       sortBatchEvents(batch.events);
       if (batch.clicks.length > 1) batch.clicks.sort((a, c) => a.ts - c.ts);
 
-      let meta: SessionMetaLite | null = null;
-      let pageIncrements = 0;
-      if (batch.hasFullSnapshot) {
-        pageIncrements = 1;
-        const entryURL =
-          batch.events.length > 0 && typeof batch.events[0]!.url === "string"
-            ? (batch.events[0]!.url as string)
-            : "";
-        const im = batch.ingestMeta;
-        meta = {
-          sessionId,
-          websiteId: batch.websiteId,
-          browser: (im?.browser ?? "").trim() || "Unknown",
-          device: (im?.device ?? "").trim() || "Unknown",
-          os: (im?.os ?? "").trim() || "Unknown",
-          country: (im?.country ?? "").trim(),
-          entryPage: entryURL,
-          startedAt: new Date(batch.startTs),
-          hasRageClicks: false,
-          hasErrors: batch.hasErrors,
-          durationSeconds: 0,
-          pagesViewed: 0,
-        };
-      }
+      const pageIncrements = batch.hasFullSnapshot ? 1 : 0;
+
+      // Populate metadata for every session that has any events — not just FullSnapshot ones.
+      // Network/error-only sessions (no rrweb recording) still need browser/OS/country for the list view.
+      const entryURL =
+        batch.events.length > 0 && typeof batch.events[0]!.url === "string"
+          ? (batch.events[0]!.url as string)
+          : "";
+      const im = batch.ingestMeta;
+      const meta: SessionMetaLite = {
+        sessionId,
+        websiteId: batch.websiteId,
+        browser: (im?.browser ?? "").trim() || "Unknown",
+        device: (im?.device ?? "").trim() || "Unknown",
+        os: (im?.os ?? "").trim() || "Unknown",
+        country: (im?.country ?? "").trim(),
+        entryPage: entryURL,
+        startedAt: new Date(batch.startTs),
+        hasRageClicks: false,
+        hasErrors: batch.hasErrors,
+        durationSeconds: 0,
+        pagesViewed: 0,
+      };
 
       let tsToUse = batch.endTs;
       if (batch.hasFullSnapshot) tsToUse = batch.startTs;
@@ -270,11 +269,11 @@ export class ReplayEngine {
         sessionId: w.sessionId,
         tsMs: w.tsToUse,
         latestEventMs: replayLatestEventMsForStorage(w.batch, w.batch.endTs),
-        browser: m?.browser ?? "",
-        device: m?.device ?? "",
-        os: m?.os ?? "",
-        country: m?.country ?? "",
-        entryPage: m?.entryPage ?? "",
+        browser: m.browser,
+        device: m.device,
+        os: m.os,
+        country: m.country,
+        entryPage: m.entryPage,
         pageIncrements: w.pageIncrements,
         durationSeconds: w.durationSeconds,
         hasRageClicks: w.rageClicks,
