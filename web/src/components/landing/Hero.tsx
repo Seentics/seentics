@@ -16,7 +16,7 @@ export default function Hero() {
           </h1>
 
           <p className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:80ms] text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed">
-            Session replays, heatmaps, funnels and AI insights — with built-in automations to act on what you find. Self-hosted, open source, no cookies.
+            Seentics gives you session replays, heatmaps, funnels and AI insights — with built-in automations to act on what you find. Self-hosted, open source, no cookies.
           </p>
 
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:150ms]">
