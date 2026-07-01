@@ -8,7 +8,7 @@ import { presignGet, putJpeg } from "../lib/s3";
 import { resolveWebsiteIds, resolveWebsiteIdsLenient } from "../lib/website-resolve";
 import { heatmapScreenshotKey, layoutPathSlot } from "../lib/keys";
 import { getWebsiteBySiteId } from "../lib/website-site";
-import { analyticsEvents, db, websites } from "../db";
+import { analyticsEvents, db, sql, websites } from "../db";
 import { captureHeatmapScreenshot } from "./heatmap-playwright.service";
 import { log as baseLog } from "../lib/logger";
 
@@ -39,6 +39,7 @@ async function autoCapture(
   siteId: string,
   norm: string,
   opts: { lenientResolve: boolean },
+  force = false,
 ): Promise<void> {
   const captureKey = `${websiteUuid}:${norm}`;
   if (_capturing.has(captureKey)) {
@@ -88,9 +89,9 @@ async function autoCapture(
       log.info({ msg: "heatmap_autocapture_events_query", website_uuid: websiteUuid, norm, rows_found: rows.length, sample: rows.slice(0, 3).map(r => r.page) });
       void wh("autocapture_events_query", { websiteUuid, norm, rowsFound: rows.length, sample: rows.slice(0, 5).map(r => r.page) });
 
-      pageUrl = rows
+      pageUrl = (rows
         .map((r) => r.page)
-        .find((p) => !!p && normalizeHeatmapPagePath(extractPath(p ?? "")) === norm);
+        .find((p) => !!p && normalizeHeatmapPagePath(extractPath(p ?? "")) === norm)) ?? undefined;
       void wh("autocapture_events_match", { websiteUuid, norm, matchedUrl: pageUrl ?? null });
     }
 
@@ -103,7 +104,7 @@ async function autoCapture(
     log.info({ msg: "heatmap_autocapture_playwright_start", website_uuid: websiteUuid, norm, page_url: pageUrl });
     void wh("autocapture_playwright_start", { websiteUuid, norm, pageUrl });
     try {
-      const result = await captureHeatmapScreenshot(websiteParam, { pageUrl, pagePath: norm }, opts);
+      const result = await captureHeatmapScreenshot(websiteParam, { pageUrl, pagePath: norm, force }, opts);
       log.info({ msg: "heatmap_autocapture_playwright_done", website_uuid: websiteUuid, norm, stored: result.stored, s3_key: result.s3Key });
       void wh("autocapture_playwright_done", { websiteUuid, norm, stored: result.stored, s3Key: result.s3Key ?? null, message: result.message ?? null });
     } catch (captureErr) {
@@ -210,6 +211,14 @@ export async function getHeatmapLayoutSnapshot(
     void autoCapture(websiteParam, uuidStr, siteId, norm, opts);
     return { layout: null as null };
   }
+
+  // Stale snapshot: re-capture in background if older than 3 days, but still return existing data.
+  const STALE_MS = 3 * 24 * 60 * 60 * 1000;
+  if (row.updated_at && Date.now() - new Date(row.updated_at).getTime() > STALE_MS) {
+    log.info({ msg: "heatmap_snapshot_stale_refresh", website_uuid: uuidStr, norm });
+    void autoCapture(websiteParam, uuidStr, siteId, norm, opts, true);
+  }
+
   void wh("snapshot_hit", { websiteUuid: uuidStr, norm, s3Key: row.s3_key, htmlS3Key: row.html_s3_key });
 
   const cfg = env();
@@ -297,4 +306,30 @@ export async function bulkDeleteHeatmapPages(
 ) {
   const { uuidStr } = await resolve(websiteParam, opts.lenientResolve);
   await deleteHeatmaps(uuidStr, pagePaths);
+}
+
+/**
+ * Scheduled job: find heatmap page snapshots older than `staleDays` and re-capture them.
+ * Processes up to 50 at a time to avoid Playwright overload. Called by the scheduler.
+ */
+export async function refreshStaleHeatmapScreenshots(staleDays = 3): Promise<{ queued: number }> {
+  const staleCut = new Date(Date.now() - staleDays * 86_400_000);
+  const stale = await sql<{ website_id: string; page_path: string }[]>`
+    SELECT DISTINCT ON (website_id, page_path) website_id::text AS website_id, page_path
+    FROM heatmap_page_snapshots
+    WHERE updated_at < ${staleCut}
+      AND (s3_key <> '' OR html_s3_key IS NOT NULL)
+    LIMIT 50
+  `;
+  if (stale.length === 0) return { queued: 0 };
+  log.info({ msg: "heatmap_stale_refresh_batch", count: stale.length, stale_before: staleCut.toISOString() });
+  for (const row of stale) {
+    try {
+      const { uuidStr, siteId } = await resolveWebsiteIdsLenient(row.website_id);
+      void autoCapture(row.website_id, uuidStr, siteId, row.page_path, { lenientResolve: true }, true);
+    } catch (e) {
+      log.warn({ msg: "heatmap_stale_refresh_resolve_failed", website_id: row.website_id, page_path: row.page_path, err: String(e) });
+    }
+  }
+  return { queued: stale.length };
 }

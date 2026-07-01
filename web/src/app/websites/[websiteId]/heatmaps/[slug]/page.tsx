@@ -479,17 +479,17 @@ function HeatmapViewer({
     if (natH > 200) {
       return Math.min(HEATMAP_DIM_CAP, Math.max(natH, points.length > 0 ? dataH : 0));
     }
-    if (screenshotActive && pageScreenshot) {
+    // Use stored doc_height regardless of screenshot visibility — it is the real measured page
+    // height and should govern the heatmap canvas size in all modes (screenshot or heat-only).
+    if (pageScreenshot) {
       const sh = pageScreenshot.doc_height > 200 ? pageScreenshot.doc_height : 0;
       if (sh > 200) {
-        // Stored doc_height is measured from the real page — trust it, don't let the
-        // viewport-stack hint override it and create empty space or clip the content.
         return Math.min(HEATMAP_DIM_CAP, Math.max(sh, dataH));
       }
     }
     const hint = docHeightHint;
     return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, hint));
-  }, [points, heatType, viewPort.w, docHeightHint, screenshotActive, pageScreenshot, shotNatural]);
+  }, [points, heatType, viewPort.w, docHeightHint, pageScreenshot, shotNatural]);
 
   const dims = useMemo(() => {
     const dataW = documentPixelWidthForHeatmap(points, viewPort.w);

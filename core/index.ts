@@ -7,7 +7,7 @@ import { configureLogger, log } from "./lib/logger";
 import { getHeatmapEngine } from "./lib/heatmap-engine";
 import { getReplayEngine } from "./lib/replay-engine";
 import { configureTrackerOriginCache } from "./lib/origin";
-import { startDataRetentionCron } from "./services/retention.service";
+import { startScheduler, stopScheduler } from "./services/scheduler";
 import { configureTrackerWebsiteCache } from "./lib/website-for-tracker";
 import { initializeScreenshotCache } from "./lib/heatmap-screenshot-cache";
 import { analyticsCacheMiddleware } from "./middleware/analytics-cache";
@@ -96,7 +96,7 @@ try {
     initializeScreenshotCache(cfg.screenshotCache.ttlMs, cfg.screenshotCache.maxEntries);
   }
   startIngestQueueFlusher(cfg);
-  startDataRetentionCron(cfg);
+  startScheduler(cfg);
   ready = true;
   core_log.info({ msg: 'startup_complete', service: 'seentics-core', port });
 } catch (err) {
@@ -106,6 +106,7 @@ try {
 
 async function shutdown() {
   core_log.info({ msg: 'shutdown_started' });
+  stopScheduler();
   stopIngestQueueFlusher();
   try {
     await flushIngestQueuesNow();

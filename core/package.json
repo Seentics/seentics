@@ -17,6 +17,7 @@
     "@playwright/browser-chromium": "^1.48.0",
     "bcryptjs": "^2.4.3",
     "bowser": "^2.14.1",
+    "croner": "^10.0.1",
     "drizzle-orm": "^0.41.0",
     "hono": "^4.6.12",
     "jose": "^5.9.6",
