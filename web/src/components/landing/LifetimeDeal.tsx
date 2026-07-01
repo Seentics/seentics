@@ -61,7 +61,7 @@ export default function LifetimeDeal() {
           <div className="inline-block bg-blue-600/10 border border-blue-600/20 rounded-full px-4 py-1.5 mb-6">
             <span className="text-xs font-bold uppercase tracking-widest text-blue-500">Limited Time</span>
           </div>
-          <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4 leading-tight">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
             Lifetime Deal
           </h2>
           <p className="text-muted-foreground text-lg">

@@ -40,7 +40,7 @@ export default function HowAutomationsWork() {
             <Zap className="h-3 w-3" />
             Automations
           </div>
-          <h2 className="text-3xl md:text-5xl font-bold tracking-tight mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
             Your site reacts<br />
             <span className="text-primary">to every visitor action</span>
           </h2>
