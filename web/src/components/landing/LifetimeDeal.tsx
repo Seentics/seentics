@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { Check, Zap, Loader2, Shield, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { openCheckout } from '@/lib/checkout';
 
 const FEATURES = [
   'Unlimited Websites',
@@ -40,7 +41,9 @@ export default function LifetimeDeal() {
         billing: 'monthly',
       });
       if (response.data.success && response.data.data.checkoutUrl) {
-        window.location.href = response.data.data.checkoutUrl;
+        openCheckout(response.data.data.checkoutUrl);
+      } else {
+        toast.error('Checkout not available. Please try again or contact support.');
       }
     } catch {
       toast.error('Failed to initialize checkout. Please try again.');
