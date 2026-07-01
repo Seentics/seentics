@@ -92,7 +92,7 @@ export async function runDataRetentionCleanup(cfg: AppConfig): Promise<DataClean
 
     const delFunnel = await sql`
       DELETE FROM analytics_events
-      WHERE website_site_id = ${w.site_id}
+      WHERE website_id = ${w.site_id}
         AND event_type IN ('funnel_step', 'funnel_complete')
         AND occurred_at < ${funnelCut}
     `;
@@ -100,7 +100,7 @@ export async function runDataRetentionCleanup(cfg: AppConfig): Promise<DataClean
 
     const delGeneral = await sql`
       DELETE FROM analytics_events
-      WHERE website_site_id = ${w.site_id}
+      WHERE website_id = ${w.site_id}
         AND (
           event_type IS NULL
           OR event_type NOT IN ('funnel_step', 'funnel_complete')
