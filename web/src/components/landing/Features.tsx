@@ -14,7 +14,7 @@ const features = [
   {
     icon: Sparkles,
     title: 'Seentics AI',
-    description: 'Ask anything about your data in plain English. AI generates SQL, runs it, and renders beautiful charts — across analytics, revenue, replays, heatmaps, funnels, and automations.',
+    description: 'Ask anything about your data in plain English. AI generates SQL, runs it, and renders beautiful charts instantly.',
     color: 'text-indigo-500 bg-indigo-500/10',
     badge: 'BETA',
   },
@@ -27,19 +27,19 @@ const features = [
   {
     icon: Flame,
     title: 'Heatmaps',
-    description: 'See where users click, scroll, and hover on any page — no code needed.',
+    description: 'See where users click, scroll, and hover on any page. Visualize attention without writing a single line of code.',
     color: 'text-orange-500 bg-orange-500/10',
   },
   {
     icon: Bot,
     title: 'Automations',
-    description: 'Fire webhooks, emails, or any action when users hit specific behaviors or conditions.',
+    description: 'Fire webhooks, emails, or in-page actions when users hit specific behaviors or conditions — no code needed.',
     color: 'text-indigo-500 bg-indigo-500/10',
   },
   {
     icon: Lock,
     title: 'Privacy First',
-    description: 'No cookies, GDPR-compliant by default. Self-host for complete data ownership.',
+    description: 'No cookies, GDPR-compliant by default. Self-host for complete data ownership and full control.',
     color: 'text-teal-500 bg-teal-500/10',
   },
 ];
@@ -86,9 +86,9 @@ export default function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: index * 0.06 }}
-              className="group p-6 rounded-xl border border-border/50 bg-card hover:border-border hover:shadow-lg hover:shadow-black/[0.03] transition-all"
+              className="group flex flex-col p-6 rounded-xl border border-border/50 bg-card hover:border-border hover:shadow-lg hover:shadow-black/[0.03] transition-all"
             >
-              <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-4 ${feature.color}`}>
+              <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-4 shrink-0 ${feature.color}`}>
                 <feature.icon className="h-5 w-5" />
               </div>
               <h3 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
@@ -99,7 +99,7 @@ export default function Features() {
                   </span>
                 )}
               </h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="text-sm text-muted-foreground leading-relaxed flex-1">
                 {feature.description}
               </p>
             </motion.div>
