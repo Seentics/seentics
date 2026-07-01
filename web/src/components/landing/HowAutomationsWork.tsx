@@ -9,7 +9,6 @@ import {
   MessageSquare,
   ArrowRight,
   Code2,
-  ChevronRight,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -29,40 +28,6 @@ const actions = [
   { icon: Code2,         label: 'Run Script',   desc: 'Execute custom JS',        color: 'text-teal-500',   bg: 'bg-teal-500/10',   border: 'border-teal-500/25' },
 ];
 
-const recipes = [
-  {
-    trigger: { icon: MousePointer, label: 'Exit Intent',       color: 'text-rose-500',    bg: 'bg-rose-500/10' },
-    action:  { icon: MessageSquare, label: 'Show Popup',       color: 'text-violet-500',  bg: 'bg-violet-500/10' },
-    title: 'Recover abandoning visitors',
-    desc: 'When a visitor moves their cursor toward the browser tab, show a popup with a discount code before they leave.',
-    tag: 'Conversion',
-    accent: 'bg-rose-500/50',
-  },
-  {
-    trigger: { icon: Globe,   label: 'Page View: /pricing',   color: 'text-blue-500',    bg: 'bg-blue-500/10' },
-    action:  { icon: Webhook, label: 'Call Webhook',          color: 'text-sky-500',     bg: 'bg-sky-500/10' },
-    title: 'Alert sales when intent is high',
-    desc: 'Every time someone lands on your pricing page, ping your Slack channel so the team can follow up while intent is hot.',
-    tag: 'Sales',
-    accent: 'bg-blue-500/50',
-  },
-  {
-    trigger: { icon: Target, label: 'Goal: Purchase',          color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-    action:  { icon: Mail,   label: 'Send Email',              color: 'text-pink-500',    bg: 'bg-pink-500/10' },
-    title: 'Trigger post-purchase flows',
-    desc: "When a visitor hits your thank-you page, fire an upsell email or alert your ops team automatically.",
-    tag: 'Revenue',
-    accent: 'bg-emerald-500/50',
-  },
-  {
-    trigger: { icon: Zap,  label: 'Custom: video_played',     color: 'text-amber-500',   bg: 'bg-amber-500/10' },
-    action:  { icon: Bell, label: 'Show Banner',              color: 'text-indigo-500',  bg: 'bg-indigo-500/10' },
-    title: 'Nudge engaged visitors',
-    desc: 'When someone plays your demo video, show a banner offering a free trial — strike while their interest is at its peak.',
-    tag: 'Engagement',
-    accent: 'bg-amber-500/50',
-  },
-];
 
 export default function HowAutomationsWork() {
   return (
@@ -174,44 +139,6 @@ export default function HowAutomationsWork() {
 
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* Recipe cards */}
-        <div className="max-w-5xl mx-auto">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="h-px flex-1 bg-border/40" />
-            <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Popular recipes</p>
-            <div className="h-px flex-1 bg-border/40" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recipes.map((r) => (
-              <div
-                key={r.title}
-                className="group relative rounded-xl bg-card border border-border/50 p-5 overflow-hidden hover:border-border hover:shadow-sm transition-all"
-              >
-                <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${r.accent}`} />
-
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={`flex items-center gap-1.5 rounded-md px-2 py-1 ${r.trigger.bg}`}>
-                    <r.trigger.icon className={`h-3 w-3 ${r.trigger.color}`} />
-                    <span className={`text-[10px] font-bold ${r.trigger.color}`}>{r.trigger.label}</span>
-                  </div>
-                  <ChevronRight className="h-3 w-3 text-muted-foreground/40 shrink-0" />
-                  <div className={`flex items-center gap-1.5 rounded-md px-2 py-1 ${r.action.bg}`}>
-                    <r.action.icon className={`h-3 w-3 ${r.action.color}`} />
-                    <span className={`text-[10px] font-bold ${r.action.color}`}>{r.action.label}</span>
-                  </div>
-                  <span className="ml-auto text-[9px] font-bold uppercase tracking-wider text-muted-foreground border border-border/40 rounded px-1.5 py-0.5">
-                    {r.tag}
-                  </span>
-                </div>
-
-                <h3 className="font-semibold text-sm text-foreground mb-1.5">{r.title}</h3>
-                <p className="text-xs text-muted-foreground leading-relaxed">{r.desc}</p>
-              </div>
-            ))}
           </div>
         </div>
 
