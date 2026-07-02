@@ -29,11 +29,18 @@ export async function runCoreMigrations(databaseUrl: string): Promise<void> {
     for (const filename of files) {
       const content = readFileSync(join(dir, filename), 'utf-8');
       if (content.includes('CONCURRENTLY')) {
-        // CONCURRENTLY cannot run inside a transaction block — execute each statement separately
-        const statements = content
+        // CONCURRENTLY cannot run inside a transaction block — execute each statement separately.
+        // Strip full-line `--` comments FIRST: a `;` inside a comment would otherwise split a
+        // statement mid-comment, leaving a fragment that no longer starts with `--` and gets
+        // executed as SQL (→ syntax error).
+        const withoutComments = content
+          .split('\n')
+          .filter((line) => !line.trim().startsWith('--'))
+          .join('\n');
+        const statements = withoutComments
           .split(';')
           .map((s) => s.trim())
-          .filter((s) => s.length > 0 && !s.startsWith('--'));
+          .filter((s) => s.length > 0);
         for (const stmt of statements) {
           await sql.unsafe(stmt);
         }
