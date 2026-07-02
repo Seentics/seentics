@@ -27,26 +27,16 @@ export async function runCoreMigrations(databaseUrl: string): Promise<void> {
       .filter((f) => f.endsWith('.sql'))
       .sort();
     for (const filename of files) {
-      const content = readFileSync(join(dir, filename), 'utf-8');
+      let content = readFileSync(join(dir, filename), 'utf-8');
+      // `analytics_events` is a partitioned table. Postgres forbids CREATE INDEX
+      // CONCURRENTLY on a partitioned parent, so strip the keyword: a plain
+      // CREATE INDEX IF NOT EXISTS on the parent cascades to every partition.
+      // (Postgres parses `--` comments and multi-statement bodies natively, so no
+      // manual comment/semicolon splitting is needed.)
       if (content.includes('CONCURRENTLY')) {
-        // CONCURRENTLY cannot run inside a transaction block — execute each statement separately.
-        // Strip full-line `--` comments FIRST: a `;` inside a comment would otherwise split a
-        // statement mid-comment, leaving a fragment that no longer starts with `--` and gets
-        // executed as SQL (→ syntax error).
-        const withoutComments = content
-          .split('\n')
-          .filter((line) => !line.trim().startsWith('--'))
-          .join('\n');
-        const statements = withoutComments
-          .split(';')
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0);
-        for (const stmt of statements) {
-          await sql.unsafe(stmt);
-        }
-      } else {
-        await sql.unsafe(content);
+        content = content.replace(/\bCONCURRENTLY\b/g, '');
       }
+      await sql.unsafe(content);
     }
   } finally {
     await sql.end({ timeout: 5 });
