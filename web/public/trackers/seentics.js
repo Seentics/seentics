@@ -74,7 +74,6 @@ const RRWEB_EVENT_TYPE = {
   IncrementalSnapshot: 3,
 };
 const RRWEB_INCREMENTAL_SOURCE = {
-  MouseMove:        1,
   MouseInteraction: 2,
   Scroll:           3,
 };
@@ -89,6 +88,13 @@ let cfg         = {};
 let funnels     = [];
 let automations = [];
 let flushInterval = null;
+
+/**
+ * True only while rrweb is actively recording a session that was sampled in.
+ * Console / network / error capture is gated on this so we never ship session
+ * annotation events that have no replay to attach to (sampled-out visitors).
+ */
+let sessionCaptureActive = false;
 
 /**
  * In-memory queues for each event category.
@@ -141,13 +147,16 @@ let visitorId = (() => {
  */
 let _cachedSid       = null;
 let _cachedSidExpiry = 0;  // absolute ms at which the cached sid should be considered expired
+let _cachedSidStart  = 0;  // session start ms — needed to enforce the hard cap on the fast path
 let _lastExpiryWrite = 0;  // last time we wrote snc_se to storage
 
 const getSessionId = () => {
   const now = Date.now();
 
-  // Fast path: in-memory cache is still warm.
-  if (_cachedSid && now < _cachedSidExpiry) {
+  // Fast path: in-memory cache is still warm AND the hard cap hasn't been hit.
+  // Without the hard-cap check here, an always-active tab keeps sliding the
+  // expiry forward and the 30-min cap is never enforced.
+  if (_cachedSid && now < _cachedSidExpiry && (now - _cachedSidStart) < SESSION_MAX_MS) {
     // Throttle the storage write to once per minute.
     // Other tabs can observe activity at minute granularity; no write on every event.
     if (now - _lastExpiryWrite > 60_000) {
@@ -163,28 +172,43 @@ const getSessionId = () => {
   if (!store) {
     _cachedSid       = 's-' + now.toString(36);
     _cachedSidExpiry = now + SESSION_MAX_MS;
+    _cachedSidStart  = now;
     return _cachedSid;
   }
 
   let id        = store.getItem('snc_sid');
   const expiry  = store.getItem('snc_se');   // inactivity expiry timestamp
-  const started = store.getItem('snc_ss');   // session start time (for hard cap)
+  let   started = store.getItem('snc_ss');   // session start time (for hard cap)
 
   const inactivityExpired = !id || !expiry || now > +expiry;
   const hardCapExceeded   = !!started && (now - +started) >= SESSION_MAX_MS;
 
   if (inactivityExpired || hardCapExceeded) {
     id = 's-' + rnd() + now.toString(36);
+    started = String(now);
     store.setItem('snc_sid', id);
-    store.setItem('snc_ss', String(now));
+    store.setItem('snc_ss', started);
   }
 
   _cachedSidExpiry = now + SESSION_MAX_MS;
   store.setItem('snc_se', String(_cachedSidExpiry));
   _cachedSid       = id;
+  _cachedSidStart  = started ? +started : now;
   _lastExpiryWrite = now;
   return id;
 };
+
+// Keep the in-memory session cache in sync when another tab rotates the session,
+// so concurrent tabs don't report overlapping/stale session IDs for up to 30 min.
+try {
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'snc_sid' && e.newValue && e.newValue !== _cachedSid) {
+      _cachedSid       = e.newValue;
+      _cachedSidStart  = +(getStore()?.getItem('snc_ss') ?? Date.now()) || Date.now();
+      _cachedSidExpiry = Date.now() + SESSION_MAX_MS;
+    }
+  });
+} catch { /* ignore */ }
 
 // ─── Queue helpers ────────────────────────────────────────────────────────────
 
@@ -382,6 +406,7 @@ const installSessionClientErrorCapture = () => {
   window.__snc_err_cap = true;
 
   const enqueueError = (data) => {
+    if (!sessionCaptureActive) return;
     queues.session.push({
       type: 'session_error',
       data,
@@ -423,10 +448,20 @@ const installSessionConsoleCapture = () => {
   if (window.__snc_con_cap) return;
   window.__snc_con_cap = true;
 
+  // Caps keep console capture cheap even when the host app logs large objects
+  // in tight loops (serializing multi-MB objects on every log call is a real
+  // main-thread cost, and oversized args bloat every /collect payload).
+  const MAX_CONSOLE_ARGS    = 10;
+  const MAX_CONSOLE_ARG_LEN = 1_000;
+
   const enqueueConsole = (level, args) => {
-    const serialized = args.map(a => {
-      if (typeof a === 'string') return a;
-      try { return JSON.stringify(a); } catch { return String(a); }
+    if (!sessionCaptureActive) return;
+    const serialized = args.slice(0, MAX_CONSOLE_ARGS).map(a => {
+      let s;
+      if (typeof a === 'string') s = a;
+      else { try { s = JSON.stringify(a); } catch { s = String(a); } }
+      s = String(s ?? '');
+      return s.length > MAX_CONSOLE_ARG_LEN ? s.slice(0, MAX_CONSOLE_ARG_LEN) + '…' : s;
     });
     queues.session.push({
       type: 'console_event',
@@ -459,6 +494,7 @@ const installSessionNetworkCapture = () => {
   window.__snc_net_cap = true;
 
   const enqueueNetwork = (data) => {
+    if (!sessionCaptureActive) return;
     queues.session.push({
       type: 'network_event',
       data,
@@ -480,14 +516,14 @@ const installSessionNetworkCapture = () => {
     }
     const startTs = Date.now();
     const p = origFetch.apply(this, arguments);
+    // Observe on a side chain WITHOUT rethrowing: rethrowing here would surface a
+    // second, unhandled rejection for every failed fetch the page itself handles.
     p.then(
       function(response) {
         try { enqueueNetwork({ method, url: reqUrl, status: response.status, duration: Date.now() - startTs, startTs }); } catch { /* ignore */ }
-        return response;
       },
       function(err) {
         try { enqueueNetwork({ method, url: reqUrl, status: 0, duration: Date.now() - startTs, startTs, error: String(err) }); } catch { /* ignore */ }
-        throw err;
       }
     );
     return p;
@@ -875,17 +911,20 @@ const installHeatmapPointerPageBridge = () => {
 let heatmapScrollMax = 0;
 /** Timestamp of the last heatmap_scroll event (shared by DOM scroll and rrweb scroll mirror). */
 let heatmapScrollThrottleAt = 0;
-/** Timestamp of the last heatmap point from rrweb MouseMove (throttled to avoid a point flood). */
-let heatmapMouseMoveThrottleAt = 0;
 
 /**
  * Inspect each rrweb event emitted during recording and derive heatmap data points.
  * This lets heatmaps work even when session recording is active without adding a
  * second set of separate DOM listeners.
  *
+ * NOTE: rrweb MouseMove batches are intentionally NOT mirrored. They used to be
+ * queued as `heatmap_click` points, which (a) polluted click heatmaps with hover
+ * positions — nothing downstream distinguished them from real clicks — and
+ * (b) forced a full document-metrics rescan (~3000 elements, layout reflow)
+ * every 350 ms while the mouse moved.
+ *
  * rrweb event structure we handle:
  *   type === IncrementalSnapshot (3)
- *     data.source === MouseMove (1)        → cursor position batch
  *     data.source === MouseInteraction (2) → click / tap, data.type === Click (2)
  *     data.source === Scroll (3)           → scroll depth update
  */
@@ -896,34 +935,6 @@ const mirrorHeatmapFromRrweb = (ev) => {
   const inner = ev.data;
   if (!inner || typeof inner !== 'object') return;
   const source = Number(inner.source);
-
-  // ── MouseMove: throttled cursor position ──────────────────────────────────
-  if (source === RRWEB_INCREMENTAL_SOURCE.MouseMove) {
-    if (!Array.isArray(inner.positions) || inner.positions.length === 0) return;
-    const now = Date.now();
-    if (now - heatmapMouseMoveThrottleAt < 350) return;
-    heatmapMouseMoveThrottleAt = now;
-
-    const pos = inner.positions[inner.positions.length - 1];
-    const px  = Number(pos.x);
-    const py  = Number(pos.y);
-    if (!Number.isFinite(px) || !Number.isFinite(py)) return;
-
-    // Invalidate the metrics cache: a scroll may have happened since the last sample.
-    heatmapMetricsCache = null;
-    const { pageX, pageY } = rrwebClientToDocumentXY(px, py);
-    const { nx, ny }       = heatmapNormFromPageXY(pageX, pageY);
-    const vp = heatmapViewportCss();
-    queues.heatmaps.push({
-      type: 'heatmap_click',
-      data: { nx, ny, target: 'rrweb-move', vw: vp.vw, vh: vp.vh },
-      ts:  now,
-      url: location.href,
-      sid: activeRecordingSessionId ?? getSessionId(),
-      vid: visitorId,
-    });
-    return;
-  }
 
   // ── MouseInteraction → Click ──────────────────────────────────────────────
   if (
@@ -1090,6 +1101,7 @@ const startRrweb = (record, sessionId, shouldRecordSession) => {
     stopRecording = null;
   }
   activeRecordingSessionId = sessionId;
+  sessionCaptureActive     = shouldRecordSession;
   const stop = record({
     ...RRWEB_OPTIONS,
     emit(event) {
@@ -1160,7 +1172,6 @@ const deviceInfo = () => ({
 const trackPage = () => {
   heatmapScrollMax           = 0;
   heatmapScrollThrottleAt    = 0;
-  heatmapMouseMoveThrottleAt = 0;
   lastPointerDocForHeatmap   = null;
 
   const utm = utmParams();
@@ -1346,21 +1357,38 @@ const ensureAutoStyles = (() => {
   };
 })();
 
+/** Escape a string for safe interpolation into innerHTML (text or attribute position). */
+const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+
+/** Allow only http(s)/relative URLs in injected href/src — blocks javascript: etc. */
+const safeActionUrl = (u) => {
+  const s = String(u ?? '').trim();
+  return /^(https?:\/\/|\/)/i.test(s) ? escapeHtml(s) : '#';
+};
+
+/** Allow only plausible CSS color tokens in injected inline styles. */
+const safeColor = (c, fallback) => {
+  const s = String(c ?? '').trim();
+  return /^[#a-zA-Z0-9(),.%\s-]{1,40}$/.test(s) && s ? s : fallback;
+};
+
 const renderModal = (action) => {
   ensureAutoStyles();
   const overlay = document.createElement('div');
   overlay.className = 'snc-overlay';
-  const bgColor  = action.background_color ?? '#ffffff';
-  const textColor = action.text_color      ?? '#000000';
-  const btnColor  = action.button_color    ?? '#2563eb';
-  const btnText   = action.button_color    ?? '#ffffff';
+  const bgColor   = safeColor(action.background_color, '#ffffff');
+  const textColor = safeColor(action.text_color,       '#000000');
+  const btnColor  = safeColor(action.button_color,     '#2563eb');
+  const btnText   = safeColor(action.button_text_color, '#ffffff');
   overlay.innerHTML = `
     <div class="snc-modal" style="background:${bgColor};color:${textColor}">
       <button class="snc-modal-close" aria-label="Close">&times;</button>
-      ${action.image_url ? `<img src="${action.image_url}" style="width:100%;border-radius:4px;margin-bottom:12px" alt="">` : ''}
-      ${action.title   ? `<h2>${action.title}</h2>` : ''}
-      ${action.body    ? `<p>${action.body}</p>`    : ''}
-      ${action.button_text ? `<a href="${action.button_url ?? '#'}" class="snc-modal-btn" style="background:${btnColor};color:${btnText}" ${action.button_url ? '' : 'onclick="return false"'}>${action.button_text}</a>` : ''}
+      ${action.image_url ? `<img src="${safeActionUrl(action.image_url)}" style="width:100%;border-radius:4px;margin-bottom:12px" alt="">` : ''}
+      ${action.title   ? `<h2>${escapeHtml(action.title)}</h2>` : ''}
+      ${action.body    ? `<p>${escapeHtml(action.body)}</p>`    : ''}
+      ${action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" class="snc-modal-btn" style="background:${btnColor};color:${btnText}" ${action.button_url ? '' : 'onclick="return false"'}>${escapeHtml(action.button_text)}</a>` : ''}
     </div>`;
   overlay.querySelector('.snc-modal-close').onclick = () => overlay.remove();
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
@@ -1388,8 +1416,8 @@ const renderBanner = (action) => {
   banner.style.background = action.background_color ?? '#1e40af';
   banner.style.color       = action.text_color       ?? '#ffffff';
   banner.innerHTML = `
-    <span>${action.message ?? ''}</span>
-    ${action.button_text ? `<a href="${action.button_url ?? '#'}" style="color:inherit;font-weight:600;text-decoration:underline;white-space:nowrap">${action.button_text}</a>` : ''}
+    <span>${escapeHtml(action.message ?? '')}</span>
+    ${action.button_text ? `<a href="${action.button_url ? safeActionUrl(action.button_url) : '#'}" style="color:inherit;font-weight:600;text-decoration:underline;white-space:nowrap">${escapeHtml(action.button_text)}</a>` : ''}
     <button class="snc-banner-close" aria-label="Close">&times;</button>
   `;
   banner.querySelector('.snc-banner-close').onclick = () => banner.remove();
@@ -1548,7 +1576,7 @@ const installTimeOnPage = () => {
   const thresholds = [15, 30, 60, 120, 300]; // seconds
   const fired = new Set();
   const start = Date.now();
-  const tick = () => {
+  const timer = setInterval(() => {
     const elapsed = Math.floor((Date.now() - start) / 1000);
     for (const t of thresholds) {
       if (elapsed >= t && !fired.has(t)) {
@@ -1556,8 +1584,9 @@ const installTimeOnPage = () => {
         void fireAutomationTrigger('time_on_page', { seconds: t, path: location.pathname });
       }
     }
-  };
-  setInterval(tick, 5_000);
+    // All thresholds fired — nothing left to observe, stop ticking.
+    if (fired.size === thresholds.length) clearInterval(timer);
+  }, 5_000);
 };
 
 // ─── Rage-click trigger ───────────────────────────────────────────────────────
@@ -1594,17 +1623,19 @@ const installRageClick = () => {
 
 const installFormAbandon = () => {
   const touched = new Set();
-  let submitted = false;
   document.addEventListener('focusin', (ev) => {
     if (ev.target?.form) touched.add(ev.target.form);
   }, true);
-  document.addEventListener('submit', () => { submitted = true; }, true);
+  // Only the submitted form stops being "abandoned" — other touched forms still count.
+  document.addEventListener('submit', (ev) => { if (ev.target) touched.delete(ev.target); }, true);
   const onLeave = () => {
-    if (submitted || !touched.size) return;
+    if (!touched.size) return;
     for (const form of touched) {
       const id = form.id || form.name || form.action || 'unknown';
       void fireAutomationTrigger('form_abandon', { path: location.pathname, form_id: id });
     }
+    // Clear so repeated tab switches don't fire duplicate abandon triggers.
+    touched.clear();
   };
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') onLeave();
@@ -1672,6 +1703,16 @@ const trackPerf = () => {
     connect: Math.round(timing.connectEnd      - timing.connectStart),
     render:  Math.round(timing.loadEventEnd    - timing.responseEnd),
   });
+};
+
+/**
+ * Schedule the performance event. init() runs at/after the load event, so a
+ * plain `addEventListener('load', ...)` registered inside init would never fire
+ * — the load event has already happened. Check readyState first.
+ */
+const schedulePerfTracking = () => {
+  if (document.readyState === 'complete') setTimeout(trackPerf, 100);
+  else window.addEventListener('load', () => setTimeout(trackPerf, 100));
 };
 
 // ─── SPA routing ──────────────────────────────────────────────────────────────
@@ -1761,7 +1802,7 @@ const init = () => {
       installJsErrorTrigger();
       installTabVisibility();
       installClickTrigger();
-      window.addEventListener('load', () => setTimeout(trackPerf, 100));
+      schedulePerfTracking();
 
       flush(); // send the initial pageview + rrweb snapshot immediately
       flushInterval = window.setInterval(flush, FLUSH_MS);
@@ -1784,7 +1825,7 @@ const init = () => {
       installJsErrorTrigger();
       installTabVisibility();
       installClickTrigger();
-      window.addEventListener('load', () => setTimeout(trackPerf, 100));
+      schedulePerfTracking();
       flush();
       flushInterval = window.setInterval(flush, FLUSH_MS);
     });

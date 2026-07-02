@@ -9,19 +9,7 @@
  * Requires indexes from db/sql/004_revenue_indexes.sql for best performance.
  */
 import { sql as pgSql } from "../../db";
-import { parseDays, resolveSiteId } from "./shared";
-
-/** IANA timezone whitelist validator — prevents SQL injection via timezone param. */
-function sanitizeTimezone(tz: string | undefined): string {
-  if (!tz || typeof tz !== "string") return "UTC";
-  if (!/^[A-Za-z0-9_+\-/]+$/.test(tz)) return "UTC";
-  try {
-    Intl.DateTimeFormat(undefined, { timeZone: tz });
-    return tz;
-  } catch {
-    return "UTC";
-  }
-}
+import { parseDays, resolveSiteId, sanitizeTimezone } from "./shared";
 
 function addSharePct(
   rows: Array<{ name: string; revenue: number; orders: number }>,
@@ -108,8 +96,14 @@ export async function getRevenueDashboard(
         utm_source,
         utm_medium,
         utm_campaign,
+        -- rev_type must use the same normalized event name as above so legacy
+        -- custom refunds (event_type='custom', properties.name='refund') are
+        -- classified as refunds, not purchases.
         CASE
-          WHEN event_type IN ('refund', 'refunded') THEN 'refund'
+          WHEN (CASE WHEN event_type = 'custom'
+                     THEN lower(coalesce(nullif(trim(properties->>'name'), ''), 'custom'))
+                     ELSE event_type
+                END) IN ('refund', 'refunded') THEN 'refund'
           ELSE 'purchase'
         END AS rev_type,
         -- Extract numeric value from JSONB properties; try value → revenue → amount → total

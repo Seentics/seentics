@@ -209,14 +209,19 @@ export async function getSessionWithEvents(
   const total = urlRows.length;
   let loaded = 0;
   if (total > 0) onProgress?.(0, total);
-  const chunkResults = await Promise.allSettled(
-    urlRows.map((row) =>
-      fetchGzipJsonArray(row.url).then((data) => {
-        onProgress?.(++loaded, total);
-        return { sequence: row.sequence, data: data as unknown[] };
-      }),
-    ),
-  );
+  // Retry each chunk once: a silently skipped middle chunk is a replay gap, and a
+  // skipped first chunk (FullSnapshot) makes playback blank.
+  const fetchChunk = async (row: { sequence: number; url: string }) => {
+    let data: unknown[];
+    try {
+      data = await fetchGzipJsonArray(row.url);
+    } catch {
+      data = await fetchGzipJsonArray(row.url);
+    }
+    onProgress?.(++loaded, total);
+    return { sequence: row.sequence, data };
+  };
+  const chunkResults = await Promise.allSettled(urlRows.map(fetchChunk));
   const fromUrls: Array<{ sequence: number; data: unknown[] }> = [];
   for (const r of chunkResults) {
     if (r.status === "fulfilled") fromUrls.push(r.value);

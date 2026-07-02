@@ -5,7 +5,9 @@ import { getCachedSnapshotSha256, getLayoutSnapshot, upsertLayoutSnapshot, upser
 import { deviceTypeFromUA } from "./device";
 import { extractPath, normalizeHeatmapPagePath } from "./paths";
 import { heatmapScreenshotKey, heatmapHtmlSnapshotKey, layoutPathSlot } from "./keys";
+import { validateScreenshotTargetUrl } from "./origin";
 import { putJpeg, putHtml } from "./s3";
+import { resolveWebsiteForTracker } from "./website-for-tracker";
 import { getSiteIdByWebsiteUuid } from "./website-site";
 import { captureAndStoreScreenshot } from "./playwright-screenshots";
 import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "./types";
@@ -202,29 +204,33 @@ export class HeatmapEngine {
   }
 
   private async flushScreenshots(): Promise<void> {
-    while (this.shotBuf.length > 0) {
-      const job = this.shotBuf.shift()!;
-      try {
-        await this.ingestOneScreenshot(job);
-      } catch (e) {
-        log.error({ msg: "heatmap_screenshot_ingest_failed", url: job.url, err: String(e) });
+    if (this.shotBuf.length === 0) return;
+    // Small concurrency (3) so one slow S3 upload doesn't serialize the whole drain.
+    const workers = Array.from({ length: Math.min(3, this.shotBuf.length) }, async () => {
+      for (let job = this.shotBuf.shift(); job; job = this.shotBuf.shift()) {
+        try {
+          await this.ingestOneScreenshot(job);
+        } catch (e) {
+          log.error({ msg: "heatmap_screenshot_ingest_failed", url: job.url, err: String(e) });
+        }
       }
-    }
+    });
+    await Promise.all(workers);
   }
 
   private triggerPlaywrightCapture(websiteId: string, siteId: string, norm: string, url: string): void {
     const key = `${websiteId}:${norm}`;
     if (this.playwrightTriggered.has(key)) return;
-    try {
-      const u = new URL(url);
-      if (u.protocol !== "http:" && u.protocol !== "https:") return;
-    } catch {
-      return;
-    }
     this.playwrightTriggered.add(key);
-    captureAndStoreScreenshot(url, this.bucket, siteId, norm, websiteId, { force: true })
-      .then(r => {
-        if (r?.stored) log.info({ msg: "heatmap_playwright_auto_captured", url, norm });
+    resolveWebsiteForTracker(websiteId)
+      .then((website) => {
+        // SSRF guard: only capture URLs on the website's registered domain — never
+        // IP literals, localhost, or internal hosts. Skip silently otherwise.
+        if (!website || !validateScreenshotTargetUrl(url, website.url)) return;
+        return captureAndStoreScreenshot(url, this.bucket, siteId, norm, websiteId, { force: true })
+          .then(r => {
+            if (r?.stored) log.info({ msg: "heatmap_playwright_auto_captured", url, norm });
+          });
       })
       .catch(err => log.warn({ msg: "heatmap_playwright_auto_failed", url, norm, err: String(err) }));
   }

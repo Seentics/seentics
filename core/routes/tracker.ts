@@ -1,4 +1,5 @@
-import { gunzipSync } from "node:zlib";
+import { promisify } from "node:util";
+import { gunzip as gunzipCallback } from "node:zlib";
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { env } from "../config";
@@ -13,7 +14,7 @@ import {
 import { buildAnalyticsIngestMeta } from "../lib/analytics-ingest-meta";
 import { clientIpForIngest } from "../lib/client-ip";
 import { log } from "../lib/logger";
-import { originFromRequest, validateOriginDomain } from "../lib/origin";
+import { originFromRequest, validateOriginDomain, validateScreenshotTargetUrl } from "../lib/origin";
 import {
   buildPublicTrackerConfig,
   listTrackerGoals,
@@ -26,12 +27,21 @@ import * as playwrightSvc from "../services/heatmap-playwright.service";
 import { validationErrorResponse } from "../validators/validation";
 import { trackerCollectSchema } from "../validators/tracker";
 
-const maxBodyBytes = 52 * 1024 * 1024;
+// The zod schema caps legit content around 5MB total — 8MB leaves headroom without
+// letting a client make us buffer tens of MB.
+const maxBodyBytes = 8 * 1024 * 1024;
 const maxGunzipBytes = 50 * 1024 * 1024;
+
+const gunzip = promisify(gunzipCallback);
 
 export const trackerRoutes = new Hono();
 
 async function readJsonBody(c: Pick<Context, "req">): Promise<unknown> {
+  // Reject oversized requests up front (before buffering the body).
+  const contentLength = Number.parseInt(c.req.header("Content-Length") ?? "", 10);
+  if (Number.isFinite(contentLength) && contentLength > maxBodyBytes) {
+    throw new Error("body too large");
+  }
   const buf = Buffer.from(await c.req.arrayBuffer());
   if (buf.length > maxBodyBytes) {
     throw new Error("body too large");
@@ -39,7 +49,9 @@ async function readJsonBody(c: Pick<Context, "req">): Promise<unknown> {
   const enc = c.req.header("Content-Encoding");
   let raw = buf;
   if (enc?.toLowerCase().includes("gzip")) {
-    raw = gunzipSync(buf, { maxOutputLength: maxGunzipBytes });
+    // Async gunzip keeps decompression off the event loop; maxOutputLength still
+    // guards against decompression bombs.
+    raw = await gunzip(buf, { maxOutputLength: maxGunzipBytes });
   }
   return JSON.parse(raw.toString("utf8")) as unknown;
 }
@@ -274,6 +286,12 @@ trackerRoutes.post("/request-screenshot", async (c) => {
   const origin = originFromRequest(c.req.raw.headers);
   if (!validateOriginDomain(origin, website.url, cfg.environment)) {
     return c.json({ error: "domain mismatch" }, 403);
+  }
+
+  // SSRF guard: only capture URLs on the website's registered domain — never
+  // IP literals, localhost, or internal hosts (website ids are public).
+  if (!validateScreenshotTargetUrl(pageUrl, website.url)) {
+    return c.json({ error: "page_url not allowed" }, 400);
   }
 
   void playwrightSvc

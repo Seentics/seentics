@@ -99,3 +99,37 @@ function siteHostForOriginMatch(registered: string): string {
 export function originFromRequest(h: Headers): string {
   return h.get("Origin")?.trim() || h.get("Referer")?.trim() || "";
 }
+
+/** Hostnames that must never be Playwright screenshot targets (SSRF guard). */
+function isForbiddenScreenshotHost(hostname: string): boolean {
+  const h = hostname.toLowerCase();
+  if (!h) return true;
+  if (isLoopbackHost(h)) return true;
+  if (h === "localhost" || h.endsWith(".localhost")) return true;
+  if (h === "host.docker.internal") return true;
+  // IPv6 literal (URL.hostname keeps the brackets) or anything colon-y.
+  if (h.startsWith("[") || h.includes(":")) return true;
+  // Any IPv4 literal — public or private — is rejected; captures must target a domain.
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(h)) return true;
+  return false;
+}
+
+/**
+ * SSRF guard for Playwright screenshot targets: the URL must be http/https, must not
+ * point at an IP literal / localhost / internal host, and its hostname must be the
+ * website's registered host (same derivation as origin matching) or a subdomain of it.
+ */
+export function validateScreenshotTargetUrl(pageUrl: string, registeredURL: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(pageUrl);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+  const host = u.hostname.toLowerCase().replace(/^www\./, "");
+  if (isForbiddenScreenshotHost(host)) return false;
+  const siteHost = siteHostForOriginMatch(registeredURL);
+  if (!siteHost || isForbiddenScreenshotHost(siteHost)) return false;
+  return host === siteHost || host.endsWith(`.${siteHost}`);
+}

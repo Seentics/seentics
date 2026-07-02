@@ -38,7 +38,9 @@ export async function getDashboardStats(
         )::int AS pv,
         COALESCE(
           count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id)) FILTER (
-            WHERE occurred_at >= ${startIso} AND occurred_at <= ${endIso}
+            WHERE event_type = 'pageview'
+              AND occurred_at >= ${startIso}
+              AND occurred_at <= ${endIso}
           ),
           0
         )::int AS uv,
@@ -52,7 +54,9 @@ export async function getDashboardStats(
         )::int AS prev_pv,
         COALESCE(
           count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id)) FILTER (
-            WHERE occurred_at >= ${prevStartIso} AND occurred_at < ${startIso}
+            WHERE event_type = 'pageview'
+              AND occurred_at >= ${prevStartIso}
+              AND occurred_at < ${startIso}
           ),
           0
         )::int AS prev_uv
@@ -90,6 +94,9 @@ export async function getDashboardStats(
           AND session_id IS NOT NULL
           AND length(trim(session_id)) > 0
         GROUP BY session_id
+        -- Only sessions with at least one pageview, so session count,
+        -- pages-per-session, and bounce rate share one population.
+        HAVING count(*) FILTER (WHERE event_type = 'pageview') >= 1
       ),
       prev_s AS (
         SELECT
@@ -103,6 +110,7 @@ export async function getDashboardStats(
           AND session_id IS NOT NULL
           AND length(trim(session_id)) > 0
         GROUP BY session_id
+        HAVING count(*) FILTER (WHERE event_type = 'pageview') >= 1
       )
       SELECT
         coalesce((SELECT count(*)::int FROM cur_s), 0) AS session_cnt,

@@ -1,11 +1,12 @@
 import { sql as pgSql } from "../../db";
-import { parseDays, resolveSiteId } from "./shared";
+import { parseDays, resolveSiteId, sanitizeTimezone } from "./shared";
 
 export async function getDailyStatsAnalytics(
   websiteParam: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days, 30);
+  const tz = sanitizeTimezone(query.timezone);
   const { siteId } = await resolveSiteId(websiteParam);
   const start = new Date(Date.now() - days * 86400000);
   const startIso = start.toISOString();
@@ -16,7 +17,7 @@ export async function getDailyStatsAnalytics(
     unique_visitors: number;
   }[]>`
     SELECT
-      date_trunc('day', occurred_at AT TIME ZONE 'UTC')::date::text AS date,
+      date_trunc('day', occurred_at AT TIME ZONE ${tz})::date::text AS date,
       count(*)::int AS views,
       count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
     FROM analytics_events

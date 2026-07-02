@@ -2,6 +2,7 @@ import { env } from "../config";
 import { getNextReplayChunkSequence, uploadSessionChunkGzip } from "./s3";
 import { ReplaySpool } from "./spool";
 import { upsertSessionMetaBatch, type SessionUpsertRow } from "./replay-db";
+import { clampClientTs } from "./client-timestamp";
 import { resolveWebsiteIdsLenient } from "./website-resolve";
 import { compareReplayEnvelopeEvents } from "./replay-event-order";
 import type { AnalyticsIngestMeta } from "./analytics-ingest-meta";
@@ -96,11 +97,24 @@ type SessionWork = {
   sessionId: string;
   batch: SessionBatch;
   meta: SessionMetaLite;
-  pageIncrements: number;
+  urlTransitions: number;
+  firstUrl: string;
+  lastUrl: string;
   durationSeconds: number;
   tsToUse: number;
   rageClicks: boolean;
 };
+
+/** Origin+path only — hash/query churn must not count as a new page. */
+function normalizeReplayPageUrl(u: unknown): string {
+  if (typeof u !== "string" || !u) return "";
+  try {
+    const p = new URL(u);
+    return p.origin + p.pathname;
+  } catch {
+    return u;
+  }
+}
 
 export class ReplayEngine {
   private spool: ReplaySpool;
@@ -209,7 +223,29 @@ export class ReplayEngine {
       sortBatchEvents(batch.events);
       if (batch.clicks.length > 1) batch.clicks.sort((a, c) => a.ts - c.ts);
 
-      const pageIncrements = batch.hasFullSnapshot ? 1 : 0;
+      /**
+       * Count pages from envelope URL transitions, NOT from FullSnapshots.
+       * The tracker checkpoints a FullSnapshot every 60s (`checkoutEveryNms`),
+       * so snapshot counting inflated pages_viewed by roughly one per minute
+       * of session time. Cross-batch boundaries are handled in the upsert via
+       * first/last URL stored in the sequence-0 row's data jsonb.
+       */
+      let urlTransitions = 0;
+      let firstUrl = "";
+      let lastUrl = "";
+      for (const e of batch.events) {
+        const u = normalizeReplayPageUrl(e.url);
+        if (!u) continue;
+        if (!firstUrl) {
+          firstUrl = u;
+          lastUrl = u;
+          continue;
+        }
+        if (u !== lastUrl) {
+          urlTransitions++;
+          lastUrl = u;
+        }
+      }
 
       // Populate metadata for every session that has any events — not just FullSnapshot ones.
       // Network/error-only sessions (no rrweb recording) still need browser/OS/country for the list view.
@@ -226,7 +262,7 @@ export class ReplayEngine {
         os: (im?.os ?? "").trim() || "Unknown",
         country: (im?.country ?? "").trim(),
         entryPage: entryURL,
-        startedAt: new Date(batch.startTs),
+        startedAt: new Date(clampClientTs(batch.startTs)),
         hasRageClicks: false,
         hasErrors: batch.hasErrors,
         durationSeconds: 0,
@@ -240,7 +276,9 @@ export class ReplayEngine {
         sessionId,
         batch,
         meta,
-        pageIncrements,
+        urlTransitions,
+        firstUrl,
+        lastUrl,
         durationSeconds: replayDurationSecondsFromBatch(batch),
         tsToUse,
         rageClicks: hasRageClickPattern(batch.clicks),
@@ -274,7 +312,9 @@ export class ReplayEngine {
         os: m.os,
         country: m.country,
         entryPage: m.entryPage,
-        pageIncrements: w.pageIncrements,
+        urlTransitions: w.urlTransitions,
+        firstUrl: w.firstUrl,
+        lastUrl: w.lastUrl,
         durationSeconds: w.durationSeconds,
         hasRageClicks: w.rageClicks,
         hasErrors: w.batch.hasErrors,

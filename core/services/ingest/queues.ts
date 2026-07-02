@@ -30,28 +30,33 @@ let maxAutomationsBeforeForceFlush = 50_000;
 /** Serialize all drains (timer + `/collect`) so a concurrent flush never no-ops and leaves analytics in RAM. */
 let flushChain: Promise<void> = Promise.resolve();
 
-function totalQueuedEvents(): number {
-  let n = 0;
-  for (const evs of eventsBySite.values()) n += evs.length;
-  return n;
-}
+/**
+ * Hard per-category cap = 2× the force-flush threshold; enqueues beyond it are
+ * dropped (and counted) so a stalled/failing flush can't grow the queues unbounded.
+ */
+const QUEUE_HARD_CAP_MULTIPLIER = 2;
 
-function totalQueuedFunnels(): number {
-  let n = 0;
-  for (const evs of funnelsBySite.values()) n += evs.length;
-  return n;
-}
+/** Running counters — replaces the O(#sites) scan on every enqueue. */
+let queuedEventsCount = 0;
+let queuedFunnelsCount = 0;
+
+/** Per-site failed-flush attempts; after MAX_FLUSH_ATTEMPTS the snapshot is dropped. */
+const MAX_FLUSH_ATTEMPTS = 3;
+const eventsFlushAttempts = new Map<string, number>();
+const funnelsFlushAttempts = new Map<string, number>();
 
 /** Swap in a fresh Map — must not `clear()` the same reference we return (that was dropping all analytics/funnel events). */
 function takeEventsSnapshot(): Map<string, AnalyticsIngestEvent[]> {
   const snap = eventsBySite;
   eventsBySite = new Map();
+  queuedEventsCount = 0;
   return snap;
 }
 
 function takeFunnelsSnapshot(): Map<string, AnalyticsIngestEvent[]> {
   const snap = funnelsBySite;
   funnelsBySite = new Map();
+  queuedFunnelsCount = 0;
   return snap;
 }
 
@@ -71,6 +76,38 @@ function takeAutomationsSnapshot(): AutomationTriggerQueued[] {
   const s = automationsQueue;
   automationsQueue = [];
   return s;
+}
+
+function totalOf(map: Map<string, AnalyticsIngestEvent[]>): number {
+  let n = 0;
+  for (const evs of map.values()) n += evs.length;
+  return n;
+}
+
+/**
+ * A failed insert must not silently discard the snapshot: re-prepend it to the live
+ * queue and retry on the next flush, up to MAX_FLUSH_ATTEMPTS, then drop with a count.
+ * Bounded because enqueues past the hard cap are rejected while the rows sit requeued.
+ */
+function requeueFailedAnalytics(
+  msg: string,
+  attemptsBySite: Map<string, number>,
+  liveMap: Map<string, AnalyticsIngestEvent[]>,
+  siteId: string,
+  events: AnalyticsIngestEvent[],
+  err: unknown,
+): void {
+  const error = err instanceof Error ? err.message : String(err);
+  const attempts = (attemptsBySite.get(siteId) ?? 0) + 1;
+  if (attempts >= MAX_FLUSH_ATTEMPTS) {
+    attemptsBySite.delete(siteId);
+    log.error({ msg, site_id: siteId, attempts, dropped: events.length, error });
+    return;
+  }
+  attemptsBySite.set(siteId, attempts);
+  const cur = liveMap.get(siteId);
+  liveMap.set(siteId, cur?.length ? [...events, ...cur] : events);
+  log.error({ msg, site_id: siteId, attempt: attempts, requeued: events.length, error });
 }
 
 function scheduleFlush(): Promise<void> {
@@ -98,10 +135,12 @@ async function executeFlush(): Promise<void> {
       if (!events.length) return;
       try {
         const inserted = await ingestAnalyticsBatch(siteId, events);
+        eventsFlushAttempts.delete(siteId);
         log.debug({ msg: "ingest_flush_events", site_id: siteId, batch_in: events.length, inserted });
         if (inserted > 0) log.info({ msg: "analytics_rows_persisted", site_id: siteId, rows: inserted });
       } catch (e) {
-        log.error({ msg: "ingest_analytics_batch_failed", site_id: siteId, error: e instanceof Error ? e.message : String(e) });
+        requeueFailedAnalytics("ingest_analytics_batch_failed", eventsFlushAttempts, eventsBySite, siteId, events, e);
+        queuedEventsCount = totalOf(eventsBySite);
       }
     }),
 
@@ -110,10 +149,12 @@ async function executeFlush(): Promise<void> {
       if (!events.length) return;
       try {
         const inserted = await ingestAnalyticsBatch(siteId, events);
+        funnelsFlushAttempts.delete(siteId);
         log.debug({ msg: "ingest_flush_funnels", site_id: siteId, batch_in: events.length, inserted });
         if (inserted > 0) log.info({ msg: "analytics_rows_persisted_funnel", site_id: siteId, rows: inserted });
       } catch (e) {
-        log.error({ msg: "ingest_funnel_analytics_batch_failed", site_id: siteId, error: e instanceof Error ? e.message : String(e) });
+        requeueFailedAnalytics("ingest_funnel_analytics_batch_failed", funnelsFlushAttempts, funnelsBySite, siteId, events, e);
+        queuedFunnelsCount = totalOf(funnelsBySite);
       }
     }),
 
@@ -146,19 +187,35 @@ function pushAll<T>(target: T[], src: T[]): void {
   Array.prototype.push.apply(target, src);
 }
 
+/** Enforce the hard per-category cap: returns the accepted prefix, logging any drops. */
+function acceptUpToCap<T>(src: T[], queued: number, cap: number, msg: string): T[] {
+  const room = cap - queued;
+  if (room >= src.length) return src;
+  const dropped = src.length - Math.max(0, room);
+  log.warn({ msg, dropped, queued, cap });
+  return room > 0 ? src.slice(0, room) : [];
+}
+
 export function enqueueEvents(siteId: string, events: AnalyticsIngestEvent[]): void {
   if (!events.length) return;
+  const cap = maxEventsBeforeForceFlush * QUEUE_HARD_CAP_MULTIPLIER;
+  const accepted = acceptUpToCap(events, queuedEventsCount, cap, "ingest_events_queue_full_drop");
+  if (!accepted.length) return;
   const cur = eventsBySite.get(siteId) ?? [];
-  pushAll(cur, events);
+  pushAll(cur, accepted);
   eventsBySite.set(siteId, cur);
-  if (totalQueuedEvents() >= maxEventsBeforeForceFlush) {
+  queuedEventsCount += accepted.length;
+  if (queuedEventsCount >= maxEventsBeforeForceFlush) {
     void scheduleFlush();
   }
 }
 
 export function enqueueRecordings(events: TrackerEvent[]): void {
   if (!events.length) return;
-  pushAll(recordingsQueue, events);
+  const cap = maxRecordingsBeforeForceFlush * QUEUE_HARD_CAP_MULTIPLIER;
+  const accepted = acceptUpToCap(events, recordingsQueue.length, cap, "ingest_recordings_queue_full_drop");
+  if (!accepted.length) return;
+  pushAll(recordingsQueue, accepted);
   if (recordingsQueue.length >= maxRecordingsBeforeForceFlush) {
     void scheduleFlush();
   }
@@ -166,7 +223,10 @@ export function enqueueRecordings(events: TrackerEvent[]): void {
 
 export function enqueueHeatmaps(events: HeatmapIngestEvent[]): void {
   if (!events.length) return;
-  pushAll(heatmapsQueue, events);
+  const cap = maxHeatmapsBeforeForceFlush * QUEUE_HARD_CAP_MULTIPLIER;
+  const accepted = acceptUpToCap(events, heatmapsQueue.length, cap, "ingest_heatmaps_queue_full_drop");
+  if (!accepted.length) return;
+  pushAll(heatmapsQueue, accepted);
   if (heatmapsQueue.length >= maxHeatmapsBeforeForceFlush) {
     void scheduleFlush();
   }
@@ -174,17 +234,24 @@ export function enqueueHeatmaps(events: HeatmapIngestEvent[]): void {
 
 export function enqueueFunnels(siteId: string, events: AnalyticsIngestEvent[]): void {
   if (!events.length) return;
+  const cap = maxFunnelsBeforeForceFlush * QUEUE_HARD_CAP_MULTIPLIER;
+  const accepted = acceptUpToCap(events, queuedFunnelsCount, cap, "ingest_funnels_queue_full_drop");
+  if (!accepted.length) return;
   const cur = funnelsBySite.get(siteId) ?? [];
-  pushAll(cur, events);
+  pushAll(cur, accepted);
   funnelsBySite.set(siteId, cur);
-  if (totalQueuedFunnels() >= maxFunnelsBeforeForceFlush) {
+  queuedFunnelsCount += accepted.length;
+  if (queuedFunnelsCount >= maxFunnelsBeforeForceFlush) {
     void scheduleFlush();
   }
 }
 
 export function enqueueAutomations(rows: AutomationTriggerQueued[]): void {
   if (!rows.length) return;
-  pushAll(automationsQueue, rows);
+  const cap = maxAutomationsBeforeForceFlush * QUEUE_HARD_CAP_MULTIPLIER;
+  const accepted = acceptUpToCap(rows, automationsQueue.length, cap, "ingest_automations_queue_full_drop");
+  if (!accepted.length) return;
+  pushAll(automationsQueue, accepted);
   if (automationsQueue.length >= maxAutomationsBeforeForceFlush) {
     void scheduleFlush();
   }

@@ -121,14 +121,21 @@ export default function ReplayDetailPage() {
         return;
       }
 
+      // One transient failure (network blip, presign race) shouldn't lose a chunk:
+      // a missing middle chunk is a silent replay gap, and a missing FIRST chunk
+      // (the one with the FullSnapshot) makes playback blank.
+      const fetchChunkWithRetry = async (row: { sequence: number; url: string }) => {
+        try {
+          return { sequence: row.sequence, data: (await fetchGzipJsonArray(row.url)) as unknown[] };
+        } catch {
+          return { sequence: row.sequence, data: (await fetchGzipJsonArray(row.url)) as unknown[] };
+        }
+      };
+
       // Fetch initial batch to unblock the player
       if (total > 0) setChunkProgress({ loaded: 0, total });
       const initBatch = urlRows.slice(0, INITIAL_BATCH);
-      const initResults = await Promise.allSettled(
-        initBatch.map(row =>
-          fetchGzipJsonArray(row.url).then(data => ({ sequence: row.sequence, data: data as unknown[] })),
-        ),
-      );
+      const initResults = await Promise.allSettled(initBatch.map(fetchChunkWithRetry));
       if (cancelled) return;
 
       let loaded = initBatch.length;
@@ -138,8 +145,10 @@ export default function ReplayDetailPage() {
         .filter((r): r is PromiseFulfilledResult<{ sequence: number; data: unknown[] }> => r.status === 'fulfilled')
         .map(r => r.value);
 
-      if (initChunks.length === 0) {
-        // All initial-batch chunks failed — surface the first error immediately
+      // The lowest-sequence chunk carries the initial FullSnapshot — without it the
+      // player renders a blank page, so treat its loss as fatal, not partial.
+      const firstChunkFailed = initResults[0]?.status === 'rejected';
+      if (initChunks.length === 0 || firstChunkFailed) {
         const failed = initResults.find(r => r.status === 'rejected') as PromiseRejectedResult | undefined;
         const msg = failed?.reason instanceof Error ? failed.reason.message : String(failed?.reason ?? 'failed');
         const lmsg = msg.toLowerCase();
@@ -155,37 +164,43 @@ export default function ReplayDetailPage() {
         return;
       }
 
-      // Include warm chunks in the initial set
-      const allInitChunks = warmChunks?.length
-        ? [...initChunks, ...warmChunks]
-        : initChunks;
-
-      const { events: initEvs, customEvents: initCevs } = eventsFromChunkList(allInitChunks);
+      // NOTE: warm chunks (the in-memory tail — the NEWEST events) must NOT be merged
+      // into the initial set. replayer.addEvent() is rrweb's live-mode append and
+      // assumes chronologically increasing events; mounting the tail first and then
+      // streaming older S3 chunks after it corrupts the timeline. Warm events are
+      // appended last, after every S3 chunk has streamed in.
+      const { events: initEvs, customEvents: initCevs } = eventsFromChunkList(initChunks);
       setInitialEvents(initEvs);
       setInitialCustomEvents(initCevs);
       setInitialBatchDone(true);
 
-      // Stream remaining chunks; append via addEvent so player doesn't re-mount
+      const appendStreamed = (newEvs: RRWebEvent[]) => {
+        if (newEvs.length === 0) return;
+        if (addEventsRef.current) addEventsRef.current(newEvs);
+        else pendingEventsRef.current.push(...newEvs);
+      };
+
+      // Stream remaining chunks in sequence; append via addEvent so player doesn't re-mount
       for (let i = INITIAL_BATCH; i < total; i++) {
         if (cancelled) break;
         const row = urlRows[i];
         try {
-          const data = await fetchGzipJsonArray(row.url);
+          const { data } = await fetchChunkWithRetry(row);
           if (!cancelled) {
-            const { events: newEvs } = eventsFromChunkList([{ sequence: row.sequence, data: data as unknown[] }]);
-            if (newEvs.length > 0) {
-              if (addEventsRef.current) {
-                addEventsRef.current(newEvs);
-              } else {
-                pendingEventsRef.current.push(...newEvs);
-              }
-            }
+            const { events: newEvs } = eventsFromChunkList([{ sequence: row.sequence, data }]);
+            appendStreamed(newEvs);
           }
         } catch {
-          // Skip failed chunks — partial replay is better than nothing
+          // Skip chunks that failed twice — partial replay is better than nothing
         }
         loaded++;
         if (!cancelled) setChunkProgress({ loaded, total });
+      }
+
+      // Finally append the warm in-memory tail (newest events, sequence > all S3 chunks)
+      if (!cancelled && warmChunks?.length) {
+        const { events: warmEvs } = eventsFromChunkList(warmChunks);
+        appendStreamed(warmEvs);
       }
     })();
 

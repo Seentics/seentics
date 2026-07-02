@@ -33,12 +33,14 @@ export async function getRealtimeStats(websiteParam: string) {
   const { siteId } = await resolveSiteId(websiteParam);
   const since = new Date(Date.now() - REALTIME_WINDOW_MS);
   const sinceIso = since.toISOString();
+  const liveSinceIso = new Date(Date.now() - LIVE_VISITOR_WINDOW_MS).toISOString();
 
   // One query: materialize base rows once, derive all aggregates via CTEs.
   const rows = await pgSql<{
     pageviews: number;
     sessions: number;
     visitors: number;
+    live_visitors: number;
     top_pages: { page: string; visitors: number }[] | null;
     top_countries: { name: string; visitors: number }[] | null;
     top_referrers: { name: string; visitors: number }[] | null;
@@ -55,6 +57,7 @@ export async function getRealtimeStats(websiteParam: string) {
         browser,
         visitor_id,
         session_id,
+        occurred_at,
         date_trunc('minute', occurred_at AT TIME ZONE 'UTC') AS grp_at
       FROM analytics_events
       WHERE website_id = ${siteId}
@@ -66,7 +69,9 @@ export async function getRealtimeStats(websiteParam: string) {
         count(*)::int AS pageviews,
         count(DISTINCT CASE WHEN session_id IS NOT NULL AND length(trim(session_id)) > 0
                             THEN session_id END)::int AS sessions,
-        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS visitors
+        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS visitors,
+        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))
+          FILTER (WHERE occurred_at >= ${liveSinceIso})::int AS live_visitors
       FROM base
     ),
     pages_agg AS (
@@ -130,6 +135,7 @@ export async function getRealtimeStats(websiteParam: string) {
       c.pageviews,
       c.sessions,
       c.visitors,
+      c.live_visitors,
       p.data  AS top_pages,
       cn.data AS top_countries,
       r.data  AS top_referrers,
@@ -141,9 +147,11 @@ export async function getRealtimeStats(websiteParam: string) {
   `;
 
   const row = rows[0];
-  const pageviews = Number(row?.pageviews ?? 0);
-  const sessions  = Number(row?.sessions  ?? 0);
-  const liveCount = Number(row?.visitors  ?? 0);
+  const pageviews   = Number(row?.pageviews ?? 0);
+  const sessions    = Number(row?.sessions  ?? 0);
+  // active = distinct visitors in the last 30 minutes; live = last 30 seconds.
+  const activeCount = Number(row?.visitors       ?? 0);
+  const liveCount   = Number(row?.live_visitors  ?? 0);
 
   const top_pages     = (row?.top_pages     ?? []).map((p) => ({ page: p.page, visitors: Number(p.visitors), count: Number(p.visitors) }));
   const top_countries = (row?.top_countries ?? []).map((r) => ({ name: r.name || "Unknown", visitors: Number(r.visitors), country: r.name || "Unknown", count: Number(r.visitors) }));
@@ -157,7 +165,7 @@ export async function getRealtimeStats(websiteParam: string) {
 
   return {
     website_id: siteId,
-    active_visitors: liveCount,
+    active_visitors: activeCount,
     live_visitors:   liveCount,
     pageviews,
     sessions,

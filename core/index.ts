@@ -6,6 +6,7 @@ import { initMaxMindGeo } from "./lib/maxmind-geo";
 import { configureLogger, log } from "./lib/logger";
 import { getHeatmapEngine } from "./lib/heatmap-engine";
 import { getReplayEngine } from "./lib/replay-engine";
+import { SEENTICS_PEER_IP_HEADER } from "./lib/client-ip";
 import { configureTrackerOriginCache } from "./lib/origin";
 import { startScheduler, stopScheduler } from "./services/scheduler";
 import { configureTrackerWebsiteCache } from "./lib/website-for-tracker";
@@ -79,7 +80,17 @@ app.route("/api/v1/tracker", trackerRoutes);
 const port = cfg.port;
 
 Bun.serve({
-  fetch: app.fetch,
+  fetch(req, server) {
+    // Strip any client-supplied peer-IP header and set it from the real TCP peer so
+    // rate limiting / geo can never be spoofed (see lib/client-ip.ts). Request header
+    // guards allow set/delete of non-forbidden headers, so mutate in place.
+    req.headers.delete(SEENTICS_PEER_IP_HEADER);
+    req.headers.set(
+      SEENTICS_PEER_IP_HEADER,
+      (server as BunServerWithRequestIp).requestIP(req)?.address ?? "",
+    );
+    return app.fetch(req, server);
+  },
   port,
 });
 

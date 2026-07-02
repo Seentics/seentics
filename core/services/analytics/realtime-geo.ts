@@ -39,6 +39,7 @@ export async function getRealtimeGeoAnalytics(
       count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS count
     FROM analytics_events
     WHERE website_id  = ${siteId}
+      AND event_type  = 'pageview'
       AND occurred_at >= ${startIso}
     GROUP BY country
   `;

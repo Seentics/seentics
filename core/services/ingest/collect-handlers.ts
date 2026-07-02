@@ -7,6 +7,7 @@ import type {
   HeatmapIngestEvent,
   TrackerEvent,
 } from "../../lib/types";
+import { clampClientTs } from "../../lib/client-timestamp";
 import { TRACKER_FUNNEL_EVENT_TYPES } from "../funnels.service";
 import {
   enqueueAutomations,
@@ -28,13 +29,14 @@ function isUuid(s: string): boolean {
   return uuidRe.test(s);
 }
 
+/** Parse a client ts (number or numeric string) and clamp it to the server sanity window. */
 function flexTs(v: unknown): number {
-  if (typeof v === "number" && Number.isFinite(v)) return Math.trunc(v);
+  if (typeof v === "number" && Number.isFinite(v)) return clampClientTs(Math.trunc(v));
   if (typeof v === "string") {
     const n = parseFloat(v);
-    return Number.isFinite(n) ? Math.trunc(n) : 0;
+    if (Number.isFinite(n)) return clampClientTs(Math.trunc(n));
   }
-  return 0;
+  return Date.now();
 }
 
 function asDataMap(v: unknown): Record<string, unknown> {
@@ -224,7 +226,7 @@ export function handleAutomations(ctx: CollectHandlerContext): void {
           ? dm.automationId
           : "";
     if (!isUuid(aid)) continue;
-    const ts = e.ts > 0 ? e.ts : Date.now();
+    const ts = clampClientTs(e.ts);
     const detail: Record<string, unknown> = { url: e.url, session_id: e.sid };
     if (e.vid) detail.visitor_id = e.vid;
     if (typeof dm.name === "string") detail.name = dm.name;
@@ -245,6 +247,7 @@ export function handleAutomations(ctx: CollectHandlerContext): void {
 }
 
 export function handleRecordings(ctx: CollectHandlerContext): void {
+  if (!ctx.website.replay_enabled) return;
   const sessions = parseCollectEvents(Array.isArray(ctx.body.session) ? ctx.body.session : []);
   const prepared = sortByTs(collectPrepareSessions(sessions, ctx.website.site_id, ctx.ingestMeta));
   if (!prepared.length) return;
@@ -253,6 +256,7 @@ export function handleRecordings(ctx: CollectHandlerContext): void {
 }
 
 export function handleHeatmaps(ctx: CollectHandlerContext): void {
+  if (!ctx.website.heatmap_enabled) return;
   const heatmaps = parseCollectEvents(Array.isArray(ctx.body.heatmaps) ? ctx.body.heatmaps : []);
   const screenshots = parseCollectEvents(
     Array.isArray(ctx.body.heatmap_screenshot) ? ctx.body.heatmap_screenshot : [],

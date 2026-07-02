@@ -1,14 +1,24 @@
 import { sql as pgSql } from "../../db";
 import { resolveSiteId } from "./shared";
-import { getRealtimeStats, LIVE_VISITOR_WINDOW_MS } from "./realtime";
+import { LIVE_VISITOR_WINDOW_MS, REALTIME_WINDOW_MS } from "./realtime";
 
 export async function getLiveVisitorsStats(websiteParam: string) {
   const { siteId } = await resolveSiteId(websiteParam);
-  const since = new Date(Date.now() - LIVE_VISITOR_WINDOW_MS);
-  const sinceIso = since.toISOString();
+  // live = pageview in the last 30 seconds; active = last 30 minutes.
+  const liveSinceIso = new Date(Date.now() - LIVE_VISITOR_WINDOW_MS).toISOString();
+  const activeSinceIso = new Date(Date.now() - REALTIME_WINDOW_MS).toISOString();
 
-  const [realtimeOut, recentVisitors] = await Promise.all([
-    getRealtimeStats(websiteParam),
+  const [countRows, recentVisitors] = await Promise.all([
+    pgSql<{ live_visitors: number; active_visitors: number }[]>`
+      SELECT
+        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))
+          FILTER (WHERE occurred_at >= ${liveSinceIso})::int AS live_visitors,
+        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS active_visitors
+      FROM analytics_events
+      WHERE website_id = ${siteId}
+        AND event_type = 'pageview'
+        AND occurred_at >= ${activeSinceIso}
+    `,
     pgSql<{
       visitor_id: string;
       session_id: string;
@@ -29,7 +39,7 @@ export async function getLiveVisitorsStats(websiteParam: string) {
       FROM analytics_events
       WHERE website_id = ${siteId}
         AND event_type = 'pageview'
-        AND occurred_at >= ${sinceIso}
+        AND occurred_at >= ${liveSinceIso}
         AND session_id IS NOT NULL
       ORDER BY coalesce(nullif(trim(visitor_id), ''), session_id), occurred_at DESC
       LIMIT 25
@@ -37,9 +47,9 @@ export async function getLiveVisitorsStats(websiteParam: string) {
   ]);
 
   return {
-    website_id: realtimeOut.website_id,
-    live_visitors: realtimeOut.live_visitors,
-    active_visitors: realtimeOut.active_visitors,
+    website_id: siteId,
+    live_visitors: Number(countRows[0]?.live_visitors ?? 0),
+    active_visitors: Number(countRows[0]?.active_visitors ?? 0),
     visitors: recentVisitors.map((v) => ({
       visitor_id: v.visitor_id,
       session_id: v.session_id,

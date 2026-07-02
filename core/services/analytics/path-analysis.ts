@@ -29,17 +29,27 @@ export async function getPathAnalysisAnalytics(
         AND length(trim(session_id)) > 0
         AND page IS NOT NULL
         AND length(trim(page)) > 0
+    ),
+    -- One row per session with its first three pages (no self-joins; only the
+    -- first three steps survive past the window function).
+    first_steps AS (
+      SELECT
+        session_id,
+        max(page) FILTER (WHERE step = 1) AS page_1,
+        max(page) FILTER (WHERE step = 2) AS page_2,
+        max(page) FILTER (WHERE step = 3) AS page_3
+      FROM ordered
+      WHERE step <= 3
+      GROUP BY session_id
     )
     SELECT
-      p1.page AS page_1,
-      p2.page AS page_2,
-      p3.page AS page_3,
-      count(DISTINCT p1.session_id)::int AS sessions
-    FROM ordered p1
-    LEFT JOIN ordered p2 ON p2.session_id = p1.session_id AND p2.step = 2
-    LEFT JOIN ordered p3 ON p3.session_id = p1.session_id AND p3.step = 3
-    WHERE p1.step = 1
-    GROUP BY p1.page, p2.page, p3.page
+      page_1,
+      page_2,
+      page_3,
+      count(*)::int AS sessions
+    FROM first_steps
+    WHERE page_1 IS NOT NULL
+    GROUP BY page_1, page_2, page_3
     ORDER BY sessions DESC
     LIMIT 50
   `;

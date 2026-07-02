@@ -1,12 +1,12 @@
 import { sql as pgSql } from "../../db";
-import { parseDays, resolveSiteId } from "./shared";
+import { parseDays, resolveSiteId, sanitizeTimezone } from "./shared";
 
 export async function getHourlyStatsAnalytics(
   websiteParam: string,
   query: Record<string, string | undefined>,
 ) {
   const days = Math.min(parseDays(query.days, 1), 7);
-  const tz = (query.timezone ?? "UTC").trim() || "UTC";
+  const tz = sanitizeTimezone(query.timezone);
   const { siteId } = await resolveSiteId(websiteParam);
   const start = new Date(Date.now() - days * 86400000).toISOString();
 
@@ -25,13 +25,13 @@ export async function getHourlyStatsAnalytics(
     ORDER BY h
   `;
 
-  const todayUtcMidnight = new Date();
-  todayUtcMidnight.setUTCHours(0, 0, 0, 0);
+  // No `timestamp` field: stats aggregate the same clock hour across the whole
+  // range (potentially multiple days), so a single absolute timestamp per bucket
+  // is meaningless. The dashboard chart only consumes hour/hour_label/views/unique.
   return {
     website_id: siteId,
     hourly_stats: rows.map((x) => ({
       hour: x.h,
-      timestamp: new Date(todayUtcMidnight.getTime() + x.h * 3600_000).toISOString(),
       views: x.views,
       unique: x.unique,
       hour_label: `${String(x.h).padStart(2, "0")}:00`,

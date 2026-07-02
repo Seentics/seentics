@@ -6,3 +6,7 @@ export const analyticsRecentActivityQuerySchema = z.object({
   within_minutes: zBoundedInt({ min: 1, max: 24 * 60 }).optional(),
 });
 
+export const analyticsRealtimeGeoQuerySchema = z.object({
+  within_minutes: zBoundedInt({ min: 1, max: 24 * 60 }).optional(),
+});
+

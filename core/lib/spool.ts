@@ -21,6 +21,8 @@ type SessionState = {
   nextChunkSeq: number | null;
   /** Updated on ingest and flush; used to prune sessions with empty buffers after visitors leave. */
   lastTouchedMs: number;
+  /** Serializes flushes per session — two concurrent flushes would reuse the same chunk sequence and overwrite each other in S3. */
+  inflight: Promise<void> | null;
 };
 
 function mapKey(siteId: string, sessionId: string): string {
@@ -99,6 +101,7 @@ export class ReplaySpool {
         chunkWindowStart: null,
         nextChunkSeq: null,
         lastTouchedMs: now,
+        inflight: null,
       };
       this.sessions.set(k, st);
     }
@@ -160,7 +163,19 @@ export class ReplaySpool {
     await Promise.all(toFlush.map((st) => this.flushChunk(st)));
   }
 
-  private async flushChunk(st: SessionState): Promise<void> {
+  /**
+   * Chain flushes per session: `flushAll()` (shutdown) can race an in-flight tick
+   * flush; running both concurrently would consume the same `nextChunkSeq` and the
+   * second S3 put would overwrite the first chunk.
+   */
+  private flushChunk(st: SessionState): Promise<void> {
+    const prev = st.inflight ?? Promise.resolve();
+    const next = prev.catch(() => {}).then(() => this.doFlushChunk(st));
+    st.inflight = next.catch(() => {});
+    return next;
+  }
+
+  private async doFlushChunk(st: SessionState): Promise<void> {
     if (st.events.length === 0) return;
     st.finalizing = true;
     const batch = st.events;

@@ -25,37 +25,63 @@ export async function getGeolocationAnalytics(
   const start = new Date(Date.now() - days * 86400000);
   const startIso = start.toISOString();
 
-  const totalUvRows = await pgSql<{ uv: number }[]>`
-    SELECT
-      count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS uv
-    FROM analytics_events
-    WHERE website_id = ${siteId}
-      AND event_type = 'pageview'
-      AND occurred_at >= ${startIso}
-  `;
+  const [totalUvRows, countryRows, cityRows] = await Promise.all([
+    pgSql<{ uv: number }[]>`
+      SELECT
+        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS uv
+      FROM analytics_events
+      WHERE website_id = ${siteId}
+        AND event_type = 'pageview'
+        AND occurred_at >= ${startIso}
+    `,
+    pgSql<
+      {
+        country: string;
+        views: number;
+        unique_visitors: number;
+      }[]
+    >`
+      SELECT
+        country,
+        count(*)::int AS views,
+        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
+      FROM analytics_events
+      WHERE website_id = ${siteId}
+        AND event_type = 'pageview'
+        AND occurred_at >= ${startIso}
+        AND country IS NOT NULL
+        AND length(trim(country)) > 0
+      GROUP BY country
+      ORDER BY unique_visitors DESC
+      LIMIT 50
+    `,
+    pgSql<
+      {
+        city: string;
+        country: string;
+        views: number;
+        unique_visitors: number;
+      }[]
+    >`
+      SELECT
+        city,
+        country,
+        count(*)::int AS views,
+        count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
+      FROM analytics_events
+      WHERE website_id = ${siteId}
+        AND event_type = 'pageview'
+        AND occurred_at >= ${startIso}
+        AND city IS NOT NULL
+        AND length(trim(city)) > 0
+        AND country IS NOT NULL
+        AND length(trim(country)) > 0
+      GROUP BY city, country
+      ORDER BY unique_visitors DESC
+      LIMIT 40
+    `,
+  ]);
   const denom = Math.max(0, totalUvRows[0]?.uv ?? 0);
-
-  const countryRows = await pgSql<
-    {
-      country: string;
-      views: number;
-      unique_visitors: number;
-    }[]
-  >`
-    SELECT
-      country,
-      count(*)::int AS views,
-      count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
-    FROM analytics_events
-    WHERE website_id = ${siteId}
-      AND event_type = 'pageview'
-      AND occurred_at >= ${startIso}
-      AND country IS NOT NULL
-      AND length(trim(country)) > 0
-    GROUP BY country
-    ORDER BY unique_visitors DESC
-    LIMIT 50
-  `;
 
   const countries = countryRows.map((row) => {
     const code = String(row.country ?? "").trim().toUpperCase();
@@ -64,32 +90,6 @@ export async function getGeolocationAnalytics(
     const percentage = denom > 0 ? Math.round((count / denom) * 1000) / 10 : 0;
     return { name, code: code.length === 2 ? code : undefined, count, percentage };
   });
-
-  const cityRows = await pgSql<
-    {
-      city: string;
-      country: string;
-      views: number;
-      unique_visitors: number;
-    }[]
-  >`
-    SELECT
-      city,
-      country,
-      count(*)::int AS views,
-      count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
-    FROM analytics_events
-    WHERE website_id = ${siteId}
-      AND event_type = 'pageview'
-      AND occurred_at >= ${startIso}
-      AND city IS NOT NULL
-      AND length(trim(city)) > 0
-      AND country IS NOT NULL
-      AND length(trim(country)) > 0
-    GROUP BY city, country
-    ORDER BY unique_visitors DESC
-    LIMIT 40
-  `;
 
   const cities = cityRows.map((row) => {
     const count = Number(row.unique_visitors ?? 0);

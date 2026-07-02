@@ -1,5 +1,6 @@
 import { analyticsEvents, db } from "../../db";
 import type { AnalyticsIngestEvent } from "../../lib/types";
+import { clampClientTs } from "../../lib/client-timestamp";
 import { log as baseLog } from "../../lib/logger";
 import { pickInt, pickStr, pickUtmColumns } from "./field-pickers";
 
@@ -13,8 +14,35 @@ const ANALYTICS_SKIP = new Set([
   "heatmap_click",
   "heatmap_scroll",
   "heatmap_screenshot",
+  "heatmap_dom_snapshot",
   "automation_trigger",
 ]);
+
+// analytics_events.event_type is varchar(64); a longer client-controlled name would throw
+// and take the whole INSERT (and batch) down with it.
+const MAX_EVENT_TYPE_LEN = 64;
+const MAX_TEXT_LEN = 2048;
+const MAX_ID_LEN = 128;
+const MAX_PROPERTIES_JSON_CHARS = 32 * 1024;
+
+function capStr(v: string | null | undefined, max: number): string | null {
+  if (v == null) return null;
+  return v.length > max ? v.slice(0, max) : v;
+}
+
+function capProperties(dm: Record<string, unknown>): Record<string, unknown> {
+  try {
+    if (JSON.stringify(dm).length <= MAX_PROPERTIES_JSON_CHARS) return dm;
+  } catch {
+    /* unserializable — replace below */
+  }
+  return { _truncated: true };
+}
+
+// Each row binds 20 parameters; postgres-js caps a statement at 65,534 bind
+// parameters, so keep chunks safely below that (5,000 × 20 = 100k blew up).
+const INSERT_COLUMN_COUNT = 20;
+const CHUNK_SIZE = Math.floor(60_000 / INSERT_COLUMN_COUNT);
 
 /** Insert analytics rows from tracker collect (`site_id` = websites.site_id). Returns rows inserted. */
 export async function ingestAnalyticsBatch(siteId: string, events: AnalyticsIngestEvent[]): Promise<number> {
@@ -27,25 +55,25 @@ export async function ingestAnalyticsBatch(siteId: string, events: AnalyticsInge
     const dm = e.data ?? {};
     // seentics.track('purchase', {...}) sends type='custom', data.name='purchase'.
     // Promote the name to event_type so revenue/goals queries work without special-casing.
-    const t = rawType === "custom" && typeof dm.name === "string" && dm.name.trim()
-      ? dm.name.trim()
-      : rawType;
+    const trimmedName =
+      rawType === "custom" && typeof dm.name === "string" ? dm.name.trim() : "";
+    const t = (trimmedName || rawType).slice(0, MAX_EVENT_TYPE_LEN);
     const meta = e.ingestMeta;
     const ref = pickStr(dm, ["referrer", "referer"]);
     const lang =
       pickStr(dm, ["lang", "language"]) ?? meta?.languageHint ?? null;
     const sw = pickInt(dm, ["sw", "screen_width"]);
     const sh = pickInt(dm, ["sh", "screen_height"]);
-    const ts = e.ts > 0 ? new Date(e.ts) : new Date(now);
+    const ts = new Date(clampClientTs(e.ts, now));
     const utm = pickUtmColumns(dm);
     rows.push({
       websiteId: siteId,
       eventType: t,
-      page: e.url ?? "",
-      visitorId: e.vid || e.sid || null,
-      sessionId: e.sid || null,
-      properties: dm,
-      referrer: ref ?? null,
+      page: capStr(e.url ?? "", MAX_TEXT_LEN) ?? "",
+      visitorId: capStr(e.vid || e.sid || null, MAX_ID_LEN),
+      sessionId: capStr(e.sid || null, MAX_ID_LEN),
+      properties: capProperties(dm),
+      referrer: capStr(ref, MAX_TEXT_LEN),
       country: meta?.country ?? null,
       region: meta?.region ?? null,
       city: meta?.city ?? null,
@@ -71,7 +99,6 @@ export async function ingestAnalyticsBatch(siteId: string, events: AnalyticsInge
     });
     return 0;
   }
-  const CHUNK_SIZE = 5_000;
   if (rows.length <= CHUNK_SIZE) {
     await db.insert(analyticsEvents).values(rows);
   } else {

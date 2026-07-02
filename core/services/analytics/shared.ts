@@ -5,6 +5,18 @@ export function parseDays(q: string | undefined, def = 7): number {
   return Number.isFinite(n) && n > 0 && n < 366 ? Math.floor(n) : def;
 }
 
+/** IANA timezone whitelist validator — prevents SQL injection / PG error 22023 via timezone param. */
+export function sanitizeTimezone(tz: string | undefined): string {
+  if (!tz || typeof tz !== "string") return "UTC";
+  if (!/^[A-Za-z0-9_+\-/]+$/.test(tz)) return "UTC";
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return tz;
+  } catch {
+    return "UTC";
+  }
+}
+
 export async function resolveSiteId(websiteParam: string): Promise<{ siteId: string; uuid: string }> {
   const { siteId, uuidStr } = await resolveWebsiteIds(websiteParam);
   return { siteId, uuid: uuidStr };
