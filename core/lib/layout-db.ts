@@ -96,8 +96,14 @@ export async function upsertLayoutSnapshot(
     ON CONFLICT (website_id, page_path) DO UPDATE SET
       s3_key = EXCLUDED.s3_key,
       content_sha256 = EXCLUDED.content_sha256,
-      doc_width = EXCLUDED.doc_width,
-      doc_height = EXCLUDED.doc_height,
+      -- A DOM HTML snapshot (captured at the visitor's real viewport) is what the
+      -- preview renders and is authoritative for dimensions. Don't let a JPEG/Playwright
+      -- capture (fixed 1920 viewport) clobber those dims, or the iframe renders the
+      -- DOM snapshot at the wrong width and every dot misaligns.
+      doc_width = CASE WHEN heatmap_page_snapshots.html_s3_key IS NOT NULL
+                       THEN heatmap_page_snapshots.doc_width ELSE EXCLUDED.doc_width END,
+      doc_height = CASE WHEN heatmap_page_snapshots.html_s3_key IS NOT NULL
+                        THEN heatmap_page_snapshots.doc_height ELSE EXCLUDED.doc_height END,
       updated_at = NOW()
   `;
   if (Math.random() < 0.05) sweepSnapshotCache();

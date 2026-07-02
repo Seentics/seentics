@@ -8,16 +8,6 @@ import { log as baseLog } from "./logger";
 
 const log = baseLog.child({ category: "playwright" });
 
-const WEBHOOK_URL = "https://webhook.site/2cf6bc19-cdac-4bca-bd9f-022c5bd557ef";
-async function wh(event: string, data: Record<string, unknown>) {
-  try {
-    await fetch(WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event, ts: new Date().toISOString(), ...data }),
-    });
-  } catch { /* never block main flow */ }
-}
 
 export interface ScreenshotOptions {
   /**
@@ -97,7 +87,6 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
 
     const resolvedUrl = rewriteLocalhostForDocker(options.url);
     log.info({ msg: "playwright_capture_start", url: resolvedUrl });
-    void wh("playwright_capture_start", { url: resolvedUrl, viewportWidth: options.viewportWidth ?? 1920, viewportHeight: options.viewportHeight ?? 1080 });
 
     page = await createScreenshotPage();
 
@@ -109,9 +98,7 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
     // polling-heavy dashboards never reach, causing a consistent 30s timeout.
     try {
       await page.goto(resolvedUrl, { waitUntil: "load", timeout: timeoutMs });
-      void wh("playwright_page_loaded", { url: resolvedUrl, finalUrl: page.url() });
     } catch (error) {
-      void wh("playwright_navigation_failed", { url: resolvedUrl, err: String(error) });
       throw new Error(
         `Failed to navigate to URL: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -132,10 +119,8 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
         /\/(login|signin|sign-in|auth|sso|oauth|account\/login)/i.test(finalPath);
       if (looksLikeAuthRedirect) {
         log.warn({ msg: "playwright_auth_redirect", url: options.url, requested_path: requestedPath, final_path: finalPath });
-        void wh("playwright_auth_redirect", { url: options.url, requestedPath, finalPath });
         throw new Error(`Auth redirect detected: requested ${requestedPath}, landed on ${finalPath}`);
       }
-      void wh("playwright_redirect_check_ok", { url: options.url, requestedPath, finalPath });
     } catch (e) {
       if ((e as Error).message.startsWith('Auth redirect')) throw e;
       // URL parse error — ignore and proceed
@@ -191,7 +176,6 @@ export async function captureWebPageScreenshot(options: ScreenshotOptions): Prom
     // Calculate hash
     const hash = createHash("sha256").update(screenshotBuffer).digest("hex");
     log.info({ msg: "playwright_capture_success", url: options.url, width, height, bytes: screenshotBuffer.length });
-    void wh("playwright_capture_success", { url: options.url, width, height, bytes: screenshotBuffer.length, hash: hash.slice(0, 16) });
 
     return {
       buffer: screenshotBuffer,

@@ -473,42 +473,47 @@ function HeatmapViewer({
   );
 
   const docPx = useMemo(() => {
-    const dataH = documentPixelHeightForHeatmap(points, heatType, viewPort.w, null);
     const natH = shotNatural && shotNatural.h > 200 ? shotNatural.h : 0;
-    // Measured height (iframe scrollHeight or JPEG natural height) is ground truth.
+    // Measured height (iframe scrollHeight via postMessage, or JPEG natural height) is
+    // ground truth — trust it exactly. Maxing it with a click-spread guess used to
+    // inflate the canvas past the real page, leaving empty space and misaligning dots.
     if (natH > 200) {
-      return Math.min(HEATMAP_DIM_CAP, Math.max(natH, points.length > 0 ? dataH : 0));
+      return Math.min(HEATMAP_DIM_CAP, natH);
     }
-    // Use stored doc_height regardless of screenshot visibility — it is the real measured page
-    // height and should govern the heatmap canvas size in all modes (screenshot or heat-only).
-    if (pageScreenshot) {
-      const sh = pageScreenshot.doc_height > 200 ? pageScreenshot.doc_height : 0;
-      if (sh > 200) {
-        return Math.min(HEATMAP_DIM_CAP, Math.max(sh, dataH));
-      }
+    // Stored doc_height is the real measured page height at capture time — governs the
+    // canvas in all modes (screenshot or heat-only) until the live measurement arrives.
+    const sh = pageScreenshot && pageScreenshot.doc_height > 200 ? pageScreenshot.doc_height : 0;
+    if (sh > 200) {
+      return Math.min(HEATMAP_DIM_CAP, sh);
     }
-    const hint = docHeightHint;
-    return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, hint));
+    // No snapshot yet: fall back to the click/scroll-spread estimate.
+    const dataH = documentPixelHeightForHeatmap(points, heatType, viewPort.w, null);
+    return Math.min(HEATMAP_DIM_CAP, Math.max(dataH, docHeightHint));
   }, [points, heatType, viewPort.w, docHeightHint, pageScreenshot, shotNatural]);
 
   const dims = useMemo(() => {
-    const dataW = documentPixelWidthForHeatmap(points, viewPort.w);
-    const captureW =
-      preferredViewportWidth != null &&
-      preferredViewportWidth >= 320 &&
-      preferredViewportWidth <= HEATMAP_DIM_CAP
-        ? preferredViewportWidth
-        : null;
-    const shotW =
-      screenshotActive && pageScreenshot && pageScreenshot.doc_width > 200 ? pageScreenshot.doc_width : 0;
+    // Real captured width is ground truth: render the snapshot at the width it was
+    // captured at so its CSS media queries reproduce the captured layout and the dots
+    // line up. Only fall back to the click-spread guess when no snapshot width exists.
     const natW = shotNatural && shotNatural.w > 200 ? shotNatural.w : 0;
-    const w = Math.min(
-      HEATMAP_DIM_CAP,
-      Math.max(320, viewPort.w, dataW, captureW ?? 0, shotW, natW),
-    );
-    const h = docPx;
-    return clampHeatmapPreviewDimensions(w, h);
-  }, [viewPort.w, docPx, points, preferredViewportWidth, screenshotActive, pageScreenshot, shotNatural]);
+    const shotW =
+      pageScreenshot && pageScreenshot.doc_width > 200 ? pageScreenshot.doc_width : 0;
+    const realW = natW || shotW;
+    let w: number;
+    if (realW > 0) {
+      w = Math.min(HEATMAP_DIM_CAP, Math.max(320, realW));
+    } else {
+      const dataW = documentPixelWidthForHeatmap(points, viewPort.w);
+      const captureW =
+        preferredViewportWidth != null &&
+        preferredViewportWidth >= 320 &&
+        preferredViewportWidth <= HEATMAP_DIM_CAP
+          ? preferredViewportWidth
+          : 0;
+      w = Math.min(HEATMAP_DIM_CAP, Math.max(320, viewPort.w, dataW, captureW));
+    }
+    return clampHeatmapPreviewDimensions(w, docPx);
+  }, [viewPort.w, docPx, points, preferredViewportWidth, pageScreenshot, shotNatural]);
 
   const previewScale = useMemo(() => {
     if (viewPort.w <= 0 || dims.w <= 0) return 1;

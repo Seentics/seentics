@@ -695,14 +695,22 @@ const captureAndQueueDomSnapshot = () => {
     // Skip if snapshot is too large (> 1.2 MB) to avoid oversized payloads
     if (html.length > 1_200_000) return;
 
+    // Measure the document with the SAME logic the click/scroll coordinates are
+    // normalized against (heatmapDocumentMetrics scans inner overflow:auto regions),
+    // so the stored doc_w/doc_h match the coordinate system. Using a different
+    // measurement here (plain scrollHeight) was making the preview the wrong height
+    // and pushing every dot off its true position.
+    heatmapMetricsCache = null;
+    const { dw, dh } = heatmapDocumentMetrics();
+
     queues.heatmap_dom_snapshot.push({
       type:  'heatmap_dom_snapshot',
       ts:    Date.now(),
       url:   location.href,
       sid:   getSessionId(),
       vid:   visitorId,
-      doc_w: document.documentElement.scrollWidth || document.body.scrollWidth || window.innerWidth,
-      doc_h: document.documentElement.scrollHeight || document.body.scrollHeight || window.innerHeight,
+      doc_w: dw,
+      doc_h: dh,
       vw:    window.innerWidth,
       vh:    window.innerHeight,
       data:  { html },
