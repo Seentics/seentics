@@ -41,7 +41,7 @@ export async function getReferrersAnalytics(
     FROM first_ref fr
     JOIN pv ON pv.session_id = fr.session_id
     GROUP BY fr.referrer
-    ORDER BY views DESC
+    ORDER BY views DESC, referrer ASC
     LIMIT 50
   `;
 

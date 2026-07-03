@@ -26,7 +26,7 @@ export async function getCustomEventsAnalytics(
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
       GROUP BY event_type
-      ORDER BY c DESC
+      ORDER BY c DESC, event_type ASC
       LIMIT 100
     `,
 
@@ -43,7 +43,7 @@ export async function getCustomEventsAnalytics(
         AND utm_source IS NOT NULL
         AND length(trim(utm_source)) > 0
       GROUP BY utm_source
-      ORDER BY visits DESC
+      ORDER BY visits DESC, label ASC
       LIMIT 50
     `,
 
@@ -60,7 +60,7 @@ export async function getCustomEventsAnalytics(
         AND utm_medium IS NOT NULL
         AND length(trim(utm_medium)) > 0
       GROUP BY utm_medium
-      ORDER BY visits DESC
+      ORDER BY visits DESC, label ASC
       LIMIT 50
     `,
 
@@ -77,7 +77,7 @@ export async function getCustomEventsAnalytics(
         AND utm_campaign IS NOT NULL
         AND length(trim(utm_campaign)) > 0
       GROUP BY utm_campaign
-      ORDER BY visits DESC
+      ORDER BY visits DESC, label ASC
       LIMIT 50
     `,
   ]);

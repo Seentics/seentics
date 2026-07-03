@@ -26,7 +26,7 @@ export async function getPagesAnalytics(
       AND page IS NOT NULL
       AND length(trim(page)) > 0
     GROUP BY page
-    ORDER BY views DESC
+    ORDER BY views DESC, page ASC
     LIMIT 50
   `;
 

@@ -98,11 +98,16 @@ export async function runAIQuery(
   prompt: string,
   initialDomain: AIDomain | 'auto' = "auto",
 ): Promise<AIQueryResult> {
-  const domain = initialDomain === 'auto' ? await detectDomain(prompt) : initialDomain;
-  // domain resolved — no log needed here
+  const startedAt = Date.now();
+
+  // Domain detection (LLM call) and site-id resolution (DB) are independent —
+  // run them concurrently instead of one after the other.
+  const [domain, { siteId, uuid }] = await Promise.all([
+    initialDomain === 'auto' ? detectDomain(prompt) : Promise.resolve(initialDomain),
+    resolveSiteId(websiteId),
+  ]);
 
   const { prompt: systemPrompt, tables: allowedTables } = DOMAIN_CONFIG[domain] ?? DOMAIN_CONFIG.analytics;
-  const startedAt = Date.now();
 
   // ── Intelligent ID Resolution ──────────────────────────────────────────────
   // Map domains to their required ID format:
@@ -117,7 +122,6 @@ export async function runAIQuery(
     automations: "uuid",
   };
 
-  const { siteId, uuid } = await resolveSiteId(websiteId);
   const dbBoundId = ID_STRATEGY[domain] === "site_id" ? siteId : uuid;
 
   // Insert pending record to track the attempt

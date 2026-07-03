@@ -21,7 +21,7 @@ export async function getCitiesAnalytics(
       AND city IS NOT NULL
       AND length(trim(city)) > 0
     GROUP BY city
-    ORDER BY views DESC
+    ORDER BY views DESC, city ASC
     LIMIT 30
   `;
 

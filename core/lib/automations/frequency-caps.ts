@@ -2,7 +2,7 @@
  * Frequency cap helpers — read / write automation_impressions.
  */
 
-import { and, count, eq, gte, sql } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import { db, automationImpressions } from '../../db';
 
 export interface ImpressionMeta {
@@ -25,43 +25,19 @@ export async function recordImpression(meta: ImpressionMeta): Promise<void> {
   });
 }
 
-export async function countLifetime(automationId: string, anonymousId: string): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(automationImpressions)
-    .where(and(
-      eq(automationImpressions.automationId, automationId),
-      eq(automationImpressions.anonymousId, anonymousId),
-    ));
-  return row?.n ?? 0;
-}
-
-export async function countSession(automationId: string, sessionId: string): Promise<number> {
-  const [row] = await db
-    .select({ n: count() })
-    .from(automationImpressions)
-    .where(and(
-      eq(automationImpressions.automationId, automationId),
-      eq(automationImpressions.sessionId, sessionId),
-    ));
-  return row?.n ?? 0;
-}
-
-export async function countWithinDays(
-  automationId: string,
-  anonymousId: string,
-  days: number,
-): Promise<number> {
-  const since = new Date(Date.now() - days * 86_400_000);
-  const [row] = await db
-    .select({ n: count() })
-    .from(automationImpressions)
-    .where(and(
-      eq(automationImpressions.automationId, automationId),
-      eq(automationImpressions.anonymousId, anonymousId),
-      gte(automationImpressions.shownAt, since),
-    ));
-  return row?.n ?? 0;
+/** Batch-insert impressions in a single round trip. */
+export async function recordImpressions(metas: ImpressionMeta[]): Promise<void> {
+  if (metas.length === 0) return;
+  await db.insert(automationImpressions).values(
+    metas.map((m) => ({
+      automationId: m.automationId,
+      anonymousId:  m.anonymousId,
+      userId:       m.userId ?? null,
+      websiteId:    m.websiteId,
+      sessionId:    m.sessionId,
+      variant:      m.variant ?? null,
+    })),
+  );
 }
 
 export interface FrequencyCapSpec {
@@ -70,23 +46,71 @@ export interface FrequencyCapSpec {
   cooldownDays?: number;
 }
 
-export async function isFrequencyCapped(
-  automationId: string,
+export interface ImpressionStats {
+  /** Impressions for this automation in the current session. */
+  sessionCount: number;
+  /** Lifetime impressions for this automation for the anonymous visitor. */
+  lifetimeCount: number;
+  /** Most recent impression time for the anonymous visitor (for cooldowns). */
+  lastShownAt: Date | null;
+}
+
+/** Whether any cap on the spec requires a DB lookup at all. */
+export function capsRequireLookup(caps: FrequencyCapSpec): boolean {
+  return caps.maxPerSession != null || caps.maxPerUser != null || caps.cooldownDays != null;
+}
+
+/**
+ * Batched impression stats for many automations in ONE query.
+ * Returns per-automation session count, lifetime count and last-shown time.
+ * Only rows matching this visitor (anonymousId) or session (sessionId) are scanned.
+ */
+export async function getImpressionStats(
+  automationIds: string[],
   anonymousId: string,
   sessionId: string,
-  caps: FrequencyCapSpec,
-): Promise<boolean> {
-  if (caps.maxPerSession != null) {
-    const n = await countSession(automationId, sessionId);
-    if (n >= caps.maxPerSession) return true;
+): Promise<Map<string, ImpressionStats>> {
+  const map = new Map<string, ImpressionStats>();
+  if (automationIds.length === 0) return map;
+
+  const rows = await db
+    .select({
+      automationId:  automationImpressions.automationId,
+      sessionCount:  sql<number>`count(*) filter (where ${automationImpressions.sessionId} = ${sessionId})::int`,
+      lifetimeCount: sql<number>`count(*) filter (where ${automationImpressions.anonymousId} = ${anonymousId})::int`,
+      lastShownAt:   sql<Date | null>`max(${automationImpressions.shownAt}) filter (where ${automationImpressions.anonymousId} = ${anonymousId})`,
+    })
+    .from(automationImpressions)
+    .where(and(
+      inArray(automationImpressions.automationId, automationIds),
+      or(
+        eq(automationImpressions.anonymousId, anonymousId),
+        eq(automationImpressions.sessionId, sessionId),
+      ),
+    ))
+    .groupBy(automationImpressions.automationId);
+
+  for (const r of rows) {
+    map.set(r.automationId, {
+      sessionCount:  Number(r.sessionCount  ?? 0),
+      lifetimeCount: Number(r.lifetimeCount ?? 0),
+      lastShownAt:   r.lastShownAt ? new Date(r.lastShownAt) : null,
+    });
   }
-  if (caps.maxPerUser != null) {
-    const n = await countLifetime(automationId, anonymousId);
-    if (n >= caps.maxPerUser) return true;
-  }
-  if (caps.cooldownDays != null) {
-    const n = await countWithinDays(automationId, anonymousId, caps.cooldownDays);
-    if (n > 0) return true;
+  return map;
+}
+
+/** In-memory cap evaluation from pre-fetched stats. */
+export function isCappedFromStats(stats: ImpressionStats | undefined, caps: FrequencyCapSpec): boolean {
+  const sessionCount  = stats?.sessionCount  ?? 0;
+  const lifetimeCount = stats?.lifetimeCount ?? 0;
+  const lastShownAt   = stats?.lastShownAt   ?? null;
+
+  if (caps.maxPerSession != null && sessionCount  >= caps.maxPerSession) return true;
+  if (caps.maxPerUser    != null && lifetimeCount >= caps.maxPerUser)    return true;
+  if (caps.cooldownDays  != null && lastShownAt) {
+    const since = Date.now() - caps.cooldownDays * 86_400_000;
+    if (lastShownAt.getTime() >= since) return true;
   }
   return false;
 }

@@ -21,7 +21,7 @@ export async function getLanguagesAnalytics(
       AND language IS NOT NULL
       AND length(trim(language)) > 0
     GROUP BY language
-    ORDER BY views DESC
+    ORDER BY views DESC, language ASC
     LIMIT 30
   `;
 

@@ -32,7 +32,7 @@ export async function getPageUtmBreakdownAnalytics(
       AND (utm_source IS NOT NULL OR utm_medium IS NOT NULL OR utm_campaign IS NOT NULL)
       AND page IS NOT NULL
     GROUP BY page, utm_source, utm_medium, utm_campaign
-    ORDER BY views DESC
+    ORDER BY views DESC, page ASC, utm_source ASC, utm_medium ASC, utm_campaign ASC
     LIMIT 200
   `;
 

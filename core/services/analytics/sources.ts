@@ -60,7 +60,7 @@ export async function getSourcesAnalytics(
     JOIN session_pvc spc ON spc.session_id = fs.session_id
     JOIN pv ON pv.session_id = fs.session_id
     GROUP BY fs.utm_source
-    ORDER BY views DESC
+    ORDER BY views DESC, source ASC
     LIMIT 50
   `;
 

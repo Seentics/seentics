@@ -30,7 +30,7 @@ async function topDimensionAnalytics(
       AND ${colIdent} IS NOT NULL
       AND length(trim(${colIdent})) > 0
     GROUP BY ${colIdent}
-    ORDER BY views DESC
+    ORDER BY views DESC, ${colIdent} ASC
     LIMIT 50
   `;
 

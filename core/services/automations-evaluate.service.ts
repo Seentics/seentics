@@ -16,7 +16,14 @@ import { automationEvents, automationImpressions, automations, db, userProfiles 
 import { log } from '../lib/logger';
 import type { Conditions } from '../lib/automations/condition-evaluator';
 import { evaluateConditions } from '../lib/automations/condition-evaluator';
-import { isFrequencyCapped, recordImpression, type FrequencyCapSpec } from '../lib/automations/frequency-caps';
+import {
+  getImpressionStats,
+  isCappedFromStats,
+  recordImpressions,
+  capsRequireLookup,
+  type FrequencyCapSpec,
+  type ImpressionMeta,
+} from '../lib/automations/frequency-caps';
 import { executeWebhook, type WebhookAction } from '../lib/automations/webhook-executor';
 import { renderTemplateDeep } from '../lib/automations/template-engine';
 
@@ -175,19 +182,27 @@ export async function evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
     .where(and(eq(automations.websiteId, websiteId), eq(automations.isActive, true)))
     .orderBy(asc(automations.priority));
 
-  const clientActions: ClientAction[] = [];
-  let matched = 0;
-
+  // First pass (no DB): narrow to automations whose trigger + conditions match.
+  // Cache the parsed definition so we don't castDef twice per automation.
+  const candidates: { auto: (typeof rows)[number]; def: ReturnType<typeof castDef>; caps: FrequencyCapSpec }[] = [];
   for (const auto of rows) {
     const def = castDef(auto.definition);
-
     if (!triggerMatches(def.trigger, trigger)) continue;
-
     if (!evaluateConditions(def.conditions ?? null, fullContext)) continue;
+    candidates.push({ auto, def, caps: def.frequency ?? {} });
+  }
 
-    const caps: FrequencyCapSpec = def.frequency ?? {};
-    const capped = await isFrequencyCapped(auto.id, anonymousId, sessionId, caps);
-    if (capped) continue;
+  // One batched impression-stats query for every candidate that has a cap needing a
+  // lookup — replaces up to 3 sequential COUNT queries PER automation.
+  const cappedIds = candidates.filter((c) => capsRequireLookup(c.caps)).map((c) => c.auto.id);
+  const stats = await getImpressionStats(cappedIds, anonymousId, sessionId);
+
+  const clientActions: ClientAction[] = [];
+  const impressions: ImpressionMeta[] = [];
+  let matched = 0;
+
+  for (const { auto, def, caps } of candidates) {
+    if (isCappedFromStats(stats.get(auto.id), caps)) continue;
 
     matched++;
     const runId   = randomUUID();
@@ -196,8 +211,8 @@ export async function evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
     // Log server run (async, best-effort)
     void logServerRun(auto.id, runId, anonymousId, sessionId, trigger.type, context.page as string | undefined);
 
-    // Record impression
-    await recordImpression({ automationId: auto.id, anonymousId, userId, websiteId, sessionId, variant });
+    // Buffer the impression; all matched impressions are inserted in one round trip below.
+    impressions.push({ automationId: auto.id, anonymousId, userId, websiteId, sessionId, variant });
 
     // Process actions
     for (let i = 0; i < (def.actions ?? []).length; i++) {
@@ -228,6 +243,9 @@ export async function evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
       void logActionResult(auto.id, runId, actionKey, 'success', 0);
     }
   }
+
+  // Persist all impressions from this evaluate in a single insert.
+  if (impressions.length > 0) await recordImpressions(impressions);
 
   return { matched, actions: clientActions };
 }

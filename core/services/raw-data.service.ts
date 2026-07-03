@@ -39,7 +39,9 @@ export async function rawAnalyticsEvents(
     })
     .from(analyticsEvents)
     .where(and(...cond))
-    .orderBy(desc(analyticsEvents.occurredAt))
+    // Stable total order: occurred_at can tie, so add the unique PK as a
+    // tiebreaker — without it, offset pagination can skip/duplicate rows.
+    .orderBy(desc(analyticsEvents.occurredAt), desc(analyticsEvents.id))
     .limit(limit)
     .offset(offset);
 

@@ -32,7 +32,7 @@ export async function getDimensionsBulkAnalytics(
           AND occurred_at >= ${startIso}
           AND page IS NOT NULL AND length(trim(page)) > 0
         GROUP BY page
-        ORDER BY views DESC
+        ORDER BY views DESC, page ASC
         LIMIT 50
       `,
       pgSql<RefRow[]>`
@@ -57,7 +57,7 @@ export async function getDimensionsBulkAnalytics(
         FROM first_ref fr
         JOIN pv ON pv.session_id = fr.session_id
         GROUP BY fr.referrer
-        ORDER BY views DESC
+        ORDER BY views DESC, referrer ASC
         LIMIT 50
       `,
       pgSql<DimRow[]>`
@@ -70,7 +70,7 @@ export async function getDimensionsBulkAnalytics(
           AND occurred_at >= ${startIso}
           AND country IS NOT NULL AND length(trim(country)) > 0
         GROUP BY country
-        ORDER BY views DESC
+        ORDER BY views DESC, country ASC
         LIMIT 50
       `,
       pgSql<DimRow[]>`
@@ -83,7 +83,7 @@ export async function getDimensionsBulkAnalytics(
           AND occurred_at >= ${startIso}
           AND browser IS NOT NULL AND length(trim(browser)) > 0
         GROUP BY browser
-        ORDER BY views DESC
+        ORDER BY views DESC, browser ASC
         LIMIT 50
       `,
       pgSql<DimRow[]>`
@@ -96,7 +96,7 @@ export async function getDimensionsBulkAnalytics(
           AND occurred_at >= ${startIso}
           AND device IS NOT NULL AND length(trim(device)) > 0
         GROUP BY device
-        ORDER BY views DESC
+        ORDER BY views DESC, device ASC
         LIMIT 50
       `,
       pgSql<DimRow[]>`
@@ -109,7 +109,7 @@ export async function getDimensionsBulkAnalytics(
           AND occurred_at >= ${startIso}
           AND os IS NOT NULL AND length(trim(os)) > 0
         GROUP BY os
-        ORDER BY views DESC
+        ORDER BY views DESC, os ASC
         LIMIT 50
       `,
     ]);

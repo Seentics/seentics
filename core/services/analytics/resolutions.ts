@@ -21,7 +21,7 @@ export async function getResolutionsAnalytics(
       AND screen_width IS NOT NULL
       AND screen_height IS NOT NULL
     GROUP BY screen_width, screen_height
-    ORDER BY views DESC
+    ORDER BY views DESC, screen_width ASC, screen_height ASC
     LIMIT 30
   `;
   return {
