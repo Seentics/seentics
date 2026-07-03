@@ -56,27 +56,49 @@ export interface AIQueryResult {
 // ─── SQL safety ───────────────────────────────────────────────────────────────
 
 /**
- * Validates and sanitises AI-generated SQL.
- * - Only SELECT statements allowed.
- * - Forbidden DML/DDL keywords are blocked.
+ * Validates and sanitises AI-generated SQL. This is defense-in-depth on top of the
+ * read-only, statement-timeout transaction the query actually runs in (see runAIQuery).
+ *
+ * - Only a single SELECT statement is allowed.
+ * - SQL comments are stripped-then-rejected (they hide payloads and split scoping).
+ * - Extra `;` (statement chaining) is rejected.
+ * - Forbidden DML/DDL/admin keywords and dangerous functions are blocked.
+ * - Set-operations (UNION/EXCEPT/INTERSECT) are blocked: with a single required $1
+ *   they are a cross-tenant graft vector (a second branch can hard-code another
+ *   website_id), and analytics questions never need them.
+ * - System catalogs (pg_catalog / information_schema / pg_*) are blocked.
  * - $1 (website_id parameter) must be present.
- * - Optionally whitelists table names found after FROM / JOIN.
- * - Caps LIMIT at 1000.
+ * - Table names after FROM / JOIN must be in the domain whitelist.
+ * - Caps LIMIT at 1000; adds LIMIT 500 when absent.
  */
 export function validateAndSanitizeSQL(
   rawSql: string,
   allowedTables: string[] = [],
 ): { ok: true; sql: string } | { ok: false; reason: string } {
-  const trimmed = rawSql.trim().replace(/;+$/, "");
+  // Reject comments outright — a `--` or `/* */` can smuggle payloads past keyword checks.
+  if (/--|\/\*|\*\//.test(rawSql)) {
+    return { ok: false, reason: "SQL comments are not allowed" };
+  }
+
+  const trimmed = rawSql.trim().replace(/;+\s*$/, "");
   const upper = trimmed.toUpperCase();
 
-  if (!upper.startsWith("SELECT")) {
+  if (!upper.startsWith("SELECT") && !upper.startsWith("WITH")) {
     return { ok: false, reason: "Only SELECT statements are allowed" };
   }
 
+  // No statement chaining — a mid-string ';' means a second statement.
+  if (trimmed.includes(";")) {
+    return { ok: false, reason: "Multiple statements are not allowed" };
+  }
+
+  // Data-modifying keywords (dangerous even inside a WITH ... AS (DELETE ... RETURNING)
+  // CTE — the read-only tx also blocks those, this is belt-and-suspenders) plus
+  // set-operations, which with a single required $1 are a cross-tenant graft vector.
   const forbidden = [
     "INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER",
-    "TRUNCATE", "GRANT", "REVOKE", "EXECUTE", "CALL",
+    "TRUNCATE", "GRANT", "REVOKE", "EXECUTE", "CALL", "MERGE",
+    "UNION", "INTERSECT", "EXCEPT",
   ];
   for (const kw of forbidden) {
     if (new RegExp(`\\b${kw}\\b`).test(upper)) {
@@ -84,18 +106,51 @@ export function validateAndSanitizeSQL(
     }
   }
 
-  // Ensure website_id parameter placeholder is always present
+  // Dangerous functions / identifiers (DoS, file access, system catalog enumeration).
+  const forbiddenPatterns: [RegExp, string][] = [
+    [/\bPG_SLEEP\b/i, "pg_sleep"],
+    [/\bPG_READ_FILE\b/i, "pg_read_file"],
+    [/\bPG_LS_DIR\b/i, "pg_ls_dir"],
+    [/\bLO_\w+/i, "large-object function"],
+    [/\bDBLINK\b/i, "dblink"],
+    [/\bPG_CATALOG\b/i, "pg_catalog"],
+    [/\bINFORMATION_SCHEMA\b/i, "information_schema"],
+    [/\bPG_[A-Z_]*\b/i, "pg_* system object"],
+    [/\bCURRENT_SETTING\b/i, "current_setting"],
+    [/\bSET_CONFIG\b/i, "set_config"],
+  ];
+  for (const [re, label] of forbiddenPatterns) {
+    if (re.test(trimmed)) {
+      return { ok: false, reason: `Forbidden reference: ${label}` };
+    }
+  }
+
+  // Ensure website_id parameter placeholder is present (and no other $N params).
   if (!trimmed.includes("$1")) {
     return { ok: false, reason: "Query must include the website_id filter ($1)" };
   }
+  if (/\$(?!1\b)\d+/.test(trimmed)) {
+    return { ok: false, reason: "Only the $1 (website_id) parameter is allowed" };
+  }
 
-  // Table whitelist — extract tables referenced after FROM and JOIN
+  // Table whitelist — extract tables referenced after FROM and JOIN. CTE names
+  // (defined as `<name> AS (`) are local aliases, so add them to the allow-set.
   if (allowedTables.length > 0) {
-    const tablePattern = /\bFROM\s+(\w+)|\bJOIN\s+(\w+)/gi;
+    const cteNames = new Set<string>();
+    const ctePattern = /\b([A-Za-z_]\w*)\s+AS\s*\(/gi;
+    let cteMatch: RegExpExecArray | null;
+    while ((cteMatch = ctePattern.exec(trimmed)) !== null) {
+      cteNames.add((cteMatch[1] ?? "").toLowerCase());
+    }
+    const allowed = new Set([...allowedTables.map((t) => t.toLowerCase()), ...cteNames]);
+
+    const tablePattern = /\bFROM\s+([A-Za-z_][\w.]*)|\bJOIN\s+([A-Za-z_][\w.]*)/gi;
     let match: RegExpExecArray | null;
     while ((match = tablePattern.exec(trimmed)) !== null) {
       const table = (match[1] ?? match[2] ?? "").toLowerCase();
-      if (table && !allowedTables.includes(table)) {
+      if (!table) continue;
+      // Reject any schema-qualified reference (e.g. pg_catalog.x) and anything off-whitelist.
+      if (table.includes(".") || !allowed.has(table)) {
         return { ok: false, reason: `Table '${table}' is not allowed in this context` };
       }
     }

@@ -1,11 +1,65 @@
 import OpenAI from "openai";
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 import { db, sql, aiQueries, websites, websiteMembers } from "../../db";
 import {
   AI_MODEL, COST_INPUT_PER_TOKEN, COST_OUTPUT_PER_TOKEN,
   validateAndSanitizeSQL,
   type AIDomain, type AIVizType, type AIHistoryItem, type AIResponse, type AIQueryResult,
 } from "./shared";
+
+// ─── Guardrails ────────────────────────────────────────────────────────────────
+
+/** Hard timeout for AI-generated SQL (ms). Prevents a runaway/expensive query from pinning the DB. */
+const AI_STATEMENT_TIMEOUT_MS = Number(process.env.AI_STATEMENT_TIMEOUT_MS ?? 8_000);
+/** Per-user rolling-24h query cap (cost/abuse control). 0 disables. */
+const AI_MAX_QUERIES_PER_DAY = Number(process.env.AI_MAX_QUERIES_PER_DAY ?? 200);
+/** Short-TTL cache so repeated identical questions skip both the LLM call and the DB query. */
+const AI_CACHE_TTL_MS = 60_000;
+const AI_CACHE_MAX = 300;
+
+/** Thrown when a user exceeds the rolling daily cap; the route maps this to HTTP 429. */
+export class AIDailyLimitError extends Error {
+  constructor(msg = "AI daily query limit reached") {
+    super(msg);
+    this.name = "AIDailyLimitError";
+  }
+}
+
+const aiQueryCache = new Map<string, { result: AIQueryResult; at: number }>();
+
+function aiCacheKey(dbBoundId: string, domain: AIDomain, prompt: string): string {
+  return `${dbBoundId}|${domain}|${prompt.trim().toLowerCase().replace(/\s+/g, " ")}`;
+}
+
+function getCachedResult(key: string): AIQueryResult | null {
+  const hit = aiQueryCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at >= AI_CACHE_TTL_MS) {
+    aiQueryCache.delete(key);
+    return null;
+  }
+  return hit.result;
+}
+
+function setCachedResult(key: string, result: AIQueryResult): void {
+  if (aiQueryCache.size >= AI_CACHE_MAX) {
+    const oldest = aiQueryCache.keys().next().value;
+    if (oldest) aiQueryCache.delete(oldest);
+  }
+  aiQueryCache.set(key, { result, at: Date.now() });
+}
+
+async function assertUnderDailyCap(userId: string): Promise<void> {
+  if (!Number.isFinite(AI_MAX_QUERIES_PER_DAY) || AI_MAX_QUERIES_PER_DAY <= 0) return;
+  const cutoff = new Date(Date.now() - 86_400_000);
+  const [row] = await db
+    .select({ n: count() })
+    .from(aiQueries)
+    .where(and(eq(aiQueries.userId, userId), gte(aiQueries.createdAt, cutoff)));
+  if ((row?.n ?? 0) >= AI_MAX_QUERIES_PER_DAY) {
+    throw new AIDailyLimitError();
+  }
+}
 
 import { ANALYTICS_PROMPT, ANALYTICS_TABLES } from "./domains/analytics";
 import { REVENUE_PROMPT, REVENUE_TABLES } from "./domains/revenue";
@@ -124,6 +178,16 @@ export async function runAIQuery(
 
   const dbBoundId = ID_STRATEGY[domain] === "site_id" ? siteId : uuid;
 
+  // Fast path: identical recent question → return cached result (no LLM, no DB scan).
+  const cacheKey = aiCacheKey(dbBoundId, domain, prompt);
+  const cached = getCachedResult(cacheKey);
+  if (cached) {
+    return { ...cached, execution_time_ms: Date.now() - startedAt };
+  }
+
+  // Cost/abuse guardrail — rolling 24h per-user cap (cache hits above are exempt).
+  await assertUnderDailyCap(userId);
+
   // Insert pending record to track the attempt
   const [inserted] = await db
     .insert(aiQueries)
@@ -173,9 +237,17 @@ export async function runAIQuery(
     const safeSql = validation.sql;
 
     // ── Execute query (website_id is always $1) ───────────────────────────────
+    // Run inside a READ-ONLY transaction with a statement timeout. This is the real
+    // enforcement boundary: even if a malicious/hallucinated query slips past the
+    // string validator, transaction_read_only blocks any write and statement_timeout
+    // bounds cost/DoS.
     let rows: Record<string, unknown>[];
     try {
-      rows = (await sql.unsafe(safeSql, [dbBoundId])) as Record<string, unknown>[];
+      rows = (await sql.begin(async (tx) => {
+        await tx.unsafe(`SET LOCAL statement_timeout = ${AI_STATEMENT_TIMEOUT_MS}`);
+        await tx.unsafe("SET LOCAL transaction_read_only = on");
+        return (await tx.unsafe(safeSql, [dbBoundId])) as Record<string, unknown>[];
+      })) as Record<string, unknown>[];
     } catch (dbErr) {
       const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
       throw new Error(`Query execution failed: ${msg}`);
@@ -221,7 +293,7 @@ export async function runAIQuery(
       }).where(eq(aiQueries.id, queryId));
     }
 
-    return {
+    const result: AIQueryResult = {
       rows,
       viz_type: (aiResp.viz_type ?? "table") as AIVizType,
       title: aiResp.title ?? "Query Results",
@@ -235,6 +307,8 @@ export async function runAIQuery(
       tokens: { input: inputTokens, output: outputTokens },
       estimated_cost_usd: estimatedCostUsd,
     };
+    setCachedResult(cacheKey, result);
+    return result;
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     if (queryId) {

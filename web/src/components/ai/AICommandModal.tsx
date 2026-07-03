@@ -966,10 +966,19 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
         openResult(data);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
-      setError(msg.includes('LIMIT_REACHED')
-        ? 'Monthly limit reached. Upgrade your plan to run more AI queries.'
-        : msg);
+      // Prefer the backend's error message (axios puts it on response.data.error).
+      const ax = err as { response?: { status?: number; data?: { error?: string } }; message?: string };
+      const status = ax?.response?.status;
+      const backendMsg = ax?.response?.data?.error;
+      let msg = backendMsg || ax?.message || 'Something went wrong. Please try again.';
+      if (status === 429) {
+        msg = backendMsg || 'You have reached the AI query limit. Please try again later.';
+      } else if (status === 503) {
+        msg = backendMsg || 'AI is temporarily unavailable.';
+      } else if ((backendMsg ?? '').includes('LIMIT_REACHED')) {
+        msg = 'Monthly limit reached. Upgrade your plan to run more AI queries.';
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }

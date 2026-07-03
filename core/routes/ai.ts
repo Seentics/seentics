@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { authMiddleware, requireUser, type AuthVars } from "../middleware/auth";
 import { parseJson } from "../validators/validation";
 import { aiQueryBodySchema } from "../validators/ai";
-import { checkWebsiteAccess, getAIQueryHistory, runAIQuery } from "../services/ai.service";
+import { AIDailyLimitError, checkWebsiteAccess, getAIQueryHistory, runAIQuery } from "../services/ai.service";
 import type { AIDomain } from "../services/ai/shared";
 
 const r = new Hono<{ Variables: AuthVars }>();
@@ -25,6 +25,9 @@ r.post("/query/:website_id", async (c) => {
     const result = await runAIQuery(userId, websiteId, parsed.data.prompt, domain);
     return c.json({ data: result });
   } catch (err) {
+    if (err instanceof AIDailyLimitError) {
+      return c.json({ error: "Daily AI query limit reached. Try again later." }, 429);
+    }
     const message = err instanceof Error ? err.message : "AI query failed";
     if (message.includes("not configured") || message.includes("API key")) {
       return c.json({ error: "AI is not available — API key not configured." }, 503);

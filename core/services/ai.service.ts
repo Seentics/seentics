@@ -6,6 +6,7 @@ export {
   checkWebsiteAccess,
   runAIQuery,
   getAIQueryHistory,
+  AIDailyLimitError,
 } from "./ai/index";
 
 export type { AIDomain, AIHistoryItem, AIQueryResult } from "./ai/shared";
