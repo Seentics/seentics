@@ -93,7 +93,7 @@ export async function upsertSessionMetaBatch(inputRows: SessionUpsertRow[]): Pro
     .onConflictDoUpdate({
       target: [sessionReplays.websiteId, sessionReplays.sessionId, sessionReplays.sequence],
       set: {
-        durationSeconds: dsql.raw(`GREATEST(
+        durationSeconds: dsql.raw(`LEAST(86400, GREATEST(
           session_replays.duration_seconds,
           excluded.duration_seconds,
           GREATEST(0, EXTRACT(EPOCH FROM (
@@ -104,7 +104,7 @@ export async function upsertSessionMetaBatch(inputRows: SessionUpsertRow[]): Pro
               excluded.timestamp
             ) - session_replays.timestamp
           ))::INT)
-        )`),
+        ))`),
         /**
          * Existing session: add this batch's transitions (excluded.pages_viewed − 1;
          * the +1 entry page only applies on first insert) plus 1 if the page changed

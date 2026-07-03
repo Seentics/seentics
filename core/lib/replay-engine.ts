@@ -29,40 +29,45 @@ function rrwebPayloadTimelineMs(data: unknown): number | null {
   return null;
 }
 
-/** Same span the web player uses (last rrweb timestamp − first), not envelope `ts` (e.g. `session_error` uses `Date.now()`). */
-function replayTimelineMinMaxMs(batch: SessionBatch): { min: number; max: number } | null {
-  let rrMin = Infinity;
-  let rrMax = -Infinity;
+/** Safety bound so a rogue client clock can't store an absurd duration. Real sessions
+ *  are capped at 30 min by the tracker; envelope ts is clamped to [now−48h, now+5min]. */
+const MAX_REPLAY_DURATION_SECONDS = 24 * 60 * 60;
+
+/**
+ * Widest activity span of the batch across ALL session events — rrweb, console,
+ * network, and error — using each event's envelope `ts` (clamped upstream; for
+ * rrweb events the tracker sets ts = the rrweb event timestamp, so this matches
+ * the playback timeline). Basing duration on this instead of the rrweb-only span
+ * means a visitor who reads a page for 30s without triggering DOM mutations still
+ * reports real elapsed time, instead of collapsing to ~0.
+ */
+function replayActivitySpanMs(batch: SessionBatch): { min: number; max: number } | null {
+  let min = Infinity;
+  let max = -Infinity;
   for (const e of batch.events) {
-    if (e.type !== "rrweb") continue;
-    const t = rrwebPayloadTimelineMs(e.data);
-    if (t != null) {
-      if (t < rrMin) rrMin = t;
-      if (t > rrMax) rrMax = t;
+    // Prefer the rrweb event timestamp when present; fall back to the envelope ts.
+    let t = e.type === "rrweb" ? rrwebPayloadTimelineMs(e.data) : null;
+    if (t == null) {
+      const n = typeof e.ts === "number" ? e.ts : Number(e.ts);
+      t = Number.isFinite(n) ? n : null;
     }
+    if (t == null) continue;
+    if (t < min) min = t;
+    if (t > max) max = t;
   }
-  if (rrMin !== Infinity && rrMax !== -Infinity && rrMax >= rrMin) return { min: rrMin, max: rrMax };
-  const env: number[] = [];
-  for (const e of batch.events) {
-    if (e.type !== "rrweb") continue;
-    const n = typeof e.ts === "number" ? e.ts : Number(e.ts);
-    if (Number.isFinite(n)) env.push(n);
-  }
-  if (env.length < 2) return null;
-  const lo = Math.min(...env);
-  const hi = Math.max(...env);
-  if (hi < lo) return null;
-  return { min: lo, max: hi };
+  if (min === Infinity || max === -Infinity || max < min) return null;
+  return { min, max };
 }
 
 function replayDurationSecondsFromBatch(batch: SessionBatch): number {
-  const span = replayTimelineMinMaxMs(batch);
+  const span = replayActivitySpanMs(batch);
   if (!span) return 0;
-  return Math.max(0, Math.floor((span.max - span.min) / 1000));
+  const secs = Math.floor((span.max - span.min) / 1000);
+  return Math.min(MAX_REPLAY_DURATION_SECONDS, Math.max(0, secs));
 }
 
 function replayLatestEventMsForStorage(batch: SessionBatch, fallbackEnd: number): number {
-  const span = replayTimelineMinMaxMs(batch);
+  const span = replayActivitySpanMs(batch);
   return span ? span.max : fallbackEnd;
 }
 
