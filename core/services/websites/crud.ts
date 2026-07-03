@@ -12,7 +12,7 @@ import type { CreateWebsiteBody } from "../../lib/api-types";
 import { newSiteId, newTrackingId, newVerificationToken } from "../../lib/ids";
 import { resolveWebsiteIds } from "../../lib/website-resolve";
 import { assertWebsiteAccess } from "./access";
-import { mapWebsiteRow, normalizeUrl, siteStats } from "./shared";
+import { emptySiteStats, mapWebsiteRow, normalizeUrl, siteStats, siteStatsBatch } from "./shared";
 
 export async function listForUser(userId: string) {
   const rows = await db
@@ -20,10 +20,9 @@ export async function listForUser(userId: string) {
     .from(websites)
     .where(eq(websites.userId, userId))
     .orderBy(asc(websites.createdAt));
-  const out = [];
-  for (const w of rows) {
-    out.push(mapWebsiteRow(w, await siteStats(w.siteId)));
-  }
+  // One grouped stats query for all sites instead of 2 sequential queries per site.
+  const stats = await siteStatsBatch(rows.map((w) => w.siteId));
+  const out = rows.map((w) => mapWebsiteRow(w, stats.get(w.siteId) ?? emptySiteStats()));
   return { data: out };
 }
 

@@ -1,5 +1,19 @@
-import { and, count, eq, gte, sql } from "drizzle-orm";
+import { and, count, eq, gte, inArray, sql } from "drizzle-orm";
 import { analyticsEvents, db, websites } from "../../db";
+
+export type SiteStats = {
+  totalPageviews: number;
+  uniqueVisitors: number;
+  averageSessionDuration: number;
+  bounceRate: number;
+};
+
+const EMPTY_SITE_STATS: SiteStats = {
+  totalPageviews: 0,
+  uniqueVisitors: 0,
+  averageSessionDuration: 0,
+  bounceRate: 0,
+};
 
 export const defaultSettings = () => ({
   allowedOrigins: [] as string[],
@@ -19,6 +33,40 @@ export function normalizeUrl(raw: string): string {
   } catch {
     throw new Error("invalid website URL format");
   }
+}
+
+/**
+ * 30-day pageviews + unique visitors for MANY sites in ONE grouped query.
+ * Replaces calling siteStats() per website (which was 2 sequential queries each).
+ * Metric semantics match siteStats exactly: pageviews are event_type='pageview';
+ * unique visitors are distinct visitor_id across all events in the window.
+ */
+export async function siteStatsBatch(siteIds: string[]): Promise<Map<string, SiteStats>> {
+  const map = new Map<string, SiteStats>();
+  if (siteIds.length === 0) return map;
+  const since = new Date(Date.now() - 30 * 86400_000);
+  const rows = await db
+    .select({
+      websiteId: analyticsEvents.websiteId,
+      pv: sql<number>`count(*) filter (where ${analyticsEvents.eventType} = 'pageview')::int`,
+      uv: sql<number>`count(distinct ${analyticsEvents.visitorId})::int`,
+    })
+    .from(analyticsEvents)
+    .where(and(inArray(analyticsEvents.websiteId, siteIds), gte(analyticsEvents.occurredAt, since)))
+    .groupBy(analyticsEvents.websiteId);
+  for (const r of rows) {
+    map.set(r.websiteId, {
+      totalPageviews: Number(r.pv ?? 0),
+      uniqueVisitors: Number(r.uv ?? 0),
+      averageSessionDuration: 0,
+      bounceRate: 0,
+    });
+  }
+  return map;
+}
+
+export function emptySiteStats(): SiteStats {
+  return { ...EMPTY_SITE_STATS };
 }
 
 export async function siteStats(siteId: string) {
