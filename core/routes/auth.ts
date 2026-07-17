@@ -33,9 +33,8 @@ r.post("/register", async (c) => {
       name: String((parsed.data as { name: string }).name ?? ""),
     });
     return c.json(out, 201);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "register failed";
-    return c.json({ error: msg }, 400);
+  } catch {
+    return c.json({ error: "Registration failed" }, 400);
   }
 });
 
@@ -68,12 +67,12 @@ r.post("/refresh", async (c) => {
 
 r.post("/forgot-password", async (c) => {
   void c.req.json().catch(() => null);
-  return c.json({ data: { ok: true } });
+  return c.json({ error: "Not implemented" }, 501);
 });
 
 r.post("/reset-password", async (c) => {
   void c.req.json().catch(() => null);
-  return c.json({ data: { ok: true } });
+  return c.json({ error: "Not implemented" }, 501);
 });
 
 const userAuth = new Hono<{ Variables: AuthVars }>();
@@ -94,9 +93,8 @@ userAuth.post("/register", async (c) => {
       name: String((parsed.data as { name: string }).name ?? ""),
     });
     return c.json(out, 201);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "register failed";
-    return c.json({ error: msg }, 400);
+  } catch {
+    return c.json({ error: "Registration failed" }, 400);
   }
 });
 

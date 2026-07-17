@@ -100,6 +100,32 @@ export function originFromRequest(h: Headers): string {
   return h.get("Origin")?.trim() || h.get("Referer")?.trim() || "";
 }
 
+const BLOCKED_WEBHOOK_HOSTNAMES = new Set([
+  'metadata.google.internal',
+  'metadata.internal',
+  'instance-data',
+]);
+
+/**
+ * SSRF guard for automation webhook targets. URL must be https://, not an IP literal,
+ * not localhost/internal, and not a known cloud metadata service hostname.
+ */
+export function validateWebhookUrl(url: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== 'https:') return false;
+  const host = u.hostname.toLowerCase();
+  if (!host) return false;
+  if (isForbiddenScreenshotHost(host)) return false;
+  if (BLOCKED_WEBHOOK_HOSTNAMES.has(host)) return false;
+  if (host.endsWith('.internal')) return false;
+  return true;
+}
+
 /** Hostnames that must never be Playwright screenshot targets (SSRF guard). */
 function isForbiddenScreenshotHost(hostname: string): boolean {
   const h = hostname.toLowerCase();

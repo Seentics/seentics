@@ -4,6 +4,7 @@
 
 import { db, webhookDeliveries } from '../../db';
 import { log } from '../logger';
+import { validateWebhookUrl } from '../origin';
 import { renderTemplateDeep } from './template-engine';
 
 export interface WebhookAction {
@@ -30,6 +31,24 @@ export async function executeWebhook(
   const method  = (action.method ?? 'POST').toUpperCase();
   const headers = (action.headers ?? {}) as Record<string, string>;
   const rawBody = action.body ?? {};
+
+  if (!validateWebhookUrl(url)) {
+    log.warn({ msg: 'webhook_blocked_ssrf', automationId, url });
+    try {
+      await db.insert(webhookDeliveries).values({
+        automationId,
+        runId: runId ?? null,
+        url,
+        statusCode: null,
+        success: false,
+        attemptCount: 0,
+        lastAttemptAt: new Date(),
+        responseMs: 0,
+        error: 'URL blocked: failed SSRF validation',
+      });
+    } catch { /* best-effort log */ }
+    return;
+  }
 
   const renderedBody = renderTemplateDeep(rawBody, context);
   const payload = JSON.stringify({ ...renderedBody as object, _automation_id: automationId, _ts: Date.now() });

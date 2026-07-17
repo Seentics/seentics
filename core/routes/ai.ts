@@ -32,7 +32,9 @@ r.post("/query/:website_id", async (c) => {
     if (message.includes("not configured") || message.includes("API key")) {
       return c.json({ error: "AI is not available — API key not configured." }, 503);
     }
-    return c.json({ error: message }, 500);
+    // Log full error server-side; never return internal details (SQL text, table names) to the client.
+    console.error("[ai] query error:", message);
+    return c.json({ error: "AI query failed" }, 500);
   }
 });
 

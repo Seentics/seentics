@@ -28,6 +28,14 @@ export type ConditionGroup = {
 
 export type Conditions = ConditionGroup | Rule[];
 
+function isSafeRegexPattern(pattern: string): boolean {
+  if (pattern.length > 200) return false;
+  // Reject patterns with nested quantifiers — classic catastrophic backtracking shape
+  if (/(\*|\+|\{[0-9,]+\})(\*|\+|\{[0-9,]+\})/.test(pattern)) return false;
+  if (/\([^)]*(\*|\+)\)[*+]/.test(pattern)) return false;
+  return true;
+}
+
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   if (!path) return undefined;
   const parts = path.split('.');
@@ -64,7 +72,11 @@ function applyOperator(value: unknown, op: Operator | string, expected: unknown)
     case 'endsWith':
       return value != null && String(value).endsWith(String(expected));
     case 'matches': case 'regex': {
-      try { return value != null && new RegExp(String(expected)).test(String(value)); }
+      try {
+        const pattern = String(expected);
+        if (!isSafeRegexPattern(pattern)) return false;
+        return value != null && new RegExp(pattern).test(String(value));
+      }
       catch { return false; }
     }
     case 'isSet':

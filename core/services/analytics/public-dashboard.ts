@@ -6,7 +6,7 @@ export async function getPublicDashboardStats(
   query: Record<string, string | undefined>,
 ) {
   const rows = await pgSql<{ id: string }[]>`
-    SELECT id FROM websites WHERE public_share_id = ${publicId} LIMIT 1
+    SELECT id FROM websites WHERE public_share_id = ${publicId} AND public_share_id IS NOT NULL LIMIT 1
   `;
   if (!rows.length) return null;
   return getDashboardStats(rows[0]!.id, query);

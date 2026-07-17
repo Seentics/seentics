@@ -1,5 +1,5 @@
-import { eq, or } from "drizzle-orm";
-import { db, websites } from "../db";
+import { and, eq, or } from "drizzle-orm";
+import { db, websites, websiteMembers } from "../db";
 
 const idCache = new Map<string, { siteId: string; uuidStr: string; exp: number }>();
 const TTL_MS = 5 * 60 * 1000;
@@ -42,6 +42,35 @@ export async function resolveWebsiteIds(websiteParam: string): Promise<{ siteId:
   if (Math.random() < 0.05) sweepIdCache();
   idCache.set(websiteParam, { siteId, uuidStr, exp: now + TTL_MS });
   return { siteId, uuidStr };
+}
+
+/**
+ * Resolve website param and verify the requesting user owns or is a member of it.
+ * Throws "website not found" for both missing and unauthorized cases (no info leakage).
+ */
+export async function resolveWebsiteIdsWithAccess(
+  websiteParam: string,
+  userId: string,
+): Promise<{ siteId: string; uuidStr: string }> {
+  const { siteId, uuidStr } = await resolveWebsiteIds(websiteParam);
+
+  const [owner] = await db
+    .select({ id: websites.id })
+    .from(websites)
+    .where(and(eq(websites.id, uuidStr), eq(websites.userId, userId)))
+    .limit(1);
+
+  if (owner) return { siteId, uuidStr };
+
+  const [member] = await db
+    .select({ id: websiteMembers.id })
+    .from(websiteMembers)
+    .where(and(eq(websiteMembers.websiteId, uuidStr), eq(websiteMembers.userId, userId)))
+    .limit(1);
+
+  if (member) return { siteId, uuidStr };
+
+  throw new Error("website not found");
 }
 
 /** Best-effort resolve: if lookup fails, return param for both (matches Go fallback). */
