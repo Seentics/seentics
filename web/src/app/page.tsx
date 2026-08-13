@@ -2,6 +2,7 @@ import { isEnterprise } from '@/lib/features';
 import OSSLanding from '@/components/landing/OSSLanding';
 import LandingHeader from '@/components/landing/LandingHeader';
 import Hero from '@/components/landing/Hero';
+import SocialProof from '@/components/landing/SocialProof';
 import Features from '@/components/landing/Features';
 import HowAutomationsWork from '@/components/landing/HowAutomationsWork';
 import Pricing from '@/components/landing/Pricing';
@@ -22,10 +23,11 @@ export default function LandingPage() {
       <LandingHeader />
       <main>
         <Hero />
+        <SocialProof />
         <Features />
         <HowAutomationsWork />
-        <Pricing />
         <WhySwitch />
+        <Pricing />
         <LifetimeDeal />
         <FAQ />
       </main>

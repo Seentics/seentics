@@ -1,5 +1,8 @@
+import { Check } from 'lucide-react';
 import { HeroCTA } from './HeroCTA';
-import { HeroDashboardPreviewLazy } from './HeroDashboardPreviewLazy';
+import HeroPreviewStack from './HeroPreviewStack';
+
+const HERO_TRUST = ['No credit card required', '100% open source', 'No cookies', 'Self-host in minutes'];
 
 export default function Hero() {
   return (
@@ -10,25 +13,31 @@ export default function Hero() {
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-6">
-            <span className="block text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter text-foreground leading-[1.1]">
-              See. Analyze. <span className="text-primary">Act.</span>
+            <span className="block text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tighter text-foreground leading-[1.1]">
+              From user behavior to <span className="text-primary">automated action.</span>
             </span>
           </h1>
 
           <p className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:80ms] text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
-            Seentics gives you session replays, heatmaps, funnels and AI insights — with built-in automations to act on what you find. Self-hosted, open source, no cookies.
+            Seentics gives you the analytics to understand your users and the automation to act on what you discover—all in one open-source platform.
           </p>
 
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:150ms]">
             <HeroCTA />
+            <ul className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+              {HERO_TRUST.map((item) => (
+                <li key={item} className="flex items-center gap-1.5">
+                  <Check className="h-4 w-4 text-emerald-500 shrink-0" />
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
+        </div>
 
-          {/* 3D Perspective Dashboard Preview — loaded lazily after first paint */}
-          <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 [animation-delay:200ms] relative max-w-5xl mx-auto [perspective:1200px]">
-            <div className="relative [transform:perspective(1200px)_rotateX(2deg)] origin-bottom">
-              <HeroDashboardPreviewLazy />
-            </div>
-          </div>
+        {/* Product preview — full-width section, three squared mocks side by side */}
+        <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 [animation-delay:200ms] relative mt-16 max-w-7xl mx-auto">
+          <HeroPreviewStack />
         </div>
       </div>
     </section>

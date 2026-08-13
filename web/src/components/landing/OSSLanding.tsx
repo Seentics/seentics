@@ -1,5 +1,6 @@
 import LandingHeader from './LandingHeader';
 import Hero from './Hero';
+import SocialProof from './SocialProof';
 import Features from './Features';
 import APISection from './CodeExamples';
 import UIBlocksSection from './SDKsSection';
@@ -13,6 +14,7 @@ export default function OSSLanding() {
       <LandingHeader />
       <main>
         <Hero />
+        <SocialProof />
         <Features />
         <APISection />
         <UIBlocksSection />

@@ -81,6 +81,12 @@ frontend/out/
 # MaxMind GeoIP database (download locally — see README)
 data/maxmind/*.mmdb
 
+# Playwright (generated test output)
+web/playwright-report/
+web/test-results/
+playwright-report/
+test-results/
+
 # Misc
 *.bak
 *.tmp

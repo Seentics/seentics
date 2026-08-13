@@ -9,7 +9,7 @@ export function HeroCTA() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-4 mb-16">
+    <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
       {isAuthenticated ? (
         <Link href="/websites">
           <Button className="h-14 px-10 text-base font-semibold rounded-xl gap-2 shadow-lg shadow-primary/20">
