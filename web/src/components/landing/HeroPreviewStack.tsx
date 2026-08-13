@@ -288,17 +288,14 @@ const PANELS = [
   { key: 'automations', label: 'Automation Builder', node: <AutomationsPanel /> },
 ];
 
-// Resting fan angle + lift per layer (desktop). Reset on hover so the expanded
-// layer straightens and rises to the front.
-const ANGLE = [
-  'md:-rotate-[3deg] md:translate-y-3',
-  'md:rotate-[1deg] md:-translate-y-1 md:z-20',
-  'md:rotate-[4deg] md:translate-y-4',
-];
+// Cascading widths per layer (desktop): the narrower front layer sits on top so the
+// wider ones peek behind it. z-index / vertical offset stagger them into a stack.
+const WIDTH = ['md:w-[80%]', 'md:w-[90%]', 'md:w-full'];
+const OFFSET = ['md:translate-y-0 md:z-30', 'md:translate-y-9 md:z-20', 'md:translate-y-[4.5rem] md:z-10'];
 
 export default function HeroPreviewStack() {
   return (
-    <div className="group/stack flex flex-col gap-5 md:h-[780px] md:flex-row md:gap-0 md:[perspective:1600px]">
+    <div className="group/stack space-y-5 md:relative md:h-[780px] md:space-y-0">
       {PANELS.map((p, i) => (
         <div
           key={p.key}
@@ -306,15 +303,15 @@ export default function HeroPreviewStack() {
           className={cn(
             'group relative h-[600px] w-full overflow-hidden rounded-2xl border border-border/60 bg-card outline-none',
             'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.35),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
-            'transition-all duration-500 ease-out md:origin-bottom',
-            // Each layer is 1/3 width by default; overlap + fan angle give the stacked/elevated look.
-            'md:h-full md:flex-1 md:basis-0 md:min-w-0',
-            i > 0 && 'md:-ml-6',
-            ANGLE[i],
-            // Hover / keyboard-focus straightens, expands toward full width, and lifts above the others.
-            'md:hover:z-30 md:hover:flex-[6] md:hover:rotate-0 md:hover:translate-y-0 md:hover:shadow-[0_45px_90px_-15px_rgba(0,0,0,0.5)] md:hover:shadow-primary/10',
-            'md:focus-within:z-30 md:focus-within:flex-[6] md:focus-within:rotate-0 md:focus-within:translate-y-0',
-            // When any layer is focused, dim the others; keep the active one bright.
+            'transition-all duration-500 ease-out',
+            // Cascading stack: layers centered, staggered widths (80/90/100%) and vertical offset.
+            'md:absolute md:left-1/2 md:top-0 md:h-[680px] md:-translate-x-1/2',
+            WIDTH[i],
+            OFFSET[i],
+            // Hover / keyboard-focus expands this layer to full width and lifts it to the front.
+            'md:hover:z-40 md:hover:w-full md:hover:translate-y-0 md:hover:shadow-[0_45px_90px_-15px_rgba(0,0,0,0.5)] md:hover:shadow-primary/10',
+            'md:focus-within:z-40 md:focus-within:w-full md:focus-within:translate-y-0',
+            // When any layer is active, dim the others; keep the active one bright.
             'md:group-has-[:hover]/stack:brightness-[0.55] md:group-has-[:focus-visible]/stack:brightness-[0.55]',
             'md:hover:!brightness-100 md:focus-within:!brightness-100',
           )}
