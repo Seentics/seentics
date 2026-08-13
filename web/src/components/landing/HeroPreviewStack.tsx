@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import {
   Globe,
   ChevronDown,
@@ -182,8 +183,8 @@ const SESSION_SUMMARY = [
 function ReplayPanel() {
   return (
     <div className="flex h-full flex-col bg-background">
-      {/* Player card */}
-      <div className="p-3">
+      {/* Player card — capped width so the tab bar below always stays visible */}
+      <div className="mx-auto w-full max-w-xl p-3">
         <div className="overflow-hidden rounded-xl border border-border/60 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
           {/* Viewport (always dark, like the real player) */}
           <div className="relative aspect-[16/9] overflow-hidden bg-black">
@@ -288,41 +289,55 @@ const PANELS = [
   { key: 'automations', label: 'Automation Builder', node: <AutomationsPanel /> },
 ];
 
-// Cascading widths per layer (desktop): the narrower front layer sits on top so the
-// wider ones peek behind it. z-index / vertical offset stagger them into a stack.
-const WIDTH = ['md:w-[80%]', 'md:w-[90%]', 'md:w-full'];
-const OFFSET = ['md:translate-y-0 md:z-30', 'md:translate-y-9 md:z-20', 'md:translate-y-[4.5rem] md:z-10'];
+const PEEK = 64; // px each inactive layer peeks below the active one
 
 export default function HeroPreviewStack() {
+  // Active layer driven by state (set on mouse-enter / focus), not CSS :hover, so it
+  // never toggles itself off when it resizes under the cursor. Inactive layers keep a
+  // bottom peek strip, so every layer is always reachable — switching stays smooth.
+  const [active, setActive] = useState(0);
+  const inactive = PANELS.map((_, idx) => idx).filter((idx) => idx !== active);
+
   return (
-    <div className="group/stack space-y-5 md:relative md:h-[780px] md:space-y-0">
-      {PANELS.map((p, i) => (
-        <div
-          key={p.key}
-          tabIndex={0}
-          className={cn(
-            'group relative h-[600px] w-full overflow-hidden rounded-2xl border border-border/60 bg-card outline-none',
-            'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.35),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
-            'transition-all duration-500 ease-out',
-            // Cascading stack: layers centered, staggered widths (80/90/100%) and vertical offset.
-            'md:absolute md:left-1/2 md:top-0 md:h-[680px] md:-translate-x-1/2',
-            WIDTH[i],
-            OFFSET[i],
-            // Hover / keyboard-focus expands this layer to full width and lifts it to the front.
-            'md:hover:z-40 md:hover:w-full md:hover:translate-y-0 md:hover:shadow-[0_45px_90px_-15px_rgba(0,0,0,0.5)] md:hover:shadow-primary/10',
-            'md:focus-within:z-40 md:focus-within:w-full md:focus-within:translate-y-0',
-            // When any layer is active, dim the others; keep the active one bright.
-            'md:group-has-[:hover]/stack:brightness-[0.55] md:group-has-[:focus-visible]/stack:brightness-[0.55]',
-            'md:hover:!brightness-100 md:focus-within:!brightness-100',
-          )}
-        >
-          {p.node}
-          {/* Layer label — fades out once this layer is expanded */}
-          <span className="pointer-events-none absolute left-3 top-3 z-20 hidden rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur transition-opacity duration-300 md:block md:group-hover:opacity-0">
-            {p.label}
-          </span>
-        </div>
-      ))}
+    <div
+      className="relative space-y-5 md:h-[760px] md:space-y-0"
+      onMouseLeave={() => setActive(0)}
+    >
+      {PANELS.map((p, i) => {
+        const rank = i === active ? 0 : inactive.indexOf(i) + 1; // 0 = front/active
+        const isActive = rank === 0;
+        return (
+          <div
+            key={p.key}
+            tabIndex={0}
+            onMouseEnter={() => setActive(i)}
+            onFocus={() => setActive(i)}
+            style={{ ['--ty' as string]: `${rank * PEEK}px`, ['--z' as string]: 40 - rank * 10 }}
+            className={cn(
+              'group relative h-[600px] w-full overflow-hidden rounded-2xl border border-border/60 bg-card outline-none',
+              'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
+              'transition-[transform,filter,box-shadow] duration-500 ease-out',
+              // Full-width layers stacked with a bottom peek; only the active one is
+              // fully visible on top, the rest peek below it (and dim).
+              'md:absolute md:inset-x-0 md:top-0 md:h-[640px] md:[transform:translateY(var(--ty))] md:[z-index:var(--z)]',
+              isActive
+                ? 'md:shadow-[0_45px_90px_-18px_rgba(0,0,0,0.55)]'
+                : 'md:cursor-pointer md:brightness-[0.6]',
+            )}
+          >
+            {p.node}
+            {/* Layer label — fades out once this layer is active */}
+            <span
+              className={cn(
+                'pointer-events-none absolute left-3 top-3 z-20 hidden rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur transition-opacity duration-300 md:block',
+                isActive && 'md:opacity-0',
+              )}
+            >
+              {p.label}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
