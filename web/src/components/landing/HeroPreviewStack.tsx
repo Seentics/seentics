@@ -17,6 +17,7 @@ import {
   Gauge,
   Monitor,
   MousePointer2,
+  MousePointerClick,
   Minus,
   Frame,
 } from 'lucide-react';
@@ -289,44 +290,52 @@ const PANELS = [
   { key: 'automations', label: 'Automation Builder', node: <AutomationsPanel /> },
 ];
 
-const PEEK = 64; // px each inactive layer peeks below the active one
+// Resting cascade (desktop): narrower front layer on top so the wider ones (90/100%)
+// peek behind it. Click a layer to expand it to full width and bring it to the front.
+const WIDTH = ['md:w-[80%]', 'md:w-[90%]', 'md:w-full'];
+const OFFSET = ['md:translate-y-0 md:z-30', 'md:translate-y-9 md:z-20', 'md:translate-y-[4.5rem] md:z-10'];
 
 export default function HeroPreviewStack() {
-  // Active layer driven by state (set on mouse-enter / focus), not CSS :hover, so it
-  // never toggles itself off when it resizes under the cursor. Inactive layers keep a
-  // bottom peek strip, so every layer is always reachable — switching stays smooth.
-  const [active, setActive] = useState(0);
-  const inactive = PANELS.map((_, idx) => idx).filter((idx) => idx !== active);
+  // Click-driven (not hover): clicking a layer toggles it to full width / front.
+  // Hover only shows a "click to expand" cue, so there is no resize-under-cursor flicker.
+  const [active, setActive] = useState<number | null>(null);
 
   return (
-    <div
-      className="relative space-y-5 md:h-[760px] md:space-y-0"
-      onMouseLeave={() => setActive(0)}
-    >
+    <div className="relative space-y-5 md:h-[780px] md:space-y-0">
       {PANELS.map((p, i) => {
-        const rank = i === active ? 0 : inactive.indexOf(i) + 1; // 0 = front/active
-        const isActive = rank === 0;
+        const isActive = active === i;
+        const dimmed = active !== null && !isActive;
+        const toggle = () => setActive((a) => (a === i ? null : i));
         return (
           <div
             key={p.key}
+            role="button"
             tabIndex={0}
-            onMouseEnter={() => setActive(i)}
-            onFocus={() => setActive(i)}
-            style={{ ['--ty' as string]: `${rank * PEEK}px`, ['--z' as string]: 40 - rank * 10 }}
+            aria-pressed={isActive}
+            onClick={toggle}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggle();
+              }
+            }}
             className={cn(
               'group relative h-[600px] w-full overflow-hidden rounded-2xl border border-border/60 bg-card outline-none',
               'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
-              'transition-[transform,filter,box-shadow] duration-500 ease-out',
-              // Full-width layers stacked with a bottom peek; only the active one is
-              // fully visible on top, the rest peek below it (and dim).
-              'md:absolute md:inset-x-0 md:top-0 md:h-[640px] md:[transform:translateY(var(--ty))] md:[z-index:var(--z)]',
-              isActive
-                ? 'md:shadow-[0_45px_90px_-18px_rgba(0,0,0,0.55)]'
-                : 'md:cursor-pointer md:brightness-[0.6]',
+              'transition-all duration-500 ease-out md:cursor-pointer',
+              // Cascade: centered, staggered widths (80/90/100%) + slight vertical offset.
+              'md:absolute md:left-1/2 md:top-0 md:h-[680px] md:-translate-x-1/2',
+              WIDTH[i],
+              OFFSET[i],
+              // Active (clicked): expand to full width, straighten, lift to the front.
+              isActive && 'md:!w-full md:!translate-y-0 md:!z-40 md:shadow-[0_45px_90px_-18px_rgba(0,0,0,0.55)] md:shadow-primary/10',
+              dimmed && 'md:brightness-[0.55]',
+              'md:focus-visible:!z-40 md:focus-visible:ring-2 md:focus-visible:ring-primary/50',
             )}
           >
             {p.node}
-            {/* Layer label — fades out once this layer is active */}
+
+            {/* Corner label — fades out once this layer is active */}
             <span
               className={cn(
                 'pointer-events-none absolute left-3 top-3 z-20 hidden rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur transition-opacity duration-300 md:block',
@@ -334,6 +343,12 @@ export default function HeroPreviewStack() {
               )}
             >
               {p.label}
+            </span>
+
+            {/* Hover cue — prompt to click */}
+            <span className="pointer-events-none absolute left-1/2 top-4 z-30 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-foreground/90 px-3 py-1.5 text-[11px] font-semibold text-background opacity-0 shadow-lg backdrop-blur transition-opacity duration-200 md:flex md:group-hover:opacity-100">
+              <MousePointerClick className="h-3.5 w-3.5" />
+              {isActive ? 'Click to collapse' : 'Click to expand'}
             </span>
           </div>
         );
