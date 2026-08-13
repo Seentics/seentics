@@ -284,8 +284,8 @@ function ReplayPanel() {
 
 const PANELS = [
   { key: 'analytics', label: 'Analytics', node: <HeroDashboardPreview /> },
-  { key: 'automations', label: 'Automation Builder', node: <AutomationsPanel /> },
   { key: 'replay', label: 'Session Replay', node: <ReplayPanel /> },
+  { key: 'automations', label: 'Automation Builder', node: <AutomationsPanel /> },
 ];
 
 // Resting fan angle + lift per layer (desktop). Reset on hover so the expanded
@@ -298,13 +298,13 @@ const ANGLE = [
 
 export default function HeroPreviewStack() {
   return (
-    <div className="group/stack flex flex-col gap-5 md:h-[680px] md:flex-row md:gap-0 md:[perspective:1600px]">
+    <div className="group/stack flex flex-col gap-5 md:h-[780px] md:flex-row md:gap-0 md:[perspective:1600px]">
       {PANELS.map((p, i) => (
         <div
           key={p.key}
           tabIndex={0}
           className={cn(
-            'group relative h-[520px] w-full overflow-hidden rounded-2xl border border-border/60 bg-card outline-none',
+            'group relative h-[600px] w-full overflow-hidden rounded-2xl border border-border/60 bg-card outline-none',
             'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.35),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
             'transition-all duration-500 ease-out md:origin-bottom',
             // Each layer is 1/3 width by default; overlap + fan angle give the stacked/elevated look.
