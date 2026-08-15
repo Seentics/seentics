@@ -64,11 +64,10 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
         </nav>
 
         {/* Right section */}
-        <div className="flex items-center gap-3 ml-auto">
+        <div className="flex items-center gap-2 ml-auto">
           <Link href="https://github.com/Seentics/seentics" target="_blank" className="hidden sm:block">
-            <Button variant="outline" size="sm" className="h-8 px-3 text-xs font-semibold gap-1.5 border-border">
-              <Github className="h-3.5 w-3.5" />
-              GitHub
+            <Button variant="ghost" size="lg" className="h-8 px-3 text-xs font-semibold gap-1.5 border-border">
+              <Github className="h-4.5 w-4.5" />
             </Button>
           </Link>
           <ThemeToggle />
@@ -81,12 +80,12 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
           ) : (
             <>
               <Link href="/signin" className="hidden sm:block">
-                <Button variant="ghost" size="sm" className="h-8 px-3 text-xs font-medium">
+                <Button variant="ghost" size="lg" className="h-10 px-4 text font-semibold rounded-lg">
                   Sign in
                 </Button>
               </Link>
               <Link href="/signup">
-                <Button size="sm" className="h-8 px-4 text-xs font-semibold rounded-md">
+                <Button size="lg" className="h-10 px-4 text font-semibold rounded-lg">
                   Get Started
                 </Button>
               </Link>
@@ -143,7 +142,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                   </Link>
                 ) : (
                   <Link href="/signup" onClick={() => setMobileOpen(false)}>
-                    <Button className="w-full h-10 text-sm font-medium rounded-lg">
+                    <Button size={'lg'} className="w-full   font-medium rounded-2xl">
                       Get Started
                     </Button>
                   </Link>

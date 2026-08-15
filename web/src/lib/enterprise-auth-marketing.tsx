@@ -1,7 +1,7 @@
 import { BarChart3, Braces, Shield, Video, Zap } from 'lucide-react';
 
 export const enterpriseAuthMarketing = {
-    headline: 'One workspace for traffic, replay, and conversion.',
+    headline: 'One Software for traffic, replay, and Automations.',
     signupSubhead:
         'Start free, connect your site in a few minutes. No credit card. See what visitors do and where you lose them.',
     signinSubhead:

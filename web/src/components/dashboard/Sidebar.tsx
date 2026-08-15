@@ -128,7 +128,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             <Logo size="sm" className="shrink-0" />
           </button>
         ) : (
-          <>
+          <Link href="/" className="flex items-center gap-2.5 w-full">
             <Logo size="sm" className="shrink-0" />
             <span className="flex-1 text-[16px] font-bold tracking-tight text-primary">Seentics</span>
             <button
@@ -140,7 +140,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
-          </>
+          </Link>
         )}
       </div>
 

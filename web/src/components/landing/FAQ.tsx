@@ -39,6 +39,31 @@ const faqs = [
     answer:
       'No cookies, no personal data collection by default. GDPR and CCPA compliant. When self-hosted, you have complete control over compliance.',
   },
+  {
+    question: 'Is there a free plan?',
+    answer:
+      'Yes. The open-source version is free forever when you self-host — no limits you don’t set yourself. Our cloud plans add managed hosting, higher quotas, and support, with a free tier to get started.',
+  },
+  {
+    question: 'Will the tracking script slow down my site?',
+    answer:
+      'No. The tracker is a tiny, async-loaded script that runs off the main thread and adds negligible weight. Analytics, heatmaps, and replays are batched and sent in the background.',
+  },
+  {
+    question: 'How is Seentics different from GA4, Plausible or Hotjar?',
+    answer:
+      'Those tools each solve one piece — analytics, privacy, or recordings. Seentics unifies analytics, session replays, heatmaps, funnels, AI insights, and automations in one open-source, self-hostable platform.',
+  },
+  {
+    question: 'Can I invite my team?',
+    answer:
+      'Yes. Add teammates with role-based access so everyone works from the same data. Seat limits depend on your plan, and self-hosting has no artificial cap.',
+  },
+  {
+    question: 'What happens to my data if I cancel?',
+    answer:
+      'Your data is always yours. Export everything via CSV or the API at any time, and if you self-host it never leaves your servers in the first place.',
+  },
 ];
 
 export default function FAQ() {
@@ -47,7 +72,7 @@ export default function FAQ() {
   return (
     <section id="faq" className="py-24 md:py-32 bg-background">
       <div className="container mx-auto px-6">
-        <div className="text-center max-w-2xl mx-auto mb-16">
+        <div className="text-center max-w-4xl mx-auto mb-16">
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -62,7 +87,7 @@ export default function FAQ() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
+            className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]"
           >
             Frequently asked questions
           </motion.h2>
@@ -77,24 +102,24 @@ export default function FAQ() {
           </motion.p>
         </div>
 
-        <div className="max-w-2xl mx-auto mb-20">
-          <Accordion type="single" collapsible className="space-y-2">
+        <div className="max-w-3xl mx-auto mb-16">
+          <Accordion type="single" collapsible className="space-y-3">
             {faqs.map((faq, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 8 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
               >
                 <AccordionItem
                   value={`item-${index}`}
-                  className="border border-border/50 rounded-lg px-5 overflow-hidden bg-card"
+                  className="rounded-xl border border-border/60 bg-card px-5 shadow-sm transition-colors data-[state=open]:border-primary/30 data-[state=open]:bg-primary/[0.03]"
                 >
-                  <AccordionTrigger className="text-sm font-medium py-4 hover:no-underline text-left">
+                  <AccordionTrigger className="py-4 text-left text-base font-semibold text-foreground hover:no-underline sm:text-lg">
                     {faq.question}
                   </AccordionTrigger>
-                  <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-4">
+                  <AccordionContent className="pb-4 text-[15px] leading-relaxed text-muted-foreground">
                     {faq.answer}
                   </AccordionContent>
                 </AccordionItem>
@@ -105,33 +130,33 @@ export default function FAQ() {
 
         {/* Bottom CTA */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="max-w-xl mx-auto text-center py-16 border-t border-border/40"
+          className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-b from-primary/[0.07] to-transparent px-6 py-12 text-center sm:px-12"
         >
-          <h3 className="text-2xl font-bold tracking-tight text-foreground mb-3">
-            Ready to build with analytics APIs?
+          <h3 className="mb-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Still have questions?
           </h3>
-          <p className="text-muted-foreground mb-6">
-            Get API access. Explore our SDKs and components. Deploy self-hosted. Full developer control.
+          <p className="mx-auto mb-7 max-w-md text-muted-foreground">
+            Start free and own your analytics — open source, self-hosted, no credit card required.
           </p>
-          <div className="flex items-center justify-center gap-3">
-            <Link href={isAuthenticated ? '/websites' : '/signup'}>
-              <Button className="h-10 px-6 text-sm font-medium rounded-lg">
-                {isAuthenticated ? 'Go to Dashboard' : 'Get Started'}
+          <div className="flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link href={isAuthenticated ? '/websites' : '/signup'} className="w-full sm:w-auto">
+              <Button className="h-11 w-full rounded-lg px-6 text-base font-semibold sm:w-auto">
+                {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/docs/api">
-              <Button variant="outline" className="h-10 px-6 text-sm font-medium rounded-lg">
-                API Docs
+            <Link href="/docs" className="w-full sm:w-auto">
+              <Button variant="outline" className="h-11 w-full rounded-lg px-6 text-base font-medium sm:w-auto">
+                Read the Docs
               </Button>
             </Link>
           </div>
-          <p className="text-xs text-muted-foreground/60 mt-4">
-            Open Source &middot; Self-Hosted &middot; APIs &amp; SDKs &middot; Full Data Access
+          <p className="mt-5 text-xs text-muted-foreground/60">
+            Open source &middot; Self-hosted &middot; No cookies &middot; GDPR-ready
           </p>
         </motion.div>
       </div>

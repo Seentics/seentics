@@ -14,7 +14,7 @@ export default function Hero() {
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-6">
             <span className="block text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tighter text-foreground leading-[1.1]">
-              From user behavior to <span className="text-primary">automated action.</span>
+              Understand Users Behavior  <span className="text-primary">Take automated action.</span>
             </span>
           </h1>
 

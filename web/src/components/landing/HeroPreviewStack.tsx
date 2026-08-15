@@ -290,66 +290,74 @@ const PANELS = [
   { key: 'automations', label: 'Automation Builder', node: <AutomationsPanel /> },
 ];
 
-// Resting cascade (desktop): narrower front layer on top so the wider ones (90/100%)
-// peek behind it. Click a layer to expand it to full width and bring it to the front.
-const WIDTH = ['md:w-[80%]', 'md:w-[90%]', 'md:w-full'];
-const OFFSET = ['md:translate-y-0 md:z-30', 'md:translate-y-9 md:z-20', 'md:translate-y-[4.5rem] md:z-10'];
+// Cascade SLOTS by stacking rank (desktop). Rank 0 is the front/top slot (narrowest,
+// fully visible); the wider slots sit lower and behind so their bottom edges peek out,
+// making the hierarchy clear. Clicking a layer moves it into the front slot and the
+// others slide back into the remaining slots.
+const SLOTS = [
+  { w: 80, ty: 0, z: 40, sc: 1.02 }, // front / active
+  { w: 90, ty: 52, z: 20, sc: 1 },
+  { w: 100, ty: 104, z: 10, sc: 1 },
+];
 
 export default function HeroPreviewStack() {
-  // Click-driven (not hover): clicking a layer toggles it to full width / front.
-  // Hover only shows a "click to expand" cue, so there is no resize-under-cursor flicker.
-  const [active, setActive] = useState<number | null>(null);
+  // Click-driven (not hover) so there is no resize-under-cursor flicker. Default: first
+  // layer at the front. Clicking another reorders it to the front slot.
+  const [active, setActive] = useState(0);
+  const inactive = PANELS.map((_, idx) => idx).filter((idx) => idx !== active);
 
   return (
-    <div className="relative space-y-5 md:h-[780px] md:space-y-0">
+    <div className="relative space-y-5 md:h-[760px] md:space-y-0">
       {PANELS.map((p, i) => {
-        const isActive = active === i;
-        const dimmed = active !== null && !isActive;
-        const toggle = () => setActive((a) => (a === i ? null : i));
+        const rank = i === active ? 0 : inactive.indexOf(i) + 1; // 0 = front
+        const slot = SLOTS[rank];
+        const isActive = rank === 0;
         return (
           <div
             key={p.key}
             role="button"
             tabIndex={0}
             aria-pressed={isActive}
-            onClick={toggle}
+            onClick={() => setActive(i)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                toggle();
+                setActive(i);
               }
             }}
+            style={{
+              ['--w' as string]: `${slot.w}%`,
+              ['--ty' as string]: `${slot.ty}px`,
+              ['--z' as string]: slot.z,
+              ['--sc' as string]: slot.sc,
+            }}
             className={cn(
-              'group relative h-[600px] w-full overflow-hidden rounded-2xl border border-border/60 bg-card outline-none',
+              'group relative h-[420px] w-full overflow-hidden rounded-2xl border border-border/60 bg-card outline-none sm:h-[480px]',
               'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
               'transition-all duration-500 ease-out md:cursor-pointer',
-              // Cascade: centered, staggered widths (80/90/100%) + slight vertical offset.
-              'md:absolute md:left-1/2 md:top-0 md:h-[680px] md:-translate-x-1/2',
-              WIDTH[i],
-              OFFSET[i],
-              // Active (clicked): expand to full width, straighten, lift to the front.
-              isActive && 'md:!w-full md:!translate-y-0 md:!z-40 md:shadow-[0_45px_90px_-18px_rgba(0,0,0,0.55)] md:shadow-primary/10',
-              dimmed && 'md:brightness-[0.55]',
-              'md:focus-visible:!z-40 md:focus-visible:ring-2 md:focus-visible:ring-primary/50',
+              // Slot-based cascade: width, vertical offset, z and scale all come from the slot,
+              // so activating a layer animates every layer to its new slot.
+              'md:absolute md:left-1/2 md:top-0 md:h-[600px] md:[width:var(--w)] md:[transform:translateX(-50%)_translateY(var(--ty))_scale(var(--sc))] md:[z-index:var(--z)]',
+              isActive
+                ? 'md:shadow-[0_45px_90px_-18px_rgba(0,0,0,0.55)] md:shadow-primary/10'
+                : 'md:brightness-[0.55]',
+              'md:focus-visible:ring-2 md:focus-visible:ring-primary/50',
             )}
           >
             {p.node}
 
-            {/* Corner label — fades out once this layer is active */}
-            <span
-              className={cn(
-                'pointer-events-none absolute left-3 top-3 z-20 hidden rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur transition-opacity duration-300 md:block',
-                isActive && 'md:opacity-0',
-              )}
-            >
+            {/* Corner label — always visible so the stack hierarchy is readable */}
+            <span className="pointer-events-none absolute left-3 top-3 z-20 hidden rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur md:block">
               {p.label}
             </span>
 
-            {/* Hover cue — prompt to click */}
-            <span className="pointer-events-none absolute left-1/2 top-4 z-30 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-foreground/90 px-3 py-1.5 text-[11px] font-semibold text-background opacity-0 shadow-lg backdrop-blur transition-opacity duration-200 md:flex md:group-hover:opacity-100">
-              <MousePointerClick className="h-3.5 w-3.5" />
-              {isActive ? 'Click to collapse' : 'Click to expand'}
-            </span>
+            {/* Hover cue — prompt to click (only on the non-front layers) */}
+            {!isActive && (
+              <span className="pointer-events-none absolute left-1/2 bottom-3 z-30 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-foreground/90 px-3 py-1.5 text-[11px] font-semibold text-background opacity-0 shadow-lg backdrop-blur transition-opacity duration-200 md:flex md:group-hover:opacity-100">
+                <MousePointerClick className="h-3.5 w-3.5" />
+                Click to bring to front
+              </span>
+            )}
           </div>
         );
       })}

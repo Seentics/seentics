@@ -1,161 +1,202 @@
+'use client';
+
 import {
   MousePointer,
   Globe,
-  Zap,
   Target,
+  Zap,
+  MessageSquare,
+  Bell,
   Webhook,
   Mail,
-  Bell,
-  MessageSquare,
-  ArrowRight,
+  CornerDownRight,
   Code2,
+  ArrowRight,
 } from 'lucide-react';
 import Link from 'next/link';
 
-const triggers = [
-  { icon: MousePointer, label: 'Exit Intent',   desc: 'Cursor leaves viewport',     color: 'text-rose-500',    bg: 'bg-rose-500/10',    border: 'border-rose-500/25' },
-  { icon: Globe,        label: 'Page View',      desc: 'Matches URL / path rules',   color: 'text-blue-500',    bg: 'bg-blue-500/10',    border: 'border-blue-500/25' },
-  { icon: Target,       label: 'Goal Reached',   desc: 'Conversion or funnel hit',   color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/25' },
-  { icon: Zap,          label: 'Custom Event',   desc: 'Any event you fire',         color: 'text-amber-500',   bg: 'bg-amber-500/10',   border: 'border-amber-500/25' },
+/* Node positions live in a 1000 × 560 coordinate space shared by the SVG edges and the
+   absolutely-positioned node cards, so the flowing arrows always land on the nodes. */
+
+const TRIGGERS = [
+  { icon: MousePointer, label: 'Exit Intent', desc: 'Cursor leaves viewport', color: 'text-rose-500', bg: 'bg-rose-500/10', y: 70 },
+  { icon: Globe, label: 'Page View', desc: 'Matches URL / path rules', color: 'text-blue-500', bg: 'bg-blue-500/10', y: 210 },
+  { icon: Target, label: 'Goal Reached', desc: 'Conversion or funnel hit', color: 'text-emerald-500', bg: 'bg-emerald-500/10', y: 350 },
+  { icon: Zap, label: 'Custom Event', desc: 'Any event you fire', color: 'text-amber-500', bg: 'bg-amber-500/10', y: 490 },
 ];
 
-const actions = [
-  { icon: MessageSquare, label: 'Show Popup',   desc: 'Modal with CTA or offer',  color: 'text-violet-500', bg: 'bg-violet-500/10', border: 'border-violet-500/25' },
-  { icon: Bell,          label: 'Show Banner',  desc: 'Top / bottom banner',      color: 'text-indigo-500', bg: 'bg-indigo-500/10', border: 'border-indigo-500/25' },
-  { icon: Webhook,       label: 'Call Webhook', desc: 'HTTP POST to any URL',     color: 'text-sky-500',    bg: 'bg-sky-500/10',    border: 'border-sky-500/25' },
-  { icon: Mail,          label: 'Send Email',   desc: 'Alert your team instantly', color: 'text-pink-500',   bg: 'bg-pink-500/10',   border: 'border-pink-500/25' },
-  { icon: ArrowRight,    label: 'Redirect',     desc: 'Send to another page',     color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/25' },
-  { icon: Code2,         label: 'Run Script',   desc: 'Execute custom JS',        color: 'text-teal-500',   bg: 'bg-teal-500/10',   border: 'border-teal-500/25' },
+const ACTIONS = [
+  { icon: MessageSquare, label: 'Show Popup', desc: 'Modal with CTA or offer', color: 'text-violet-500', bg: 'bg-violet-500/10', y: 47 },
+  { icon: Bell, label: 'Show Banner', desc: 'Top / bottom banner', color: 'text-indigo-500', bg: 'bg-indigo-500/10', y: 140 },
+  { icon: Webhook, label: 'Call Webhook', desc: 'HTTP POST to any URL', color: 'text-sky-500', bg: 'bg-sky-500/10', y: 233 },
+  { icon: Mail, label: 'Send Email', desc: 'Alert your team instantly', color: 'text-pink-500', bg: 'bg-pink-500/10', y: 327 },
+  { icon: CornerDownRight, label: 'Redirect', desc: 'Send to another page', color: 'text-orange-500', bg: 'bg-orange-500/10', y: 420 },
+  { icon: Code2, label: 'Run Script', desc: 'Execute custom JS', color: 'text-teal-500', bg: 'bg-teal-500/10', y: 513 },
 ];
 
+const HUB = { x: 500, y: 280 };
+const TRIG_X = 160;
+const ACT_X = 840;
+
+function pctLeft(x: number) {
+  return `${(x / 1000) * 100}%`;
+}
+function pctTop(y: number) {
+  return `${(y / 560) * 100}%`;
+}
 
 export default function HowAutomationsWork() {
   return (
-    <section className="py-24 md:py-32 bg-muted/20 border-t border-border/40 overflow-hidden">
-      <div className="container mx-auto px-6">
+    <section className="relative overflow-hidden bg-transparent py-24 md:py-32">
+      <style>{`
+        @keyframes seenticsFlow { to { stroke-dashoffset: -28; } }
+        @keyframes seenticsPulse { 0%,100% { opacity: .35; transform: scale(1); } 50% { opacity: .7; transform: scale(1.08); } }
+      `}</style>
 
+      <div className="container mx-auto px-6">
         {/* Header */}
-        <div className="max-w-2xl mx-auto text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs font-semibold text-indigo-400 mb-4">
+        <div className="mx-auto mb-16 max-w-4xl text-center">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-500">
             <Zap className="h-3 w-3" />
             Automations
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4">
-            Your site reacts<br />
-            <span className="text-primary">to every visitor action</span>
+            
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]">
+           Automate Anything, <span className="text-primary">Instantly</span>
           </h2>
-          <p className="text-muted-foreground text-lg leading-relaxed">
-            Connect any visitor behavior to any action — no code required. Build rules visually, deploy in seconds.
+          <p className="text-lg leading-relaxed text-muted-foreground">
+            Connect any visitor behavior to any action — no code required. Build rules visually, deploy in seconds. 
           </p>
         </div>
 
-        {/* Builder UI mock */}
-        <div className="max-w-5xl mx-auto mb-16">
-          <div className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-xl shadow-black/[0.05]">
+        {/* Live flow diagram (transparent — no card) */}
+        <div className="overflow-x-auto pb-4">
+          <div className="relative mx-auto aspect-[1000/560] w-full min-w-[860px] max-w-6xl">
+            {/* Soft glow behind the hub */}
+            <div
+              className="pointer-events-none absolute h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-3xl"
+              style={{ left: pctLeft(HUB.x), top: pctTop(HUB.y) }}
+            />
 
-            {/* Window chrome */}
-            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-border/40 bg-muted/30">
-              <div className="flex gap-1.5">
-                <div className="h-3 w-3 rounded-full bg-rose-500/50" />
-                <div className="h-3 w-3 rounded-full bg-amber-500/50" />
-                <div className="h-3 w-3 rounded-full bg-emerald-500/50" />
+            {/* Edges */}
+            <svg viewBox="0 0 1000 560" className="absolute inset-0 h-full w-full" fill="none">
+              <defs>
+                <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                  <path d="M0,0 L10,5 L0,10 z" className="fill-primary/70" />
+                </marker>
+              </defs>
+
+              {/* Trigger → hub */}
+              {TRIGGERS.map((t, i) => {
+                const d = `M ${TRIG_X},${t.y} C 340,${t.y} 360,${HUB.y} 430,${HUB.y}`;
+                return (
+                  <g key={`t-${i}`}>
+                    <path d={d} className="stroke-border" strokeWidth={2} />
+                    <path
+                      d={d}
+                      className="stroke-primary"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeDasharray="2 12"
+                      markerEnd="url(#arrow)"
+                      style={{ animation: `seenticsFlow 1.1s linear infinite`, animationDelay: `${i * 0.18}s` }}
+                    />
+                  </g>
+                );
+              })}
+
+              {/* Hub → action */}
+              {ACTIONS.map((a, i) => {
+                const d = `M ${HUB.x + 60},${HUB.y} C 660,${HUB.y} 660,${a.y} 748,${a.y}`;
+                return (
+                  <g key={`a-${i}`}>
+                    <path d={d} className="stroke-border" strokeWidth={2} />
+                    <path
+                      d={d}
+                      className="stroke-primary"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeDasharray="2 12"
+                      markerEnd="url(#arrow)"
+                      style={{ animation: `seenticsFlow 1.1s linear infinite`, animationDelay: `${0.4 + i * 0.14}s` }}
+                    />
+                  </g>
+                );
+              })}
+            </svg>
+
+            {/* Column captions */}
+            <span className="absolute -translate-x-1/2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground" style={{ left: pctLeft(TRIG_X), top: '-6%' }}>
+              When this happens
+            </span>
+            <span className="absolute -translate-x-1/2 text-[11px] font-bold uppercase tracking-widest text-muted-foreground" style={{ left: pctLeft(ACT_X), top: '-6%' }}>
+              Do this automatically
+            </span>
+
+            {/* Trigger nodes */}
+            {TRIGGERS.map((t) => (
+              <div
+                key={t.label}
+                className="absolute flex w-[190px] -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-xl border border-border/60 bg-card/90 px-3 py-2.5 shadow-lg shadow-black/[0.06] backdrop-blur"
+                style={{ left: pctLeft(TRIG_X), top: pctTop(t.y) }}
+              >
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.bg}`}>
+                  <t.icon className={`h-4 w-4 ${t.color}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{t.label}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{t.desc}</p>
+                </div>
               </div>
-              <span className="text-xs font-medium text-muted-foreground ml-1">
-                Automation Builder — Exit Intent → Show Popup
-              </span>
-              <div className="ml-auto flex items-center gap-1.5 text-[11px] font-semibold text-emerald-500">
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Active
+            ))}
+
+            {/* Hub */}
+            <div
+              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={{ left: pctLeft(HUB.x), top: pctTop(HUB.y) }}
+            >
+              <div className="relative flex h-24 w-24 items-center justify-center">
+                <span className="absolute inset-0 rounded-full bg-primary/30" style={{ animation: 'seenticsPulse 2s ease-in-out infinite' }} />
+                <span className="absolute inset-2 rounded-full bg-primary/20" style={{ animation: 'seenticsPulse 2s ease-in-out infinite', animationDelay: '.4s' }} />
+                <div className="relative flex h-16 w-16 flex-col items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30">
+                  <Zap className="h-6 w-6 fill-current" />
+                </div>
               </div>
+              <p className="mt-2 text-center text-xs font-bold text-foreground">Seentics</p>
             </div>
 
-            <div className="p-6 md:p-8">
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_72px_1fr] gap-4 md:gap-6 items-center">
-
-                {/* Triggers */}
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-                    When this happens
-                  </p>
-                  <div className="space-y-2">
-                    {triggers.map((t, i) => (
-                      <div
-                        key={t.label}
-                        className={`flex items-center gap-3 rounded-xl border px-4 py-3.5 transition-all ${
-                          i === 0
-                            ? `${t.bg} ${t.border}`
-                            : 'bg-background/50 border-border/25 opacity-40'
-                        }`}
-                      >
-                        <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${t.bg}`}>
-                          <t.icon className={`h-4 w-4 ${t.color}`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-foreground leading-none">{t.label}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">{t.desc}</p>
-                        </div>
-                        {i === 0 && <div className="h-2 w-2 rounded-full bg-rose-500 shrink-0" />}
-                      </div>
-                    ))}
-                  </div>
+            {/* Action nodes */}
+            {ACTIONS.map((a) => (
+              <div
+                key={a.label}
+                className="absolute flex w-[190px] -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-xl border border-border/60 bg-card/90 px-3 py-2.5 shadow-lg shadow-black/[0.06] backdrop-blur"
+                style={{ left: pctLeft(ACT_X), top: pctTop(a.y) }}
+              >
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${a.bg}`}>
+                  <a.icon className={`h-4 w-4 ${a.color}`} />
                 </div>
-
-                {/* Arrow connector */}
-                <div className="flex items-center justify-center">
-                  <div className="flex flex-col items-center gap-1.5">
-                    <div className="h-12 w-12 rounded-full bg-primary shadow-lg shadow-primary/25 flex items-center justify-center">
-                      <ArrowRight className="h-5 w-5 text-primary-foreground" />
-                    </div>
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-primary">Then</span>
-                  </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-foreground">{a.label}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{a.desc}</p>
                 </div>
-
-                {/* Actions */}
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-                    Do this automatically
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {actions.map((a, i) => (
-                      <div
-                        key={a.label}
-                        className={`flex items-center gap-2.5 rounded-xl border px-3 py-3 transition-all ${
-                          i === 0
-                            ? `${a.bg} ${a.border}`
-                            : 'bg-background/50 border-border/25 opacity-40'
-                        }`}
-                      >
-                        <div className={`h-7 w-7 rounded-md flex items-center justify-center shrink-0 ${a.bg}`}>
-                          <a.icon className={`h-3.5 w-3.5 ${a.color}`} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-foreground leading-none truncate">{a.label}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">{a.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
               </div>
-            </div>
+            ))}
           </div>
         </div>
 
         {/* CTA */}
-        <div className="text-center mt-14">
-          <p className="text-muted-foreground text-sm mb-4">
+        <div className="mt-14 text-center">
+          <p className="mb-4 text-sm text-muted-foreground">
             Build your first automation in under 2 minutes — no code required.
           </p>
           <Link
             href="/signup"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Start automating free
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-
       </div>
     </section>
   );

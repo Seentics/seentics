@@ -1,98 +1,138 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { X, Check } from 'lucide-react';
+import { Check, X, Minus } from 'lucide-react';
 
-const PAINS = [
-  {
-    ga4: 'Data is sent to Google — they own and monetise your visitors\' behaviour',
-    seentics: 'Self-hosted. Your data stays on your server, forever.',
-  },
-  {
-    ga4: 'Sampled data above 500k sessions — you never see the full picture',
-    seentics: 'Every event is tracked. No sampling, no approximations.',
-  },
-  {
-    ga4: 'No session recordings or heatmaps — you see numbers, not behaviour',
-    seentics: 'Watch exactly what users do with replays and heatmaps built in.',
-  },
-  {
-    ga4: 'Complex, bloated UI that takes hours to find a simple metric',
-    seentics: 'Clean dashboard. Pageviews, sources, funnels — all in one view.',
-  },
-  {
-    ga4: 'Requires cookie consent banners in most countries (GDPR)',
-    seentics: 'Cookie-free tracking. GDPR compliant out of the box.',
-  },
-  {
-    ga4: 'No funnel builder, no automations, no AI insights',
-    seentics: 'Funnels, automations, and AI analysis — no third-party tools needed.',
-  },
+type Cell = true | false | 'partial';
+
+const TOOLS = ['Google Analytics 4', 'Plausible', 'Hotjar'] as const;
+
+const ROWS: { feature: string; seentics: Cell; ga4: Cell; plausible: Cell; hotjar: Cell }[] = [
+  { feature: 'Privacy-first, cookie-free', seentics: true, ga4: false, plausible: true, hotjar: false },
+  { feature: 'Self-hosted — you own your data', seentics: true, ga4: false, plausible: 'partial', hotjar: false },
+  { feature: 'No data sampling', seentics: true, ga4: false, plausible: true, hotjar: true },
+  { feature: 'Session recordings & replays', seentics: true, ga4: false, plausible: false, hotjar: true },
+  { feature: 'Heatmaps', seentics: true, ga4: false, plausible: false, hotjar: true },
+  { feature: 'Conversion funnels', seentics: true, ga4: true, plausible: 'partial', hotjar: 'partial' },
+  { feature: 'Automations & triggers', seentics: true, ga4: false, plausible: false, hotjar: false },
+  { feature: 'No-code workflow builder', seentics: true, ga4: false, plausible: false, hotjar: false },
+  { feature: 'AI insights in plain English', seentics: true, ga4: 'partial', plausible: false, hotjar: false },
+  { feature: 'Open source', seentics: true, ga4: false, plausible: true, hotjar: false },
+  { feature: 'All-in-one platform', seentics: true, ga4: false, plausible: false, hotjar: false },
 ];
+
+function CellMark({ value }: { value: Cell }) {
+  if (value === true) {
+    return (
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15">
+        <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
+      </span>
+    );
+  }
+  if (value === 'partial') {
+    return (
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/15">
+        <Minus className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" strokeWidth={3} />
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted">
+      <X className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={3} />
+    </span>
+  );
+}
 
 export default function WhySwitch() {
   return (
-    <section className="py-24 md:py-32 bg-background">
+    <section className="bg-background py-24 md:py-32">
       <div className="container mx-auto px-6">
-
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <div className="inline-block bg-red-500/10 border border-red-500/20 rounded-full px-3 py-1.5 mb-6">
-            <span className="text-xs font-bold uppercase tracking-widest text-red-500">Why switch</span>
+        <div className="mx-auto mb-16 max-w-4xl text-center">
+          <div className="mb-6 inline-block rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5">
+            <span className="text-xs font-bold uppercase tracking-widest text-primary">Why switch</span>
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4 leading-tight">
-            GA4 is holding your <span className="text-primary">growth back</span>
+          <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]">
+            Seentics Gives <span className="text-primary">Everything</span>
           </h2>
-          <p className="text-muted-foreground text-base leading-relaxed">
-            Google Analytics 4 was built for Google's ad business — not for yours.
-            Here's what you're giving up by staying on it.
+          <p className="text-base leading-relaxed text-muted-foreground">
+            GA4, Plausible, Hotjar — each solves one piece of the puzzle. Seentics unifies analytics,
+            recordings, heatmaps, funnels, and automations. Self-hosted, open source, no cookies.
           </p>
         </div>
 
-        {/* Comparison table */}
-        <div className="max-w-3xl mx-auto">
-          {/* Column headers */}
-          <div className="grid grid-cols-2 gap-4 mb-3 px-1">
-            <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded-full bg-red-500/15 flex items-center justify-center shrink-0">
-                <X className="h-3 w-3 text-red-500" />
-              </div>
-              <span className="text-sm font-semibold text-muted-foreground">Google Analytics 4</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="h-5 w-5 rounded-full bg-emerald-500/15 flex items-center justify-center shrink-0">
-                <Check className="h-3 w-3 text-emerald-500" />
-              </div>
-              <span className="text-sm font-semibold text-foreground">Seentics</span>
-            </div>
-          </div>
-
-          {/* Rows */}
-          <div className="rounded-2xl border border-border/60 overflow-hidden divide-y divide-border/40">
-            {PAINS.map((row, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, x: -8 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.35, delay: i * 0.06 }}
-                className="grid grid-cols-2 gap-0"
-              >
-                {/* GA4 side */}
-                <div className="flex items-start gap-3 p-4 bg-red-500/[0.03] border-r border-border/40">
-                  <X className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-                  <span className="text-sm text-muted-foreground leading-relaxed">{row.ga4}</span>
-                </div>
-                {/* Seentics side */}
-                <div className="flex items-start gap-3 p-4 bg-emerald-500/[0.03]">
-                  <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                  <span className="text-sm text-foreground leading-relaxed font-medium">{row.seentics}</span>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+        {/* Comparison matrix */}
+        <div className="mx-auto max-w-6xl overflow-x-auto">
+          <table className="w-full min-w-[680px] border-separate border-spacing-0">
+            <thead>
+              <tr>
+                <th className="w-[34%] p-3 text-left align-bottom" />
+                <th className="p-3 text-center align-bottom">
+                  <div className="rounded-t-xl bg-primary/[0.07] px-2 pb-2 pt-3">
+                    <span className="text-sm font-bold text-primary">Seentics</span>
+                  </div>
+                </th>
+                {TOOLS.map((tool) => (
+                  <th key={tool} className="p-3 text-center align-bottom">
+                    <span className="text-xs font-semibold text-muted-foreground sm:text-sm">{tool}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {ROWS.map((row, i) => (
+                <motion.tr
+                  key={row.feature}
+                  initial={{ opacity: 0, x: -8 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.3, delay: i * 0.04 }}
+                >
+                  <td className="border-b border-border/50 py-3 pr-4 text-sm font-medium text-foreground">
+                    {row.feature}
+                  </td>
+                  <td
+                    className={`border-b border-border/50 px-2 py-3 text-center bg-primary/[0.07] ${
+                      i === ROWS.length - 1 ? 'rounded-b-xl' : ''
+                    }`}
+                  >
+                    <div className="flex justify-center">
+                      <CellMark value={row.seentics} />
+                    </div>
+                  </td>
+                  <td className="border-b border-border/50 px-2 py-3 text-center">
+                    <div className="flex justify-center">
+                      <CellMark value={row.ga4} />
+                    </div>
+                  </td>
+                  <td className="border-b border-border/50 px-2 py-3 text-center">
+                    <div className="flex justify-center">
+                      <CellMark value={row.plausible} />
+                    </div>
+                  </td>
+                  <td className="border-b border-border/50 px-2 py-3 text-center">
+                    <div className="flex justify-center">
+                      <CellMark value={row.hotjar} />
+                    </div>
+                  </td>
+                </motion.tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
+        {/* Legend */}
+        <div className="mx-auto mt-6 flex max-w-4xl flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> Built in
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Minus className="h-3.5 w-3.5 text-amber-500" strokeWidth={3} /> Limited / partial
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <X className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={3} /> Not available
+          </span>
+        </div>
       </div>
     </section>
   );

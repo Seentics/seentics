@@ -96,7 +96,7 @@ export default function Pricing() {
     <section id="pricing" className="py-24 md:py-32 bg-background">
       <div className="container mx-auto px-6">
         {/* Header */}
-        <div className="text-center max-w-2xl mx-auto mb-10">
+        <div className="text-center max-w-4xl mx-auto mb-10">
           <motion.p
             initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -111,9 +111,9 @@ export default function Pricing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-4"
+            className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]"
           >
-            Simple, transparent pricing
+            Simple, transparent <span className="text-primary">pricing</span>
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 12 }}

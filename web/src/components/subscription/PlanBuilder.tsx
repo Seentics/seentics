@@ -200,7 +200,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
       <div
         key={plan.id}
         className={cn(
-          'relative flex flex-col rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-lg',
+          'relative flex flex-col rounded-2xl border bg-card p-6 transition-all duration-300 hover:shadow-lg',
           'popular' in plan && plan.popular ? `border-2 ${plan.borderColor} shadow-md` : 'border-border/60',
           isCurrent && 'ring-2 ring-primary/20',
         )}
@@ -217,7 +217,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
           <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center mb-3', `${plan.bgColor}/10`)}>
             <Icon className={cn('h-4 w-4', plan.color)} />
           </div>
-          <h3 className="text-lg font-semibold">{plan.name}</h3>
+          <h3 className="text-2xl font-semibold">{plan.name}</h3>
           <p className="text-xs text-muted-foreground mt-0.5">{plan.description}</p>
         </div>
 
@@ -269,7 +269,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
+    <div className="w-full max-w-7xl mx-auto">
       {/* Billing toggle */}
       <div className="flex items-center justify-center gap-3 mb-8">
         <button
