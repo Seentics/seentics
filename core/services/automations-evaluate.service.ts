@@ -58,6 +58,7 @@ export interface EvaluateResult {
 
 type AutomationDef = {
   trigger?: { type?: string; [k: string]: unknown };
+  triggers?: Array<{ type?: string; [k: string]: unknown }>;
   conditions?: Conditions;
   actions?: Array<{ type: string; [k: string]: unknown }>;
   frequency?: FrequencyCapSpec;
@@ -71,9 +72,16 @@ function castDef(raw: Record<string, unknown>): AutomationDef {
   return raw as AutomationDef;
 }
 
-function triggerMatches(defTrigger: AutomationDef['trigger'], incoming: EvaluateRequest['trigger']): boolean {
-  if (!defTrigger?.type) return false;
-  return defTrigger.type === incoming.type;
+/** All triggers for a definition — supports new `triggers[]` and legacy single `trigger`. */
+function defTriggers(def: AutomationDef): Array<{ type?: string; [k: string]: unknown }> {
+  if (Array.isArray(def.triggers) && def.triggers.length) return def.triggers;
+  if (def.trigger) return [def.trigger];
+  return [];
+}
+
+/** An automation matches when ANY of its triggers has the incoming type. */
+function triggerMatches(def: AutomationDef, incoming: EvaluateRequest['trigger']): boolean {
+  return defTriggers(def).some((t) => !!t?.type && t.type === incoming.type);
 }
 
 function pickVariant(abTest: AutomationDef['abTest']): string | null {
@@ -187,7 +195,7 @@ export async function evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
   const candidates: { auto: (typeof rows)[number]; def: ReturnType<typeof castDef>; caps: FrequencyCapSpec }[] = [];
   for (const auto of rows) {
     const def = castDef(auto.definition);
-    if (!triggerMatches(def.trigger, trigger)) continue;
+    if (!triggerMatches(def, trigger)) continue;
     if (!evaluateConditions(def.conditions ?? null, fullContext)) continue;
     candidates.push({ auto, def, caps: def.frequency ?? {} });
   }

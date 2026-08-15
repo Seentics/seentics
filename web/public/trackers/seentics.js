@@ -1477,6 +1477,13 @@ const renderRedirect = (action) => {
   else open();
 };
 
+/** All triggers for an automation (new `triggers[]`, legacy single `trigger`, or flat). */
+const automationTriggers = (a) => {
+  if (a && Array.isArray(a.triggers) && a.triggers.length) return a.triggers;
+  if (a && a.trigger) return [a.trigger];
+  return a ? [a] : [];
+};
+
 /**
  * Fire an automation trigger: POST to /tracker/automations/evaluate,
  * parse response, execute client-side actions.
@@ -1484,12 +1491,9 @@ const renderRedirect = (action) => {
 const fireAutomationTrigger = async (triggerType, triggerData) => {
   if (!websiteId || !automations.length) return;
 
-  // Quick client-side check: skip if any automation with this trigger type is exhausted
-  // (server is authoritative, but this avoids a round-trip for obviously capped automations)
-  const relevant = automations.filter((a) => {
-    const t = a.trigger ?? a;
-    return (t.type ?? t.event) === triggerType;
-  });
+  // An automation fires when ANY of its triggers matches. Supports the new
+  // `triggers[]` shape and the legacy single `trigger` (and very old flat shape).
+  const relevant = automations.filter((a) => automationTriggers(a).some((t) => (t.type ?? t.event) === triggerType));
   if (!relevant.length) return;
 
   // Also queue analytics trigger event for backwards compat
@@ -1678,20 +1682,23 @@ const installClickTrigger = () => {
   document.addEventListener('click', (ev) => {
     const el = ev.target;
     if (!el) return;
+    const seen = new Set();
     for (const auto of automations) {
-      const t = auto.trigger ?? auto;
-      if ((t.type ?? t.event) !== 'click') continue;
-      const sel = t.selector;
-      if (!sel) continue;
-      try {
-        if (el.matches(sel) || el.closest(sel)) {
-          void fireAutomationTrigger('click', {
-            path:     location.pathname,
-            selector: sel,
-            text:     (el.textContent ?? '').trim().slice(0, 100),
-          });
-        }
-      } catch { /* invalid selector */ }
+      for (const t of automationTriggers(auto)) {
+        if ((t.type ?? t.event) !== 'click') continue;
+        const sel = t.selector;
+        if (!sel || seen.has(sel)) continue;
+        try {
+          if (el.matches(sel) || el.closest(sel)) {
+            seen.add(sel);
+            void fireAutomationTrigger('click', {
+              path:     location.pathname,
+              selector: sel,
+              text:     (el.textContent ?? '').trim().slice(0, 100),
+            });
+          }
+        } catch { /* invalid selector */ }
+      }
     }
   });
 };

@@ -23,13 +23,25 @@ import { cn } from '@/lib/utils';
 
 // ─── Exported Types ──────────────────────────────────────────────────────────
 
+export interface TriggerConfig { type: string; [k: string]: unknown }
+
 export interface AutomationDefinition {
-  trigger: { type: string; [k: string]: unknown };
+  /** Legacy single trigger — kept for backward compatibility on load/save. */
+  trigger?: TriggerConfig;
+  /** One or more triggers; the automation fires when ANY of them matches. */
+  triggers?: TriggerConfig[];
   conditions?: ConditionGroup | null;
   actions: Array<{ type: string; [k: string]: unknown }>;
   frequency?: { maxPerSession?: number; maxPerUser?: number; cooldownDays?: number };
   abTest?: { enabled: boolean; variants: Array<{ id: string; weight: number }> };
   priority?: number;
+}
+
+/** Normalise a definition (legacy `trigger` or new `triggers[]`) into an array. */
+export function normalizeTriggers(def: AutomationDefinition): TriggerConfig[] {
+  if (def.triggers?.length) return def.triggers;
+  if (def.trigger?.type) return [def.trigger];
+  return [];
 }
 
 export interface ConditionGroup {
@@ -51,7 +63,7 @@ interface AutomationBuilderProps {
 }
 
 type SelectedNode =
-  | { kind: 'trigger' }
+  | { kind: 'trigger'; index: number }
   | { kind: 'condition' }
   | { kind: 'action'; index: number }
   | { kind: 'settings' };
@@ -447,21 +459,45 @@ function ActionConfigForm({
 function NodeConnector({ onAdd }: { onAdd: () => void }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <div className="flex flex-col items-center" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      <div className="h-5 w-px bg-muted" />
+    <div
+      className="relative flex h-14 w-full items-center justify-center"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Animated flowing connection */}
+      <svg
+        className="pointer-events-none absolute inset-y-0 left-1/2 -translate-x-1/2"
+        width="12"
+        height="100%"
+        viewBox="0 0 12 56"
+        preserveAspectRatio="none"
+        fill="none"
+      >
+        <line x1="6" y1="0" x2="6" y2="56" className="stroke-primary/20" strokeWidth="2" />
+        <line
+          x1="6"
+          y1="0"
+          x2="6"
+          y2="56"
+          className="stroke-primary"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray="1 9"
+          style={{ animation: 'seenticsFlowDown 0.9s linear infinite' }}
+        />
+        <path d="M2.5 47 L6 52 L9.5 47" className="stroke-primary/70" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {/* Add button */}
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onAdd(); }}
         className={cn(
-          'h-6 w-6 rounded-full border flex items-center justify-center transition-all duration-150 z-10',
-          hovered
-            ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 scale-110'
-            : 'border-border bg-card text-muted-foreground',
+          'relative z-10 flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition-all duration-150',
+          hovered ? 'scale-110 border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground',
         )}
       >
-        <Plus className="h-3 w-3" />
+        <Plus className="h-3.5 w-3.5" />
       </button>
-      <div className="h-5 w-px bg-muted" />
     </div>
   );
 }
@@ -537,10 +573,18 @@ function NodeCard({
 // ─── Right Sidebar Panels ─────────────────────────────────────────────────────
 
 function TriggerPanel({
-  trigger, onChange,
-}: { trigger: { type: string; [k: string]: unknown }; onChange: (t: { type: string; [k: string]: unknown }) => void }) {
+  trigger, onChange, onDelete, frequency, onFrequencyChange,
+}: {
+  trigger: { type: string; [k: string]: unknown };
+  onChange: (t: { type: string; [k: string]: unknown }) => void;
+  onDelete?: () => void;
+  frequency?: AutomationDefinition['frequency'];
+  onFrequencyChange?: (f: AutomationDefinition['frequency']) => void;
+}) {
   const td = getTriggerType(trigger.type);
   const { type, ...config } = trigger;
+  const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground';
+  const setFreq = (key: string, val: number | undefined) => onFrequencyChange?.({ ...frequency, [key]: val });
   return (
     <div className="space-y-5">
       <div>
@@ -564,6 +608,38 @@ function TriggerPanel({
         <div>
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Configuration</p>
           <TriggerConfigForm type={type} config={config as Record<string, unknown>} onChange={cfg => onChange({ type, ...cfg })} />
+        </div>
+      )}
+
+      {onFrequencyChange && (
+        <div className="border-t border-border pt-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Frequency</p>
+          <p className="mb-3 text-[11px] text-muted-foreground">How often this automation can fire per visitor. Leave blank for no limit.</p>
+          <div className="space-y-3">
+            <FieldGroup label="Max per session" hint="e.g. 1">
+              <Input type="number" min={0} value={String(frequency?.maxPerSession ?? '')} onChange={e => setFreq('maxPerSession', e.target.value ? Number(e.target.value) : undefined)} placeholder="Unlimited" className={inp} />
+            </FieldGroup>
+            <FieldGroup label="Max per user">
+              <Input type="number" min={0} value={String(frequency?.maxPerUser ?? '')} onChange={e => setFreq('maxPerUser', e.target.value ? Number(e.target.value) : undefined)} placeholder="Unlimited" className={inp} />
+            </FieldGroup>
+            <FieldGroup label="Cooldown (days)">
+              <Input type="number" min={0} value={String(frequency?.cooldownDays ?? '')} onChange={e => setFreq('cooldownDays', e.target.value ? Number(e.target.value) : undefined)} placeholder="None" className={inp} />
+            </FieldGroup>
+          </div>
+        </div>
+      )}
+
+      {onDelete && (
+        <div className="pt-2 border-t border-border">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-full gap-1.5 text-xs text-red-400/70 hover:bg-red-500/10 hover:text-red-400"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete Trigger
+          </Button>
         </div>
       )}
     </div>
@@ -674,15 +750,13 @@ function ActionPanel({
 }
 
 function SettingsPanel({
-  definition, onFrequencyChange, onAbTestChange, onPriorityChange,
+  definition, onAbTestChange, onPriorityChange,
 }: {
   definition: AutomationDefinition;
-  onFrequencyChange: (f: AutomationDefinition['frequency']) => void;
   onAbTestChange: (ab: AutomationDefinition['abTest']) => void;
   onPriorityChange: (p: number) => void;
 }) {
-  const { frequency, abTest, priority = 50 } = definition;
-  const setFreq = (key: string, val: number | undefined) => onFrequencyChange({ ...frequency, [key]: val });
+  const { abTest, priority = 50 } = definition;
   const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground';
 
   const addVariant = () => {
@@ -697,20 +771,6 @@ function SettingsPanel({
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Frequency Caps</p>
-        <div className="space-y-3">
-          <FieldGroup label="Max Per Session" hint="0 = unlimited">
-            <Input type="number" min={0} value={String(frequency?.maxPerSession ?? '')} onChange={e => setFreq('maxPerSession', e.target.value ? Number(e.target.value) : undefined)} placeholder="1" className={inp} />
-          </FieldGroup>
-          <FieldGroup label="Max Per User">
-            <Input type="number" min={0} value={String(frequency?.maxPerUser ?? '')} onChange={e => setFreq('maxPerUser', e.target.value ? Number(e.target.value) : undefined)} placeholder="3" className={inp} />
-          </FieldGroup>
-          <FieldGroup label="Cooldown (days)">
-            <Input type="number" min={0} value={String(frequency?.cooldownDays ?? '')} onChange={e => setFreq('cooldownDays', e.target.value ? Number(e.target.value) : undefined)} placeholder="7" className={inp} />
-          </FieldGroup>
-        </div>
-      </div>
 
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -1005,19 +1065,35 @@ function PaletteRow({
 }
 
 function NodePalette({
-  tab, onTab, onAddTrigger, onAddAction, onDragStart,
+  tab, onTab, onAddTrigger, onAddAction, onDragStart, onClose, onAddCondition,
 }: {
   tab: 'triggers' | 'actions';
   onTab: (t: 'triggers' | 'actions') => void;
   onAddTrigger: (type: string) => void;
   onAddAction: (type: string) => void;
   onDragStart: (e: React.DragEvent, kind: 'trigger' | 'action', type: string) => void;
+  onClose?: () => void;
+  onAddCondition?: () => void;
 }) {
   return (
     <div className="flex h-full flex-col">
       <div className="shrink-0 border-b border-border/60 p-4">
-        <h3 className="text-sm font-semibold text-foreground">Add a node</h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">Drag onto the canvas, or click to add.</p>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">Add a node</h3>
+            <p className="mt-0.5 text-xs text-muted-foreground">Drag onto the canvas, or click to add.</p>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Close panel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
         <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
           {(['triggers', 'actions'] as const).map(t => (
             <button
@@ -1060,6 +1136,22 @@ function NodePalette({
                 onClick={() => onAddAction(a.value)}
               />
             ))}
+
+        {tab === 'actions' && onAddCondition && (
+          <button
+            type="button"
+            onClick={onAddCondition}
+            className="mt-2 flex w-full items-center gap-3 rounded-xl border border-dashed border-border/70 bg-transparent px-3 py-2.5 text-left transition-colors hover:border-amber-500/50 hover:bg-amber-500/[0.04]"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+              <Filter className="h-4 w-4 text-amber-500" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-foreground">Add condition</p>
+              <p className="truncate text-[11px] text-muted-foreground">Gate the flow with rules (optional)</p>
+            </div>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1068,7 +1160,7 @@ function NodePalette({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const DEFAULT_DEFINITION: AutomationDefinition = {
-  trigger: { type: '' }, // empty = no trigger yet; canvas prompts to add one
+  triggers: [], // empty = no trigger yet; canvas prompts to add one
   conditions: null,
   actions: [],
   frequency: {},
@@ -1077,12 +1169,14 @@ const DEFAULT_DEFINITION: AutomationDefinition = {
 };
 
 export function AutomationBuilder({ initialDefinition, onSave, isSaving, className }: AutomationBuilderProps) {
-  const [definition, setDefinition] = useState<AutomationDefinition>(initialDefinition ?? DEFAULT_DEFINITION);
+  const [definition, setDefinition] = useState<AutomationDefinition>(() => {
+    const base = initialDefinition ?? DEFAULT_DEFINITION;
+    return { ...base, triggers: normalizeTriggers(base), trigger: undefined };
+  });
   const [selected, setSelected] = useState<SelectedNode | null>(null);
   const [paletteTab, setPaletteTab] = useState<'triggers' | 'actions'>('triggers');
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [addAfterIndex, setAddAfterIndex] = useState<number | null>(null);
   const [dragSrc, setDragSrc] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [showJson, setShowJson] = useState(false);
@@ -1116,9 +1210,15 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
   const onCanvasMouseUp = () => { panRef.current.active = false; };
 
   const hasCondition = !!definition.conditions?.rules?.length;
-  const td = getTriggerType(definition.trigger.type);
+  const triggers = definition.triggers ?? [];
+  const hasTrigger = triggers.length > 0;
 
-  const updateTrigger = (t: { type: string; [k: string]: unknown }) => setDefinition(d => ({ ...d, trigger: t }));
+  const updateTrigger = (index: number, t: TriggerConfig) =>
+    setDefinition(d => ({ ...d, triggers: (d.triggers ?? []).map((x, i) => (i === index ? t : x)) }));
+  const deleteTrigger = (index: number) => {
+    setDefinition(d => ({ ...d, triggers: (d.triggers ?? []).filter((_, i) => i !== index) }));
+    if (selected?.kind === 'trigger' && selected.index === index) setSelected(null);
+  };
   const updateConditions = (c: ConditionGroup | null) => setDefinition(d => ({ ...d, conditions: c }));
   const updateAction = (i: number, a: { type: string; [k: string]: unknown }) => setDefinition(d => ({ ...d, actions: d.actions.map((x, idx) => idx === i ? a : x) }));
   const deleteAction = (i: number) => {
@@ -1130,12 +1230,13 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
     if (selected?.kind === 'condition') setSelected(null);
   };
 
-  const hasTrigger = !!definition.trigger.type;
-
   // Add nodes from the palette (click or drop).
   const addTriggerType = (type: string) => {
-    setDefinition(d => ({ ...d, trigger: { type } }));
-    setSelected({ kind: 'trigger' });
+    setDefinition(d => {
+      const next = { ...d, triggers: [...(d.triggers ?? []), { type } as TriggerConfig] };
+      setSelected({ kind: 'trigger', index: next.triggers.length - 1 });
+      return next;
+    });
   };
   const addActionType = (type: string) => {
     setDefinition(d => {
@@ -1143,6 +1244,19 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
       setSelected({ kind: 'action', index: next.actions.length - 1 });
       return next;
     });
+  };
+
+  /** Emit both `triggers[]` and legacy `trigger` (first) so the backend stays compatible. */
+  const handleSave = () => onSave({ ...definition, trigger: (definition.triggers ?? [])[0] });
+
+  // Switch the always-visible palette tab (and close any open node modal).
+  const openPalette = (tab: 'triggers' | 'actions') => {
+    setSelected(null);
+    setPaletteTab(tab);
+  };
+  const addCondition = () => {
+    setDefinition(d => ({ ...d, conditions: { operator: 'AND', rules: [] } }));
+    setSelected({ kind: 'condition' });
   };
 
   // Palette → canvas drag & drop.
@@ -1168,17 +1282,6 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
     } catch { /* ignore */ }
   };
 
-  const handleAddNode = (choice: AddNodeChoice) => {
-    if (choice.nodeKind === 'condition') {
-      setDefinition(d => ({ ...d, conditions: { operator: 'AND', rules: [] } }));
-      setSelected({ kind: 'condition' });
-    } else {
-      const newAction = defaultAction(choice.actionType);
-      setDefinition(d => ({ ...d, actions: [...d.actions, newAction] }));
-      setSelected({ kind: 'action', index: definition.actions.length });
-    }
-    setAddAfterIndex(null);
-  };
 
   const handleDragStart = (i: number) => setDragSrc(i);
   const handleDragOver = (e: React.DragEvent, i: number) => { e.preventDefault(); setDragOver(i); };
@@ -1198,6 +1301,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
 
   return (
     <div className={cn('flex h-full min-h-0 overflow-hidden', className)}>
+      <style>{`@keyframes seenticsFlowDown { to { stroke-dashoffset: -20; } }`}</style>
       {/* Canvas */}
       <div
         ref={canvasRef}
@@ -1265,7 +1369,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
           <Button
             size="sm"
             className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground border-0 text-xs px-3"
-            onClick={() => onSave(definition)}
+            onClick={handleSave}
             disabled={isSaving}
           >
             <Save className="h-3.5 w-3.5" />
@@ -1287,7 +1391,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
               <button
                 type="button"
                 data-node="true"
-                onClick={() => addTriggerType('page_view')}
+                onClick={() => openPalette('triggers')}
                 className="group flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-border bg-card/60 px-10 py-9 text-center transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"
               >
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500 transition-transform group-hover:scale-105">
@@ -1305,24 +1409,42 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
               </button>
             ) : (
             <>
-            {/* Trigger Node */}
-            <NodeCard
-              strip="bg-emerald-500"
-              iconBg="bg-emerald-500/15"
-              iconColor="text-emerald-400"
-              icon={td.icon}
-              label="Trigger"
-              title={td.label}
-              subtitle={
-                definition.trigger.type === 'page_view' && definition.trigger.path
-                  ? String(definition.trigger.path)
-                  : td.description
-              }
-              selected={selected?.kind === 'trigger'}
-              onClick={() => setSelected({ kind: 'trigger' })}
-            />
+            {/* Trigger Nodes (any of them fires the automation) */}
+            {triggers.map((trg, ti) => {
+              const tdef = getTriggerType(trg.type);
+              return (
+                <React.Fragment key={ti}>
+                  {ti > 0 && (
+                    <div className="my-1 flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      <span className="h-px w-6 bg-border" /> or <span className="h-px w-6 bg-border" />
+                    </div>
+                  )}
+                  <NodeCard
+                    strip="bg-emerald-500"
+                    iconBg="bg-emerald-500/15"
+                    iconColor="text-emerald-400"
+                    icon={tdef.icon}
+                    label={triggers.length > 1 ? `Trigger ${ti + 1}` : 'Trigger'}
+                    title={tdef.label}
+                    subtitle={trg.type === 'page_view' && trg.path ? String(trg.path) : tdef.description}
+                    selected={selected?.kind === 'trigger' && selected.index === ti}
+                    onClick={() => setSelected({ kind: 'trigger', index: ti })}
+                    onDelete={triggers.length > 1 ? () => deleteTrigger(ti) : undefined}
+                  />
+                </React.Fragment>
+              );
+            })}
 
-            <NodeConnector onAdd={() => setAddAfterIndex(-1)} />
+            {/* Add another trigger */}
+            <button
+              type="button"
+              onClick={() => openPalette('triggers')}
+              className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:text-emerald-600"
+            >
+              <Plus className="h-3 w-3" /> Add trigger
+            </button>
+
+            <NodeConnector onAdd={() => openPalette('actions')} />
 
             {/* Condition node */}
             {hasCondition && (
@@ -1339,7 +1461,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
                   onClick={() => setSelected({ kind: 'condition' })}
                   onDelete={deleteCondition}
                 />
-                <NodeConnector onAdd={() => setAddAfterIndex(0)} />
+                <NodeConnector onAdd={() => openPalette('actions')} />
               </>
             )}
 
@@ -1365,7 +1487,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
                     onDrop={() => handleDrop(i)}
                     dragIndicator={dragOver === i && dragSrc !== i}
                   />
-                  <NodeConnector onAdd={() => setAddAfterIndex(i)} />
+                  <NodeConnector onAdd={() => openPalette('actions')} />
                 </React.Fragment>
               );
             })}
@@ -1375,25 +1497,13 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
               <div
                 data-node="true"
                 className="w-64 rounded-xl border-2 border-dashed border-border bg-transparent flex flex-col items-center justify-center py-7 gap-2 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
-                onClick={() => setAddAfterIndex(0)}
+                onClick={() => openPalette('actions')}
               >
                 <Layers className="h-6 w-6 text-muted-foreground" />
                 <p className="text-xs text-muted-foreground">Click + to add an action</p>
               </div>
             )}
 
-            {/* Settings node (always last) */}
-            <NodeCard
-              strip="bg-slate-500"
-              iconBg="bg-slate-500/15"
-              iconColor="text-slate-300"
-              icon={Settings}
-              label="Settings"
-              title="Workflow Settings"
-              subtitle={`Priority ${definition.priority ?? 50} · ${definition.abTest?.enabled ? `A/B (${definition.abTest.variants.length} variants)` : 'No A/B test'}`}
-              selected={selected?.kind === 'settings'}
-              onClick={() => setSelected({ kind: 'settings' })}
-            />
             </>
             )}
 
@@ -1402,93 +1512,107 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
 
         {/* Node count badge */}
         <div className="absolute bottom-4 left-4 flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span>{1 + (hasCondition ? 1 : 0) + definition.actions.length + 1} nodes</span>
+          <span>{triggers.length + (hasCondition ? 1 : 0) + definition.actions.length} nodes</span>
           <span>·</span>
           <span>Drag canvas to pan · Ctrl+scroll to zoom</span>
         </div>
       </div>
 
-      {/* Right sidebar */}
-      <aside className="flex w-[300px] shrink-0 flex-col overflow-hidden border-l border-border/60 bg-card lg:w-[340px]">
-        {selected ? (
-          <>
-          {/* Header */}
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
-            {(() => {
-              const at = selected.kind === 'action' ? getActionType(definition.actions[selected.index]?.type ?? '') : null;
-              const meta =
-                selected.kind === 'trigger'
-                  ? { icon: Zap, color: 'text-emerald-500', bg: 'bg-emerald-500/10', title: 'Trigger', sub: 'The event that starts this automation' }
-                  : selected.kind === 'condition'
-                    ? { icon: Filter, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'Conditions', sub: 'Rules that gate the automation' }
-                    : selected.kind === 'action'
-                      ? { icon: at!.icon, color: at!.iconColor, bg: at!.iconBg, title: at!.label, sub: 'What happens when it fires' }
-                      : { icon: Settings, color: 'text-slate-500', bg: 'bg-slate-500/10', title: 'Settings', sub: 'Frequency, priority & A/B testing' };
-              const Icon = meta.icon;
-              return (
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', meta.bg)}>
-                    <Icon className={cn('h-5 w-5', meta.color)} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{meta.title}</p>
-                    <p className="truncate text-[11px] text-muted-foreground">{meta.sub}</p>
-                  </div>
-                </div>
-              );
-            })()}
-            <button
-              type="button"
-              onClick={() => setSelected(null)}
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Panel content */}
-          <div className="flex-1 overflow-y-auto p-5">
-            {selected.kind === 'trigger' && (
-              <TriggerPanel trigger={definition.trigger} onChange={updateTrigger} />
-            )}
-            {selected.kind === 'condition' && (
-              <ConditionPanel conditions={definition.conditions} onChange={updateConditions} />
-            )}
-            {selected.kind === 'action' && definition.actions[selected.index] && (
-              <ActionPanel
-                action={definition.actions[selected.index]!}
-                onChange={a => updateAction(selected.index, a)}
-                onDelete={() => deleteAction(selected.index)}
-              />
-            )}
-            {selected.kind === 'settings' && (
-              <SettingsPanel
-                definition={definition}
-                onFrequencyChange={f => setDefinition(d => ({ ...d, frequency: f }))}
-                onAbTestChange={ab => setDefinition(d => ({ ...d, abTest: ab }))}
-                onPriorityChange={p => setDefinition(d => ({ ...d, priority: p }))}
-              />
-            )}
-          </div>
-          </>
-        ) : (
-          <NodePalette
-            tab={paletteTab}
-            onTab={setPaletteTab}
-            onAddTrigger={addTriggerType}
-            onAddAction={addActionType}
-            onDragStart={onPaletteDragStart}
-          />
-        )}
+      {/* Right sidebar — node palette (triggers & actions) */}
+      <aside className="flex w-[280px] shrink-0 flex-col overflow-hidden border-l border-border/60 bg-card lg:w-[320px]">
+        <NodePalette
+          tab={paletteTab}
+          onTab={setPaletteTab}
+          onAddTrigger={addTriggerType}
+          onAddAction={addActionType}
+          onDragStart={onPaletteDragStart}
+          onAddCondition={hasCondition ? undefined : addCondition}
+        />
       </aside>
 
-      {/* Add node modal */}
-      {addAfterIndex !== null && (
-        <AddNodeModal
-          hasCondition={hasCondition}
-          onAdd={handleAddNode}
-          onClose={() => setAddAfterIndex(null)}
-        />
+      {/* Node config modal — opens when a node is clicked */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            className="relative flex max-h-[86dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border/60 bg-card shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
+              {(() => {
+                const at = selected.kind === 'action' ? getActionType(definition.actions[selected.index]?.type ?? '') : null;
+                const tdSel = selected.kind === 'trigger' ? getTriggerType(triggers[selected.index]?.type ?? '') : null;
+                const meta =
+                  selected.kind === 'trigger'
+                    ? { icon: tdSel!.icon, color: 'text-emerald-500', bg: 'bg-emerald-500/10', title: tdSel!.label, sub: 'When this event happens…' }
+                    : selected.kind === 'condition'
+                      ? { icon: Filter, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'Conditions', sub: 'Rules that gate the automation' }
+                      : selected.kind === 'action'
+                        ? { icon: at!.icon, color: at!.iconColor, bg: at!.iconBg, title: at!.label, sub: 'What happens when it fires' }
+                        : { icon: Settings, color: 'text-slate-500', bg: 'bg-slate-500/10', title: 'Workflow settings', sub: 'Priority & A/B testing' };
+                const Icon = meta.icon;
+                return (
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', meta.bg)}>
+                      <Icon className={cn('h-5 w-5', meta.color)} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-bold text-foreground">{meta.title}</p>
+                      <p className="truncate text-xs text-muted-foreground">{meta.sub}</p>
+                    </div>
+                  </div>
+                );
+              })()}
+              <button
+                type="button"
+                onClick={() => setSelected(null)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="min-h-0 flex-1 overflow-y-auto p-5">
+              {selected.kind === 'trigger' && triggers[selected.index] && (
+                <TriggerPanel
+                  trigger={triggers[selected.index]!}
+                  onChange={t => updateTrigger(selected.index, t)}
+                  onDelete={triggers.length > 1 ? () => { deleteTrigger(selected.index); setSelected(null); } : undefined}
+                  frequency={definition.frequency}
+                  onFrequencyChange={f => setDefinition(d => ({ ...d, frequency: f }))}
+                />
+              )}
+              {selected.kind === 'condition' && (
+                <ConditionPanel conditions={definition.conditions} onChange={updateConditions} />
+              )}
+              {selected.kind === 'action' && definition.actions[selected.index] && (
+                <ActionPanel
+                  action={definition.actions[selected.index]!}
+                  onChange={a => updateAction(selected.index, a)}
+                  onDelete={() => { deleteAction(selected.index); setSelected(null); }}
+                />
+              )}
+              {selected.kind === 'settings' && (
+                <SettingsPanel
+                  definition={definition}
+                  onAbTestChange={ab => setDefinition(d => ({ ...d, abTest: ab }))}
+                  onPriorityChange={p => setDefinition(d => ({ ...d, priority: p }))}
+                />
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 border-t border-border/60 bg-muted/20 p-3">
+              <Button className="h-10 w-full font-semibold" onClick={() => setSelected(null)}>Done</Button>
+            </div>
+          </motion.div>
+        </div>
       )}
 
       {/* JSON editor modal */}
