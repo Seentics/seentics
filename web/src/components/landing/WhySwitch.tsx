@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Check, X, Minus } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type Cell = true | false | 'partial';
 
@@ -43,6 +44,20 @@ function CellMark({ value }: { value: Cell }) {
   );
 }
 
+function ToolCell({ label, value, highlight }: { label: string; value: Cell; highlight?: boolean }) {
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5',
+        highlight ? 'border-primary/30 bg-primary/[0.06]' : 'border-border/50',
+      )}
+    >
+      <span className={cn('text-xs font-medium', highlight ? 'text-primary' : 'text-muted-foreground')}>{label}</span>
+      <CellMark value={value} />
+    </div>
+  );
+}
+
 export default function WhySwitch() {
   return (
     <section className="bg-background py-24 md:py-32">
@@ -61,8 +76,23 @@ export default function WhySwitch() {
           </p>
         </div>
 
-        {/* Comparison matrix */}
-        <div className="mx-auto max-w-6xl overflow-x-auto">
+        {/* Comparison matrix — mobile (stacked cards) */}
+        <div className="mx-auto max-w-md space-y-3 md:hidden">
+          {ROWS.map((row) => (
+            <div key={row.feature} className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+              <p className="mb-3 text-sm font-semibold text-foreground">{row.feature}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <ToolCell label="Seentics" value={row.seentics} highlight />
+                <ToolCell label="GA4" value={row.ga4} />
+                <ToolCell label="Plausible" value={row.plausible} />
+                <ToolCell label="Hotjar" value={row.hotjar} />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Comparison matrix — desktop table */}
+        <div className="mx-auto hidden max-w-6xl overflow-x-auto md:block">
           <table className="w-full min-w-[680px] border-separate border-spacing-0">
             <thead>
               <tr>

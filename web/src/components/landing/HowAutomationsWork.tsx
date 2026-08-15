@@ -45,6 +45,22 @@ function pctTop(y: number) {
   return `${(y / 560) * 100}%`;
 }
 
+type FlowNode = { icon: typeof Zap; label: string; desc: string; color: string; bg: string };
+
+function FlowChip({ item }: { item: FlowNode }) {
+  return (
+    <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card p-2.5 shadow-sm">
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.bg}`}>
+        <item.icon className={`h-4 w-4 ${item.color}`} />
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-xs font-semibold text-foreground">{item.label}</p>
+        <p className="truncate text-[10px] text-muted-foreground">{item.desc}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function HowAutomationsWork() {
   return (
     <section className="relative overflow-hidden bg-transparent py-24 md:py-32">
@@ -69,8 +85,39 @@ export default function HowAutomationsWork() {
           </p>
         </div>
 
-        {/* Live flow diagram (transparent — no card) */}
-        <div className="overflow-x-auto pb-4">
+        {/* Mobile vertical flow */}
+        <div className="md:hidden">
+          <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+            When this happens
+          </p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {TRIGGERS.map((t) => (
+              <FlowChip key={t.label} item={t} />
+            ))}
+          </div>
+
+          <div className="my-4 flex flex-col items-center">
+            <div className="h-5 w-px bg-border" />
+            <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30">
+              <span className="absolute inset-0 rounded-full bg-primary/30" style={{ animation: 'seenticsPulse 2s ease-in-out infinite' }} />
+              <Zap className="relative h-6 w-6 fill-current" />
+            </div>
+            <p className="mt-1.5 text-xs font-bold text-foreground">Seentics</p>
+            <div className="h-5 w-px bg-border" />
+          </div>
+
+          <p className="mb-3 text-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+            Do this automatically
+          </p>
+          <div className="grid grid-cols-2 gap-2.5">
+            {ACTIONS.map((a) => (
+              <FlowChip key={a.label} item={a} />
+            ))}
+          </div>
+        </div>
+
+        {/* Live flow diagram (desktop, transparent — no card) */}
+        <div className="hidden overflow-x-auto pb-4 md:block">
           <div className="relative mx-auto aspect-[1000/560] w-full min-w-[860px] max-w-6xl">
             {/* Soft glow behind the hub */}
             <div
