@@ -307,7 +307,28 @@ export default function HeroPreviewStack() {
   const inactive = PANELS.map((_, idx) => idx).filter((idx) => idx !== active);
 
   return (
-    <div className="relative space-y-5 md:h-[760px] md:space-y-0">
+    <div className="relative md:h-[760px]">
+      {/* Mobile tab switcher — the desktop cascade/click interaction needs pointer + space,
+          so on small screens we show one preview at a time with tabs. */}
+      <div className="mb-4 grid grid-cols-3 gap-2 md:hidden">
+        {PANELS.map((p, i) => (
+          <button
+            key={p.key}
+            type="button"
+            onClick={() => setActive(i)}
+            aria-pressed={active === i}
+            className={cn(
+              'rounded-lg border px-2 py-2 text-[11px] font-semibold transition-colors',
+              active === i
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'border-border/60 bg-card text-muted-foreground',
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       {PANELS.map((p, i) => {
         const rank = i === active ? 0 : inactive.indexOf(i) + 1; // 0 = front
         const slot = SLOTS[rank];
@@ -335,7 +356,9 @@ export default function HeroPreviewStack() {
               'group relative h-[420px] w-full overflow-hidden rounded-2xl border border-border/60 bg-card outline-none sm:h-[480px]',
               'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
               'transition-all duration-500 ease-out md:cursor-pointer',
-              // Slot-based cascade: width, vertical offset, z and scale all come from the slot,
+              // Mobile: only the selected preview is shown (tabs switch it).
+              i !== active && 'hidden md:block',
+              // Desktop: slot-based cascade — width, offset, z and scale come from the slot,
               // so activating a layer animates every layer to its new slot.
               'md:absolute md:left-1/2 md:top-0 md:h-[600px] md:[width:var(--w)] md:[transform:translateX(-50%)_translateY(var(--ty))_scale(var(--sc))] md:[z-index:var(--z)]',
               isActive
@@ -346,12 +369,12 @@ export default function HeroPreviewStack() {
           >
             {p.node}
 
-            {/* Corner label — always visible so the stack hierarchy is readable */}
+            {/* Corner label — desktop only (mobile uses the tab bar) */}
             <span className="pointer-events-none absolute left-3 top-3 z-20 hidden rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur md:block">
               {p.label}
             </span>
 
-            {/* Hover cue — prompt to click (only on the non-front layers) */}
+            {/* Hover cue — prompt to click (desktop, non-front layers) */}
             {!isActive && (
               <span className="pointer-events-none absolute left-1/2 bottom-3 z-30 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-foreground/90 px-3 py-1.5 text-[11px] font-semibold text-background opacity-0 shadow-lg backdrop-blur transition-opacity duration-200 md:flex md:group-hover:opacity-100">
                 <MousePointerClick className="h-3.5 w-3.5" />
