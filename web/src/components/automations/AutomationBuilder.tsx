@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { motion } from 'framer-motion';
 import {
   Globe, MousePointer, TrendingDown, Clock, LogOut, Coffee, Zap,
   AlertTriangle, EyeOff, Eye, UserCheck, MessageSquare, Bell, Layout,
@@ -142,9 +143,9 @@ function defaultAction(type: string): { type: string; [k: string]: unknown } {
 function FieldGroup({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-white/60">{label}</Label>
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       {children}
-      {hint && <p className="text-[10px] text-white/30">{hint}</p>}
+      {hint && <p className="text-[10px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -160,11 +161,11 @@ function TriggerConfigForm({
     return (
       <div className="space-y-3">
         <FieldGroup label="Page Path" hint="Leave empty to match all pages">
-          <Input placeholder="/pricing" value={String(config.path ?? '')} onChange={e => set('path', e.target.value)} className="bg-white/5 border-white/10 text-white placeholder:text-white/25" />
+          <Input placeholder="/pricing" value={String(config.path ?? '')} onChange={e => set('path', e.target.value)} className="bg-muted border-border text-foreground placeholder:text-muted-foreground" />
         </FieldGroup>
         <FieldGroup label="Match Type">
           <Select value={String(config.match_type ?? 'contains')} onValueChange={v => set('match_type', v)}>
-            <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="exact">Exact</SelectItem>
               <SelectItem value="contains">Contains</SelectItem>
@@ -179,7 +180,7 @@ function TriggerConfigForm({
   if (type === 'click') {
     return (
       <FieldGroup label="CSS Selector" hint="e.g. #cta-button or .btn-primary">
-        <Input placeholder="#submit-button" value={String(config.selector ?? '')} onChange={e => set('selector', e.target.value)} className="bg-white/5 border-white/10 text-white placeholder:text-white/25" />
+        <Input placeholder="#submit-button" value={String(config.selector ?? '')} onChange={e => set('selector', e.target.value)} className="bg-muted border-border text-foreground placeholder:text-muted-foreground" />
       </FieldGroup>
     );
   }
@@ -187,7 +188,7 @@ function TriggerConfigForm({
     return (
       <FieldGroup label="Scroll Depth">
         <Select value={String(config.depth ?? '50')} onValueChange={v => set('depth', Number(v))}>
-          <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="25">25%</SelectItem>
             <SelectItem value="50">50%</SelectItem>
@@ -201,7 +202,7 @@ function TriggerConfigForm({
   if (type === 'time_on_page') {
     return (
       <FieldGroup label="Seconds on Page">
-        <Input type="number" min={1} placeholder="30" value={String(config.seconds ?? '')} onChange={e => set('seconds', Number(e.target.value))} className="bg-white/5 border-white/10 text-white placeholder:text-white/25" />
+        <Input type="number" min={1} placeholder="30" value={String(config.seconds ?? '')} onChange={e => set('seconds', Number(e.target.value))} className="bg-muted border-border text-foreground placeholder:text-muted-foreground" />
       </FieldGroup>
     );
   }
@@ -209,7 +210,7 @@ function TriggerConfigForm({
     return (
       <FieldGroup label="Inactivity Duration">
         <Select value={String(config.seconds ?? '60')} onValueChange={v => set('seconds', Number(v))}>
-          <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="30">30 seconds</SelectItem>
             <SelectItem value="60">1 minute</SelectItem>
@@ -223,11 +224,11 @@ function TriggerConfigForm({
   if (type === 'custom_event') {
     return (
       <FieldGroup label="Event Name" hint="Exact name used in snc('track', ...)">
-        <Input placeholder="checkout_started" value={String(config.name ?? '')} onChange={e => set('name', e.target.value)} className="bg-white/5 border-white/10 text-white placeholder:text-white/25" />
+        <Input placeholder="checkout_started" value={String(config.name ?? '')} onChange={e => set('name', e.target.value)} className="bg-muted border-border text-foreground placeholder:text-muted-foreground" />
       </FieldGroup>
     );
   }
-  return <p className="text-xs text-white/30 italic">No configuration needed for this trigger.</p>;
+  return <p className="text-xs text-muted-foreground italic">No configuration needed for this trigger.</p>;
 }
 
 // ─── Action Config Form ───────────────────────────────────────────────────────
@@ -238,8 +239,8 @@ function ActionConfigForm({
   const set = (key: string, val: unknown) => onChange({ ...action, [key]: val });
   const tplHint = 'Supports {{user.firstName | default:there}}, {{user.plan}}, {{page}}';
   const t = action.type;
-  const inp = 'bg-white/5 border-white/10 text-white placeholder:text-white/25';
-  const ta = 'bg-white/5 border-white/10 text-white placeholder:text-white/25 font-mono text-xs';
+  const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground';
+  const ta = 'bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-xs';
 
   if (t === 'show_modal') {
     return (
@@ -341,7 +342,7 @@ function ActionConfigForm({
           <FieldGroup label="Scroll Into View">
             <div className="flex items-center gap-2 pt-2">
               <Switch checked={Boolean(action.scroll_into_view ?? true)} onCheckedChange={v => set('scroll_into_view', v)} />
-              <span className="text-xs text-white/40">{Boolean(action.scroll_into_view ?? true) ? 'Yes' : 'No'}</span>
+              <span className="text-xs text-muted-foreground">{Boolean(action.scroll_into_view ?? true) ? 'Yes' : 'No'}</span>
             </div>
           </FieldGroup>
         </div>
@@ -394,7 +395,7 @@ function ActionConfigForm({
           <FieldGroup label="New Tab">
             <div className="flex items-center gap-2 pt-2">
               <Switch checked={Boolean(action.new_tab)} onCheckedChange={v => set('new_tab', v)} />
-              <span className="text-xs text-white/40">{Boolean(action.new_tab) ? 'Yes' : 'No'}</span>
+              <span className="text-xs text-muted-foreground">{Boolean(action.new_tab) ? 'Yes' : 'No'}</span>
             </div>
           </FieldGroup>
         </div>
@@ -438,7 +439,7 @@ function ActionConfigForm({
     );
   }
 
-  return <p className="text-xs text-white/30 italic">No configuration for this action type.</p>;
+  return <p className="text-xs text-muted-foreground italic">No configuration for this action type.</p>;
 }
 
 // ─── Node Connector ───────────────────────────────────────────────────────────
@@ -447,7 +448,7 @@ function NodeConnector({ onAdd }: { onAdd: () => void }) {
   const [hovered, setHovered] = useState(false);
   return (
     <div className="flex flex-col items-center" onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
-      <div className="h-5 w-px bg-white/15" />
+      <div className="h-5 w-px bg-muted" />
       <button
         type="button"
         onClick={e => { e.stopPropagation(); onAdd(); }}
@@ -455,12 +456,12 @@ function NodeConnector({ onAdd }: { onAdd: () => void }) {
           'h-6 w-6 rounded-full border flex items-center justify-center transition-all duration-150 z-10',
           hovered
             ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400 scale-110'
-            : 'border-white/15 bg-[#1c1c24] text-white/30',
+            : 'border-border bg-card text-muted-foreground',
         )}
       >
         <Plus className="h-3 w-3" />
       </button>
-      <div className="h-5 w-px bg-white/15" />
+      <div className="h-5 w-px bg-muted" />
     </div>
   );
 }
@@ -496,46 +497,37 @@ function NodeCard({
       onDragOver={onDragOver}
       onDrop={onDrop}
       className={cn(
-        'w-64 rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden select-none group',
-        selected
-          ? 'border-white/25 shadow-[0_0_0_2px_rgba(255,255,255,0.10)] bg-[#1e1e2a]'
-          : 'border-white/8 bg-[#16161e] hover:border-white/18 hover:bg-[#1b1b24]',
-        dragIndicator && 'border-emerald-500/50 shadow-[0_0_0_2px_rgba(16,185,129,0.15)]',
+        'group relative w-72 cursor-pointer select-none rounded-2xl border bg-card p-4 shadow-sm transition-all duration-150',
+        selected ? 'border-primary ring-2 ring-primary/20' : 'border-border/70 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md',
+        dragIndicator && 'border-emerald-500/60 ring-2 ring-emerald-500/20',
       )}
       onClick={onClick}
     >
-      {/* Colored left strip */}
-      <div className="flex">
-        <div className={cn('w-1 shrink-0 rounded-l-xl', strip)} />
-        <div className="flex-1 px-3 py-3">
-          {/* Node type label */}
-          <div className="flex items-center justify-between mb-2.5">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/25">{label}</span>
-            <div className="flex items-center gap-1">
-              {draggable && (
-                <GripVertical className="h-3.5 w-3.5 text-white/15 group-hover:text-white/30 transition-colors" />
-              )}
+      <div className="flex items-start gap-3">
+        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', iconBg)}>
+          <Icon className={cn('h-5 w-5', iconColor)} style={{ width: 20, height: 20 }} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <span className={cn('h-1.5 w-1.5 rounded-full', strip)} />
+              {label}
+            </span>
+            <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              {draggable && <GripVertical className="h-3.5 w-3.5 text-muted-foreground/60" />}
               {onDelete && (
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); onDelete(); }}
-                  className="h-5 w-5 rounded flex items-center justify-center text-white/15 hover:text-red-400 hover:bg-red-500/10 transition-colors opacity-0 group-hover:opacity-100"
+                  className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-500"
                 >
                   <X className="h-3 w-3" />
                 </button>
               )}
             </div>
           </div>
-          {/* Icon + title row */}
-          <div className="flex items-center gap-2.5">
-            <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', iconBg)}>
-              <Icon className={cn('h-4.5 w-4.5', iconColor)} style={{ width: 18, height: 18 }} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white/90 truncate leading-tight">{title}</p>
-              <p className="text-[11px] text-white/35 truncate mt-0.5 leading-tight">{subtitle}</p>
-            </div>
-          </div>
+          <p className="mt-0.5 truncate text-sm font-semibold leading-tight text-foreground">{title}</p>
+          <p className="mt-0.5 truncate text-[11px] leading-tight text-muted-foreground">{subtitle}</p>
         </div>
       </div>
     </div>
@@ -552,9 +544,9 @@ function TriggerPanel({
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-3">Trigger Type</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Trigger Type</p>
         <Select value={type} onValueChange={v => onChange({ type: v })}>
-          <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent>
             {TRIGGER_TYPES.map(tt => (
               <SelectItem key={tt.value} value={tt.value}>
@@ -566,11 +558,11 @@ function TriggerPanel({
             ))}
           </SelectContent>
         </Select>
-        <p className="text-[11px] text-white/30 mt-2">{td.description}</p>
+        <p className="text-[11px] text-muted-foreground mt-2">{td.description}</p>
       </div>
       {td.hasConfig && (
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-3">Configuration</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Configuration</p>
           <TriggerConfigForm type={type} config={config as Record<string, unknown>} onChange={cfg => onChange({ type, ...cfg })} />
         </div>
       )}
@@ -583,7 +575,7 @@ function ConditionPanel({
 }: { conditions: ConditionGroup | null | undefined; onChange: (c: ConditionGroup | null) => void }) {
   const rules = conditions?.rules ?? [];
   const operator = conditions?.operator ?? 'AND';
-  const inp = 'bg-white/5 border-white/10 text-white placeholder:text-white/25 h-8 text-xs';
+  const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-xs';
 
   const addRule = () => onChange({ operator: operator as 'AND' | 'OR' | 'NOT', rules: [...rules, { fact: '', operator: 'equals', value: '' }] });
   const removeRule = (i: number) => { const r = rules.filter((_, idx) => idx !== i); onChange(r.length ? { operator: operator as 'AND' | 'OR' | 'NOT', rules: r } : null); };
@@ -591,7 +583,7 @@ function ConditionPanel({
 
   return (
     <div className="space-y-4">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Conditions</p>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Conditions</p>
       {rules.length > 1 && (
         <div className="flex gap-2">
           {(['AND', 'OR'] as const).map(op => (
@@ -599,20 +591,20 @@ function ConditionPanel({
               key={op}
               type="button"
               onClick={() => onChange({ operator: op, rules })}
-              className={cn('px-3 py-1 rounded text-xs font-semibold transition-colors', operator === op ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10')}
+              className={cn('px-3 py-1 rounded text-xs font-semibold transition-colors', operator === op ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-muted text-muted-foreground border border-border hover:bg-muted')}
             >
               {op}
             </button>
           ))}
-          <span className="text-[10px] text-white/25 self-center">{operator === 'AND' ? 'all must match' : 'any can match'}</span>
+          <span className="text-[10px] text-muted-foreground self-center">{operator === 'AND' ? 'all must match' : 'any can match'}</span>
         </div>
       )}
       <div className="space-y-2">
         {rules.map((rule, i) => (
-          <div key={i} className="rounded-lg border border-white/8 bg-white/3 p-2.5 space-y-2">
+          <div key={i} className="rounded-lg border border-border bg-muted p-2.5 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] text-white/30">Rule {i + 1}</span>
-              <button type="button" onClick={() => removeRule(i)} className="text-white/20 hover:text-red-400 transition-colors"><X className="h-3 w-3" /></button>
+              <span className="text-[10px] text-muted-foreground">Rule {i + 1}</span>
+              <button type="button" onClick={() => removeRule(i)} className="text-muted-foreground hover:text-red-400 transition-colors"><X className="h-3 w-3" /></button>
             </div>
             <Input placeholder="fact (e.g. user.plan)" value={rule.fact} onChange={e => updateRule(i, { ...rule, fact: e.target.value })} className={inp} />
             <Select value={rule.operator} onValueChange={v => updateRule(i, { ...rule, operator: v })}>
@@ -631,11 +623,11 @@ function ConditionPanel({
           </div>
         ))}
       </div>
-      <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs border-white/10 bg-white/5 text-white/60 hover:bg-white/10 hover:text-white" onClick={addRule}>
+      <Button variant="outline" size="sm" className="h-7 gap-1.5 text-xs border-border bg-muted text-muted-foreground hover:bg-muted hover:text-foreground" onClick={addRule}>
         <Plus className="h-3 w-3" />
         Add Rule
       </Button>
-      {rules.length === 0 && <p className="text-[11px] text-white/25 italic">No rules — automation fires for all users.</p>}
+      {rules.length === 0 && <p className="text-[11px] text-muted-foreground italic">No rules — automation fires for all users.</p>}
     </div>
   );
 }
@@ -647,9 +639,9 @@ function ActionPanel({
   return (
     <div className="space-y-5">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-3">Action Type</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Action Type</p>
         <Select value={action.type} onValueChange={v => onChange(defaultAction(v))}>
-          <SelectTrigger className="bg-white/5 border-white/10 text-white"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent>
             {ACTION_TYPES.map(a => (
               <SelectItem key={a.value} value={a.value}>
@@ -663,10 +655,10 @@ function ActionPanel({
         </Select>
       </div>
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-3">Configuration</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Configuration</p>
         <ActionConfigForm action={action} onChange={onChange} />
       </div>
-      <div className="pt-2 border-t border-white/8">
+      <div className="pt-2 border-t border-border">
         <Button
           variant="ghost"
           size="sm"
@@ -691,7 +683,7 @@ function SettingsPanel({
 }) {
   const { frequency, abTest, priority = 50 } = definition;
   const setFreq = (key: string, val: number | undefined) => onFrequencyChange({ ...frequency, [key]: val });
-  const inp = 'bg-white/5 border-white/10 text-white placeholder:text-white/25';
+  const inp = 'bg-muted border-border text-foreground placeholder:text-muted-foreground';
 
   const addVariant = () => {
     const variants = abTest?.variants ?? [];
@@ -706,7 +698,7 @@ function SettingsPanel({
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-white/30 mb-3">Frequency Caps</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Frequency Caps</p>
         <div className="space-y-3">
           <FieldGroup label="Max Per Session" hint="0 = unlimited">
             <Input type="number" min={0} value={String(frequency?.maxPerSession ?? '')} onChange={e => setFreq('maxPerSession', e.target.value ? Number(e.target.value) : undefined)} placeholder="1" className={inp} />
@@ -722,18 +714,18 @@ function SettingsPanel({
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">Priority</p>
-          <Badge variant="outline" className="text-[10px] tabular-nums border-white/15 text-white/50">{priority}</Badge>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Priority</p>
+          <Badge variant="outline" className="text-[10px] tabular-nums border-border text-muted-foreground">{priority}</Badge>
         </div>
         <Slider min={1} max={100} step={1} value={[priority]} onValueChange={([v]) => onPriorityChange(v!)} className="w-full" />
-        <div className="flex justify-between text-[10px] text-white/25 mt-1">
+        <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
           <span>1 (lowest)</span><span>100 (highest)</span>
         </div>
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/30">A/B Testing</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">A/B Testing</p>
           <Switch checked={abTest?.enabled ?? false} onCheckedChange={v => onAbTestChange({ enabled: v, variants: abTest?.variants ?? [] })} />
         </div>
         {abTest?.enabled && (
@@ -742,11 +734,11 @@ function SettingsPanel({
               <div key={i} className="flex items-center gap-2">
                 <Input value={variant.id} onChange={e => updateVariant(i, 'id', e.target.value)} placeholder="variant-a" className={cn(inp, 'flex-1 h-8 text-xs')} />
                 <Input type="number" min={0} max={100} value={String(variant.weight)} onChange={e => updateVariant(i, 'weight', e.target.value)} className={cn(inp, 'w-16 h-8 text-xs text-right')} />
-                <span className="text-xs text-white/30">%</span>
-                <button type="button" onClick={() => removeVariant(i)} className="text-white/20 hover:text-red-400 transition-colors shrink-0"><X className="h-3.5 w-3.5" /></button>
+                <span className="text-xs text-muted-foreground">%</span>
+                <button type="button" onClick={() => removeVariant(i)} className="text-muted-foreground hover:text-red-400 transition-colors shrink-0"><X className="h-3.5 w-3.5" /></button>
               </div>
             ))}
-            <Button variant="outline" size="sm" className="h-7 gap-1 text-xs border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white" onClick={addVariant}>
+            <Button variant="outline" size="sm" className="h-7 gap-1 text-xs border-border bg-muted text-muted-foreground hover:bg-muted hover:text-foreground" onClick={addVariant}>
               <Plus className="h-3 w-3" />
               Add Variant
             </Button>
@@ -769,25 +761,40 @@ function AddNodeModal({
   const [tab, setTab] = useState<'condition' | 'action'>('action');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div
-        className="relative w-[420px] rounded-2xl border border-white/10 bg-[#18181f] shadow-2xl overflow-hidden"
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+        className="relative flex max-h-[86dvh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border/60 bg-card shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8">
-          <p className="text-sm font-semibold text-white">Add a node</p>
-          <button type="button" onClick={onClose} className="text-white/30 hover:text-white transition-colors"><X className="h-4 w-4" /></button>
+        <div className="flex items-start justify-between gap-4 border-b border-border/60 px-6 py-5">
+          <div>
+            <h3 className="text-lg font-bold tracking-tight text-foreground">Add a node</h3>
+            <p className="mt-0.5 text-sm text-muted-foreground">Choose what happens next in your automation.</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
+          </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-white/8">
+        <div className="flex gap-2 px-6 pt-4">
           {!hasCondition && (
             <button
               type="button"
               onClick={() => setTab('condition')}
-              className={cn('flex-1 py-2.5 text-xs font-medium transition-colors', tab === 'condition' ? 'text-amber-400 border-b-2 border-amber-500' : 'text-white/40 hover:text-white/70')}
+              className={cn(
+                'rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
+                tab === 'condition' ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+              )}
             >
               Condition
             </button>
@@ -795,46 +802,49 @@ function AddNodeModal({
           <button
             type="button"
             onClick={() => setTab('action')}
-            className={cn('flex-1 py-2.5 text-xs font-medium transition-colors', tab === 'action' ? 'text-violet-400 border-b-2 border-violet-500' : 'text-white/40 hover:text-white/70')}
+            className={cn(
+              'rounded-lg px-4 py-2 text-sm font-semibold transition-colors',
+              tab === 'action' ? 'bg-violet-500/15 text-violet-600 dark:text-violet-400' : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+            )}
           >
             Action
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 max-h-72 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto p-6 pt-4">
           {tab === 'condition' && !hasCondition && (
             <button
               type="button"
-              className="w-full flex items-center gap-3 rounded-xl border border-white/8 bg-white/3 hover:bg-white/6 p-3.5 text-left transition-colors"
+              className="group flex w-full items-center gap-4 rounded-2xl border border-border/60 bg-background p-5 text-left transition-all hover:-translate-y-0.5 hover:border-amber-500/40 hover:shadow-md"
               onClick={() => onAdd({ nodeKind: 'condition' })}
             >
-              <div className="h-9 w-9 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0">
-                <Filter className="h-4 w-4 text-amber-400" />
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15">
+                <Filter className="h-6 w-6 text-amber-500" />
               </div>
               <div>
-                <p className="text-sm font-medium text-white/90">Conditions</p>
-                <p className="text-xs text-white/35 mt-0.5">Add rules to control when this automation fires</p>
+                <p className="text-base font-semibold text-foreground">Conditions</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">Add rules to control exactly when this automation fires.</p>
               </div>
             </button>
           )}
           {tab === 'action' && (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {ACTION_TYPES.map(at => {
                 const Icon = at.icon;
                 return (
                   <button
                     key={at.value}
                     type="button"
-                    className="flex flex-col items-start gap-2.5 rounded-xl border border-white/8 bg-white/[0.03] hover:bg-white/[0.07] hover:border-white/15 p-3.5 text-left transition-all duration-150"
+                    className="group flex items-center gap-3.5 rounded-2xl border border-border/60 bg-background p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
                     onClick={() => onAdd({ nodeKind: 'action', actionType: at.value })}
                   >
-                    <div className={cn('h-9 w-9 rounded-lg flex items-center justify-center shrink-0', at.iconBg)}>
-                      <Icon className={cn('h-[18px] w-[18px]', at.iconColor)} />
+                    <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105', at.iconBg)}>
+                      <Icon className={cn('h-6 w-6', at.iconColor)} style={{ width: 24, height: 24 }} />
                     </div>
-                    <div>
-                      <p className="text-xs font-semibold text-white/85 leading-tight">{at.label}</p>
-                      <p className="text-[10px] text-white/30 leading-tight mt-0.5 line-clamp-2">{at.description}</p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold leading-tight text-foreground">{at.label}</p>
+                      <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-muted-foreground">{at.description}</p>
                     </div>
                   </button>
                 );
@@ -842,7 +852,7 @@ function AddNodeModal({
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -891,18 +901,18 @@ function JsonEditorModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-2xl rounded-2xl border border-white/10 bg-[#14141b] shadow-2xl flex flex-col overflow-hidden"
+        className="relative w-full max-w-2xl rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden"
         style={{ maxHeight: '85dvh' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/8 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <div className="flex items-center gap-2.5">
             <Braces className="h-4 w-4 text-violet-400" />
-            <span className="text-sm font-semibold text-white/90">JSON Config</span>
-            <span className="text-[10px] text-white/30 bg-white/5 border border-white/8 rounded px-1.5 py-0.5">AutomationDefinition</span>
+            <span className="text-sm font-semibold text-foreground">JSON Config</span>
+            <span className="text-[10px] text-muted-foreground bg-muted border border-border rounded px-1.5 py-0.5">AutomationDefinition</span>
           </div>
-          <button type="button" onClick={onClose} className="text-white/30 hover:text-white transition-colors">
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -913,7 +923,7 @@ function JsonEditorModal({
             value={text}
             onChange={e => { setText(e.target.value); setError(null); setApplied(false); }}
             spellCheck={false}
-            className="w-full h-full min-h-[340px] rounded-xl border border-white/8 bg-[#0d0d12] text-[13px] font-mono text-white/85 p-4 resize-none focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 leading-relaxed placeholder:text-white/20"
+            className="w-full h-full min-h-[340px] rounded-xl border border-border bg-muted/40 text-[13px] font-mono text-foreground p-4 resize-none focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 leading-relaxed placeholder:text-muted-foreground"
             placeholder="Paste or edit your automation JSON here…"
           />
         </div>
@@ -935,21 +945,21 @@ function JsonEditorModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-t border-white/8 shrink-0">
+        <div className="flex items-center justify-between px-5 py-3.5 border-t border-border shrink-0">
           <button
             type="button"
             onClick={handleFormat}
-            className="text-xs text-white/40 hover:text-white/70 transition-colors underline underline-offset-2"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
           >
             Format JSON
           </button>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-white/50 hover:text-white" onClick={onClose}>
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-foreground" onClick={onClose}>
               Cancel
             </Button>
             <Button
               size="sm"
-              className="h-8 gap-1.5 text-xs bg-violet-600 hover:bg-violet-500 text-white border-0 px-4"
+              className="h-8 gap-1.5 text-xs bg-violet-600 hover:bg-violet-500 text-foreground border-0 px-4"
               onClick={handleApply}
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
@@ -962,10 +972,103 @@ function JsonEditorModal({
   );
 }
 
+// ─── Node Palette (right sidebar default) ─────────────────────────────────────
+
+function PaletteRow({
+  icon: Icon, iconBg, iconColor, label, hint, onDragStart, onClick,
+}: {
+  icon: React.ElementType;
+  iconBg: string;
+  iconColor: string;
+  label: string;
+  hint?: string;
+  onDragStart: (e: React.DragEvent) => void;
+  onClick: () => void;
+}) {
+  return (
+    <div
+      draggable
+      onDragStart={onDragStart}
+      onClick={onClick}
+      className="group flex cursor-grab select-none items-center gap-3 rounded-xl border border-border/60 bg-background px-3 py-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md active:cursor-grabbing"
+    >
+      <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconBg)}>
+        <Icon className={cn('h-4 w-4', iconColor)} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-semibold text-foreground">{label}</p>
+        {hint ? <p className="truncate text-[11px] text-muted-foreground">{hint}</p> : null}
+      </div>
+      <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/30 transition-colors group-hover:text-muted-foreground/70" />
+    </div>
+  );
+}
+
+function NodePalette({
+  tab, onTab, onAddTrigger, onAddAction, onDragStart,
+}: {
+  tab: 'triggers' | 'actions';
+  onTab: (t: 'triggers' | 'actions') => void;
+  onAddTrigger: (type: string) => void;
+  onAddAction: (type: string) => void;
+  onDragStart: (e: React.DragEvent, kind: 'trigger' | 'action', type: string) => void;
+}) {
+  return (
+    <div className="flex h-full flex-col">
+      <div className="shrink-0 border-b border-border/60 p-4">
+        <h3 className="text-sm font-semibold text-foreground">Add a node</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">Drag onto the canvas, or click to add.</p>
+        <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
+          {(['triggers', 'actions'] as const).map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => onTab(t)}
+              className={cn(
+                'rounded-md py-1.5 text-xs font-semibold capitalize transition-colors',
+                tab === t ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
+        {tab === 'triggers'
+          ? TRIGGER_TYPES.map(t => (
+              <PaletteRow
+                key={t.value}
+                icon={t.icon}
+                iconBg="bg-emerald-500/10"
+                iconColor="text-emerald-500"
+                label={t.label}
+                hint={t.description}
+                onDragStart={e => onDragStart(e, 'trigger', t.value)}
+                onClick={() => onAddTrigger(t.value)}
+              />
+            ))
+          : ACTION_TYPES.map(a => (
+              <PaletteRow
+                key={a.value}
+                icon={a.icon}
+                iconBg={a.iconBg}
+                iconColor={a.iconColor}
+                label={a.label}
+                hint={a.description}
+                onDragStart={e => onDragStart(e, 'action', a.value)}
+                onClick={() => onAddAction(a.value)}
+              />
+            ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const DEFAULT_DEFINITION: AutomationDefinition = {
-  trigger: { type: 'page_view' },
+  trigger: { type: '' }, // empty = no trigger yet; canvas prompts to add one
   conditions: null,
   actions: [],
   frequency: {},
@@ -975,7 +1078,8 @@ const DEFAULT_DEFINITION: AutomationDefinition = {
 
 export function AutomationBuilder({ initialDefinition, onSave, isSaving, className }: AutomationBuilderProps) {
   const [definition, setDefinition] = useState<AutomationDefinition>(initialDefinition ?? DEFAULT_DEFINITION);
-  const [selected, setSelected] = useState<SelectedNode | null>({ kind: 'trigger' });
+  const [selected, setSelected] = useState<SelectedNode | null>(null);
+  const [paletteTab, setPaletteTab] = useState<'triggers' | 'actions'>('triggers');
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [addAfterIndex, setAddAfterIndex] = useState<number | null>(null);
@@ -1026,6 +1130,44 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
     if (selected?.kind === 'condition') setSelected(null);
   };
 
+  const hasTrigger = !!definition.trigger.type;
+
+  // Add nodes from the palette (click or drop).
+  const addTriggerType = (type: string) => {
+    setDefinition(d => ({ ...d, trigger: { type } }));
+    setSelected({ kind: 'trigger' });
+  };
+  const addActionType = (type: string) => {
+    setDefinition(d => {
+      const next = { ...d, actions: [...d.actions, defaultAction(type)] };
+      setSelected({ kind: 'action', index: next.actions.length - 1 });
+      return next;
+    });
+  };
+
+  // Palette → canvas drag & drop.
+  const PALETTE_MIME = 'application/x-seentics-node';
+  const onPaletteDragStart = (e: React.DragEvent, kind: 'trigger' | 'action', type: string) => {
+    e.dataTransfer.setData(PALETTE_MIME, JSON.stringify({ kind, type }));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+  const onCanvasDragOver = (e: React.DragEvent) => {
+    if (Array.from(e.dataTransfer.types).includes(PALETTE_MIME)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  };
+  const onCanvasDrop = (e: React.DragEvent) => {
+    const raw = e.dataTransfer.getData(PALETTE_MIME);
+    if (!raw) return;
+    e.preventDefault();
+    try {
+      const { kind, type } = JSON.parse(raw) as { kind: 'trigger' | 'action'; type: string };
+      if (kind === 'trigger') addTriggerType(type);
+      else addActionType(type);
+    } catch { /* ignore */ }
+  };
+
   const handleAddNode = (choice: AddNodeChoice) => {
     if (choice.nodeKind === 'condition') {
       setDefinition(d => ({ ...d, conditions: { operator: 'AND', rules: [] } }));
@@ -1059,69 +1201,70 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
       {/* Canvas */}
       <div
         ref={canvasRef}
-        className="flex-1 relative overflow-hidden cursor-grab active:cursor-grabbing"
+        className="relative flex-1 cursor-grab overflow-hidden bg-muted/20 active:cursor-grabbing"
         style={{
-          background: '#0d0d0f',
-          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, hsl(var(--muted-foreground) / 0.15) 1px, transparent 1px)',
           backgroundSize: '24px 24px',
         }}
         onMouseDown={onCanvasMouseDown}
         onMouseMove={onCanvasMouseMove}
         onMouseUp={onCanvasMouseUp}
         onMouseLeave={onCanvasMouseUp}
+        onDragOver={onCanvasDragOver}
+        onDrop={onCanvasDrop}
       >
         {/* Toolbar — stop mousedown propagation so canvas pan/select-null don't fire on toolbar clicks */}
         <div
-          className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 rounded-xl border border-white/10 bg-[#18181f]/95 backdrop-blur px-2 py-1.5 shadow-2xl"
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 rounded-xl border border-border bg-card/95 backdrop-blur px-2 py-1.5 shadow-2xl"
           onMouseDown={e => e.stopPropagation()}
         >
           <button
             type="button"
             onClick={() => setZoom(z => Math.min(2, z + 0.1))}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/8 transition-colors"
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             title="Zoom in (Ctrl+scroll)"
           >
             <ZoomIn className="h-4 w-4" />
           </button>
-          <span className="text-[11px] text-white/30 tabular-nums w-10 text-center">{Math.round(zoom * 100)}%</span>
+          <span className="text-[11px] text-muted-foreground tabular-nums w-10 text-center">{Math.round(zoom * 100)}%</span>
           <button
             type="button"
             onClick={() => setZoom(z => Math.max(0.3, z - 0.1))}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/8 transition-colors"
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <ZoomOut className="h-4 w-4" />
           </button>
-          <div className="h-4 w-px bg-white/10 mx-1" />
+          <div className="h-4 w-px bg-muted mx-1" />
           <button
             type="button"
             onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-            className="h-8 w-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/8 transition-colors"
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             title="Fit to center"
           >
             <Maximize2 className="h-4 w-4" />
           </button>
-          <div className="h-4 w-px bg-white/10 mx-1" />
+          <div className="h-4 w-px bg-muted mx-1" />
           <button
             type="button"
             onClick={() => setSelected({ kind: 'settings' })}
-            className={cn('h-8 w-8 rounded-lg flex items-center justify-center transition-colors', selected?.kind === 'settings' ? 'text-white bg-white/10' : 'text-white/50 hover:text-white hover:bg-white/8')}
+            className={cn('h-8 w-8 rounded-lg flex items-center justify-center transition-colors', selected?.kind === 'settings' ? 'text-foreground bg-muted' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
             title="Workflow settings"
           >
             <Settings className="h-4 w-4" />
           </button>
-          <div className="h-4 w-px bg-white/10 mx-1" />
+          <div className="h-4 w-px bg-muted mx-1" />
           <button
             type="button"
             onClick={() => setShowJson(v => !v)}
-            className={cn('h-8 w-8 rounded-lg flex items-center justify-center transition-colors', showJson ? 'text-violet-400 bg-violet-500/15' : 'text-white/50 hover:text-white hover:bg-white/8')}
+            className={cn('h-8 w-8 rounded-lg flex items-center justify-center transition-colors', showJson ? 'text-violet-400 bg-violet-500/15' : 'text-muted-foreground hover:text-foreground hover:bg-muted')}
             title="View / edit JSON config"
           >
             <Braces className="h-4 w-4" />
           </button>
-          <div className="h-4 w-px bg-white/10 mx-1" />
+          <div className="h-4 w-px bg-muted mx-1" />
           <Button
             size="sm"
-            className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border-0 text-xs px-3"
+            className="h-8 gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-foreground border-0 text-xs px-3"
             onClick={() => onSave(definition)}
             disabled={isSaving}
           >
@@ -1140,6 +1283,28 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
         >
           <div className="flex flex-col items-center py-8" style={{ minHeight: '100%' }}>
 
+            {!hasTrigger ? (
+              <button
+                type="button"
+                data-node="true"
+                onClick={() => addTriggerType('page_view')}
+                className="group flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-border bg-card/60 px-10 py-9 text-center transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500 transition-transform group-hover:scale-105">
+                  <Zap className="h-7 w-7" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Start with a trigger</p>
+                  <p className="mt-1 max-w-[16rem] text-xs text-muted-foreground">
+                    Every automation begins with a trigger. Drag one from the panel, or click below.
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors group-hover:bg-emerald-500">
+                  <Plus className="h-4 w-4" /> Add trigger
+                </span>
+              </button>
+            ) : (
+            <>
             {/* Trigger Node */}
             <NodeCard
               strip="bg-emerald-500"
@@ -1209,11 +1374,11 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
             {definition.actions.length === 0 && (
               <div
                 data-node="true"
-                className="w-64 rounded-xl border-2 border-dashed border-white/10 bg-transparent flex flex-col items-center justify-center py-7 gap-2 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
+                className="w-64 rounded-xl border-2 border-dashed border-border bg-transparent flex flex-col items-center justify-center py-7 gap-2 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
                 onClick={() => setAddAfterIndex(0)}
               >
-                <Layers className="h-6 w-6 text-white/20" />
-                <p className="text-xs text-white/25">Click + to add an action</p>
+                <Layers className="h-6 w-6 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">Click + to add an action</p>
               </div>
             )}
 
@@ -1229,12 +1394,14 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
               selected={selected?.kind === 'settings'}
               onClick={() => setSelected({ kind: 'settings' })}
             />
+            </>
+            )}
 
           </div>
         </div>
 
         {/* Node count badge */}
-        <div className="absolute bottom-4 left-4 flex items-center gap-2 text-[11px] text-white/25">
+        <div className="absolute bottom-4 left-4 flex items-center gap-2 text-[11px] text-muted-foreground">
           <span>{1 + (hasCondition ? 1 : 0) + definition.actions.length + 1} nodes</span>
           <span>·</span>
           <span>Drag canvas to pan · Ctrl+scroll to zoom</span>
@@ -1242,17 +1409,39 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
       </div>
 
       {/* Right sidebar */}
-      {selected && (
-        <aside className="w-[320px] shrink-0 border-l border-white/8 bg-[#111117] flex flex-col overflow-hidden">
+      <aside className="flex w-[300px] shrink-0 flex-col overflow-hidden border-l border-border/60 bg-card lg:w-[340px]">
+        {selected ? (
+          <>
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/8 shrink-0">
-            <div className="flex items-center gap-2.5">
-              {selected.kind === 'trigger' && <><div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]" /><span className="text-sm font-semibold text-white/90">Trigger</span></>}
-              {selected.kind === 'condition' && <><div className="h-2 w-2 rounded-full bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.8)]" /><span className="text-sm font-semibold text-white/90">Conditions</span></>}
-              {selected.kind === 'action' && <><div className={cn('h-2 w-2 rounded-full', getActionType(definition.actions[selected.index]?.type ?? '').strip, 'shadow-[0_0_6px_rgba(255,255,255,0.3)]')} /><span className="text-sm font-semibold text-white/90">{getActionType(definition.actions[selected.index]?.type ?? '').label}</span></>}
-              {selected.kind === 'settings' && <><div className="h-2 w-2 rounded-full bg-slate-400 shadow-[0_0_6px_rgba(148,163,184,0.6)]" /><span className="text-sm font-semibold text-white/90">Settings</span></>}
-            </div>
-            <button type="button" onClick={() => setSelected(null)} className="text-white/25 hover:text-white/70 transition-colors">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
+            {(() => {
+              const at = selected.kind === 'action' ? getActionType(definition.actions[selected.index]?.type ?? '') : null;
+              const meta =
+                selected.kind === 'trigger'
+                  ? { icon: Zap, color: 'text-emerald-500', bg: 'bg-emerald-500/10', title: 'Trigger', sub: 'The event that starts this automation' }
+                  : selected.kind === 'condition'
+                    ? { icon: Filter, color: 'text-amber-500', bg: 'bg-amber-500/10', title: 'Conditions', sub: 'Rules that gate the automation' }
+                    : selected.kind === 'action'
+                      ? { icon: at!.icon, color: at!.iconColor, bg: at!.iconBg, title: at!.label, sub: 'What happens when it fires' }
+                      : { icon: Settings, color: 'text-slate-500', bg: 'bg-slate-500/10', title: 'Settings', sub: 'Frequency, priority & A/B testing' };
+              const Icon = meta.icon;
+              return (
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-xl', meta.bg)}>
+                    <Icon className={cn('h-5 w-5', meta.color)} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{meta.title}</p>
+                    <p className="truncate text-[11px] text-muted-foreground">{meta.sub}</p>
+                  </div>
+                </div>
+              );
+            })()}
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -1281,8 +1470,17 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
               />
             )}
           </div>
-        </aside>
-      )}
+          </>
+        ) : (
+          <NodePalette
+            tab={paletteTab}
+            onTab={setPaletteTab}
+            onAddTrigger={addTriggerType}
+            onAddAction={addActionType}
+            onDragStart={onPaletteDragStart}
+          />
+        )}
+      </aside>
 
       {/* Add node modal */}
       {addAfterIndex !== null && (
