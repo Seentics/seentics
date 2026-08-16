@@ -113,7 +113,7 @@ function CreateClientDialog({ open, onOpenChange, onCreated }: CreateClientDialo
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetForm(); }}>
-      <DialogContent className="max-w-md bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold">Add Client</DialogTitle>
         </DialogHeader>
@@ -153,7 +153,7 @@ function CreateClientDialog({ open, onOpenChange, onCreated }: CreateClientDialo
                     type="checkbox"
                     checked={features[key]}
                     onChange={() => toggleFeature(key)}
-                    className="rounded border-border accent-primary h-4 w-4"
+                    className="rounded-lg border-border accent-primary h-4 w-4"
                   />
                   {label}
                 </label>
@@ -268,7 +268,7 @@ export default function AgencyOverviewPage() {
                 className="flex items-start gap-4 px-5 py-4 border-b border-border/40 last:border-0"
               >
                 {/* Avatar */}
-                <div className="h-9 w-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="h-9 w-9 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
                   <span className="text-xs font-bold text-primary">
                     {client.name.charAt(0).toUpperCase()}
                   </span>
@@ -311,7 +311,7 @@ export default function AgencyOverviewPage() {
                     {FEATURE_LABELS.filter(f => client.featuresEnabled[f.key]).map(f => (
                       <span
                         key={f.key}
-                        className="text-[10px] px-1.5 py-0 rounded-sm bg-muted text-muted-foreground border border-border/60"
+                        className="text-[10px] px-1.5 py-0 rounded-lg-sm bg-muted text-muted-foreground border border-border/60"
                       >
                         {f.label}
                       </span>

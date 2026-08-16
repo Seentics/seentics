@@ -19,12 +19,12 @@ export const UsageDashboard: React.FC = () => {
         {[...Array(4)].map((_, i) => (
           <Card key={i} className="animate-pulse">
             <CardHeader className="space-y-0 pb-2">
-              <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div>
+              <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-lg w-20"></div>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded w-16"></div>
-                <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                <div className="h-8 bg-slate-200 dark:bg-slate-700 rounded-lg w-16"></div>
+                <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
               </div>
             </CardContent>
           </Card>

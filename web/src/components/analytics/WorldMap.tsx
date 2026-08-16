@@ -358,7 +358,7 @@ function Legend() {
                 { bg: '#1e40af', label: '> 75%' },
             ].map(({ bg, label }) => (
                 <div key={label} className="flex items-center gap-2 text-muted-foreground">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: bg }} />
+                    <span className="w-2 h-2 rounded-lg-full flex-shrink-0" style={{ background: bg }} />
                     {label}
                 </div>
             ))}
@@ -371,13 +371,13 @@ export default function WorldMap({ data, isLoading, view = 'globe', showLegend =
     if (isLoading) {
         return (
             <div className="w-full h-full flex items-center justify-center">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+                <div className="animate-spin rounded-lg-full h-10 w-10 border-b-2 border-primary" />
             </div>
         );
     }
 
     return (
-        <div className="relative w-full h-full rounded-xl overflow-hidden">
+        <div className="relative w-full h-full rounded-lg overflow-hidden">
             {view === 'globe' ? <GlobeView data={data} /> : <FlatMapView data={data} />}
             {showLegend && <Legend />}
             {data.length === 0 && (

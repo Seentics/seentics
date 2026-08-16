@@ -25,20 +25,20 @@ const ROWS: { feature: string; seentics: Cell; ga4: Cell; plausible: Cell; hotja
 function CellMark({ value }: { value: Cell }) {
   if (value === true) {
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15">
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg-full bg-emerald-500/15">
         <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
       </span>
     );
   }
   if (value === 'partial') {
     return (
-      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/15">
+      <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg-full bg-amber-500/15">
         <Minus className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" strokeWidth={3} />
       </span>
     );
   }
   return (
-    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted">
+    <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg-full bg-muted">
       <X className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={3} />
     </span>
   );
@@ -64,7 +64,7 @@ export default function WhySwitch() {
       <div className="container mx-auto px-6">
         {/* Header */}
         <div className="mx-auto mb-16 max-w-4xl text-center">
-          <div className="mb-6 inline-block rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5">
+          <div className="mb-6 inline-block rounded-lg-full border border-primary/20 bg-primary/10 px-3 py-1.5">
             <span className="text-xs font-bold uppercase tracking-widest text-primary">Why switch</span>
           </div>
           <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]">
@@ -79,7 +79,7 @@ export default function WhySwitch() {
         {/* Comparison matrix — mobile (stacked cards) */}
         <div className="mx-auto max-w-md space-y-3 md:hidden">
           {ROWS.map((row) => (
-            <div key={row.feature} className="rounded-xl border border-border/60 bg-card p-4 shadow-sm">
+            <div key={row.feature} className="rounded-lg border border-border/60 bg-card p-4 shadow-sm">
               <p className="mb-3 text-sm font-semibold text-foreground">{row.feature}</p>
               <div className="grid grid-cols-2 gap-2">
                 <ToolCell label="Seentics" value={row.seentics} highlight />
@@ -98,7 +98,7 @@ export default function WhySwitch() {
               <tr>
                 <th className="w-[34%] p-3 text-left align-bottom" />
                 <th className="p-3 text-center align-bottom">
-                  <div className="rounded-t-xl bg-primary/[0.07] px-2 pb-2 pt-3">
+                  <div className="rounded-lg-t-xl bg-primary/[0.07] px-2 pb-2 pt-3">
                     <span className="text-sm font-bold text-primary">Seentics</span>
                   </div>
                 </th>
@@ -123,7 +123,7 @@ export default function WhySwitch() {
                   </td>
                   <td
                     className={`border-b border-border/50 px-2 py-3 text-center bg-primary/[0.07] ${
-                      i === ROWS.length - 1 ? 'rounded-b-xl' : ''
+                      i === ROWS.length - 1 ? 'rounded-lg-b-xl' : ''
                     }`}
                   >
                     <div className="flex justify-center">

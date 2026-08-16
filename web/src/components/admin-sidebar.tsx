@@ -36,7 +36,7 @@ export function AdminSidebar() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                 active
                   ? 'bg-indigo-600/20 text-indigo-300 font-medium'
                   : 'text-gray-500 hover:text-white hover:bg-white/5'
@@ -50,7 +50,7 @@ export function AdminSidebar() {
       </nav>
       <button
         onClick={logout}
-        className="flex items-center gap-2.5 px-3 py-2 text-gray-600 hover:text-red-400 text-sm transition-colors rounded-xl hover:bg-red-400/5"
+        className="flex items-center gap-2.5 px-3 py-2 text-gray-600 hover:text-red-400 text-sm transition-colors rounded-lg hover:bg-red-400/5"
       >
         <LogOut className="w-4 h-4" /> Sign out
       </button>

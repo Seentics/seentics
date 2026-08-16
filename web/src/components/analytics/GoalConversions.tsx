@@ -25,7 +25,7 @@ export function GoalConversions({ items, totalVisitors = 0, isLoading }: GoalCon
         {[...Array(5)].map((_, i) => (
           <div key={i} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0">
             <div className="flex items-center gap-3">
-              <Skeleton className="h-8 w-8 rounded" />
+              <Skeleton className="h-8 w-8 rounded-lg" />
               <div className="space-y-1.5">
                 <Skeleton className="h-4 w-28" />
                 <Skeleton className="h-3 w-16" />
@@ -40,7 +40,7 @@ export function GoalConversions({ items, totalVisitors = 0, isLoading }: GoalCon
 
   if (!items || items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border/60">
         <Target className="h-10 w-10 mb-2 opacity-20" />
         <p className="text-xs font-medium text-muted-foreground/60">No goals configured</p>
       </div>
@@ -77,13 +77,13 @@ export function GoalConversions({ items, totalVisitors = 0, isLoading }: GoalCon
             >
               {/* Background bar */}
               <div
-                className="absolute inset-y-0 left-0 bg-primary/[0.04] group-hover:bg-primary/[0.07] transition-colors rounded-r"
+                className="absolute inset-y-0 left-0 bg-primary/[0.04] group-hover:bg-primary/[0.07] transition-colors rounded-lg-r"
                 style={{ width: `${barWidth}%` }}
               />
 
               {/* Left: icon + name */}
               <div className="flex items-center gap-3 flex-1 min-w-0 relative z-10">
-                <div className="flex-shrink-0 p-2 bg-accent/10 rounded group-hover:bg-primary/10 transition-colors">
+                <div className="flex-shrink-0 p-2 bg-accent/10 rounded-lg group-hover:bg-primary/10 transition-colors">
                   {isPage ? (
                     <Eye className="w-4 h-4 text-indigo-500" />
                   ) : (

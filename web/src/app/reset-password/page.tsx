@@ -74,7 +74,7 @@ function ResetPasswordForm() {
   if (!token) {
     return (
       <div className="space-y-6 text-center">
-        <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center text-destructive mb-4">
+        <div className="mx-auto w-12 h-12 rounded-lg-full bg-destructive/10 flex items-center justify-center text-destructive mb-4">
           <AlertCircle className="h-6 w-6" />
         </div>
         <h2 className="text-2xl font-bold">Invalid Link</h2>
@@ -171,7 +171,7 @@ function ResetPasswordForm() {
           animate={{ opacity: 1, scale: 1 }}
           className="text-center py-8"
         >
-          <div className="mx-auto w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center text-green-500 mb-6">
+          <div className="mx-auto w-16 h-16 rounded-lg-full bg-green-500/10 flex items-center justify-center text-green-500 mb-6">
             <CheckCircle2 className="h-10 w-10" />
           </div>
           <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-2">Password Updated</h2>
@@ -195,8 +195,8 @@ export default function ResetPasswordPage() {
       {/* Left Column: Branding Section */}
       <div className="hidden lg:flex flex-col justify-between p-12 w-full max-w-lg bg-slate-50 dark:bg-slate-950 relative overflow-hidden border-r border-slate-200 dark:border-white/5">
         <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[100px] animate-pulse delay-700" />
+            <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-lg-full blur-[120px] animate-pulse" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-lg-full blur-[100px] animate-pulse delay-700" />
         </div>
 
         <div className="relative z-10">
@@ -218,7 +218,7 @@ export default function ResetPasswordPage() {
         <div className="relative z-10">
           <div className="space-y-6">
             <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 flex items-center justify-center text-primary">
+              <div className="h-10 w-10 rounded-lg bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 flex items-center justify-center text-primary">
                 <Shield className="h-6 w-6" />
               </div>
               <div>

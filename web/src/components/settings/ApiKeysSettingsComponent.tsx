@@ -178,7 +178,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
       <div className="space-y-6 max-w-4xl">
         <Card className="border-border/60">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
+            <div className="h-14 w-14 rounded-lg-2xl bg-primary/10 flex items-center justify-center mb-5">
               <Lock className="h-7 w-7 text-primary" />
             </div>
             <h3 className="text-lg font-bold mb-2">Raw Data API Access</h3>
@@ -246,7 +246,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
                   Store your API key securely — it won&apos;t be shown again.
                 </p>
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs bg-muted/50 border rounded px-3 py-2 font-mono break-all">
+                  <code className="flex-1 text-xs bg-muted/50 border rounded-lg px-3 py-2 font-mono break-all">
                     {showKey ? createdKey.key : '\u2022'.repeat(48)}
                   </code>
                   <Button
@@ -284,7 +284,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
       {keys.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+            <div className="h-12 w-12 rounded-lg-full bg-muted/50 flex items-center justify-center mb-4">
               <Key className="h-6 w-6 text-muted-foreground" />
             </div>
             <h4 className="text-sm font-medium mb-1">No API keys yet</h4>
@@ -365,7 +365,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
             </Button>
           </div>
 
-          <code className="block text-xs bg-background/80 border rounded px-3 py-2 font-mono text-muted-foreground mb-3">
+          <code className="block text-xs bg-background/80 border rounded-lg px-3 py-2 font-mono text-muted-foreground mb-3">
             Authorization: Bearer sk_your_api_key_here
           </code>
 
@@ -383,7 +383,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
                       {section.endpoints.map((ep) => (
                         <div
                           key={ep.path}
-                          className="flex items-start gap-2 text-xs px-2 py-1.5 rounded hover:bg-muted/30"
+                          className="flex items-start gap-2 text-xs px-2 py-1.5 rounded-lg hover:bg-muted/30"
                         >
                           <span className="font-mono font-bold text-emerald-600 shrink-0 w-8">{ep.method}</span>
                           <code className="font-mono text-muted-foreground break-all">{ep.path}</code>

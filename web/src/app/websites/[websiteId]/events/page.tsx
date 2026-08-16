@@ -128,7 +128,7 @@ export default function EventsPage() {
           ) : filteredEvents.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-sm">
               No custom events tracked yet. Call{' '}
-              <code className="font-mono bg-muted px-1 rounded">seentics.track('event_name')</code>{' '}
+              <code className="font-mono bg-muted px-1 rounded-lg">seentics.track('event_name')</code>{' '}
               from your site to start tracking.
             </div>
           ) : (

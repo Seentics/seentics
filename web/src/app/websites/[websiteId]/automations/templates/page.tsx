@@ -284,7 +284,7 @@ export default function AutomationTemplatesPage() {
             key={cat}
             onClick={() => setActiveCategory(cat)}
             className={cn(
-              'px-3 py-1 rounded-full text-xs font-medium border transition-colors',
+              'px-3 py-1 rounded-lg-full text-xs font-medium border transition-colors',
               activeCategory === cat
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-background border-border text-muted-foreground hover:text-foreground hover:border-primary/40',
@@ -300,7 +300,7 @@ export default function AutomationTemplatesPage() {
         {filtered.map(tpl => (
           <div
             key={tpl.id}
-            className="flex flex-col rounded-xl border border-border/60 bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all"
+            className="flex flex-col rounded-lg border border-border/60 bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all"
           >
             <div className="flex items-start justify-between gap-2 mb-3">
               <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">

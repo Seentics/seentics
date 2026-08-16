@@ -45,7 +45,7 @@ function CopyButton({ code }: { code: string }) {
   return (
     <button
       onClick={copy}
-      className="absolute top-2 right-2 p-1.5 rounded-md bg-muted hover:bg-muted/80 transition-colors text-muted-foreground hover:text-foreground"
+      className="absolute top-2 right-2 p-1.5 rounded-lg bg-muted hover:bg-muted/80 transition-colors text-muted-foreground hover:text-foreground"
     >
       {copied ? <Check size={14} /> : <Copy size={14} />}
     </button>

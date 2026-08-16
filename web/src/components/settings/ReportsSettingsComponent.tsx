@@ -223,7 +223,7 @@ export function ReportsSettingsComponent() {
       {reports.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+            <div className="h-12 w-12 rounded-lg-full bg-muted/50 flex items-center justify-center mb-4">
               <FileText className="h-6 w-6 text-muted-foreground" />
             </div>
             <h4 className="text-sm font-medium mb-1">No scheduled reports</h4>
@@ -252,7 +252,7 @@ export function ReportsSettingsComponent() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <p className={cn('text-sm font-medium truncate', !report.enabled && 'text-muted-foreground')}>{report.name}</p>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground capitalize">{report.frequency}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-lg bg-muted text-muted-foreground capitalize">{report.frequency}</span>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
@@ -385,7 +385,7 @@ export function ReportsSettingsComponent() {
               {formRecipients.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {formRecipients.map((email) => (
-                    <span key={email} className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded text-xs">
+                    <span key={email} className="inline-flex items-center gap-1 px-2 py-1 bg-muted rounded-lg text-xs">
                       {email}
                       <button type="button" onClick={() => removeRecipient(email)} className="text-muted-foreground hover:text-foreground">
                         <X className="h-3 w-3" />

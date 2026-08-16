@@ -143,7 +143,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
               </div>
             </div>
 
-            <p className="text-[11px] text-muted-foreground bg-muted/30 rounded-md px-3 py-2">
+            <p className="text-[11px] text-muted-foreground bg-muted/30 rounded-lg px-3 py-2">
               High sampling rates provide more data but may consume your plan's session recording limits faster.
             </p>
 

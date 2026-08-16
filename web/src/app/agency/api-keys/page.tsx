@@ -52,7 +52,7 @@ function RevealDialog({ rawKey, onClose }: { rawKey: string; onClose: () => void
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-lg bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-lg bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Check className="h-4 w-4 text-green-500" />
@@ -112,7 +112,7 @@ function CreateKeyDialog({ open, onOpenChange, onCreated }: CreateKeyDialogProps
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) setName(''); }}>
-      <DialogContent className="max-w-md bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold">Create Agency API Key</DialogTitle>
         </DialogHeader>
@@ -239,13 +239,13 @@ export default function AgencyAPIKeysPage() {
                 key={key.id}
                 className="flex items-start gap-4 px-5 py-4 border-b border-border/40 last:border-0"
               >
-                <div className="mt-2 h-2 w-2 rounded-full shrink-0 bg-green-500" />
+                <div className="mt-2 h-2 w-2 rounded-lg-full shrink-0 bg-green-500" />
 
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <p className="text-sm font-semibold text-foreground">{key.name}</p>
 
                   <div className="flex items-center gap-2">
-                    <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                    <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-lg">
                       {key.keyPrefix}…
                     </code>
                   </div>
@@ -291,7 +291,7 @@ export default function AgencyAPIKeysPage() {
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
             Pass your agency API key in the{' '}
-            <code className="font-mono bg-muted px-1 py-0.5 rounded">Authorization</code> header:
+            <code className="font-mono bg-muted px-1 py-0.5 rounded-lg">Authorization</code> header:
           </p>
           <pre className="text-xs font-mono bg-muted/60 border border-border/60 rounded-lg px-4 py-3 text-foreground overflow-x-auto">
 {`curl https://api.seentics.com/v1/agency/clients \\

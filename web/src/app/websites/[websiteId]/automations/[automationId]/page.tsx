@@ -232,7 +232,7 @@ export default function AutomationDetailPage() {
 
       {/* Edit mode — full-height builder */}
       {editMode ? (
-        <div className="rounded-xl border border-border overflow-hidden" style={{ height: 'calc(100vh - 220px)' }}>
+        <div className="rounded-lg border border-border overflow-hidden" style={{ height: 'calc(100vh - 220px)' }}>
           <AutomationBuilder
             key={`edit-${automationId}`}
             initialDefinition={rawDefinition}

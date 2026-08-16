@@ -35,8 +35,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 function LiveVisitorsBadge({ count = 142 }: { count?: number }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-sm font-medium">
-      <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg-full bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-sm font-medium">
+      <span className="h-2 w-2 rounded-lg-full bg-green-500 animate-pulse" />
       {count.toLocaleString()} live
     </span>
   );
@@ -44,7 +44,7 @@ function LiveVisitorsBadge({ count = 142 }: { count?: number }) {
 
 function PageViewsBadge({ views = '12.4k' }: { views?: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
       <Eye className="h-3.5 w-3.5" />
       {views} views today
     </span>
@@ -70,7 +70,7 @@ function MiniSparkline() {
 
 function StatsWidget() {
   return (
-    <div className="inline-grid grid-cols-3 gap-px rounded-xl border border-border overflow-hidden bg-border text-sm">
+    <div className="inline-grid grid-cols-3 gap-px rounded-lg border border-border overflow-hidden bg-border text-sm">
       {[
         { icon: Users, label: 'Visitors', value: '8,421' },
         { icon: Eye,   label: 'Pageviews', value: '24.6k' },
@@ -95,7 +95,7 @@ function TopPagesWidget() {
   ];
   const max = pages[0].views;
   return (
-    <div className="rounded-xl border border-border bg-card p-4 w-64 space-y-3">
+    <div className="rounded-lg border border-border bg-card p-4 w-64 space-y-3">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Top Pages</p>
       {pages.map(p => (
         <div key={p.url} className="space-y-1">
@@ -103,8 +103,8 @@ function TopPagesWidget() {
             <span className="font-mono text-foreground">{p.url}</span>
             <span className="text-muted-foreground">{p.views.toLocaleString()}</span>
           </div>
-          <div className="h-1 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary rounded-full" style={{ width: `${(p.views / max) * 100}%` }} />
+          <div className="h-1 bg-muted rounded-lg-full overflow-hidden">
+            <div className="h-full bg-primary rounded-lg-full" style={{ width: `${(p.views / max) * 100}%` }} />
           </div>
         </div>
       ))}
@@ -120,15 +120,15 @@ function CountryWidget() {
     { flag: '🇫🇷', country: 'France',          pct: 8 },
   ];
   return (
-    <div className="rounded-xl border border-border bg-card p-4 w-64 space-y-2">
+    <div className="rounded-lg border border-border bg-card p-4 w-64 space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">Top Countries</p>
       {rows.map(r => (
         <div key={r.country} className="flex items-center gap-2 text-xs">
           <span className="text-base leading-none">{r.flag}</span>
           <span className="flex-1 text-foreground truncate">{r.country}</span>
           <div className="flex items-center gap-2">
-            <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary/70 rounded-full" style={{ width: `${r.pct}%` }} />
+            <div className="w-16 h-1 bg-muted rounded-lg-full overflow-hidden">
+              <div className="h-full bg-primary/70 rounded-lg-full" style={{ width: `${r.pct}%` }} />
             </div>
             <span className="text-muted-foreground w-6 text-right">{r.pct}%</span>
           </div>
@@ -306,7 +306,7 @@ function CodeBlock({ code }: { code: string }) {
       </pre>
       <button
         onClick={copy}
-        className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center rounded-md border border-border bg-card text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
+        className="absolute top-2 right-2 h-7 w-7 flex items-center justify-center rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-all"
       >
         {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
       </button>
@@ -371,7 +371,7 @@ export default function UiBlocksPage() {
               key={c}
               onClick={() => setCategory(c)}
               className={cn(
-                'h-7 px-3 rounded-md text-xs font-medium capitalize transition-colors',
+                'h-7 px-3 rounded-lg text-xs font-medium capitalize transition-colors',
                 category === c
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:text-foreground',
@@ -396,7 +396,7 @@ export default function UiBlocksPage() {
             onClick={() => setCategory(cat as typeof CATEGORIES[number])}
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
-            <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border rounded font-normal', CATEGORY_COLORS[cat])}>
+            <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border rounded-lg font-normal', CATEGORY_COLORS[cat])}>
               {cat}
             </Badge>
             <span>{count}</span>
@@ -421,14 +421,14 @@ export default function UiBlocksPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <CardTitle className="text-sm font-semibold">{block.name}</CardTitle>
-                        <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border rounded font-normal capitalize shrink-0', CATEGORY_COLORS[block.category])}>
+                        <Badge className={cn('text-[10px] px-1.5 py-0 h-4 border rounded-lg font-normal capitalize shrink-0', CATEGORY_COLORS[block.category])}>
                           {block.category}
                         </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">{block.description}</p>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {block.tags.map(t => (
-                          <span key={t} className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-muted text-muted-foreground border border-border">
+                          <span key={t} className="text-[10px] font-mono px-1.5 py-0.5 rounded-lg bg-muted text-muted-foreground border border-border">
                             {t}
                           </span>
                         ))}
@@ -483,7 +483,7 @@ export default function UiBlocksPage() {
             CDN Embed Script
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Include this once per page to enable all <code className="font-mono bg-muted px-1 py-0.5 rounded">data-seentics</code> attributes:
+            Include this once per page to enable all <code className="font-mono bg-muted px-1 py-0.5 rounded-lg">data-seentics</code> attributes:
           </p>
           <CodeBlock code={`<script src="https://cdn.seentics.com/embed.js" data-project="${websiteId}" async></script>`} />
         </CardContent>

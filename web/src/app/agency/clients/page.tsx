@@ -134,7 +134,7 @@ function ClientFormDialog({ open, onOpenChange, initial, onDone }: ClientFormDia
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) resetToInitial(initial); }}>
-      <DialogContent className="max-w-md bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold">
             {isEdit ? 'Edit Client' : 'Add Client'}
@@ -192,7 +192,7 @@ function ClientFormDialog({ open, onOpenChange, initial, onDone }: ClientFormDia
                     type="checkbox"
                     checked={features[key]}
                     onChange={() => toggleFeature(key)}
-                    className="rounded border-border accent-primary h-4 w-4"
+                    className="rounded-lg border-border accent-primary h-4 w-4"
                   />
                   {label}
                 </label>
@@ -228,7 +228,7 @@ function ClientCard({ client, onEdit, onDelete, isDeleting }: ClientCardProps) {
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <div className="h-10 w-10 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
               <span className="text-sm font-bold text-primary">
                 {client.name.charAt(0).toUpperCase()}
               </span>
@@ -304,7 +304,7 @@ function ClientCard({ client, onEdit, onDelete, isDeleting }: ClientCardProps) {
             <span
               key={f.key}
               className={cn(
-                'text-[10px] px-1.5 py-0 rounded-sm border',
+                'text-[10px] px-1.5 py-0 rounded-lg-sm border',
                 client.featuresEnabled[f.key]
                   ? 'bg-primary/10 text-primary border-primary/20'
                   : 'bg-muted/30 text-muted-foreground/50 border-border/40 line-through',
@@ -405,7 +405,7 @@ export default function AgencyClientsPage() {
               key={s}
               onClick={() => setFilterStatus(s)}
               className={cn(
-                'px-3 py-1 text-xs rounded-md font-medium capitalize transition-colors',
+                'px-3 py-1 text-xs rounded-lg font-medium capitalize transition-colors',
                 filterStatus === s
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted/60 text-muted-foreground hover:text-foreground',

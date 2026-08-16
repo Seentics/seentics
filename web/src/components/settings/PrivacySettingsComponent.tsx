@@ -69,7 +69,7 @@ function StatusBadge({ status }: { status: string }) {
   };
   return (
     <span className={cn(
-      'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize',
+      'inline-flex items-center px-2 py-0.5 rounded-lg-full text-[10px] font-semibold border capitalize',
       styles[status] || styles.pending
     )}>
       {status}
@@ -97,9 +97,9 @@ function PrivacyToggleCard({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between p-4 rounded-xl border border-border/60 bg-card/50 hover:bg-card/80 transition-all group">
+    <div className="flex items-center justify-between p-4 rounded-lg border border-border/60 bg-card/50 hover:bg-card/80 transition-all group">
       <div className="flex items-center gap-3.5">
-        <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105', bgColor)}>
+        <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105', bgColor)}>
           <Icon className={cn('h-4.5 w-4.5', color)} />
         </div>
         <div>
@@ -339,7 +339,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
               <Shield className="h-4.5 w-4.5 text-emerald-600" />
             </div>
             <div>
@@ -349,7 +349,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg-full bg-emerald-500/10 border border-emerald-500/20">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
             <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Privacy-First</span>
           </div>
@@ -467,7 +467,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
               <Separator className="bg-border/40" />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between rounded-xl border border-border/60 p-4 bg-card/50">
+                <div className="flex items-center justify-between rounded-lg border border-border/60 p-4 bg-card/50">
                   <div>
                     <Label className="text-xs font-semibold flex items-center gap-1.5">
                       <Globe className="h-3 w-3 text-indigo-500" />
@@ -522,7 +522,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
             <CardContent className="p-5 flex flex-col h-full">
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="h-9 w-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
                   <Download className="h-4 w-4 text-primary" />
                 </div>
                 <div>
@@ -551,7 +551,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
             <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
               <CardContent className="p-5 flex flex-col h-full">
                 <div className="flex items-center gap-2.5 mb-3">
-                  <div className="h-9 w-9 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                  <div className="h-9 w-9 rounded-lg bg-indigo-500/10 flex items-center justify-center">
                     <Globe className="h-4 w-4 text-indigo-500" />
                   </div>
                   <div>
@@ -581,7 +581,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
             <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
               <CardContent className="p-5 flex flex-col h-full">
                 <div className="flex items-center gap-2.5 mb-3">
-                  <div className="h-9 w-9 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                  <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
                     <Upload className="h-4 w-4 text-emerald-600" />
                   </div>
                   <div>
@@ -647,7 +647,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
             <CardContent className="p-5 flex flex-col h-full">
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="h-9 w-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
                   <Fingerprint className="h-4 w-4 text-amber-600" />
                 </div>
                 <div>
@@ -675,7 +675,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
             <CardContent className="p-5 flex flex-col h-full">
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="h-9 w-9 rounded-xl bg-red-500/10 flex items-center justify-center">
+                <div className="h-9 w-9 rounded-lg bg-red-500/10 flex items-center justify-center">
                   <Trash2 className="h-4 w-4 text-red-500" />
                 </div>
                 <div>
@@ -700,7 +700,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           </Card>
         </div>
 
-        <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
           <div className="flex gap-3">
             <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
             <div>
@@ -733,7 +733,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           ) : gdprRequests.length === 0 ? (
             <Card className="border-dashed border-border/60">
               <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-3">
+                <div className="h-12 w-12 rounded-lg-full bg-muted/30 flex items-center justify-center mb-3">
                   <Shield className="h-6 w-6 text-muted-foreground/30" />
                 </div>
                 <p className="text-sm font-medium text-muted-foreground">No data requests yet</p>
@@ -749,7 +749,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
                   <CardContent className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={cn(
-                        'h-9 w-9 rounded-xl flex items-center justify-center shrink-0',
+                        'h-9 w-9 rounded-lg flex items-center justify-center shrink-0',
                         req.requestType === 'deletion' ? 'bg-red-500/10' : 'bg-primary/10'
                       )}>
                         {req.requestType === 'deletion' ? (
@@ -822,9 +822,9 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       </div>
 
       {/* ====== Privacy Info ====== */}
-      <div className="bg-gradient-to-r from-emerald-500/5 via-transparent to-indigo-500/5 border border-border/40 rounded-xl p-5">
+      <div className="bg-gradient-to-r from-emerald-500/5 via-transparent to-indigo-500/5 border border-border/40 rounded-lg p-5">
         <div className="flex gap-4">
-          <div className="h-10 w-10 rounded-xl bg-emerald-500/10 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
             <Info className="h-4.5 w-4.5 text-emerald-600" />
           </div>
           <div className="space-y-2">

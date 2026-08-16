@@ -73,7 +73,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
           <ThemeToggle />
           {isAuthenticated ? (
             <Link href="/websites">
-              <Button size="sm" className="h-8 px-4 text-xs font-semibold rounded-md">
+              <Button size="sm" className="h-8 px-4 text-xs font-semibold rounded-lg">
                 Dashboard
               </Button>
             </Link>
@@ -92,7 +92,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
             </>
           )}
           <button
-            className="lg:hidden p-1.5 hover:bg-accent rounded-md transition-colors"
+            className="lg:hidden p-1.5 hover:bg-accent rounded-lg transition-colors"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
             {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -128,8 +128,8 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                 <Link href="/websites/demo" onClick={() => setMobileOpen(false)}>
                   <Button variant="outline" className="w-full h-10 text-sm font-medium rounded-lg gap-2 border-border/60 text-muted-foreground">
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-lg-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-lg-full h-2 w-2 bg-emerald-500" />
                     </span>
                     Live Demo
                   </Button>
@@ -142,7 +142,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                   </Link>
                 ) : (
                   <Link href="/signup" onClick={() => setMobileOpen(false)}>
-                    <Button size={'lg'} className="w-full   font-medium rounded-2xl">
+                    <Button size={'lg'} className="w-full   font-medium rounded-lg-2xl">
                       Get Started
                     </Button>
                   </Link>

@@ -71,7 +71,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
     <div>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
-          <Button variant="ghost" size="sm" className="gap-1.5 h-7 px-3 font-medium text-xs text-muted-foreground bg-muted/50 hover:bg-muted/70 hover:text-foreground rounded border-0">
+          <Button variant="ghost" size="sm" className="gap-1.5 h-7 px-3 font-medium text-xs text-muted-foreground bg-muted/50 hover:bg-muted/70 hover:text-foreground rounded-lg border-0">
             <Tag className="h-3.5 w-3.5" />
             Annotate
           </Button>
@@ -139,7 +139,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
                       type="button"
                       onClick={() => setColor(c.value)}
                       className={cn(
-                        'w-8 h-8 rounded-full border-2 transition-all',
+                        'w-8 h-8 rounded-lg-full border-2 transition-all',
                         color === c.value ? 'border-foreground scale-110' : 'border-transparent'
                       )}
                       style={{ backgroundColor: c.value }}
@@ -174,7 +174,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          className="w-3 h-3 rounded-lg-full flex-shrink-0"
                           style={{ backgroundColor: annotation.color }}
                         />
                         <div className="flex-1 min-w-0">

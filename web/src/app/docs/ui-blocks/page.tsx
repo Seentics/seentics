@@ -51,7 +51,7 @@ export default function UIBlocksDocs() {
                 <h2 className="text-2xl font-semibold">Quick Start</h2>
                 <p className="text-muted-foreground leading-relaxed">
                     Wrap your app (or just the section that uses analytics) with{' '}
-                    <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">SeenticsProvider</code> and drop
+                    <code className="bg-muted px-1.5 py-0.5 rounded-lg text-sm font-mono">SeenticsProvider</code> and drop
                     in any block component:
                 </p>
                 <CodeExample
@@ -72,7 +72,7 @@ export default function Dashboard() {
             <section className="space-y-6">
                 <h2 className="text-2xl font-semibold">Available Blocks</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                    All blocks pull data from the <code className="bg-muted px-1 rounded text-sm font-mono">SeenticsProvider</code> context automatically — no extra props required for data fetching.
+                    All blocks pull data from the <code className="bg-muted px-1 rounded-lg text-sm font-mono">SeenticsProvider</code> context automatically — no extra props required for data fetching.
                 </p>
 
                 <div className="grid md:grid-cols-2 gap-6">
@@ -84,8 +84,8 @@ export default function Dashboard() {
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1">
                             <p className="font-semibold text-foreground">Props:</p>
-                            <p><code className="bg-muted/60 px-1 rounded">dateRange</code> — custom date range object</p>
-                            <p><code className="bg-muted/60 px-1 rounded">theme</code> — theme override object</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">dateRange</code> — custom date range object</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">theme</code> — theme override object</p>
                         </div>
                         <CodeBlock code={`<AnalyticsWidget dateRange={{ start: '2026-03-01', end: '2026-03-31' }} />`} />
                     </div>
@@ -98,8 +98,8 @@ export default function Dashboard() {
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1">
                             <p className="font-semibold text-foreground">Props:</p>
-                            <p><code className="bg-muted/60 px-1 rounded">showPages</code> — boolean, show active pages list</p>
-                            <p><code className="bg-muted/60 px-1 rounded">refreshInterval</code> — ms between polls (default: 10000)</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">showPages</code> — boolean, show active pages list</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">refreshInterval</code> — ms between polls (default: 10000)</p>
                         </div>
                         <CodeBlock code={`<RealtimeCounter showPages refreshInterval={5000} />`} />
                     </div>
@@ -112,8 +112,8 @@ export default function Dashboard() {
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1">
                             <p className="font-semibold text-foreground">Props:</p>
-                            <p><code className="bg-muted/60 px-1 rounded">limit</code> — number of pages to show (default: 10)</p>
-                            <p><code className="bg-muted/60 px-1 rounded">showBars</code> — boolean, show relative bar indicators</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">limit</code> — number of pages to show (default: 10)</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">showBars</code> — boolean, show relative bar indicators</p>
                         </div>
                         <CodeBlock code={`<TopPagesWidget limit={5} showBars />`} />
                     </div>
@@ -126,8 +126,8 @@ export default function Dashboard() {
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1">
                             <p className="font-semibold text-foreground">Props:</p>
-                            <p><code className="bg-muted/60 px-1 rounded">pageUrl</code> — the page to render the heatmap for</p>
-                            <p><code className="bg-muted/60 px-1 rounded">type</code> — <code className="bg-muted/60 px-1 rounded">"click"</code> | <code className="bg-muted/60 px-1 rounded">"scroll"</code> | <code className="bg-muted/60 px-1 rounded">"move"</code></p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">pageUrl</code> — the page to render the heatmap for</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">type</code> — <code className="bg-muted/60 px-1 rounded-lg">"click"</code> | <code className="bg-muted/60 px-1 rounded-lg">"scroll"</code> | <code className="bg-muted/60 px-1 rounded-lg">"move"</code></p>
                         </div>
                         <CodeBlock code={`<HeatmapViewer pageUrl="/pricing" type="click" />`} />
                     </div>
@@ -140,8 +140,8 @@ export default function Dashboard() {
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1">
                             <p className="font-semibold text-foreground">Props:</p>
-                            <p><code className="bg-muted/60 px-1 rounded">funnelId</code> — the ID of a saved funnel</p>
-                            <p><code className="bg-muted/60 px-1 rounded">showDropOff</code> — boolean, highlight drop-off percentages</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">funnelId</code> — the ID of a saved funnel</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">showDropOff</code> — boolean, highlight drop-off percentages</p>
                         </div>
                         <CodeBlock code={`<FunnelWidget funnelId="fnl_abc123" showDropOff />`} />
                     </div>
@@ -154,8 +154,8 @@ export default function Dashboard() {
                         </div>
                         <div className="text-xs text-muted-foreground space-y-1">
                             <p className="font-semibold text-foreground">Props:</p>
-                            <p><code className="bg-muted/60 px-1 rounded">eventNames</code> — string[], filter to specific event names</p>
-                            <p><code className="bg-muted/60 px-1 rounded">limit</code> — max events to display (default: 20)</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">eventNames</code> — string[], filter to specific event names</p>
+                            <p><code className="bg-muted/60 px-1 rounded-lg">limit</code> — max events to display (default: 20)</p>
                         </div>
                         <CodeBlock code={`<EventsTimeline eventNames={['signup', 'upgrade']} limit={10} />`} />
                     </div>
@@ -166,9 +166,9 @@ export default function Dashboard() {
             <section className="space-y-6">
                 <h2 className="text-2xl font-semibold">Theme Customization</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                    Every UI Block accepts a <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">theme</code> prop
+                    Every UI Block accepts a <code className="bg-muted px-1.5 py-0.5 rounded-lg text-sm font-mono">theme</code> prop
                     that overrides the default appearance. You can also set a global theme on{' '}
-                    <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">SeenticsProvider</code> and it will
+                    <code className="bg-muted px-1.5 py-0.5 rounded-lg text-sm font-mono">SeenticsProvider</code> and it will
                     cascade to all child blocks.
                 </p>
                 <CodeExample
@@ -199,7 +199,7 @@ export default function Dashboard() {
                                 { token: 'fontFamily', type: 'string (CSS font stack)', desc: 'Font used inside the widget' },
                             ].map(({ token, type, desc }) => (
                                 <tr key={token}>
-                                    <td className="px-4 py-3"><code className="bg-muted/60 px-1.5 py-0.5 rounded text-xs font-mono">{token}</code></td>
+                                    <td className="px-4 py-3"><code className="bg-muted/60 px-1.5 py-0.5 rounded-lg text-xs font-mono">{token}</code></td>
                                     <td className="px-4 py-3 text-xs">{type}</td>
                                     <td className="px-4 py-3 text-sm">{desc}</td>
                                 </tr>
@@ -221,10 +221,10 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2">
                             <Code2 className="w-5 h-5 text-indigo-500" />
                             <h3 className="font-semibold text-lg">API Key</h3>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium">Server Components</span>
+                            <span className="text-xs px-2 py-0.5 rounded-lg-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium">Server Components</span>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                            Pass your website API key to <code className="bg-muted px-1 rounded text-xs">SeenticsProvider</code>.
+                            Pass your website API key to <code className="bg-muted px-1 rounded-lg text-xs">SeenticsProvider</code>.
                             Best used in React Server Components or when the key is loaded server-side and never exposed to the browser.
                         </p>
                         <CodeBlock code={`<SeenticsProvider apiKey="snt_live_xxxxx" websiteId="site-id">\n  {children}\n</SeenticsProvider>`} />
@@ -234,11 +234,11 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2">
                             <Zap className="w-5 h-5 text-indigo-500" />
                             <h3 className="font-semibold text-lg">User Token</h3>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Client Components</span>
+                            <span className="text-xs px-2 py-0.5 rounded-lg-full bg-muted text-muted-foreground font-medium">Client Components</span>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
-                            Pass a short-lived user JWT <code className="bg-muted px-1 rounded text-xs">token</code> instead of{' '}
-                            <code className="bg-muted px-1 rounded text-xs">apiKey</code>. Obtain the token from your auth session
+                            Pass a short-lived user JWT <code className="bg-muted px-1 rounded-lg text-xs">token</code> instead of{' '}
+                            <code className="bg-muted px-1 rounded-lg text-xs">apiKey</code>. Obtain the token from your auth session
                             and scope it to only the data the logged-in user should see.
                         </p>
                         <CodeBlock code={`<SeenticsProvider token={session.analyticsToken} websiteId="site-id">\n  {children}\n</SeenticsProvider>`} />
@@ -251,7 +251,7 @@ export default function Dashboard() {
                 <h2 className="text-2xl font-semibold">Next.js Example</h2>
                 <p className="text-muted-foreground leading-relaxed">
                     A full working page using Next.js App Router with a React Server Component wrapper and{' '}
-                    <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">Suspense</code> for streaming:
+                    <code className="bg-muted px-1.5 py-0.5 rounded-lg text-sm font-mono">Suspense</code> for streaming:
                 </p>
                 <CodeExample
                     language="TypeScript (Next.js App Router)"
@@ -302,7 +302,7 @@ export default function AnalyticsPage() {
                             'Support email shown in error states inside blocks',
                         ].map((item) => (
                             <li key={item} className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 flex-shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-lg-full bg-indigo-500 mt-1.5 flex-shrink-0" />
                                 <span>{item}</span>
                             </li>
                         ))}
@@ -324,10 +324,10 @@ function CodeBlock({ code }: { code: string }) {
         setTimeout(() => setCopied(false), 2000);
     };
     return (
-        <div className="relative bg-muted/50 rounded p-3 border">
+        <div className="relative bg-muted/50 rounded-lg p-3 border">
             <button
                 onClick={copy}
-                className="absolute top-2 right-2 p-1.5 rounded hover:bg-muted transition text-muted-foreground hover:text-foreground"
+                className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground"
             >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
@@ -351,7 +351,7 @@ function CodeExample({ language, code }: { language: string; code: string }) {
                 <p className="text-sm font-semibold">{language}</p>
                 <button
                     onClick={copy}
-                    className="text-xs px-2 py-1 rounded hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    className="text-xs px-2 py-1 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center gap-1"
                 >
                     {copied ? <Check size={14} /> : <Copy size={14} />}
                     {copied ? 'Copied' : 'Copy'}

@@ -62,9 +62,9 @@ function countryFlag(code: string) {
 function RealtimeTimelineChart({ timeline, isLoading }: { timeline?: RealtimeMinute[]; isLoading: boolean }) {
   if (isLoading) {
     return (
-      <div className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden">
+      <div className="border-none shadow-sm rounded-lg overflow-hidden">
         <div className="px-4 py-3 border-b border-border/50">
-          <div className="h-4 w-36 bg-muted/50 animate-pulse rounded" />
+          <div className="h-4 w-36 bg-muted/50 animate-pulse rounded-lg" />
         </div>
         <div className="p-4 md:p-5 h-40 bg-muted/20 animate-pulse" />
       </div>
@@ -73,15 +73,15 @@ function RealtimeTimelineChart({ timeline, isLoading }: { timeline?: RealtimeMin
   const data = timeline ?? [];
   const hasData = data.some(d => d.views > 0 || d.visitors > 0);
   return (
-    <div className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden">
+    <div className="border-none shadow-sm rounded-lg overflow-hidden bg-card">
       <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border/50 flex items-center justify-between">
         <div>
-          <h3 className="text-base font-medium tracking-tight text-foreground">Last 30 minutes</h3>
+          <h3 className=" font-semibold text-foreground">Last 30 minutes</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Pageviews and unique visitors per minute.</p>
         </div>
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-0.5 rounded bg-blue-500" />Pageviews</span>
-          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-0.5 rounded bg-emerald-500" />Visitors</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-0.5 rounded-lg bg-blue-500" />Pageviews</span>
+          <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-0.5 rounded-lg bg-emerald-500" />Visitors</span>
         </div>
       </div>
       <div className="p-4 md:p-5 h-40">
@@ -128,13 +128,13 @@ function TopList({ title, rows, isLoading, type = 'pages' }: {
   const items = rows ?? [];
   const max = items[0]?.visitors ?? 1;
   return (
-    <div className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden flex flex-col">
+    <div className="border-none shadow-sm rounded-lg overflow-hidden flex flex-col bg-card">
       <div className="px-4 py-3 border-b border-border/50">
         <h3 className="text-sm font-medium tracking-tight text-foreground">{title}</h3>
       </div>
       <div className="p-3 flex-1 space-y-1">
         {isLoading ? (
-          [...Array(5)].map((_, i) => <div key={i} className="h-5 bg-muted/40 animate-pulse rounded" />)
+          [...Array(5)].map((_, i) => <div key={i} className="h-5 bg-muted/40 animate-pulse rounded-lg" />)
         ) : items.length === 0 ? (
           <p className="text-xs text-muted-foreground py-4 text-center">No data yet</p>
         ) : (
@@ -144,8 +144,8 @@ function TopList({ title, rows, isLoading, type = 'pages' }: {
               const code = r.name ?? '';
               const flag = countryFlag(code);
               return (
-                <div key={i} className="relative flex items-center justify-between gap-2 px-2 py-1 rounded text-xs">
-                  <div className="absolute inset-0 rounded bg-primary/5" style={{ width: `${pct}%` }} />
+                <div key={i} className="relative flex items-center justify-between gap-2 px-2 py-1 rounded-lg text-xs">
+                  <div className="absolute inset-0 rounded-lg bg-primary/5" style={{ width: `${pct}%` }} />
                   <span className="relative flex items-center gap-1.5 truncate text-foreground">
                     <span className="text-sm leading-none">{flag}</span>
                     <span className="truncate">{code || '—'}</span>
@@ -158,8 +158,8 @@ function TopList({ title, rows, isLoading, type = 'pages' }: {
             const label = getPageLabel(page);
             const icon = getPageIcon(page);
             return (
-              <div key={i} className="relative flex items-center justify-between gap-2 px-2 py-1 rounded text-xs">
-                <div className="absolute inset-0 rounded bg-primary/5" style={{ width: `${pct}%` }} />
+              <div key={i} className="relative flex items-center justify-between gap-2 px-2 py-1 rounded-lg text-xs">
+                <div className="absolute inset-0 rounded-lg bg-primary/5" style={{ width: `${pct}%` }} />
                 <span className="relative flex items-center gap-1.5 truncate text-foreground" title={page}>
                   {icon}
                   <span className="truncate">{label}</span>
@@ -208,7 +208,7 @@ export function RealtimeDashboardSection({ websiteId }: { websiteId: string }) {
       >
         {!isDemoMode && (
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             className="h-8 gap-1.5"
             disabled={refreshing}
@@ -255,21 +255,21 @@ export function RealtimeDashboardSection({ websiteId }: { websiteId: string }) {
         <TopList title="Top countries" rows={data?.top_countries} isLoading={statsLoading} type="countries" />
       </div>
 
-      <div className="mt-6 border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden">
+      <div className="mt-6  shadow-sm rounded-lg overflow-hidden bg-card">
         <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border/50">
           <h3 className="text-base font-medium tracking-tight text-foreground">Activity log</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Page URL, country, device, OS, browser, source, and time. Updates about every 12 seconds.
           </p>
         </div>
-        <div className="p-4 md:p-5">
+        <div className="p-4 md:p-5 bg-card">
           <RecentActivityFeed
             embed
             rowLayout="table"
             websiteId={websiteId}
             data={recentActivityData}
             isLoading={recentLoading}
-            tableScrollClassName="border-0 rounded-none shadow-none bg-transparent max-h-[min(32rem,60vh)]"
+            tableScrollClassName="border-0 bg-card rounded-lg-none shadow-none  max-h-[min(32rem,60vh)]"
           />
         </div>
       </div>

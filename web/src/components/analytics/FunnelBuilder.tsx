@@ -119,7 +119,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
+    <Card className="w-full max-w-5xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Target className="w-5 h-5" />
@@ -175,7 +175,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`p-4 border rounded bg-card ${
+                          className={`p-4 border rounded-lg bg-card ${
                             snapshot.isDragging ? 'shadow-lg' : ''
                           }`}
                         >
@@ -189,7 +189,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                             </div>
 
                             {/* Step Number */}
-                            <div className={`w-8 h-8 rounded-full ${getStepColor(index)} text-white text-sm font-medium flex items-center justify-center`}>
+                            <div className={`w-8 h-8 rounded-lg-full ${getStepColor(index)} text-white text-sm font-medium flex items-center justify-center`}>
                               {index + 1}
                             </div>
 
@@ -300,7 +300,7 @@ export function FunnelBuilder({ websiteId, existingFunnel, onSave, onCancel }: F
                           {index < steps.length - 1 && (
                             <div className="flex justify-center mt-2">
                               <div className="w-px h-4 bg-border"></div>
-                              <div className="absolute w-2 h-2 bg-border rounded-full -mt-1"></div>
+                              <div className="absolute w-2 h-2 bg-border rounded-lg-full -mt-1"></div>
                             </div>
                           )}
                         </div>

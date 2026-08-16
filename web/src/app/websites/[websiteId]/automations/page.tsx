@@ -173,7 +173,7 @@ export default function AutomationsPage() {
       size: 90,
       cell: ({ row }) => (
         <Badge className={cn(
-          'text-[10px] px-1.5 py-0 h-4 border rounded',
+          'text-[10px] px-1.5 py-0 h-4 border rounded-lg',
           row.original.isActive
             ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300'
             : 'bg-muted text-muted-foreground border-border',
@@ -277,7 +277,7 @@ export default function AutomationsPage() {
         )}
         toolbarLeft={
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Automations</h3>
+            <h3 className=" font-semibold text-foreground">Automations</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">{filtered.length} automation{filtered.length !== 1 ? 's' : ''} configured</p>
           </div>
         }
@@ -290,13 +290,13 @@ export default function AutomationsPage() {
                 placeholder="Search automations..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-8 h-8 text-xs w-44"
+                className="pl-8 h-9 rounded-lg text-xs w-44"
               />
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="h-8 gap-1.5"
+              className=" rounded-lg gap-1.5"
               onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}
             >
               <LayoutTemplate className="h-3.5 w-3.5" />
@@ -304,7 +304,7 @@ export default function AutomationsPage() {
             </Button>
             <Button
               size="sm"
-              className="h-8 gap-1.5"
+              className=" gap-1.5 rounded-lg"
               onClick={() => router.push(`/websites/${websiteId}/automations/new`)}
             >
               <Plus className="h-3.5 w-3.5" />

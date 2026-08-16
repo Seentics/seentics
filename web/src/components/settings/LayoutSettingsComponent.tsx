@@ -46,25 +46,25 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
   {
     id: 'floating-header',
     label: 'Floating Header',
-    description: 'Rounded floating bar at the top',
+    description: 'rounded-lg floating bar at the top',
     icon: ArrowUpFromLine,
   },
 ];
 
 function LayoutPreview({ mode }: { mode: LayoutMode }) {
   return (
-    <div className="w-full h-24 rounded-md bg-muted/30 border border-border/40 relative overflow-hidden">
+    <div className="w-full h-24 rounded-lg bg-muted/30 border border-border/40 relative overflow-hidden">
       {/* Content area placeholder */}
       <div className="absolute inset-2 flex gap-1">
         {mode === 'sidebar' && (
           <>
-            <div className="w-5 h-full rounded-sm bg-primary/20 border border-primary/30" />
+            <div className="w-5 h-full rounded-lg-sm bg-primary/20 border border-primary/30" />
             <div className="flex-1 space-y-1 pt-1">
-              <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
-              <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-3/4 rounded-lg-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-1/2 rounded-lg-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-2">
-                <div className="h-6 rounded-sm bg-muted-foreground/5 border border-border/30" />
-                <div className="h-6 rounded-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
               </div>
             </div>
           </>
@@ -72,38 +72,38 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
         {mode === 'dock' && (
           <div className="flex-1 relative">
             <div className="space-y-1 pt-1">
-              <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
-              <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-3/4 rounded-lg-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-1/2 rounded-lg-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-2">
-                <div className="h-6 rounded-sm bg-muted-foreground/5 border border-border/30" />
-                <div className="h-6 rounded-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
               </div>
             </div>
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-3 rounded-full bg-primary/20 border border-primary/30" />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-3 rounded-lg-full bg-primary/20 border border-primary/30" />
           </div>
         )}
         {mode === 'header' && (
           <div className="flex-1 flex flex-col">
-            <div className="w-full h-3 rounded-sm bg-primary/20 border border-primary/30 mb-1.5" />
+            <div className="w-full h-3 rounded-lg-sm bg-primary/20 border border-primary/30 mb-1.5" />
             <div className="space-y-1">
-              <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
-              <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-3/4 rounded-lg-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-1/2 rounded-lg-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-1">
-                <div className="h-5 rounded-sm bg-muted-foreground/5 border border-border/30" />
-                <div className="h-5 rounded-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
               </div>
             </div>
           </div>
         )}
         {mode === 'floating-header' && (
           <div className="flex-1 flex flex-col items-center">
-            <div className="w-3/4 h-3 rounded-full bg-primary/20 border border-primary/30 mt-0.5 mb-1.5" />
+            <div className="w-3/4 h-3 rounded-lg-full bg-primary/20 border border-primary/30 mt-0.5 mb-1.5" />
             <div className="w-full space-y-1">
-              <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
-              <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-3/4 rounded-lg-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-1/2 rounded-lg-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-1">
-                <div className="h-5 rounded-sm bg-muted-foreground/5 border border-border/30" />
-                <div className="h-5 rounded-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
               </div>
             </div>
           </div>
@@ -151,7 +151,7 @@ export function LayoutSettingsComponent() {
       <Card>
         <CardContent className="pt-5 pb-5">
           <div className="flex items-center gap-2.5 mb-5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/10">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
               <PanelLeft className="h-4 w-4 text-primary" />
             </div>
             <div>
@@ -178,7 +178,7 @@ export function LayoutSettingsComponent() {
                   <p className="text-xs text-muted-foreground">{option.description}</p>
                 </div>
                 {selectedMode === option.id && (
-                  <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                  <div className="absolute top-2 right-2 h-5 w-5 rounded-lg-full bg-primary flex items-center justify-center">
                     <Check className="h-3 w-3 text-primary-foreground" />
                   </div>
                 )}

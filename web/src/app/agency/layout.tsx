@@ -82,7 +82,7 @@ export default function AgencyLayout({ children }: { children: React.ReactNode }
                   <Link
                     href={item.href}
                     className={cn(
-                      'flex items-center gap-3 h-9 px-3 rounded-md transition-colors text-[13px] font-medium',
+                      'flex items-center gap-3 h-9 px-3 rounded-lg transition-colors text-[13px] font-medium',
                       active
                         ? 'bg-primary/10 text-primary dark:bg-accent dark:text-foreground'
                         : 'text-foreground/60 hover:text-foreground hover:bg-muted/50',

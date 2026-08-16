@@ -40,7 +40,7 @@ export default function PublicDashboardPage() {
             <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
                 <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 bg-primary rounded flex items-center justify-center">
+                        <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
                             <BarChart3 className="h-5 w-5 text-white" />
                         </div>
                         <div>

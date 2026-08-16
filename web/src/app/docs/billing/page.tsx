@@ -32,7 +32,7 @@ export default function BillingDocs() {
 
             <section className="space-y-6">
                 <h2 className="text-2xl font-semibold">Tiered Limits</h2>
-                <div className="rounded border bg-card overflow-hidden">
+                <div className="rounded-lg border bg-card overflow-hidden">
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="bg-muted/50 border-b">
@@ -87,7 +87,7 @@ export default function BillingDocs() {
                 </p>
             </section>
 
-            <section className="p-10 rounded bg-card border flex flex-col md:flex-row items-center justify-between gap-8">
+            <section className="p-10 rounded-lg bg-card border flex flex-col md:flex-row items-center justify-between gap-8">
                 <div className="space-y-3 max-w-xl text-center md:text-left">
                     <h3 className="text-2xl font-bold">Managing Subscriptions</h3>
                     <p className="text-muted-foreground">
@@ -95,7 +95,7 @@ export default function BillingDocs() {
                         our secure checkout powered by Lemon Squeezy.
                     </p>
                 </div>
-                <Link href="/pricing" className="px-8 py-3 bg-primary text-primary-foreground rounded font-bold hover:scale-105 transition active:scale-95 shadow-xl shadow-primary/20 shrink-0">
+                <Link href="/pricing" className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-bold hover:scale-105 transition active:scale-95 shadow-xl shadow-primary/20 shrink-0">
                     View Upgrade Options
                 </Link>
             </section>
@@ -105,7 +105,7 @@ export default function BillingDocs() {
 
 function UsageCard({ icon: Icon, title, desc }: any) {
     return (
-        <div className="p-6 rounded border bg-muted/20 space-y-2">
+        <div className="p-6 rounded-lg border bg-muted/20 space-y-2">
             <Icon className="w-5 h-5 text-primary mb-2" />
             <h4 className="font-semibold">{title}</h4>
             <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>

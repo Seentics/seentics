@@ -26,7 +26,7 @@ interface RecentActivityFeedProps {
   websiteId?: string;
   /** `table` = one row per event (Page, Country, Device, …). Default `stack`. */
   rowLayout?: 'stack' | 'table';
-  /** Merged onto the table scroll container (e.g. flush inside a parent `rounded-xl` card). */
+  /** Merged onto the table scroll container (e.g. flush inside a parent `rounded-lg` card). */
   tableScrollClassName?: string;
 }
 
@@ -39,7 +39,7 @@ function MetaIcon({ src, label }: { src: string; label: string }) {
       role="img"
       aria-label={label}
       title={label}
-      className="h-3.5 w-3.5 shrink-0 rounded-[3px] object-contain opacity-90"
+      className="h-3.5 w-3.5 shrink-0 rounded-lg-[3px] object-contain opacity-90"
     />
   );
 }
@@ -99,10 +99,10 @@ export function RecentActivityFeed({
   if (rowLayout === 'table') {
     if (isLoading) {
       return (
-        <div className="rounded-md border border-border/50 overflow-hidden">
+        <div className="rounded-lg border border-border/50 overflow-hidden">
           <div className="grid grid-cols-[minmax(8rem,2fr)_repeat(6,minmax(4rem,1fr))] gap-2 p-3 bg-muted/20 border-b border-border/40">
             {[...Array(7)].map((_, i) => (
-              <Skeleton key={i} className="h-3 rounded" />
+              <Skeleton key={i} className="h-3 rounded-lg" />
             ))}
           </div>
           {[...Array(8)].map((_, i) => (
@@ -111,7 +111,7 @@ export function RecentActivityFeed({
               className="grid grid-cols-[minmax(8rem,2fr)_repeat(6,minmax(4rem,1fr))] gap-2 p-3 border-b border-border/30 last:border-b-0"
             >
               {[...Array(7)].map((_, j) => (
-                <Skeleton key={j} className="h-3.5 rounded" />
+                <Skeleton key={j} className="h-3.5 rounded-lg" />
               ))}
             </div>
           ))}
@@ -121,7 +121,7 @@ export function RecentActivityFeed({
     if (activities.length === 0) {
       return (
         <div className={cn('text-center space-y-3', embed ? 'py-8' : 'py-12')}>
-          <div className="w-10 h-10 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
+          <div className="w-10 h-10 mx-auto rounded-lg-full bg-muted/50 flex items-center justify-center">
             <Globe className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
@@ -137,7 +137,7 @@ export function RecentActivityFeed({
       <div className="relative">
         <div
           className={cn(
-            'overflow-x-auto overflow-y-auto rounded-md border border-border/50',
+            'overflow-x-auto overflow-y-auto rounded-lg border border-border/50',
             embed ? 'max-h-[min(28rem,55vh)]' : 'max-h-[420px]',
             tableScrollClassName,
           )}
@@ -235,8 +235,8 @@ export function RecentActivityFeed({
                       >
                         {isRecent && (
                           <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden>
-                            <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-50 animate-ping" />
-                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
+                            <span className="absolute inline-flex h-full w-full rounded-lg-full bg-primary opacity-50 animate-ping" />
+                            <span className="relative inline-flex h-1.5 w-1.5 rounded-lg-full bg-primary" />
                           </span>
                         )}
                         {ago}
@@ -250,7 +250,7 @@ export function RecentActivityFeed({
         </div>
         {activities.length > 6 && (
           <div
-            className="pointer-events-none absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-card to-transparent rounded-b-md"
+            className="pointer-events-none absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-card to-transparent rounded-lg-b-md"
             aria-hidden
           />
         )}
@@ -271,14 +271,14 @@ export function RecentActivityFeed({
           {[...Array(embed ? 6 : 7)].map((_, i) => (
             <div key={i} className={cn('flex flex-col gap-1.5', embed ? 'py-2.5 px-1' : 'py-3')}>
               <div className="flex items-center gap-2">
-                <Skeleton className="h-3.5 flex-1 max-w-[70%] rounded" />
-                <Skeleton className="h-3 w-12 rounded ml-auto" />
+                <Skeleton className="h-3.5 flex-1 max-w-[70%] rounded-lg" />
+                <Skeleton className="h-3 w-12 rounded-lg ml-auto" />
               </div>
               <div className="flex items-center gap-1.5">
-                <Skeleton className="h-3.5 w-3.5 rounded-sm" />
-                <Skeleton className="h-3.5 w-3.5 rounded-sm" />
-                <Skeleton className="h-3.5 w-3.5 rounded-sm" />
-                <Skeleton className="h-3 w-24 rounded ml-1" />
+                <Skeleton className="h-3.5 w-3.5 rounded-lg-sm" />
+                <Skeleton className="h-3.5 w-3.5 rounded-lg-sm" />
+                <Skeleton className="h-3.5 w-3.5 rounded-lg-sm" />
+                <Skeleton className="h-3 w-24 rounded-lg ml-1" />
               </div>
             </div>
           ))}
@@ -296,10 +296,10 @@ export function RecentActivityFeed({
             <p className="text-xs text-muted-foreground mt-0.5">Recent page views on your site</p>
           </div>
           {activities.length > 0 && (
-            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2.5 py-1 rounded">
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-lg">
               <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-lg-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-lg-full h-1.5 w-1.5 bg-emerald-500" />
               </span>
               Live
             </div>
@@ -309,7 +309,7 @@ export function RecentActivityFeed({
 
       {activities.length === 0 ? (
         <div className={cn('text-center space-y-3', embed ? 'py-8' : 'py-12')}>
-          <div className="w-10 h-10 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
+          <div className="w-10 h-10 mx-auto rounded-lg-full bg-muted/50 flex items-center justify-center">
             <Globe className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
@@ -359,7 +359,7 @@ export function RecentActivityFeed({
                     {/* Left accent bar */}
                     <span
                       className={cn(
-                        'pointer-events-none absolute left-0 top-2 bottom-2 w-[2.5px] rounded-full transition-colors',
+                        'pointer-events-none absolute left-0 top-2 bottom-2 w-[2.5px] rounded-lg-full transition-colors',
                         embed && (isRecent
                           ? 'bg-emerald-500'
                           : 'bg-border/60 group-hover:bg-border'),
@@ -386,8 +386,8 @@ export function RecentActivityFeed({
                       >
                         {isRecent && (
                           <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden>
-                            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-50 animate-ping" />
-                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <span className="absolute inline-flex h-full w-full rounded-lg-full bg-emerald-500 opacity-50 animate-ping" />
+                            <span className="relative inline-flex h-1.5 w-1.5 rounded-lg-full bg-emerald-500" />
                           </span>
                         )}
                         {ago}

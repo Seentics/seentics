@@ -17,7 +17,7 @@ export function ComparisonToggle({ enabled, onToggle }: ComparisonToggleProps) {
       size="sm"
       onClick={() => onToggle(!enabled)}
       className={cn(
-        'h-7 px-3 gap-1.5 text-xs font-medium rounded text-muted-foreground bg-muted/50 hover:bg-muted/70 hover:text-foreground border-0',
+        'h-7 px-3 gap-1.5 text-xs font-medium rounded-lg text-muted-foreground bg-muted/50 hover:bg-muted/70 hover:text-foreground border-0',
         enabled && 'bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary'
       )}
     >

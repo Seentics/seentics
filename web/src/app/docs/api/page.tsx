@@ -48,7 +48,7 @@ export default function APIDocs() {
                         </p>
                         <CodeBlock code={`https://your-instance.com/api/v1`} />
                         <p className="text-xs text-muted-foreground">
-                            Replace <code className="bg-muted px-1 rounded">your-instance.com</code> with your deployment domain.
+                            Replace <code className="bg-muted px-1 rounded-lg">your-instance.com</code> with your deployment domain.
                         </p>
                     </div>
                 </div>
@@ -258,12 +258,12 @@ print(data)`}
                     </p>
                     <ul className="space-y-2 text-sm text-muted-foreground">
                         <li className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                            <span className="w-1.5 h-1.5 rounded-lg-full bg-primary" />
                             <span><span className="font-semibold text-foreground">1000 requests/minute</span> per API key</span>
                         </li>
                         <li className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                            <span><span className="font-semibold text-foreground">Headers</span> include <code className="bg-muted px-1 rounded text-xs">X-RateLimit-Remaining</code> and <code className="bg-muted px-1 rounded text-xs">X-RateLimit-Reset</code></span>
+                            <span className="w-1.5 h-1.5 rounded-lg-full bg-primary" />
+                            <span><span className="font-semibold text-foreground">Headers</span> include <code className="bg-muted px-1 rounded-lg text-xs">X-RateLimit-Remaining</code> and <code className="bg-muted px-1 rounded-lg text-xs">X-RateLimit-Reset</code></span>
                         </li>
                     </ul>
                 </div>
@@ -280,10 +280,10 @@ function CodeBlock({ code }: { code: string }) {
         setTimeout(() => setCopied(false), 2000);
     };
     return (
-        <div className="relative bg-muted/50 rounded p-3 border">
+        <div className="relative bg-muted/50 rounded-lg p-3 border">
             <button
                 onClick={copy}
-                className="absolute top-2 right-2 p-1.5 rounded hover:bg-muted transition text-muted-foreground hover:text-foreground"
+                className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground"
             >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
@@ -317,11 +317,11 @@ function EndpointBlock({
         <div className="space-y-4">
             <div className="space-y-3 p-6 rounded-lg border bg-card">
                 <div className="flex items-center gap-3 flex-wrap">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded ${methodBg} ${methodColor}`}>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${methodBg} ${methodColor}`}>
                         {method}
                     </span>
                     <code className="font-mono text-sm text-foreground">{path}</code>
-                    {noAuth && <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground font-medium">No Auth*</span>}
+                    {noAuth && <span className="text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground font-medium">No Auth*</span>}
                 </div>
                 <p className="text-sm text-muted-foreground">{description}</p>
                 {queryParams && (
@@ -330,7 +330,7 @@ function EndpointBlock({
                         <ul className="space-y-1">
                             {queryParams.map((p) => (
                                 <li key={p.name} className="text-xs text-muted-foreground">
-                                    <code className="bg-muted/50 px-1 rounded">{p.name}</code> <span className="text-xs text-primary">({p.type})</span> – {p.desc}
+                                    <code className="bg-muted/50 px-1 rounded-lg">{p.name}</code> <span className="text-xs text-primary">({p.type})</span> – {p.desc}
                                 </li>
                             ))}
                         </ul>
@@ -367,7 +367,7 @@ function CodeExample({ language, code }: { language: string; code: string }) {
                 <p className="text-sm font-semibold">{language}</p>
                 <button
                     onClick={copy}
-                    className="text-xs px-2 py-1 rounded hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    className="text-xs px-2 py-1 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center gap-1"
                 >
                     {copied ? <Check size={14} /> : <Copy size={14} />}
                     {copied ? 'Copied' : 'Copy'}

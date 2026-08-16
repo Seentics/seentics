@@ -115,10 +115,10 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
         {[...Array(6)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse">
             <div className="flex items-center space-x-4">
-              <div className="w-4 h-4 bg-muted rounded" />
-              <div className="h-4 w-32 bg-muted rounded" />
+              <div className="w-4 h-4 bg-muted rounded-lg" />
+              <div className="h-4 w-32 bg-muted rounded-lg" />
             </div>
-            <div className="h-4 w-12 bg-muted rounded" />
+            <div className="h-4 w-12 bg-muted rounded-lg" />
           </div>
         ))}
       </div>
@@ -170,7 +170,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
       };
 
       return (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border/60">
           <Layers className="h-10 w-10 mb-2 opacity-20" />
           <p className="text-xs font-medium text-muted-foreground">{emptyMessages[type]}</p>
         </div>
@@ -186,7 +186,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
           return (
             <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ utm_source: item.label })}>
               <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <div className="flex-shrink-0 w-10 h-10 rounded bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
+                <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                   {directIcon ? (
                     <directIcon.icon className="h-5 w-5" style={{ color: directIcon.color }} />
                   ) : sourceImg ? (
@@ -253,10 +253,10 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
               <h3 className="text-base font-semibold tracking-tight">Traffic Sources</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Main acquisition channels</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted/50 p-0.5 rounded">
-             <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
-             <TabsTrigger value="search" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Search</TabsTrigger>
-             <TabsTrigger value="social" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Social</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted/50 p-0.5 rounded-lg">
+             <TabsTrigger value="overview" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">All</TabsTrigger>
+             <TabsTrigger value="search" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Search</TabsTrigger>
+             <TabsTrigger value="social" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Social</TabsTrigger>
            </TabsList>
         </div>
 

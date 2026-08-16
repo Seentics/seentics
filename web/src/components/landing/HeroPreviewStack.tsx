@@ -42,12 +42,12 @@ function BuilderNode({
   const isTrigger = kind === 'trigger';
   return (
     <div
-      className={`relative w-[190px] rounded-xl border-2 bg-card px-4 py-3 shadow-sm ${
+      className={`relative w-[190px] rounded-lg border-2 bg-card px-4 py-3 shadow-sm ${
         isTrigger ? 'border-primary/50' : 'border-indigo-500/50'
       }`}
     >
       {!isTrigger && (
-        <span className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rounded-full border-4 border-background bg-indigo-500" />
+        <span className="absolute -top-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rounded-lg-full border-4 border-background bg-indigo-500" />
       )}
       <div className="flex items-center gap-3">
         <div
@@ -70,7 +70,7 @@ function BuilderNode({
         </div>
       </div>
       <span
-        className={`absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rounded-full border-4 border-background ${
+        className={`absolute -bottom-1.5 left-1/2 h-3 w-3 -translate-x-1/2 rounded-lg-full border-4 border-background ${
           isTrigger ? 'bg-primary' : 'bg-indigo-500'
         }`}
       />
@@ -108,7 +108,7 @@ function AutomationsPanel() {
         </div>
 
         {/* ReactFlow Controls — bottom-left */}
-        <div className="absolute bottom-3 left-3 flex flex-col overflow-hidden rounded-xl border border-border/60 bg-card/95 shadow-lg backdrop-blur-sm">
+        <div className="absolute bottom-3 left-3 flex flex-col overflow-hidden rounded-lg border border-border/60 bg-card/95 shadow-lg backdrop-blur-sm">
           {[Plus, Minus, Frame, Maximize2].map((Ic, i) => (
             <div key={i} className={`flex h-6 w-6 items-center justify-center ${i > 0 ? 'border-t border-border/50' : ''}`}>
               <Ic className="h-3 w-3 text-muted-foreground" />
@@ -117,14 +117,14 @@ function AutomationsPanel() {
         </div>
 
         {/* Floating action toolbar — bottom-center */}
-        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1.5 rounded-2xl border border-border/60 bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-[11px] font-semibold text-muted-foreground">
+        <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 gap-1.5 rounded-lg-2xl border border-border/60 bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold text-muted-foreground">
             <Trash2 className="h-3.5 w-3.5" /> Clear
           </span>
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-[11px] font-semibold text-muted-foreground">
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold text-muted-foreground">
             <Maximize2 className="h-3.5 w-3.5" /> Fit
           </span>
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-xl px-2.5 text-[11px] font-semibold text-foreground">
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[11px] font-semibold text-foreground">
             <Play className="h-3.5 w-3.5" /> Test
           </span>
         </div>
@@ -137,20 +137,20 @@ function AutomationsPanel() {
             <p className="text-[11px] font-medium text-foreground">Nodes</p>
             <p className="text-[9px] text-muted-foreground">Drag onto the canvas</p>
           </div>
-          <div className="relative flex h-7 items-center gap-1.5 rounded-md border border-input bg-background px-2 text-[10px] text-muted-foreground">
+          <div className="relative flex h-7 items-center gap-1.5 rounded-lg border border-input bg-background px-2 text-[10px] text-muted-foreground">
             <Search className="h-3 w-3" /> Search
           </div>
         </div>
         <div className="space-y-1.5 p-2.5">
           <p className="px-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70">Triggers</p>
           {['Page View', 'Exit Intent'].map((t) => (
-            <div key={t} className="flex items-center gap-1.5 rounded-md border border-border/50 bg-card px-2 py-1.5 text-[10px] font-medium text-foreground">
+            <div key={t} className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-card px-2 py-1.5 text-[10px] font-medium text-foreground">
               <Globe className="h-3 w-3 text-primary" /> {t}
             </div>
           ))}
           <p className="mt-2 px-0.5 text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70">Actions</p>
           {['Show Popup', 'Send Email'].map((t) => (
-            <div key={t} className="flex items-center gap-1.5 rounded-md border border-border/50 bg-card px-2 py-1.5 text-[10px] font-medium text-foreground">
+            <div key={t} className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-card px-2 py-1.5 text-[10px] font-medium text-foreground">
               <Plus className="h-3 w-3 text-indigo-500" /> {t}
             </div>
           ))}
@@ -186,27 +186,27 @@ function ReplayPanel() {
     <div className="flex h-full flex-col bg-background">
       {/* Player card — capped width so the tab bar below always stays visible */}
       <div className="mx-auto w-full max-w-xl p-3">
-        <div className="overflow-hidden rounded-xl border border-border/60 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
+        <div className="overflow-hidden rounded-lg border border-border/60 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
           {/* Viewport (always dark, like the real player) */}
           <div className="relative aspect-[16/9] overflow-hidden bg-black">
-            <div className="absolute inset-3 rounded-md bg-white/95 p-3 shadow-inner">
+            <div className="absolute inset-3 rounded-lg bg-white/95 p-3 shadow-inner">
               <div className="flex items-center gap-1.5 border-b border-black/10 pb-2">
-                <div className="h-2 w-2 rounded-full bg-black/20" />
-                <div className="h-1.5 w-20 rounded-full bg-black/10" />
+                <div className="h-2 w-2 rounded-lg-full bg-black/20" />
+                <div className="h-1.5 w-20 rounded-lg-full bg-black/10" />
               </div>
               <div className="mt-3 space-y-2">
-                <div className="h-2.5 w-3/4 rounded-full bg-black/15" />
-                <div className="h-2.5 w-1/2 rounded-full bg-black/10" />
-                <div className="mt-3 h-6 w-24 rounded-md bg-primary/80" />
+                <div className="h-2.5 w-3/4 rounded-lg-full bg-black/15" />
+                <div className="h-2.5 w-1/2 rounded-lg-full bg-black/10" />
+                <div className="mt-3 h-6 w-24 rounded-lg bg-primary/80" />
                 <div className="mt-2 grid grid-cols-3 gap-2">
-                  <div className="h-9 rounded-md bg-black/[0.06]" />
-                  <div className="h-9 rounded-md bg-black/[0.06]" />
-                  <div className="h-9 rounded-md bg-black/[0.06]" />
+                  <div className="h-9 rounded-lg bg-black/[0.06]" />
+                  <div className="h-9 rounded-lg bg-black/[0.06]" />
+                  <div className="h-9 rounded-lg bg-black/[0.06]" />
                 </div>
               </div>
             </div>
             <div className="absolute left-[56%] top-[62%]">
-              <span className="absolute -inset-2 animate-ping rounded-full bg-primary/40" />
+              <span className="absolute -inset-2 animate-ping rounded-lg-full bg-primary/40" />
               <MousePointer2 className="relative h-4 w-4 fill-white text-white drop-shadow" />
             </div>
           </div>
@@ -215,14 +215,14 @@ function ReplayPanel() {
           <div className="border-t border-zinc-800/80 bg-zinc-900/90 px-3 py-2">
             <div className="flex items-center gap-2">
               <Rewind className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg-full bg-primary text-primary-foreground shadow-sm">
                 <Play className="h-3.5 w-3.5 translate-x-px fill-current" />
               </div>
               <FastForward className="h-3.5 w-3.5 shrink-0 text-zinc-500" />
               <div className="relative mx-1 h-2 min-w-0 flex-1">
-                <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-zinc-700/50" />
-                <div className="absolute left-0 top-1/2 h-2 w-[46%] -translate-y-1/2 rounded-full bg-white/85" />
-                <div className="absolute left-[46%] top-1/2 h-3.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-zinc-900 bg-white" />
+                <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-lg-full bg-zinc-700/50" />
+                <div className="absolute left-0 top-1/2 h-2 w-[46%] -translate-y-1/2 rounded-lg-full bg-white/85" />
+                <div className="absolute left-[46%] top-1/2 h-3.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-lg-full border border-zinc-900 bg-white" />
               </div>
               <span className="shrink-0 text-right text-[11px] tabular-nums">
                 <span className="font-medium text-zinc-200">1:28</span>
@@ -261,7 +261,7 @@ function ReplayPanel() {
 
         {/* Summary tab content */}
         <div className="min-h-0 flex-1 overflow-hidden p-3">
-          <div className="rounded-xl border border-border/60 bg-card p-3 shadow-sm">
+          <div className="rounded-lg border border-border/60 bg-card p-3 shadow-sm">
             <p className="mb-2.5 text-xs font-semibold text-foreground">Session summary</p>
             <dl className="space-y-2">
               {SESSION_SUMMARY.map((f) => (
@@ -353,7 +353,7 @@ export default function HeroPreviewStack() {
               ['--sc' as string]: slot.sc,
             }}
             className={cn(
-              'group relative h-[420px] w-full overflow-hidden rounded-2xl border border-border/60 bg-card outline-none sm:h-[480px]',
+              'group relative h-[420px] w-full overflow-hidden rounded-lg-2xl border border-border/60 bg-card outline-none sm:h-[480px]',
               'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
               'transition-all duration-500 ease-out md:cursor-pointer',
               // Mobile: only the selected preview is shown (tabs switch it).
@@ -370,13 +370,13 @@ export default function HeroPreviewStack() {
             {p.node}
 
             {/* Corner label — desktop only (mobile uses the tab bar) */}
-            <span className="pointer-events-none absolute left-3 top-3 z-20 hidden rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur md:block">
+            <span className="pointer-events-none absolute left-3 top-3 z-20 hidden rounded-lg-full border border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur md:block">
               {p.label}
             </span>
 
             {/* Hover cue — prompt to click (desktop, non-front layers) */}
             {!isActive && (
-              <span className="pointer-events-none absolute left-1/2 bottom-3 z-30 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-foreground/90 px-3 py-1.5 text-[11px] font-semibold text-background opacity-0 shadow-lg backdrop-blur transition-opacity duration-200 md:flex md:group-hover:opacity-100">
+              <span className="pointer-events-none absolute left-1/2 bottom-3 z-30 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-lg-full bg-foreground/90 px-3 py-1.5 text-[11px] font-semibold text-background opacity-0 shadow-lg backdrop-blur transition-opacity duration-200 md:flex md:group-hover:opacity-100">
                 <MousePointerClick className="h-3.5 w-3.5" />
                 Click to bring to front
               </span>

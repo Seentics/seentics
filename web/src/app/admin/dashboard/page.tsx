@@ -37,7 +37,7 @@ const PLAN_COLORS: Record<string, string> = {
 function PlanBadge({ plan }: { plan: string }) {
   const cls = PLAN_COLORS[plan] ?? 'bg-gray-800 text-gray-300 border border-gray-700';
   return (
-    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium capitalize ${cls}`}>
+    <span className={`text-[11px] px-2 py-0.5 rounded-lg-full font-medium capitalize ${cls}`}>
       {plan.replace('_', ' ')}
     </span>
   );
@@ -56,7 +56,7 @@ const ACCENT: Record<CardAccent, { icon: string; text: string; bar: string }> = 
   slate:  { icon: 'bg-slate-500/15 text-slate-400', text: 'text-slate-400', bar: 'bg-slate-400' },
 };
 
-const CARD = 'bg-[#111116] border border-white/[0.06] rounded-xl p-5 hover:border-white/10 transition-colors';
+const CARD = 'bg-[#111116] border border-white/[0.06] rounded-lg p-5 hover:border-white/10 transition-colors';
 
 function StatCard({
   icon: Icon,
@@ -81,7 +81,7 @@ function StatCard({
           <Icon className="w-4 h-4" />
         </div>
         {badge && (
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 bg-white/5 px-2 py-0.5 rounded-md">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-600 bg-white/5 px-2 py-0.5 rounded-lg">
             {badge}
           </span>
         )}
@@ -141,7 +141,7 @@ export default function AdminDashboardPage() {
           <button
             onClick={() => load(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white bg-white/5 hover:bg-white/8 border border-white/8 rounded-xl px-3.5 py-2 transition-all disabled:opacity-40"
+            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white bg-white/5 hover:bg-white/8 border border-white/8 rounded-lg px-3.5 py-2 transition-all disabled:opacity-40"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
@@ -152,7 +152,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-center h-64 text-gray-600 text-sm">Loading…</div>
         )}
         {error && (
-          <div className="bg-red-500/5 border border-red-500/20 text-red-400 rounded-2xl p-4 text-sm mb-6">{error}</div>
+          <div className="bg-red-500/5 border border-red-500/20 text-red-400 rounded-lg-2xl p-4 text-sm mb-6">{error}</div>
         )}
 
         {stats && !loading && (
@@ -197,9 +197,9 @@ export default function AdminDashboardPage() {
                     {stats.subscriptions.byPlan.map((p) => (
                       <div key={p.plan} className="flex items-center gap-3">
                         <PlanBadge plan={p.plan} />
-                        <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                        <div className="flex-1 h-1 bg-white/5 rounded-lg-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${ACCENT[p.plan === 'starter' ? 'slate' : p.plan === 'growth' ? 'emerald' : p.plan === 'pro' ? 'violet' : 'indigo'].bar}`}
+                            className={`h-full rounded-lg-full ${ACCENT[p.plan === 'starter' ? 'slate' : p.plan === 'growth' ? 'emerald' : p.plan === 'pro' ? 'violet' : 'indigo'].bar}`}
                             style={{ width: `${Math.min(100, (p.count / Math.max(1, totalSubs)) * 100)}%` }}
                           />
                         </div>

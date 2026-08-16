@@ -14,20 +14,19 @@ export default function TrackingFeaturesSettingsPage() {
   const websiteId = params?.websiteId as string;
 
   return (
-    <div className="space-y-10 p-4 sm:p-8 animate-in fade-in duration-500">
+    <div className="space-y-5 animate-in fade-in duration-500">
       <DashboardPageHeader
-        websiteId={websiteId}
         title="Tracking features"
         description="Turn heatmaps, session replay, funnels, and automations on or off. URL patterns here apply the next time visitors load your site with the tracker."
       />
 
-      <Alert className="border-border/60 bg-muted/20">
+      <Alert className="border border-border/50 bg-blue-50 dark:bg-blue-950/30">
         <Info className="h-4 w-4" />
         <AlertTitle className="text-sm">Heatmaps look empty?</AlertTitle>
         <AlertDescription className="text-xs text-muted-foreground leading-relaxed">
           Confirm <strong>Heatmaps</strong> is enabled below, clear restrictive <strong>include</strong> patterns while testing on{' '}
-          <code className="rounded bg-muted px-1">localhost</code>, then rebuild the tracker bundle{' '}
-          <code className="rounded bg-muted px-1">npm run bundle-trackers</code> in <code className="rounded bg-muted px-1">seentics/web</code> so{' '}
+          <code className="rounded-lg bg-muted px-1">localhost</code>, then rebuild the tracker bundle{' '}
+          <code className="rounded-lg bg-muted px-1">npm run bundle-trackers</code> in <code className="rounded-lg bg-muted px-1">seentics/web</code> so{' '}
           <Link href="/trackers/seentics.min.js" className="underline underline-offset-2">
             /trackers/seentics.min.js
           </Link>{' '}
@@ -35,18 +34,18 @@ export default function TrackingFeaturesSettingsPage() {
         </AlertDescription>
       </Alert>
 
-      <section className="space-y-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Heatmaps</h2>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground px-1">Heatmaps</h2>
         <HeatmapSettingsComponent websiteId={websiteId} />
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Session replay</h2>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground px-1">Session replay</h2>
         <ReplaySettingsComponent websiteId={websiteId} />
       </section>
 
-      <section className="space-y-4">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Funnels &amp; automations</h2>
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-foreground px-1">Funnels &amp; automations</h2>
         <ScriptSettingsComponent websiteId={websiteId} />
       </section>
     </div>

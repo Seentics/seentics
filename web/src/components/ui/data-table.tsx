@@ -360,7 +360,7 @@ export function DataTable<TData>({
       : table.getFilteredRowModel().rows.length);
 
   return (
-    <div className={cn('border border-border/60 bg-card shadow-sm rounded-lg overflow-hidden', className)}>
+    <div className={cn('border-none bg-card shadow-sm rounded-lg overflow-hidden', className)}>
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
       {(toolbarLeft || toolbarRight || selectionActions) && (
         <div className="px-5 py-4 border-b border-border/40 bg-muted/5">
@@ -397,7 +397,7 @@ export function DataTable<TData>({
         /* Empty state */
         <div className="flex flex-col items-center justify-center py-20 text-center px-4">
           {emptyIcon && (
-            <div className="h-14 w-14 bg-muted/40 rounded-2xl flex items-center justify-center mb-4 text-muted-foreground/40">
+            <div className="h-14 w-14 bg-muted/40 rounded-lg-2xl flex items-center justify-center mb-4 text-muted-foreground/40">
               {emptyIcon}
             </div>
           )}

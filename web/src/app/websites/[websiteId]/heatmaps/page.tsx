@@ -174,7 +174,7 @@ export default function HeatmapsPage() {
             <div className="flex items-center gap-2 min-w-0">
               <span
                 className={cn(
-                  'h-1.5 w-1.5 rounded-full shrink-0 mt-px',
+                  'h-1.5 w-1.5 rounded-lg-full shrink-0 mt-px',
                   row.original.active ? 'bg-emerald-500/90' : 'bg-muted-foreground/35',
                 )}
                 title={row.original.active ? 'Receiving data' : 'Inactive'}
@@ -261,9 +261,9 @@ export default function HeatmapsPage() {
       >
         {!isDemoMode && (
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
-            className="h-8 gap-1.5"
+            className=" gap-1.5"
             disabled={isFetching}
             onClick={() => refetch()}
           >
@@ -289,7 +289,7 @@ export default function HeatmapsPage() {
       ]} />
 
       <DataTable
-        className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-2.5 [&_th]:!py-3"
+        className=" shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_td]:!py-2.5 [&_th]:!py-3"
         data={filtered}
         columns={columns}
         isLoading={isLoading}
@@ -317,7 +317,7 @@ export default function HeatmapsPage() {
         )}
         toolbarLeft={
           <div>
-            <h3 className="text-sm font-semibold text-foreground">Heatmap Pages</h3>
+            <h3 className=" font-semibold text-foreground">Heatmap Pages</h3>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               {filtered.length} page{filtered.length !== 1 ? 's' : ''} tracked
             </p>

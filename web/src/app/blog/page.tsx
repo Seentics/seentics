@@ -10,7 +10,7 @@ export const metadata = {
 
 function PostCard({ slug, meta }: any) {
   return (
-    <Link href={`/blog/${slug}`} className="group flex flex-col rounded-xl overflow-hidden bg-card/50 hover:bg-card/80 transition-all hover:shadow-md hover:-translate-y-0.5 duration-200">
+    <Link href={`/blog/${slug}`} className="group flex flex-col rounded-lg overflow-hidden bg-card/50 hover:bg-card/80 transition-all hover:shadow-md hover:-translate-y-0.5 duration-200">
       {/* Cover image */}
       <BlogCover
         slug={slug}
@@ -26,7 +26,7 @@ function PostCard({ slug, meta }: any) {
         {meta.tags && meta.tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {meta.tags.slice(0, 2).map((tag: string) => (
-              <span key={tag} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-primary/8 text-primary rounded-md font-medium">
+              <span key={tag} className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 bg-primary/8 text-primary rounded-lg font-medium">
                 <Tag className="w-2.5 h-2.5" />
                 {tag}
               </span>

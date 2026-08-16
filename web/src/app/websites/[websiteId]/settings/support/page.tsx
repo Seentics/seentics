@@ -87,9 +87,8 @@ export default function SupportPage() {
   };
 
   return (
-    <div className={cn(websiteWorkspaceShellClass, 'animate-in fade-in duration-500 space-y-8')}>
+    <div className={cn(websiteWorkspaceShellClass, 'animate-in fade-in duration-500 space-y-6')}>
       <DashboardPageHeader
-        websiteId={websiteId}
         title="Support"
         description="Ask a question, report an issue, or book time with the team."
       />
@@ -141,18 +140,18 @@ export default function SupportPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <Link
-              href={`/websites/${websiteId}/settings/developers`}
+              href={`/websites/${websiteId}/settings/features`}
               className="flex items-center gap-2 text-xs font-medium text-primary hover:underline"
             >
               <ExternalLink className="h-3 w-3" />
-              Developer &amp; tracking setup
+              Tracking features
             </Link>
             <Link
-              href={`/websites/${websiteId}/settings`}
+              href={`/websites/${websiteId}/settings/profile`}
               className="flex items-center gap-2 text-xs font-medium text-primary hover:underline"
             >
               <ExternalLink className="h-3 w-3" />
-              Workspace settings
+              Profile settings
             </Link>
           </CardContent>
         </Card>
@@ -188,9 +187,9 @@ export default function SupportPage() {
               href="https://discord.gg/eHNHR82add"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 p-4 rounded-xl border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/15 transition-colors group"
+              className="flex items-center gap-3 p-4 rounded-lg border border-indigo-200 dark:border-indigo-500/20 bg-indigo-50 dark:bg-indigo-500/10 hover:bg-indigo-100 dark:hover:bg-indigo-500/15 transition-colors group"
             >
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-lg bg-indigo-500/15 flex items-center justify-center shrink-0">
                 <FaDiscord className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div className="min-w-0 flex-1">
@@ -204,9 +203,9 @@ export default function SupportPage() {
 
             <a
               href={`mailto:${SUPPORT_EMAIL}`}
-              className="flex items-center gap-3 p-4 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors"
+              className="flex items-center gap-3 p-4 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors"
             >
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Mail className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0">
@@ -216,7 +215,7 @@ export default function SupportPage() {
             </a>
           </div>
 
-          <div className="border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm">
+          <div className="border border-border/50 rounded-lg overflow-hidden bg-card shadow-sm">
             <div className="px-5 py-4 border-b border-border/50 bg-muted/20">
               <h2 className="text-sm font-semibold">Send a message</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -285,7 +284,7 @@ export default function SupportPage() {
 
       {activeTab === 'call' && (
         <div className="animate-in fade-in duration-200">
-          <div className="border border-border/50 rounded-xl overflow-hidden bg-card shadow-sm">
+          <div className="border border-border/50 rounded-lg overflow-hidden bg-card shadow-sm">
             <div className="px-5 py-4 border-b border-border/50 bg-muted/20">
               <h2 className="text-sm font-semibold">Book a 30-minute call</h2>
               <p className="text-xs text-muted-foreground mt-0.5">

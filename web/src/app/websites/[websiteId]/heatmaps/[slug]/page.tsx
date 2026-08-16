@@ -388,14 +388,14 @@ function HeatmapPreviewBrowserChrome({
   return (
     <div className="flex h-9 shrink-0 items-center gap-1 border-b border-zinc-800/90 bg-zinc-900 px-1.5">
       <div className="flex shrink-0 gap-1 px-0.5" aria-hidden>
-        <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
-        <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
-        <span className="h-2 w-2 rounded-full bg-[#28c840]" />
+        <span className="h-2 w-2 rounded-lg-full bg-[#ff5f57]" />
+        <span className="h-2 w-2 rounded-lg-full bg-[#febc2e]" />
+        <span className="h-2 w-2 rounded-lg-full bg-[#28c840]" />
       </div>
       <button
         type="button"
         disabled
-        className="shrink-0 rounded p-1 text-zinc-600 opacity-60"
+        className="shrink-0 rounded-lg p-1 text-zinc-600 opacity-60"
         aria-hidden
         tabIndex={-1}
       >
@@ -404,13 +404,13 @@ function HeatmapPreviewBrowserChrome({
       <button
         type="button"
         disabled
-        className="shrink-0 rounded p-1 text-zinc-600 opacity-60"
+        className="shrink-0 rounded-lg p-1 text-zinc-600 opacity-60"
         aria-hidden
         tabIndex={-1}
       >
         <ChevronRight className="h-3.5 w-3.5" />
       </button>
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md border border-zinc-700/80 bg-zinc-950/90 px-2 py-0.5">
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-zinc-700/80 bg-zinc-950/90 px-2 py-0.5">
         {secure ? (
           <Lock className="h-3 w-3 shrink-0 text-emerald-500/90" aria-hidden />
         ) : (
@@ -427,7 +427,7 @@ function HeatmapPreviewBrowserChrome({
         type="button"
         onClick={openExternal}
         disabled={!pageUrl.trim()}
-        className="shrink-0 rounded p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:pointer-events-none disabled:opacity-35"
+        className="shrink-0 rounded-lg p-1.5 text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-zinc-200 disabled:pointer-events-none disabled:opacity-35"
         title="Open in new tab"
       >
         <ExternalLink className="h-3.5 w-3.5" />
@@ -686,8 +686,8 @@ function HeatmapViewer({
 
             {showLoadingOverlay && (
               <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/55 backdrop-blur-[1px]">
-                <div className="pointer-events-auto flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-zinc-950/75 px-4 py-3 shadow-lg">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/40 border-t-primary" />
+                <div className="pointer-events-auto flex flex-col items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 px-4 py-3 shadow-lg">
+                  <div className="h-6 w-6 animate-spin rounded-lg-full border-2 border-primary/40 border-t-primary" />
                   <p className="text-xs text-white/60">Loading screenshot…</p>
                   <p className="max-w-[220px] text-center text-[10px] leading-relaxed text-white/40">
                     Switch to <span className="text-white/55">Heat only</span> for an instant grid backdrop.
@@ -879,7 +879,7 @@ export default function HeatmapDetailPage() {
   const previewUrlPopoverInner = (
     <>
       {isParamPath && (
-        <div className="rounded-md border border-amber-200/70 bg-amber-50/80 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
+        <div className="rounded-lg border border-amber-200/70 bg-amber-50/80 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-400">
           <span className="font-medium">Parameterized path</span> — enter a real example URL
           (e.g. replace <code className="font-mono">{urlPath.replace(/:id/g, 'abc123')}</code>) to capture a screenshot.
         </div>
@@ -958,7 +958,7 @@ export default function HeatmapDetailPage() {
               </PopoverContent>
             </Popover>
 
-            <div className="flex rounded-md border border-border bg-background p-0.5">
+            <div className="flex rounded-lg border border-border bg-background p-0.5">
               {([
                 ['click', MousePointer, 'Clicks', 'Where people click'],
                 ['scroll', TrendingDown, 'Scroll', 'How far they scroll'],
@@ -969,7 +969,7 @@ export default function HeatmapDetailPage() {
                   title={hint}
                   onClick={() => setHeatType(type)}
                   className={cn(
-                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    'flex items-center gap-1 rounded-lg-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
                     heatType === type
                       ? 'bg-muted text-foreground'
                       : 'text-muted-foreground hover:text-foreground',
@@ -983,7 +983,7 @@ export default function HeatmapDetailPage() {
 
             <Select value={device} onValueChange={v => setDevice(v as DeviceType)}>
               <SelectTrigger
-                className="h-8 w-[108px] rounded-md border-border bg-background px-2 text-[11px] font-medium shadow-none sm:w-32 sm:text-xs"
+                className="h-8 w-[108px] rounded-lg border-border bg-background px-2 text-[11px] font-medium shadow-none sm:w-32 sm:text-xs"
                 title="Device"
               >
                 <SelectValue placeholder="Device" />
@@ -996,7 +996,7 @@ export default function HeatmapDetailPage() {
               </SelectContent>
             </Select>
 
-            <div className="flex rounded-md border border-border bg-background p-0.5">
+            <div className="flex rounded-lg border border-border bg-background p-0.5">
               {previewModeOptions.map(([mode, Icon, label, hint]) => (
                 <button
                   key={mode}
@@ -1004,7 +1004,7 @@ export default function HeatmapDetailPage() {
                   title={hint}
                   onClick={() => setPreviewUnderlay(mode)}
                   className={cn(
-                    'flex items-center gap-1 rounded-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
+                    'flex items-center gap-1 rounded-lg-[4px] px-1.5 py-1 text-[11px] font-medium transition-colors sm:px-2 sm:text-xs',
                     previewUnderlay === mode
                       ? 'bg-muted text-foreground'
                       : 'text-muted-foreground hover:text-foreground',
@@ -1062,7 +1062,7 @@ export default function HeatmapDetailPage() {
       {isParamPath && !pageScreenshot && !isDemoMode && (
         <div className="shrink-0 border-b border-amber-200/60 bg-amber-50/80 px-4 py-2 dark:border-amber-500/20 dark:bg-amber-500/5">
           <p className="text-xs text-amber-800 dark:text-amber-400">
-            <span className="font-medium">Parameterized path</span> — <code className="rounded bg-amber-100/80 px-0.5 font-mono dark:bg-amber-500/10">{urlPath}</code> aggregates
+            <span className="font-medium">Parameterized path</span> — <code className="rounded-lg bg-amber-100/80 px-0.5 font-mono dark:bg-amber-500/10">{urlPath}</code> aggregates
             all matching URLs. Screenshots come from real visitors via the tracker, or enter a specific example URL in{' '}
             <button
               type="button"
@@ -1077,7 +1077,7 @@ export default function HeatmapDetailPage() {
       )}
 
       <main className="mx-auto flex min-h-0 w-full max-w-[1800px] flex-1 flex-col px-2 pb-2 pt-1.5 md:px-4 md:pb-3 md:pt-2">
-        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md border border-border bg-card">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card">
           {!activePreviewUrl && !isDemoMode && !pageScreenshot?.image_url && points.length === 0 && !isLoading ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-12 text-center">
               <p className="text-sm font-medium text-foreground">Add a page preview URL</p>
@@ -1112,8 +1112,8 @@ export default function HeatmapDetailPage() {
 
           {isLoading && (
             <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-background/50">
-              <div className="flex items-center gap-2 rounded-md border border-border bg-card px-4 py-2.5">
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5">
+                <div className="h-4 w-4 animate-spin rounded-lg-full border-2 border-primary/30 border-t-primary" />
                 <span className="text-xs font-medium text-foreground">Loading…</span>
               </div>
             </div>

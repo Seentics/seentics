@@ -121,7 +121,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           <div className="max-w-4xl mx-auto px-6 py-12 md:px-12 md:py-16">
             {children}
           </div>
-          <div className="pointer-events-none absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 blur-[160px] rounded-full -mr-64 -mt-64" />
+          <div className="pointer-events-none absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 blur-[160px] rounded-lg-full -mr-64 -mt-64" />
         </main>
 
       </div>

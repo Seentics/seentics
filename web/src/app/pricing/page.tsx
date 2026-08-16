@@ -60,7 +60,7 @@ export default function PricingPage() {
 
                 {/* Tab switcher */}
                 <div className="flex items-center justify-center mb-12">
-                    <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/60 rounded-xl">
+                    <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/60 rounded-lg">
                         <button
                             onClick={() => setMode('individual')}
                             className={cn(

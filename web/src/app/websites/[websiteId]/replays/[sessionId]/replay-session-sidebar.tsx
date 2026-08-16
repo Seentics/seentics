@@ -84,7 +84,7 @@ function SessionSummaryCard({
   const exitDisplay = exitPage ? displayRealtimePath(exitPage, websiteId ?? '', 80) : null;
 
   return (
-    <Card className="flex min-h-0 flex-col shadow-sm rounded-xl">
+    <Card className="flex min-h-0 flex-col shadow-sm rounded-lg">
       <CardHeader className="space-y-0.5 pb-4">
         <CardTitle className="text-sm font-semibold text-foreground">Session summary</CardTitle>
         <CardDescription className="text-xs leading-relaxed">
@@ -219,7 +219,7 @@ function ErrorRow({
             <p className="text-[10px] text-muted-foreground font-mono">{fileRef}</p>
           )}
           {expanded && error.stack && (
-            <pre className="mt-1.5 max-h-40 overflow-y-auto rounded bg-muted/40 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-all">
+            <pre className="mt-1.5 max-h-40 overflow-y-auto rounded-lg bg-muted/40 px-2 py-1.5 text-[10px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-all">
               {error.stack}
             </pre>
           )}
@@ -240,7 +240,7 @@ function ErrorDetailsCard({
 }) {
   if (errors.length === 0) return null;
   return (
-    <Card className="shadow-sm col-span-full rounded-xl">
+    <Card className="shadow-sm col-span-full rounded-lg">
       <CardHeader className="space-y-0.5 pb-4">
         <div className="flex items-center gap-2">
           <CardTitle className="text-sm font-semibold text-foreground">JS Errors</CardTitle>
@@ -257,7 +257,7 @@ function ErrorDetailsCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0 px-0 pb-0">
-        <ul className="divide-y-0 rounded-b-lg overflow-hidden">
+        <ul className="divide-y-0 rounded-lg-b-lg overflow-hidden">
           {errors.map((err, i) => (
             <ErrorRow key={i} error={err} idx={i} durationMs={durationMs} player={player} />
           ))}
@@ -273,7 +273,7 @@ function TimelineCard({ replayBridge }: { replayBridge: SessionReplayBridge | nu
   const { currentMs, playing } = useReplayPlayback();
 
   return (
-    <Card className="flex min-w-0 flex-col shadow-sm rounded-xl">
+    <Card className="flex min-w-0 flex-col shadow-sm rounded-lg">
       <CardHeader className="space-y-0.5 pb-4">
         <CardTitle className="text-sm font-semibold text-foreground">Timeline</CardTitle>
         <CardDescription className="text-xs leading-relaxed">
@@ -282,15 +282,15 @@ function TimelineCard({ replayBridge }: { replayBridge: SessionReplayBridge | nu
         </CardDescription>
         <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 text-[10px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-sky-400" aria-hidden />
+            <span className="h-1.5 w-1.5 rounded-lg-full bg-sky-400" aria-hidden />
             Page
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden />
+            <span className="h-1.5 w-1.5 rounded-lg-full bg-amber-400" aria-hidden />
             Rage
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-red-400" aria-hidden />
+            <span className="h-1.5 w-1.5 rounded-lg-full bg-red-400" aria-hidden />
             Error
           </span>
         </div>
@@ -306,7 +306,7 @@ function TimelineCard({ replayBridge }: { replayBridge: SessionReplayBridge | nu
             player={replayBridge.player}
           />
         ) : (
-          <div className="flex flex-1 items-center justify-center rounded-md border border-dashed border-border/70 bg-muted/10 px-4 py-12 text-center">
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/10 px-4 py-12 text-center">
             <p className="text-xs font-medium text-muted-foreground">Preparing playback…</p>
           </div>
         )}
@@ -410,7 +410,7 @@ function NetworkRow({
   return (
     <li className={cn('border-b border-border/40 last:border-b-0', hasError ? 'bg-red-500/5' : 'hover:bg-muted/40')}>
       <div className="flex w-full min-w-0 items-center gap-2 px-2.5 py-1.5">
-        <span className={cn('shrink-0 rounded px-1 py-px text-[10px] font-semibold uppercase leading-none tabular-nums', methodBadgeColor(entry.method))}>
+        <span className={cn('shrink-0 rounded-lg px-1 py-px text-[10px] font-semibold uppercase leading-none tabular-nums', methodBadgeColor(entry.method))}>
           {entry.method}
         </span>
         <button
@@ -567,7 +567,7 @@ export function ReplaySessionSidebar({
               No console events captured. Sessions recorded before console capture was enabled will not have this data.
             </p>
           ) : (
-            <Card className="shadow-sm rounded-xl overflow-hidden">
+            <Card className="shadow-sm rounded-lg overflow-hidden">
               <CardContent className="p-0">
                 <ul className="max-h-96 overflow-y-auto overscroll-contain divide-y-0">
                   {consoleDetails.map((entry, i) => (
@@ -585,7 +585,7 @@ export function ReplaySessionSidebar({
               No network events captured. Sessions recorded before network capture was enabled will not have this data.
             </p>
           ) : (
-            <Card className="shadow-sm rounded-xl overflow-hidden">
+            <Card className="shadow-sm rounded-lg overflow-hidden">
               <CardContent className="p-0">
                 <div className="flex items-center gap-3 px-2.5 py-1.5 border-b border-border/40 text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wide">
                   <span className="w-10 shrink-0">Method</span>

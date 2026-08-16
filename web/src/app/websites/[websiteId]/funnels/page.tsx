@@ -226,7 +226,7 @@ export default function FunnelsPage() {
         <Button
           onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}
           size="sm"
-          className="h-8 gap-1.5"
+          className="gap-1.5"
         >
           <Plus size={14} /> New Funnel
         </Button>
@@ -263,14 +263,14 @@ export default function FunnelsPage() {
           )}
           toolbarLeft={
             <div>
-              <h3 className="text-sm font-semibold text-foreground">Funnels</h3>
+              <h3 className=" font-semibold text-foreground">Funnels</h3>
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 {filtered.length} funnel{filtered.length !== 1 ? 's' : ''} configured
               </p>
             </div>
           }
           toolbarRight={
-            <div className="relative w-64 h-8 bg-card border border-border/40 rounded-md overflow-hidden flex items-center px-2.5 gap-2 group focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/40 transition-all">
+            <div className="relative w-64 h-8 bg-card border border-border/40 rounded-lg overflow-hidden flex items-center px-2.5 gap-2 group focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/40 transition-all">
               <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
               <input
                 type="text"
@@ -288,13 +288,8 @@ export default function FunnelsPage() {
 
       {/* Create/Edit Funnel Modal */}
       <Dialog open={isBuilderOpen} onOpenChange={setIsBuilderOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto border border-border/60 bg-card rounded-xl shadow-xl p-0 gap-0">
-          <DialogHeader className="p-5 pb-3 border-b border-border/60">
-            <DialogTitle className="text-base font-semibold tracking-tight">
-              {editingFunnel ? `Edit Funnel: ${editingFunnel.name}` : 'Create New Funnel'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="p-5">
+        <DialogContent className='bg-card p-0 w-full max-w-5xl' >
+          <div className="">
             <FunnelBuilder
               websiteId={websiteId}
               existingFunnel={editingFunnel || undefined}

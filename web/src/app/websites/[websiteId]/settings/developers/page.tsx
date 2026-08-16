@@ -56,7 +56,7 @@ function NewKeyDialog({ open, onOpenChange, onCreated }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold">Create API Key</DialogTitle>
         </DialogHeader>
@@ -72,7 +72,7 @@ function NewKeyDialog({ open, onOpenChange, onCreated }: {
               {allScopes.map(s => (
                 <label key={s} className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" checked={scopes.includes(s)} onChange={() => toggle(s)}
-                    className="rounded border-border accent-primary h-4 w-4" />
+                    className="rounded-lg border-border accent-primary h-4 w-4" />
                   <span className="text-sm text-foreground">{SCOPE_LABELS[s]?.label ?? s}</span>
                 </label>
               ))}
@@ -97,7 +97,7 @@ function RevealDialog({ secret, onClose }: { secret: string; onClose: () => void
   };
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-lg bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-lg bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Check className="h-4 w-4 text-green-500" />
@@ -232,14 +232,14 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
                   )}
                 </div>
                 <div className="flex items-center gap-2 mb-2">
-                  <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">{key.keyPrefix}...</code>
+                  <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-lg">{key.keyPrefix}...</code>
                   <button onClick={() => copyPrefix(key.keyPrefix)} className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
                     <Copy className="h-3 w-3" />
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1 mb-2">
                   {key.scopes.map(s => (
-                    <Badge key={s} className={cn('text-[10px] px-1.5 py-0 h-4 border rounded font-normal', SCOPE_LABELS[s]?.color)}>
+                    <Badge key={s} className={cn('text-[10px] px-1.5 py-0 h-4 border rounded-lg font-normal', SCOPE_LABELS[s]?.color)}>
                       {SCOPE_LABELS[s]?.label ?? s}
                     </Badge>
                   ))}
@@ -274,7 +274,7 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
             Usage
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Pass your API key in the <code className="font-mono bg-muted px-1 py-0.5 rounded">Authorization</code> header:
+            Pass your API key in the <code className="font-mono bg-muted px-1 py-0.5 rounded-lg">Authorization</code> header:
           </p>
           <pre className="text-xs font-mono bg-muted/60 border border-border/60 rounded-lg px-4 py-3 text-foreground overflow-x-auto">
 {`curl https://api.seentics.com/raw/v1/${websiteId}/analytics/dashboard \\
@@ -412,7 +412,7 @@ function UIBlocksTab({ websiteId }: { websiteId: string }) {
               key={c}
               onClick={() => setCategory(c)}
               className={cn(
-                'px-3 py-1 text-xs rounded-md font-medium capitalize transition-colors',
+                'px-3 py-1 text-xs rounded-lg font-medium capitalize transition-colors',
                 category === c
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted/60 text-muted-foreground hover:text-foreground',
@@ -447,7 +447,7 @@ function UIBlocksTab({ websiteId }: { websiteId: string }) {
                 </pre>
                 <button
                   onClick={() => copy(block.id, block.code.replace('YOUR_WEBSITE_ID', websiteId))}
-                  className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded bg-background border border-border/60 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-lg bg-background border border-border/60 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   {copied === block.id
                     ? <Check className="h-3 w-3 text-green-500" />
@@ -463,7 +463,7 @@ function UIBlocksTab({ websiteId }: { websiteId: string }) {
       <Card className="border border-border/60 bg-primary/5">
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground">
-            All widgets are served from <code className="font-mono bg-muted px-1 rounded text-foreground">cdn.seentics.com</code> — no npm install required.
+            All widgets are served from <code className="font-mono bg-muted px-1 rounded-lg text-foreground">cdn.seentics.com</code> — no npm install required.
             They respect your site&apos;s theme and are fully responsive.
           </p>
         </CardContent>
@@ -488,7 +488,7 @@ function CodeBlock({ code }: { code: string }) {
       </pre>
       <button
         onClick={copy}
-        className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded bg-background border border-border/60 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-lg bg-background border border-border/60 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
       >
         {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
       </button>
@@ -547,7 +547,7 @@ function DocsTab({ websiteId }: { websiteId: string }) {
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              'px-4 py-1.5 text-xs font-semibold rounded-md transition-colors',
+              'px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors',
               tab === t
                 ? 'bg-background text-foreground shadow-sm border border-border/60'
                 : 'text-muted-foreground hover:text-foreground',
@@ -566,7 +566,7 @@ function DocsTab({ websiteId }: { websiteId: string }) {
             <div className="space-y-1 text-xs">
               <p className="font-semibold text-foreground">Your project credentials</p>
               <p className="text-muted-foreground">
-                Project ID: <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-foreground">{websiteId}</code>
+                Project ID: <code className="font-mono bg-muted px-1.5 py-0.5 rounded-lg text-foreground">{websiteId}</code>
               </p>
               <p className="text-muted-foreground">
                 API keys are managed in the <strong>API Keys</strong> tab above.
@@ -626,7 +626,7 @@ function DocsTab({ websiteId }: { websiteId: string }) {
           </CardContent>
         </Card>
         <p className="text-xs text-muted-foreground mt-3">
-          All requests must include <code className="font-mono bg-muted px-1 rounded">Authorization: Bearer &lt;apiKey&gt;</code>.
+          All requests must include <code className="font-mono bg-muted px-1 rounded-lg">Authorization: Bearer &lt;apiKey&gt;</code>.
         </p>
       </div>
     </div>

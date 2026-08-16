@@ -137,7 +137,7 @@ export default function WhiteLabelPage() {
                   type="color"
                   value={primaryColor}
                   onChange={e => handleColorPickerChange(e.target.value)}
-                  className="h-9 w-12 rounded border border-border cursor-pointer bg-transparent p-0.5"
+                  className="h-9 w-12 rounded-lg border border-border cursor-pointer bg-transparent p-0.5"
                 />
               </div>
               <Input
@@ -148,7 +148,7 @@ export default function WhiteLabelPage() {
                 maxLength={7}
               />
               <div
-                className="h-9 w-9 rounded border border-border/60 shrink-0"
+                className="h-9 w-9 rounded-lg border border-border/60 shrink-0"
                 style={{ backgroundColor: isValidHex(hexInput) ? hexInput : primaryColor }}
               />
             </div>
@@ -182,7 +182,7 @@ export default function WhiteLabelPage() {
               <img
                 src={logoUrl}
                 alt="Logo preview"
-                className="h-10 w-10 object-contain rounded"
+                className="h-10 w-10 object-contain rounded-lg"
                 onError={e => {
                   (e.target as HTMLImageElement).src = '';
                   (e.target as HTMLImageElement).style.display = 'none';

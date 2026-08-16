@@ -70,9 +70,11 @@ function trackingSnippetFor(id: string): string {
 type Props = {
   /** When true, redirect to `/websites` onboarding if the user has no sites (manage page behavior). */
   redirectWhenEmpty?: boolean;
+  /** When true, hides the "Add website" button (used when button is in header) */
+  hideAddButton?: boolean;
 };
 
-export function WebsitesSettingsPanel({ redirectWhenEmpty = false }: Props) {
+export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton = false }: Props) {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
@@ -231,12 +233,14 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false }: Props) {
     <div className="space-y-4">
       <AddWebsiteModal open={addOpen} onOpenChange={setAddOpen} onSuccess={() => refresh()} />
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Add website
-        </Button>
-      </div>
+      {!hideAddButton && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Button size="sm" className="gap-1.5" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Add website
+          </Button>
+        </div>
+      )}
 
       <Dialog open={!!editSite} onOpenChange={(o) => !o && setEditSite(null)}>
         <DialogContent className="sm:max-w-md">
@@ -301,7 +305,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false }: Props) {
             <DialogTitle>Tracking snippet</DialogTitle>
             <DialogDescription>
               Install this on <span className="font-medium text-foreground">{snippetSite?.name}</span>. Use the site&apos;s
-              ID <code className="text-xs font-mono bg-muted px-1 rounded">{snippetSite?.id}</code> in the script tag.
+              ID <code className="text-xs font-mono bg-muted px-1 rounded-lg">{snippetSite?.id}</code> in the script tag.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -323,7 +327,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false }: Props) {
                 <div>
                   <p className="text-xs font-medium text-foreground">Installation</p>
                   <p className="mt-1 text-xs text-muted-foreground leading-snug">
-                    Paste into the <code className="rounded bg-muted px-1">{`<head>`}</code> of your site. The script is
+                    Paste into the <code className="rounded-lg bg-muted px-1">{`<head>`}</code> of your site. The script is
                     deferred and lightweight.
                   </p>
                 </div>

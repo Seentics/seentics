@@ -54,11 +54,11 @@ export function TrackingCodeModal({
         <div className="p-6 space-y-6">
           <div className="text-center space-y-2">
             {isNewlyCreated ? (
-              <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-2">
+              <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg-full flex items-center justify-center mb-2">
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
             ) : (
-              <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+              <div className="mx-auto w-12 h-12 bg-primary/10 rounded-lg-full flex items-center justify-center mb-2">
                 <Code className="h-6 w-6 text-primary" />
               </div>
             )}
@@ -66,7 +66,7 @@ export function TrackingCodeModal({
               {isNewlyCreated ? 'Website Created!' : 'Installation Script'}
             </DialogTitle>
             <DialogDescription className="text-sm">
-              Copy and paste this snippet into the <span className="font-mono bg-muted px-1 rounded">{'<head>'}</span> of your site.
+              Copy and paste this snippet into the <span className="font-mono bg-muted px-1 rounded-lg">{'<head>'}</span> of your site.
             </DialogDescription>
           </div>
 
@@ -87,7 +87,7 @@ export function TrackingCodeModal({
               </Button>
             </div>
             <div 
-              className="bg-zinc-950 rounded-xl p-4 font-mono text-[11px] text-zinc-300 leading-relaxed border border-zinc-800 cursor-pointer hover:border-zinc-700 transition-colors"
+              className="bg-zinc-950 rounded-lg p-4 font-mono text-[11px] text-zinc-300 leading-relaxed border border-zinc-800 cursor-pointer hover:border-zinc-700 transition-colors"
               onClick={copyToClipboard}
             >
               <code className="break-all">{trackingCode}</code>
@@ -98,12 +98,12 @@ export function TrackingCodeModal({
             <Button 
               variant="outline" 
               onClick={() => onOpenChange(false)}
-              className="rounded-xl"
+              className="rounded-lg"
             >
               Done
             </Button>
             <Button 
-              className="rounded-xl shadow-lg shadow-primary/20"
+              className="rounded-lg shadow-lg shadow-primary/20"
               onClick={() => {
                 onOpenChange(false);
                 window.location.href = `/websites/${siteId}`;

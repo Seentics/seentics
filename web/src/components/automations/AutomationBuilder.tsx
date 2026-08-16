@@ -492,7 +492,7 @@ function NodeConnector({ onAdd }: { onAdd: () => void }) {
         type="button"
         onClick={e => { e.stopPropagation(); onAdd(); }}
         className={cn(
-          'relative z-10 flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition-all duration-150',
+          'relative z-10 flex h-7 w-7 items-center justify-center rounded-lg-full border shadow-sm transition-all duration-150',
           hovered ? 'scale-110 border-primary bg-primary text-primary-foreground' : 'border-border bg-card text-muted-foreground',
         )}
       >
@@ -533,20 +533,20 @@ function NodeCard({
       onDragOver={onDragOver}
       onDrop={onDrop}
       className={cn(
-        'group relative w-72 cursor-pointer select-none rounded-2xl border bg-card p-4 shadow-sm transition-all duration-150',
+        'group relative w-72 cursor-pointer select-none rounded-lg-2xl border bg-card p-4 shadow-sm transition-all duration-150',
         selected ? 'border-primary ring-2 ring-primary/20' : 'border-border/70 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md',
         dragIndicator && 'border-emerald-500/60 ring-2 ring-emerald-500/20',
       )}
       onClick={onClick}
     >
       <div className="flex items-start gap-3">
-        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', iconBg)}>
+        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg', iconBg)}>
           <Icon className={cn('h-5 w-5', iconColor)} style={{ width: 20, height: 20 }} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              <span className={cn('h-1.5 w-1.5 rounded-full', strip)} />
+              <span className={cn('h-1.5 w-1.5 rounded-lg-full', strip)} />
               {label}
             </span>
             <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
@@ -555,7 +555,7 @@ function NodeCard({
                 <button
                   type="button"
                   onClick={e => { e.stopPropagation(); onDelete(); }}
-                  className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-500"
+                  className="flex h-5 w-5 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-500"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -667,7 +667,7 @@ function ConditionPanel({
               key={op}
               type="button"
               onClick={() => onChange({ operator: op, rules })}
-              className={cn('px-3 py-1 rounded text-xs font-semibold transition-colors', operator === op ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-muted text-muted-foreground border border-border hover:bg-muted')}
+              className={cn('px-3 py-1 rounded-lg text-xs font-semibold transition-colors', operator === op ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-muted text-muted-foreground border border-border hover:bg-muted')}
             >
               {op}
             </button>
@@ -827,7 +827,7 @@ function AddNodeModal({
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-        className="relative flex max-h-[86dvh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border/60 bg-card shadow-2xl"
+        className="relative flex max-h-[86dvh] w-full max-w-2xl flex-col overflow-hidden rounded-lg-3xl border border-border/60 bg-card shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -839,7 +839,7 @@ function AddNodeModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             <X className="h-4.5 w-4.5" style={{ width: 18, height: 18 }} />
           </button>
@@ -876,10 +876,10 @@ function AddNodeModal({
           {tab === 'condition' && !hasCondition && (
             <button
               type="button"
-              className="group flex w-full items-center gap-4 rounded-2xl border border-border/60 bg-background p-5 text-left transition-all hover:-translate-y-0.5 hover:border-amber-500/40 hover:shadow-md"
+              className="group flex w-full items-center gap-4 rounded-lg-2xl border border-border/60 bg-background p-5 text-left transition-all hover:-translate-y-0.5 hover:border-amber-500/40 hover:shadow-md"
               onClick={() => onAdd({ nodeKind: 'condition' })}
             >
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/15">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg-2xl bg-amber-500/15">
                 <Filter className="h-6 w-6 text-amber-500" />
               </div>
               <div>
@@ -896,10 +896,10 @@ function AddNodeModal({
                   <button
                     key={at.value}
                     type="button"
-                    className="group flex items-center gap-3.5 rounded-2xl border border-border/60 bg-background p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+                    className="group flex items-center gap-3.5 rounded-lg-2xl border border-border/60 bg-background p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
                     onClick={() => onAdd({ nodeKind: 'action', actionType: at.value })}
                   >
-                    <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105', at.iconBg)}>
+                    <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105', at.iconBg)}>
                       <Icon className={cn('h-6 w-6', at.iconColor)} style={{ width: 24, height: 24 }} />
                     </div>
                     <div className="min-w-0">
@@ -961,7 +961,7 @@ function JsonEditorModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-2xl rounded-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden"
+        className="relative w-full max-w-2xl rounded-lg-2xl border border-border bg-card shadow-2xl flex flex-col overflow-hidden"
         style={{ maxHeight: '85dvh' }}
         onClick={e => e.stopPropagation()}
       >
@@ -970,7 +970,7 @@ function JsonEditorModal({
           <div className="flex items-center gap-2.5">
             <Braces className="h-4 w-4 text-violet-400" />
             <span className="text-sm font-semibold text-foreground">JSON Config</span>
-            <span className="text-[10px] text-muted-foreground bg-muted border border-border rounded px-1.5 py-0.5">AutomationDefinition</span>
+            <span className="text-[10px] text-muted-foreground bg-muted border border-border rounded-lg px-1.5 py-0.5">AutomationDefinition</span>
           </div>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
@@ -983,7 +983,7 @@ function JsonEditorModal({
             value={text}
             onChange={e => { setText(e.target.value); setError(null); setApplied(false); }}
             spellCheck={false}
-            className="w-full h-full min-h-[340px] rounded-xl border border-border bg-muted/40 text-[13px] font-mono text-foreground p-4 resize-none focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 leading-relaxed placeholder:text-muted-foreground"
+            className="w-full h-full min-h-[340px] rounded-lg border border-border bg-muted/40 text-[13px] font-mono text-foreground p-4 resize-none focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 leading-relaxed placeholder:text-muted-foreground"
             placeholder="Paste or edit your automation JSON here…"
           />
         </div>
@@ -1050,7 +1050,7 @@ function PaletteRow({
       draggable
       onDragStart={onDragStart}
       onClick={onClick}
-      className="group flex cursor-grab select-none items-center gap-3 rounded-xl border border-border/60 bg-background px-3 py-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md active:cursor-grabbing"
+      className="group flex cursor-grab select-none items-center gap-3 rounded-lg border border-border/60 bg-background px-3 py-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md active:cursor-grabbing"
     >
       <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconBg)}>
         <Icon className={cn('h-4 w-4', iconColor)} />
@@ -1087,7 +1087,7 @@ function NodePalette({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               aria-label="Close panel"
             >
               <X className="h-4 w-4" />
@@ -1101,7 +1101,7 @@ function NodePalette({
               type="button"
               onClick={() => onTab(t)}
               className={cn(
-                'rounded-md py-1.5 text-xs font-semibold capitalize transition-colors',
+                'rounded-lg py-1.5 text-xs font-semibold capitalize transition-colors',
                 tab === t ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -1141,7 +1141,7 @@ function NodePalette({
           <button
             type="button"
             onClick={onAddCondition}
-            className="mt-2 flex w-full items-center gap-3 rounded-xl border border-dashed border-border/70 bg-transparent px-3 py-2.5 text-left transition-colors hover:border-amber-500/50 hover:bg-amber-500/[0.04]"
+            className="mt-2 flex w-full items-center gap-3 rounded-lg border border-dashed border-border/70 bg-transparent px-3 py-2.5 text-left transition-colors hover:border-amber-500/50 hover:bg-amber-500/[0.04]"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
               <Filter className="h-4 w-4 text-amber-500" />
@@ -1319,7 +1319,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
       >
         {/* Toolbar — stop mousedown propagation so canvas pan/select-null don't fire on toolbar clicks */}
         <div
-          className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 rounded-xl border border-border bg-card/95 backdrop-blur px-2 py-1.5 shadow-2xl"
+          className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-0.5 rounded-lg border border-border bg-card/95 backdrop-blur px-2 py-1.5 shadow-2xl"
           onMouseDown={e => e.stopPropagation()}
         >
           <button
@@ -1392,9 +1392,9 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
                 type="button"
                 data-node="true"
                 onClick={() => openPalette('triggers')}
-                className="group flex flex-col items-center gap-4 rounded-2xl border-2 border-dashed border-border bg-card/60 px-10 py-9 text-center transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"
+                className="group flex flex-col items-center gap-4 rounded-lg-2xl border-2 border-dashed border-border bg-card/60 px-10 py-9 text-center transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/[0.04]"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-500 transition-transform group-hover:scale-105">
+                <div className="flex h-14 w-14 items-center justify-center rounded-lg-2xl bg-emerald-500/10 text-emerald-500 transition-transform group-hover:scale-105">
                   <Zap className="h-7 w-7" />
                 </div>
                 <div>
@@ -1439,7 +1439,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
             <button
               type="button"
               onClick={() => openPalette('triggers')}
-              className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-dashed border-border bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:text-emerald-600"
+              className="mt-1.5 inline-flex items-center gap-1.5 rounded-lg-full border border-dashed border-border bg-card px-3 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-emerald-500/50 hover:text-emerald-600"
             >
               <Plus className="h-3 w-3" /> Add trigger
             </button>
@@ -1496,7 +1496,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
             {definition.actions.length === 0 && (
               <div
                 data-node="true"
-                className="w-64 rounded-xl border-2 border-dashed border-border bg-transparent flex flex-col items-center justify-center py-7 gap-2 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
+                className="w-64 rounded-lg border-2 border-dashed border-border bg-transparent flex flex-col items-center justify-center py-7 gap-2 cursor-pointer hover:border-violet-500/40 hover:bg-violet-500/5 transition-colors"
                 onClick={() => openPalette('actions')}
               >
                 <Layers className="h-6 w-6 text-muted-foreground" />
@@ -1538,7 +1538,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-            className="relative flex max-h-[86dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-border/60 bg-card shadow-2xl"
+            className="relative flex max-h-[86dvh] w-full max-w-lg flex-col overflow-hidden rounded-lg-3xl border border-border/60 bg-card shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
@@ -1557,7 +1557,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
                 const Icon = meta.icon;
                 return (
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl', meta.bg)}>
+                    <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-lg-2xl', meta.bg)}>
                       <Icon className={cn('h-5 w-5', meta.color)} />
                     </div>
                     <div className="min-w-0">
@@ -1570,7 +1570,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
               <button
                 type="button"
                 onClick={() => setSelected(null)}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 aria-label="Close"
               >
                 <X className="h-4 w-4" />

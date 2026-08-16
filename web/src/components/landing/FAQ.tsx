@@ -114,7 +114,7 @@ export default function FAQ() {
               >
                 <AccordionItem
                   value={`item-${index}`}
-                  className="rounded-xl border border-border/60 bg-card px-5 shadow-sm transition-colors data-[state=open]:border-primary/30 data-[state=open]:bg-primary/[0.03]"
+                  className="rounded-lg border border-border/60 bg-card px-5 shadow-sm transition-colors data-[state=open]:border-primary/30 data-[state=open]:bg-primary/[0.03]"
                 >
                   <AccordionTrigger className="py-4 text-left text-base font-semibold text-foreground hover:no-underline sm:text-lg">
                     {faq.question}
@@ -134,7 +134,7 @@ export default function FAQ() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-b from-primary/[0.07] to-transparent px-6 py-12 text-center sm:px-12"
+          className="relative mx-auto max-w-3xl overflow-hidden rounded-lg-3xl border border-border/60 bg-gradient-to-b from-primary/[0.07] to-transparent px-6 py-12 text-center sm:px-12"
         >
           <h3 className="mb-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             Still have questions?

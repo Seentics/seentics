@@ -43,7 +43,7 @@ export default function PublicDashboardPage() {
     if (error || !dashboardData) {
         return (
             <div className="flex h-screen w-screen items-center justify-center flex-col p-6 text-center bg-background">
-                <div className="h-20 w-20 bg-rose-500/10 rounded-full flex items-center justify-center mb-6">
+                <div className="h-20 w-20 bg-rose-500/10 rounded-lg-full flex items-center justify-center mb-6">
                     <Globe className="h-10 w-10 text-rose-500" />
                 </div>
                 <h1 className="text-3xl font-black tracking-tighter mb-2">Dashboard Not Found</h1>
@@ -60,7 +60,7 @@ export default function PublicDashboardPage() {
             <header className="border-b bg-card/50 backdrop-blur-md sticky top-0 z-50">
                 <div className="max-w-[1600px] mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 bg-primary flex items-center justify-center rounded-xl shadow-lg shadow-primary/20">
+                        <div className="h-10 w-10 bg-primary flex items-center justify-center rounded-lg shadow-lg shadow-primary/20">
                             <Zap className="h-6 w-6 text-primary-foreground fill-primary-foreground" />
                         </div>
                         <div>
@@ -93,10 +93,10 @@ export default function PublicDashboardPage() {
                         <h2 className="text-4xl font-black tracking-tighter uppercase italic">{dashboardData.website_id}</h2>
                         <p className="text-muted-foreground font-bold text-sm">Real-time engagement and traffic insights.</p>
                     </div>
-                    <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-full border border-emerald-500/20">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 rounded-lg-full border border-emerald-500/20">
                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-lg-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-lg-full h-2 w-2 bg-emerald-500"></span>
                         </span>
                         <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">
                            {dashboardData.live_visitors} Live Visitors
@@ -120,7 +120,7 @@ export default function PublicDashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <TopCountriesChart data={dashboardData.top_countries || []} isLoading={false} />
                     <TopDevicesChart data={dashboardData.top_devices || []} isLoading={false} />
-                    <div className="flex items-center justify-center p-8 bg-accent/5 rounded-3xl border border-dashed border-border/60">
+                    <div className="flex items-center justify-center p-8 bg-accent/5 rounded-lg-3xl border border-dashed border-border/60">
                          <div className="text-center">
                             <Zap className="h-12 w-12 text-slate-200 mx-auto mb-4" />
                             <p className="text-xs font-black uppercase tracking-widest text-muted-foreground whitespace-pre-wrap leading-relaxed">

@@ -120,7 +120,7 @@ function SignUpFlow() {
         <div className="flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden bg-background lg:flex-row">
            
             {/* Left — Info Panel (hidden on mobile) */}
-            <div className="hidden min-h-0 overflow-y-auto bg-muted/40 lg:flex lg:w-1/2 lg:flex-col lg:justify-center lg:rounded-r-3xl lg:border-y lg:border-r lg:border-border/50 dark:bg-muted/15">
+            <div className="hidden min-h-0 overflow-y-auto bg-muted/40 lg:flex lg:w-1/2 lg:flex-col lg:justify-center lg:rounded-lg-r-3xl lg:border-y lg:border-r lg:border-border/50 dark:bg-muted/15">
                 <div className="px-12 py-10 xl:px-16">
                     <Link
                         href="/"
@@ -154,7 +154,7 @@ function SignUpFlow() {
             </div>
 
             {/* Right — Auth Form */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 pb-12 pt-10 sm:px-6 sm:pb-14 sm:pt-12 lg:justify-center lg:rounded-l-3xl lg:bg-background lg:pb-16 lg:pt-14">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 pb-12 pt-10 sm:px-6 sm:pb-14 sm:pt-12 lg:justify-center lg:rounded-lg-l-3xl lg:bg-background lg:pb-16 lg:pt-14">
                 <div className="mx-auto w-full max-w-md lg:max-w-lg">
                     {/* Mobile: compact pitch */}
                     <div className="mb-5 space-y-3 text-center lg:hidden">
@@ -211,7 +211,7 @@ function SignUpFlow() {
                             <span className="w-full border-t border-border" />
                         </div>
                         <div className="relative flex justify-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                            <span className="rounded-md bg-background px-3 py-0.5 dark:bg-card">or use email</span>
+                            <span className="rounded-lg bg-background px-3 py-0.5 dark:bg-card">or use email</span>
                         </div>
                     </div>
 
@@ -273,7 +273,7 @@ function SignUpFlow() {
                                     className="h-11 pl-11 pr-11 text-base shadow-none"
                                     required
                                 />
-                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={showPassword ? 'Hide password' : 'Show password'}>
                                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
                             </div>
@@ -294,7 +294,7 @@ function SignUpFlow() {
                                     className="h-11 pl-11 pr-11 text-base shadow-none"
                                     required
                                 />
-                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}>
+                                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}>
                                     {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                                 </button>
                             </div>

@@ -55,16 +55,13 @@ export function DashboardPageHeader({
               onClick={() => setAiOpen(true)}
               title="Seentics AI (⌘K)"
               className={cn(
-                'group flex h-7 items-center gap-1 rounded border px-2 text-[11px] font-medium transition-all',
-                'border-indigo-200 bg-indigo-50 text-indigo-600',
-                'hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700',
-                'dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-400',
-                'dark:hover:border-indigo-500/60 dark:hover:bg-indigo-500/15 dark:hover:text-indigo-300',
+                'group flex h-9 items-center gap-1 rounded-lg border-none px-4 text-[14px] font-medium transition-all',
+                "bg-card",
                 aiUsage && !aiUsage.canCreate && 'opacity-60',
               )}
             >
               <Sparkles className="h-3 w-3 shrink-0" />
-              <span>Ask AI</span>
+              <span>Ask AI (⌘K)</span>
             </button>
           )}
 

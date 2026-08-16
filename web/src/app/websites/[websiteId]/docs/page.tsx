@@ -25,7 +25,7 @@ function CodeBlock({ code, lang = 'typescript' }: { code: string; lang?: string 
       </pre>
       <button
         onClick={copy}
-        className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded bg-background border border-border/60 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-lg bg-background border border-border/60 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
       >
         {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
       </button>
@@ -144,7 +144,7 @@ export default function DocsPage() {
             key={t}
             onClick={() => setTab(t)}
             className={cn(
-              'px-4 py-1.5 text-xs font-semibold rounded-md transition-colors',
+              'px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors',
               tab === t
                 ? 'bg-background text-foreground shadow-sm border border-border/60'
                 : 'text-muted-foreground hover:text-foreground',
@@ -163,7 +163,7 @@ export default function DocsPage() {
             <div className="space-y-1 text-xs">
               <p className="font-semibold text-foreground">Your project credentials</p>
               <p className="text-muted-foreground">
-                Project ID: <code className="font-mono bg-muted px-1.5 py-0.5 rounded text-foreground">{websiteId}</code>
+                Project ID: <code className="font-mono bg-muted px-1.5 py-0.5 rounded-lg text-foreground">{websiteId}</code>
               </p>
               <p className="text-muted-foreground">
                 Find your API key under <strong>Settings → Tracking</strong>.
@@ -187,7 +187,7 @@ export default function DocsPage() {
       {tab === 'Node.js' && (
         <Section title="Next.js Integration">
           <p className="text-xs text-muted-foreground mb-2">
-            Use Next.js 14 <code className="font-mono bg-muted px-1 rounded">instrumentation.ts</code> to initialise the SDK once per process and share it across route handlers.
+            Use Next.js 14 <code className="font-mono bg-muted px-1 rounded-lg">instrumentation.ts</code> to initialise the SDK once per process and share it across route handlers.
           </p>
           <CodeBlock code={NEXTJS_SNIPPET} lang="typescript" />
         </Section>
@@ -225,7 +225,7 @@ export default function DocsPage() {
         </Card>
 
         <p className="text-xs text-muted-foreground mt-3">
-          All requests must include <code className="font-mono bg-muted px-1 rounded">Authorization: Bearer &lt;apiKey&gt;</code>.
+          All requests must include <code className="font-mono bg-muted px-1 rounded-lg">Authorization: Bearer &lt;apiKey&gt;</code>.
           The full OpenAPI reference is available in the dashboard under <strong>Developers &rarr; Docs</strong>.
         </p>
       </Section>

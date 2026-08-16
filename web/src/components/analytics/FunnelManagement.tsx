@@ -51,8 +51,8 @@ function FunnelRowStats({ funnel, dateRange, websiteId }: { funnel: Funnel; date
     if (isLoading) {
       return (
         <div className="flex items-center gap-3">
-          <div className="h-4 w-12 bg-muted rounded animate-pulse" />
-          <div className="h-4 w-10 bg-muted rounded animate-pulse" />
+          <div className="h-4 w-12 bg-muted rounded-lg animate-pulse" />
+          <div className="h-4 w-10 bg-muted rounded-lg animate-pulse" />
         </div>
       );
     }
@@ -126,7 +126,7 @@ function FunnelDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl border border-border/60 bg-card rounded-xl shadow-xl p-0 gap-0">
+      <DialogContent className="max-w-2xl border border-border/60 bg-card rounded-lg shadow-xl p-0 gap-0">
         <DialogHeader className="p-5 pb-3 border-b border-border/60">
           <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
             {funnel.name}
@@ -143,7 +143,7 @@ function FunnelDetailModal({
           {isLoading ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-10 bg-muted rounded animate-pulse" />
+                <div key={i} className="h-10 bg-muted rounded-lg animate-pulse" />
               ))}
             </div>
           ) : (
@@ -170,7 +170,7 @@ function FunnelDetailModal({
                     return (
                       <div key={step.id || i}>
                         <div className="flex items-center gap-3">
-                          <div className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                          <div className="w-6 h-6 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
                             {i + 1}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -181,11 +181,11 @@ function FunnelDetailModal({
                               </Badge>
                             </div>
                             <div
-                              className="h-1.5 bg-primary/10 rounded-full mt-1.5 overflow-hidden"
+                              className="h-1.5 bg-primary/10 rounded-lg-full mt-1.5 overflow-hidden"
                               style={{ width: `${widthPct}%` }}
                             >
                               <div
-                                className="h-full bg-primary rounded-full"
+                                className="h-full bg-primary rounded-lg-full"
                                 style={{ width: '100%' }}
                               />
                             </div>
@@ -266,7 +266,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
         <CardContent className="p-5">
           <div className="space-y-3">
             {[...Array(2)].map((_, i) => (
-              <div key={i} className="h-14 bg-muted rounded animate-pulse" />
+              <div key={i} className="h-14 bg-muted rounded-lg animate-pulse" />
             ))}
           </div>
         </CardContent>
@@ -301,7 +301,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
             <Button
               onClick={() => { setEditingFunnel(null); setIsBuilderOpen(true); }}
               size="sm"
-              className="h-7 px-2.5 text-xs font-medium rounded gap-1.5 shadow-sm transition-transform active:scale-95"
+              className="h-7 px-2.5 text-xs font-medium rounded-lg gap-1.5 shadow-sm transition-transform active:scale-95"
             >
               <Plus className="h-3 w-3" />
               New Funnel
@@ -335,7 +335,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
                   onClick={() => setDetailFunnel(funnel)}
                 >
                   {/* Status dot */}
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${funnel.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
+                  <div className={`w-2 h-2 rounded-lg-full shrink-0 ${funnel.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
 
                   {/* Name + step flow */}
                   <div className="flex-1 min-w-0">
@@ -423,7 +423,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
 
       {/* Create/Edit Funnel Modal */}
       <Dialog open={isBuilderOpen} onOpenChange={setIsBuilderOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto border border-border/60 bg-card rounded-xl shadow-xl p-0 gap-0">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto border border-border/60 bg-card rounded-lg shadow-xl p-0 gap-0">
           <DialogHeader className="p-5 pb-3 border-b border-border/60">
             <DialogTitle className="text-base font-semibold tracking-tight">
               {editingFunnel ? 'Edit Funnel' : 'Create New Funnel'}

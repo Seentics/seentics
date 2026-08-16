@@ -35,16 +35,16 @@ export function StatCards({
   }[cols];
 
   const tileBase =
-    'bg-card border border-border/60 rounded-lg p-4 sm:p-5 shadow-sm';
+    'bg-card border-none rounded-lg p-4 sm:p-5 ';
 
   if (isLoading) {
     return (
       <div className={cn('grid gap-3 sm:gap-4 mb-6', gridClass, className)}>
         {Array.from({ length: cols }).map((_, i) => (
           <div key={i} className={cn(tileBase, cardClassName)}>
-            <Skeleton className="h-3 w-20 mb-4 rounded" />
-            <Skeleton className="h-7 w-16 mb-2 rounded" />
-            <Skeleton className="h-3 w-10 rounded" />
+            <Skeleton className="h-3 w-20 mb-4 rounded-lg" />
+            <Skeleton className="h-7 w-16 mb-2 rounded-lg" />
+            <Skeleton className="h-3 w-10 rounded-lg" />
           </div>
         ))}
       </div>
@@ -59,7 +59,7 @@ export function StatCards({
           <div key={i} className={cn(tileBase, cardClassName)}>
             <div className="flex items-center gap-2 mb-2.5">
               {Icon && (
-                <div className="w-8 h-8 rounded-md bg-muted/70 border border-border/50 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-muted/70 border border-border/50 flex items-center justify-center shrink-0">
                   <Icon className={cn('h-3.5 w-3.5', card.iconColor ?? 'text-muted-foreground')} />
                 </div>
               )}

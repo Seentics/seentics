@@ -135,7 +135,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
           <div className="space-y-4">
             <DialogHeader>
               <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-lg-full bg-emerald-500/10 flex items-center justify-center">
                   <Check className="h-4 w-4 text-emerald-500" />
                 </div>
                 <DialogTitle>Goal Created</DialogTitle>
@@ -170,7 +170,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
                   </Button>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  You can also pass properties: <code className="bg-muted px-1 rounded text-[10px]">{`seentics.track('${createdGoal.identifier}', { value: 99 })`}</code>
+                  You can also pass properties: <code className="bg-muted px-1 rounded-lg text-[10px]">{`seentics.track('${createdGoal.identifier}', { value: 99 })`}</code>
                 </p>
               </div>
             )}
@@ -178,7 +178,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
             {createdGoal.type === 'event' && createdGoal.selector && (
               <div className="bg-muted/30 border border-border/50 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">
-                  The tracker script will automatically fire <code className="bg-muted px-1 rounded font-bold">{createdGoal.identifier}</code> when a user clicks on <code className="bg-muted px-1 rounded font-bold">{createdGoal.selector}</code>.
+                  The tracker script will automatically fire <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.identifier}</code> when a user clicks on <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.selector}</code>.
                 </p>
               </div>
             )}
@@ -186,7 +186,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
             {createdGoal.type === 'pageview' && (
               <div className="bg-muted/30 border border-border/50 rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">
-                  Conversions will be counted each time a visitor views <code className="bg-muted px-1 rounded font-bold">{createdGoal.identifier}</code>. No code changes required.
+                  Conversions will be counted each time a visitor views <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.identifier}</code>. No code changes required.
                 </p>
               </div>
             )}
@@ -271,15 +271,15 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
                 </div>
               )}
               {showHelper && (
-                <div className="mt-2 p-3 bg-primary/5 rounded border border-primary/10 text-[11px] font-medium leading-relaxed text-muted-foreground animate-in fade-in slide-in-from-top-1">
+                <div className="mt-2 p-3 bg-primary/5 rounded-lg border border-primary/10 text-[11px] font-medium leading-relaxed text-muted-foreground animate-in fade-in slide-in-from-top-1">
                   {type === 'event' ? (
                     <ul className="list-disc pl-4 space-y-1">
                       <li><strong>Event Name:</strong> The name that will appear in your reports.</li>
-                      <li><strong>Selector:</strong> Provide a CSS selector (e.g. <code className="bg-primary/10 px-1 rounded text-primary">#submit-btn</code> or <code className="bg-primary/10 px-1 rounded text-primary">.buy-now</code>) to auto-track it.</li>
-                      <li><strong>Predefined:</strong> Use <code className="bg-primary/10 px-1 rounded text-primary">form_submission</code> for all forms.</li>
+                      <li><strong>Selector:</strong> Provide a CSS selector (e.g. <code className="bg-primary/10 px-1 rounded-lg text-primary">#submit-btn</code> or <code className="bg-primary/10 px-1 rounded-lg text-primary">.buy-now</code>) to auto-track it.</li>
+                      <li><strong>Predefined:</strong> Use <code className="bg-primary/10 px-1 rounded-lg text-primary">form_submission</code> for all forms.</li>
                     </ul>
                   ) : (
-                    <p>Enter the exact URL path. For example, to track users who reach your success page, use <code className="bg-primary/10 px-1 rounded text-primary">/signup-complete</code>.</p>
+                    <p>Enter the exact URL path. For example, to track users who reach your success page, use <code className="bg-primary/10 px-1 rounded-lg text-primary">/signup-complete</code>.</p>
                   )}
                 </div>
               )}

@@ -32,7 +32,7 @@ export default function FunnelDetailPage() {
       <div className="p-8 space-y-6">
         <Skeleton className="h-8 w-48" />
         <StatCards cards={[]} isLoading={true} />
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-lg" />
       </div>
     );
   }
@@ -133,7 +133,7 @@ export default function FunnelDetailPage() {
                   <div key={step.id || i} className="group">
                     <div className="flex items-start gap-4">
                       {/* Step index */}
-                      <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                      <div className="w-8 h-8 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                         {i + 1}
                       </div>
                       
@@ -153,9 +153,9 @@ export default function FunnelDetailPage() {
                         </div>
                         
                         {/* Progress Bar Container */}
-                        <div className="relative h-2.5 bg-muted rounded-full overflow-hidden mb-2">
+                        <div className="relative h-2.5 bg-muted rounded-lg-full overflow-hidden mb-2">
                           <div
-                            className="absolute inset-y-0 left-0 bg-primary/80 group-hover:bg-primary transition-all duration-500 rounded-full"
+                            className="absolute inset-y-0 left-0 bg-primary/80 group-hover:bg-primary transition-all duration-500 rounded-lg-full"
                             style={{ width: `${widthPct}%` }}
                           />
                         </div>
@@ -203,7 +203,7 @@ export default function FunnelDetailPage() {
                         <span className="text-xs truncate font-medium">{step.name}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <div className="h-1 w-12 bg-muted rounded-full overflow-hidden">
+                        <div className="h-1 w-12 bg-muted rounded-lg-full overflow-hidden">
                           <div className="h-full bg-primary" style={{ width: `${percentage}%` }} />
                         </div>
                         <span className="text-xs font-bold tabular-nums w-10 text-right">{percentage.toFixed(1)}%</span>
@@ -226,7 +226,7 @@ export default function FunnelDetailPage() {
                     <span className="text-[10px] font-bold text-primary/70">{i + 1}</span>
                     <span className="text-xs font-semibold">{step.name}</span>
                   </div>
-                   <div className="font-mono text-[10px] p-2 rounded bg-muted/30 border border-border/40 overflow-x-auto whitespace-pre">
+                   <div className="font-mono text-[10px] p-2 rounded-lg bg-muted/30 border border-border/40 overflow-x-auto whitespace-pre">
                     {JSON.stringify(step.condition, null, 2)}
                   </div>
                 </div>

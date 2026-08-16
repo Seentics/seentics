@@ -23,7 +23,7 @@ interface TrafficOverviewProps {
   onDeleteAnnotation?: (id: string) => void;
 }
 
-const TAB_CLS = 'h-7 text-xs font-medium px-3 gap-1.5 rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm';
+const TAB_CLS = 'h-7 text-xs font-medium px-3 gap-1.5 rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm';
 
 export function TrafficOverview({
   dailyStats,
@@ -40,7 +40,7 @@ export function TrafficOverview({
   const [view, setView] = useState<'chart' | 'hourly'>('chart');
 
   return (
-    <Card className={cn("col-span-full bg-card shadow-sm overflow-hidden pb-4", className)}>
+    <Card className={cn("col-span-full bg-card shadow-sm overflow-hidden pb-4 border-none rounded-lg", className)}>
       <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4 pt-5 px-6 shrink-0 border-b border-border/60">
         <div>
           <h2 className="text-base font-semibold tracking-tight">Traffic Overview</h2>
@@ -61,7 +61,7 @@ export function TrafficOverview({
 
           {/* View tabs */}
           <Tabs value={view} onValueChange={(v) => setView(v as any)}>
-            <TabsList className="h-8 bg-muted/50 p-0.5 rounded gap-0.5">
+            <TabsList className="h-8 bg-muted/50 p-0.5 rounded-lg gap-0.5">
               <TabsTrigger value="chart" className={TAB_CLS}>
                 <BarChart3 className="h-3.5 w-3.5" />
                 Chart

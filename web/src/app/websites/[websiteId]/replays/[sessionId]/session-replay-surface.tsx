@@ -475,7 +475,7 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
       <div
         className={cn(
           'flex flex-col items-center justify-center border border-dashed border-border/70 bg-muted/15 px-4 py-10 text-center',
-          embedded ? 'rounded-md' : 'rounded-xl',
+          embedded ? 'rounded-lg' : 'rounded-lg',
         )}
       >
         <p className="text-xs text-muted-foreground">No key moments indexed for this recording.</p>
@@ -488,8 +488,8 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
       className={cn(
         'text-left',
         embedded
-          ? 'rounded-md border border-border/60 bg-muted/20'
-          : 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm',
+          ? 'rounded-lg border border-border/60 bg-muted/20'
+          : 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/80 bg-card shadow-sm',
       )}
     >
       <ul
@@ -891,7 +891,7 @@ function ReplayScrubberTrack({
       aria-valuenow={Math.round(currentMs)}
       className={cn(
         'relative flex h-4 w-full min-w-0 cursor-pointer touch-none items-center outline-none',
-        'rounded-full focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900',
+        'rounded-lg-full focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900',
       )}
       onClick={onTrackClick}
       onPointerDown={onTrackPointerDown}
@@ -900,13 +900,13 @@ function ReplayScrubberTrack({
       onPointerCancel={endDrag}
       onKeyDown={onTrackKeyDown}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-zinc-700/50" />
+      <div className="pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-lg-full bg-zinc-700/50" />
       <div
-        className="pointer-events-none absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-white/85 shadow-[0_0_8px_rgba(255,255,255,0.12)]"
+        className="pointer-events-none absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-lg-full bg-white/85 shadow-[0_0_8px_rgba(255,255,255,0.12)]"
         style={{ width: `${pct}%`, maxWidth: '100%' }}
       />
       <div
-        className="pointer-events-none absolute top-1/2 z-[1] h-3.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-zinc-900 bg-white shadow-sm"
+        className="pointer-events-none absolute top-1/2 z-[1] h-3.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-lg-full border border-zinc-900 bg-white shadow-sm"
         style={{ left: `${pct}%` }}
       />
     </div>
@@ -943,7 +943,7 @@ function SessionReplayTransportBar({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7 shrink-0 rounded-md text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8"
+            className="h-7 w-7 shrink-0 rounded-lg text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8"
             aria-label="Back 10 seconds"
             title="Back 10s"
             onClick={() => seekRel(-SEEK_STEP_MS)}
@@ -953,7 +953,7 @@ function SessionReplayTransportBar({
           <Button
             type="button"
             size="icon"
-            className="h-8 w-8 shrink-0 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+            className="h-8 w-8 shrink-0 rounded-lg-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
             aria-label={playing ? 'Pause' : 'Play'}
             onClick={() => {
               try {
@@ -973,7 +973,7 @@ function SessionReplayTransportBar({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7 shrink-0 rounded-md text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8"
+            className="h-7 w-7 shrink-0 rounded-lg text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8"
             aria-label="Forward 10 seconds"
             title="Forward 10s"
             onClick={() => seekRel(SEEK_STEP_MS)}
@@ -998,7 +998,7 @@ function SessionReplayTransportBar({
             variant="ghost"
             size="icon"
             className={cn(
-              'h-7 w-7 shrink-0 rounded-md text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8',
+              'h-7 w-7 shrink-0 rounded-lg text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8',
               skipInactive && 'bg-white/[0.07] text-zinc-200',
             )}
             aria-label={skipInactive ? 'Skip idle time (on)' : 'Skip idle time (off)'}
@@ -1020,7 +1020,7 @@ function SessionReplayTransportBar({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 gap-0.5 rounded-md px-1.5 text-[10px] font-medium tabular-nums text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:px-2 sm:text-[11px]"
+                className="h-7 gap-0.5 rounded-lg px-1.5 text-[10px] font-medium tabular-nums text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:px-2 sm:text-[11px]"
                 aria-label="Playback speed"
                 title="Speed"
               >
@@ -1028,7 +1028,7 @@ function SessionReplayTransportBar({
                 {speed}×
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[6.5rem] rounded-xl border-zinc-700 bg-zinc-900">
+            <DropdownMenuContent align="end" className="min-w-[6.5rem] rounded-lg border-zinc-700 bg-zinc-900">
               {SPEED_OPTIONS.map((s) => (
                 <DropdownMenuItem
                   key={s}
@@ -1051,7 +1051,7 @@ function SessionReplayTransportBar({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7 shrink-0 rounded-md text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8"
+            className="h-7 w-7 shrink-0 rounded-lg text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200 sm:h-8 sm:w-8"
             aria-label="Fullscreen"
             title="Fullscreen"
             onClick={() => {
@@ -1424,7 +1424,7 @@ export function SessionReplaySurface({
       )}
     >
       <div
-        className="mx-auto w-full flex min-h-0 min-w-0 flex-col overflow-hidden mb-4 rounded-xl border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]"
+        className="mx-auto w-full flex min-h-0 min-w-0 flex-col overflow-hidden mb-4 rounded-lg border shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]"
         style={{ maxWidth: 'calc(68dvh * 16 / 9)' }}
       >
         <div ref={measureRef} className="relative flex min-h-0 min-w-0 flex-col overflow-hidden">
@@ -1436,11 +1436,11 @@ export function SessionReplaySurface({
             <div
               ref={shellRef}
               className={cn(
-                'absolute inset-0 overflow-hidden rounded-t-xl bg-black',
+                'absolute inset-0 overflow-hidden rounded-lg-t-xl bg-black',
                 'outline outline-1 -outline-offset-1 outline-white/[0.06]',
                 '[&_.rrweb-player-root]:h-full [&_.rrweb-player-root]:w-full [&_.rrweb-player-root]:flow-root',
-                '[&_.rr-player]:!float-none [&_.rr-player]:!m-0 [&_.rr-player]:!block [&_.rr-player]:!rounded-none [&_.rr-player]:!border-0 [&_.rr-player]:!bg-transparent [&_.rr-player]:!shadow-none [&_.rr-player]:!ring-0 [&_.rr-player]:!outline-none',
-                '[&_.rr-player__frame]:!relative [&_.rr-player__frame]:!overflow-hidden [&_.rr-player__frame]:!rounded-[inherit] [&_.rr-player__frame]:!border-0 [&_.rr-player__frame]:!bg-black [&_.rr-player__frame]:!shadow-none [&_.rr-player__frame]:!ring-0 [&_.rr-player__frame]:!outline-none',
+                '[&_.rr-player]:!float-none [&_.rr-player]:!m-0 [&_.rr-player]:!block [&_.rr-player]:!rounded-lg-none [&_.rr-player]:!border-0 [&_.rr-player]:!bg-transparent [&_.rr-player]:!shadow-none [&_.rr-player]:!ring-0 [&_.rr-player]:!outline-none',
+                '[&_.rr-player__frame]:!relative [&_.rr-player__frame]:!overflow-hidden [&_.rr-player__frame]:!rounded-lg-[inherit] [&_.rr-player__frame]:!border-0 [&_.rr-player__frame]:!bg-black [&_.rr-player__frame]:!shadow-none [&_.rr-player__frame]:!ring-0 [&_.rr-player__frame]:!outline-none',
                 '[&_.replayer-wrapper]:!absolute [&_.replayer-wrapper]:!left-1/2 [&_.replayer-wrapper]:!top-0 [&_.replayer-wrapper]:!float-none [&_.replayer-wrapper]:!clear-none [&_.replayer-wrapper]:!origin-top [&_.replayer-wrapper]:!border-0 [&_.replayer-wrapper]:!ring-0',
                 '[&_.replayer-wrapper>iframe]:!border-0 [&_.replayer-wrapper>iframe]:!bg-black [&_.replayer-wrapper>iframe]:!shadow-none',
               )}

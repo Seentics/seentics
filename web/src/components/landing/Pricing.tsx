@@ -81,7 +81,7 @@ export default function Pricing() {
       <section id="pricing" className="py-24 md:py-32 bg-background flex items-center justify-center min-h-[400px]">
         <div className="text-center max-w-sm px-6">
           <div className="flex justify-center mb-4">
-            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <div className="h-14 w-14 rounded-lg-full bg-primary/10 flex items-center justify-center">
               <Loader2 className="h-7 w-7 text-primary animate-spin" />
             </div>
           </div>
@@ -134,7 +134,7 @@ export default function Pricing() {
           transition={{ duration: 0.4, delay: 0.15 }}
           className="flex justify-center mb-10"
         >
-          <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/60 rounded-xl">
+          <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/60 rounded-lg">
             <button
               onClick={() => setMode('individual')}
               className={cn(
@@ -190,9 +190,9 @@ export default function Pricing() {
           transition={{ duration: 0.4, delay: 0.2 }}
           className="mt-10 max-w-sm mx-auto"
         >
-          <div className="relative flex flex-col rounded-xl border-2 border-dashed border-amber-400/60 bg-amber-50/30 dark:bg-amber-950/10 p-5">
+          <div className="relative flex flex-col rounded-lg border-2 border-dashed border-amber-400/60 bg-amber-50/30 dark:bg-amber-950/10 p-5">
             <div className="absolute -top-3 left-4">
-              <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-400 text-amber-950">
+              <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg-full bg-amber-400 text-amber-950">
                 <FlaskConical className="h-3 w-3" />
                 Sandbox / Test Only
               </span>

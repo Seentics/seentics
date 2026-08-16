@@ -132,7 +132,7 @@ export function FunnelTestSandbox({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[300] flex items-center justify-center p-8" style={{ minHeight: '100vh' }}>
-      <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl w-full max-w-7xl overflow-hidden flex flex-col" style={{ height: '90vh', maxHeight: '90vh' }}>
+      <div className="bg-slate-900 border border-slate-700 rounded-lg shadow-2xl w-full max-w-7xl overflow-hidden flex flex-col" style={{ height: '90vh', maxHeight: '90vh' }}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700 bg-slate-900/95">
           <div className="flex items-center gap-3">
@@ -178,7 +178,7 @@ export function FunnelTestSandbox({
                 <span className="text-xs font-medium text-slate-400">Conversion Rate</span>
                 <span className="text-2xl font-bold text-emerald-500">{currentConversionRate}%</span>
               </div>
-              <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div className="w-full h-2 bg-slate-800 rounded-lg-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
                   style={{ width: `${currentConversionRate}%` }}
@@ -213,7 +213,7 @@ export function FunnelTestSandbox({
                       }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold ${step.status === 'completed'
+                      <div className={`h-10 w-10 rounded-lg-full flex items-center justify-center flex-shrink-0 font-bold ${step.status === 'completed'
                           ? 'bg-emerald-500 text-white'
                           : step.status === 'current'
                             ? 'bg-indigo-500 text-white'
@@ -231,7 +231,7 @@ export function FunnelTestSandbox({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs px-2 py-0.5 rounded bg-slate-700 text-slate-300">
+                          <span className="text-xs px-2 py-0.5 rounded-lg bg-slate-700 text-slate-300">
                             {step.type === 'page_view' ? 'Page' : 'Event'}
                           </span>
                           <p className="text-sm font-medium text-white truncate">

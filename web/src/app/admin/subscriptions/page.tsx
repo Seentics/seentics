@@ -56,7 +56,7 @@ export default function AdminSubscriptionsPage() {
           <p className="text-gray-500 text-sm mt-0.5">{pagination.total.toLocaleString()} total</p>
         </div>
 
-        <div className="bg-[#111116] border border-white/[0.06] rounded-xl overflow-hidden">
+        <div className="bg-[#111116] border border-white/[0.06] rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/[0.06]">
@@ -92,7 +92,7 @@ export default function AdminSubscriptionsPage() {
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium capitalize ${PLAN_BADGE[s.planId] ?? 'bg-white/5 text-gray-400 border border-white/8'}`}>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-lg font-medium capitalize ${PLAN_BADGE[s.planId] ?? 'bg-white/5 text-gray-400 border border-white/8'}`}>
                       {s.planName}
                     </span>
                   </td>
@@ -100,7 +100,7 @@ export default function AdminSubscriptionsPage() {
                     {s.priceMonthly > 0 ? `$${s.priceMonthly}/mo` : <span className="text-gray-600">Free</span>}
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${
+                    <span className={`text-[11px] px-2 py-0.5 rounded-lg font-medium ${
                       s.status === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                       s.status === 'on_trial' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/20' :
                       'bg-white/5 text-gray-500 border border-white/8'
@@ -127,14 +127,14 @@ export default function AdminSubscriptionsPage() {
               <button
                 onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
                 disabled={pagination.page <= 1}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 hover:bg-white/8 disabled:opacity-30 transition-colors text-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8 hover:bg-white/8 disabled:opacity-30 transition-colors text-sm"
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> Prev
               </button>
               <button
                 onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
                 disabled={pagination.page >= pagination.pages}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 hover:bg-white/8 disabled:opacity-30 transition-colors text-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8 hover:bg-white/8 disabled:opacity-30 transition-colors text-sm"
               >
                 Next <ChevronRight className="w-3.5 h-3.5" />
               </button>

@@ -49,22 +49,22 @@ export default function HeroDashboardPreview() {
           <Logo size="sm" showText className="hidden sm:flex" />
           <Logo size="sm" className="sm:hidden" />
           <div className="w-px h-5 bg-border/60 mx-1" />
-          <div className="flex items-center gap-1.5 h-8 px-3 bg-card/50 rounded-md border border-border/40 text-xs">
+          <div className="flex items-center gap-1.5 h-8 px-3 bg-card/50 rounded-lg border border-border/40 text-xs">
             <Globe className="h-3 w-3 text-primary shrink-0" />
             <span className="font-medium text-foreground">Demo Site</span>
           </div>
           <div className="flex-1" />
-          <div className="h-8 px-2.5 flex items-center gap-1.5 bg-card/50 rounded-md border border-border/40 text-[11px] font-medium text-muted-foreground">
+          <div className="h-8 px-2.5 flex items-center gap-1.5 bg-card/50 rounded-lg border border-border/40 text-[11px] font-medium text-muted-foreground">
             Last 7 days
           </div>
-          <div className="h-8 px-2.5 flex items-center gap-1.5 bg-card/50 rounded-md border border-border/40 text-[11px] font-medium text-muted-foreground">
+          <div className="h-8 px-2.5 flex items-center gap-1.5 bg-card/50 rounded-lg border border-border/40 text-[11px] font-medium text-muted-foreground">
             <Download className="h-3 w-3" />
             <span className="hidden sm:inline">Export</span>
           </div>
-          <div className="h-8 w-8 flex items-center justify-center bg-card/50 rounded-md border border-border/40">
+          <div className="h-8 w-8 flex items-center justify-center bg-card/50 rounded-lg border border-border/40">
             <Settings className="h-3 w-3 text-muted-foreground" />
           </div>
-          <div className="h-8 w-8 flex items-center justify-center bg-card/50 rounded-md border border-border/40">
+          <div className="h-8 w-8 flex items-center justify-center bg-card/50 rounded-lg border border-border/40">
             <Sun className="h-3.5 w-3.5 text-muted-foreground" />
           </div>
         </div>

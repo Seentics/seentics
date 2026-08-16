@@ -131,13 +131,13 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
         {[...Array(6)].map((_, i) => (
           <div key={i} className="flex items-center justify-between p-3 border-b animate-pulse text-muted">
              <div className="flex items-center space-x-4 flex-1">
-                <div className="w-4 h-4 bg-muted rounded" />
+                <div className="w-4 h-4 bg-muted rounded-lg" />
                 <div className="space-y-2">
-                   <div className="h-4 w-32 bg-muted rounded" />
-                   <div className="h-3 w-20 bg-muted rounded" />
+                   <div className="h-4 w-32 bg-muted rounded-lg" />
+                   <div className="h-3 w-20 bg-muted rounded-lg" />
                 </div>
              </div>
-             <div className="h-8 w-16 bg-muted rounded" />
+             <div className="h-8 w-16 bg-muted rounded-lg" />
           </div>
         ))}
       </div>
@@ -147,7 +147,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   const PageList = ({ items, type }: { items: any[], type: 'top' | 'entry' | 'exit' }) => {
     if (items.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border/60">
           <FileText className="h-10 w-10 mb-2 opacity-20" />
           <p className="text-xs font-medium text-muted-foreground/60">No page data</p>
         </div>
@@ -169,7 +169,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
           return (
             <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ page_path: path })}>
               <div className="flex items-center space-x-4 flex-1 min-w-0">
-                <div className="flex-shrink-0 p-2 bg-accent/10 rounded group-hover:bg-primary/10 transition-colors">
+                <div className="flex-shrink-0 p-2 bg-accent/10 rounded-lg group-hover:bg-primary/10 transition-colors">
                   {getPageIcon(item.page)}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -207,10 +207,10 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
               <h3 className="text-base font-semibold tracking-tight">Top Pages</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Most visited & landing destinations</p>
            </div>
-           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted/50 p-0.5 rounded shrink-0">
-             <TabsTrigger value="top" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Top</TabsTrigger>
-             <TabsTrigger value="entry" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Entry</TabsTrigger>
-             <TabsTrigger value="exit" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Exit</TabsTrigger>
+           <TabsList className="grid grid-cols-3 h-8 w-full sm:w-[240px] bg-muted/50 p-0.5 rounded-lg shrink-0">
+             <TabsTrigger value="top" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Top</TabsTrigger>
+             <TabsTrigger value="entry" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Entry</TabsTrigger>
+             <TabsTrigger value="exit" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Exit</TabsTrigger>
            </TabsList>
         </div>
         

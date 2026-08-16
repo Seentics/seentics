@@ -61,7 +61,7 @@ export default function AgencyAPIDocs() {
                         { step: '3', title: 'Use it in your requests', desc: 'Add the key to the Authorization header of every agency API request. The key is shown only once — save it securely.' },
                     ].map(({ step, title, desc }) => (
                         <div key={step} className="flex gap-4 p-6 rounded-lg border bg-card">
-                            <span className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-sm font-bold flex items-center justify-center">
+                            <span className="flex-shrink-0 w-8 h-8 rounded-lg-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-sm font-bold flex items-center justify-center">
                                 {step}
                             </span>
                             <div className="space-y-1">
@@ -174,7 +174,7 @@ export default function AgencyAPIDocs() {
                 <div className="space-y-2">
                     <h2 className="text-2xl font-semibold">Programmatic API (Agency API Key)</h2>
                     <p className="text-muted-foreground leading-relaxed">
-                        Use your agency API key (<code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">snt_age_...</code>) for
+                        Use your agency API key (<code className="bg-muted px-1.5 py-0.5 rounded-lg text-sm font-mono">snt_age_...</code>) for
                         server-to-server automation. These endpoints are designed for CI/CD pipelines, onboarding workflows, and any
                         server environment where a user JWT is not available.
                     </p>
@@ -345,7 +345,7 @@ print(f"Temp password: {temp_password}")`}
             <section className="space-y-6">
                 <h2 className="text-2xl font-semibold">Feature Flags per Client</h2>
                 <p className="text-muted-foreground leading-relaxed">
-                    When creating or updating a client user, pass a <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">features</code> object
+                    When creating or updating a client user, pass a <code className="bg-muted px-1.5 py-0.5 rounded-lg text-sm font-mono">features</code> object
                     to control exactly which modules the client can access. Unset flags default to the agency plan's global settings.
                 </p>
 
@@ -377,9 +377,9 @@ print(f"Temp password: {temp_password}")`}
                                 { feature: 'automations', def: 'false', desc: 'Automation rules: triggers, conditions, and actions' },
                             ].map(({ feature, def, desc }) => (
                                 <tr key={feature}>
-                                    <td className="px-4 py-3"><code className="bg-muted/60 px-1.5 py-0.5 rounded text-xs font-mono">{feature}</code></td>
+                                    <td className="px-4 py-3"><code className="bg-muted/60 px-1.5 py-0.5 rounded-lg text-xs font-mono">{feature}</code></td>
                                     <td className="px-4 py-3 text-xs">
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${def === 'true' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                                        <span className={`px-2 py-0.5 rounded-lg-full text-xs font-medium ${def === 'true' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
                                             {def}
                                         </span>
                                     </td>
@@ -396,8 +396,8 @@ print(f"Temp password: {temp_password}")`}
                 <h2 className="text-2xl font-semibold">Resource Limits per Client</h2>
                 <p className="text-muted-foreground leading-relaxed">
                     Override the agency plan's global resource limits for a specific client by passing a{' '}
-                    <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">limits</code> object.
-                    Set any value to <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">null</code> to fall back to the agency plan's default.
+                    <code className="bg-muted px-1.5 py-0.5 rounded-lg text-sm font-mono">limits</code> object.
+                    Set any value to <code className="bg-muted px-1.5 py-0.5 rounded-lg text-sm font-mono">null</code> to fall back to the agency plan's default.
                 </p>
 
                 <CodeBlock code={JSON.stringify({
@@ -426,7 +426,7 @@ print(f"Temp password: {temp_password}")`}
                                 { key: 'maxWebsites', type: 'number | null', desc: 'Maximum websites this client can add' },
                             ].map(({ key, type, desc }) => (
                                 <tr key={key}>
-                                    <td className="px-4 py-3"><code className="bg-muted/60 px-1.5 py-0.5 rounded text-xs font-mono">{key}</code></td>
+                                    <td className="px-4 py-3"><code className="bg-muted/60 px-1.5 py-0.5 rounded-lg text-xs font-mono">{key}</code></td>
                                     <td className="px-4 py-3 text-xs text-muted-foreground">{type}</td>
                                     <td className="px-4 py-3">{desc}</td>
                                 </tr>
@@ -452,7 +452,7 @@ print(f"Temp password: {temp_password}")`}
                         { step: '5', title: 'Agency retains full oversight', desc: 'The agency can view, manage, and impersonate any client account from the Agency → Client Accounts dashboard at any time.' },
                     ].map(({ step, title, desc }) => (
                         <div key={step} className="flex gap-4 p-6 rounded-lg border bg-card">
-                            <span className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-sm font-bold flex items-center justify-center">
+                            <span className="flex-shrink-0 w-8 h-8 rounded-lg-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-sm font-bold flex items-center justify-center">
                                 {step}
                             </span>
                             <div className="space-y-1">
@@ -471,7 +471,7 @@ print(f"Temp password: {temp_password}")`}
                     <div className="flex items-center gap-2">
                         <Globe className="w-5 h-5 text-violet-500" />
                         <h3 className="font-semibold text-lg">Fully branded for your clients</h3>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium">Agency & Agency Pro</span>
+                        <span className="text-xs px-2 py-0.5 rounded-lg-full bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium">Agency & Agency Pro</span>
                     </div>
                     <p className="text-muted-foreground leading-relaxed">
                         On Agency and Agency Pro plans, you can customize the entire platform for your clients so they never see the "Seentics" brand.
@@ -485,7 +485,7 @@ print(f"Temp password: {temp_password}")`}
                             'Support email shown in help sections and error pages',
                         ].map((item) => (
                             <li key={item} className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-lg-full bg-violet-500 mt-1.5 flex-shrink-0" />
                                 <span>{item}</span>
                             </li>
                         ))}
@@ -507,7 +507,7 @@ print(f"Temp password: {temp_password}")`}
                             { label: '200 website creations/hour', desc: 'POST /agency/api/users/:userId/websites' },
                         ].map(({ label, desc }) => (
                             <li key={label} className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-lg-full bg-primary mt-1.5 flex-shrink-0" />
                                 <span>
                                     <span className="font-semibold text-foreground">{label}</span> — {desc}
                                 </span>
@@ -516,8 +516,8 @@ print(f"Temp password: {temp_password}")`}
                     </ul>
                     <p className="text-xs text-muted-foreground pt-2 border-t">
                         All responses include{' '}
-                        <code className="bg-muted px-1 rounded">X-RateLimit-Remaining</code> and{' '}
-                        <code className="bg-muted px-1 rounded">X-RateLimit-Reset</code> headers.
+                        <code className="bg-muted px-1 rounded-lg">X-RateLimit-Remaining</code> and{' '}
+                        <code className="bg-muted px-1 rounded-lg">X-RateLimit-Reset</code> headers.
                     </p>
                 </div>
             </section>
@@ -533,10 +533,10 @@ function CodeBlock({ code }: { code: string }) {
         setTimeout(() => setCopied(false), 2000);
     };
     return (
-        <div className="relative bg-muted/50 rounded p-3 border">
+        <div className="relative bg-muted/50 rounded-lg p-3 border">
             <button
                 onClick={copy}
-                className="absolute top-2 right-2 p-1.5 rounded hover:bg-muted transition text-muted-foreground hover:text-foreground"
+                className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground"
             >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
@@ -582,12 +582,12 @@ function EndpointBlock({
         <div className="space-y-4">
             <div className="space-y-3 p-6 rounded-lg border bg-card">
                 <div className="flex items-center gap-3 flex-wrap">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded ${methodBg} ${methodColor}`}>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${methodBg} ${methodColor}`}>
                         {method}
                     </span>
                     <code className="font-mono text-sm text-foreground">{path}</code>
                     {noAuth && (
-                        <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground font-medium">
+                        <span className="text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground font-medium">
                             No Auth*
                         </span>
                     )}
@@ -595,7 +595,7 @@ function EndpointBlock({
                 <p className="text-sm text-muted-foreground">{description}</p>
                 {note && (
                     <div className="pt-2 border-t">
-                        <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-2 rounded">
+                        <p className="text-xs text-amber-600 dark:text-amber-400 bg-amber-500/10 px-3 py-2 rounded-lg">
                             {note}
                         </p>
                     </div>
@@ -606,7 +606,7 @@ function EndpointBlock({
                         <ul className="space-y-1">
                             {queryParams.map((p) => (
                                 <li key={p.name} className="text-xs text-muted-foreground">
-                                    <code className="bg-muted/50 px-1 rounded">{p.name}</code>{' '}
+                                    <code className="bg-muted/50 px-1 rounded-lg">{p.name}</code>{' '}
                                     <span className="text-xs text-primary">({p.type})</span> – {p.desc}
                                 </li>
                             ))}
@@ -644,7 +644,7 @@ function CodeExample({ language, code }: { language: string; code: string }) {
                 <p className="text-sm font-semibold">{language}</p>
                 <button
                     onClick={copy}
-                    className="text-xs px-2 py-1 rounded hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    className="text-xs px-2 py-1 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center gap-1"
                 >
                     {copied ? <Check size={14} /> : <Copy size={14} />}
                     {copied ? 'Copied' : 'Copy'}

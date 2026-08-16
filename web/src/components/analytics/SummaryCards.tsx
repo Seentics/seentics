@@ -30,7 +30,7 @@ const GrowthBadge = ({ current, previous, inverse = false }: {
 }) => {
   if (previous === 0) {
     if (current > 0) return (
-      <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+      <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
         New
       </span>
     );
@@ -38,7 +38,7 @@ const GrowthBadge = ({ current, previous, inverse = false }: {
   }
   if (current === previous) {
     return (
-      <span className="text-[10px] font-medium text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded-md">
+      <span className="text-[10px] font-medium text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded-lg">
         No change
       </span>
     );
@@ -48,7 +48,7 @@ const GrowthBadge = ({ current, previous, inverse = false }: {
   const isGood = inverse ? growth < 0 : growth > 0;
   return (
     <span className={cn(
-      'inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md',
+      'inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-lg',
       isGood ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-rose-500/10 text-rose-600 dark:text-rose-400'
     )}>
       {isGood
@@ -77,9 +77,9 @@ const SummaryCard = ({
   if (isLoading) {
     return (
       <div className="p-5">
-        <Skeleton className="h-3 w-20 mb-4 rounded" />
-        <Skeleton className="h-7 w-16 mb-2 rounded" />
-        <Skeleton className="h-3 w-10 rounded" />
+        <Skeleton className="h-3 w-20 mb-4 rounded-lg" />
+        <Skeleton className="h-7 w-16 mb-2 rounded-lg" />
+        <Skeleton className="h-3 w-10 rounded-lg" />
       </div>
     );
   }
@@ -88,12 +88,12 @@ const SummaryCard = ({
     <div className="group p-5 hover:bg-accent/5 transition-colors">
       {/* Icon + Title row */}
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-6 h-6 rounded-md bg-accent/40 flex items-center justify-center shrink-0">
+        <div className="w-6 h-6 rounded-lg bg-accent/40 flex items-center justify-center shrink-0">
           {title === 'Live Visitors'
             ? (
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-lg-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-lg-full h-2 w-2 bg-emerald-500" />
               </span>
             )
             : <Icon className="h-3.5 w-3.5 text-muted-foreground" />
@@ -124,13 +124,13 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, v
 
   if (isLoading || !data) {
     return (
-      <div className="bg-card shadow-sm rounded overflow-hidden mb-6">
+      <div className="bg-card shadow-sm rounded-lg overflow-hidden mb-6">
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/40">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="p-5">
-              <Skeleton className="h-3 w-20 mb-4 rounded" />
-              <Skeleton className="h-7 w-16 mb-2 rounded" />
-              <Skeleton className="h-3 w-10 rounded" />
+              <Skeleton className="h-3 w-20 mb-4 rounded-lg" />
+              <Skeleton className="h-7 w-16 mb-2 rounded-lg" />
+              <Skeleton className="h-3 w-10 rounded-lg" />
             </div>
           ))}
         </div>
@@ -181,7 +181,7 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, v
   ];
 
   return (
-    <div className="bg-card shadow-sm rounded overflow-hidden mb-6 border dark:border-none">
+    <div className="bg-card shadow-sm rounded-lg overflow-hidden mb-6 border-none">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/40">
         {cards.map((card, i) => (
           <SummaryCard key={i} {...card} />

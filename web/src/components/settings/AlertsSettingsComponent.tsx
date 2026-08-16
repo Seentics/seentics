@@ -213,7 +213,7 @@ export function AlertsSettingsComponent() {
             <button
               onClick={() => setView('rules')}
               className={cn(
-                'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
                 view === 'rules' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -222,7 +222,7 @@ export function AlertsSettingsComponent() {
             <button
               onClick={() => setView('history')}
               className={cn(
-                'px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+                'px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
                 view === 'history' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
               )}
             >
@@ -241,7 +241,7 @@ export function AlertsSettingsComponent() {
           {rules.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                <div className="h-12 w-12 rounded-lg-full bg-muted/50 flex items-center justify-center mb-4">
                   <Bell className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <h4 className="text-sm font-medium mb-1">No alert rules yet</h4>
@@ -273,7 +273,7 @@ export function AlertsSettingsComponent() {
                             <div className="flex items-center gap-2">
                               <p className={cn('text-sm font-medium truncate', !rule.enabled && 'text-muted-foreground')}>{rule.name}</p>
                               {!rule.enabled && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">Paused</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-lg bg-muted text-muted-foreground">Paused</span>
                               )}
                             </div>
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -323,7 +323,7 @@ export function AlertsSettingsComponent() {
           {events.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-4">
+                <div className="h-12 w-12 rounded-lg-full bg-muted/50 flex items-center justify-center mb-4">
                   <History className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <h4 className="text-sm font-medium mb-1">No alert history</h4>

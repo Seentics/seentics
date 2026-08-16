@@ -82,7 +82,7 @@ function TempPasswordDisplay({ password }: { password: string }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <code className="flex-1 text-xs font-mono bg-muted/50 border border-border/60 rounded-md px-3 py-2 select-all break-all">
+        <code className="flex-1 text-xs font-mono bg-muted/50 border border-border/60 rounded-lg px-3 py-2 select-all break-all">
           {password}
         </code>
         <CopyButton text={password} />
@@ -149,13 +149,13 @@ function CreateClientUserDialog({ open, onOpenChange, onDone }: CreateClientUser
   if (result) {
     return (
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md bg-card border border-border rounded-xl p-0 gap-0">
+        <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
           <DialogHeader className="px-6 py-5 border-b border-border">
             <DialogTitle className="text-base font-semibold">Account Created</DialogTitle>
           </DialogHeader>
           <div className="p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-800 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-lg-full bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-800 flex items-center justify-center shrink-0">
                 <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
@@ -182,7 +182,7 @@ function CreateClientUserDialog({ open, onOpenChange, onDone }: CreateClientUser
   // ── Create form ────────────────────────────────────────────────────────────
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold">Create Client Account</DialogTitle>
         </DialogHeader>
@@ -223,7 +223,7 @@ function CreateClientUserDialog({ open, onOpenChange, onDone }: CreateClientUser
                     type="checkbox"
                     checked={features[key]}
                     onChange={() => toggleFeature(key)}
-                    className="rounded border-border accent-primary h-4 w-4"
+                    className="rounded-lg border-border accent-primary h-4 w-4"
                   />
                   {label}
                 </label>
@@ -272,7 +272,7 @@ function ResetPasswordDialog({ user, onClose }: ResetPasswordDialogProps) {
 
   return (
     <Dialog open={!!user} onOpenChange={(v) => { if (!v) handleClose(); }}>
-      <DialogContent className="max-w-sm bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-sm bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold">Reset Password</DialogTitle>
         </DialogHeader>
@@ -324,7 +324,7 @@ function DeleteConfirmDialog({ user, onClose, onConfirm, isDeleting }: DeleteCon
   if (!user) return null;
   return (
     <Dialog open={!!user} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent className="max-w-sm bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-sm bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold">Delete Account</DialogTitle>
         </DialogHeader>
@@ -365,7 +365,7 @@ function ClientUserRow({ user, onResetPassword, onDelete }: ClientUserRowProps) 
       {/* Name */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+          <div className="h-8 w-8 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
             <span className="text-xs font-bold text-primary">
               {user.name.charAt(0).toUpperCase()}
             </span>
@@ -408,7 +408,7 @@ function ClientUserRow({ user, onResetPassword, onDelete }: ClientUserRowProps) 
             <span
               key={f.key}
               className={cn(
-                'text-[10px] px-1.5 py-0 rounded-sm border',
+                'text-[10px] px-1.5 py-0 rounded-lg-sm border',
                 user.featuresEnabled[f.key]
                   ? 'bg-primary/10 text-primary border-primary/20'
                   : 'bg-muted/30 text-muted-foreground/40 border-border/30 line-through',

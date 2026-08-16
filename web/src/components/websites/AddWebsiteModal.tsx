@@ -121,7 +121,7 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
                   onChange={(e) => setName(e.target.value)}
                   disabled={isLoading}
                   autoFocus
-                  className="rounded-xl h-11 border-zinc-200 dark:border-zinc-800"
+                  className="rounded-lg h-11 border-zinc-200 dark:border-zinc-800"
                 />
               </div>
               <div className="space-y-2">
@@ -134,10 +134,10 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   disabled={isLoading}
-                  className="rounded-xl h-11 border-zinc-200 dark:border-zinc-800"
+                  className="rounded-lg h-11 border-zinc-200 dark:border-zinc-800"
                 />
                 <p className="px-1 text-[11px] text-amber-600 font-medium flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-700">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-lg-full bg-amber-500 animate-pulse" />
                   Note: Tracking script must be installed on the same domain.
                 </p>
               </div>
@@ -149,14 +149,14 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
                 variant="ghost" 
                 onClick={() => onOpenChange(false)}
                 disabled={isLoading}
-                className="flex-1 rounded-xl h-11"
+                className="flex-1 rounded-lg h-11"
               >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
                 disabled={isLoading}
-                className="flex-1 rounded-xl h-11 shadow-lg shadow-primary/20"
+                className="flex-1 rounded-lg h-11 shadow-lg shadow-primary/20"
               >
                 {isLoading ? (
                   <>

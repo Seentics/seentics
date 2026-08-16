@@ -105,7 +105,7 @@ function NewKeyDialog({ open, onOpenChange, onCreated }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-md bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold">Create API Key</DialogTitle>
         </DialogHeader>
@@ -128,7 +128,7 @@ function NewKeyDialog({ open, onOpenChange, onCreated }: {
                     type="checkbox"
                     checked={scopes.includes(s)}
                     onChange={() => toggle(s)}
-                    className="rounded border-border accent-primary h-4 w-4"
+                    className="rounded-lg border-border accent-primary h-4 w-4"
                   />
                   <span className="text-sm text-foreground">{SCOPE_LABELS[s]?.label ?? s}</span>
                 </label>
@@ -157,7 +157,7 @@ function RevealDialog({ secret, onClose }: { secret: string; onClose: () => void
 
   return (
     <Dialog open onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-lg bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-lg bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold flex items-center gap-2">
             <Check className="h-4 w-4 text-green-500" />
@@ -263,7 +263,7 @@ export default function ApiKeysPage() {
               )}>
                 {/* Status dot */}
                 <div className={cn(
-                  'mt-1.5 h-2 w-2 rounded-full shrink-0',
+                  'mt-1.5 h-2 w-2 rounded-lg-full shrink-0',
                   key.is_active ? 'bg-green-500' : 'bg-muted-foreground/40',
                 )} />
 
@@ -280,7 +280,7 @@ export default function ApiKeysPage() {
 
                   {/* Key prefix */}
                   <div className="flex items-center gap-2 mb-2">
-                    <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                    <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-0.5 rounded-lg">
                       {key.prefix}
                     </code>
                     <button
@@ -296,7 +296,7 @@ export default function ApiKeysPage() {
                     {key.scopes.map(s => (
                       <Badge
                         key={s}
-                        className={cn('text-[10px] px-1.5 py-0 h-4 border rounded font-normal', SCOPE_LABELS[s]?.color)}
+                        className={cn('text-[10px] px-1.5 py-0 h-4 border rounded-lg font-normal', SCOPE_LABELS[s]?.color)}
                       >
                         {SCOPE_LABELS[s]?.label ?? s}
                       </Badge>
@@ -350,7 +350,7 @@ export default function ApiKeysPage() {
             Usage
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Pass your API key in the <code className="font-mono bg-muted px-1 py-0.5 rounded">Authorization</code> header:
+            Pass your API key in the <code className="font-mono bg-muted px-1 py-0.5 rounded-lg">Authorization</code> header:
           </p>
           <pre className="text-xs font-mono bg-muted/60 border border-border rounded-lg px-4 py-3 text-foreground overflow-x-auto">
 {`curl https://api.seentics.com/v1/ingest \\

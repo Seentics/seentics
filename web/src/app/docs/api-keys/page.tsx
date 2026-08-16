@@ -51,7 +51,7 @@ export default function APIKeysDocs() {
                         { step: '3', title: 'Copy the key immediately', desc: 'The full key is only shown once at creation time. Copy it to a secure location — you will not be able to retrieve it again.' },
                     ].map(({ step, title, desc }) => (
                         <div key={step} className="flex gap-4 p-6 rounded-lg border bg-card">
-                            <span className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-bold flex items-center justify-center">
+                            <span className="flex-shrink-0 w-8 h-8 rounded-lg-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-bold flex items-center justify-center">
                                 {step}
                             </span>
                             <div className="space-y-1">
@@ -85,7 +85,7 @@ export default function APIKeysDocs() {
                                 ].map(({ scope, desc }) => (
                                     <tr key={scope}>
                                         <td className="px-4 py-3">
-                                            <code className="text-xs bg-muted/60 px-1.5 py-0.5 rounded font-mono text-foreground">{scope}</code>
+                                            <code className="text-xs bg-muted/60 px-1.5 py-0.5 rounded-lg font-mono text-foreground">{scope}</code>
                                         </td>
                                         <td className="px-4 py-3 text-muted-foreground">{desc}</td>
                                     </tr>
@@ -108,7 +108,7 @@ export default function APIKeysDocs() {
                         <div className="flex items-center gap-2">
                             <Lock className="w-5 h-5 text-primary" />
                             <h3 className="font-semibold text-lg">Authorization Header</h3>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">Recommended</span>
+                            <span className="text-xs px-2 py-0.5 rounded-lg-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">Recommended</span>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
                             Pass the key as a Bearer token in the Authorization header. This is the preferred method as it keeps the key out of logs and URLs.
@@ -120,7 +120,7 @@ export default function APIKeysDocs() {
                         <div className="flex items-center gap-2">
                             <Code2 className="w-5 h-5 text-muted-foreground" />
                             <h3 className="font-semibold text-lg">Query Parameter</h3>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Less Secure</span>
+                            <span className="text-xs px-2 py-0.5 rounded-lg-full bg-muted text-muted-foreground font-medium">Less Secure</span>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
                             Append the key as a query parameter. Avoid this in production — the key will appear in server logs and browser history.
@@ -292,10 +292,10 @@ function CodeBlock({ code }: { code: string }) {
         setTimeout(() => setCopied(false), 2000);
     };
     return (
-        <div className="relative bg-muted/50 rounded p-3 border">
+        <div className="relative bg-muted/50 rounded-lg p-3 border">
             <button
                 onClick={copy}
-                className="absolute top-2 right-2 p-1.5 rounded hover:bg-muted transition text-muted-foreground hover:text-foreground"
+                className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground"
             >
                 {copied ? <Check size={14} /> : <Copy size={14} />}
             </button>
@@ -339,12 +339,12 @@ function EndpointBlock({
         <div className="space-y-4">
             <div className="space-y-3 p-6 rounded-lg border bg-card">
                 <div className="flex items-center gap-3 flex-wrap">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded ${methodBg} ${methodColor}`}>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-lg ${methodBg} ${methodColor}`}>
                         {method}
                     </span>
                     <code className="font-mono text-sm text-foreground">{path}</code>
                     {noAuth && (
-                        <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground font-medium">
+                        <span className="text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground font-medium">
                             No Auth*
                         </span>
                     )}
@@ -356,7 +356,7 @@ function EndpointBlock({
                         <ul className="space-y-1">
                             {queryParams.map((p) => (
                                 <li key={p.name} className="text-xs text-muted-foreground">
-                                    <code className="bg-muted/50 px-1 rounded">{p.name}</code>{' '}
+                                    <code className="bg-muted/50 px-1 rounded-lg">{p.name}</code>{' '}
                                     <span className="text-xs text-primary">({p.type})</span> – {p.desc}
                                 </li>
                             ))}
@@ -394,7 +394,7 @@ function CodeExample({ language, code }: { language: string; code: string }) {
                 <p className="text-sm font-semibold">{language}</p>
                 <button
                     onClick={copy}
-                    className="text-xs px-2 py-1 rounded hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center gap-1"
+                    className="text-xs px-2 py-1 rounded-lg hover:bg-muted transition text-muted-foreground hover:text-foreground flex items-center gap-1"
                 >
                     {copied ? <Check size={14} /> : <Copy size={14} />}
                     {copied ? 'Copied' : 'Copy'}

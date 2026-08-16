@@ -180,9 +180,9 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
     return (
       <div className="space-y-3 h-[400px]">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-4 rounded border border-border/20">
+          <div key={i} className="flex items-center justify-between p-4 rounded-lg border border-border/20">
             <div className="flex items-center gap-4">
-              <Skeleton className="w-8 h-6 rounded" />
+              <Skeleton className="w-8 h-6 rounded-lg" />
               <div className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-3 w-12" />
@@ -193,7 +193,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
                     <Skeleton className="h-4 w-12 ml-auto" />
                     <Skeleton className="h-3 w-8 ml-auto" />
                 </div>
-                <Skeleton className="w-16 h-2 rounded-full" />
+                <Skeleton className="w-16 h-2 rounded-lg-full" />
             </div>
           </div>
         ))}
@@ -203,7 +203,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
 
   if (!data?.top_countries || data.top_countries.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded border border-dashed border-border/60">
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border/60">
         <Globe className="h-10 w-10 mb-2 opacity-20" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">No country data</p>
       </div>
@@ -214,7 +214,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
         {countryData.slice(0, 30).map((item, index) => (
         <div key={item.country} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
             <div className="flex items-center gap-4">
-                <div className="relative w-8 h-6 rounded overflow-hidden shadow-sm border border-border/20">
+                <div className="relative w-8 h-6 rounded-lg overflow-hidden shadow-sm border border-border/20">
                 <Image
                     src={item.flag}
                     alt={`${item.country} flag`}
@@ -227,7 +227,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
                     if (fallback) fallback.style.display = 'flex';
                     }}
                 />
-                <div className="flag-fallback hidden absolute inset-0 bg-accent rounded text-[8px] font-black items-center justify-center">
+                <div className="flag-fallback hidden absolute inset-0 bg-accent rounded-lg text-[8px] font-black items-center justify-center">
                     {item.countryCode}
                 </div>
                 </div>
@@ -241,9 +241,9 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
                     <p className="font-bold text-sm leading-tight">{(item.visitors || 0).toLocaleString()}</p>
                     <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-40 tracking-wider font-mono">{item.percentage}%</p>
                 </div>
-                <div className="w-16 h-1.5 bg-accent/20 rounded-full overflow-hidden shrink-0">
+                <div className="w-16 h-1.5 bg-accent/20 rounded-lg-full overflow-hidden shrink-0">
                 <div
-                    className="h-full rounded-full transition-all duration-300"
+                    className="h-full rounded-lg-full transition-all duration-300"
                     style={{
                     width: `${item.percentage}%`,
                     backgroundColor: item.color

@@ -81,8 +81,8 @@ export default function SetupPage() {
         return (
             <div className="min-h-screen bg-transparent selection:bg-primary/20 flex items-center justify-center p-6">
                 <div className="absolute inset-0 z-0 pointer-events-none">
-                    <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
-                    <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-indigo-500/5 blur-[100px] rounded-full animate-pulse delay-1000" />
+                    <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-lg-full animate-pulse" />
+                    <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-indigo-500/5 blur-[100px] rounded-lg-full animate-pulse delay-1000" />
                 </div>
 
                 <div className="relative z-10 w-full max-w-lg text-center">
@@ -97,7 +97,7 @@ export default function SetupPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.5 }}
-                        className="bg-card rounded-xl p-8 shadow-2xl shadow-indigo-500/10 border border-border/50"
+                        className="bg-card rounded-lg p-8 shadow-2xl shadow-indigo-500/10 border border-border/50"
                     >
                         <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
                         <h2 className="text-2xl font-black tracking-tight mb-2 text-foreground">Already Set Up</h2>
@@ -105,7 +105,7 @@ export default function SetupPage() {
                             This Seentics instance already has an admin account. Please sign in to continue.
                         </p>
                         <Link href="/signin">
-                            <Button className="w-full h-14 font-bold text-lg rounded-xl shadow-xl shadow-primary/20">
+                            <Button className="w-full h-14 font-bold text-lg rounded-lg shadow-xl shadow-primary/20">
                                 Go to Sign In <ArrowRight size={18} className="ml-2" />
                             </Button>
                         </Link>
@@ -201,8 +201,8 @@ export default function SetupPage() {
     return (
         <div className="min-h-screen bg-transparent selection:bg-primary/20 flex items-center justify-center p-6">
             <div className="absolute inset-0 z-0 pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full animate-pulse" />
-                <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-indigo-500/5 blur-[100px] rounded-full animate-pulse delay-1000" />
+                <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-lg-full animate-pulse" />
+                <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-indigo-500/5 blur-[100px] rounded-lg-full animate-pulse delay-1000" />
             </div>
 
             <div className="relative z-10 w-full max-w-lg">
@@ -219,11 +219,11 @@ export default function SetupPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5 }}
-                    className="bg-card rounded-xl p-8 shadow-2xl shadow-indigo-500/10 border border-border/50"
+                    className="bg-card rounded-lg p-8 shadow-2xl shadow-indigo-500/10 border border-border/50"
                 >
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {error && (
-                            <div className="p-4 rounded bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold">
+                            <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold">
                                 {error}
                             </div>
                         )}
@@ -239,7 +239,7 @@ export default function SetupPage() {
                                         placeholder="Admin"
                                         value={formData.name}
                                         onChange={handleInputChange}
-                                        className="h-14 pl-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                        className="h-14 pl-12 bg-background border-none rounded-lg font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                         required
                                     />
                                 </div>
@@ -255,7 +255,7 @@ export default function SetupPage() {
                                         placeholder="admin@example.com"
                                         value={formData.email}
                                         onChange={handleInputChange}
-                                        className="h-14 pl-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                        className="h-14 pl-12 bg-background border-none rounded-lg font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                         required
                                     />
                                 </div>
@@ -271,7 +271,7 @@ export default function SetupPage() {
                                         placeholder="••••••••"
                                         value={formData.password}
                                         onChange={handleInputChange}
-                                        className="h-14 pl-12 pr-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                        className="h-14 pl-12 pr-12 bg-background border-none rounded-lg font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                         required
                                     />
                                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors">
@@ -290,7 +290,7 @@ export default function SetupPage() {
                                         placeholder="••••••••"
                                         value={formData.confirmPassword}
                                         onChange={handleInputChange}
-                                        className="h-14 pl-12 bg-background border-none rounded font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
+                                        className="h-14 pl-12 bg-background border-none rounded-lg font-bold transition-all focus-visible:ring-2 focus-visible:ring-primary/20"
                                         required
                                     />
                                 </div>
@@ -300,7 +300,7 @@ export default function SetupPage() {
                         <Button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full h-16 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg rounded-xl shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
+                            className="w-full h-16 bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-lg rounded-lg shadow-xl shadow-primary/20 transition-all active:scale-[0.98]"
                         >
                             {isLoading ? <Loader2 className="animate-spin h-5 w-5" /> : (
                                 <span className="flex items-center gap-2">

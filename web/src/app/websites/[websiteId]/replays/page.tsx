@@ -212,8 +212,8 @@ export default function ReplaysPage() {
                 className="flex shrink-0 flex-col gap-1 pt-0.5"
                 title={[s.has_rage_clicks && 'Rage clicks', s.has_errors && 'Issues'].filter(Boolean).join(' · ')}
               >
-                {s.has_rage_clicks && <span className="size-1.5 rounded-full bg-amber-500 shadow-sm" aria-hidden />}
-                {s.has_errors && <span className="size-1.5 rounded-full bg-red-500 shadow-sm" aria-hidden />}
+                {s.has_rage_clicks && <span className="size-1.5 rounded-lg-full bg-amber-500 shadow-sm" aria-hidden />}
+                {s.has_errors && <span className="size-1.5 rounded-lg-full bg-red-500 shadow-sm" aria-hidden />}
               </span>
             )}
           </div>
@@ -239,7 +239,7 @@ export default function ReplaysPage() {
         const { display, title } = entryPathDisplay(getValue() as string, websiteId);
         return (
           <span
-            className="inline-flex max-w-full min-w-0 items-center rounded-md border border-border/50 bg-muted/30 px-2.5 py-1.5 font-mono text-[11px] leading-snug text-foreground sm:text-xs"
+            className="inline-flex max-w-full min-w-0 items-center rounded-lg border border-border/50 bg-muted/30 px-2.5 py-1.5 font-mono text-[11px] leading-snug text-foreground sm:text-xs"
             title={title}
           >
             <span className="truncate">{display}</span>
@@ -323,7 +323,7 @@ export default function ReplaysPage() {
         description="Watch real user sessions to understand exactly how people use your product."
       >
         {!isDemoMode && (
-          <Button variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => refetch()}>
+          <Button variant="default" size="sm" className="gap-1.5" onClick={() => refetch()}>
             <RefreshCw className="h-3.5 w-3.5" />
             Refresh
           </Button>
@@ -344,7 +344,7 @@ export default function ReplaysPage() {
       ]} />
 
       <DataTable
-        className="border border-border/50 bg-card/50 shadow-sm rounded-xl overflow-hidden [&_tbody_tr]:transition-colors [&_tbody_td]:align-middle [&_td]:!py-3.5 [&_th]:!py-3.5"
+        className=" shadow-sm rounded-lg overflow-hidden [&_tbody_tr]:transition-colors [&_tbody_td]:align-middle [&_td]:!py-3.5 [&_th]:!py-3.5"
         data={filtered}
         columns={columns}
         isLoading={isLoading}
@@ -373,7 +373,7 @@ export default function ReplaysPage() {
         )}
         toolbarLeft={
           <div>
-            <h3 className="text-base font-medium tracking-tight text-foreground">Recorded sessions</h3>
+            <h3 className=" font-semibold text-foreground">Recorded sessions</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
               {filtered.length === 0
                 ? 'No recordings match filters.'

@@ -152,10 +152,10 @@ export default function RevenuePage() {
       <div className="w-full max-w-[1440px] mx-auto p-4 md:p-6 lg:p-8">
         <div className="mb-8 flex justify-between items-start">
           <div className="space-y-2">
-            <Skeleton className="h-8 w-28 rounded" />
-            <Skeleton className="h-4 w-60 rounded" />
+            <Skeleton className="h-8 w-28 rounded-lg" />
+            <Skeleton className="h-4 w-60 rounded-lg" />
           </div>
-          <Skeleton className="h-8 w-32 rounded" />
+          <Skeleton className="h-8 w-32 rounded-lg" />
         </div>
         <StatCards cards={[]} cols={4} isLoading />
         <Skeleton className="h-80 rounded-lg mb-4" />
@@ -179,27 +179,15 @@ export default function RevenuePage() {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 gap-1.5 text-xs"
+            className="gap-1.5 text-xs bg-card"
             onClick={() => setShowDocs(true)}
           >
             <BookOpen className="h-3.5 w-3.5" />
             How to track
           </Button>
-          <Badge
-            variant="outline"
-            className={cn(
-              'text-[10px] font-semibold uppercase tracking-wide h-8 px-3',
-              data?.data_quality === 'full'
-                ? 'border-emerald-500/40 text-emerald-600 bg-emerald-500/5'
-                : data?.data_quality === 'partial'
-                  ? 'border-amber-500/40 text-amber-600 bg-amber-500/5'
-                  : 'border-border text-muted-foreground',
-            )}
-          >
-            {data?.data_quality === 'full' ? 'Full data' : data?.data_quality === 'partial' ? 'Partial data' : 'No data'}
-          </Badge>
+
           <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
-            <SelectTrigger className="w-[130px] h-8 text-xs">
+            <SelectTrigger className="w-[130px] h-9 bg-card">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -215,8 +203,8 @@ export default function RevenuePage() {
       <StatCards cards={topCards} cols={4} isLoading={false} cardClassName="p-3 sm:p-4" />
 
       {/* ── Revenue & orders chart ── */}
-      <Card className="border border-border/60 mb-6">
-        <CardHeader className="pb-2 border-b border-border/40">
+      <Card className="border border-border/60 mb-6 rounded-lg">
+        <CardHeader className=" border-b border-border/40">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <CardTitle className="text-sm font-semibold">Revenue & orders (daily)</CardTitle>
@@ -240,7 +228,7 @@ export default function RevenuePage() {
               <Banknote className="h-8 w-8 text-muted-foreground/20" />
               <p className="text-sm text-muted-foreground">No revenue data yet</p>
               <p className="text-xs text-muted-foreground/60">
-                Call <code className="font-mono bg-muted px-1 rounded">seentics.track(&apos;purchase&apos;, &#123; value, currency &#125;)</code> from your checkout
+                Call <code className="font-mono bg-muted px-1 rounded-lg">seentics.track(&apos;purchase&apos;, &#123; value, currency &#125;)</code> from your checkout
               </p>
             </div>
           ) : (
@@ -324,11 +312,11 @@ export default function RevenuePage() {
 
       {/* ── Attribution breakdown ── */}
       <h3 className="text-sm font-semibold text-foreground mb-2">Attribution breakdown</h3>
-      <Card className="border border-border/60 mb-8">
+      <Card className="border border-border/60 mb-8 rounded-lg">
         <CardContent className="p-0">
           <Tabs defaultValue="source" className="w-full">
             <div className="border-b border-border/50 overflow-x-auto">
-              <TabsList className="h-auto w-full justify-start rounded-none bg-transparent p-0 min-w-max">
+              <TabsList className="h-auto w-full justify-start rounded-lg-none bg-transparent p-0 min-w-max">
                 {([
                   ['source', 'Source / referrer'],
                   ['medium', 'Medium'],
@@ -339,7 +327,7 @@ export default function RevenuePage() {
                   <TabsTrigger
                     key={val}
                     value={val}
-                    className="-mb-px rounded-none border-b-2 border-transparent px-4 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
+                    className="-mb-px rounded-lg-none border-b-2 border-transparent px-4 py-3 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none"
                   >
                     {label}
                   </TabsTrigger>
@@ -368,18 +356,18 @@ export default function RevenuePage() {
       </Card>
 
       {/* ── Recent transactions ── */}
-      <div className="mb-4">
+      <div className="mb-2">
         <h3 className="text-sm font-semibold text-foreground">Recent transactions</h3>
         <p className="text-[11px] text-muted-foreground mt-0.5">Last 50 purchases — click a row for full attribution detail.</p>
       </div>
-      <Card className="border border-border/60">
+      <Card className="border border-border/60 rounded-lg">
         <CardContent className="p-0">
           {(!data?.recent_transactions || data.recent_transactions.length === 0) ? (
             <div className="py-14 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
               <Receipt className="h-8 w-8 opacity-30" />
               <p>No transactions yet.</p>
               <p className="text-xs">
-                Each <code className="font-mono bg-muted px-1 rounded">seentics.track(&apos;purchase&apos;, &#123; value, currency, order_id &#125;)</code> call appears here.
+                Each <code className="font-mono bg-muted px-1 rounded-lg">seentics.track(&apos;purchase&apos;, &#123; value, currency, order_id &#125;)</code> call appears here.
               </p>
             </div>
           ) : (
@@ -431,7 +419,7 @@ export default function RevenuePage() {
 
       {/* ── Revenue docs modal ── */}
       <Dialog open={showDocs} onOpenChange={setShowDocs}>
-        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto border border-border/60 bg-card rounded-xl shadow-xl p-0 gap-0">
+        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto border border-border/60 bg-card rounded-lg shadow-xl p-0 gap-0">
           <DialogHeader className="p-5 pb-4 border-b border-border/60 sticky top-0 bg-card z-10">
             <DialogTitle className="text-base font-semibold tracking-tight flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -448,7 +436,7 @@ export default function RevenuePage() {
             <section>
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">How it works</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Revenue data flows from a single <code className="font-mono bg-muted px-1 py-0.5 rounded text-xs">seentics.track()</code> call on your
+                Revenue data flows from a single <code className="font-mono bg-muted px-1 py-0.5 rounded-lg text-xs">seentics.track()</code> call on your
                 checkout confirmation page. Seentics automatically joins the purchase to the visitor&apos;s current session,
                 resolves last-non-direct attribution from their page-view history, and stores the transaction for reporting.
               </p>
@@ -494,7 +482,7 @@ seentics.track('purchase', {
             <section>
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Multi-item orders</h3>
               <p className="text-xs text-muted-foreground mb-2">
-                Pass an <code className="font-mono bg-muted px-1 rounded">items</code> array to show individual line items in the transaction detail view:
+                Pass an <code className="font-mono bg-muted px-1 rounded-lg">items</code> array to show individual line items in the transaction detail view:
               </p>
               <pre className="rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs p-4 overflow-x-auto leading-relaxed font-mono">
 {`seentics.track('purchase', {
@@ -513,7 +501,7 @@ seentics.track('purchase', {
             <section>
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Tracking refunds</h3>
               <p className="text-xs text-muted-foreground mb-2">
-                Use the event type <code className="font-mono bg-muted px-1 rounded">refund</code> (or <code className="font-mono bg-muted px-1 rounded">refunded</code>) with the same properties.
+                Use the event type <code className="font-mono bg-muted px-1 rounded-lg">refund</code> (or <code className="font-mono bg-muted px-1 rounded-lg">refunded</code>) with the same properties.
                 Refund values are subtracted from the revenue summary:
               </p>
               <pre className="rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-200 text-xs p-4 overflow-x-auto leading-relaxed font-mono">
@@ -589,7 +577,7 @@ seentics.track('purchase', {
 
       {/* ── Transaction detail dialog ── */}
       <Dialog open={!!openTx} onOpenChange={() => setOpenTx(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto border border-border/60 bg-card rounded-xl shadow-xl p-0 gap-0">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto border border-border/60 bg-card rounded-lg shadow-xl p-0 gap-0">
           {openTx && (
             <>
               <DialogHeader className="p-5 pb-3 border-b border-border/60">
@@ -611,7 +599,7 @@ seentics.track('purchase', {
                     { label: 'Campaign', value: openTx.campaign ?? '—' },
                     { label: 'Customer', value: openTx.user_type === 'new' ? 'New' : openTx.user_type === 'returning' ? 'Returning' : '—' },
                   ].map(({ label, value }) => (
-                    <div key={label} className="rounded-md border border-border/50 p-2.5">
+                    <div key={label} className="rounded-lg border border-border/50 p-2.5">
                       <p className="text-muted-foreground">{label}</p>
                       <p className="font-medium mt-0.5">{value}</p>
                     </div>
@@ -625,7 +613,7 @@ seentics.track('purchase', {
                         ? openTx.items
                         : [{ sku: '', name: openTx.product_name, qty: 1, price: openTx.value }]
                       ).map((it, i) => (
-                        <li key={i} className="flex justify-between text-xs border border-border/40 rounded-md px-3 py-2">
+                        <li key={i} className="flex justify-between text-xs border border-border/40 rounded-lg px-3 py-2">
                           <span>
                             <span className="font-medium">{it.name}</span>
                             {it.sku && <span className="text-muted-foreground ml-1 font-mono">({it.sku})</span>}

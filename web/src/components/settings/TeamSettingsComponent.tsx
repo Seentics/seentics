@@ -122,7 +122,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
         {canInviteMembers && (
           <Button
             onClick={() => setIsInviteModalOpen(true)}
-            className="h-10 px-5 font-bold rounded gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
+            className="h-10 px-5 font-bold rounded-lg gap-2 shadow-lg shadow-primary/20 transition-transform active:scale-95"
           >
             <UserPlus className="h-4 w-4" />
             Invite Member
@@ -137,17 +137,17 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         ) : members.length === 0 ? (
-          <div className="text-center py-12 bg-muted/20 rounded border border-dashed">
+          <div className="text-center py-12 bg-muted/20 rounded-lg border border-dashed">
             <p className="text-muted-foreground">No team members besides you. Invite someone to collaborate.</p>
           </div>
         ) : (
           members.map((member: WebsiteMember) => (
             <div
               key={member.id}
-              className="group bg-card/50 backdrop-blur-sm p-4 rounded flex items-center justify-between border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80"
+              className="group bg-card/50 backdrop-blur-sm p-4 rounded-lg flex items-center justify-between border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80"
             >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
+                <div className="w-10 h-10 rounded-lg-full bg-primary/10 flex items-center justify-center border border-primary/20">
                   <Users className="h-5 w-5 text-primary" />
                 </div>
                 <div className="space-y-0.5">
@@ -174,22 +174,22 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                 {member.role !== 'owner' && member.userId !== user?.id && canManageMembers && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded">
+                      <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
                         <MoreVertical className="h-4 w-4 text-muted-foreground" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 rounded p-2">
+                    <DropdownMenuContent align="end" className="w-48 rounded-lg p-2">
                       {canChangeRoles && (
                         <DropdownMenuSub>
-                          <DropdownMenuSubTrigger className="rounded gap-2 cursor-pointer flex items-center">
+                          <DropdownMenuSubTrigger className="rounded-lg gap-2 cursor-pointer flex items-center">
                             <Shield className="h-4 w-4 text-muted-foreground" />
                             Change Role
                           </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent className="w-36 rounded p-1">
+                          <DropdownMenuSubContent className="w-36 rounded-lg p-1">
                             <DropdownMenuItem
                               onClick={() => handleChangeRole(member.userId, 'admin')}
                               disabled={member.role === 'admin' || roleMutation.isPending}
-                              className="rounded gap-2 cursor-pointer"
+                              className="rounded-lg gap-2 cursor-pointer"
                             >
                               <Shield className="h-4 w-4 text-indigo-500" />
                               Admin
@@ -198,7 +198,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                             <DropdownMenuItem
                               onClick={() => handleChangeRole(member.userId, 'viewer')}
                               disabled={member.role === 'viewer' || roleMutation.isPending}
-                              className="rounded gap-2 cursor-pointer"
+                              className="rounded-lg gap-2 cursor-pointer"
                             >
                               <Users className="h-4 w-4 text-muted-foreground" />
                               Viewer
@@ -209,7 +209,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
                       )}
                       <DropdownMenuItem
                         onClick={() => handleRemoveMember(member.userId)}
-                        className="rounded gap-2 cursor-pointer text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
+                        className="rounded-lg gap-2 cursor-pointer text-rose-500 hover:text-rose-600 hover:bg-rose-500/10"
                       >
                         <Trash2 className="h-4 w-4" />
                         Remove Member
@@ -232,7 +232,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
           </h3>
           <div className="grid grid-cols-1 gap-2">
             {pendingInvitations.map((inv: WebsiteInvitation) => (
-              <div key={inv.id} className="bg-muted/20 p-3 rounded flex items-center justify-between border border-dashed border-border/50">
+              <div key={inv.id} className="bg-muted/20 p-3 rounded-lg flex items-center justify-between border border-dashed border-border/50">
                 <div className="flex items-center gap-3">
                   <Mail className="h-4 w-4 text-muted-foreground" />
                   <div>
@@ -257,7 +257,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
         </div>
       )}
 
-      <div className="bg-muted/30 p-4 rounded border border-border/50 flex gap-4">
+      <div className="bg-muted/30 p-4 rounded-lg border border-border/50 flex gap-4">
         <Shield className="h-5 w-5 text-muted-foreground shrink-0" />
         <div className="space-y-1">
           <p className="text-xs font-bold text-foreground">Advanced Permissions</p>

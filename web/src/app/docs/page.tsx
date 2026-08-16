@@ -22,7 +22,7 @@ function CodeBlock({ code, language = 'bash' }: { code: string; language?: strin
   };
 
   return (
-    <div className="relative rounded-xl bg-zinc-950 overflow-hidden">
+    <div className="relative rounded-lg bg-zinc-950 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 bg-zinc-900/80">
         <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-wider">{language}</span>
         <button
@@ -69,9 +69,9 @@ function EndpointBlock({
   response?: string;
 }) {
   return (
-    <div className="rounded-xl bg-muted/20 overflow-hidden">
+    <div className="rounded-lg bg-muted/20 overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3 bg-muted/30">
-        <span className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-md ${methodColors[method]}`}>
+        <span className={`text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-lg ${methodColors[method]}`}>
           {method}
         </span>
         <code className="text-sm font-mono text-foreground/80">{path}</code>
@@ -156,7 +156,7 @@ export default function DocsPage() {
               desc: 'Funnels, heatmaps, replays, and automated triggers — turn data into growth, not just charts.',
             },
           ].map(({ icon: Icon, color, title, desc }) => (
-            <div key={title} className="p-5 rounded-xl bg-muted/25 space-y-3">
+            <div key={title} className="p-5 rounded-lg bg-muted/25 space-y-3">
               <div className={`w-9 h-9 rounded-lg ${color} flex items-center justify-center`}>
                 <Icon className="w-4 h-4" />
               </div>
@@ -215,8 +215,8 @@ export default function DocsPage() {
               desc: 'Open your dashboard and watch real-time visitor data flow in. The tracker starts reporting within seconds.',
             },
           ].map(({ step, title, desc }) => (
-            <div key={step} className="flex gap-4 p-5 rounded-xl bg-muted/20">
-              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center shrink-0">
+            <div key={step} className="flex gap-4 p-5 rounded-lg bg-muted/20">
+              <div className="w-8 h-8 rounded-lg-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center shrink-0">
                 {step}
               </div>
               <div className="space-y-1">
@@ -239,7 +239,7 @@ export default function DocsPage() {
           All metrics update in real time and are accessible via the API.
         </p>
 
-        <div className="rounded-xl bg-muted/20 p-5">
+        <div className="rounded-lg bg-muted/20 p-5">
           <h3 className="font-semibold mb-3 text-sm">Tracked automatically</h3>
           <div className="grid sm:grid-cols-2 gap-y-2 gap-x-4 text-sm text-muted-foreground">
             {[
@@ -248,7 +248,7 @@ export default function DocsPage() {
               'Countries & cities', 'Devices & OS', 'Browsers',
             ].map(item => (
               <div key={item} className="flex items-center gap-2">
-                <div className="w-1 h-1 rounded-full bg-primary/60 shrink-0" />
+                <div className="w-1 h-1 rounded-lg-full bg-primary/60 shrink-0" />
                 {item}
               </div>
             ))}
@@ -332,7 +332,7 @@ export default function DocsPage() {
               desc: 'Filter sessions by page, device, country, duration, or custom event. Find the exact sessions that matter.',
             },
           ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="p-4 rounded-xl bg-muted/20 space-y-2">
+            <div key={title} className="p-4 rounded-lg bg-muted/20 space-y-2">
               <div className="flex items-center gap-2">
                 <Icon className="w-4 h-4 text-pink-500" />
                 <h4 className="font-semibold text-sm">{title}</h4>
@@ -342,11 +342,11 @@ export default function DocsPage() {
           ))}
         </div>
 
-        <div className="rounded-xl bg-muted/20 p-5 space-y-2">
+        <div className="rounded-lg bg-muted/20 p-5 space-y-2">
           <h3 className="font-semibold text-sm">How recordings are stored</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Recordings are chunked and streamed to S3-compatible storage (Cloudflare R2 in
-            production, MinIO locally). The tracker uses <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">rrweb</code> under
+            production, MinIO locally). The tracker uses <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded-lg">rrweb</code> under
             the hood — a full DOM snapshot followed by incremental mutations. Chunks are
             reassembled on playback. No video files, no screenshots — pure DOM serialization.
           </p>
@@ -424,14 +424,14 @@ export default function DocsPage() {
               desc: 'Tracks cursor movement — a strong proxy for eye movement and attention.',
             },
           ].map(({ title, desc }) => (
-            <div key={title} className="p-4 rounded-xl bg-muted/20 space-y-2">
+            <div key={title} className="p-4 rounded-lg bg-muted/20 space-y-2">
               <h4 className="font-semibold text-sm">{title}</h4>
               <p className="text-xs text-muted-foreground leading-relaxed">{desc}</p>
             </div>
           ))}
         </div>
 
-        <div className="rounded-xl bg-muted/20 p-5 space-y-2">
+        <div className="rounded-lg bg-muted/20 p-5 space-y-2">
           <h3 className="font-semibold text-sm">How heatmaps work</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Click and scroll coordinates are collected by the tracker on every pageview and
@@ -541,12 +541,12 @@ export default function DocsPage() {
           Rules are evaluated in real time on every incoming event.
         </p>
 
-        <div className="rounded-xl bg-muted/20 p-5 space-y-2">
+        <div className="rounded-lg bg-muted/20 p-5 space-y-2">
           <h3 className="font-semibold text-sm">Available triggers</h3>
           <div className="grid sm:grid-cols-2 gap-y-1.5 gap-x-4 text-sm text-muted-foreground">
             {['Page view', 'Custom event', 'Time on page', 'Exit intent', 'Scroll depth', 'Session end'].map(t => (
               <div key={t} className="flex items-center gap-2">
-                <div className="w-1 h-1 rounded-full bg-purple-500/60 shrink-0" />
+                <div className="w-1 h-1 rounded-lg-full bg-purple-500/60 shrink-0" />
                 {t}
               </div>
             ))}
@@ -621,10 +621,10 @@ export default function DocsPage() {
 ></script>`}
         />
 
-        <div className="rounded-xl bg-muted/20 p-4 text-sm text-muted-foreground">
+        <div className="rounded-lg bg-muted/20 p-4 text-sm text-muted-foreground">
           <span className="font-medium text-foreground">Self-hosted:</span> the tracker is served from your own deployment at{' '}
-          <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">/trackers/seentics.min.js</code>.
-          Replace <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">your-domain.com</code> with your actual domain.
+          <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded-lg">/trackers/seentics.min.js</code>.
+          Replace <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded-lg">your-domain.com</code> with your actual domain.
         </div>
 
         <div className="space-y-3">
@@ -641,7 +641,7 @@ window.seentics?.track('purchase', { value: 49, plan: 'pro' });`}
 
         <div className="space-y-3">
           <h3 className="font-semibold">Script Attributes</h3>
-          <div className="rounded-xl overflow-hidden bg-muted/20">
+          <div className="rounded-lg overflow-hidden bg-muted/20">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/30">
@@ -676,7 +676,7 @@ window.seentics?.track('purchase', { value: 49, plan: 'pro' });`}
               <button
                 key={tab}
                 onClick={() => setTrackerTab(tab)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${
+                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                   trackerTab === tab
                     ? 'bg-background text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
@@ -759,7 +759,7 @@ createApp(App).mount('#app');`}
         </p>
 
         <div className="grid sm:grid-cols-2 gap-4">
-          <div className="p-5 rounded-xl bg-muted/25 space-y-3">
+          <div className="p-5 rounded-lg bg-muted/25 space-y-3">
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 text-primary" />
               <h3 className="font-semibold text-sm">Authentication</h3>
@@ -767,7 +767,7 @@ createApp(App).mount('#app');`}
             <p className="text-sm text-muted-foreground">Include your API key as a Bearer token.</p>
             <CodeBlock language="http" code="Authorization: Bearer YOUR_API_KEY" />
           </div>
-          <div className="p-5 rounded-xl bg-muted/25 space-y-3">
+          <div className="p-5 rounded-lg bg-muted/25 space-y-3">
             <div className="flex items-center gap-2">
               <Globe className="w-4 h-4 text-primary" />
               <h3 className="font-semibold text-sm">Base URL</h3>
@@ -812,7 +812,7 @@ createApp(App).mount('#app');`}
               { code: '429', label: 'Rate Limited',   desc: 'Too many requests — slow down' },
               { code: '500', label: 'Server Error',   desc: 'Something went wrong on our end' },
             ].map(e => (
-              <div key={e.code} className="p-4 rounded-xl bg-muted/20 space-y-1">
+              <div key={e.code} className="p-4 rounded-lg bg-muted/20 space-y-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-primary font-mono">{e.code}</span>
                   <span className="text-sm font-medium">{e.label}</span>
@@ -823,7 +823,7 @@ createApp(App).mount('#app');`}
           </div>
         </div>
 
-        <div className="p-5 rounded-xl bg-primary/5 space-y-2">
+        <div className="p-5 rounded-lg bg-primary/5 space-y-2">
           <div className="flex items-center gap-2">
             <Cpu className="w-4 h-4 text-primary" />
             <h3 className="font-semibold text-sm">Rate Limits</h3>
@@ -831,8 +831,8 @@ createApp(App).mount('#app');`}
           <p className="text-sm text-muted-foreground">
             Default: <strong className="text-foreground">1,000 requests/minute</strong> per API key.
             Exceed the limit and you'll receive a{' '}
-            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">429</code> with a{' '}
-            <code className="text-xs bg-muted px-1.5 py-0.5 rounded">Retry-After</code> header.
+            <code className="text-xs bg-muted px-1.5 py-0.5 rounded-lg">429</code> with a{' '}
+            <code className="text-xs bg-muted px-1.5 py-0.5 rounded-lg">Retry-After</code> header.
           </p>
         </div>
       </section>
@@ -848,7 +848,7 @@ createApp(App).mount('#app');`}
           so you can grant minimal access to integrations and third-party tools.
         </p>
 
-        <div className="rounded-xl bg-muted/20 p-5 space-y-3">
+        <div className="rounded-lg bg-muted/20 p-5 space-y-3">
           <h3 className="font-semibold text-sm">Creating an API Key</h3>
           <ol className="space-y-1.5 text-sm text-muted-foreground list-decimal list-inside">
             <li>Go to Website Settings → API Keys tab</li>
@@ -859,7 +859,7 @@ createApp(App).mount('#app');`}
 
         <div className="space-y-3">
           <h3 className="font-semibold">Available Scopes</h3>
-          <div className="rounded-xl overflow-hidden bg-muted/20">
+          <div className="rounded-lg overflow-hidden bg-muted/20">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/30">
@@ -946,7 +946,7 @@ data = res.json()`}
             { icon: Server,   title: 'Rotate keys regularly',         desc: 'Rotate every 90 days or immediately if you suspect a key has been leaked.' },
             { icon: Terminal, title: 'Monitor usage',                 desc: 'Check API key usage logs in your dashboard for unexpected spikes.' },
           ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="p-4 rounded-xl bg-muted/20 space-y-2">
+            <div key={title} className="p-4 rounded-lg bg-muted/20 space-y-2">
               <div className="flex items-center gap-2">
                 <Icon className="w-4 h-4 text-amber-500" />
                 <h4 className="font-semibold text-sm">{title}</h4>
@@ -968,9 +968,9 @@ data = res.json()`}
           Built with React and Tailwind — fully themeable.
         </p>
 
-        <div className="rounded-xl bg-amber-500/5 p-4 text-sm text-muted-foreground">
+        <div className="rounded-lg bg-amber-500/5 p-4 text-sm text-muted-foreground">
           <span className="font-medium text-amber-500">Coming soon</span> — the{' '}
-          <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded">@seentics/ui-blocks</code> package is in development.
+          <code className="text-xs bg-muted/50 px-1.5 py-0.5 rounded-lg">@seentics/ui-blocks</code> package is in development.
           The API below reflects the planned interface.
         </div>
 
@@ -1001,7 +1001,7 @@ export default function Dashboard() {
               { name: '<FunnelWidget funnelId="" />',                 desc: 'Visual funnel with step-by-step drop-off rates.' },
               { name: '<EventsTimeline eventNames={[]} />',           desc: 'Real-time stream of custom events as they happen.' },
             ].map(block => (
-              <div key={block.name} className="p-4 rounded-xl bg-muted/20 space-y-2">
+              <div key={block.name} className="p-4 rounded-lg bg-muted/20 space-y-2">
                 <code className="text-xs font-mono text-primary break-all">{block.name}</code>
                 <p className="text-xs text-muted-foreground leading-relaxed">{block.desc}</p>
               </div>
@@ -1041,7 +1041,7 @@ export default function Dashboard() {
         </p>
 
         <div className="grid sm:grid-cols-2 gap-4">
-          <div className="p-5 rounded-xl bg-muted/20 space-y-3">
+          <div className="p-5 rounded-lg bg-muted/20 space-y-3">
             <div className="flex items-center gap-2">
               <LayoutDashboard className="w-4 h-4 text-violet-500" />
               <h3 className="font-semibold text-sm">Dashboard (No-code)</h3>
@@ -1053,13 +1053,13 @@ export default function Dashboard() {
                 'Set recording and event limits per account',
               ].map(item => (
                 <li key={item} className="flex items-start gap-2">
-                  <div className="w-1 h-1 rounded-full bg-violet-500/60 mt-2 shrink-0" />
+                  <div className="w-1 h-1 rounded-lg-full bg-violet-500/60 mt-2 shrink-0" />
                   {item}
                 </li>
               ))}
             </ul>
           </div>
-          <div className="p-5 rounded-xl bg-muted/20 space-y-3">
+          <div className="p-5 rounded-lg bg-muted/20 space-y-3">
             <div className="flex items-center gap-2">
               <Code2 className="w-4 h-4 text-violet-500" />
               <h3 className="font-semibold text-sm">Programmatic API</h3>
@@ -1071,7 +1071,7 @@ export default function Dashboard() {
                 'Authenticate with snt_age_... keys',
               ].map(item => (
                 <li key={item} className="flex items-start gap-2">
-                  <div className="w-1 h-1 rounded-full bg-violet-500/60 mt-2 shrink-0" />
+                  <div className="w-1 h-1 rounded-lg-full bg-violet-500/60 mt-2 shrink-0" />
                   {item}
                 </li>
               ))}
@@ -1079,7 +1079,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-muted/20 p-5 space-y-3">
+        <div className="rounded-lg bg-muted/20 p-5 space-y-3">
           <h3 className="font-semibold text-sm">Getting an Agency API Key</h3>
           <ol className="space-y-1.5 text-sm text-muted-foreground list-decimal list-inside">
             <li>Upgrade to an Agency or Agency Pro plan from Billing</li>
@@ -1150,7 +1150,7 @@ export default function Dashboard() {
 
         <div className="space-y-3">
           <h3 className="font-semibold">Feature Flags</h3>
-          <div className="rounded-xl overflow-hidden bg-muted/20">
+          <div className="rounded-lg overflow-hidden bg-muted/20">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-muted/30">
@@ -1177,7 +1177,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-muted/20 p-5 space-y-2">
+        <div className="rounded-lg bg-muted/20 p-5 space-y-2">
           <h3 className="font-semibold text-sm">Resource Limits</h3>
           <p className="text-sm text-muted-foreground">
             Prevent any single client from consuming your agency quota. Defaults to your plan's
@@ -1190,7 +1190,7 @@ export default function Dashboard() {
               'monthly_recordings — monthly session recording cap',
             ].map(item => (
               <li key={item} className="flex items-start gap-2">
-                <div className="w-1 h-1 rounded-full bg-violet-500/60 mt-2 shrink-0" />
+                <div className="w-1 h-1 rounded-lg-full bg-violet-500/60 mt-2 shrink-0" />
                 <code className="text-xs">{item}</code>
               </li>
             ))}
@@ -1314,7 +1314,7 @@ print(f"Tracker ID: {site['site_id']}")`}
           />
         </div>
 
-        <div className="p-5 rounded-xl bg-primary/5 space-y-2">
+        <div className="p-5 rounded-lg bg-primary/5 space-y-2">
           <div className="flex items-center gap-2">
             <Cpu className="w-4 h-4 text-primary" />
             <h3 className="font-semibold text-sm">Agency API Rate Limits</h3>
@@ -1335,7 +1335,7 @@ print(f"Tracker ID: {site['site_id']}")`}
 
         <div className="flex items-center gap-2">
           {['Agency', 'Agency Pro'].map(plan => (
-            <span key={plan} className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400">
+            <span key={plan} className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-lg-full bg-violet-500/10 text-violet-400">
               {plan}
             </span>
           ))}
@@ -1347,7 +1347,7 @@ print(f"Tracker ID: {site['site_id']}")`}
           domain — Seentics stays invisible.
         </p>
 
-        <div className="rounded-xl overflow-hidden bg-muted/20">
+        <div className="rounded-lg overflow-hidden bg-muted/20">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/30">
@@ -1410,7 +1410,7 @@ print(f"Tracker ID: {site['site_id']}")`}
           Subscriptions are managed via Lemon Squeezy. Save 20% with annual billing.
         </p>
 
-        <div className="rounded-xl overflow-x-auto bg-muted/20">
+        <div className="rounded-lg overflow-x-auto bg-muted/20">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-muted/30">
@@ -1520,7 +1520,7 @@ print(f"Tracker ID: {site['site_id']}")`}
               color: 'text-indigo-500', bg: 'bg-indigo-500/10',
             },
           ].map(({ icon: Icon, title, desc, color, bg }) => (
-            <div key={title} className="p-5 rounded-xl bg-muted/20 space-y-3">
+            <div key={title} className="p-5 rounded-lg bg-muted/20 space-y-3">
               <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center`}>
                 <Icon className={`w-4 h-4 ${color}`} />
               </div>

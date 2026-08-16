@@ -95,7 +95,7 @@ export function InviteMemberModal({ open, onOpenChange, websiteId }: InviteMembe
               </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-3">
-              <div className="flex items-center gap-2 p-3 rounded-md bg-muted border border-border/60 text-xs font-mono break-all">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-muted border border-border/60 text-xs font-mono break-all">
                 <span className="flex-1 min-w-0 truncate">{inviteLink}</span>
               </div>
               <Button className="w-full gap-2" onClick={handleCopy}>

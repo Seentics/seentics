@@ -56,8 +56,8 @@ export default function ForgotPasswordPage() {
       <div className="hidden lg:flex flex-col justify-between p-12 w-full max-w-lg bg-slate-50 dark:bg-slate-950 relative overflow-hidden border-r border-slate-200 dark:border-white/5">
         {/* Animated Background blobs */}
         <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[120px] animate-pulse" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-full blur-[100px] animate-pulse delay-700" />
+            <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-lg-full blur-[120px] animate-pulse" />
+            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-indigo-500/5 rounded-lg-full blur-[100px] animate-pulse delay-700" />
         </div>
 
         <div className="relative z-10">
@@ -79,7 +79,7 @@ export default function ForgotPasswordPage() {
         <div className="relative z-10">
           <div className="space-y-6">
             <div className="flex items-center gap-4">
-              <div className="h-10 w-10 rounded bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 flex items-center justify-center text-primary">
+              <div className="h-10 w-10 rounded-lg bg-primary/5 dark:bg-white/5 border border-primary/10 dark:border-white/10 flex items-center justify-center text-primary">
                 <Shield className="h-6 w-6" />
               </div>
               <div>
@@ -102,7 +102,7 @@ export default function ForgotPasswordPage() {
       {/* Right Column: Form Section */}
       <div className="flex-1 flex flex-col relative overflow-hidden px-4 py-8 md:p-12 bg-white dark:bg-slate-950">
         <div className="absolute inset-0 pointer-events-none opacity-50 dark:opacity-20 flex items-center justify-center overflow-hidden -z-10">
-            <div className="w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-full" />
+            <div className="w-[500px] h-[500px] bg-primary/5 blur-[120px] rounded-lg-full" />
         </div>
 
         <div className="lg:hidden mb-8 self-center text-center">
@@ -130,7 +130,7 @@ export default function ForgotPasswordPage() {
 
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 {error && (
-                                    <Alert variant="destructive" className="rounded border-0 bg-red-500/10 text-red-500">
+                                    <Alert variant="destructive" className="rounded-lg border-0 bg-red-500/10 text-red-500">
                                         <AlertCircle className="h-4 w-4" />
                                         <AlertDescription className="font-bold">{error}</AlertDescription>
                                     </Alert>
@@ -145,7 +145,7 @@ export default function ForgotPasswordPage() {
                                             placeholder="name@example.com"
                                             value={email}
                                             onChange={(e) => setEmail(e.target.value)}
-                                            className="h-14 pl-12 bg-background border-border focus:border-primary text-foreground rounded transition-all"
+                                            className="h-14 pl-12 bg-background border-border focus:border-primary text-foreground rounded-lg transition-all"
                                             disabled={isLoading}
                                             required
                                         />
@@ -155,7 +155,7 @@ export default function ForgotPasswordPage() {
                                 <Button
                                     type="submit"
                                     variant="brand"
-                                    className="w-full h-16 text-lg font-bold shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded-xl active:scale-[0.98] text-primary-foreground"
+                                    className="w-full h-16 text-lg font-bold shadow-xl shadow-primary/20 hover:shadow-primary/30 transition-all rounded-lg active:scale-[0.98] text-primary-foreground"
                                     disabled={isLoading}
                                 >
                                     {isLoading ? (
@@ -174,12 +174,12 @@ export default function ForgotPasswordPage() {
                             key="success"
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="bg-card p-8 md:p-10 rounded-[2.5rem] border border-border shadow-2xl relative"
+                            className="bg-card p-8 md:p-10 rounded-lg-[2.5rem] border border-border shadow-2xl relative"
                         >
                             <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-indigo-500 to-primary" />
                             
                             <div className="flex flex-col items-center text-center">
-                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 text-green-500 mb-6 font-black scale-110">
+                                <div className="inline-flex items-center justify-center w-16 h-16 rounded-lg-full bg-green-500/10 text-green-500 mb-6 font-black scale-110">
                                     <CheckCircle2 size={32} />
                                 </div>
                                 <h2 className="text-2xl font-black text-foreground tracking-tight mb-4">Check your email</h2>
@@ -188,7 +188,7 @@ export default function ForgotPasswordPage() {
                                 </p>
                                 <Button 
                                     variant="outline" 
-                                    className="w-full h-16 rounded-xl font-bold border-border text-lg" 
+                                    className="w-full h-16 rounded-lg font-bold border-border text-lg" 
                                     onClick={() => setIsSubmitted(false)}
                                 >
                                     Try another email

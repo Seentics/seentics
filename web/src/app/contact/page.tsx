@@ -181,10 +181,10 @@ export default function ContactPage() {
                       />
                     </div>
 
-                    <Button type="submit" disabled={isSubmitting} className="w-full h-16 rounded-xl font-bold text-lg shadow-lg active:scale-[0.98] transition-all">
+                    <Button type="submit" disabled={isSubmitting} className="w-full h-16 rounded-lg font-bold text-lg shadow-lg active:scale-[0.98] transition-all">
                       {isSubmitting ? (
                         <>
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                          <div className="animate-spin rounded-lg-full h-5 w-5 border-b-2 border-white mr-2"></div>
                           Sending...
                         </>
                       ) : (

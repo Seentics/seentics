@@ -345,7 +345,7 @@ function WebsitesTab({ client }: { client: AgencyClient }) {
 
       {/* Assign Website Dialog */}
       <Dialog open={showAssign} onOpenChange={setShowAssign}>
-        <DialogContent className="max-w-sm bg-card border border-border rounded-xl p-0 gap-0">
+        <DialogContent className="max-w-sm bg-card border border-border rounded-lg p-0 gap-0">
           <DialogHeader className="px-6 py-5 border-b border-border">
             <DialogTitle className="text-base font-semibold">Assign Website</DialogTitle>
           </DialogHeader>
@@ -433,7 +433,7 @@ function PortalAccessTab({ client }: { client: AgencyClient }) {
                   const feature = FEATURE_LABELS.find(f => f.key === key);
                   return feature ? (
                     <li key={key} className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+                      <span className="h-1.5 w-1.5 rounded-lg-full bg-green-500 shrink-0" />
                       {feature.label}
                     </li>
                   ) : null;
@@ -462,7 +462,7 @@ function PortalAccessTab({ client }: { client: AgencyClient }) {
                 Portal link (expires {token.expiresAt ? format(new Date(token.expiresAt), 'MMM d, yyyy') : 'in 7 days'}):
               </p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs font-mono bg-muted/50 border border-border/60 rounded-md px-3 py-2 break-all select-all">
+                <code className="flex-1 text-xs font-mono bg-muted/50 border border-border/60 rounded-lg px-3 py-2 break-all select-all">
                   {portalURL}
                 </code>
                 <Button
@@ -539,7 +539,7 @@ export default function ClientDetailPage() {
           All Clients
         </Link>
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
             <span className="text-sm font-bold text-primary">
               {client.name.charAt(0).toUpperCase()}
             </span>

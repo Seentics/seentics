@@ -147,7 +147,7 @@ export default function BillingSettingsPage() {
   }
 
   return (
-    <div className={cn(websiteWorkspaceShellClass, 'space-y-8 animate-in fade-in duration-500')}>
+    <div className={cn(websiteWorkspaceShellClass, 'space-y-6 animate-in fade-in duration-500')}>
       <DashboardPageHeader
         websiteId={websiteId}
         title="Billing & Subscription"
@@ -294,7 +294,7 @@ export default function BillingSettingsPage() {
                   <ul className="space-y-2.5">
                     {(planFeatures[currentPlan] || planFeatures.starter).map((f, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-xs text-muted-foreground">
-                        <div className="h-4 w-4 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="h-4 w-4 rounded-lg-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
                           <Check className="h-2.5 w-2.5 text-emerald-500" />
                         </div>
                         <span className="leading-relaxed">{f}</span>
@@ -327,7 +327,7 @@ export default function BillingSettingsPage() {
         <TabsContent value="plans">
           <div className="space-y-6">
             <div className="flex justify-center">
-              <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/60 rounded-xl">
+              <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/60 rounded-lg">
                 <button
                   type="button"
                   onClick={() => setPlanMode('individual')}

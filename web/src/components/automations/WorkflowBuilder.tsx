@@ -366,15 +366,15 @@ function WorkflowBuilderInner({
           />
           <Controls
             showInteractive={false}
-            className="m-4 overflow-hidden rounded-xl border border-border/60 bg-card/95 shadow-lg backdrop-blur-sm [&_button]:border-0 [&_button]:bg-transparent [&_button:hover]:bg-muted"
+            className="m-4 overflow-hidden rounded-lg border border-border/60 bg-card/95 shadow-lg backdrop-blur-sm [&_button]:border-0 [&_button]:bg-transparent [&_button:hover]:bg-muted"
           />
         </ReactFlow>
 
-        <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 gap-2 rounded-2xl border border-border/60 bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
+        <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 gap-2 rounded-lg-2xl border border-border/60 bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 gap-2 rounded-xl px-3 text-xs font-semibold"
+            className="h-9 gap-2 rounded-lg px-3 text-xs font-semibold"
             type="button"
             onClick={resetCanvas}
           >
@@ -384,14 +384,14 @@ function WorkflowBuilderInner({
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 gap-2 rounded-xl px-3 text-xs font-semibold"
+            className="h-9 gap-2 rounded-lg px-3 text-xs font-semibold"
             type="button"
             onClick={() => reactFlowInstance?.fitView({ padding: 0.35, duration: 260 })}
           >
             <Maximize2 className="h-3.5 w-3.5" />
             Fit view
           </Button>
-          <Button variant="ghost" size="sm" className="h-9 gap-2 rounded-xl px-3 text-xs font-semibold" type="button">
+          <Button variant="ghost" size="sm" className="h-9 gap-2 rounded-lg px-3 text-xs font-semibold" type="button">
             <Play className="h-3.5 w-3.5" />
             Test
           </Button>
@@ -404,7 +404,7 @@ function WorkflowBuilderInner({
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="absolute bottom-24 left-4 top-4 z-[5] flex w-[20rem] flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/95 shadow-2xl backdrop-blur-md sm:w-[22rem]"
+              className="absolute bottom-24 left-4 top-4 z-[5] flex w-[20rem] flex-col overflow-hidden rounded-lg-2xl border border-border/60 bg-card/95 shadow-2xl backdrop-blur-md sm:w-[22rem]"
             >
               <div className="border-b border-border/50 bg-muted/25 px-4 py-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
@@ -434,7 +434,7 @@ function WorkflowBuilderInner({
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Zap size={20} />
                   </div>
                   <div className="min-w-0">
@@ -455,7 +455,7 @@ function WorkflowBuilderInner({
                         onChange={(e) =>
                           setPanelDraft((p) => ({ ...p, pageUrlMatch: e.target.value }))
                         }
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                         placeholder="e.g. /pricing"
                       />
                     </div>
@@ -470,7 +470,7 @@ function WorkflowBuilderInner({
                         onChange={(e) =>
                           setPanelDraft((p) => ({ ...p, rateLimitSec: e.target.value }))
                         }
-                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        className="flex h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       />
                     </div>
                   </div>
@@ -489,7 +489,7 @@ function WorkflowBuilderInner({
                       onChange={(e) =>
                         setPanelDraft((p) => ({ ...p, configPayload: e.target.value }))
                       }
-                      className="min-h-[7.5rem] w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      className="min-h-[7.5rem] w-full rounded-lg border border-input bg-transparent px-3 py-2 text-xs shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       placeholder="JSON or payload…"
                     />
                   </div>
@@ -532,13 +532,13 @@ function WorkflowBuilderInner({
               value={paletteQuery}
               onChange={(e) => setPaletteQuery(e.target.value)}
               placeholder="Search…"
-              className="h-8 rounded-md border border-input bg-background pl-8 text-xs shadow-sm"
+              className="h-8 rounded-lg border border-input bg-background pl-8 text-xs shadow-sm"
             />
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
           {filteredSections.length === 0 ? (
-            <div className="mx-3 mt-3 rounded-md border border-dashed border-border px-3 py-8 text-center">
+            <div className="mx-3 mt-3 rounded-lg border border-dashed border-border px-3 py-8 text-center">
               <p className="text-sm text-foreground">No matches</p>
               <p className="mt-1 text-xs text-muted-foreground">Try another search.</p>
             </div>
@@ -553,7 +553,7 @@ function WorkflowBuilderInner({
                       onClick={() =>
                         setSectionOpen((prev) => ({ ...prev, [section.key]: !prev[section.key] }))
                       }
-                      className="flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-xs font-medium text-foreground hover:bg-muted/50"
+                      className="flex w-full items-center gap-2 rounded-lg-sm px-2 py-2 text-left text-xs font-medium text-foreground hover:bg-muted/50"
                     >
                       <ChevronDown
                         className={cn(
@@ -572,9 +572,9 @@ function WorkflowBuilderInner({
                             draggable
                             title={item.hint}
                             onDragStart={(e) => onDragStart(e, item.type, item.label, item.id)}
-                            className="group flex cursor-grab select-none items-start gap-2 rounded-md border border-transparent px-2 py-2 hover:border-border hover:bg-background active:cursor-grabbing"
+                            className="group flex cursor-grab select-none items-start gap-2 rounded-lg border border-transparent px-2 py-2 hover:border-border hover:bg-background active:cursor-grabbing"
                           >
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted text-foreground">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-foreground">
                               <item.icon className="h-3.5 w-3.5" strokeWidth={2} />
                             </div>
                             <div className="min-w-0 flex-1 pt-0.5">

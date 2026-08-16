@@ -70,12 +70,12 @@ export default function AdminUsersPage() {
               value={searchInput}
               onChange={(e) => handleSearchChange(e.target.value)}
               placeholder="Search by name or email…"
-              className="bg-white/5 border border-white/8 text-white text-sm rounded-xl pl-9 pr-4 py-2 w-64 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 placeholder:text-gray-600"
+              className="bg-white/5 border border-white/8 text-white text-sm rounded-lg pl-9 pr-4 py-2 w-64 focus:outline-none focus:ring-1 focus:ring-indigo-500/50 placeholder:text-gray-600"
             />
           </div>
         </div>
 
-        <div className="bg-[#111116] border border-white/[0.06] rounded-xl overflow-hidden">
+        <div className="bg-[#111116] border border-white/[0.06] rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/[0.06]">
@@ -110,18 +110,18 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${u.role === 'admin' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-white/5 text-gray-500 border border-white/8'}`}>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-lg font-medium ${u.role === 'admin' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-white/5 text-gray-500 border border-white/8'}`}>
                       {u.role}
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
-                    <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium capitalize ${PLAN_BADGE[u.plan] ?? 'bg-white/5 text-gray-400 border border-white/8'}`}>
+                    <span className={`text-[11px] px-2 py-0.5 rounded-lg font-medium capitalize ${PLAN_BADGE[u.plan] ?? 'bg-white/5 text-gray-400 border border-white/8'}`}>
                       {u.plan.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="px-5 py-3.5">
                     {u.subStatus ? (
-                      <span className={`text-[11px] px-2 py-0.5 rounded-md font-medium ${u.subStatus === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-gray-500 border border-white/8'}`}>
+                      <span className={`text-[11px] px-2 py-0.5 rounded-lg font-medium ${u.subStatus === 'active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-gray-500 border border-white/8'}`}>
                         {u.subStatus}
                       </span>
                     ) : (
@@ -144,14 +144,14 @@ export default function AdminUsersPage() {
               <button
                 onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
                 disabled={pagination.page <= 1}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 hover:bg-white/8 disabled:opacity-30 transition-colors text-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8 hover:bg-white/8 disabled:opacity-30 transition-colors text-sm"
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> Prev
               </button>
               <button
                 onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
                 disabled={pagination.page >= pagination.pages}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8 hover:bg-white/8 disabled:opacity-30 transition-colors text-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/8 hover:bg-white/8 disabled:opacity-30 transition-colors text-sm"
               >
                 Next <ChevronRight className="w-3.5 h-3.5" />
               </button>

@@ -96,7 +96,7 @@ function ResetPasswordDialog({ open, onOpenChange, user }: ResetPasswordDialogPr
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="max-w-sm bg-card border border-border rounded-xl p-0 gap-0">
+      <DialogContent className="max-w-sm bg-card border border-border rounded-lg p-0 gap-0">
         <DialogHeader className="px-6 py-5 border-b border-border">
           <DialogTitle className="text-base font-semibold">Reset Password</DialogTitle>
         </DialogHeader>
@@ -108,7 +108,7 @@ function ResetPasswordDialog({ open, onOpenChange, user }: ResetPasswordDialogPr
               </p>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <code className="flex-1 text-xs font-mono bg-muted/50 border border-border/60 rounded-md px-3 py-2 select-all break-all">
+                  <code className="flex-1 text-xs font-mono bg-muted/50 border border-border/60 rounded-lg px-3 py-2 select-all break-all">
                     {tempPassword}
                   </code>
                   <CopyButton text={tempPassword} />
@@ -358,7 +358,7 @@ function ApiAccessTab({ userId }: { userId: string }) {
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
             Use your agency API key to manage clients programmatically. All endpoints require the
-            <code className="mx-1 text-xs font-mono bg-muted px-1.5 py-0.5 rounded">Authorization: Bearer YOUR_AGENCY_API_KEY</code>
+            <code className="mx-1 text-xs font-mono bg-muted px-1.5 py-0.5 rounded-lg">Authorization: Bearer YOUR_AGENCY_API_KEY</code>
             header.
           </p>
 
@@ -465,7 +465,7 @@ export default function ClientUserDetailPage() {
           All Client Accounts
         </Link>
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
             <span className="text-sm font-bold text-primary">
               {user.name.charAt(0).toUpperCase()}
             </span>

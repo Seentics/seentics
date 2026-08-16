@@ -161,9 +161,9 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
               <span className="text-xs font-semibold">Pattern Examples</span>
             </div>
             <div className="space-y-1.5 text-[11px] text-muted-foreground">
-              <p><code className="bg-muted px-1 rounded text-foreground">/products/*</code> matches all product pages</p>
-              <p><code className="bg-muted px-1 rounded text-foreground">/blog/post-title</code> matches an exact page</p>
-              <p><code className="bg-muted px-1 rounded text-foreground">*/search?q=*</code> matches search pages</p>
+              <p><code className="bg-muted px-1 rounded-lg text-foreground">/products/*</code> matches all product pages</p>
+              <p><code className="bg-muted px-1 rounded-lg text-foreground">/blog/post-title</code> matches an exact page</p>
+              <p><code className="bg-muted px-1 rounded-lg text-foreground">*/search?q=*</code> matches search pages</p>
             </div>
           </CardContent>
         </Card>
@@ -175,9 +175,9 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
               <span className="text-xs font-semibold">Exclusion Tips</span>
             </div>
             <div className="space-y-1.5 text-[11px] text-muted-foreground">
-              <p>Exclude <code className="bg-muted px-1 rounded text-foreground">/admin/*</code> to avoid tracking internal tools</p>
-              <p>Exclude <code className="bg-muted px-1 rounded text-foreground">/login</code> and <code className="bg-muted px-1 rounded text-foreground">/signup</code> for privacy</p>
-              <p>Exclude <code className="bg-muted px-1 rounded text-foreground">/settings/*</code> for sensitive user data</p>
+              <p>Exclude <code className="bg-muted px-1 rounded-lg text-foreground">/admin/*</code> to avoid tracking internal tools</p>
+              <p>Exclude <code className="bg-muted px-1 rounded-lg text-foreground">/login</code> and <code className="bg-muted px-1 rounded-lg text-foreground">/signup</code> for privacy</p>
+              <p>Exclude <code className="bg-muted px-1 rounded-lg text-foreground">/settings/*</code> for sensitive user data</p>
             </div>
           </CardContent>
         </Card>

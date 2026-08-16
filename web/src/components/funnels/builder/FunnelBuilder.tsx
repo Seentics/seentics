@@ -145,7 +145,7 @@ export const FunnelBuilder = () => {
                         </Button>
                     </Link>
                     <div className="h-4 w-px bg-border" />
-                    <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <Target className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0">
@@ -224,7 +224,7 @@ export const FunnelBuilder = () => {
                                             <div className="flex items-start gap-3">
                                                 {/* Step number */}
                                                 <div className={cn(
-                                                    'h-9 w-9 rounded-md flex items-center justify-center flex-shrink-0 text-sm font-semibold',
+                                                    'h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 text-sm font-semibold',
                                                     index === 0 ? 'bg-indigo-500/10 text-indigo-500' :
                                                     index === steps.length - 1 ? 'bg-emerald-500/10 text-emerald-500' :
                                                     'bg-indigo-500/10 text-indigo-500'

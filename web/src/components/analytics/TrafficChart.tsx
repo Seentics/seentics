@@ -49,7 +49,7 @@ function CustomTooltip({ active, payload, label }: any) {
         return (
           <div key={entry.dataKey} className="flex items-center justify-between gap-8 py-0.5">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: entry.color }} />
+              <span className="w-2 h-2 rounded-lg-full flex-shrink-0" style={{ background: entry.color }} />
               <span className="text-muted-foreground">{meta[entry.dataKey] ?? entry.dataKey}</span>
             </div>
             <span className="font-semibold tabular-nums text-foreground">{formatNumber(entry.value)}</span>
@@ -79,7 +79,7 @@ export const TrafficChart: React.FC<TrafficChartProps> = ({
   if (isLoading) {
     return (
       <div className="h-full flex flex-col justify-end gap-0 px-6 pb-8 pt-6">
-        <Skeleton className="w-full rounded-t-2xl" style={{ height: '60%', opacity: 0.15 }} />
+        <Skeleton className="w-full rounded-lg-t-2xl" style={{ height: '60%', opacity: 0.15 }} />
       </div>
     );
   }

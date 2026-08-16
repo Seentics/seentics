@@ -87,7 +87,7 @@ export default function AdminStoragePage() {
           <button
             onClick={() => load(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white bg-white/5 hover:bg-white/8 border border-white/8 rounded-xl px-3.5 py-2 transition-all disabled:opacity-40"
+            className="flex items-center gap-2 text-sm text-gray-400 hover:text-white bg-white/5 hover:bg-white/8 border border-white/8 rounded-lg px-3.5 py-2 transition-all disabled:opacity-40"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
@@ -98,14 +98,14 @@ export default function AdminStoragePage() {
           <div className="flex items-center justify-center h-64 text-gray-600 text-sm">Loading…</div>
         )}
         {error && (
-          <div className="bg-red-500/5 border border-red-500/20 text-red-400 rounded-xl p-4 text-sm mb-6">{error}</div>
+          <div className="bg-red-500/5 border border-red-500/20 text-red-400 rounded-lg p-4 text-sm mb-6">{error}</div>
         )}
 
         {data && !loading && (
           <div className="space-y-6">
             {/* Summary cards */}
             <div className="grid grid-cols-3 gap-4">
-              <div className="bg-[#111116] border border-white/[0.06] rounded-xl p-5">
+              <div className="bg-[#111116] border border-white/[0.06] rounded-lg p-5">
                 <div className="p-2 rounded-lg bg-teal-500/15 text-teal-400 w-fit mb-4">
                   <Database className="w-4 h-4" />
                 </div>
@@ -113,7 +113,7 @@ export default function AdminStoragePage() {
                 <p className="text-2xl font-bold text-white">{fmtBytes(data.dbTotalBytes)}</p>
                 <p className="text-xs text-gray-600 mt-1.5">entire postgres database</p>
               </div>
-              <div className="bg-[#111116] border border-white/[0.06] rounded-xl p-5">
+              <div className="bg-[#111116] border border-white/[0.06] rounded-lg p-5">
                 <div className="p-2 rounded-lg bg-violet-500/15 text-violet-400 w-fit mb-4">
                   <Table2 className="w-4 h-4" />
                 </div>
@@ -121,7 +121,7 @@ export default function AdminStoragePage() {
                 <p className="text-2xl font-bold text-white">{fmtBytes(totalTrackedBytes)}</p>
                 <p className="text-xs text-gray-600 mt-1.5">{data.tables.length} analytics tables</p>
               </div>
-              <div className="bg-[#111116] border border-white/[0.06] rounded-xl p-5">
+              <div className="bg-[#111116] border border-white/[0.06] rounded-lg p-5">
                 <div className="p-2 rounded-lg bg-amber-500/15 text-amber-400 w-fit mb-4">
                   <FileDigit className="w-4 h-4" />
                 </div>
@@ -135,9 +135,9 @@ export default function AdminStoragePage() {
 
             {/* Visual breakdown bar */}
             {data.tables.length > 0 && (
-              <div className="bg-[#111116] border border-white/[0.06] rounded-xl p-5">
+              <div className="bg-[#111116] border border-white/[0.06] rounded-lg p-5">
                 <p className="text-[11px] text-gray-500 uppercase tracking-wide font-medium mb-3">Storage Distribution</p>
-                <div className="flex h-3 rounded-full overflow-hidden gap-px mb-4">
+                <div className="flex h-3 rounded-lg-full overflow-hidden gap-px mb-4">
                   {data.tables.map((t) => {
                     const pct = totalTrackedBytes > 0 ? (t.totalBytes / totalTrackedBytes) * 100 : 0;
                     if (pct < 0.5) return null;
@@ -155,7 +155,7 @@ export default function AdminStoragePage() {
                 <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                   {data.tables.filter(t => totalTrackedBytes > 0 && (t.totalBytes / totalTrackedBytes) >= 0.005).map((t) => (
                     <div key={t.name} className="flex items-center gap-1.5">
-                      <div className={`w-2 h-2 rounded-sm ${TABLE_COLORS[t.name] ?? 'bg-gray-500'}`} />
+                      <div className={`w-2 h-2 rounded-lg-sm ${TABLE_COLORS[t.name] ?? 'bg-gray-500'}`} />
                       <span className="text-[11px] text-gray-500">{TABLE_LABELS[t.name] ?? t.name}</span>
                     </div>
                   ))}
@@ -164,7 +164,7 @@ export default function AdminStoragePage() {
             )}
 
             {/* Table breakdown */}
-            <div className="bg-[#111116] border border-white/[0.06] rounded-xl overflow-hidden">
+            <div className="bg-[#111116] border border-white/[0.06] rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/[0.06] text-left">
@@ -192,7 +192,7 @@ export default function AdminStoragePage() {
                       >
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2.5">
-                            <div className={`w-2 h-2 rounded-sm shrink-0 ${color}`} />
+                            <div className={`w-2 h-2 rounded-lg-sm shrink-0 ${color}`} />
                             <span className="text-white font-medium">{TABLE_LABELS[t.name] ?? t.name}</span>
                             <span className="text-[11px] text-gray-600 font-mono">{t.name}</span>
                           </div>
@@ -203,8 +203,8 @@ export default function AdminStoragePage() {
                         <td className="px-5 py-3.5 text-right text-white font-semibold tabular-nums">{fmtBytes(t.totalBytes)}</td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2">
-                            <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                            <div className="w-20 h-1.5 bg-white/5 rounded-lg-full overflow-hidden">
+                              <div className={`h-full rounded-lg-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
                             </div>
                             <span className="text-[11px] text-gray-500 tabular-nums w-10">{pct.toFixed(1)}%</span>
                           </div>

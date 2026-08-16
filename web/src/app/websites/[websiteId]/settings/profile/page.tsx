@@ -74,20 +74,19 @@ export default function ProfileSettingsPage() {
   };
 
   return (
-    <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
+    <div className="space-y-5 animate-in fade-in duration-500 max-w-2xl">
       <DashboardPageHeader
-        websiteId={websiteId}
         title="Profile"
         description="Your account display name, email, and password. Email is managed by your sign-in provider."
       />
 
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Account</h2>
+      <section className="space-y-2.5">
+        <div className="flex items-center gap-2 px-1">
+          <User className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">Account</h2>
         </div>
-        <Card className="border border-border/60 bg-card shadow-sm">
-          <CardContent className="space-y-4 p-5">
+        <Card className="border border-border/40 bg-card shadow-md hover:shadow-lg transition-all duration-200">
+          <CardContent className="space-y-4 p-6">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Display name</label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" className="h-10" />
@@ -107,13 +106,13 @@ export default function ProfileSettingsPage() {
         </Card>
       </section>
 
-      <section className="space-y-4">
-        <div className="flex items-center gap-2">
-          <Lock className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold">Change password</h2>
+      <section className="space-y-2.5">
+        <div className="flex items-center gap-2 px-1">
+          <Lock className="h-4 w-4 text-primary" />
+          <h2 className="text-sm font-semibold text-foreground">Change password</h2>
         </div>
-        <Card className="border border-border/60 bg-card shadow-sm">
-          <CardContent className="space-y-4 p-5">
+        <Card className="border border-border/40 bg-card shadow-md hover:shadow-lg transition-all duration-200">
+          <CardContent className="space-y-4 p-6">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Current password</label>
               <div className="relative">

@@ -198,7 +198,7 @@ function IconBadge({
           alt=""
           width={24}
           height={24}
-          className={cn('h-6 w-6 object-contain rounded-none', imgClassName)}
+          className={cn('h-6 w-6 object-contain rounded-lg-none', imgClassName)}
           loading="lazy"
           decoding="async"
         />
@@ -282,7 +282,7 @@ function MicroIconBadge({
           alt=""
           width={16}
           height={16}
-          className={cn('h-4 w-4 object-contain rounded-none', imgClassName)}
+          className={cn('h-4 w-4 object-contain rounded-lg-none', imgClassName)}
           loading="lazy"
           decoding="async"
         />

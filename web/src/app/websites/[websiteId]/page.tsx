@@ -456,7 +456,7 @@ export default function WebsiteDashboardPage() {
 
 
   const dashboardContent = !isDemoMode && dashboardError ? (
-    <div className="p-8 text-center bg-red-50 text-red-800 rounded">
+    <div className="p-8 text-center bg-red-50 text-red-800 rounded-lg">
       Failed to load analytics data.
     </div>
   ) : (
@@ -466,22 +466,22 @@ export default function WebsiteDashboardPage() {
 
           {/* Website Switcher */}
           <Select value={websiteId} onValueChange={handleWebsiteChange}>
-            <SelectTrigger className="w-[180px] h-8 bg-card/50 hover:bg-card transition-colors rounded-md border border-border/40 text-xs">
+            <SelectTrigger className="w-[180px] h-8 bg-card hover:bg-card transition-colors rounded-lg border-none ">
               <div className="flex items-center truncate">
                 <Globe className="mr-1.5 h-3 w-3 text-primary shrink-0" />
                 <span className="truncate font-medium text-foreground">{currentWebsite?.name || 'Select website'}</span>
               </div>
             </SelectTrigger>
-            <SelectContent className="rounded-md bg-card">
+            <SelectContent className="rounded-lg bg-card">
               {websites.map((site) => (
-                <SelectItem key={site.id} value={site.id} className="rounded text-xs py-1.5">
+                <SelectItem key={site.id} value={site.id} className="rounded-lg text-xs py-1.5">
                   <span className="font-medium text-foreground">{site.name}</span>
                 </SelectItem>
               ))}
               {websites.length > 0 && (
                 <>
                   <div className="h-px bg-border my-1 mx-2" />
-                  <SelectItem value="add-new" className="text-primary rounded text-xs py-1.5">
+                  <SelectItem value="add-new" className="text-primary rounded-lg text-xs py-1.5">
                     <div className="flex items-center font-medium">
                       <PlusCircle className="mr-1.5 h-3 w-3" />
                       Add Website
@@ -499,11 +499,11 @@ export default function WebsiteDashboardPage() {
           <button
             onClick={() => setAiOpen(true)}
             title="Seentics AI (⌘K)"
-            className="group flex h-8 items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 text-xs font-medium text-indigo-600 transition-all hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:border-indigo-500/60 dark:hover:bg-indigo-500/15 dark:hover:text-indigo-300"
+            className="group flex h-8 items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 text-xs font-medium text-indigo-600 transition-all hover:border-indigo-300 hover:bg-indigo-100 hover:text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:border-indigo-500/60 dark:hover:bg-indigo-500/15 dark:hover:text-indigo-300"
           >
             <Sparkles className="h-3.5 w-3.5 shrink-0" />
             <span>Ask Seentics AI</span>
-            <kbd className="hidden rounded border border-indigo-200 bg-white px-1.5 py-px font-mono text-[10px] sm:inline-block dark:border-indigo-500/30 dark:bg-indigo-500/10">⌘K</kbd>
+            <kbd className="hidden rounded-lg border border-indigo-200 bg-white px-1.5 py-px font-mono text-[10px] sm:inline-block dark:border-indigo-500/30 dark:bg-indigo-500/10">⌘K</kbd>
           </button>
 
           {/* Filters */}
@@ -520,7 +520,7 @@ export default function WebsiteDashboardPage() {
           />
 
 {/* Theme — same box as row controls; compact icon matches Filter button height */}
-          <div className="flex h-8 shrink-0 items-center justify-center rounded-md border border-border/40 bg-card/50 transition-colors hover:bg-card">
+          <div className="flex h-8 shrink-0 items-center justify-center rounded-lg bg-card transition-colors hover:bg-card">
             <ThemeToggle />
           </div>
         </div>
@@ -555,7 +555,7 @@ export default function WebsiteDashboardPage() {
               <button
                 key={key}
                 onClick={() => removeFilter(key)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
               >
                 <span className="text-muted-foreground">{key}:</span>
                 <span>{String(value)}</span>
@@ -596,7 +596,7 @@ export default function WebsiteDashboardPage() {
 
           {/* Pages & Sources */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card className="border border-border/60 bg-card shadow-sm">
+            <Card className="border-none bg-card shadow-sm">
               <CardContent className="p-5">
                 <ChartErrorBoundary label="Top Pages">
                   <TopPagesChart
@@ -609,7 +609,7 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/60 bg-card shadow-sm">
+            <Card className="border-none bg-card shadow-sm">
               <CardContent className="p-5">
                 <ChartErrorBoundary label="Top Sources">
                   <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
@@ -628,7 +628,7 @@ export default function WebsiteDashboardPage() {
 
           {/* Devices + UTM — 2-col grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card className="border border-border/60 bg-card shadow-sm">
+            <Card className="border-none bg-card shadow-sm">
               <CardContent className="p-5">
                 <ChartErrorBoundary label="Top Devices">
                   <TopDevicesChart
@@ -642,7 +642,7 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border border-border/60 bg-card shadow-sm overflow-hidden">
+            <Card className="border-none bg-card shadow-sm overflow-hidden">
               <CardHeader className="p-5 pb-3 border-b border-border/60">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="min-w-0 shrink-0">
@@ -650,10 +650,10 @@ export default function WebsiteDashboardPage() {
                     <p className="text-xs text-muted-foreground mt-0.5 whitespace-nowrap">Sources, mediums & campaigns</p>
                   </div>
                   <Tabs value={utmTab} onValueChange={(v) => setUtmTab(v as any)} className="w-full md:w-auto shrink-0">
-                    <TabsList className="grid w-full grid-cols-3 h-8 bg-muted/50 p-0.5 rounded">
-                      <TabsTrigger value="sources" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Sources</TabsTrigger>
-                      <TabsTrigger value="mediums" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Mediums</TabsTrigger>
-                      <TabsTrigger value="campaigns" className="h-7 text-xs font-medium rounded data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Campaigns</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-3 h-8 bg-muted/50 p-0.5 rounded-lg">
+                      <TabsTrigger value="sources" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Sources</TabsTrigger>
+                      <TabsTrigger value="mediums" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Mediums</TabsTrigger>
+                      <TabsTrigger value="campaigns" className="h-7 text-xs font-medium rounded-lg data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-transparent data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Campaigns</TabsTrigger>
                     </TabsList>
                   </Tabs>
                 </div>

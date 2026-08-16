@@ -18,13 +18,13 @@ const BrowserIcon = ({ browser }: { browser: string }) => {
   const src = getBrowserImagePath(browser);
   if (src === '/images/browser/unknown.png') {
     return (
-      <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
+      <div className="w-8 h-8 bg-muted rounded-lg flex items-center justify-center">
         <Monitor className="w-4 h-4 text-muted-foreground" />
       </div>
     );
   }
   return (
-    <div className="w-8 h-8 rounded overflow-hidden flex items-center justify-center">
+    <div className="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center">
       <Image src={src} alt={browser} width={32} height={32} className="object-contain" />
     </div>
   );
@@ -131,7 +131,7 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
                 if (active && payload && payload.length) {
                   const data = payload[0].payload;
                   return (
-                    <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded shadow-lg">
+                    <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
                       <p className="font-semibold">{data.name}</p>
                       <p className="text-indigo-600">{data.value}%</p>
                     </div>

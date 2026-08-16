@@ -27,7 +27,7 @@ export const TriggerNode = memo(({ data, selected }: any) => {
 
   return (
     <div className={cn(
-      "px-4 py-3 rounded-xl bg-card border-2 shadow-sm min-w-[220px] transition-all",
+      "px-4 py-3 rounded-lg bg-card border-2 shadow-sm min-w-[220px] transition-all",
       selected ? "border-primary ring-4 ring-primary/10" : "border-border/60 hover:border-primary/40"
     )}>
       <div className="flex items-center gap-3">
@@ -71,7 +71,7 @@ export const ActionNode = memo(({ data, selected }: any) => {
 
   return (
     <div className={cn(
-      "px-4 py-3 rounded-xl bg-card border-2 shadow-sm min-w-[220px] transition-all",
+      "px-4 py-3 rounded-lg bg-card border-2 shadow-sm min-w-[220px] transition-all",
       selected ? "border-indigo-500 ring-4 ring-indigo-500/10" : "border-border/60 hover:border-indigo-500/40"
     )}>
       <Handle 
@@ -108,7 +108,7 @@ export const ActionNode = memo(({ data, selected }: any) => {
 export const ConditionNode = memo(({ data, selected }: any) => {
   return (
     <div className={cn(
-      "px-5 py-4 rounded-3xl bg-card border-2 shadow-sm min-w-[180px] transition-all relative",
+      "px-5 py-4 rounded-lg-3xl bg-card border-2 shadow-sm min-w-[180px] transition-all relative",
       selected ? "border-amber-500 ring-4 ring-amber-500/10" : "border-border/60 hover:border-amber-500/40"
     )}>
       <Handle 

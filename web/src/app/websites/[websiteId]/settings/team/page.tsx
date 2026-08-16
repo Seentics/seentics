@@ -19,7 +19,7 @@ export default function TeamSettings() {
   if (!isEnterprise) return null;
 
   return (
-    <div className="space-y-8 p-4 sm:p-8 animate-in fade-in duration-500">
+    <div className="space-y-6 p-4 sm:p-8 animate-in fade-in duration-500">
       <TeamSettingsComponent websiteId={websiteId} />
     </div>
   );

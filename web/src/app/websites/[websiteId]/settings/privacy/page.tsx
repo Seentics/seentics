@@ -9,7 +9,7 @@ export default function PrivacySettingsPage() {
   const websiteId = params?.websiteId as string;
 
   return (
-    <div className="p-4 sm:p-8">
+    <div className="animate-in fade-in duration-500">
       <PrivacySettingsComponent websiteId={websiteId} />
     </div>
   );

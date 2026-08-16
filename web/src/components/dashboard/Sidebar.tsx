@@ -86,7 +86,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
           href={item.href}
           title={collapsed ? item.label : undefined}
           className={cn(
-            'flex items-center gap-3 rounded-md transition-colors',
+            'flex items-center gap-3 rounded-lg transition-colors',
             collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-3',
             active
               ? 'bg-primary/10 text-primary dark:bg-accent dark:text-foreground'
@@ -123,7 +123,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             onClick={() => persist(false)}
             title="Expand sidebar"
             aria-label="Expand sidebar"
-            className="flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           >
             <Logo size="sm" className="shrink-0" />
           </button>
@@ -136,7 +136,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
               onClick={() => persist(true)}
               title="Collapse sidebar"
               aria-label="Collapse sidebar"
-              className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
@@ -161,7 +161,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
               title={user?.name || user?.email || 'Account'}
               aria-label="Account menu"
               className={cn(
-                'flex items-center gap-3 rounded-md transition-colors w-full',
+                'flex items-center gap-3 rounded-lg transition-colors w-full',
                 'text-foreground hover:bg-muted/50',
                 collapsed ? 'justify-center h-10 w-10 mx-auto' : 'h-10 px-2',
               )}
@@ -170,12 +170,12 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 <img
                   src={user.avatar}
                   alt=""
-                  className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-border/60"
+                  className="h-8 w-8 shrink-0 rounded-lg-full object-cover ring-1 ring-border/60"
                 />
               ) : (
                 <div
                   className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg-full',
                     'bg-primary/12 text-[11px] font-semibold text-primary ring-1 ring-border/40',
                   )}
                 >
@@ -207,7 +207,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 href={`/websites/${websiteId}/settings/profile`}
                 onClick={() => setAccountOpen(false)}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium',
+                  'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium',
                   'text-foreground/80 hover:bg-muted/80 hover:text-foreground',
                 )}
               >
@@ -218,7 +218,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 href={`/websites/${websiteId}/settings/billing`}
                 onClick={() => setAccountOpen(false)}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium',
+                  'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium',
                   'text-foreground/80 hover:bg-muted/80 hover:text-foreground',
                 )}
               >
@@ -229,7 +229,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 href={`/websites/${websiteId}/settings/support`}
                 onClick={() => setAccountOpen(false)}
                 className={cn(
-                  'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium',
+                  'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium',
                   'text-foreground/80 hover:bg-muted/80 hover:text-foreground',
                 )}
               >
@@ -247,7 +247,7 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                   router.push('/signin');
                 }}
                 className={cn(
-                  'flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium',
+                  'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium',
                   'text-destructive/90 hover:bg-destructive/10 hover:text-destructive',
                 )}
               >
