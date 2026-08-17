@@ -62,45 +62,82 @@ export function createAutomationRoutes(deps: {
     return null;
   }
 
-  // GET /:website_id — every automation for the website, with its counters.
-  r.get("/:website_id", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  type AutomationContext = Context<{ Variables: AuthVars }>;
 
-    return c.json({ data: await automations.list(websiteRef) });
-  });
+  /**
+   * Build a handler that is guarded, and whose result is shaped the way every
+   * endpoint here shapes it.
+   *
+   * `handle` returns one of three things, which between them cover all ten routes:
+   *  - a value        -> answered as `{ data: value }`
+   *  - `null`         -> answered as 404 `{ error: "not found" }`, which is what the
+   *                      services return for an automation this website does not own
+   *  - a `Response`   -> passed through untouched, for the endpoints that answer 201
+   *                      or 204, or that need to return a validation error
+   *
+   * The point is that the access check lives in one place instead of being four
+   * lines every handler has to remember to repeat.
+   */
+  /**
+   * The `:id` segment of a route that declares it.
+   *
+   * `c.req.param` is typed optional because these handlers are generic over the
+   * path; Hono only routes to them when the segment matched. Empty string is
+   * unreachable in practice and would simply find no automation.
+   */
+  function automationId(c: AutomationContext): string {
+    return c.req.param("id") ?? "";
+  }
+
+  function guarded<T>(handle: (c: AutomationContext, websiteRef: string) => Promise<T>) {
+    return async (c: AutomationContext) => {
+      // Typed optional because the handler is generic over the path; Hono only
+      // routes here when `:website_id` matched.
+      const websiteRef = c.req.param("website_id");
+      if (!websiteRef) return c.json({ error: "not found" }, 404);
+
+      const denied = await denyUnlessPermitted(c, websiteRef);
+      if (denied) return denied;
+
+      const out = await handle(c, websiteRef);
+      if (out instanceof Response) return out;
+      if (out === null) return c.json({ error: "not found" }, 404);
+      return c.json({ data: out });
+    };
+  }
+
+  // GET /:website_id — every automation for the website, with its counters.
+  r.get("/:website_id", guarded((_c, w) => automations.list(w)));
 
   /**
    * POST /:website_id — create.
    *
    * The body schema is `.passthrough()` with every field optional: it exists to
    * validate the webhook actions (URL allow-list, forbidden headers), not to
-   * guarantee a complete automation. That is why the parsed body is cast rather
-   * than matching `CreateAutomationInput` structurally — tightening it here would
-   * start rejecting request shapes the builder sends today.
+   * guarantee a complete automation. That is why the parsed body is cast rather than
+   * matching `CreateAutomationInput` structurally — tightening it here would start
+   * rejecting request shapes the builder sends today.
    *
-   * Parsed inline rather than with `parseJson` because that helper answers
-   * malformed JSON with its own message; this endpoint has always returned the
-   * schema's issue list for a null body.
+   * Parsed inline rather than with `parseJson` because that helper answers malformed
+   * JSON with its own message; this endpoint has always returned the schema's issue
+   * list for a null body.
    */
-  r.post("/:website_id", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.post(
+    "/:website_id",
+    guarded(async (c, w) => {
+      const raw = await c.req.json().catch(() => null);
+      const ok = automationsUpsertBodySchema.safeParse(raw);
+      if (!ok.success) return validationErrorResponse(c, ok.error);
 
-    const userId = requireUser(c)!;
-    const raw = await c.req.json().catch(() => null);
-    const ok = automationsUpsertBodySchema.safeParse(raw);
-    if (!ok.success) return validationErrorResponse(c, ok.error);
-
-    const row = await automations.create(
-      websiteRef,
-      userId,
-      ok.data as unknown as CreateAutomationInput,
-    );
-    return c.json({ data: row }, 201);
-  });
+      const row = await automations.create(
+        w,
+        // Present because `guarded` already ran the auth check.
+        requireUser(c)!,
+        ok.data as unknown as CreateAutomationInput,
+      );
+      return c.json({ data: row }, 201);
+    }),
+  );
 
   /**
    * DELETE /:website_id/bulk-delete
@@ -109,101 +146,62 @@ export function createAutomationRoutes(deps: {
    * automation id. Hono matches in registration order, so this ordering is
    * load-bearing rather than stylistic.
    */
-  r.delete("/:website_id/bulk-delete", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.delete(
+    "/:website_id/bulk-delete",
+    guarded(async (c, w) => {
+      const parsed = await parseJson(c, automationsBulkDeleteSchema);
+      if (!parsed.ok) return parsed.res;
 
-    const parsed = await parseJson(c, automationsBulkDeleteSchema);
-    if (!parsed.ok) return parsed.res;
+      await automations.bulkDelete(w, parsed.data.ids ?? []);
+      return c.body(null, 204);
+    }),
+  );
 
-    await automations.bulkDelete(websiteRef, parsed.data.ids ?? []);
-    return c.body(null, 204);
-  });
-
-  // GET /:website_id/:id — one automation.
-  r.get("/:website_id/:id", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
-
-    const row = await automations.get(websiteRef, c.req.param("id"));
-    if (!row) return c.json({ error: "not found" }, 404);
-    return c.json({ data: row });
-  });
+  // GET /:website_id/:id — one automation. `null` from the service becomes a 404.
+  r.get("/:website_id/:id", guarded((c, w) => automations.get(w, automationId(c))));
 
   // PUT /:website_id/:id — update. Same body schema as create; see the note there.
-  r.put("/:website_id/:id", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.put(
+    "/:website_id/:id",
+    guarded(async (c, w) => {
+      const raw = await c.req.json().catch(() => null);
+      const ok = automationsUpsertBodySchema.safeParse(raw);
+      if (!ok.success) return validationErrorResponse(c, ok.error);
 
-    const raw = await c.req.json().catch(() => null);
-    const ok = automationsUpsertBodySchema.safeParse(raw);
-    if (!ok.success) return validationErrorResponse(c, ok.error);
-
-    const row = await automations.update(
-      websiteRef,
-      c.req.param("id"),
-      ok.data as unknown as UpdateAutomationInput,
-    );
-    if (!row) return c.json({ error: "not found" }, 404);
-    return c.json({ data: row });
-  });
+      return automations.update(
+        w,
+        automationId(c),
+        ok.data as unknown as UpdateAutomationInput,
+      );
+    }),
+  );
 
   // DELETE /:website_id/:id — 204 whether or not there was anything to delete.
-  r.delete("/:website_id/:id", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
-
-    await automations.remove(websiteRef, c.req.param("id"));
-    return c.body(null, 204);
-  });
+  r.delete(
+    "/:website_id/:id",
+    guarded(async (c, w) => {
+      await automations.remove(w, automationId(c));
+      return c.body(null, 204);
+    }),
+  );
 
   // GET /:website_id/:id/executions — the run log, newest first.
-  r.get("/:website_id/:id/executions", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
-
-    const rows = await automations.executions(websiteRef, c.req.param("id"));
-    if (!rows) return c.json({ error: "not found" }, 404);
-    return c.json({ data: rows });
-  });
+  r.get(
+    "/:website_id/:id/executions",
+    guarded((c, w) => automations.executions(w, automationId(c))),
+  );
 
   // POST /:website_id/:id/toggle — flip is_active.
-  r.post("/:website_id/:id/toggle", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
-
-    const row = await automations.toggle(websiteRef, c.req.param("id"));
-    if (!row) return c.json({ error: "not found" }, 404);
-    return c.json({ data: row });
-  });
+  r.post("/:website_id/:id/toggle", guarded((c, w) => automations.toggle(w, automationId(c))));
 
   // GET /:website_id/:id/stats — lifetime counters.
-  r.get("/:website_id/:id/stats", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
-
-    const stats = await automations.stats(websiteRef, c.req.param("id"));
-    if (!stats) return c.json({ error: "not found" }, 404);
-    return c.json({ data: stats });
-  });
+  r.get("/:website_id/:id/stats", guarded((c, w) => automations.stats(w, automationId(c))));
 
   // GET /:website_id/:id/stats/daily — 14 buckets for the sparkline.
-  r.get("/:website_id/:id/stats/daily", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
-
-    const daily = await automations.dailyStats(websiteRef, c.req.param("id"));
-    if (!daily) return c.json({ error: "not found" }, 404);
-    return c.json({ data: daily });
-  });
+  r.get(
+    "/:website_id/:id/stats/daily",
+    guarded((c, w) => automations.dailyStats(w, automationId(c))),
+  );
 
   return r;
 }
