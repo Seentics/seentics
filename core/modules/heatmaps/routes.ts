@@ -68,6 +68,30 @@ export function createHeatmapRoutes(deps: {
   }
 
   /**
+   * Hoist the access check out of every handler.
+   *
+   * Each route below repeated the same three lines to extract the website reference
+   * and run the guard. Doing it here means an individual route cannot omit it. The
+   * handler keeps full control of its own response, so status codes and bodies are
+   * unchanged.
+   */
+  function guarded(
+    handle: (c: Context<{ Variables: AuthVars }>, websiteRef: string) => Promise<Response>,
+  ) {
+    return async (c: Context<{ Variables: AuthVars }>) => {
+      // Typed optional because this handler is generic over the path; Hono only
+      // routes here when `:website_id` matched.
+      const websiteRef = c.req.param("website_id");
+      if (!websiteRef) return c.json({ error: "not found" }, 404);
+
+      const denied = await denyUnlessPermitted(c, websiteRef);
+      if (denied) return denied;
+
+      return handle(c, websiteRef);
+    };
+  }
+
+  /**
    * Read a JSON body without a schema.
    *
    * The screenshot endpoints coerce every field with a fallback instead of
@@ -94,40 +118,31 @@ export function createHeatmapRoutes(deps: {
   }
 
   // GET /:website_id/pages — every page with heatmap data, busiest first.
-  r.get("/:website_id/pages", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.get("/:website_id/pages", guarded(async (c, websiteRef) => {
 
     const out = await heatmaps.listPages(websiteRef);
     return c.json(out);
-  });
+  }));
 
   // GET /:website_id/data — click or scroll points for one page.
-  r.get("/:website_id/data", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.get("/:website_id/data", guarded(async (c, websiteRef) => {
 
     const q = parseQuery(c, heatmapDataQuerySchema);
     if (!q.ok) return q.res;
 
     const out = await heatmaps.getPoints(websiteRef, q.data.page_path, q.data.event_type || "click");
     return c.json(out);
-  });
+  }));
 
   // GET /:website_id/layout-snapshot — the background the overlay draws on.
-  r.get("/:website_id/layout-snapshot", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.get("/:website_id/layout-snapshot", guarded(async (c, websiteRef) => {
 
     const q = parseQuery(c, heatmapSnapshotQuerySchema);
     if (!q.ok) return q.res;
 
     const out = await heatmaps.getLayoutSnapshot(websiteRef, q.data.page_path);
     return c.json(out);
-  });
+  }));
 
   /**
    * POST /:website_id/save-screenshot
@@ -136,10 +151,7 @@ export function createHeatmapRoutes(deps: {
    * service's message, because each one tells the user something actionable
    * ("not a valid JPEG", "size out of range").
    */
-  r.post("/:website_id/save-screenshot", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.post("/:website_id/save-screenshot", guarded(async (c, websiteRef) => {
 
     const parsed = await readJsonBody(c);
     if (!parsed.ok) return parsed.res;
@@ -159,20 +171,17 @@ export function createHeatmapRoutes(deps: {
     } catch (e) {
       return c.json({ error: String(e) }, 400);
     }
-  });
+  }));
 
   // DELETE /:website_id/bulk-delete — 204, no body.
-  r.delete("/:website_id/bulk-delete", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.delete("/:website_id/bulk-delete", guarded(async (c, websiteRef) => {
 
     const parsed = await parseJson(c, heatmapBulkDeleteSchema);
     if (!parsed.ok) return parsed.res;
 
     await heatmaps.bulkDeletePages(websiteRef, parsed.data.pagePaths);
     return c.body(null, 204);
-  });
+  }));
 
   /**
    * POST /:website_id/playwright-screenshot
@@ -188,10 +197,7 @@ export function createHeatmapRoutes(deps: {
    *   "jpeg_quality": 85
    * }
    */
-  r.post("/:website_id/playwright-screenshot", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.post("/:website_id/playwright-screenshot", guarded(async (c, websiteRef) => {
 
     const parsed = await readJsonBody(c);
     if (!parsed.ok) return parsed.res;
@@ -235,7 +241,7 @@ export function createHeatmapRoutes(deps: {
         400,
       );
     }
-  });
+  }));
 
   /**
    * POST /:website_id/playwright-batch-screenshots
@@ -255,10 +261,7 @@ export function createHeatmapRoutes(deps: {
    *   ]
    * }
    */
-  r.post("/:website_id/playwright-batch-screenshots", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.post("/:website_id/playwright-batch-screenshots", guarded(async (c, websiteRef) => {
 
     const parsed = await readJsonBody(c);
     if (!parsed.ok) return parsed.res;
@@ -305,7 +308,7 @@ export function createHeatmapRoutes(deps: {
         400,
       );
     }
-  });
+  }));
 
   return r;
 }

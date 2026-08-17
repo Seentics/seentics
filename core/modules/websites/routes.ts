@@ -46,6 +46,42 @@ export function createWebsiteRoutes(deps: {
     return c.json({ error: "forbidden" }, status as ContentfulStatusCode);
   }
 
+  /**
+   * Build a guarded handler.
+   *
+   * Every route here repeated the same preamble — resolve the user, answer 401 if
+   * absent, then wrap the body in a try/catch that maps a thrown access error to its
+   * status. That is now in one place, so no individual route can forget it.
+   *
+   * `handle` returns either a value, answered as JSON, or a `Response` for the
+   * endpoints where the status matters (201, 204).
+   */
+
+  /**
+   * A path segment the route declares.
+   *
+   * `c.req.param` is typed optional because a handler built by `authed` is generic
+   * over the path; Hono only routes to it when the segment matched, so the fallback
+   * is unreachable and would simply find nothing.
+   */
+  function param(c: Context<{ Variables: AuthVars }>, name: string): string {
+    return c.req.param(name) ?? "";
+  }
+
+  function authed<T>(handle: (c: Context<{ Variables: AuthVars }>, userId: string) => Promise<T>) {
+    return async (c: Context<{ Variables: AuthVars }>) => {
+      const userId = requireUser(c);
+      if (!userId) return c.json({ error: "unauthorized" }, 401);
+
+      try {
+        const out = await handle(c, userId);
+        return out instanceof Response ? out : c.json(out as object);
+      } catch (e) {
+        return denied(c, e);
+      }
+    };
+  }
+
   // ─── CRUD (on the new service) ────────────────────────────────────────────
 
   r.get("/", async (c) => {
@@ -83,7 +119,7 @@ export function createWebsiteRoutes(deps: {
     if (!userId) return c.json({ error: "unauthorized" }, 401);
 
     try {
-      const website = await websites.getWithTraffic(c.req.param("id"), userId);
+      const website = await websites.getWithTraffic(param(c, "id"), userId);
       if (!website) return c.json({ error: "not found" }, 404);
       return c.json({ data: presentWebsite(website) });
     } catch (e) {
@@ -101,7 +137,7 @@ export function createWebsiteRoutes(deps: {
 
     try {
       const updated = await websites.updateForUser(
-        c.req.param("id"),
+        param(c, "id"),
         userId,
         toUpdateWebsiteInput(ok.data),
       );
@@ -112,17 +148,10 @@ export function createWebsiteRoutes(deps: {
     }
   });
 
-  r.delete("/:id", async (c) => {
-    const userId = requireUser(c);
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
-
-    try {
-      await websites.deleteForUser(c.req.param("id"), userId);
-      return c.body(null, 204);
-    } catch (e) {
-      return denied(c, e);
-    }
-  });
+  r.delete("/:id", authed(async (c, userId) => {
+    await websites.deleteForUser(param(c, "id"), userId);
+    return c.body(null, 204);
+  }));
 
   r.post("/:id/share", async (c) => {
     const userId = requireUser(c);
@@ -132,7 +161,7 @@ export function createWebsiteRoutes(deps: {
 
     try {
       const shareId = await websites.setPublicSharingForUser(
-        c.req.param("id"),
+        param(c, "id"),
         userId,
         !!body.enabled,
       );
@@ -144,15 +173,9 @@ export function createWebsiteRoutes(deps: {
 
   // ─── Goals (pending migration) ────────────────────────────────────────────
 
-  r.get("/:id/goals", async (c) => {
-    const userId = requireUser(c);
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
-    try {
-      return c.json(await goalsSvc.listGoals(userId, c.req.param("id")));
-    } catch (e) {
-      return denied(c, e);
-    }
-  });
+  r.get("/:id/goals", authed(async (c, userId) => {
+    return c.json(await goalsSvc.listGoals(userId, param(c, "id")));
+  }));
 
   r.post("/:id/goals", async (c) => {
     const userId = requireUser(c);
@@ -163,7 +186,7 @@ export function createWebsiteRoutes(deps: {
       return c.json(
         await goalsSvc.createGoal(
           userId,
-          c.req.param("id"),
+          param(c, "id"),
           parsed.data as Parameters<typeof goalsSvc.createGoal>[2],
         ),
         201,
@@ -182,8 +205,8 @@ export function createWebsiteRoutes(deps: {
     try {
       const out = await goalsSvc.updateGoal(
         userId,
-        c.req.param("id"),
-        c.req.param("goal_id"),
+        param(c, "id"),
+        param(c, "goal_id"),
         ok.data as Parameters<typeof goalsSvc.updateGoal>[3],
       );
       if (!out) return c.json({ error: "not found" }, 404);
@@ -193,38 +216,20 @@ export function createWebsiteRoutes(deps: {
     }
   });
 
-  r.delete("/:id/goals/:goal_id", async (c) => {
-    const userId = requireUser(c);
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
-    try {
-      await goalsSvc.deleteGoal(userId, c.req.param("id"), c.req.param("goal_id"));
-      return c.body(null, 204);
-    } catch (e) {
-      return denied(c, e);
-    }
-  });
+  r.delete("/:id/goals/:goal_id", authed(async (c, userId) => {
+    await goalsSvc.deleteGoal(userId, param(c, "id"), param(c, "goal_id"));
+    return c.body(null, 204);
+  }));
 
   // ─── Membership and invitations (pending migration) ───────────────────────
 
-  r.get("/:id/my-role", async (c) => {
-    const userId = requireUser(c);
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
-    try {
-      return c.json(await membersSvc.getMyRole(userId, c.req.param("id")));
-    } catch (e) {
-      return denied(c, e);
-    }
-  });
+  r.get("/:id/my-role", authed(async (c, userId) => {
+    return c.json(await membersSvc.getMyRole(userId, param(c, "id")));
+  }));
 
-  r.get("/:id/members", async (c) => {
-    const userId = requireUser(c);
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
-    try {
-      return c.json(await membersSvc.listMembers(userId, c.req.param("id")));
-    } catch (e) {
-      return denied(c, e);
-    }
-  });
+  r.get("/:id/members", authed(async (c, userId) => {
+    return c.json(await membersSvc.listMembers(userId, param(c, "id")));
+  }));
 
   r.post("/:id/members", async (c) => {
     const userId = requireUser(c);
@@ -233,7 +238,7 @@ export function createWebsiteRoutes(deps: {
     if (!parsed.ok) return parsed.res;
     try {
       return c.json(
-        await membersSvc.addMember(userId, c.req.param("id"), {
+        await membersSvc.addMember(userId, param(c, "id"), {
           email: parsed.data.email,
           role: parsed.data.role,
         }),
@@ -248,7 +253,7 @@ export function createWebsiteRoutes(deps: {
     const userId = requireUser(c);
     if (!userId) return c.json({ error: "unauthorized" }, 401);
     try {
-      await membersSvc.removeMember(userId, c.req.param("id"), c.req.param("user_id"));
+      await membersSvc.removeMember(userId, param(c, "id"), param(c, "user_id"));
       return c.body(null, 204);
     } catch (e) {
       return denied(c, e);
@@ -263,8 +268,8 @@ export function createWebsiteRoutes(deps: {
     try {
       await membersSvc.updateMemberRole(
         userId,
-        c.req.param("id"),
-        c.req.param("user_id"),
+        param(c, "id"),
+        param(c, "user_id"),
         parsed.data.role,
       );
       return c.body(null, 204);
@@ -273,15 +278,9 @@ export function createWebsiteRoutes(deps: {
     }
   });
 
-  r.get("/:id/invitations", async (c) => {
-    const userId = requireUser(c);
-    if (!userId) return c.json({ error: "unauthorized" }, 401);
-    try {
-      return c.json(await membersSvc.listInvitations(userId, c.req.param("id")));
-    } catch (e) {
-      return denied(c, e);
-    }
-  });
+  r.get("/:id/invitations", authed(async (c, userId) => {
+    return c.json(await membersSvc.listInvitations(userId, param(c, "id")));
+  }));
 
   r.post("/:id/invitations", async (c) => {
     const userId = requireUser(c);
@@ -292,7 +291,7 @@ export function createWebsiteRoutes(deps: {
     if (!body.email) return c.json({ error: "email is required" }, 400);
     try {
       return c.json(
-        await membersSvc.createInvitation(userId, c.req.param("id"), {
+        await membersSvc.createInvitation(userId, param(c, "id"), {
           email: body.email,
           role: body.role ?? "viewer",
         }),
@@ -313,8 +312,8 @@ export function createWebsiteRoutes(deps: {
     try {
       await membersSvc.revokeInvitation(
         userId,
-        c.req.param("id"),
-        c.req.param("invitation_id"),
+        param(c, "id"),
+        param(c, "invitation_id"),
       );
       return c.body(null, 204);
     } catch (e) {

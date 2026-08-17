@@ -92,6 +92,35 @@ export function createFunnelRoutes(deps: {
     return null;
   }
 
+  /**
+   * Hoist the access check out of every authenticated handler.
+   *
+   * Each route below repeated the same three lines to extract the website reference
+   * and run the guard. Doing it here means an individual route cannot omit it. The
+   * handler keeps full control of its own response, so status codes and bodies are
+   * unchanged.
+   */
+  /** A declared path segment; the optional type is a generic-handler artefact. */
+  function param(c: Context<{ Variables: AuthVars }>, name: string): string {
+    return c.req.param(name) ?? "";
+  }
+
+  function guarded(
+    handle: (c: Context<{ Variables: AuthVars }>, websiteRef: string) => Promise<Response>,
+  ) {
+    return async (c: Context<{ Variables: AuthVars }>) => {
+      // Typed optional because this handler is generic over the path; Hono only
+      // routes here when `:website_id` matched.
+      const websiteRef = c.req.param("website_id");
+      if (!websiteRef) return c.json({ error: "not found" }, 404);
+
+      const denied = await denyUnlessPermitted(c, websiteRef);
+      if (denied) return denied;
+
+      return handle(c, websiteRef);
+    };
+  }
+
   /** Unexpected failure below the guard. Logged with detail, answered generically. */
   function fail(c: Context, op: string, websiteRef: string, e: unknown): Response {
     funnel_log.error({
@@ -104,22 +133,16 @@ export function createFunnelRoutes(deps: {
   }
 
   // GET /:website_id/funnels — funnel definitions, newest first.
-  authRoutes.get("/:website_id/funnels", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  authRoutes.get("/:website_id/funnels", guarded(async (c, websiteRef) => {
 
     try {
       return c.json({ data: await funnels.list(websiteRef) });
     } catch (e) {
       return fail(c, "list", websiteRef, e);
     }
-  });
+  }));
 
-  authRoutes.post("/:website_id/funnels", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  authRoutes.post("/:website_id/funnels", guarded(async (c, websiteRef) => {
 
     const userId = requireUser(c)!;
     const raw = await c.req.json().catch(() => null);
@@ -135,7 +158,7 @@ export function createFunnelRoutes(deps: {
     } catch (e) {
       return fail(c, "create", websiteRef, e);
     }
-  });
+  }));
 
   /**
    * DELETE /:website_id/funnels/bulk-delete
@@ -144,10 +167,7 @@ export function createFunnelRoutes(deps: {
    * captured as a funnel id. Hono matches in registration order, so this ordering is
    * load-bearing rather than stylistic.
    */
-  authRoutes.delete("/:website_id/funnels/bulk-delete", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  authRoutes.delete("/:website_id/funnels/bulk-delete", guarded(async (c, websiteRef) => {
 
     const parsed = await parseJson(c, funnelsBulkDeleteSchema);
     if (!parsed.ok) return parsed.res;
@@ -158,26 +178,20 @@ export function createFunnelRoutes(deps: {
     } catch (e) {
       return fail(c, "bulk_delete", websiteRef, e);
     }
-  });
+  }));
 
-  authRoutes.get("/:website_id/funnels/:funnel_id", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  authRoutes.get("/:website_id/funnels/:funnel_id", guarded(async (c, websiteRef) => {
 
     try {
-      const funnel = await funnels.get(websiteRef, c.req.param("funnel_id"));
+      const funnel = await funnels.get(websiteRef, param(c, "funnel_id"));
       if (!funnel) return c.json({ error: "not found" }, 404);
       return c.json({ data: funnel });
     } catch (e) {
       return fail(c, "get", websiteRef, e);
     }
-  });
+  }));
 
-  authRoutes.put("/:website_id/funnels/:funnel_id", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  authRoutes.put("/:website_id/funnels/:funnel_id", guarded(async (c, websiteRef) => {
 
     const raw = await c.req.json().catch(() => null);
     const ok = funnelsUpsertBodySchema.safeParse(raw);
@@ -186,7 +200,7 @@ export function createFunnelRoutes(deps: {
     try {
       const updated = await funnels.update(
         websiteRef,
-        c.req.param("funnel_id"),
+        param(c, "funnel_id"),
         ok.data as UpdateFunnelInput,
       );
       if (!updated) return c.json({ error: "not found" }, 404);
@@ -194,26 +208,20 @@ export function createFunnelRoutes(deps: {
     } catch (e) {
       return fail(c, "update", websiteRef, e);
     }
-  });
+  }));
 
-  authRoutes.delete("/:website_id/funnels/:funnel_id", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  authRoutes.delete("/:website_id/funnels/:funnel_id", guarded(async (c, websiteRef) => {
 
     try {
-      await funnels.remove(websiteRef, c.req.param("funnel_id"));
+      await funnels.remove(websiteRef, param(c, "funnel_id"));
       return c.body(null, 204);
     } catch (e) {
       return fail(c, "remove", websiteRef, e);
     }
-  });
+  }));
 
   // GET /:website_id/funnels/:funnel_id/stats — conversion report over `days`.
-  authRoutes.get("/:website_id/funnels/:funnel_id/stats", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  authRoutes.get("/:website_id/funnels/:funnel_id/stats", guarded(async (c, websiteRef) => {
 
     // Left as a possibly-NaN number rather than validated: the service clamps it,
     // and a stale bookmark should render the default window, not a 400.
@@ -221,13 +229,13 @@ export function createFunnelRoutes(deps: {
     const days = daysParam === undefined ? undefined : Number(daysParam);
 
     try {
-      const report = await funnels.report(websiteRef, c.req.param("funnel_id"), days);
+      const report = await funnels.report(websiteRef, param(c, "funnel_id"), days);
       if (!report) return c.json({ error: "not found" }, 404);
       return c.json({ data: report });
     } catch (e) {
       return fail(c, "report", websiteRef, e);
     }
-  });
+  }));
 
   return { publicRoutes, authRoutes };
 }

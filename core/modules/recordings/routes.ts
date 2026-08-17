@@ -52,18 +52,48 @@ export function createRecordingRoutes(deps: {
     return null;
   }
 
+  /**
+   * Hoist the access check out of every handler.
+   *
+   * Each route below repeated the same three lines to extract the website reference
+   * and run the guard. Doing it here means an individual route cannot omit it. The
+   * handler keeps full control of its own response, so status codes and bodies are
+   * unchanged.
+   */
+  /**
+   * A path segment the route declares. Typed optional because a handler built by
+   * `guarded` is generic over the path; Hono only routes to it when the segment
+   * matched, so the fallback is unreachable.
+   */
+  function param(c: Context<{ Variables: AuthVars }>, name: string): string {
+    return c.req.param(name) ?? "";
+  }
+
+  function guarded(
+    handle: (c: Context<{ Variables: AuthVars }>, websiteRef: string) => Promise<Response>,
+  ) {
+    return async (c: Context<{ Variables: AuthVars }>) => {
+      // Typed optional because this handler is generic over the path; Hono only
+      // routes here when `:website_id` matched.
+      const websiteRef = c.req.param("website_id");
+      if (!websiteRef) return c.json({ error: "not found" }, 404);
+
+      const denied = await denyUnlessPermitted(c, websiteRef);
+      if (denied) return denied;
+
+      return handle(c, websiteRef);
+    };
+  }
+
   // GET /:website_id — recorded sessions, newest first.
-  r.get("/:website_id", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.get("/:website_id", guarded(async (c, websiteRef) => {
 
     const q = parseQuery(c, replayListQuerySchema);
     if (!q.ok) return q.res;
 
     const out = await recordings.listSessions(websiteRef, q.data.limit, q.data.offset);
     return c.json(out);
-  });
+  }));
 
   /**
    * DELETE /:website_id/batch
@@ -72,10 +102,7 @@ export function createRecordingRoutes(deps: {
    * session id. Hono matches in registration order, so this ordering is load-
    * bearing rather than stylistic.
    */
-  r.delete("/:website_id/batch", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.delete("/:website_id/batch", guarded(async (c, websiteRef) => {
 
     const parsed = await parseJson(c, replayBatchDeleteSchema);
     if (!parsed.ok) return parsed.res;
@@ -95,14 +122,11 @@ export function createRecordingRoutes(deps: {
     }
 
     return c.json({ message: "sessions deleted" });
-  });
+  }));
 
   // GET /:website_id/:session_id — one recording with its event stream.
-  r.get("/:website_id/:session_id", async (c) => {
-    const websiteRef = c.req.param("website_id");
-    const sessionId = c.req.param("session_id");
-    const denied = await denyUnlessPermitted(c, websiteRef);
-    if (denied) return denied;
+  r.get("/:website_id/:session_id", guarded(async (c, websiteRef) => {
+    const sessionId = param(c, "session_id");
 
     try {
       const detail = await recordings.getSessionDetail(websiteRef, sessionId);
@@ -118,7 +142,7 @@ export function createRecordingRoutes(deps: {
       });
       return c.json({ error: "Failed to load replay" }, 500);
     }
-  });
+  }));
 
   return r;
 }
