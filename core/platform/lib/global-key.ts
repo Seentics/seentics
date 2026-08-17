@@ -1,5 +1,5 @@
 import { timingSafeEqual } from "node:crypto";
-import type { AppConfig } from "../config";
+import type { AppConfig } from "../../config";
 
 /** Constant-time compare for `X-API-Key` against `GLOBAL_API_KEY`. */
 export function isGlobalApiKeyValid(cfg: AppConfig, headerValue: string | undefined): boolean {

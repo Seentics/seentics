@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { env } from "../config";
+import { env } from "../../config";
 import type {
   InternalCollectAnalyticsBody,
   InternalCollectHeatmapEventsBody,
@@ -8,31 +8,44 @@ import type {
 } from "../lib/api-types";
 import { buildAnalyticsIngestMeta } from "../lib/analytics-ingest-meta";
 import { clientIpForIngest } from "../lib/client-ip";
-import { ingestAnalyticsBatch } from "../services/ingest.service";
-import { getHeatmapEngine } from "../lib/heatmap-engine";
 import { isGlobalApiKeyValid } from "../lib/global-key";
-import { getReplayEngine } from "../lib/replay-engine";
 import type { AnalyticsIngestEvent } from "../lib/types";
-import { runDataRetentionCleanupSafe } from "../services/retention.service";
+import type { RetentionService } from "../retention";
+import type { IngestSinks } from "../../modules/ingest/interfaces";
 import { resolveWebsiteForTracker } from "../lib/website-for-tracker";
 import { getUserResourceCounts } from "../lib/user-resource-counts";
-import { parseJson } from "../validators/validation";
+import { parseJson } from "../../platform/validation";
 import {
   internalCollectAnalyticsSchema,
   internalCollectHeatmapEventsSchema,
   internalCollectReplayEventsSchema,
-} from "../validators/internal";
+} from "./internal.schema";
 
 function requireGlobalKey(c: Pick<Context, "req">) {
   return isGlobalApiKeyValid(env(), c.req.header("X-API-Key"));
 }
 
-export const internalRoutes = new Hono();
+/**
+ * Operational endpoints, mounted at `/api/v1/internal` behind the global API key.
+ *
+ * A factory rather than a module-level router: it previously reached into three other
+ * modules directly — the analytics batch writer plus the recordings and heatmap engine
+ * singletons — to accept server-to-server event pushes. Those are the same four write
+ * targets ingest already models as `IngestSinks`, so it takes that port instead of
+ * duplicating the wiring, and the retention sweep arrives injected.
+ */
+export function createInternalRoutes(deps: {
+  /** The same write targets ingest flushes to; reused rather than re-derived. */
+  sinks: IngestSinks;
+  retention: RetentionService;
+}) {
+  const { sinks, retention } = deps;
+  const internalRoutes = new Hono();
 
-internalRoutes.use("*", async (c, next) => {
-  if (!requireGlobalKey(c)) return c.json({ error: "Invalid API key" }, 401);
-  return next();
-});
+  internalRoutes.use("*", async (c, next) => {
+    if (!requireGlobalKey(c)) return c.json({ error: "Invalid API key" }, 401);
+    return next();
+  });
 
 internalRoutes.get("/user-resource-counts", async (c) => {
   const userId = c.req.query("user_id")?.trim() ?? "";
@@ -55,7 +68,7 @@ internalRoutes.get("/website-owner", async (c) => {
 });
 internalRoutes.post("/retention-cleanup", async (c) => {
   try {
-    const stats = await runDataRetentionCleanupSafe(env());
+    const stats = await retention.runSafely(env());
     return c.json({ data: { ok: true, stats: stats ?? null } });
   } catch {
     return c.json({ error: "retention cleanup failed" }, 500);
@@ -91,7 +104,7 @@ internalRoutes.post("/collect/analytics", async (c) => {
       ingestMeta,
     };
   });
-  await ingestAnalyticsBatch(website.site_id, events);
+  await sinks.writeAnalyticsBatch(website.site_id, events);
   return c.body(null, 204);
 });
 
@@ -110,7 +123,7 @@ internalRoutes.post("/collect/replay-events", async (c) => {
     headers: c.req.raw.headers,
   });
   const enriched = events.map((e) => ({ ...(e as Record<string, unknown>), ingestMeta }));
-  await getReplayEngine().processEvents(enriched as Parameters<ReturnType<typeof getReplayEngine>["processEvents"]>[0]);
+  await sinks.processRecordings(enriched as Parameters<IngestSinks["processRecordings"]>[0]);
   return c.json({ ok: true });
 });
 
@@ -121,6 +134,9 @@ internalRoutes.post("/collect/heatmap-events", async (c) => {
   const body = parsed.data as unknown as InternalCollectHeatmapEventsBody;
   const events = (body as { events?: unknown[] }).events;
   if (!events?.length) return c.json({ error: "events required" }, 400);
-  await getHeatmapEngine().processEvents(events as Parameters<ReturnType<typeof getHeatmapEngine>["processEvents"]>[0]);
+  await sinks.processHeatmaps(events as Parameters<IngestSinks["processHeatmaps"]>[0]);
   return c.json({ ok: true });
 });
+
+  return internalRoutes;
+}

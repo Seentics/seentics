@@ -1,17 +1,20 @@
 import { createHash } from "node:crypto";
-import { env } from "../config";
-import { batchUpsertPoints } from "./heatmap-db";
-import { getCachedSnapshotSha256, getLayoutSnapshot, upsertLayoutSnapshot, upsertLayoutHtmlSnapshot } from "./layout-db";
-import { deviceTypeFromUA } from "./device";
-import { extractPath, normalizeHeatmapPagePath } from "./paths";
-import { heatmapScreenshotKey, heatmapHtmlSnapshotKey, layoutPathSlot } from "./keys";
-import { validateScreenshotTargetUrl } from "./origin";
-import { putJpeg, putHtml } from "./s3";
-import { resolveWebsiteForTracker } from "./website-for-tracker";
-import { getSiteIdByWebsiteUuid } from "./website-site";
-import { captureAndStoreScreenshot } from "./playwright-screenshots";
-import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "./types";
-import { log as baseLog } from "./logger";
+import { env } from "../../../config";
+import type { EventBus } from "../../../infrastructure/events";
+import { batchUpsertPoints } from "../repositories/heatmap.repository";
+import { getCachedSnapshotSha256, getLayoutSnapshot, upsertLayoutSnapshot, upsertLayoutHtmlSnapshot } from "../lib/layout-db";
+import { deviceTypeFromUA } from "../lib/device";
+import { extractPath, normalizeHeatmapPagePath } from "../lib/paths";
+import { heatmapScreenshotKey, heatmapHtmlSnapshotKey, layoutPathSlot } from "../lib/keys";
+import { validateScreenshotTargetUrl } from "../../../platform/lib/origin";
+import { putJpeg, putHtml } from "../../../platform/lib/s3";
+import { resolveWebsiteForTracker } from "../../../platform/lib/website-for-tracker";
+import { getSiteIdByWebsiteUuid } from "../lib/website-site";
+import { captureAndStoreScreenshot } from "../lib/playwright-screenshots";
+import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "../../../platform/lib/types";
+import type { HeatmapIngest } from "../interfaces";
+import { log as baseLog } from "../../../platform/lib/logger";
+import { isJpeg } from "./shared";
 
 const log = baseLog.child({ category: "heatmap" });
 
@@ -42,10 +45,6 @@ function viewportCap(m: Record<string, unknown> | undefined, key: string): numbe
   const i = Math.round(f);
   if (i < 100 || i > 10_000) return null; // realistic CSS viewport range
   return i;
-}
-
-function isJpeg(b: Uint8Array): boolean {
-  return b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 }
 
 function decodeScreenshotImage(data: Record<string, unknown> | undefined): Uint8Array | null {
@@ -139,7 +138,16 @@ function toInt(v: unknown): number {
   return 0;
 }
 
-export class HeatmapEngine {
+/**
+ * The tracker ingest path for heatmap data.
+ *
+ * Buffers points and screenshots and drains them on a timer, so `/collect` never
+ * waits on Postgres or S3. That is also why the domain events it publishes are
+ * published from the *flush*, not from `processEvents`: enqueuing is not a fact
+ * about stored data, and a consumer reacting to an enqueue would sometimes be
+ * reacting to rows a later failure dropped.
+ */
+export class HeatmapEngine implements HeatmapIngest {
   private pointBuf: HeatmapPointRow[] = [];
   private shotBuf: ScreenshotJob[] = [];
   private pgTimer: ReturnType<typeof setInterval>;
@@ -147,7 +155,13 @@ export class HeatmapEngine {
   /** Paths that have already had a Playwright capture triggered this lifecycle — prevents spam. */
   private playwrightTriggered = new Set<string>();
 
-  constructor() {
+  /**
+   * `null` when the engine was created lazily by `getHeatmapEngine()` rather than
+   * by a composition root. The ingest path is reached from module-level route
+   * files that have nowhere to inject from, so publishing is best-effort: call
+   * `initHeatmapEngine(bus)` at startup to get the events.
+   */
+  constructor(private readonly eventBus: EventBus | null = null) {
     this.bucket = env().s3.bucket;
     // Both points and screenshots are flushed by the same timer so screenshots
     // are never left stranded in the buffer between processEvents calls.
@@ -170,13 +184,44 @@ export class HeatmapEngine {
     const CHUNK = 500;
     const chunks: HeatmapPointRow[][] = [];
     for (let i = 0; i < batch.length; i += CHUNK) chunks.push(batch.slice(i, i + CHUNK));
-    await Promise.all(
+    const settled = await Promise.all(
       chunks.map((chunk) =>
-        batchUpsertPoints(chunk).catch((e: unknown) =>
-          log.error({ msg: "heatmap_pg_batch_failed", n: chunk.length, err: String(e) }),
-        ),
+        batchUpsertPoints(chunk)
+          .then(() => chunk)
+          .catch((e: unknown) => {
+            log.error({ msg: "heatmap_pg_batch_failed", n: chunk.length, err: String(e) });
+            // Returning null rather than rethrowing keeps sibling chunks alive and
+            // keeps the failed rows out of the event below.
+            return null;
+          }),
       ),
     );
+    await this.announceCollected(settled);
+  }
+
+  /**
+   * Announce the points that were actually written, grouped by website.
+   *
+   * Grouped because a flush interleaves every site sending traffic in the same
+   * 400ms window, and a consumer counting a site's activity needs its own number.
+   */
+  private async announceCollected(settled: (HeatmapPointRow[] | null)[]): Promise<void> {
+    if (!this.eventBus) return;
+    const byWebsite = new Map<string, number>();
+    for (const chunk of settled) {
+      if (!chunk) continue;
+      for (const row of chunk) {
+        byWebsite.set(row.websiteId, (byWebsite.get(row.websiteId) ?? 0) + 1);
+      }
+    }
+    const occurredAt = new Date();
+    for (const [websiteId, pointCount] of byWebsite) {
+      await this.eventBus.publish("heatmap.data_collected", {
+        websiteId,
+        pointCount,
+        occurredAt,
+      });
+    }
   }
 
   private enqueuePoints(rows: HeatmapPointRow[]): void {
@@ -275,6 +320,15 @@ export class HeatmapEngine {
 
     await upsertLayoutSnapshot(j.websiteId, norm, key, sum, dW, dH);
     log.info({ msg: "heatmap_tracker_screenshot_stored", url: j.url, norm, website_id: j.websiteId, s3_key: key, doc_w: dW, doc_h: dH });
+
+    await this.eventBus?.publish("heatmap.screenshot_captured", {
+      websiteId: j.websiteId,
+      siteId: j.siteId,
+      pagePath: norm,
+      s3Key: key,
+      source: "tracker",
+      occurredAt: new Date(),
+    });
   }
 
   private async ingestOneDomSnapshot(ev: HeatmapIngestEvent): Promise<void> {
@@ -338,7 +392,29 @@ export class HeatmapEngine {
 }
 
 let _engine: HeatmapEngine | null = null;
+
+/**
+ * The process-wide engine.
+ *
+ * Still a singleton because its callers — `services/ingest/queues.ts`,
+ * `routes/internal.ts` and the shutdown hook — are module-level and have nothing
+ * to inject through. Creates a bus-less engine if nothing initialized one first,
+ * so ingest keeps working whether or not events are wired.
+ */
 export function getHeatmapEngine(): HeatmapEngine {
   if (!_engine) _engine = new HeatmapEngine();
+  return _engine;
+}
+
+/**
+ * Create the engine with an event bus. Call from the composition root before
+ * anything can ingest; returns the same instance `getHeatmapEngine()` will hand out.
+ *
+ * Replaces an already-created engine rather than merging into it, because the only
+ * legitimate caller runs at startup — calling it later would strand whatever the
+ * previous engine had buffered.
+ */
+export function initHeatmapEngine(eventBus: EventBus): HeatmapEngine {
+  _engine = new HeatmapEngine(eventBus);
   return _engine;
 }

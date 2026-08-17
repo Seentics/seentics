@@ -1,6 +1,17 @@
+/**
+ * Request validation for the automations HTTP surface.
+ *
+ * The upsert schema is `.passthrough()` and every field is optional on purpose:
+ * an automation `definition` is an open-ended document the builder evolves, so
+ * this validates the parts that are security-relevant — the webhook URL against
+ * the SSRF allow-list, and the header names against the ones a caller must not be
+ * able to set — and lets the rest through. Tightening it is a client-compatibility
+ * decision, not a refactor.
+ */
+
 import { z } from "zod";
-import { zNonEmptyString } from "./validation";
-import { validateWebhookUrl } from "../lib/origin";
+import { zNonEmptyString } from "../../../platform/validation";
+import { validateWebhookUrl } from "../../../platform/lib/origin";
 
 const ALLOWED_HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const;
 const FORBIDDEN_HEADER_NAMES = new Set(['host', 'authorization', 'cookie', 'set-cookie', 'content-length', 'transfer-encoding']);

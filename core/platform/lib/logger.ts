@@ -1,4 +1,4 @@
-import type { AppConfig } from "../config";
+import type { AppConfig } from "../../config";
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 type Level = LogLevel;

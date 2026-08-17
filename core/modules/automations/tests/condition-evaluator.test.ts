@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { evaluateConditions } from "../../../lib/automations/condition-evaluator";
-import type { Conditions, Rule, ConditionGroup } from "../../../lib/automations/condition-evaluator";
+import { evaluateConditions } from "../services/condition-evaluator";
+import type { Conditions, Rule, ConditionGroup } from "../services/condition-evaluator";
 
 // ─── null / undefined → true ──────────────────────────────────────────────────
 

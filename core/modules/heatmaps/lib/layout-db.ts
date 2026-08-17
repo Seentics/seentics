@@ -1,4 +1,4 @@
-import { sql } from "../db";
+import { sql } from "../../../db";
 
 // 3-minute TTL sha256 cache — skips the regex-heavy SELECT on the common "nothing changed" path.
 // Only stores sha256; callers that need full snapshot data must use getLayoutSnapshot directly.

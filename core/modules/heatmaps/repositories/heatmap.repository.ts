@@ -1,5 +1,18 @@
-import { sql } from "../db";
-import type { HeatmapPointOut, HeatmapPointRow, PageSummaryRow } from "./types";
+import { sql } from "../../../db";
+import type { HeatmapPointOut, HeatmapPointRow, PageSummaryRow } from "../../../platform/lib/types";
+
+/**
+ * SQL for `heatmap_points` and the stale-snapshot scan over
+ * `heatmap_page_snapshots`.
+ *
+ * Every `websiteUuid` here is `websites.id` — the queries cast it to `uuid`, so
+ * passing a short `site_id` raises a Postgres syntax error rather than returning
+ * the wrong rows. The parameter is named for the identifier it needs because both
+ * forms are `string` and the compiler cannot tell them apart.
+ *
+ * Only `HeatmapService` and `HeatmapEngine` may call into this file; resolving a
+ * website reference is their job, done once, so nothing here takes a loose ref.
+ */
 
 function pgTimestampToIso(v: unknown): string {
   if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString();
@@ -79,7 +92,7 @@ const NORM_PAGE_PATH_EXPR = sql.unsafe(`
 `);
 
 export async function getHeatmapData(
-  websiteId: string,
+  websiteUuid: string,
   pagePath: string,
   eventType: string,
 ): Promise<HeatmapPointOut[]> {
@@ -88,7 +101,7 @@ export async function getHeatmapData(
            COALESCE(target_selector, '') AS target_selector,
            cap_vw, cap_vh
     FROM heatmap_points
-    WHERE website_id = ${websiteId}::uuid
+    WHERE website_id = ${websiteUuid}::uuid
       AND event_type = ${eventType}
       AND (
         regexp_replace(COALESCE(NULLIF(BTRIM(page_path), ''), '/'), '/$', '')
@@ -111,7 +124,7 @@ export async function getHeatmapData(
   }));
 }
 
-export async function listPages(websiteId: string): Promise<PageSummaryRow[]> {
+export async function listPages(websiteUuid: string): Promise<PageSummaryRow[]> {
   const rows = await sql`
     SELECT page_path,
            COALESCE(SUM(CASE WHEN event_type = 'click'  THEN intensity ELSE 0 END), 0)::int AS click_count,
@@ -119,7 +132,7 @@ export async function listPages(websiteId: string): Promise<PageSummaryRow[]> {
            COALESCE(AVG(CASE WHEN event_type = 'scroll' THEN y_percent END), 0)::int AS avg_scroll_raw,
            MAX(last_updated) AS last_seen
     FROM heatmap_points
-    WHERE website_id = ${websiteId}::uuid
+    WHERE website_id = ${websiteUuid}::uuid
     GROUP BY page_path
     ORDER BY click_count DESC
   `;
@@ -132,14 +145,39 @@ export async function listPages(websiteId: string): Promise<PageSummaryRow[]> {
   }));
 }
 
-export async function deleteHeatmaps(websiteId: string, pagePaths: string[]): Promise<void> {
+export async function deleteHeatmaps(websiteUuid: string, pagePaths: string[]): Promise<void> {
   if (pagePaths.length === 0) return;
   await sql`
     DELETE FROM heatmap_points
-    WHERE website_id = ${websiteId}::uuid
+    WHERE website_id = ${websiteUuid}::uuid
       AND (
         page_path = ANY(${pagePaths})
         OR ${NORM_PAGE_PATH_EXPR} = ANY(${pagePaths})
       )
   `;
+}
+
+/**
+ * Pages whose stored snapshot has gone stale, for the scheduled re-capture.
+ *
+ * `DISTINCT ON` because a page can have both a JPEG and an HTML snapshot row
+ * shape and one re-capture refreshes both. Rows with no stored artefact at all are
+ * excluded — there is nothing to refresh, and the dashboard already triggers a
+ * first capture on its own miss.
+ *
+ * `websiteUuid` here comes back out of the table, so callers must resolve it to a
+ * `site_id` before touching S3 or `analytics_events`.
+ */
+export async function listStalePageSnapshots(
+  staleBefore: Date,
+  limit: number,
+): Promise<{ websiteUuid: string; pagePath: string }[]> {
+  const rows = await sql<{ website_id: string; page_path: string }[]>`
+    SELECT DISTINCT ON (website_id, page_path) website_id::text AS website_id, page_path
+    FROM heatmap_page_snapshots
+    WHERE updated_at < ${staleBefore}
+      AND (s3_key <> '' OR html_s3_key IS NOT NULL)
+    LIMIT ${limit}
+  `;
+  return rows.map((r) => ({ websiteUuid: r.website_id, pagePath: r.page_path }));
 }

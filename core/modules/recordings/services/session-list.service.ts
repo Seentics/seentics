@@ -1,17 +1,20 @@
-import { listSessions } from "../../lib/replay-db";
-import { resolveWebsiteIds, resolveWebsiteIdsLenient } from "../../lib/website-resolve";
+import { listSessions } from "../repositories/recording.repository";
 import { clampListParams, timestampToIso } from "./shared";
 
+/**
+ * Recorded sessions for a website, newest first.
+ *
+ * Takes both resolved identifiers because recording rows are keyed by whichever
+ * one the tracker sent; the repository matches on either. Resolution itself is
+ * `RecordingService`'s job, done once per request through the websites port.
+ */
 export async function listReplaySessions(
-  websiteParam: string,
+  siteId: string,
+  uuidStr: string,
   limit: number,
   offset: number,
-  opts: { lenientResolve: boolean },
 ) {
   const { limit: lim, offset: off } = clampListParams(limit, offset);
-  const { siteId, uuidStr } = opts.lenientResolve
-    ? await resolveWebsiteIdsLenient(websiteParam)
-    : await resolveWebsiteIds(websiteParam);
   const sessions = await listSessions(siteId, uuidStr, lim, off);
   const out = sessions.map((s) => ({
     sessionId: s.sessionId,
@@ -30,14 +33,22 @@ export async function listReplaySessions(
   return { sessions: out, limit: lim, offset: off };
 }
 
-/** Raw API: snake_case rows + ids for meta envelope. */
-export async function listReplaySessionsRaw(websiteParam: string, limit: number, offset: number) {
-  const { siteId, uuidStr } = await resolveWebsiteIds(websiteParam);
+/**
+ * Raw API variant: snake_case rows for that surface's response shape.
+ *
+ * Takes both resolved identifiers, like its sibling above. The raw API's key
+ * middleware already resolved the website in order to authenticate the request, so
+ * resolving again here was a second lookup for an answer the caller was holding.
+ */
+export async function listReplaySessionsRaw(
+  siteId: string,
+  uuidStr: string,
+  limit: number,
+  offset: number,
+) {
   const { limit: lim, offset: off } = clampListParams(limit, offset);
   const sessions = await listSessions(siteId, uuidStr, lim, off);
   return {
-    siteId,
-    uuidStr,
     limit: lim,
     offset: off,
     sessions: sessions.map((s) => ({

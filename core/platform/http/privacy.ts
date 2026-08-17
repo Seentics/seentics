@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { authMiddleware, requireUser, type AuthVars } from "../middleware/auth";
+import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
 
 const r = new Hono<{ Variables: AuthVars }>();
 r.use("*", authMiddleware);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { layoutPathSlot, heatmapScreenshotKey, heatmapHtmlSnapshotKey } from "../../lib/keys";
+import { layoutPathSlot, heatmapScreenshotKey, heatmapHtmlSnapshotKey } from "../../../modules/heatmaps/lib/keys";
 
 describe("layoutPathSlot", () => {
   it("returns a string in siteId_hexhash format", () => {

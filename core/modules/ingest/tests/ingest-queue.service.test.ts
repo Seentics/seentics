@@ -1,263 +1,516 @@
-import { describe, it, expect, mock, beforeAll, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach } from "bun:test";
 import type { AppConfig } from "../../../config";
+import type { Logger } from "../../../platform/lib/logger";
+import type {
+  AnalyticsIngestEvent,
+  AutomationTriggerQueued,
+  HeatmapIngestEvent,
+  TrackerEvent,
+} from "../../../platform/lib/types";
+import { InMemoryEventBus, type EventName } from "../../../infrastructure/events";
+import type { IngestSinks } from "../interfaces";
+import { IngestQueueService } from "../services/ingest-queue.service";
 
-// ─── Mocks ────────────────────────────────────────────────────────────────────
-// Do NOT mock analytics-batch here — it has its own test file.
-// Mock the DB instead so the real analytics-batch code runs under test.
-
-const mockDbValues = mock(async () => {});
-const mockDbInsert = mock(() => ({ values: mockDbValues }));
-const mockDbTxInsert = mock(() => ({ values: mockDbValues }));
-
-mock.module("../../../db", () => ({
-  analyticsEvents: {},
-  automations: {},
-  automationEvents: {},
-  db: {
-    insert: mockDbInsert,
-    transaction: mock(async (fn: any) => fn({ insert: mockDbTxInsert })),
-    // automation-batch uses db.select().from().where() to check active automations
-    select: mock(() => ({ from: mock(() => ({ where: mock(async () => []) })) })),
-  },
-  sql: mock(async () => []),
-}));
-
-// Mock automation-batch: no separate test file exists, safe to mock entirely.
-const mockIngestAutomationTriggersBatch = mock(async () => {});
-mock.module("../../../services/ingest/automation-batch", () => ({
-  ingestAutomationTriggersBatch: mockIngestAutomationTriggersBatch,
-}));
-
-const mockProcessReplayEvents = mock(async () => {});
-mock.module("../../../lib/replay-engine", () => ({
-  getReplayEngine: () => ({ processEvents: mockProcessReplayEvents }),
-}));
-
-const mockProcessHeatmapEvents = mock(async () => {});
-mock.module("../../../lib/heatmap-engine", () => ({
-  getHeatmapEngine: () => ({ processEvents: mockProcessHeatmapEvents }),
-}));
-
-mock.module("../../../lib/logger", () => ({
-  log: { child: () => ({ error: () => {}, debug: () => {}, info: () => {}, warn: () => {} }) },
-}));
-
-// ─── Dynamic import after mocks ───────────────────────────────────────────────
-
-let enqueueEvents: (siteId: string, events: any[]) => void;
-let enqueueFunnels: (siteId: string, events: any[]) => void;
-let enqueueRecordings: (events: any[]) => void;
-let enqueueHeatmaps: (events: any[]) => void;
-let enqueueAutomations: (rows: any[]) => void;
-let startIngestQueueFlusher: (cfg: AppConfig) => void;
-let stopIngestQueueFlusher: () => void;
-let flushIngestQueuesNow: () => Promise<void>;
-
-// Minimal valid analytics event (type must not be in ANALYTICS_SKIP, ts required)
-function ev(type = "pageview") {
-  return { type, ts: 1_700_000_000_000 };
+function makeLogger(): { logger: Logger; lines: Record<string, unknown>[] } {
+  const lines: Record<string, unknown>[] = [];
+  const logger: Logger = {
+    debug() {},
+    info() {},
+    warn(fields) {
+      lines.push(fields);
+    },
+    error(fields) {
+      lines.push(fields);
+    },
+    child() {
+      return logger;
+    },
+  };
+  return { logger, lines };
 }
 
-beforeAll(async () => {
-  const mod = await import("../../../services/ingest/queues");
-  enqueueEvents = mod.enqueueEvents;
-  enqueueFunnels = mod.enqueueFunnels;
-  enqueueRecordings = mod.enqueueRecordings;
-  enqueueHeatmaps = mod.enqueueHeatmaps;
-  enqueueAutomations = mod.enqueueAutomations;
-  startIngestQueueFlusher = mod.startIngestQueueFlusher;
-  stopIngestQueueFlusher = mod.stopIngestQueueFlusher;
-  flushIngestQueuesNow = mod.flushIngestQueuesNow;
+/**
+ * Recording sinks. `failAnalyticsFor` drives the retry path, which is the behaviour
+ * most worth pinning here and which the previous `mock.module`-based tests could not
+ * reach.
+ */
+class FakeSinks implements IngestSinks {
+  analyticsCalls: { siteId: string; count: number }[] = [];
+  automationCalls: AutomationTriggerQueued[][] = [];
+  recordingCalls: TrackerEvent[][] = [];
+  heatmapCalls: HeatmapIngestEvent[][] = [];
 
-  // Small thresholds so we can exercise cap enforcement without huge arrays.
-  // cap = maxEventsBeforeForceFlush * 2 (QUEUE_HARD_CAP_MULTIPLIER)
-  startIngestQueueFlusher({
+  failAnalyticsFor = new Set<string>();
+  failRecordings = false;
+  failHeatmaps = false;
+  failAutomations = false;
+  /** Rows reported inserted; lower than input models de-duplication. */
+  insertedOverride: number | null = null;
+
+  async writeAnalyticsBatch(siteId: string, events: AnalyticsIngestEvent[]): Promise<number> {
+    this.analyticsCalls.push({ siteId, count: events.length });
+    if (this.failAnalyticsFor.has(siteId)) throw new Error("insert failed");
+    return this.insertedOverride ?? events.length;
+  }
+  async writeAutomationTriggers(rows: AutomationTriggerQueued[]): Promise<void> {
+    this.automationCalls.push(rows);
+    if (this.failAutomations) throw new Error("automations sink down");
+  }
+  async processRecordings(events: TrackerEvent[]): Promise<void> {
+    this.recordingCalls.push(events);
+    if (this.failRecordings) throw new Error("replay engine down");
+  }
+  async processHeatmaps(events: HeatmapIngestEvent[]): Promise<void> {
+    this.heatmapCalls.push(events);
+    if (this.failHeatmaps) throw new Error("heatmap engine down");
+  }
+}
+
+function ev(n = 1): AnalyticsIngestEvent[] {
+  return Array.from({ length: n }, (_, i) => ({ eventType: "pageview", i }) as unknown as AnalyticsIngestEvent);
+}
+
+/** Config with low thresholds so cap and force-flush behaviour is reachable. */
+function cfgWith(overrides: Partial<Record<string, number>> = {}): AppConfig {
+  return {
     ingestQueue: {
-      flushMs: 60_000,
-      maxEventsBeforeForceFlush: 5,
-      maxRecordingsBeforeForceFlush: 5,
-      maxHeatmapsBeforeForceFlush: 5,
-      maxFunnelsBeforeForceFlush: 5,
-      maxAutomationsBeforeForceFlush: 5,
+      flushMs: 10_000, // long, so only explicit flushes run during a test
+      maxEventsBeforeForceFlush: 1_000_000,
+      maxRecordingsBeforeForceFlush: 1_000_000,
+      maxHeatmapsBeforeForceFlush: 1_000_000,
+      maxFunnelsBeforeForceFlush: 1_000_000,
+      maxAutomationsBeforeForceFlush: 1_000_000,
+      ...overrides,
     },
-  } as AppConfig);
-  stopIngestQueueFlusher(); // don't let the interval fire during tests
-  await flushIngestQueuesNow(); // drain any events enqueued by setup
-});
+  } as unknown as AppConfig;
+}
 
-beforeEach(async () => {
-  // Drain leftover state, then clear call histories.
-  await flushIngestQueuesNow();
-  mockDbValues.mockClear();
-  mockDbInsert.mockClear();
-  mockDbTxInsert.mockClear();
-  mockProcessReplayEvents.mockClear();
-  mockProcessHeatmapEvents.mockClear();
-  mockIngestAutomationTriggersBatch.mockClear();
-});
+describe("IngestQueueService", () => {
+  let sinks: FakeSinks;
+  let lines: Record<string, unknown>[];
+  let queue: IngestQueueService;
+  let published: { type: EventName; payload: unknown }[];
 
-// ─── enqueueEvents ────────────────────────────────────────────────────────────
-
-describe("enqueueEvents", () => {
-  it("no-ops for empty array (no DB insert)", async () => {
-    enqueueEvents("s1", []);
-    await flushIngestQueuesNow();
-    expect(mockDbValues).not.toHaveBeenCalled();
+  beforeEach(() => {
+    sinks = new FakeSinks();
+    const l = makeLogger();
+    lines = l.lines;
+    const inner = new InMemoryEventBus(l.logger);
+    published = [];
+    const bus = {
+      publish: async (type: EventName, payload: unknown) => {
+        published.push({ type, payload });
+        await inner.publish(type, payload as never);
+      },
+      subscribe: inner.subscribe.bind(inner),
+    };
+    queue = new IngestQueueService(sinks, bus, l.logger);
+    queue.configure(cfgWith());
   });
 
-  it("inserts enqueued events into the DB on flush", async () => {
-    enqueueEvents("site1", [ev()]);
-    await flushIngestQueuesNow();
-    expect(mockDbValues).toHaveBeenCalledTimes(1);
-    const rows = (mockDbValues.mock.calls[0] as any)[0] as any[];
-    expect(rows.length).toBe(1);
+  describe("analytics events", () => {
+    it("no-ops for an empty array", async () => {
+      queue.enqueueEvents("site_a", []);
+      await queue.flushNow();
+      expect(sinks.analyticsCalls).toEqual([]);
+    });
+
+    it("writes enqueued events on flush", async () => {
+      queue.enqueueEvents("site_a", ev(3));
+      await queue.flushNow();
+      expect(sinks.analyticsCalls).toEqual([{ siteId: "site_a", count: 3 }]);
+    });
+
+    it("accumulates events for one site into a single write", async () => {
+      queue.enqueueEvents("site_a", ev(2));
+      queue.enqueueEvents("site_a", ev(3));
+      await queue.flushNow();
+      expect(sinks.analyticsCalls).toEqual([{ siteId: "site_a", count: 5 }]);
+    });
+
+    it("writes each site separately", async () => {
+      queue.enqueueEvents("site_a", ev(1));
+      queue.enqueueEvents("site_b", ev(2));
+      await queue.flushNow();
+
+      expect(sinks.analyticsCalls).toHaveLength(2);
+      expect(sinks.analyticsCalls.map((c) => c.siteId).sort()).toEqual(["site_a", "site_b"]);
+    });
+
+    // The snapshot-swap guard: `clear()`ing the returned reference instead of
+    // swapping in a fresh Map dropped every buffered event once already.
+    it("empties the buffer so a second flush is a no-op", async () => {
+      queue.enqueueEvents("site_a", ev(2));
+      await queue.flushNow();
+      await queue.flushNow();
+
+      expect(sinks.analyticsCalls).toHaveLength(1);
+    });
+
+    it("reports queue depth before and after a flush", async () => {
+      queue.enqueueEvents("site_a", ev(4));
+      expect(queue.depth().events).toBe(4);
+
+      await queue.flushNow();
+      expect(queue.depth().events).toBe(0);
+    });
   });
 
-  it("accumulates events for the same site into one insert", async () => {
-    enqueueEvents("site1", [ev()]);
-    enqueueEvents("site1", [ev(), ev()]);
-    await flushIngestQueuesNow();
-    expect(mockDbValues).toHaveBeenCalledTimes(1);
-    const rows = (mockDbValues.mock.calls[0] as any)[0] as any[];
-    expect(rows.length).toBe(3);
+  describe("force flush on threshold", () => {
+    it("flushes without an explicit call once the threshold is reached", async () => {
+      queue.configure(cfgWith({ maxEventsBeforeForceFlush: 5 }));
+      queue.enqueueEvents("site_a", ev(5));
+
+      // The force flush is scheduled, not awaited, so give the chain a turn.
+      await queue.flushNow();
+      expect(sinks.analyticsCalls[0]?.count).toBe(5);
+    });
   });
 
-  it("flushes events for different sites via separate DB calls", async () => {
-    enqueueEvents("site1", [ev()]);
-    enqueueEvents("site2", [ev()]);
-    await flushIngestQueuesNow();
-    expect(mockDbValues).toHaveBeenCalledTimes(2);
+  describe("hard cap", () => {
+    it("drops the overflow beyond 2x the threshold", async () => {
+      queue.configure(cfgWith({ maxEventsBeforeForceFlush: 5 })); // cap = 10
+      queue.enqueueEvents("site_a", ev(25));
+      await queue.flushNow();
+
+      const total = sinks.analyticsCalls.reduce((n, c) => n + c.count, 0);
+      expect(total).toBe(10);
+    });
+
+    it("logs what it dropped", () => {
+      queue.configure(cfgWith({ maxEventsBeforeForceFlush: 5 }));
+      queue.enqueueEvents("site_a", ev(25));
+
+      const drop = lines.find((l) => l.msg === "ingest_events_queue_full_drop");
+      expect(drop).toMatchObject({ dropped: 15, cap: 10 });
+    });
+
+    it("rejects everything once the queue is already at cap", async () => {
+      queue.configure(cfgWith({ maxEventsBeforeForceFlush: 2 })); // cap = 4
+      queue.enqueueEvents("site_a", ev(4));
+      queue.enqueueEvents("site_b", ev(10));
+      await queue.flushNow();
+
+      expect(sinks.analyticsCalls.map((c) => c.siteId)).toEqual(["site_a"]);
+    });
   });
 
-  it("drops events beyond the hard cap (threshold=5 → cap=10)", async () => {
-    // Enqueue 15 at once; only 10 fit in the cap.
-    enqueueEvents("site1", Array.from({ length: 15 }, () => ev()));
-    await flushIngestQueuesNow();
-    const allRows = (mockDbValues.mock.calls as any[]).flatMap((call: any[]) => call[0] as any[]);
-    expect(allRows.length).toBe(10);
+  /**
+   * The retry path. Analytics and funnels are the only retryable branches, because
+   * a dropped analytics row corrupts a count while a dropped heatmap point only
+   * degrades a picture.
+   */
+  describe("failed analytics flush", () => {
+    it("requeues the batch rather than dropping it", async () => {
+      sinks.failAnalyticsFor.add("site_a");
+      queue.enqueueEvents("site_a", ev(3));
+      await queue.flushNow();
+
+      expect(queue.depth().events).toBe(3);
+    });
+
+    it("retries on the next flush and succeeds once the sink recovers", async () => {
+      sinks.failAnalyticsFor.add("site_a");
+      queue.enqueueEvents("site_a", ev(3));
+      await queue.flushNow();
+
+      sinks.failAnalyticsFor.clear();
+      await queue.flushNow();
+
+      expect(sinks.analyticsCalls).toHaveLength(2);
+      expect(queue.depth().events).toBe(0);
+    });
+
+    // Dropping eventually is deliberate: a site whose rows never insert would
+    // otherwise hold its snapshot forever and block the queue behind the hard cap.
+    it("drops the batch after three failed attempts", async () => {
+      sinks.failAnalyticsFor.add("site_a");
+      queue.enqueueEvents("site_a", ev(3));
+
+      await queue.flushNow();
+      await queue.flushNow();
+      await queue.flushNow();
+
+      expect(queue.depth().events).toBe(0);
+      const dropped = lines.find((l) => l.dropped === 3);
+      expect(dropped).toMatchObject({ msg: "ingest_analytics_batch_failed", attempts: 3 });
+    });
+
+    it("keeps a healthy site flushing while another fails", async () => {
+      sinks.failAnalyticsFor.add("site_bad");
+      queue.enqueueEvents("site_bad", ev(2));
+      queue.enqueueEvents("site_good", ev(2));
+      await queue.flushNow();
+
+      expect(sinks.analyticsCalls).toHaveLength(2);
+      // Only the failing site is still buffered.
+      expect(queue.depth().events).toBe(2);
+    });
+
+    it("preserves ordering by prepending the retried batch", async () => {
+      sinks.failAnalyticsFor.add("site_a");
+      queue.enqueueEvents("site_a", ev(2));
+      await queue.flushNow();
+
+      queue.enqueueEvents("site_a", ev(1));
+      sinks.failAnalyticsFor.clear();
+      await queue.flushNow();
+
+      // Retried rows plus the newly enqueued one, in one write.
+      expect(sinks.analyticsCalls[1]).toEqual({ siteId: "site_a", count: 3 });
+    });
   });
 
-  it("queue is empty after flush — second flush is a no-op", async () => {
-    enqueueEvents("site1", [ev()]);
-    await flushIngestQueuesNow();
-    mockDbValues.mockClear();
-    await flushIngestQueuesNow();
-    expect(mockDbValues).not.toHaveBeenCalled();
-  });
-});
+  describe("funnels", () => {
+    it("no-ops for an empty array", async () => {
+      queue.enqueueFunnels("site_a", []);
+      await queue.flushNow();
+      expect(sinks.analyticsCalls).toEqual([]);
+    });
 
-// ─── enqueueFunnels ───────────────────────────────────────────────────────────
+    it("writes funnel events through the analytics sink", async () => {
+      queue.enqueueFunnels("site_a", ev(2));
+      await queue.flushNow();
+      expect(sinks.analyticsCalls).toEqual([{ siteId: "site_a", count: 2 }]);
+    });
 
-describe("enqueueFunnels", () => {
-  it("no-ops for empty array", async () => {
-    enqueueFunnels("s1", []);
-    await flushIngestQueuesNow();
-    expect(mockDbValues).not.toHaveBeenCalled();
-  });
+    it("writes each site separately", async () => {
+      queue.enqueueFunnels("site_a", ev(1));
+      queue.enqueueFunnels("site_b", ev(1));
+      await queue.flushNow();
+      expect(sinks.analyticsCalls).toHaveLength(2);
+    });
 
-  it("inserts funnel events into the DB on flush", async () => {
-    enqueueFunnels("site1", [ev("funnel_step")]);
-    await flushIngestQueuesNow();
-    expect(mockDbValues).toHaveBeenCalledTimes(1);
-  });
+    // Funnels and events share a sink but not a buffer or a retry counter.
+    it("is buffered separately from events", async () => {
+      queue.enqueueEvents("site_a", ev(2));
+      queue.enqueueFunnels("site_a", ev(3));
 
-  it("flushes funnels for multiple sites with separate DB calls", async () => {
-    enqueueFunnels("site1", [ev()]);
-    enqueueFunnels("site2", [ev()]);
-    await flushIngestQueuesNow();
-    expect(mockDbValues).toHaveBeenCalledTimes(2);
-  });
-});
-
-// ─── enqueueRecordings ────────────────────────────────────────────────────────
-
-describe("enqueueRecordings", () => {
-  it("no-ops for empty array", async () => {
-    enqueueRecordings([]);
-    await flushIngestQueuesNow();
-    expect(mockProcessReplayEvents).not.toHaveBeenCalled();
+      expect(queue.depth()).toMatchObject({ events: 2, funnels: 3 });
+    });
   });
 
-  it("passes recordings to the replay engine on flush", async () => {
-    const recordings = [{ sid: "s1", events: [] }];
-    enqueueRecordings(recordings);
-    await flushIngestQueuesNow();
-    expect(mockProcessReplayEvents).toHaveBeenCalledWith(recordings);
+  describe("recordings", () => {
+    it("no-ops for an empty array", async () => {
+      queue.enqueueRecordings([]);
+      await queue.flushNow();
+      expect(sinks.recordingCalls).toEqual([]);
+    });
+
+    it("passes recordings to the engine", async () => {
+      queue.enqueueRecordings([{ type: "rrweb" } as unknown as TrackerEvent]);
+      await queue.flushNow();
+      expect(sinks.recordingCalls).toHaveLength(1);
+    });
+
+    it("empties the buffer after flush", async () => {
+      queue.enqueueRecordings([{ type: "rrweb" } as unknown as TrackerEvent]);
+      await queue.flushNow();
+      expect(queue.depth().recordings).toBe(0);
+    });
+
+    // Not requeued: no retry counter, so re-adding on every failure would grow the
+    // buffer without bound while the engine stays down.
+    it("does not requeue after an engine failure", async () => {
+      sinks.failRecordings = true;
+      queue.enqueueRecordings([{ type: "rrweb" } as unknown as TrackerEvent]);
+      await queue.flushNow();
+
+      expect(queue.depth().recordings).toBe(0);
+      expect(lines.some((l) => l.msg === "ingest_recordings_failed")).toBe(true);
+    });
   });
 
-  it("queue is empty after flush", async () => {
-    enqueueRecordings([{ sid: "r1" }]);
-    await flushIngestQueuesNow();
-    mockProcessReplayEvents.mockClear();
-    await flushIngestQueuesNow();
-    expect(mockProcessReplayEvents).not.toHaveBeenCalled();
-  });
-});
+  describe("heatmaps", () => {
+    it("no-ops for an empty array", async () => {
+      queue.enqueueHeatmaps([]);
+      await queue.flushNow();
+      expect(sinks.heatmapCalls).toEqual([]);
+    });
 
-// ─── enqueueHeatmaps ──────────────────────────────────────────────────────────
+    it("passes heatmaps to the engine", async () => {
+      queue.enqueueHeatmaps([{ type: "click" } as unknown as HeatmapIngestEvent]);
+      await queue.flushNow();
+      expect(sinks.heatmapCalls).toHaveLength(1);
+    });
 
-describe("enqueueHeatmaps", () => {
-  it("no-ops for empty array", async () => {
-    enqueueHeatmaps([]);
-    await flushIngestQueuesNow();
-    expect(mockProcessHeatmapEvents).not.toHaveBeenCalled();
-  });
-
-  it("passes heatmaps to the heatmap engine on flush", async () => {
-    const heatmaps = [{ type: "heatmap_click", nx: 0.5 }];
-    enqueueHeatmaps(heatmaps);
-    await flushIngestQueuesNow();
-    expect(mockProcessHeatmapEvents).toHaveBeenCalledWith(heatmaps);
+    it("empties the buffer after flush", async () => {
+      queue.enqueueHeatmaps([{ type: "click" } as unknown as HeatmapIngestEvent]);
+      await queue.flushNow();
+      expect(queue.depth().heatmaps).toBe(0);
+    });
   });
 
-  it("queue is empty after flush", async () => {
-    enqueueHeatmaps([{ type: "heatmap_scroll" }]);
-    await flushIngestQueuesNow();
-    mockProcessHeatmapEvents.mockClear();
-    await flushIngestQueuesNow();
-    expect(mockProcessHeatmapEvents).not.toHaveBeenCalled();
-  });
-});
+  describe("automations", () => {
+    it("no-ops for an empty array", async () => {
+      queue.enqueueAutomations([]);
+      await queue.flushNow();
+      expect(sinks.automationCalls).toEqual([]);
+    });
 
-// ─── enqueueAutomations ───────────────────────────────────────────────────────
+    it("writes queued triggers", async () => {
+      queue.enqueueAutomations([{ automationId: "a" } as unknown as AutomationTriggerQueued]);
+      await queue.flushNow();
+      expect(sinks.automationCalls).toHaveLength(1);
+    });
 
-describe("enqueueAutomations", () => {
-  it("no-ops for empty array", async () => {
-    enqueueAutomations([]);
-    await flushIngestQueuesNow();
-    expect(mockIngestAutomationTriggersBatch).not.toHaveBeenCalled();
-  });
-
-  it("passes automation rows to the automation batch on flush", async () => {
-    const rows = [{ websiteUuid: "w1", automationId: "a1", occurredAt: new Date(), detail: {} }];
-    enqueueAutomations(rows);
-    await flushIngestQueuesNow();
-    expect(mockIngestAutomationTriggersBatch).toHaveBeenCalledWith(rows);
+    it("empties the buffer after flush", async () => {
+      queue.enqueueAutomations([{ automationId: "a" } as unknown as AutomationTriggerQueued]);
+      await queue.flushNow();
+      expect(queue.depth().automations).toBe(0);
+    });
   });
 
-  it("queue is empty after flush", async () => {
-    enqueueAutomations([{ websiteUuid: "w1", automationId: "a1", occurredAt: new Date(), detail: {} }]);
-    await flushIngestQueuesNow();
-    mockIngestAutomationTriggersBatch.mockClear();
-    await flushIngestQueuesNow();
-    expect(mockIngestAutomationTriggersBatch).not.toHaveBeenCalled();
+  describe("flush isolation", () => {
+    it("drains every category in one call", async () => {
+      queue.enqueueEvents("site_a", ev(1));
+      queue.enqueueFunnels("site_a", ev(1));
+      queue.enqueueRecordings([{ type: "rrweb" } as unknown as TrackerEvent]);
+      queue.enqueueHeatmaps([{ type: "click" } as unknown as HeatmapIngestEvent]);
+      queue.enqueueAutomations([{ automationId: "a" } as unknown as AutomationTriggerQueued]);
+
+      await queue.flushNow();
+
+      expect(sinks.analyticsCalls).toHaveLength(2);
+      expect(sinks.recordingCalls).toHaveLength(1);
+      expect(sinks.heatmapCalls).toHaveLength(1);
+      expect(sinks.automationCalls).toHaveLength(1);
+    });
+
+    // One sink being down must not stop the other four.
+    it("flushes the healthy branches when one sink throws", async () => {
+      sinks.failRecordings = true;
+      sinks.failHeatmaps = true;
+
+      queue.enqueueEvents("site_a", ev(1));
+      queue.enqueueRecordings([{ type: "rrweb" } as unknown as TrackerEvent]);
+      queue.enqueueHeatmaps([{ type: "click" } as unknown as HeatmapIngestEvent]);
+      queue.enqueueAutomations([{ automationId: "a" } as unknown as AutomationTriggerQueued]);
+
+      await queue.flushNow();
+
+      expect(sinks.analyticsCalls).toHaveLength(1);
+      expect(sinks.automationCalls).toHaveLength(1);
+    });
+
+    it("never rejects from flushNow even when every sink fails", async () => {
+      sinks.failAnalyticsFor.add("site_a");
+      sinks.failRecordings = true;
+      sinks.failHeatmaps = true;
+      sinks.failAutomations = true;
+
+      queue.enqueueEvents("site_a", ev(1));
+      queue.enqueueRecordings([{ type: "rrweb" } as unknown as TrackerEvent]);
+      queue.enqueueHeatmaps([{ type: "click" } as unknown as HeatmapIngestEvent]);
+      queue.enqueueAutomations([{ automationId: "a" } as unknown as AutomationTriggerQueued]);
+
+      await expect(queue.flushNow()).resolves.toBeUndefined();
+    });
   });
-});
 
-// ─── Mixed flush ──────────────────────────────────────────────────────────────
+  describe("lifecycle", () => {
+    it("start is idempotent", () => {
+      queue.start();
+      queue.start();
+      queue.stop();
+      // Reaching here without a lingering interval is the assertion; a second
+      // timer would keep the process alive past stop().
+      expect(queue.depth().events).toBe(0);
+    });
 
-describe("flushIngestQueuesNow – mixed batch", () => {
-  it("flushes all queue types in one call", async () => {
-    enqueueEvents("s1", [ev()]);
-    enqueueRecordings([{ sid: "r1" }]);
-    enqueueHeatmaps([{ type: "heatmap_click" }]);
-    enqueueAutomations([{ websiteUuid: "w1", automationId: "a1", occurredAt: new Date(), detail: {} }]);
-    enqueueFunnels("s1", [ev()]);
-    await flushIngestQueuesNow();
-    // Events + funnels both write to DB (2 calls for "s1")
-    expect(mockDbValues.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(mockProcessReplayEvents).toHaveBeenCalledTimes(1);
-    expect(mockProcessHeatmapEvents).toHaveBeenCalledTimes(1);
-    expect(mockIngestAutomationTriggersBatch).toHaveBeenCalledTimes(1);
+    it("stop is safe when never started", () => {
+      expect(() => queue.stop()).not.toThrow();
+    });
+
+    it("flushes on the timer once started", async () => {
+      queue.configure(cfgWith({ flushMs: 20 } as never));
+      queue.enqueueEvents("site_a", ev(1));
+      queue.start();
+
+      await new Promise((r) => setTimeout(r, 60));
+      queue.stop();
+
+      expect(sinks.analyticsCalls).toHaveLength(1);
+    });
+
+    it("does not flush after stop", async () => {
+      queue.configure(cfgWith({ flushMs: 20 } as never));
+      queue.start();
+      queue.stop();
+      queue.enqueueEvents("site_a", ev(1));
+
+      await new Promise((r) => setTimeout(r, 60));
+      expect(sinks.analyticsCalls).toHaveLength(0);
+    });
+  });
+
+  /**
+   * `analytics.batch_ingested` already had a subscriber — automation evaluation —
+   * but nothing published it, so that wiring was dead. These pin the contract.
+   */
+  describe("analytics.batch_ingested", () => {
+    it("announces a successful flush", async () => {
+      queue.enqueueEvents("site_a", ev(3));
+      await queue.flushNow();
+
+      const e = published.find((p) => p.type === "analytics.batch_ingested");
+      expect(e?.payload).toMatchObject({ siteId: "site_a", eventCount: 3 });
+    });
+
+    it("reports the inserted count, not the submitted count", async () => {
+      sinks.insertedOverride = 2;
+      queue.enqueueEvents("site_a", ev(5));
+      await queue.flushNow();
+
+      const e = published.find((p) => p.type === "analytics.batch_ingested");
+      expect(e?.payload).toMatchObject({ eventCount: 2 });
+    });
+
+    // Announcing on enqueue would have consumers reacting to rows a later failure
+    // drops. Nothing is announced until the write succeeded.
+    it("announces nothing when the write failed", async () => {
+      sinks.failAnalyticsFor.add("site_a");
+      queue.enqueueEvents("site_a", ev(3));
+      await queue.flushNow();
+
+      expect(published.filter((p) => p.type === "analytics.batch_ingested")).toEqual([]);
+    });
+
+    it("announces once per site", async () => {
+      queue.enqueueEvents("site_a", ev(1));
+      queue.enqueueEvents("site_b", ev(1));
+      await queue.flushNow();
+
+      const sites = published
+        .filter((p) => p.type === "analytics.batch_ingested")
+        .map((p) => (p.payload as { siteId: string }).siteId)
+        .sort();
+      expect(sites).toEqual(["site_a", "site_b"]);
+    });
+
+    it("announces nothing when there was nothing to flush", async () => {
+      await queue.flushNow();
+      expect(published).toEqual([]);
+    });
+  });
+
+  describe("insert count reporting", () => {
+    it("tolerates a sink reporting fewer rows inserted than submitted", async () => {
+      sinks.insertedOverride = 1;
+      queue.enqueueEvents("site_a", ev(5));
+      await queue.flushNow();
+
+      // De-duplication is the sink's business; the queue must still consider the
+      // batch delivered and not retry it.
+      expect(queue.depth().events).toBe(0);
+    });
+
+    it("treats zero inserted as success, not failure", async () => {
+      sinks.insertedOverride = 0;
+      queue.enqueueEvents("site_a", ev(3));
+      await queue.flushNow();
+
+      expect(queue.depth().events).toBe(0);
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { randomHex, newSiteId, newTrackingId, newVerificationToken } from "../../lib/ids";
+import { randomHex, newSiteId, newTrackingId, newVerificationToken } from "../../../modules/websites/lib/ids";
 
 describe("randomHex", () => {
   it("returns a string of double the byte length", () => {

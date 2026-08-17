@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { renderTemplate, renderTemplateDeep } from "../../../lib/automations/template-engine";
+import { renderTemplate, renderTemplateDeep } from "../services/template-engine";
 
 // ─── renderTemplate ────────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import * as jose from "jose";
-import { env } from "../config";
+import { env } from "../../config";
 
 function secret(): Uint8Array {
   const s = env().jwtSecret;

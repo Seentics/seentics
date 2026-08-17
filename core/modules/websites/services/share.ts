@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
-import { db, websites } from "../../db";
-import { newSiteId } from "../../lib/ids";
-import { resolveWebsiteIds } from "../../lib/website-resolve";
+import { db, websites } from "../../../db";
+import { newSiteId } from "../lib/ids";
+import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
 import { assertWebsiteAccess } from "./access";
 
 export async function toggleShare(userId: string, websiteParam: string, enabled: boolean) {

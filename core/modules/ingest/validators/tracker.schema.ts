@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { zNonEmptyString } from "./validation";
+import { zNonEmptyString } from "../../../platform/validation";
 
 const zHeatmapEvent = z.object({
   type: z.enum(["heatmap_click", "heatmap_scroll"]),

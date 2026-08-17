@@ -1,6 +1,6 @@
 /** High-level KPIs for the main dashboard (single scan where possible). */
 import { sql as pgSql } from "../../../db";
-import { log } from "../../../lib/logger";
+import { log } from "../../../platform/lib/logger";
 import { parseDays } from "./shared";
 import { LIVE_VISITOR_WINDOW_MS } from "./realtime.repository";
 

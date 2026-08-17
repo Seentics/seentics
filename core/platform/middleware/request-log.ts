@@ -1,6 +1,6 @@
 import type { MiddlewareHandler } from "hono";
 import { getClientIp } from "../lib/client-ip";
-import type { AppConfig } from "../config";
+import type { AppConfig } from "../../config";
 import { log } from "../lib/logger";
 
 export function requestLogMiddleware(cfg: Pick<AppConfig, "trustProxy" | "slowRequestThresholdMs">): MiddlewareHandler {

@@ -1,11 +1,19 @@
-import { env } from "../../config";
-import { getReplayEngine } from "../../lib/replay-engine";
-import { deleteSessionByEitherId } from "../../lib/replay-db";
-import { deleteSessionPrefix } from "../../lib/s3";
-import { resolveWebsiteIdsLenient } from "../../lib/website-resolve";
+import { env } from "../../../config";
+import { getReplayEngine } from "./recording-engine.service";
+import { deleteSessionByEitherId } from "../repositories/recording.repository";
+import { deleteSessionPrefix } from "../../../platform/lib/s3";
 
-export async function batchDeleteReplaySessions(websiteParam: string, sessionIds: string[]) {
-  const { siteId, uuidStr } = await resolveWebsiteIdsLenient(websiteParam);
+/**
+ * Delete recordings and their stored chunks.
+ *
+ * Takes both resolved identifiers: spools, S3 prefixes and rows may all be
+ * written under either, so cleaning up only one leaves orphans behind.
+ */
+export async function batchDeleteReplaySessions(
+  siteId: string,
+  uuidStr: string,
+  sessionIds: string[],
+) {
   const engine = getReplayEngine();
   const bucket = env().s3.bucket;
 

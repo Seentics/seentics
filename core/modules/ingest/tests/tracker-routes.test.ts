@@ -1,7 +1,27 @@
-import { describe, it, expect, mock, beforeAll, beforeEach } from "bun:test";
-import type { WebsiteTrackerRow } from "../../lib/website-for-tracker";
+import { describe, it, expect, mock, beforeAll, beforeEach  } from "bun:test";
+import type { WebsiteTrackerRow } from "../../../platform/lib/website-for-tracker";
+import type {
+  AutomationEvaluation,
+  AutomationRow,
+  AutomationTrackerSettings,
+  EvaluateRequest,
+  EvaluateResult,
+} from "../../automations/interfaces";
+import type { Funnel, FunnelTrackerConfig } from "../../funnels/interfaces";
+import type {
+  BatchCaptureScreenshotResult,
+  CaptureScreenshotRequest,
+  CaptureScreenshotResult,
+  HeatmapScreenshotCapture,
+} from "../../heatmaps/interfaces";
 
 // ─── Mocks — must be declared before dynamic import ─────────────────────────
+//
+// Only what the routes still import directly is mocked: the website lookup they
+// share with every other tracker endpoint, the `/collect` sorters (ingest's own
+// internals, exercised by their own tests), the logger, the config and the geo/UA
+// enrichment. The four peer-module capabilities arrive through the factory as fakes
+// further down — that is the whole point of the injection.
 
 const mockResolveWebsite = mock(async (_id: string): Promise<WebsiteTrackerRow | null> => null);
 const mockListGoals      = mock(async () => []);
@@ -11,18 +31,8 @@ const mockHandleFunnels    = mock(() => {});
 const mockHandleAutomations = mock(() => {});
 const mockHandleRecordings  = mock(() => {});
 const mockHandleHeatmaps    = mock(() => {});
-const mockFunnelActive     = mock(async () => []);
-const mockAutoActive       = mock(async () => []);
-const mockAutoEvaluate     = mock(async () => ({ matched: false, actions: [] }));
-const mockCapture          = mock(async () => {});
 
-mock.module("../../lib/website-for-tracker", () => ({
-  resolveWebsiteForTracker: mockResolveWebsite,
-  listTrackerGoals: mockListGoals,
-  buildPublicTrackerConfig: mockBuildConfig,
-}));
-
-mock.module("../../services/ingest.service", () => ({
+mock.module("../services/collect-handlers", () => ({
   handleEvents: mockHandleEvents,
   handleFunnels: mockHandleFunnels,
   handleAutomations: mockHandleAutomations,
@@ -30,28 +40,22 @@ mock.module("../../services/ingest.service", () => ({
   handleHeatmaps: mockHandleHeatmaps,
 }));
 
-mock.module("../../services/funnels.service", () => ({
-  activeForTracker: mockFunnelActive,
-}));
-
-mock.module("../../services/automations.service", () => ({
-  activeForTracker: mockAutoActive,
-}));
-
-mock.module("../../services/automations-evaluate.service", () => ({
-  evaluate: mockAutoEvaluate,
-}));
-
-mock.module("../../services/heatmap-playwright.service", () => ({
-  captureHeatmapScreenshot: mockCapture,
-}));
-
-mock.module("../../lib/logger", () => ({
-  log: { debug: mock(() => {}), info: mock(() => {}), warn: mock(() => {}), error: mock(() => {}) },
-}));
+// A complete `Logger`: `child` must exist and must itself return a logger, because
+// modules call `log.child(...)` at import time. Bun's module mocks are global, so an
+// incomplete stub here breaks every other test file that imports the real logger.
+mock.module("../../../platform/lib/logger", () => {
+  const logger: Record<string, unknown> = {
+    debug: mock(() => {}),
+    info: mock(() => {}),
+    warn: mock(() => {}),
+    error: mock(() => {}),
+  };
+  logger.child = () => logger;
+  return { log: logger };
+});
 
 // dev environment → empty origin always passes, localhost always passes
-mock.module("../../config", () => ({
+mock.module("../../../config", () => ({
   env: () => ({
     environment: "development",
     trustProxy: false,
@@ -60,7 +64,7 @@ mock.module("../../config", () => ({
   }),
 }));
 
-mock.module("../../lib/analytics-ingest-meta", () => ({
+mock.module("../services/ingest-meta.service", () => ({
   buildAnalyticsIngestMeta: mock(() => ({
     country: "US", region: "CA", city: "SF",
     browser: "Chrome", device: "desktop", os: "macOS",
@@ -88,21 +92,112 @@ const ACTIVE_WEBSITE: WebsiteTrackerRow = {
   automation_enabled: true,
 };
 
-function post(path: string, body: unknown, headers: Record<string, string> = {}) {
-  return { path, method: "POST", body: JSON.stringify(body), headers: { "Content-Type": "application/json", ...headers } };
+/**
+ * Active funnel definitions for `/init`.
+ *
+ * `activeForWebsiteRef` throws: reaching for it here would mean the route is making
+ * the funnels module re-resolve a website it has already loaded.
+ */
+class FakeFunnelConfig implements FunnelTrackerConfig {
+  /** Returned verbatim; the route only passes these through. */
+  rows: unknown[] = [];
+  fail = false;
+  calls: string[] = [];
+
+  async activeForTracker(websiteUuid: string): Promise<Funnel[]> {
+    this.calls.push(websiteUuid);
+    if (this.fail) throw new Error("DB down");
+    return this.rows as Funnel[];
+  }
+
+  async activeForWebsiteRef(): Promise<Funnel[]> {
+    throw new Error("/tracker/init must use activeForTracker");
+  }
 }
 
-function get(path: string) {
-  return { path, method: "GET" };
+/** Active automations for `/init`. */
+class FakeAutomationSettings implements AutomationTrackerSettings {
+  rows: AutomationRow[] = [];
+  fail = false;
+  calls: string[] = [];
+
+  async activeFor(websiteRef: string): Promise<AutomationRow[]> {
+    this.calls.push(websiteRef);
+    if (this.fail) throw new Error("DB down");
+    return this.rows;
+  }
 }
 
-// ─── Load route module after mocks ───────────────────────────────────────────
+/** Server-side trigger evaluation. Records requests so identifier threading is assertable. */
+class FakeAutomationEvaluation implements AutomationEvaluation {
+  result: EvaluateResult = { matched: 0, actions: [] };
+  fail = false;
+  requests: EvaluateRequest[] = [];
 
-let app: { request: (path: string, init?: RequestInit) => Promise<Response> };
+  async evaluate(request: EvaluateRequest): Promise<EvaluateResult> {
+    this.requests.push(request);
+    if (this.fail) throw new Error("DB timeout");
+    return this.result;
+  }
+}
+
+/** On-demand Playwright capture. `captureBatch` throws — the tracker never batches. */
+class FakeScreenshotCapture implements HeatmapScreenshotCapture {
+  captures: { websiteRef: string; request: CaptureScreenshotRequest }[] = [];
+
+  async capture(
+    websiteRef: string,
+    request: CaptureScreenshotRequest,
+  ): Promise<CaptureScreenshotResult> {
+    this.captures.push({ websiteRef, request });
+    return { success: true, stored: true };
+  }
+
+  async captureBatch(): Promise<BatchCaptureScreenshotResult[]> {
+    throw new Error("the tracker captures one page at a time");
+  }
+}
+
+function makeAutomationRow(overrides: Partial<AutomationRow> = {}): AutomationRow {
+  return {
+    id: "a1",
+    websiteId: ACTIVE_WEBSITE.id,
+    userId: "user1",
+    name: "Exit popup",
+    definition: { trigger: "exit" },
+    isActive: true,
+    priority: 0,
+    status: "active",
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+// ─── Load the factory after the mocks ────────────────────────────────────────
+
+let createTrackerRoutes: typeof import("../routes").createTrackerRoutes;
+/** Records enqueues so a test can assert what `/collect` buffered. */
+function makeFakeQueue() {
+  return {
+    events: [] as unknown[],
+    enqueueEvents(_s: string, e: unknown[]) { this.events.push(...e); },
+    enqueueFunnels() {},
+    enqueueRecordings() {},
+    enqueueHeatmaps() {},
+    enqueueAutomations() {},
+  };
+}
+
+let app: ReturnType<typeof createTrackerRoutes>;
+let queue: ReturnType<typeof makeFakeQueue>;
+let funnels: FakeFunnelConfig;
+let automations: FakeAutomationSettings;
+let automationEvaluation: FakeAutomationEvaluation;
+let screenshots: FakeScreenshotCapture;
 
 beforeAll(async () => {
-  const mod = await import("../../routes/tracker");
-  app = mod.trackerRoutes as any;
+  ({ createTrackerRoutes } = await import("../routes"));
 });
 
 beforeEach(() => {
@@ -110,12 +205,28 @@ beforeEach(() => {
   mockListGoals.mockClear();
   mockBuildConfig.mockClear();
   mockHandleEvents.mockClear();
-  mockFunnelActive.mockClear();
-  mockAutoActive.mockClear();
-  mockAutoEvaluate.mockClear();
-  mockCapture.mockClear();
   // Default: website not found
   mockResolveWebsite.mockResolvedValue(null);
+
+  funnels = new FakeFunnelConfig();
+  automations = new FakeAutomationSettings();
+  automationEvaluation = new FakeAutomationEvaluation();
+  screenshots = new FakeScreenshotCapture();
+
+  // Requested at the paths `index.ts` mounts under `/api/v1/tracker`.
+  queue = makeFakeQueue();
+  app = createTrackerRoutes({
+    queue,
+    automations,
+    automationEvaluation,
+    funnels,
+    screenshots,
+    trackerWebsites: {
+      resolve: mockResolveWebsite,
+      listGoals: mockListGoals,
+      buildConfig: mockBuildConfig,
+    },
+  });
 });
 
 // ─── GET /init/:website_id ───────────────────────────────────────────────────
@@ -150,8 +261,8 @@ describe("GET /init/:website_id", () => {
   it("returns 200 with config, funnels, automations for a valid request", async () => {
     mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
     mockBuildConfig.mockResolvedValue({ website_id: "w1", goals: [], replay_enabled: true });
-    mockFunnelActive.mockResolvedValue([{ id: "f1", name: "Checkout" }]);
-    mockAutoActive.mockResolvedValue([{ id: "a1", name: "Exit popup", definition: { trigger: "exit" } }]);
+    funnels.rows = [{ id: "f1", name: "Checkout" }];
+    automations.rows = [makeAutomationRow()];
 
     const res = await app.request("/init/site_abc");
     expect(res.status).toBe(200);
@@ -159,6 +270,11 @@ describe("GET /init/:website_id", () => {
     expect(body.config).toBeDefined();
     expect(Array.isArray(body.funnels)).toBe(true);
     expect(Array.isArray(body.automations)).toBe(true);
+    // The definition is spread onto the automation, alongside id and name only.
+    expect(body.automations).toEqual([{ id: "a1", name: "Exit popup", trigger: "exit" }]);
+    // Both modules receive the resolved UUID, never the `site_abc` reference.
+    expect(funnels.calls).toEqual([ACTIVE_WEBSITE.id]);
+    expect(automations.calls).toEqual([ACTIVE_WEBSITE.id]);
   });
 
   it("sets Cache-Control header on success", async () => {
@@ -170,8 +286,8 @@ describe("GET /init/:website_id", () => {
 
   it("returns empty funnels and automations when services fail (silent fallback)", async () => {
     mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
-    mockFunnelActive.mockRejectedValue(new Error("DB down"));
-    mockAutoActive.mockRejectedValue(new Error("DB down"));
+    funnels.fail = true;
+    automations.fail = true;
 
     const res = await app.request("/init/site_abc");
     expect(res.status).toBe(200);
@@ -389,6 +505,7 @@ describe("POST /request-screenshot", () => {
       }),
     });
     expect(res.status).toBe(400);
+    expect(screenshots.captures).toEqual([]);
   });
 
   it("returns 400 when page_url is on a different domain than the website (SSRF guard)", async () => {
@@ -403,6 +520,7 @@ describe("POST /request-screenshot", () => {
       }),
     });
     expect(res.status).toBe(400);
+    expect(screenshots.captures).toEqual([]);
   });
 
   it("returns 404 when website is not found", async () => {
@@ -432,6 +550,29 @@ describe("POST /request-screenshot", () => {
     expect(res.status).toBe(202);
     const body = await res.json() as any;
     expect(body.status).toBe("queued");
+    expect(screenshots.captures).toEqual([
+      {
+        websiteRef: "site_abc",
+        request: { pageUrl: "https://example.com/home", pagePath: "/home", force: false },
+      },
+    ]);
+  });
+
+  it("still answers 202 when the capture rejects (fire-and-forget)", async () => {
+    mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
+    screenshots.capture = async () => {
+      throw new Error("Website not found");
+    };
+    const res = await app.request("/request-screenshot", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        website_id: "site_abc",
+        page_url: "https://example.com/home",
+        page_path: "/home",
+      }),
+    });
+    expect(res.status).toBe(202);
   });
 });
 
@@ -511,7 +652,10 @@ describe("POST /automations/evaluate", () => {
 
   it("returns 200 with matched and actions on success", async () => {
     mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
-    mockAutoEvaluate.mockResolvedValue({ matched: true, actions: [{ type: "show_modal", payload: {} }] });
+    automationEvaluation.result = {
+      matched: 1,
+      actions: [{ type: "show_modal", automation_id: "a1", run_id: "run_1" }],
+    };
 
     const res = await app.request("/automations/evaluate", {
       method: "POST",
@@ -521,13 +665,26 @@ describe("POST /automations/evaluate", () => {
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.status).toBe("ok");
-    expect(body.matched).toBe(true);
+    expect(body.matched).toBe(1);
     expect(body.actions).toHaveLength(1);
+    // Both identifiers are passed through already resolved — the UUID keys the
+    // tables the evaluation reads, the siteId only labels the events it publishes.
+    expect(automationEvaluation.requests).toEqual([
+      {
+        websiteId: ACTIVE_WEBSITE.id,
+        siteId: ACTIVE_WEBSITE.site_id,
+        anonymousId: "anon_1",
+        userId: null,
+        sessionId: "sess_1",
+        trigger: { type: "exit_intent" },
+        context: {},
+      },
+    ]);
   });
 
   it("returns 500 when evaluation throws", async () => {
     mockResolveWebsite.mockResolvedValue(ACTIVE_WEBSITE);
-    mockAutoEvaluate.mockRejectedValue(new Error("DB timeout"));
+    automationEvaluation.fail = true;
 
     const res = await app.request("/automations/evaluate", {
       method: "POST",
@@ -537,3 +694,4 @@ describe("POST /automations/evaluate", () => {
     expect(res.status).toBe(500);
   });
 });
+

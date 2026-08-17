@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { clampClientTs } from "../../lib/client-timestamp";
+import { clampClientTs } from "../../../platform/lib/client-timestamp";
 
 const NOW = 1_700_000_000_000; // fixed reference epoch
 

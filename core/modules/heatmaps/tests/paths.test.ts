@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { extractPath, normalizeHeatmapPagePath } from "../../lib/paths";
+import { extractPath, normalizeHeatmapPagePath } from "../../../modules/heatmaps/lib/paths";
 
 describe("extractPath", () => {
   it("returns / for empty string", () => {

@@ -2,9 +2,17 @@
  * In-memory cache for heatmap page screenshots to avoid redundant DB lookups.
  * Caches layout snapshot metadata with TTL-based expiration.
  *
- * Cache key: `${websiteUuid}:${normalizedPagePath}`
- * Cache value: Screenshot metadata (s3_key, hash, dimensions, timestamp)
+ * Cache key: `${websiteUuid}:${normalizedPagePath}` — the website UUID, because
+ * that is what `heatmap_page_snapshots` is keyed by. A `siteId` here would produce
+ * a permanent miss rather than an error.
+ *
+ * Still reached through a module-level singleton rather than injected, because
+ * `lib/playwright-browser.ts`'s capture helper (`lib/playwright-screenshots.ts`)
+ * reads it and is shared infrastructure that recordings and retention also use.
+ * `configureHeatmapScreenshotCache` is the seam a composition root should call.
  */
+
+import type { AppConfig } from "../../../config";
 
 interface CachedScreenshot {
   s3Key: string;
@@ -163,6 +171,21 @@ export function getScreenshotCache(): ScreenshotCache {
  */
 export function initializeScreenshotCache(ttlMs?: number, maxEntries?: number): void {
   _cache = new ScreenshotCache(ttlMs, maxEntries);
+}
+
+/**
+ * Apply the app's screenshot-cache configuration. Call once at startup, before
+ * anything can capture — this is the heatmaps module's counterpart to
+ * `configureTrackerWebsiteCache`.
+ *
+ * When the cache is disabled this is a no-op rather than a teardown, which
+ * preserves existing behaviour: `getScreenshotCache()` lazily creates a
+ * default-configured cache on first use either way, so `SCREENSHOT_CACHE_ENABLED=false`
+ * has only ever meant "don't apply the configured TTL and size".
+ */
+export function configureHeatmapScreenshotCache(cfg: AppConfig): void {
+  if (!cfg.screenshotCache.enabled) return;
+  initializeScreenshotCache(cfg.screenshotCache.ttlMs, cfg.screenshotCache.maxEntries);
 }
 
 /**

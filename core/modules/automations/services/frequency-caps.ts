@@ -3,12 +3,14 @@
  */
 
 import { and, eq, inArray, or, sql } from 'drizzle-orm';
-import { db, automationImpressions } from '../../db';
+import { db, automationImpressions } from '../../../db';
+import type { OutboxWriter } from '../../../infrastructure/outbox';
 
 export interface ImpressionMeta {
   automationId: string;
   anonymousId: string;
   userId?: string | null;
+  /** Website **UUID** — `automation_impressions.website_id` is a uuid column. */
   websiteId: string;
   sessionId: string;
   variant?: string | null;
@@ -25,10 +27,21 @@ export async function recordImpression(meta: ImpressionMeta): Promise<void> {
   });
 }
 
-/** Batch-insert impressions in a single round trip. */
-export async function recordImpressions(metas: ImpressionMeta[]): Promise<void> {
+/**
+ * Batch-insert impressions in a single round trip.
+ *
+ * Takes a `writer` so the caller can join the insert to a transaction that also
+ * enqueues the `automation.triggered` outbox rows — an impression the visitor was
+ * charged for and an event announcing it must commit together, or a crash between
+ * them leaves the automation capped with nothing having been announced. Defaults
+ * to the shared handle for callers with no transaction to join.
+ */
+export async function recordImpressions(
+  metas: ImpressionMeta[],
+  writer: OutboxWriter = db,
+): Promise<void> {
   if (metas.length === 0) return;
-  await db.insert(automationImpressions).values(
+  await writer.insert(automationImpressions).values(
     metas.map((m) => ({
       automationId: m.automationId,
       anonymousId:  m.anonymousId,

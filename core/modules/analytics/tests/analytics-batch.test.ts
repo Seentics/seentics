@@ -11,20 +11,32 @@ const mockTransaction = mock((fn: (tx: any) => Promise<void>) =>
   fn({ insert: mockTxInsert })
 );
 
+// Must export everything `db/index.ts` does, `sql` included. Bun's module mocks are
+// process-global, so an incomplete stub here is not a local shortcut — it becomes the
+// `db` module for every test file that runs after this one, and anything importing a
+// missing export fails to load entirely.
 mock.module("../../../db", () => ({
   db: { insert: mockInsert, transaction: mockTransaction },
+  sql: mock(async () => []),
   analyticsEvents: {},
+  outbox: {},
+  websites: {},
+  websiteMembers: {},
 }));
 
-mock.module("../../../lib/logger", () => ({
-  log: {
-    child: () => ({
-      debug: mock(() => {}),
-      warn: mock(() => {}),
-      info: mock(() => {}),
-    }),
-  },
-}));
+// A complete `Logger`: `child` must exist and must itself return a logger, because
+// modules call `log.child(...)` at import time. Bun's module mocks are global, so an
+// incomplete stub here breaks every other test file that imports the real logger.
+mock.module("../../../platform/lib/logger", () => {
+  const logger: Record<string, unknown> = {
+    debug: mock(() => {}),
+    info: mock(() => {}),
+    warn: mock(() => {}),
+    error: mock(() => {}),
+  };
+  logger.child = () => logger;
+  return { log: logger };
+});
 
 // Dynamic import ensures mocks above are registered before the module loads.
 let ingestAnalyticsBatch: (siteId: string, events: any[]) => Promise<number>;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { zNonEmptyString } from "./validation";
+import { zNonEmptyString } from "../../../platform/validation";
 
 export const heatmapDataQuerySchema = z.object({
   page_path: zNonEmptyString.max(2048),

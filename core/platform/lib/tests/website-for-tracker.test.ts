@@ -1,9 +1,9 @@
 import { describe, it, expect, mock, beforeAll } from "bun:test";
-import type { WebsiteTrackerRow, TrackerGoal } from "../../lib/website-for-tracker";
+import type { WebsiteTrackerRow, TrackerGoal } from "../../../platform/lib/website-for-tracker";
 
-// website-for-tracker.ts imports `sql` from "../db" at the module level.
+// website-for-tracker.ts imports `sql` from "../../../db" at the module level.
 // Mock the DB before dynamically importing the module.
-mock.module("../../db", () => ({
+mock.module("../../../db", () => ({
   sql: mock(async () => []),
   db: {
     insert: mock(() => ({ values: mock(async () => {}) })),
@@ -15,7 +15,7 @@ mock.module("../../db", () => ({
 let buildPublicTrackerConfig: (w: WebsiteTrackerRow, goals: TrackerGoal[]) => Promise<Record<string, unknown>>;
 
 beforeAll(async () => {
-  const mod = await import("../../lib/website-for-tracker");
+  const mod = await import("../../../platform/lib/website-for-tracker");
   buildPublicTrackerConfig = mod.buildPublicTrackerConfig;
 });
 

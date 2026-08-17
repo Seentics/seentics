@@ -1,9 +1,8 @@
-import { env } from "../../config";
-import { getReplayEngine } from "../../lib/replay-engine";
-import { getSessionMeta } from "../../lib/replay-db";
-import { presignGet, locateBundle, getJsonGzip, listSessionReplayChunks } from "../../lib/s3";
-import { compareReplayEnvelopeEvents } from "../../lib/replay-event-order";
-import { resolveWebsiteIdsLenient } from "../../lib/website-resolve";
+import { env } from "../../../config";
+import { getReplayEngine } from "./recording-engine.service";
+import { getSessionMeta } from "../repositories/recording.repository";
+import { presignGet, locateBundle, getJsonGzip, listSessionReplayChunks } from "../../../platform/lib/s3";
+import { compareReplayEnvelopeEvents } from "./event-order";
 import { replayNotReady, timestampToIso } from "./shared";
 
 /** Merge chunk listings from canonical site id and uuid folder (legacy paths). */
@@ -132,11 +131,17 @@ export type ReplaySessionDetail =
     }
   | { status: 404; body: { error: string } };
 
+/**
+ * One recording with its ordered event stream.
+ *
+ * Takes both resolved identifiers because chunks may live under either prefix;
+ * see `collectSessionChunkRows`.
+ */
 export async function getReplaySessionDetail(
-  websiteParam: string,
+  siteId: string,
+  uuidStr: string,
   sessionId: string,
 ): Promise<ReplaySessionDetail> {
-  const { siteId, uuidStr } = await resolveWebsiteIdsLenient(websiteParam);
   const sid = sessionId.trim();
   const engine = getReplayEngine();
   const cfg = env();

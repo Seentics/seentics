@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { takeRateToken, pruneRateBuckets } from "../../lib/token-bucket";
+import { takeRateToken, pruneRateBuckets } from "../../../platform/lib/token-bucket";
 
 // Each test uses a unique key prefix to avoid cross-test state pollution
 let seq = 0;

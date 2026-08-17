@@ -1,6 +1,6 @@
 import { and, eq, or, sql } from "drizzle-orm";
-import { db, websiteMembers, websites } from "../db";
-import { resolveWebsiteIds } from "../lib/website-resolve";
+import { db, websiteMembers, websites } from "../../../db";
+import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
 
 /**
  * Grant access if the user owns the website (websites.user_id) OR is a member

@@ -1,22 +1,16 @@
-import type { TrackerCollectBody } from "../../lib/api-types";
-import type { AnalyticsIngestMeta } from "../../lib/analytics-ingest-meta";
-import type { WebsiteTrackerRow } from "../../lib/website-for-tracker";
+import type { TrackerCollectBody } from "../../../platform/lib/api-types";
+import type { AnalyticsIngestMeta } from "../../../platform/lib/analytics-ingest-meta";
+import type { WebsiteTrackerRow } from "../../../platform/lib/website-for-tracker";
 import type {
   AnalyticsIngestEvent,
   AutomationTriggerQueued,
   HeatmapIngestEvent,
   TrackerEvent,
-} from "../../lib/types";
-import { clampClientTs } from "../../lib/client-timestamp";
-import { TRACKER_FUNNEL_EVENT_TYPES } from "../funnels.service";
-import {
-  enqueueAutomations,
-  enqueueEvents,
-  enqueueFunnels,
-  enqueueHeatmaps,
-  enqueueRecordings,
-} from "./queues";
-import { log as baseLog } from "../../lib/logger";
+} from "../../../platform/lib/types";
+import { clampClientTs } from "../../../platform/lib/client-timestamp";
+import { TRACKER_FUNNEL_EVENT_TYPES } from "../../funnels/interfaces";
+import type { IngestQueue } from "../interfaces";
+import { log as baseLog } from "../../../platform/lib/logger";
 
 const log = baseLog.child({ category: "ingest" });
 
@@ -187,6 +181,15 @@ export type CollectHandlerContext = {
   website: WebsiteTrackerRow;
   userAgent: string;
   ingestMeta: AnalyticsIngestMeta;
+  /**
+   * Where sorted events are buffered.
+   *
+   * Carried on the per-request context rather than imported: the queue used to be a
+   * set of module-level functions, so these handlers reached for a singleton and
+   * could not be exercised without it. Arriving here, a test drives them with a
+   * fake and the routes pass whichever queue the composition root built.
+   */
+  queue: IngestQueue;
 };
 
 /** Attach `ctx.ingestMeta` (geo + device from /collect) to each event and queue for DB insert. */
@@ -197,7 +200,7 @@ export function handleEvents(ctx: CollectHandlerContext): void {
   );
   if (!filtered.length) return;
   const forDb = trackerRowsToAnalytics(sortByTs(filtered), ctx.ingestMeta);
-  enqueueEvents(ctx.website.site_id, forDb);
+  ctx.queue.enqueueEvents(ctx.website.site_id, forDb);
   log.debug({ msg: "events_queued", site_id: ctx.website.site_id, n: forDb.length });
 }
 
@@ -207,7 +210,7 @@ export function handleFunnels(ctx: CollectHandlerContext): void {
   const only = raw.filter((e) => TRACKER_FUNNEL_EVENT_TYPES.has(e.type) && e.sid);
   if (!only.length) return;
   const forDb = trackerRowsToAnalytics(sortByTs(only), ctx.ingestMeta);
-  enqueueFunnels(ctx.website.site_id, forDb);
+  ctx.queue.enqueueFunnels(ctx.website.site_id, forDb);
   log.debug({ msg: "funnel_events_queued", site_id: ctx.website.site_id, n: forDb.length });
 }
 
@@ -242,7 +245,7 @@ export function handleAutomations(ctx: CollectHandlerContext): void {
     });
   }
   if (!rows.length) return;
-  enqueueAutomations(rows);
+  ctx.queue.enqueueAutomations(rows);
   log.debug({ msg: "automation_triggers_queued", website_id: ctx.website.id, n: rows.length });
 }
 
@@ -251,7 +254,7 @@ export function handleRecordings(ctx: CollectHandlerContext): void {
   const sessions = parseCollectEvents(Array.isArray(ctx.body.session) ? ctx.body.session : []);
   const prepared = sortByTs(collectPrepareSessions(sessions, ctx.website.site_id, ctx.ingestMeta));
   if (!prepared.length) return;
-  enqueueRecordings(prepared);
+  ctx.queue.enqueueRecordings(prepared);
   log.debug({ msg: "recordings_queued", site_id: ctx.website.site_id, n: prepared.length });
 }
 
@@ -282,6 +285,6 @@ export function handleHeatmaps(ctx: CollectHandlerContext): void {
     ),
   ];
   if (!merged.length) return;
-  enqueueHeatmaps(sortByTs(merged));
+  ctx.queue.enqueueHeatmaps(sortByTs(merged));
   log.debug({ msg: "heatmaps_queued", website_id: ctx.website.id, n: merged.length });
 }

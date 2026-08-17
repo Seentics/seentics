@@ -1,6 +1,6 @@
-import type { ReplayChunk } from "./types";
-import { compareReplayEnvelopeEvents } from "./replay-event-order";
-import { log as baseLog } from "./logger";
+import type { ReplayChunk } from "../../../platform/lib/types";
+import { compareReplayEnvelopeEvents } from "./event-order";
+import { log as baseLog } from "../../../platform/lib/logger";
 
 const log = baseLog.child({ category: "replay" });
 

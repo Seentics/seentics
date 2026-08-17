@@ -1,6 +1,6 @@
 import OpenAI from "openai";
-import { and, count, desc, eq, gte } from "drizzle-orm";
-import { db, sql, aiQueries, websites, websiteMembers } from "../../db";
+import { and, count, desc, eq, gte, or } from "drizzle-orm";
+import { db, sql, aiQueries, websites, websiteMembers } from "../../../db";
 import {
   AI_MODEL, COST_INPUT_PER_TOKEN, COST_OUTPUT_PER_TOKEN,
   validateAndSanitizeSQL,
@@ -67,7 +67,16 @@ import { REPLAYS_PROMPT, REPLAYS_TABLES } from "./domains/replays";
 import { HEATMAPS_PROMPT, HEATMAPS_TABLES } from "./domains/heatmaps";
 import { FUNNELS_PROMPT, FUNNELS_TABLES } from "./domains/funnels";
 import { AUTOMATIONS_PROMPT, AUTOMATIONS_TABLES } from "./domains/automations";
-import { resolveSiteId } from "../analytics/shared";
+// TODO(modules): the AI module resolves website references and runs its own
+// access check by querying `websites` directly. Both belong behind the websites
+// module's `WebsiteQuery` port; this keeps working until the AI module is migrated.
+import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
+
+/** Adapter for the shape this module already expects: `{ siteId, uuid }`. */
+async function resolveSiteId(websiteRef: string): Promise<{ siteId: string; uuid: string }> {
+  const { siteId, uuidStr } = await resolveWebsiteIds(websiteRef);
+  return { siteId, uuid: uuidStr };
+}
 
 // ─── OpenAI singleton ─────────────────────────────────────────────────────────
 let _openai: OpenAI | null = null;
@@ -89,34 +98,6 @@ const DOMAIN_CONFIG: Record<AIDomain, { prompt: string; tables: string[] }> = {
   automations: { prompt: AUTOMATIONS_PROMPT, tables: AUTOMATIONS_TABLES },
 };
 
-// ─── Website access check ─────────────────────────────────────────────────────
-
-export async function checkWebsiteAccess(websiteId: string, userId: string): Promise<boolean> {
-  // websiteId may be a site_id (short string) or a UUID — resolve to UUID for the websites table
-  let resolvedUuid = websiteId;
-  try {
-    const { uuid } = await resolveSiteId(websiteId);
-    resolvedUuid = uuid;
-  } catch {
-    // resolution failed — proceed with original value, access check will return false
-  }
-
-  const [owner] = await db
-    .select({ id: websites.id })
-    .from(websites)
-    .where(and(eq(websites.id, resolvedUuid), eq(websites.userId, userId)))
-    .limit(1);
-
-  if (owner) return true;
-
-  const [member] = await db
-    .select({ id: websiteMembers.id })
-    .from(websiteMembers)
-    .where(and(eq(websiteMembers.websiteId, resolvedUuid), eq(websiteMembers.userId, userId)))
-    .limit(1);
-
-  return !!member;
-}
 
 // ─── Domain Detection ─────────────────────────────────────────────────────────
 
@@ -146,19 +127,25 @@ async function detectDomain(prompt: string): Promise<AIDomain> {
 
 // ─── Main query function ──────────────────────────────────────────────────────
 
+/**
+ * Run one natural-language query.
+ *
+ * Takes both resolved identifiers because `ID_STRATEGY` below binds each domain to a
+ * specific one — analytics, revenue and replays are keyed by the short `siteId`,
+ * heatmaps, funnels and automations by the website UUID. Passing the wrong one
+ * produces a syntactically valid query that matches nothing.
+ */
 export async function runAIQuery(
   userId: string,
-  websiteId: string,
+  resolved: { siteId: string; uuid: string },
   prompt: string,
   initialDomain: AIDomain | 'auto' = "auto",
 ): Promise<AIQueryResult> {
   const startedAt = Date.now();
+  const { siteId, uuid } = resolved;
 
-  // Domain detection (LLM call) and site-id resolution (DB) are independent —
-  // run them concurrently instead of one after the other.
-  const [domain, { siteId, uuid }] = await Promise.all([
+  const [domain] = await Promise.all([
     initialDomain === 'auto' ? detectDomain(prompt) : Promise.resolve(initialDomain),
-    resolveSiteId(websiteId),
   ]);
 
   const { prompt: systemPrompt, tables: allowedTables } = DOMAIN_CONFIG[domain] ?? DOMAIN_CONFIG.analytics;
@@ -191,7 +178,7 @@ export async function runAIQuery(
   // Insert pending record to track the attempt
   const [inserted] = await db
     .insert(aiQueries)
-    .values({ userId, websiteId, prompt, model: AI_MODEL, status: "pending" })
+    .values({ userId, websiteId: uuid, prompt, model: AI_MODEL, status: "pending" })
     .returning({ id: aiQueries.id });
 
   const queryId = inserted?.id ?? null;
@@ -324,9 +311,16 @@ export async function runAIQuery(
 
 // ─── History ──────────────────────────────────────────────────────────────────
 
+/**
+ * Recent prompts for a user and website.
+ *
+ * Matches on either identifier. New rows are written under the canonical UUID, but
+ * rows created before that was true carry whichever form the client happened to send
+ * — so keying on the UUID alone would silently hide a user's existing history.
+ */
 export async function getAIQueryHistory(
   userId: string,
-  websiteId: string,
+  resolved: { siteId: string; uuid: string },
   limit = 8,
 ): Promise<AIHistoryItem[]> {
   const rows = await db
@@ -339,7 +333,12 @@ export async function getAIQueryHistory(
       created_at: aiQueries.createdAt,
     })
     .from(aiQueries)
-    .where(and(eq(aiQueries.userId, userId), eq(aiQueries.websiteId, websiteId)))
+    .where(
+      and(
+        eq(aiQueries.userId, userId),
+        or(eq(aiQueries.websiteId, resolved.uuid), eq(aiQueries.websiteId, resolved.siteId)),
+      ),
+    )
     .orderBy(desc(aiQueries.createdAt))
     .limit(Math.min(limit, 20));
 

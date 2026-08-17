@@ -9,9 +9,9 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { gunzipSync, gzipSync } from "node:zlib";
 import type { S3ClientConfig } from "@aws-sdk/client-s3";
-import { env } from "../config";
+import { env } from "../../config";
 import { sessionBundleKey, sessionChunkKey, sessionPrefix } from "./s3-keys";
-import { compareReplayEnvelopeEvents } from "./replay-event-order";
+import { compareReplayEnvelopeEvents } from "../../modules/recordings/services/event-order";
 
 function createS3ClientForEndpoint(endpoint: string | undefined): S3Client {
   const c = env().s3;

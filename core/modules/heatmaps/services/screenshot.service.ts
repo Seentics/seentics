@@ -1,107 +1,48 @@
-import { env } from "../config";
-import { getWebsiteBySiteId } from "../lib/website-site";
+import { env } from "../../../config";
+import type { EventBus } from "../../../infrastructure/events";
 import { upsertLayoutSnapshot } from "../lib/layout-db";
 import { normalizeHeatmapPagePath } from "../lib/paths";
-import { resolveWebsiteIds, resolveWebsiteIdsLenient } from "../lib/website-resolve";
 import { captureAndStoreScreenshot } from "../lib/playwright-screenshots";
+import { getWebsiteBySiteId } from "../lib/website-site";
+import { resolveWebsiteIds, resolveWebsiteIdsLenient } from "../../../platform/lib/website-resolve";
+import type {
+  BatchCaptureScreenshotResult,
+  CaptureScreenshotRequest,
+  CaptureScreenshotResult,
+  HeatmapScreenshotCapture,
+  HeatmapSettings,
+  ResolvedWebsite,
+} from "../interfaces";
 
-export interface CaptureScreenshotRequest {
-  /**
-   * Target page URL to screenshot
-   */
-  pageUrl: string;
-
-  /**
-   * Heatmap page path (usually the pathname of the target URL)
-   */
-  pagePath: string;
-
-  /**
-   * Viewport width for screenshot (defaults to 1920)
-   */
-  viewportWidth?: number;
-
-  /**
-   * Viewport height for screenshot (defaults to 1080)
-   */
-  viewportHeight?: number;
-
-  /**
-   * Wait for specific CSS selector before capturing (optional)
-   */
-  waitForSelector?: string;
-
-  /**
-   * JPEG quality 1-100 (defaults to 85)
-   */
-  jpegQuality?: number;
-
-  /**
-   * Force capture and storage even if identical screenshot exists.
-   * If false (default), uses existing screenshot if hash matches.
-   * (Deduplication: same as tracker heatmap_screenshot flow)
-   */
-  force?: boolean;
-
-  /**
-   * Check if screenshot exists without capturing (defaults to false)
-   */
-  checkOnly?: boolean;
-}
+/** Hard ceiling on one page load. Playwright's own default would hang the request. */
+const CAPTURE_TIMEOUT_MS = 30_000;
 
 /**
- * Capture a screenshot of a webpage and store layout snapshot in database.
- * This service integrates Playwright with the existing heatmap infrastructure.
+ * Capture a page with Playwright and record the result as the page's layout
+ * snapshot.
  *
- * Features:
- * - Smart deduplication: skips capture/storage if identical screenshot already exists
- * - Check-only mode: verify existence without capturing
- * - Force refresh: bypass deduplication if needed
+ * Takes already-resolved identifiers: `siteId` namespaces the S3 object, the
+ * website UUID keys the snapshot row, and the two are not interchangeable. The
+ * caller is responsible for having established that the website exists — this
+ * function would otherwise happily write a snapshot row under a dangling id.
  *
- * @param websiteParam Website identifier (URL, UUID, or site ID)
- * @param request Screenshot capture request details
- * @param opts Resolution options for website lookup
- *
- * @throws Error if website not found, URL invalid, or capture fails
+ * Deduplication lives in `captureAndStoreScreenshot`: a matching content hash
+ * skips the browser launch entirely, which is why `force` exists and why
+ * `stored: false` is a success rather than a failure.
  */
-export async function captureHeatmapScreenshot(
-  websiteParam: string,
+async function captureAndUpsert(
+  resolved: ResolvedWebsite,
   request: CaptureScreenshotRequest,
-  opts: { lenientResolve: boolean },
-): Promise<{
-  success: boolean;
-  s3Key?: string;
-  imageHash?: string;
-  imageWidth?: number;
-  imageHeight?: number;
-  sizeBytes?: number;
-  stored: boolean; // true if newly captured, false if reused existing
-  message?: string;
-}> {
-  // Resolve website
-  const { uuidStr, siteId } = opts.lenientResolve
-    ? await resolveWebsiteIdsLenient(websiteParam)
-    : await resolveWebsiteIds(websiteParam);
-
-  // Verify website exists
-  const website = await getWebsiteBySiteId(siteId);
-  if (!website) {
-    throw new Error("Website not found");
-  }
-
-  // Normalize page path
+): Promise<CaptureScreenshotResult> {
   const normalizedPagePath = normalizeHeatmapPagePath(request.pagePath);
-
-  // Get config
   const config = env();
 
-  // Capture and store screenshot (with smart deduplication)
   const result = await captureAndStoreScreenshot(
     request.pageUrl,
     config.s3.bucket,
-    siteId,
+    resolved.siteId,
     normalizedPagePath,
-    uuidStr,
+    resolved.websiteUuid,
     {
       viewportWidth: request.viewportWidth,
       viewportHeight: request.viewportHeight,
@@ -109,11 +50,11 @@ export async function captureHeatmapScreenshot(
       jpegQuality: request.jpegQuality,
       force: request.force,
       checkOnly: request.checkOnly,
-      timeoutMs: 30000,
+      timeoutMs: CAPTURE_TIMEOUT_MS,
     },
   );
 
-  // If result is null (check-only mode with no existing screenshot)
+  // `null` means check-only mode found nothing — a legitimate answer, not an error.
   if (!result) {
     return {
       success: true,
@@ -122,10 +63,10 @@ export async function captureHeatmapScreenshot(
     };
   }
 
-  // Upsert layout snapshot in database (idempotent)
+  // Idempotent: re-running a capture for the same page rewrites the same row.
   if (result.s3Key) {
     await upsertLayoutSnapshot(
-      website.id,
+      resolved.websiteUuid,
       normalizedPagePath,
       result.s3Key,
       result.hash,
@@ -149,55 +90,126 @@ export async function captureHeatmapScreenshot(
 }
 
 /**
- * Batch capture screenshots for multiple pages.
- * Processes sequentially to avoid overwhelming the browser.
+ * On-demand page capture for the dashboard.
  *
- * Features:
- * - Smart deduplication: reuses identical existing screenshots
- * - Sequential processing: prevents browser pool exhaustion
- * - Per-request error isolation: one failure doesn't break the batch
- * - Progress tracking: see which pages are captured vs reused
- *
- * @param websiteParam Website identifier
- * @param requests Array of screenshot requests
- * @param opts Resolution options
- *
- * @returns Array of results (one per request)
+ * Resolves the website reference once, through the `HeatmapSettings` port, and
+ * hands resolved identifiers down. The functions this replaced each called
+ * `resolveWebsiteIdsLenient` and then looked the same website up a *second* time
+ * via `getWebsiteBySiteId` purely to obtain the UUID they had already resolved.
  */
-export async function batchCaptureHeatmapScreenshots(
-  websiteParam: string,
-  requests: CaptureScreenshotRequest[],
-  opts: { lenientResolve: boolean },
-): Promise<
-  Array<{
-    pagePath: string;
-    success: boolean;
-    s3Key?: string;
-    stored?: boolean; // true if newly captured, false if reused
-    message?: string;
-    error?: string;
-  }>
-> {
-  const results = [];
-
-  for (const request of requests) {
-    try {
-      const result = await captureHeatmapScreenshot(websiteParam, request, opts);
-      results.push({
-        pagePath: request.pagePath,
-        success: true,
-        s3Key: result.s3Key,
-        stored: result.stored,
-        message: result.message,
-      });
-    } catch (error) {
-      results.push({
-        pagePath: request.pagePath,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
+export class HeatmapScreenshotService implements HeatmapScreenshotCapture {
+  constructor(
+    private readonly settings: HeatmapSettings,
+    private readonly eventBus: EventBus,
+  ) {
+    // Bound up front so it can be handed to `HeatmapAutoCapture` as a plain
+    // function without the caller having to remember to bind it.
+    this.captureForResolved = this.captureForResolved.bind(this);
   }
 
-  return results;
+  async capture(
+    websiteRef: string,
+    request: CaptureScreenshotRequest,
+  ): Promise<CaptureScreenshotResult> {
+    const target = await this.settings.getCaptureTarget(websiteRef);
+    // Message preserved verbatim — the route returns it to the client as-is.
+    if (!target) throw new Error("Website not found");
+    return this.captureForResolved(target, request);
+  }
+
+  /**
+   * The capture entry point for callers that already resolved the website —
+   * `HeatmapAutoCapture` in particular, which is invoked from a request that has
+   * done the resolution work.
+   */
+  async captureForResolved(
+    resolved: ResolvedWebsite,
+    request: CaptureScreenshotRequest,
+  ): Promise<CaptureScreenshotResult> {
+    const result = await captureAndUpsert(resolved, request);
+
+    // Announced only when an image was actually written. A deduplicated or
+    // check-only call changed nothing, and an event saying otherwise would make
+    // any consumer counting captures wrong.
+    if (result.stored && result.s3Key) {
+      await this.eventBus.publish("heatmap.screenshot_captured", {
+        websiteId: resolved.websiteUuid,
+        siteId: resolved.siteId,
+        pagePath: normalizeHeatmapPagePath(request.pagePath),
+        s3Key: result.s3Key,
+        source: "playwright",
+        occurredAt: new Date(),
+      });
+    }
+
+    return result;
+  }
+
+  /**
+   * Capture several pages for one website, resolving it once for the whole batch.
+   *
+   * Sequential: the batch endpoint accepts up to 50 pages and a parallel run
+   * exhausts the browser pool. Per-request errors are returned rather than thrown
+   * so one unreachable page does not discard the other results.
+   */
+  async captureBatch(
+    websiteRef: string,
+    requests: CaptureScreenshotRequest[],
+  ): Promise<BatchCaptureScreenshotResult[]> {
+    const target = await this.settings.getCaptureTarget(websiteRef);
+    if (!target) throw new Error("Website not found");
+
+    const results: BatchCaptureScreenshotResult[] = [];
+    for (const request of requests) {
+      try {
+        const result = await this.captureForResolved(target, request);
+        results.push({
+          pagePath: request.pagePath,
+          success: true,
+          s3Key: result.s3Key,
+          stored: result.stored,
+          message: result.message,
+        });
+      } catch (error) {
+        results.push({
+          pagePath: request.pagePath,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+    return results;
+  }
 }
+
+/**
+ * Capture entry point for the tracker ingest path.
+ *
+ * Kept as a free function using `lib/website-resolve` because its caller —
+ * `routes/tracker.ts` — is a module-level Hono app with no composition root to
+ * inject `HeatmapSettings` from. `ReplayEngine` resolves the same way for the same
+ * reason. It publishes no event for the same reason: no bus reaches here.
+ *
+ * The existence check stays after resolution rather than replacing it: lenient
+ * resolution returns the reference for both identifiers when the website is
+ * unknown, and writing a snapshot row under that would create rows nothing can
+ * ever read.
+ */
+export async function captureHeatmapScreenshot(
+  websiteRef: string,
+  request: CaptureScreenshotRequest,
+  opts: { lenientResolve: boolean },
+): Promise<CaptureScreenshotResult> {
+  const { uuidStr, siteId } = opts.lenientResolve
+    ? await resolveWebsiteIdsLenient(websiteRef)
+    : await resolveWebsiteIds(websiteRef);
+
+  const website = await getWebsiteBySiteId(siteId);
+  if (!website) {
+    throw new Error("Website not found");
+  }
+
+  return captureAndUpsert({ siteId, websiteUuid: uuidStr, siteUrl: "" }, request);
+}
+
+export type { CaptureScreenshotRequest, CaptureScreenshotResult };

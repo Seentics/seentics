@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { db, websiteMembers, websites } from "../../db";
-import { resolveWebsiteIds } from "../../lib/website-resolve";
+import { db, websiteMembers, websites } from "../../../db";
+import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
 
 export async function assertWebsiteAccess(userId: string, websiteParam: string) {
   const { uuidStr } = await resolveWebsiteIds(websiteParam);

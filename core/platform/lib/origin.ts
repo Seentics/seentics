@@ -1,5 +1,5 @@
-import type { AppConfig } from "../config";
-import { MemoryCache } from "./memory-cache";
+import type { AppConfig } from "../../config";
+import { MemoryCache } from "../../modules/analytics/lib/memory-cache";
 
 let originValidationCache: MemoryCache<boolean> | null = null;
 let originCacheTtlMs = 180_000;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { clientIpFromRequestHeaders, clientIpForIngest, getClientIp, SEENTICS_PEER_IP_HEADER } from "../../lib/client-ip";
+import { clientIpFromRequestHeaders, clientIpForIngest, getClientIp, SEENTICS_PEER_IP_HEADER } from "../../../platform/lib/client-ip";
 import type { Context } from "hono";
 
 function makeHeaders(entries: Record<string, string>): Headers {

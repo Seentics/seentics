@@ -1,311 +1,159 @@
-import { createHash } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
-import { env } from "../config";
-import { getHeatmapData, listPages, deleteHeatmaps } from "../lib/heatmap-db";
-import { getLayoutSnapshot, upsertLayoutSnapshot } from "../lib/layout-db";
-import { extractPath, normalizeHeatmapPagePath } from "../lib/paths";
-import { presignGet, putJpeg } from "../lib/s3";
-import { resolveWebsiteIds, resolveWebsiteIdsLenient } from "../lib/website-resolve";
-import { heatmapScreenshotKey, layoutPathSlot } from "../lib/keys";
-import { getWebsiteBySiteId } from "../lib/website-site";
-import { analyticsEvents, db, sql, websites } from "../db";
-import { captureHeatmapScreenshot } from "./heatmap-playwright.service";
-import { log as baseLog } from "../lib/logger";
+import type { EventBus } from "../../../infrastructure/events";
+import { log as baseLog } from "../../../platform/lib/logger";
+import { normalizeHeatmapPagePath } from "../lib/paths";
+import type {
+  HeatmapLayout,
+  HeatmapMutations,
+  HeatmapPageSummary,
+  HeatmapPointOut,
+  HeatmapQuery,
+  HeatmapSettings,
+  ResolvedWebsite,
+} from "../interfaces";
+import type { HeatmapAutoCapture } from "./auto-capture.service";
+import {
+  decodeJpegUpload,
+  readLayoutSnapshot,
+  storeDashboardScreenshot,
+} from "./layout-snapshot.service";
+import { getHeatmapPoints, listHeatmapPages } from "./page-query.service";
+import { deleteHeatmaps } from "../repositories/heatmap.repository";
 
 const log = baseLog.child({ category: "heatmap_screenshot" });
 
-
-/** Paths currently being captured — prevents concurrent Playwright launches for the same path. */
-const _capturing = new Set<string>();
-
 /**
- * Find a concrete pageview URL from analytics events that normalizes to `norm`,
- * then trigger a Playwright screenshot capture in the background.
- * No-ops if a capture is already in flight for this path.
+ * The heatmaps read/write facade for the dashboard.
+ *
+ * Its structural job is the one `AnalyticsQueryService` and `RecordingService` do:
+ * resolve a website reference exactly once per request — through the injected
+ * `HeatmapSettings` port, which is itself backed by the websites module's
+ * `WebsiteQuery` — and hand `ResolvedWebsite` to everything underneath. Each of
+ * these operations used to call `resolveWebsiteIdsLenient` itself, so the heatmaps
+ * module read the `websites` table directly and paid for the lookup again per call.
+ *
+ * That change is type-invisible: `websiteRef`, `siteId` and `websiteUuid` are all
+ * `string`, so nothing stops a caller passing the wrong one and getting an empty
+ * result. What enforces it is that this class is the only caller of the read
+ * functions and the repository — routes must not import from `../repositories`.
  */
-async function autoCapture(
-  websiteParam: string,
-  websiteUuid: string,
-  siteId: string,
-  norm: string,
-  opts: { lenientResolve: boolean },
-  force = false,
-): Promise<void> {
-  const captureKey = `${websiteUuid}:${norm}`;
-  if (_capturing.has(captureKey)) {
-    log.info({ msg: "heatmap_autocapture_skipped_in_flight", website_uuid: websiteUuid, norm });
-    return;
+export class HeatmapService implements HeatmapQuery, HeatmapMutations {
+  constructor(
+    private readonly settings: HeatmapSettings,
+    private readonly autoCapture: HeatmapAutoCapture,
+    private readonly eventBus: EventBus,
+  ) {}
+
+  /**
+   * Resolve a website reference, tolerating an unknown one.
+   *
+   * Falls back to using the reference as both identifiers rather than throwing,
+   * preserving the `lenientResolve: true` behaviour every one of these endpoints
+   * already had. Heatmap rows can outlive the website row they were written under,
+   * and failing the lookup would hide data the user can still legitimately list and
+   * delete — leaving them unable to clean it up.
+   *
+   * Access is checked by the route before this runs, so an unresolvable reference
+   * yields an empty result rather than exposing anything.
+   */
+  private async resolve(websiteRef: string): Promise<ResolvedWebsite> {
+    const target = await this.settings.getCaptureTarget(websiteRef);
+    if (target) return target;
+    return { siteId: websiteRef, websiteUuid: websiteRef, siteUrl: "" };
   }
-  _capturing.add(captureKey);
-  log.info({ msg: "heatmap_autocapture_start", website_uuid: websiteUuid, norm });
-  try {
-    // 1. Build URL from the website's stored domain (most reliable).
-    let pageUrl: string | undefined;
-    try {
-      const siteRows = await db
-        .select({ url: websites.url })
-        .from(websites)
-        .where(eq(websites.siteId, siteId))
-        .limit(1);
-      let storedUrl = siteRows[0]?.url?.trim();
-      // Ensure the stored URL has a protocol — DB values like "seentics.com" lack one
-      if (storedUrl && !/^https?:\/\//i.test(storedUrl)) {
-        storedUrl = `https://${storedUrl}`;
-      }
-      if (storedUrl) {
-        const base = storedUrl.replace(/\/+$/, "");
-        pageUrl = norm === "/" ? `${base}/` : `${base}${norm}`;
-        log.info({ msg: "heatmap_autocapture_url_from_website", website_uuid: websiteUuid, norm, page_url: pageUrl });
-      }
-    } catch (e) {
-      log.warn({ msg: "heatmap_autocapture_website_url_failed", err: String(e) });
+
+  async listPages(websiteRef: string): Promise<{ pages: HeatmapPageSummary[] }> {
+    const { websiteUuid } = await this.resolve(websiteRef);
+    return listHeatmapPages(websiteUuid);
+  }
+
+  async getPoints(
+    websiteRef: string,
+    pagePath: string,
+    eventType: string,
+  ): Promise<{ page_path: string; points: HeatmapPointOut[] }> {
+    const { websiteUuid } = await this.resolve(websiteRef);
+    return getHeatmapPoints(websiteUuid, pagePath, eventType);
+  }
+
+  async getLayoutSnapshot(
+    websiteRef: string,
+    pagePath: string,
+  ): Promise<{ layout: HeatmapLayout | null }> {
+    const resolved = await this.resolve(websiteRef);
+    const norm = normalizeHeatmapPagePath(pagePath);
+    const snapshot = await readLayoutSnapshot(resolved.websiteUuid, norm);
+
+    if (snapshot.missing) {
+      log.info({
+        msg: "heatmap_snapshot_miss",
+        website_uuid: resolved.websiteUuid,
+        norm,
+        triggering_autocapture: true,
+      });
+      // Detached: the dashboard renders the points without a backdrop and picks
+      // the image up on a later poll.
+      this.autoCapture.schedule(resolved, norm);
+      return { layout: null };
     }
 
-    // 2. Fall back to scanning recent analytics events if website URL wasn't available.
-    if (!pageUrl) {
-      // analytics_events.website_id stores the short site_id, not the UUID.
-      const rows = await db
-        .select({ page: analyticsEvents.page })
-        .from(analyticsEvents)
-        .where(and(eq(analyticsEvents.websiteId, siteId), eq(analyticsEvents.eventType, "pageview")))
-        .orderBy(desc(analyticsEvents.occurredAt))
-        .limit(200);
-
-      log.info({ msg: "heatmap_autocapture_events_query", website_uuid: websiteUuid, norm, rows_found: rows.length, sample: rows.slice(0, 3).map(r => r.page) });
-
-      pageUrl = (rows
-        .map((r) => r.page)
-        .find((p) => !!p && normalizeHeatmapPagePath(extractPath(p ?? "")) === norm)) ?? undefined;
+    if (snapshot.stale) {
+      log.info({ msg: "heatmap_snapshot_stale_refresh", website_uuid: resolved.websiteUuid, norm });
+      // Forced, because a stale image still matches its own content hash and
+      // would otherwise be deduplicated away.
+      this.autoCapture.schedule(resolved, norm, true);
     }
 
-    if (!pageUrl) {
-      log.warn({ msg: "heatmap_autocapture_no_matching_url", website_uuid: websiteUuid, norm });
-      return;
-    }
-
-    log.info({ msg: "heatmap_autocapture_playwright_start", website_uuid: websiteUuid, norm, page_url: pageUrl });
-    try {
-      const result = await captureHeatmapScreenshot(websiteParam, { pageUrl, pagePath: norm, force }, opts);
-      log.info({ msg: "heatmap_autocapture_playwright_done", website_uuid: websiteUuid, norm, stored: result.stored, s3_key: result.s3Key });
-    } catch (captureErr) {
-      log.warn({ msg: "heatmap_autocapture_playwright_failed", website_uuid: websiteUuid, norm, page_url: pageUrl, err: String(captureErr) });
-    }
-  } catch (err) {
-    log.error({ msg: "heatmap_autocapture_error", website_uuid: websiteUuid, norm, err: String(err) });
-  } finally {
-    _capturing.delete(captureKey);
-  }
-}
-
-async function resolve(
-  websiteParam: string,
-  lenientResolve: boolean,
-): Promise<{ uuidStr: string; siteId: string }> {
-  const result = lenientResolve
-    ? await resolveWebsiteIdsLenient(websiteParam)
-    : await resolveWebsiteIds(websiteParam);
-  return { uuidStr: result.uuidStr, siteId: result.siteId };
-}
-
-function mergeNormalizedPages(pages: Awaited<ReturnType<typeof listPages>>) {
-  type Acc = { page_path: string; click_count: number; scroll_count: number; scroll_sum: number; scroll_n: number; last_seen: string };
-  const by = new Map<string, Acc>();
-  for (const p of pages) {
-    const key = normalizeHeatmapPagePath(p.page_path);
-    const e = by.get(key);
-    if (e) {
-      e.click_count  += p.click_count;
-      e.scroll_count += p.scroll_count;
-      e.scroll_sum   += p.avg_scroll;
-      e.scroll_n     += 1;
-      if (p.last_seen > e.last_seen) e.last_seen = p.last_seen;
-    } else {
-      by.set(key, { page_path: key, click_count: p.click_count, scroll_count: p.scroll_count, scroll_sum: p.avg_scroll, scroll_n: 1, last_seen: p.last_seen });
-    }
-  }
-  return [...by.values()]
-    .sort((a, b) => b.click_count - a.click_count)
-    .map((e) => ({
-      page_path:    e.page_path,
-      click_count:  e.click_count,
-      scroll_count: e.scroll_count,
-      avg_scroll:   e.scroll_n > 0 ? Math.round(e.scroll_sum / e.scroll_n) : 0,
-      last_seen:    e.last_seen,
-    }));
-}
-
-export async function listHeatmapPages(websiteParam: string, opts: { lenientResolve: boolean }) {
-  const { uuidStr } = await resolve(websiteParam, opts.lenientResolve); // siteId not needed here
-  const pages = await listPages(uuidStr);
-  return { pages: mergeNormalizedPages(pages) };
-}
-
-/** Raw API: pages + site ids for envelope. */
-export async function listHeatmapPagesRaw(websiteParam: string) {
-  const { uuidStr, siteId } = await resolveWebsiteIds(websiteParam);
-  const pages = await listPages(uuidStr);
-  return { siteId, uuidStr, pages: mergeNormalizedPages(pages) };
-}
-
-export async function getHeatmapPoints(
-  websiteParam: string,
-  pagePath: string,
-  eventType: string,
-  opts: { lenientResolve: boolean },
-) {
-  const { uuidStr } = await resolve(websiteParam, opts.lenientResolve);
-  const norm = normalizeHeatmapPagePath(pagePath);
-  const points = await getHeatmapData(uuidStr, norm, eventType || "click");
-  return { page_path: norm, points };
-}
-
-export async function getHeatmapPointsRaw(
-  websiteParam: string,
-  pagePath: string,
-  eventType: string,
-) {
-  const { uuidStr, siteId } = await resolveWebsiteIds(websiteParam);
-  const norm = normalizeHeatmapPagePath(pagePath);
-  const et = eventType || "click";
-  const points = await getHeatmapData(uuidStr, norm, et);
-  return { siteId, uuidStr, page_path: norm, event_type: et, points };
-}
-
-export async function getHeatmapLayoutSnapshot(
-  websiteParam: string,
-  pagePath: string,
-  opts: { lenientResolve: boolean },
-) {
-  const { uuidStr, siteId } = await resolve(websiteParam, opts.lenientResolve);
-  const norm = normalizeHeatmapPagePath(pagePath);
-  const row = await getLayoutSnapshot(uuidStr, norm);
-  // A row exists if either a JPEG screenshot (s3_key) or a DOM HTML snapshot (html_s3_key) is stored.
-  // upsertLayoutHtmlSnapshot inserts with s3_key='' so checking only s3_key would treat a valid
-  // DOM snapshot as a miss and suppress it behind an unnecessary Playwright autoCapture.
-  if (!row?.s3_key && !row?.html_s3_key) {
-    log.info({ msg: "heatmap_snapshot_miss", website_uuid: uuidStr, norm, triggering_autocapture: true });
-    // No snapshot at all — find a real URL from analytics events and trigger Playwright in background.
-    void autoCapture(websiteParam, uuidStr, siteId, norm, opts);
-    return { layout: null as null };
+    return { layout: snapshot.layout };
   }
 
-  // Stale snapshot: re-capture in background if older than 3 days, but still return existing data.
-  const STALE_MS = 3 * 24 * 60 * 60 * 1000;
-  if (row.updated_at && Date.now() - new Date(row.updated_at).getTime() > STALE_MS) {
-    log.info({ msg: "heatmap_snapshot_stale_refresh", website_uuid: uuidStr, norm });
-    void autoCapture(websiteParam, uuidStr, siteId, norm, opts, true);
+  /**
+   * Store a screenshot the dashboard rendered itself.
+   *
+   * Bypasses the tracker `/collect` flow — an authenticated user on the heatmap
+   * page triggers this directly, which is how a page nobody has visited since
+   * layout capture was enabled gets a backdrop at all.
+   *
+   * The image is validated before the website is looked up, preserving the order
+   * the endpoint has always reported errors in: a malformed upload is a malformed
+   * upload regardless of whether the site still exists.
+   */
+  async saveDashboardScreenshot(
+    websiteRef: string,
+    pagePath: string,
+    imageBase64: string,
+    docWidth: number,
+    docHeight: number,
+  ): Promise<void> {
+    const target = await this.settings.getCaptureTarget(websiteRef);
+    const norm = normalizeHeatmapPagePath(pagePath);
+    const jpeg = decodeJpegUpload(imageBase64);
+
+    // Message preserved verbatim — the route returns `String(e)` to the client.
+    if (!target) throw new Error("website not found");
+
+    const s3Key = await storeDashboardScreenshot(target, norm, jpeg, docWidth, docHeight);
+
+    await this.eventBus.publish("heatmap.screenshot_captured", {
+      websiteId: target.websiteUuid,
+      siteId: target.siteId,
+      pagePath: norm,
+      s3Key,
+      source: "dashboard",
+      occurredAt: new Date(),
+    });
   }
 
+  async bulkDeletePages(websiteRef: string, pagePaths: string[]): Promise<void> {
+    const resolved = await this.resolve(websiteRef);
+    await deleteHeatmaps(resolved.websiteUuid, pagePaths);
 
-  const cfg = env();
-  const expMs = cfg.presignTtlMs;
-  const deadline = new Date(Date.now() + expMs).toISOString();
-
-  // Presign HTML snapshot URL if available (primary — DOM snapshot approach)
-  const htmlUrl = row.html_s3_key
-    ? await presignGet(cfg.s3.bucket, row.html_s3_key, expMs)
-    : undefined;
-
-  // Presign JPEG URL if available (fallback — only when html snapshot absent)
-  const imageUrl = row.s3_key ? await presignGet(cfg.s3.bucket, row.s3_key, expMs) : undefined;
-
-  return {
-    layout: {
-      image_url: imageUrl,
-      image_url_expires_at: deadline,
-      html_url: htmlUrl,
-      html_url_expires_at: htmlUrl ? deadline : undefined,
-      doc_width: row.doc_width,
-      doc_height: row.doc_height,
-    },
-  };
-}
-
-/**
- * Save a screenshot captured on-demand from the dashboard (html2canvas via the heatmap page).
- * Bypasses the tracker /collect flow — authenticated dashboard user triggers this directly.
- */
-export async function saveDashboardScreenshot(
-  websiteParam: string,
-  pagePath: string,
-  imageBase64: string,
-  docWidth: number,
-  docHeight: number,
-  opts: { lenientResolve: boolean },
-): Promise<void> {
-  const { uuidStr: _uuidStr, siteId } = opts.lenientResolve
-    ? await resolveWebsiteIdsLenient(websiteParam)
-    : await resolveWebsiteIds(websiteParam);
-
-  const norm = normalizeHeatmapPagePath(pagePath);
-
-  // Decode base64 (strip data URL prefix if present)
-  let imgStr = (imageBase64 ?? "").trim();
-  const dataUrlIdx = imgStr.indexOf("base64,");
-  if (dataUrlIdx >= 0) imgStr = imgStr.slice(dataUrlIdx + 7);
-
-  let buf: Buffer;
-  try {
-    buf = Buffer.from(imgStr, "base64");
-  } catch {
-    throw new Error("invalid base64 image data");
+    // Published after the delete, never before: retention accounting and any
+    // cache invalidation downstream must not act on a deletion that failed.
+    await this.eventBus.publish("heatmap.pages_deleted", {
+      websiteId: resolved.websiteUuid,
+      siteId: resolved.siteId,
+      pagePaths,
+      occurredAt: new Date(),
+    });
   }
-
-  const maxBytes = 10 * 1024 * 1024;
-  if (buf.length < 400 || buf.length > maxBytes) {
-    throw new Error(`screenshot size out of range: ${buf.length} bytes`);
-  }
-  if (buf[0] !== 0xff || buf[1] !== 0xd8 || buf[2] !== 0xff) {
-    throw new Error("image is not a valid JPEG");
-  }
-
-  const wsite = await getWebsiteBySiteId(siteId);
-  if (!wsite) throw new Error("website not found");
-
-  const cfg = env();
-  const sum = createHash("sha256").update(buf).digest("hex");
-
-  let dW = Math.trunc(docWidth ?? 0);
-  let dH = Math.trunc(docHeight ?? 0);
-  if (dW < 200) dW = 1280;
-  if (dH < 200) dH = 800;
-
-  const key = heatmapScreenshotKey(siteId, layoutPathSlot(siteId, norm));
-  await putJpeg(cfg.s3.bucket, key, buf);
-  await upsertLayoutSnapshot(wsite.id, norm, key, sum, dW, dH);
-}
-
-export async function bulkDeleteHeatmapPages(
-  websiteParam: string,
-  pagePaths: string[],
-  opts: { lenientResolve: boolean },
-) {
-  const { uuidStr } = await resolve(websiteParam, opts.lenientResolve);
-  await deleteHeatmaps(uuidStr, pagePaths);
-}
-
-/**
- * Scheduled job: find heatmap page snapshots older than `staleDays` and re-capture them.
- * Processes up to 50 at a time to avoid Playwright overload. Called by the scheduler.
- */
-export async function refreshStaleHeatmapScreenshots(staleDays = 3): Promise<{ queued: number }> {
-  const staleCut = new Date(Date.now() - staleDays * 86_400_000);
-  const stale = await sql<{ website_id: string; page_path: string }[]>`
-    SELECT DISTINCT ON (website_id, page_path) website_id::text AS website_id, page_path
-    FROM heatmap_page_snapshots
-    WHERE updated_at < ${staleCut}
-      AND (s3_key <> '' OR html_s3_key IS NOT NULL)
-    LIMIT 50
-  `;
-  if (stale.length === 0) return { queued: 0 };
-  log.info({ msg: "heatmap_stale_refresh_batch", count: stale.length, stale_before: staleCut.toISOString() });
-  for (const row of stale) {
-    try {
-      const { uuidStr, siteId } = await resolveWebsiteIdsLenient(row.website_id);
-      void autoCapture(row.website_id, uuidStr, siteId, row.page_path, { lenientResolve: true }, true);
-    } catch (e) {
-      log.warn({ msg: "heatmap_stale_refresh_resolve_failed", website_id: row.website_id, page_path: row.page_path, err: String(e) });
-    }
-  }
-  return { queued: stale.length };
 }

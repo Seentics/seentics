@@ -1,6 +1,6 @@
-import { sql as pgSql, db, sessionReplays } from "../db";
+import { sql as pgSql, db, sessionReplays } from "../../../db";
 import { sql as dsql } from "drizzle-orm";
-import type { SessionMetaRow } from "./types";
+import type { SessionMetaRow } from "../../../platform/lib/types";
 
 export type SessionUpsertRow = {
   websiteId: string;

@@ -1,8 +1,8 @@
 import { and, desc, eq, gte, lte } from "drizzle-orm";
-import { analyticsEvents, db } from "../db";
+import { analyticsEvents, db } from "../../db";
 import { resolveWebsiteIds } from "../lib/website-resolve";
-import * as heatmapSvc from "./heatmaps.service";
-import * as replaySvc from "./replays.service";
+import * as heatmapSvc from "../../modules/heatmaps/services/page-query.service";
+import * as replaySvc from "../../modules/recordings/services/session-list.service";
 
 export async function rawAnalyticsEvents(
   websiteParam: string,
@@ -63,18 +63,34 @@ export async function rawAnalyticsEvents(
   };
 }
 
-export async function rawSessions(websiteParam: string, limit: number, offset: number) {
-  return replaySvc.listReplaySessionsRaw(websiteParam, limit, offset);
+/**
+ * Session recordings for the raw API. Takes identifiers already resolved by the
+ * API-key middleware rather than re-resolving a loose reference.
+ */
+export async function rawSessions(
+  siteId: string,
+  websiteUuid: string,
+  limit: number,
+  offset: number,
+) {
+  return replaySvc.listReplaySessionsRaw(siteId, websiteUuid, limit, offset);
 }
 
-export async function rawHeatmapPages(websiteParam: string) {
-  return heatmapSvc.listHeatmapPagesRaw(websiteParam);
+/**
+ * Heatmap reads for the raw API.
+ *
+ * These take `websiteUuid` — already resolved by the API-key middleware, which had
+ * to look the website up to authenticate the request — rather than a loose
+ * reference they would have to resolve a second time.
+ */
+export async function rawHeatmapPages(websiteUuid: string) {
+  return heatmapSvc.listHeatmapPages(websiteUuid);
 }
 
 export async function rawHeatmapPoints(
-  websiteParam: string,
+  websiteUuid: string,
   pagePath: string,
   eventType: string,
 ) {
-  return heatmapSvc.getHeatmapPointsRaw(websiteParam, pagePath, eventType);
+  return heatmapSvc.getHeatmapPointsRaw(websiteUuid, pagePath, eventType);
 }

@@ -4,7 +4,7 @@ import {
   validateOriginDomain,
   validateWebhookUrl,
   validateScreenshotTargetUrl,
-} from "../../lib/origin";
+} from "../../../platform/lib/origin";
 
 // ─── originFromRequest ──────────────────────────────────────────────────────
 

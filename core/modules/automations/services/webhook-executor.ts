@@ -2,9 +2,9 @@
  * Async webhook executor with exponential back-off retry and delivery logging.
  */
 
-import { db, webhookDeliveries } from '../../db';
-import { log } from '../logger';
-import { validateWebhookUrl } from '../origin';
+import { db, webhookDeliveries } from '../../../db';
+import { log } from '../../../platform/lib/logger';
+import { validateWebhookUrl } from '../../../platform/lib/origin';
 import { renderTemplateDeep } from './template-engine';
 
 export interface WebhookAction {

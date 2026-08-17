@@ -1,10 +1,10 @@
 import { createHash } from "node:crypto";
 import type { Page } from "playwright";
 import { createScreenshotPage, closeBrowser } from "./playwright-browser";
-import { putJpeg } from "./s3";
+import { putJpeg } from "../../../platform/lib/s3";
 import { heatmapScreenshotKey, layoutPathSlot } from "./keys";
-import { getScreenshotCache } from "./heatmap-screenshot-cache";
-import { log as baseLog } from "./logger";
+import { getScreenshotCache } from "../../../modules/heatmaps/services/screenshot-cache";
+import { log as baseLog } from "../../../platform/lib/logger";
 
 const log = baseLog.child({ category: "playwright" });
 

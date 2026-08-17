@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { authMiddleware, requireUser, type AuthVars } from "../middleware/auth";
-import { getUserById } from "../services/auth.service";
+import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
+import { getUserById } from "../../modules/auth/services/auth.service";
 import { toFrontendUser } from "../lib/user-mapper";
 
 const r = new Hono<{ Variables: AuthVars }>();

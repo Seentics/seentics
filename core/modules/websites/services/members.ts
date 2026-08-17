@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
-import { db, users, websiteMembers, websiteInvitations, websites } from "../../db";
-import type { AddWebsiteMemberBody } from "../../lib/api-types";
-import { resolveWebsiteIds } from "../../lib/website-resolve";
+import { db, users, websiteMembers, websiteInvitations, websites } from "../../../db";
+import type { AddWebsiteMemberBody } from "../../../platform/lib/api-types";
+import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
 import { assertWebsiteAccess } from "./access";
 
 export async function listMembers(userId: string, websiteParam: string) {

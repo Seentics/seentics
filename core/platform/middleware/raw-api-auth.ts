@@ -1,5 +1,5 @@
 import type { MiddlewareHandler } from "hono";
-import { env } from "../config";
+import { env } from "../../config";
 import type { VerifiedApiKeyContext } from "../lib/api-key-verify";
 import { verifyWebsiteApiKey } from "../lib/api-key-verify";
 import { takeRateToken } from "../lib/token-bucket";

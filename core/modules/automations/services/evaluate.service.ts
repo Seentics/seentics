@@ -1,21 +1,34 @@
 /**
  * Server-side automation evaluation.
+ *
  * Called by POST /tracker/automations/evaluate (no auth — tracker origin validated upstream).
  *
  * Flow:
  *  1. Load active automations for the website (sorted by priority ASC)
  *  2. For each: match trigger type → evaluate conditions → check frequency caps → pick A/B variant
  *  3. Dispatch webhook actions async (fire-and-forget)
- *  4. Record impression
+ *  4. Record impressions and enqueue `automation.triggered` in one transaction
  *  5. Return client-side action payloads
  */
 
-import { and, asc, eq, sql as rawSql } from 'drizzle-orm';
+import { and, eq, sql as rawSql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import { automationEvents, automationImpressions, automations, db, userProfiles } from '../db';
-import { log } from '../lib/logger';
-import type { Conditions } from '../lib/automations/condition-evaluator';
-import { evaluateConditions } from '../lib/automations/condition-evaluator';
+import { automationEvents, db, userProfiles } from '../../../db';
+import { InMemoryEventBus, type EventBus, type Unsubscribe } from '../../../infrastructure/events';
+import { enqueueEvent } from '../../../infrastructure/outbox';
+import { log } from '../../../platform/lib/logger';
+import type {
+  AutomationEvaluation,
+  AutomationEventSubscriber,
+  ClientAction,
+  EvaluateRequest,
+  EvaluateResult,
+  IdentifyPayload,
+  VisitorProfileWriter,
+} from '../interfaces';
+import { listActiveAutomationsByPriority } from '../repositories/postgres-automation.repository';
+import type { Conditions } from './condition-evaluator';
+import { evaluateConditions } from './condition-evaluator';
 import {
   getImpressionStats,
   isCappedFromStats,
@@ -23,36 +36,14 @@ import {
   capsRequireLookup,
   type FrequencyCapSpec,
   type ImpressionMeta,
-} from '../lib/automations/frequency-caps';
-import { executeWebhook, type WebhookAction } from '../lib/automations/webhook-executor';
-import { renderTemplateDeep } from '../lib/automations/template-engine';
+} from './frequency-caps';
+import { executeWebhook, type WebhookAction } from './webhook-executor';
+import { renderTemplateDeep } from './template-engine';
 
-// ─── Public types ─────────────────────────────────────────────────────────────
-
-export interface EvaluateRequest {
-  websiteId: string;
-  anonymousId: string;
-  userId?: string | null;
-  sessionId: string;
-  trigger: {
-    type: string;
-    [key: string]: unknown;
-  };
-  context: Record<string, unknown>;
-}
-
-export interface ClientAction {
-  type: string;
-  automation_id: string;
-  variant?: string | null;
-  run_id: string;
-  [key: string]: unknown;
-}
-
-export interface EvaluateResult {
-  matched: number;
-  actions: ClientAction[];
-}
+// The request/result contract now lives in `../interfaces` — it is the module's
+// public surface, not an implementation detail. Re-exported because the tracker
+// route and its tests already import these names from here.
+export type { ClientAction, EvaluateRequest, EvaluateResult, IdentifyPayload };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -168,143 +159,285 @@ async function logActionResult(
   }
 }
 
-// ─── Main evaluate function ───────────────────────────────────────────────────
+/** One automation that fired, buffered until the impressions transaction. */
+type FiredAutomation = { automationId: string; runId: string; visitorId: string };
 
-export async function evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
-  const { websiteId, anonymousId, userId, sessionId, trigger, context } = req;
+// ─── Evaluation service ───────────────────────────────────────────────────────
 
-  // Load user profile facts to merge into condition context
-  const profileFacts = await loadUserProfile(websiteId, anonymousId);
-  const fullContext: Record<string, unknown> = {
-    ...profileFacts,
-    ...context,
-    user: { ...(profileFacts as object), ...(context.user as object ?? {}) },
-    session: { id: sessionId, ...(context.session as object ?? {}) },
-    trigger,
-  };
+/**
+ * Decides which automations fire for a trigger, and fires them.
+ *
+ * Two different delivery guarantees are used here on purpose:
+ *
+ * - `automation.triggered` goes through the **transactional outbox**, enqueued in
+ *   the same transaction as the impression it belongs to. An automation firing is
+ *   externally visible — it can send a webhook — and it is also what frequency
+ *   caps are charged against, so an announcement lost to a crash between COMMIT
+ *   and publish would leave a visitor capped for something no consumer ever heard
+ *   about. The cost is at-least-once delivery: a consumer must dedupe, and
+ *   `runId` is on the payload to be the key it dedupes on.
+ * - `automation.action_executed` goes straight to the **bus**. It is one row's
+ *   worth of observability per action, already durably recorded in
+ *   `automation_events` for the dashboard, and it fires often. Paying for a
+ *   transactional write per action to guarantee delivery of a signal whose loss
+ *   costs nothing would be the wrong trade.
+ *
+ * The bus arrives by constructor injection so nothing here knows whether it is
+ * in-process or a broker.
+ */
+export class AutomationEvaluationService
+  implements AutomationEvaluation, VisitorProfileWriter, AutomationEventSubscriber
+{
+  /** Batches seen through `subscribeToIngest`. Diagnostics and tests only. */
+  private observedIngestBatches = 0;
 
-  // Load active automations sorted by priority
-  const rows = await db
-    .select()
-    .from(automations)
-    .where(and(eq(automations.websiteId, websiteId), eq(automations.isActive, true)))
-    .orderBy(asc(automations.priority));
+  constructor(private readonly eventBus: EventBus) {}
 
-  // First pass (no DB): narrow to automations whose trigger + conditions match.
-  // Cache the parsed definition so we don't castDef twice per automation.
-  const candidates: { auto: (typeof rows)[number]; def: ReturnType<typeof castDef>; caps: FrequencyCapSpec }[] = [];
-  for (const auto of rows) {
-    const def = castDef(auto.definition);
-    if (!triggerMatches(def, trigger)) continue;
-    if (!evaluateConditions(def.conditions ?? null, fullContext)) continue;
-    candidates.push({ auto, def, caps: def.frequency ?? {} });
+  async evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
+    const { websiteId, siteId, anonymousId, userId, sessionId, trigger, context } = req;
+
+    // Load user profile facts to merge into condition context
+    const profileFacts = await loadUserProfile(websiteId, anonymousId);
+    const fullContext: Record<string, unknown> = {
+      ...profileFacts,
+      ...context,
+      user: { ...(profileFacts as object), ...(context.user as object ?? {}) },
+      session: { id: sessionId, ...(context.session as object ?? {}) },
+      trigger,
+    };
+
+    // Load active automations sorted by priority
+    const rows = await listActiveAutomationsByPriority(websiteId);
+
+    // First pass (no DB): narrow to automations whose trigger + conditions match.
+    // Cache the parsed definition so we don't castDef twice per automation.
+    const candidates: { auto: (typeof rows)[number]; def: AutomationDef; caps: FrequencyCapSpec }[] = [];
+    for (const auto of rows) {
+      const def = castDef(auto.definition);
+      if (!triggerMatches(def, trigger)) continue;
+      if (!evaluateConditions(def.conditions ?? null, fullContext)) continue;
+      candidates.push({ auto, def, caps: def.frequency ?? {} });
+    }
+
+    // One batched impression-stats query for every candidate that has a cap needing a
+    // lookup — replaces up to 3 sequential COUNT queries PER automation.
+    const cappedIds = candidates.filter((c) => capsRequireLookup(c.caps)).map((c) => c.auto.id);
+    const stats = await getImpressionStats(cappedIds, anonymousId, sessionId);
+
+    const clientActions: ClientAction[] = [];
+    const impressions: ImpressionMeta[] = [];
+    const fired: FiredAutomation[] = [];
+    let matched = 0;
+
+    for (const { auto, def, caps } of candidates) {
+      if (isCappedFromStats(stats.get(auto.id), caps)) continue;
+
+      matched++;
+      const runId   = randomUUID();
+      const variant = pickVariant(def.abTest);
+
+      // Log server run (async, best-effort)
+      void logServerRun(auto.id, runId, anonymousId, sessionId, trigger.type, context.page as string | undefined);
+
+      // Buffer the impression; all matched impressions are inserted in one round trip below.
+      impressions.push({ automationId: auto.id, anonymousId, userId, websiteId, sessionId, variant });
+      fired.push({ automationId: auto.id, runId, visitorId: anonymousId });
+
+      // Process actions
+      for (let i = 0; i < (def.actions ?? []).length; i++) {
+        const action = def.actions![i]!;
+        const actionKey = `${action.type}_${i}`;
+
+        if (action.type === 'webhook') {
+          const t0 = Date.now();
+          void executeWebhook(auto.id, action as unknown as WebhookAction, fullContext, runId)
+            .then(() => {
+              const ms = Date.now() - t0;
+              void logActionResult(auto.id, runId, actionKey, 'success', ms);
+              this.announceAction(siteId, auto.id, runId, actionKey, 'success', ms);
+            })
+            .catch((err: unknown) => {
+              const ms = Date.now() - t0;
+              log.warn({ msg: 'webhook_action_error', automationId: auto.id, err });
+              void logActionResult(auto.id, runId, actionKey, 'failed', ms, String(err));
+              this.announceAction(siteId, auto.id, runId, actionKey, 'failed', ms);
+            });
+          continue;
+        }
+
+        // Client-side actions: render templates and return to tracker
+        const rendered = renderTemplateDeep(action, fullContext) as Record<string, unknown>;
+        clientActions.push({
+          ...rendered,
+          type:          action.type,
+          automation_id: auto.id,
+          variant,
+          run_id:        runId,
+        });
+
+        void logActionResult(auto.id, runId, actionKey, 'success', 0);
+        this.announceAction(siteId, auto.id, runId, actionKey, 'success', 0);
+      }
+    }
+
+    // Persist all impressions from this evaluate in a single insert, with the
+    // `automation.triggered` events alongside them so the two cannot disagree.
+    if (impressions.length > 0) {
+      await this.commitImpressions(siteId, impressions, fired);
+    }
+
+    return { matched, actions: clientActions };
   }
 
-  // One batched impression-stats query for every candidate that has a cap needing a
-  // lookup — replaces up to 3 sequential COUNT queries PER automation.
-  const cappedIds = candidates.filter((c) => capsRequireLookup(c.caps)).map((c) => c.auto.id);
-  const stats = await getImpressionStats(cappedIds, anonymousId, sessionId);
-
-  const clientActions: ClientAction[] = [];
-  const impressions: ImpressionMeta[] = [];
-  let matched = 0;
-
-  for (const { auto, def, caps } of candidates) {
-    if (isCappedFromStats(stats.get(auto.id), caps)) continue;
-
-    matched++;
-    const runId   = randomUUID();
-    const variant = pickVariant(def.abTest);
-
-    // Log server run (async, best-effort)
-    void logServerRun(auto.id, runId, anonymousId, sessionId, trigger.type, context.page as string | undefined);
-
-    // Buffer the impression; all matched impressions are inserted in one round trip below.
-    impressions.push({ automationId: auto.id, anonymousId, userId, websiteId, sessionId, variant });
-
-    // Process actions
-    for (let i = 0; i < (def.actions ?? []).length; i++) {
-      const action = def.actions![i]!;
-      const actionKey = `${action.type}_${i}`;
-
-      if (action.type === 'webhook') {
-        const t0 = Date.now();
-        void executeWebhook(auto.id, action as unknown as WebhookAction, fullContext, runId)
-          .then(() => logActionResult(auto.id, runId, actionKey, 'success', Date.now() - t0))
-          .catch((err: unknown) => {
-            log.warn({ msg: 'webhook_action_error', automationId: auto.id, err });
-            void logActionResult(auto.id, runId, actionKey, 'failed', Date.now() - t0, String(err));
-          });
-        continue;
+  /**
+   * Impressions and their events, atomically.
+   *
+   * Wrapped in a transaction only because the outbox rows are in it: on its own the
+   * impression insert is a single statement that needs no transaction. The events
+   * are enqueued rather than published so the announcement survives the process
+   * dying immediately after COMMIT.
+   */
+  private async commitImpressions(
+    siteId: string,
+    impressions: ImpressionMeta[],
+    fired: FiredAutomation[],
+  ): Promise<void> {
+    const occurredAt = new Date();
+    await db.transaction(async (tx) => {
+      await recordImpressions(impressions, tx);
+      for (const { automationId, runId, visitorId } of fired) {
+        await enqueueEvent(tx, 'automation', automationId, 'automation.triggered', {
+          siteId,
+          automationId,
+          runId,
+          // The anonymous id, which is the only visitor identity this path always
+          // has — a logged-in `userId` is optional and often absent.
+          visitorId,
+          occurredAt,
+        });
       }
+    });
+  }
 
-      // Client-side actions: render templates and return to tracker
-      const rendered = renderTemplateDeep(action, fullContext) as Record<string, unknown>;
-      clientActions.push({
-        ...rendered,
-        type:          action.type,
-        automation_id: auto.id,
-        variant,
-        run_id:        runId,
-      });
+  /**
+   * Announce one action's outcome.
+   *
+   * Fire-and-forget on the bus: the dashboard reads action outcomes from
+   * `automation_events`, so this is a signal for live consumers, not the record.
+   * A rejected publish is swallowed by the bus itself.
+   */
+  private announceAction(
+    siteId: string,
+    automationId: string,
+    runId: string,
+    actionKey: string,
+    status: 'success' | 'failed',
+    durationMs: number,
+  ): void {
+    void this.eventBus.publish('automation.action_executed', {
+      siteId,
+      automationId,
+      runId,
+      actionKey,
+      status,
+      durationMs,
+      occurredAt: new Date(),
+    });
+  }
 
-      void logActionResult(auto.id, runId, actionKey, 'success', 0);
+  // ─── AutomationEventSubscriber ─────────────────────────────────────────────
+
+  /**
+   * Observe `analytics.batch_ingested`.
+   *
+   * The seam for an ingest-driven trigger, deliberately inert. It cannot evaluate
+   * anything today: the payload carries a `siteId` and a count, while
+   * `EvaluateRequest` needs a visitor, a session and a trigger. Making it fire
+   * automations would mean widening that event to carry per-visitor detail, which
+   * is a change to when automations run — a behavioural decision for whoever wires
+   * `app/bootstrap.ts`, not a side effect of moving files.
+   *
+   * Nothing subscribes to this yet; see the module's report notes.
+   */
+  subscribeToIngest(): Unsubscribe {
+    return this.eventBus.subscribe('analytics.batch_ingested', () => {
+      this.observedIngestBatches++;
+    });
+  }
+
+  /** Ingest batches observed since construction. Diagnostics and tests only. */
+  ingestBatchesObserved(): number {
+    return this.observedIngestBatches;
+  }
+
+  // ─── VisitorProfileWriter ──────────────────────────────────────────────────
+
+  async upsertUserProfile(payload: IdentifyPayload): Promise<void> {
+    const { websiteId, anonymousId, userId, properties = {}, meta = {} } = payload;
+    try {
+      await db
+        .insert(userProfiles)
+        .values({
+          websiteId,
+          anonymousId,
+          userId: userId ?? null,
+          properties,
+          country: meta.country ?? null,
+          city:    meta.city    ?? null,
+          device:  meta.device  ?? null,
+          browser: meta.browser ?? null,
+          firstSeenAt: new Date(),
+          lastSeenAt:  new Date(),
+        })
+        .onConflictDoUpdate({
+          target: [userProfiles.websiteId, userProfiles.anonymousId],
+          set: {
+            userId:       userId ?? null,
+            properties,
+            country:      meta.country ?? null,
+            city:         meta.city    ?? null,
+            device:       meta.device  ?? null,
+            browser:      meta.browser ?? null,
+            lastSeenAt:   new Date(),
+            visitCount:   rawSql`${userProfiles.visitCount} + 1`,
+            updatedAt:    new Date(),
+          },
+        });
+    } catch (err) {
+      log.warn({ msg: 'upsert_user_profile_failed', anonymousId, err });
     }
   }
-
-  // Persist all impressions from this evaluate in a single insert.
-  if (impressions.length > 0) await recordImpressions(impressions);
-
-  return { matched, actions: clientActions };
 }
 
-// ─── User profile upsert (called from ingest when identify events arrive) ─────
+// ─── Legacy entry point ───────────────────────────────────────────────────────
 
-export interface IdentifyPayload {
-  websiteId: string;
-  anonymousId: string;
-  userId?: string | null;
-  properties?: Record<string, unknown>;
-  meta?: {
-    country?: string;
-    city?: string;
-    device?: string;
-    browser?: string;
-  };
+/**
+ * Instance backing the free functions below.
+ *
+ * Exists only because `routes/tracker.ts` is still a module-level singleton router
+ * mounted directly in `index.ts`: it has no constructor to receive a service
+ * through. Its bus therefore has no subscribers, which is survivable precisely
+ * because the event that matters — `automation.triggered` — goes through the
+ * outbox and is published by the real bus in `app/bootstrap.ts` after commit. The
+ * best-effort `automation.action_executed` is the only thing this path drops.
+ *
+ * Replacing this means turning the tracker routes into a factory and constructing
+ * `AutomationEvaluationService` in `app/bootstrap.ts`; both files are owned
+ * elsewhere.
+ */
+let legacyInstance: AutomationEvaluationService | null = null;
+
+function legacyEvaluation(): AutomationEvaluationService {
+  legacyInstance ??= new AutomationEvaluationService(new InMemoryEventBus(log));
+  return legacyInstance;
 }
 
-export async function upsertUserProfile(payload: IdentifyPayload): Promise<void> {
-  const { websiteId, anonymousId, userId, properties = {}, meta = {} } = payload;
-  try {
-    await db
-      .insert(userProfiles)
-      .values({
-        websiteId,
-        anonymousId,
-        userId: userId ?? null,
-        properties,
-        country: meta.country ?? null,
-        city:    meta.city    ?? null,
-        device:  meta.device  ?? null,
-        browser: meta.browser ?? null,
-        firstSeenAt: new Date(),
-        lastSeenAt:  new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [userProfiles.websiteId, userProfiles.anonymousId],
-        set: {
-          userId:       userId ?? null,
-          properties,
-          country:      meta.country ?? null,
-          city:         meta.city    ?? null,
-          device:       meta.device  ?? null,
-          browser:      meta.browser ?? null,
-          lastSeenAt:   new Date(),
-          visitCount:   rawSql`${userProfiles.visitCount} + 1`,
-          updatedAt:    new Date(),
-        },
-      });
-  } catch (err) {
-    log.warn({ msg: 'upsert_user_profile_failed', anonymousId, err });
-  }
+/** @deprecated Construct `AutomationEvaluationService` and inject it instead. */
+export function evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
+  return legacyEvaluation().evaluate(req);
+}
+
+/** @deprecated Construct `AutomationEvaluationService` and inject it instead. */
+export function upsertUserProfile(payload: IdentifyPayload): Promise<void> {
+  return legacyEvaluation().upsertUserProfile(payload);
 }

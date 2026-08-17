@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { db, websites } from "../db";
+import { db, websites } from "../../../db";
 
 const SITE_CACHE_TTL_MS = 3 * 60_000;
 

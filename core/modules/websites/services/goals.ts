@@ -1,7 +1,7 @@
 import { and, asc, eq } from "drizzle-orm";
-import { db, goals } from "../../db";
-import type { CreateGoalBody, UpdateGoalPatch } from "../../lib/api-types";
-import { resolveWebsiteIds } from "../../lib/website-resolve";
+import { db, goals } from "../../../db";
+import type { CreateGoalBody, UpdateGoalPatch } from "../../../platform/lib/api-types";
+import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
 import { assertWebsiteAccess } from "./access";
 
 export async function listGoals(userId: string, websiteParam: string) {

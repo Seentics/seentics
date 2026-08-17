@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { trackerCollectSchema } from "../../validators/tracker";
+import { trackerCollectSchema } from "../validators/tracker.schema";
 
 function valid(overrides: Record<string, unknown> = {}) {
   return {

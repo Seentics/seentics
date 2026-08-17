@@ -1,5 +1,5 @@
 import type { Context, Next } from "hono";
-import { env } from "../config";
+import { env } from "../../config";
 import { verifyAccessToken } from "../lib/auth-jwt";
 
 export type AuthVars = {

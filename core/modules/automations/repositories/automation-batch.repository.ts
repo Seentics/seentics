@@ -1,9 +1,22 @@
+/**
+ * The tracker-trigger write path for `automation_events`.
+ *
+ * Lives in the automations module because it owns that table, but it is called
+ * from the ingest queue flusher rather than from anything in here — ingest batches
+ * across every module and drains on a timer. It stays a plain function for that
+ * reason: the caller is a module-level queue with no constructor to inject into.
+ *
+ * The category on the logger is still `ingest`, since these lines interleave with
+ * the rest of a flush cycle and grouping them by flush is what makes them
+ * readable.
+ */
+
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { automationEvents, automations, db } from "../../db";
-import type { AutomationTriggerQueued } from "../../lib/types";
-import { clampClientTs } from "../../lib/client-timestamp";
-import { log as baseLog } from "../../lib/logger";
+import { automationEvents, automations, db } from "../../../db";
+import type { AutomationTriggerQueued } from "../../../platform/lib/types";
+import { clampClientTs } from "../../../platform/lib/client-timestamp";
+import { log as baseLog } from "../../../platform/lib/logger";
 
 const log = baseLog.child({ category: "ingest" });
 

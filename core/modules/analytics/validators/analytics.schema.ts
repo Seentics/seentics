@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { zBoundedInt } from "../../../validators/validation";
+import { zBoundedInt } from "../../../platform/validation";
 
 export const analyticsRecentActivityQuerySchema = z.object({
   limit: zBoundedInt({ min: 1, max: 100, defaultValue: 50 }),

@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { apiKeys, db } from "../db";
+import { apiKeys, db } from "../../db";
 import { resolveWebsiteIds } from "./website-resolve";
 
 export type VerifiedApiKeyContext = {

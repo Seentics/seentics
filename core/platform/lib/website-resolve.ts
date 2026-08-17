@@ -1,5 +1,5 @@
 import { and, eq, or } from "drizzle-orm";
-import { db, websites, websiteMembers } from "../db";
+import { db, websites, websiteMembers } from "../../db";
 
 const idCache = new Map<string, { siteId: string; uuidStr: string; exp: number }>();
 const TTL_MS = 5 * 60 * 1000;

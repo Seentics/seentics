@@ -1,7 +1,7 @@
 import { analyticsEvents, db } from "../../../db";
-import type { AnalyticsIngestEvent } from "../../../lib/types";
-import { clampClientTs } from "../../../lib/client-timestamp";
-import { log as baseLog } from "../../../lib/logger";
+import type { AnalyticsIngestEvent } from "../../../platform/lib/types";
+import { clampClientTs } from "../../../platform/lib/client-timestamp";
+import { log as baseLog } from "../../../platform/lib/logger";
 import { pickInt, pickStr, pickUtmColumns } from "./field-pickers";
 
 const log = baseLog.child({ category: "ingest" });

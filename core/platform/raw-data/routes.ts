@@ -2,8 +2,9 @@
  * Machine-facing data API (analytics, replays, heatmaps). Auth: `X-API-Key` per website (`api_keys` table).
  * Base path: `GET /api/v1/raw/...` (mounted from `index.ts`).
  *
- * Analytics read models mirror the session dashboard (`routes/analytics.ts`) — same `analytics.service` functions.
- * Shared query params where applicable: `days`, `timezone`, `limit` (see `services/analytics.service.ts`).
+ * Analytics read models mirror the session dashboard (`modules/analytics/routes.ts`) — both go through
+ * `AnalyticsQueryService`, so the two surfaces cannot drift apart.
+ * Shared query params where applicable: `days`, `timezone`, `limit`.
  *
  * Auth: `r.use("*", rawApiAuthMiddleware)` — `X-API-Key` or `x-api-key` must match `api_keys` for `:website_id`.
  * Rate limits: global middleware applies per-IP tier `raw` (`RATE_LIMIT_RAW_MAX`); after a valid key, per-key bucket
@@ -11,17 +12,25 @@
  */
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { rawApiAuthMiddleware } from "../middleware/raw-api-auth";
-import * as analytics from "../services/analytics.service";
-import * as raw from "../services/raw-data.service";
-import { parseQuery } from "../validators/validation";
+import { rawApiAuthMiddleware } from "../../platform/middleware/raw-api-auth";
+import type { AnalyticsQueryService } from "../../modules/analytics/services/analytics-query.service";
+import * as raw from "./raw-data.service";
+import { parseQuery } from "../../platform/validation";
 import {
   rawEventsQuerySchema,
   rawHeatmapPointsQuerySchema,
   rawRecentActivityQuerySchema,
   rawSessionsQuerySchema,
-} from "../validators/raw-data";
+} from "./raw-data.schema";
 
+/**
+ * Machine-facing data API.
+ *
+ * A factory so the analytics service arrives by injection rather than through a
+ * module-level import — the same reason `modules/analytics/routes.ts` is one.
+ */
+export function createRawDataRoutes(deps: { analytics: AnalyticsQueryService }) {
+const { analytics } = deps;
 const r = new Hono();
 
 /** Every path on this router requires a valid website API key (defense in depth vs per-route middleware). */
@@ -51,36 +60,49 @@ function jsonWithMeta(
   });
 }
 
-type QsHandler = (websiteId: string, q: Record<string, string | undefined>) => Promise<unknown>;
-type SiteHandler = (websiteId: string) => Promise<unknown>;
+type QsHandler = (websiteRef: string, q: Record<string, string | undefined>) => Promise<unknown>;
+type SiteHandler = (websiteRef: string) => Promise<unknown>;
 
 const RAW_ANALYTICS_WITH_QS: [string, QsHandler][] = [
-  ["/v1/websites/:website_id/analytics/traffic-summary", analytics.getTrafficSummaryStats],
-  ["/v1/websites/:website_id/analytics/activity-trends", analytics.getActivityTrendsStats],
-  ["/v1/websites/:website_id/analytics/top-pages", analytics.getPagesAnalytics],
-  ["/v1/websites/:website_id/analytics/top-referrers", analytics.getReferrersAnalytics],
-  ["/v1/websites/:website_id/analytics/top-sources", analytics.getSourcesAnalytics],
-  ["/v1/websites/:website_id/analytics/top-countries", analytics.getCountriesAnalytics],
-  ["/v1/websites/:website_id/analytics/top-browsers", analytics.getBrowsersAnalytics],
-  ["/v1/websites/:website_id/analytics/top-devices", analytics.getDevicesAnalytics],
-  ["/v1/websites/:website_id/analytics/top-os", analytics.getOsAnalytics],
-  ["/v1/websites/:website_id/analytics/top-resolutions", analytics.getResolutionsAnalytics],
-  ["/v1/websites/:website_id/analytics/top-languages", analytics.getLanguagesAnalytics],
-  ["/v1/websites/:website_id/analytics/top-cities", analytics.getCitiesAnalytics],
-  ["/v1/websites/:website_id/analytics/hourly-stats", analytics.getHourlyStatsAnalytics],
-  ["/v1/websites/:website_id/analytics/daily-stats", analytics.getDailyStatsAnalytics],
-  ["/v1/websites/:website_id/analytics/goals-stats", analytics.getGoalsStats],
-  ["/v1/websites/:website_id/analytics/custom-events", analytics.getCustomEventsAnalytics],
-  ["/v1/websites/:website_id/analytics/visitor-insights", analytics.getVisitorInsightsAnalytics],
-  ["/v1/websites/:website_id/analytics/geolocation-breakdown", analytics.getGeolocationAnalytics],
+  ["/v1/websites/:website_id/analytics/traffic-summary", analytics.getTrafficSummary.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/activity-trends", analytics.getActivityTrends.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/top-pages", analytics.getPages.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/top-referrers", analytics.getReferrers.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/top-sources", analytics.getSources.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/top-countries", analytics.getCountries.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/top-browsers", analytics.getBrowsers.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/top-devices", analytics.getDevices.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/top-os", analytics.getOperatingSystems.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/top-resolutions", analytics.getResolutions.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/top-languages", analytics.getLanguages.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/top-cities", analytics.getCities.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/hourly-stats", analytics.getHourlyStats.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/daily-stats", analytics.getDailyStats.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/goals-stats", analytics.getGoals.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/custom-events", analytics.getCustomEvents.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/visitor-insights", analytics.getVisitorInsights.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/geolocation-breakdown", analytics.getGeolocation.bind(analytics)],
 ];
 
+/** Fixed-window endpoints that genuinely take no options. */
 const RAW_ANALYTICS_SITE_ONLY: [string, SiteHandler][] = [
-  ["/v1/websites/:website_id/analytics/realtime", analytics.getRealtimeStats],
-  ["/v1/websites/:website_id/analytics/live-visitors", analytics.getLiveVisitorsStats],
-  ["/v1/websites/:website_id/analytics/path-analysis", analytics.getPathAnalysisAnalytics],
-  ["/v1/websites/:website_id/analytics/page-utm-breakdown", analytics.getPageUtmBreakdownAnalytics],
-  ["/v1/websites/:website_id/analytics/export", analytics.getExportAnalytics],
+  ["/v1/websites/:website_id/analytics/realtime", analytics.getRealtime.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/live-visitors", analytics.getLiveVisitors.bind(analytics)],
+];
+
+/**
+ * Windowed endpoints that this API deliberately calls with no query parameters,
+ * so each falls back to its own default window.
+ *
+ * Kept separate from `RAW_ANALYTICS_WITH_QS` to preserve existing behaviour: the
+ * raw API has never forwarded `?days=` to these three, and moving them into the
+ * query table would silently start honouring it — a change to a public API's
+ * semantics dressed up as a refactor.
+ */
+const RAW_ANALYTICS_DEFAULT_WINDOW: [string, QsHandler][] = [
+  ["/v1/websites/:website_id/analytics/path-analysis", analytics.getPathAnalysis.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/page-utm-breakdown", analytics.getPageUtmBreakdown.bind(analytics)],
+  ["/v1/websites/:website_id/analytics/export", analytics.exportEvents.bind(analytics)],
 ];
 
 for (const [path, fn] of RAW_ANALYTICS_WITH_QS) {
@@ -97,15 +119,23 @@ for (const [path, fn] of RAW_ANALYTICS_SITE_ONLY) {
   });
 }
 
+for (const [path, fn] of RAW_ANALYTICS_DEFAULT_WINDOW) {
+  r.get(path, async (c) => {
+    // Empty bag, not `rawAnalyticsQs(c)` — see the table's note.
+    const data = await fn(websiteId(c), {});
+    return jsonWithMeta(c, data);
+  });
+}
+
 r.get("/v1/websites/:website_id/analytics/dashboard", async (c) => {
-  const data = await analytics.getDashboardStats(websiteId(c), rawAnalyticsQs(c));
+  const data = await analytics.getDashboard(websiteId(c), rawAnalyticsQs(c));
   return jsonWithMeta(c, data);
 });
 
 r.get("/v1/websites/:website_id/analytics/recent-activity", async (c) => {
   const q = parseQuery(c, rawRecentActivityQuerySchema);
   if (!q.ok) return q.res;
-  const data = await analytics.getRecentActivityAnalytics(websiteId(c), q.data.limit);
+  const data = await analytics.getRecentActivity(websiteId(c), q.data.limit);
   return jsonWithMeta(c, data);
 });
 
@@ -143,7 +173,7 @@ r.get("/v1/websites/:website_id/sessions", async (c) => {
   const q = parseQuery(c, rawSessionsQuerySchema);
   if (!q.ok) return q.res;
   const { limit, offset } = q.data;
-  const out = await raw.rawSessions(websiteId(c), limit, offset);
+  const out = await raw.rawSessions(ctx.siteId, ctx.websiteUuid, limit, offset);
   return c.json({
     meta: { website_id: ctx.websiteUuid, site_id: ctx.siteId, limit: out.limit, offset: out.offset },
     sessions: out.sessions,
@@ -152,7 +182,7 @@ r.get("/v1/websites/:website_id/sessions", async (c) => {
 
 r.get("/v1/websites/:website_id/heatmap/pages", async (c) => {
   const ctx = c.get("rawApi");
-  const out = await raw.rawHeatmapPages(websiteId(c));
+  const out = await raw.rawHeatmapPages(ctx.websiteUuid);
   return c.json({
     meta: { website_id: ctx.websiteUuid, site_id: ctx.siteId },
     pages: out.pages,
@@ -163,7 +193,7 @@ r.get("/v1/websites/:website_id/heatmap/points", async (c) => {
   const ctx = c.get("rawApi");
   const q = parseQuery(c, rawHeatmapPointsQuerySchema);
   if (!q.ok) return q.res;
-  const out = await raw.rawHeatmapPoints(websiteId(c), q.data.page_path, q.data.event_type);
+  const out = await raw.rawHeatmapPoints(ctx.websiteUuid, q.data.page_path, q.data.event_type);
   return c.json({
     meta: {
       website_id: ctx.websiteUuid,
@@ -175,4 +205,5 @@ r.get("/v1/websites/:website_id/heatmap/points", async (c) => {
   });
 });
 
-export const rawDataRoutes = r;
+return r;
+}
