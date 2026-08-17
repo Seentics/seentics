@@ -1,6 +1,6 @@
 import type { AppConfig } from "../../config";
 import { sql } from "../../db";
-import { MemoryCache } from "../../modules/analytics/lib/memory-cache";
+import { MemoryCache } from "./memory-cache";
 
 export type WebsiteTrackerRow = {
   id: string;

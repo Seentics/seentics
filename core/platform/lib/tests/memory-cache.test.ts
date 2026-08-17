@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { MemoryCache } from "../../../modules/analytics/lib/memory-cache";
+import { MemoryCache } from "../memory-cache";
 
 describe("MemoryCache", () => {
   describe("get / set", () => {
