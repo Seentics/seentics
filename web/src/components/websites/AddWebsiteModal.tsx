@@ -137,7 +137,7 @@ export function AddWebsiteModal({ open, onOpenChange, onSuccess }: AddWebsiteMod
                   className="rounded-lg h-11 border-zinc-200 dark:border-zinc-800"
                 />
                 <p className="px-1 text-[11px] text-amber-600 font-medium flex items-center gap-1.5 animate-in fade-in slide-in-from-left-2 duration-700">
-                  <span className="w-1.5 h-1.5 rounded-lg-full bg-amber-500 animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                   Note: Tracking script must be installed on the same domain.
                 </p>
               </div>

@@ -36,7 +36,7 @@ function PageListSkeleton() {
         <div key={i} className="flex items-center gap-3 px-3 py-2.5">
           <Skeleton className="h-4 w-4 rounded-lg" />
           <Skeleton className="h-3 flex-1 rounded-lg" />
-          <Skeleton className="h-5 w-12 rounded-lg-full" />
+          <Skeleton className="h-5 w-12 rounded-full" />
         </div>
       ))}
     </div>
@@ -46,7 +46,7 @@ function PageListSkeleton() {
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 gap-2">
-      <div className="w-10 h-10 rounded-lg-full bg-muted flex items-center justify-center">
+      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
         <Route className="h-5 w-5 text-muted-foreground" />
       </div>
       <p className="text-sm text-muted-foreground">{message}</p>
@@ -261,7 +261,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
                       <Skeleton className="h-3 flex-1 rounded-lg" />
                       <Skeleton className="h-4 w-6 rounded-lg" />
                       <Skeleton className="h-3 flex-1 rounded-lg" />
-                      <Skeleton className="h-5 w-12 rounded-lg-full" />
+                      <Skeleton className="h-5 w-12 rounded-full" />
                     </div>
                   ))}
                 </div>

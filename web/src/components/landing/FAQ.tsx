@@ -134,7 +134,7 @@ export default function FAQ() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="relative mx-auto max-w-3xl overflow-hidden rounded-lg-3xl border border-border/60 bg-gradient-to-b from-primary/[0.07] to-transparent px-6 py-12 text-center sm:px-12"
+          className="relative mx-auto max-w-3xl overflow-hidden rounded-lg border border-border/60 bg-gradient-to-b from-primary/[0.07] to-transparent px-6 py-12 text-center sm:px-12"
         >
           <h3 className="mb-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             Still have questions?

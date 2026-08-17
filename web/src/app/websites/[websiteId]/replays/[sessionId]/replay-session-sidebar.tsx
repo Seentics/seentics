@@ -282,15 +282,15 @@ function TimelineCard({ replayBridge }: { replayBridge: SessionReplayBridge | nu
         </CardDescription>
         <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 text-[10px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-lg-full bg-sky-400" aria-hidden />
+            <span className="h-1.5 w-1.5 rounded-full bg-sky-400" aria-hidden />
             Page
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-lg-full bg-amber-400" aria-hidden />
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" aria-hidden />
             Rage
           </span>
           <span className="inline-flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-lg-full bg-red-400" aria-hidden />
+            <span className="h-1.5 w-1.5 rounded-full bg-red-400" aria-hidden />
             Error
           </span>
         </div>

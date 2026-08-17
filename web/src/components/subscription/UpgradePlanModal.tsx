@@ -190,7 +190,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="max-w-sm">
           <div className="flex flex-col items-center text-center py-8 gap-4">
-            <div className="h-14 w-14 rounded-lg-full bg-primary/10 flex items-center justify-center">
+            <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
               <Loader2 className="h-7 w-7 text-primary animate-spin" />
             </div>
             <div>
@@ -246,13 +246,13 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
           <button
             onClick={() => setBilling(billing === 'monthly' ? 'yearly' : 'monthly')}
             className={cn(
-              "relative w-10 h-5 rounded-lg-full transition-colors focus:outline-none",
+              "relative w-10 h-5 rounded-full transition-colors focus:outline-none",
               billing === 'yearly' ? "bg-primary" : "bg-muted"
             )}
             aria-label="Toggle billing period"
           >
             <span className={cn(
-              "absolute top-0.5 left-0.5 h-4 w-4 rounded-lg-full bg-white shadow-sm transition-transform",
+              "absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
               billing === 'yearly' && "translate-x-5"
             )} />
           </button>
@@ -264,7 +264,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
             )}
           >
             Yearly
-            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-lg-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
               Save 20%
             </span>
           </button>
@@ -285,7 +285,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
               <div key={planKey} className="relative">
                 {'popular' in plan && plan.popular && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                    <span className={cn("text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-lg-full text-white", colors.bg)}>
+                    <span className={cn("text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full text-white", colors.bg)}>
                       Most Popular
                     </span>
                   </div>

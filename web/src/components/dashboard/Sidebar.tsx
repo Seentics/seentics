@@ -170,12 +170,12 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
                 <img
                   src={user.avatar}
                   alt=""
-                  className="h-8 w-8 shrink-0 rounded-lg-full object-cover ring-1 ring-border/60"
+                  className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-border/60"
                 />
               ) : (
                 <div
                   className={cn(
-                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg-full',
+                    'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
                     'bg-primary/12 text-[11px] font-semibold text-primary ring-1 ring-border/40',
                   )}
                 >

@@ -170,7 +170,7 @@ function FunnelDetailModal({
                     return (
                       <div key={step.id || i}>
                         <div className="flex items-center gap-3">
-                          <div className="w-6 h-6 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
                             {i + 1}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -181,11 +181,11 @@ function FunnelDetailModal({
                               </Badge>
                             </div>
                             <div
-                              className="h-1.5 bg-primary/10 rounded-lg-full mt-1.5 overflow-hidden"
+                              className="h-1.5 bg-primary/10 rounded-full mt-1.5 overflow-hidden"
                               style={{ width: `${widthPct}%` }}
                             >
                               <div
-                                className="h-full bg-primary rounded-lg-full"
+                                className="h-full bg-primary rounded-full"
                                 style={{ width: '100%' }}
                               />
                             </div>
@@ -335,7 +335,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
                   onClick={() => setDetailFunnel(funnel)}
                 >
                   {/* Status dot */}
-                  <div className={`w-2 h-2 rounded-lg-full shrink-0 ${funnel.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${funnel.is_active ? 'bg-green-500' : 'bg-gray-300'}`} />
 
                   {/* Name + step flow */}
                   <div className="flex-1 min-w-0">

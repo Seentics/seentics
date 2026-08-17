@@ -258,11 +258,11 @@ print(data)`}
                     </p>
                     <ul className="space-y-2 text-sm text-muted-foreground">
                         <li className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-lg-full bg-primary" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                             <span><span className="font-semibold text-foreground">1000 requests/minute</span> per API key</span>
                         </li>
                         <li className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-lg-full bg-primary" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                             <span><span className="font-semibold text-foreground">Headers</span> include <code className="bg-muted px-1 rounded-lg text-xs">X-RateLimit-Remaining</code> and <code className="bg-muted px-1 rounded-lg text-xs">X-RateLimit-Reset</code></span>
                         </li>
                     </ul>

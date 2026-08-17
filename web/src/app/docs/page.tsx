@@ -216,7 +216,7 @@ export default function DocsPage() {
             },
           ].map(({ step, title, desc }) => (
             <div key={step} className="flex gap-4 p-5 rounded-lg bg-muted/20">
-              <div className="w-8 h-8 rounded-lg-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center shrink-0">
                 {step}
               </div>
               <div className="space-y-1">
@@ -248,7 +248,7 @@ export default function DocsPage() {
               'Countries & cities', 'Devices & OS', 'Browsers',
             ].map(item => (
               <div key={item} className="flex items-center gap-2">
-                <div className="w-1 h-1 rounded-lg-full bg-primary/60 shrink-0" />
+                <div className="w-1 h-1 rounded-full bg-primary/60 shrink-0" />
                 {item}
               </div>
             ))}
@@ -546,7 +546,7 @@ export default function DocsPage() {
           <div className="grid sm:grid-cols-2 gap-y-1.5 gap-x-4 text-sm text-muted-foreground">
             {['Page view', 'Custom event', 'Time on page', 'Exit intent', 'Scroll depth', 'Session end'].map(t => (
               <div key={t} className="flex items-center gap-2">
-                <div className="w-1 h-1 rounded-lg-full bg-purple-500/60 shrink-0" />
+                <div className="w-1 h-1 rounded-full bg-purple-500/60 shrink-0" />
                 {t}
               </div>
             ))}
@@ -1053,7 +1053,7 @@ export default function Dashboard() {
                 'Set recording and event limits per account',
               ].map(item => (
                 <li key={item} className="flex items-start gap-2">
-                  <div className="w-1 h-1 rounded-lg-full bg-violet-500/60 mt-2 shrink-0" />
+                  <div className="w-1 h-1 rounded-full bg-violet-500/60 mt-2 shrink-0" />
                   {item}
                 </li>
               ))}
@@ -1071,7 +1071,7 @@ export default function Dashboard() {
                 'Authenticate with snt_age_... keys',
               ].map(item => (
                 <li key={item} className="flex items-start gap-2">
-                  <div className="w-1 h-1 rounded-lg-full bg-violet-500/60 mt-2 shrink-0" />
+                  <div className="w-1 h-1 rounded-full bg-violet-500/60 mt-2 shrink-0" />
                   {item}
                 </li>
               ))}
@@ -1190,7 +1190,7 @@ export default function Dashboard() {
               'monthly_recordings — monthly session recording cap',
             ].map(item => (
               <li key={item} className="flex items-start gap-2">
-                <div className="w-1 h-1 rounded-lg-full bg-violet-500/60 mt-2 shrink-0" />
+                <div className="w-1 h-1 rounded-full bg-violet-500/60 mt-2 shrink-0" />
                 <code className="text-xs">{item}</code>
               </li>
             ))}
@@ -1335,7 +1335,7 @@ print(f"Tracker ID: {site['site_id']}")`}
 
         <div className="flex items-center gap-2">
           {['Agency', 'Agency Pro'].map(plan => (
-            <span key={plan} className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-lg-full bg-violet-500/10 text-violet-400">
+            <span key={plan} className="text-xs font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-violet-500/10 text-violet-400">
               {plan}
             </span>
           ))}

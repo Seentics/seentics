@@ -69,7 +69,7 @@ function StatusBadge({ status }: { status: string }) {
   };
   return (
     <span className={cn(
-      'inline-flex items-center px-2 py-0.5 rounded-lg-full text-[10px] font-semibold border capitalize',
+      'inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize',
       styles[status] || styles.pending
     )}>
       {status}
@@ -349,7 +349,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg-full bg-emerald-500/10 border border-emerald-500/20">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
             <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Privacy-First</span>
           </div>
@@ -733,7 +733,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           ) : gdprRequests.length === 0 ? (
             <Card className="border-dashed border-border/60">
               <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="h-12 w-12 rounded-lg-full bg-muted/30 flex items-center justify-center mb-3">
+                <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-3">
                   <Shield className="h-6 w-6 text-muted-foreground/30" />
                 </div>
                 <p className="text-sm font-medium text-muted-foreground">No data requests yet</p>

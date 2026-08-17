@@ -178,7 +178,7 @@ export function FunnelTestSandbox({
                 <span className="text-xs font-medium text-slate-400">Conversion Rate</span>
                 <span className="text-2xl font-bold text-emerald-500">{currentConversionRate}%</span>
               </div>
-              <div className="w-full h-2 bg-slate-800 rounded-lg-full overflow-hidden">
+              <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500"
                   style={{ width: `${currentConversionRate}%` }}
@@ -213,7 +213,7 @@ export function FunnelTestSandbox({
                       }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`h-10 w-10 rounded-lg-full flex items-center justify-center flex-shrink-0 font-bold ${step.status === 'completed'
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 font-bold ${step.status === 'completed'
                           ? 'bg-emerald-500 text-white'
                           : step.status === 'current'
                             ? 'bg-indigo-500 text-white'

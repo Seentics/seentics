@@ -384,7 +384,7 @@ export function FilterModal({
           <SlidersHorizontal className="h-3.5 w-3.5" />
           <span className="hidden sm:inline">Filters</span>
           {totalCount > 0 && (
-            <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-lg-full bg-primary text-[10px] text-primary-foreground font-bold">
+            <span className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground font-bold">
               {totalCount}
             </span>
           )}
@@ -423,7 +423,7 @@ export function FilterModal({
               {activeDraftTags.map(([key, value]) => (
                 <span
                   key={key}
-                  className="inline-flex items-center gap-1 h-6 pl-2.5 pr-1.5 rounded-lg-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary"
+                  className="inline-flex items-center gap-1 h-6 pl-2.5 pr-1.5 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary"
                 >
                   <span className="text-primary/70 font-normal">{FILTER_LABELS[key] ?? key}:</span>
                   <span>{String(value)}</span>

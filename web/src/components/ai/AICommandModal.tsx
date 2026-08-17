@@ -130,7 +130,7 @@ function NumberCard({ rows, yKey, title, insight }: {
   return (
     <div className="flex flex-col items-center justify-center min-h-[220px] gap-4 py-8">
       <div className="relative flex items-center justify-center">
-        <div className="absolute inset-0 rounded-lg-full bg-indigo-400/15 blur-3xl scale-150 dark:bg-indigo-500/10" />
+        <div className="absolute inset-0 rounded-full bg-indigo-400/15 blur-3xl scale-150 dark:bg-indigo-500/10" />
         <span className="relative text-7xl sm:text-8xl font-black bg-gradient-to-br from-indigo-500 via-violet-500 to-indigo-700 bg-clip-text text-transparent tabular-nums dark:from-indigo-300 dark:via-violet-300 dark:to-indigo-500">
           {formatted}
         </span>
@@ -389,7 +389,7 @@ function ResultPieChart({ rows, xKey, yKey, columns }: {
             <div key={i} className="space-y-1">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-lg-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
                   <span className="truncate text-foreground/80 text-xs font-medium">{d.name}</span>
                 </div>
                 <div className="shrink-0 flex items-center gap-2">
@@ -399,9 +399,9 @@ function ResultPieChart({ rows, xKey, yKey, columns }: {
                   </span>
                 </div>
               </div>
-              <div className="h-1.5 w-full rounded-lg-full bg-border/50 overflow-hidden">
+              <div className="h-1.5 w-full rounded-full bg-border/50 overflow-hidden">
                 <div
-                  className="h-full rounded-lg-full transition-all"
+                  className="h-full rounded-full transition-all"
                   style={{ width: `${pct}%`, background: CHART_COLORS[i % CHART_COLORS.length] }}
                 />
               </div>
@@ -470,7 +470,7 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
   const chart = (() => {
     if (!rows.length) return (
       <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground">
-        <div className="rounded-lg-full border border-border bg-muted/50 p-5">
+        <div className="rounded-full border border-border bg-muted/50 p-5">
           <BarChart2 className="h-8 w-8 opacity-40" />
         </div>
         <div className="text-center">
@@ -494,7 +494,7 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(
-        'flex flex-col p-0 gap-0 overflow-hidden rounded-lg-2xl sm:rounded-lg-3xl border border-border shadow-2xl',
+        'flex flex-col p-0 gap-0 overflow-hidden rounded-lg sm:rounded-lg border border-border shadow-2xl',
         'bg-background',
         'w-[96vw] max-w-[1160px] h-[92vh]',
         '[&>button:last-child]:hidden',
@@ -591,7 +591,7 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
                   <div className="space-y-2">
                     {tipList.map((tip, i) => (
                       <div key={i} className="flex gap-2.5 text-xs text-foreground/70 leading-relaxed">
-                        <span className="shrink-0 mt-1.5 h-1.5 w-1.5 rounded-lg-full bg-amber-500/50" />
+                        <span className="shrink-0 mt-1.5 h-1.5 w-1.5 rounded-full bg-amber-500/50" />
                         <span>{tip.replace(/^[•\-*]\s*/, '')}</span>
                       </div>
                     ))}
@@ -1022,7 +1022,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
       {/* ── Command / Input Modal ── */}
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className={cn(
-          'flex flex-col p-0 gap-0 overflow-hidden rounded-lg-2xl sm:rounded-lg-3xl',
+          'flex flex-col p-0 gap-0 overflow-hidden rounded-lg sm:rounded-lg',
           'border border-border shadow-2xl',
           'bg-background',
           'w-[calc(100vw-1rem)] max-w-[700px]',
@@ -1045,7 +1045,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
             <div className="flex items-center gap-2.5">
               {aiUsage && !isDemoMode && (
                 <div className={cn(
-                  'flex items-center gap-2 rounded-lg-full border px-2.5 py-1 text-xs',
+                  'flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs',
                   isAtLimit   ? 'border-red-300 bg-red-50 text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400'
                   : isNearLimit ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400'
                   :               'border-border bg-muted/60 text-muted-foreground',
@@ -1054,9 +1054,9 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                     <span>{aiUsage.current} used</span>
                   ) : (
                     <div className="flex items-center gap-1.5">
-                      <div className="h-1.5 w-12 rounded-lg-full bg-border overflow-hidden">
+                      <div className="h-1.5 w-12 rounded-full bg-border overflow-hidden">
                         <div
-                          className={cn('h-full rounded-lg-full transition-all', isAtLimit ? 'bg-red-500' : isNearLimit ? 'bg-amber-500' : 'bg-indigo-500')}
+                          className={cn('h-full rounded-full transition-all', isAtLimit ? 'bg-red-500' : isNearLimit ? 'bg-amber-500' : 'bg-indigo-500')}
                           style={{ width: `${usagePct}%` }}
                         />
                       </div>
@@ -1228,8 +1228,8 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
             {loading && (
               <div className="flex flex-col items-center gap-5 rounded-lg border border-indigo-200 bg-indigo-50/60 px-5 py-8 dark:border-indigo-500/20 dark:bg-indigo-500/5">
                 <div className="relative flex h-12 w-12 items-center justify-center">
-                  <div className="absolute inset-0 rounded-lg-full bg-indigo-400/20 animate-ping dark:bg-indigo-500/15" style={{ animationDuration: '1.5s' }} />
-                  <div className="relative flex h-10 w-10 items-center justify-center rounded-lg-full bg-indigo-100 dark:bg-indigo-500/20">
+                  <div className="absolute inset-0 rounded-full bg-indigo-400/20 animate-ping dark:bg-indigo-500/15" style={{ animationDuration: '1.5s' }} />
+                  <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-500/20">
                     <Sparkles className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                   </div>
                 </div>
@@ -1243,7 +1243,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                         done ? 'text-emerald-600 dark:text-emerald-400' : active ? 'text-foreground' : 'text-muted-foreground/40',
                       )}>
                         <span className={cn(
-                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-lg-full border transition-all',
+                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all',
                           done ? 'border-emerald-500/50 bg-emerald-500/15' :
                           active ? 'border-indigo-400 bg-indigo-100 dark:border-indigo-500/60 dark:bg-indigo-500/15' :
                           'border-border/40 bg-transparent',

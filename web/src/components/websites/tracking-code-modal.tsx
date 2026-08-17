@@ -54,11 +54,11 @@ export function TrackingCodeModal({
         <div className="p-6 space-y-6">
           <div className="text-center space-y-2">
             {isNewlyCreated ? (
-              <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-lg-full flex items-center justify-center mb-2">
+              <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-2">
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
             ) : (
-              <div className="mx-auto w-12 h-12 bg-primary/10 rounded-lg-full flex items-center justify-center mb-2">
+              <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
                 <Code className="h-6 w-6 text-primary" />
               </div>
             )}

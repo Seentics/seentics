@@ -119,7 +119,7 @@ export default function PricingSection() {
         >
           <div className="relative flex flex-col rounded-lg border-2 border-dashed border-amber-400/60 bg-amber-50/30 dark:bg-amber-950/10 p-5">
             <div className="absolute -top-3 left-4">
-              <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-lg-full bg-amber-400 text-amber-950">
+              <span className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-400 text-amber-950">
                 <FlaskConical className="h-3 w-3" />
                 Sandbox / Test Only
               </span>

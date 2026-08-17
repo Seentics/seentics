@@ -399,16 +399,16 @@ export default function ReplayDetailPage() {
           >
             {isLoading ? (
               <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-3">
-                <div className="h-8 w-8 rounded-lg-full border-2 border-primary/30 border-t-primary animate-spin" />
+                <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
                 <p className="text-xs font-medium text-muted-foreground">
                   {chunkProgress && chunkProgress.total > 1
                     ? `Loading recording… ${chunkProgress.loaded} / ${chunkProgress.total} chunks`
                     : 'Loading recording…'}
                 </p>
                 {chunkProgress && chunkProgress.total > 1 && (
-                  <div className="w-40 h-1 rounded-lg-full bg-muted overflow-hidden">
+                  <div className="w-40 h-1 rounded-full bg-muted overflow-hidden">
                     <div
-                      className="h-full bg-primary rounded-lg-full transition-all duration-200"
+                      className="h-full bg-primary rounded-full transition-all duration-200"
                       style={{ width: `${Math.round((chunkProgress.loaded / chunkProgress.total) * 100)}%` }}
                     />
                   </div>
@@ -416,7 +416,7 @@ export default function ReplayDetailPage() {
               </div>
             ) : !isDemoMode && (isError || chunksError) ? (
               <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">
-                <div className="h-14 w-14 rounded-lg-full bg-muted flex items-center justify-center">
+                <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
                   <Video className="h-7 w-7 text-muted-foreground/50" />
                 </div>
                 <div className="max-w-md space-y-2">
@@ -433,7 +433,7 @@ export default function ReplayDetailPage() {
               </div>
             ) : recordingPending ? (
               <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">
-                <div className="h-14 w-14 rounded-lg-full bg-muted flex items-center justify-center">
+                <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
                   <Video className="h-7 w-7 text-primary/60" />
                 </div>
                 <div className="max-w-md space-y-2">
@@ -460,7 +460,7 @@ export default function ReplayDetailPage() {
               </div>
             ) : !hasRecording ? (
               <div className="flex flex-1 min-h-[240px] flex-col items-center justify-center gap-4 px-6 text-center">
-                <div className="h-14 w-14 rounded-lg-full bg-muted flex items-center justify-center">
+                <div className="h-14 w-14 rounded-full bg-muted flex items-center justify-center">
                   <Video className="h-7 w-7 text-muted-foreground/50" />
                 </div>
                 <div className="max-w-md space-y-2">
@@ -498,9 +498,9 @@ export default function ReplayDetailPage() {
                 {/* Non-blocking streaming progress bar — shows while background chunks load */}
                 {chunkProgress && chunkProgress.loaded < chunkProgress.total && (
                   <div className="mb-2 flex items-center gap-2 px-1">
-                    <div className="h-1 flex-1 rounded-lg-full bg-muted overflow-hidden">
+                    <div className="h-1 flex-1 rounded-full bg-muted overflow-hidden">
                       <div
-                        className="h-full bg-primary/60 rounded-lg-full transition-all duration-300"
+                        className="h-full bg-primary/60 rounded-full transition-all duration-300"
                         style={{ width: `${Math.round((chunkProgress.loaded / chunkProgress.total) * 100)}%` }}
                       />
                     </div>

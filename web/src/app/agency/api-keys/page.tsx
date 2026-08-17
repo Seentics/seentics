@@ -239,7 +239,7 @@ export default function AgencyAPIKeysPage() {
                 key={key.id}
                 className="flex items-start gap-4 px-5 py-4 border-b border-border/40 last:border-0"
               >
-                <div className="mt-2 h-2 w-2 rounded-lg-full shrink-0 bg-green-500" />
+                <div className="mt-2 h-2 w-2 rounded-full shrink-0 bg-green-500" />
 
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <p className="text-sm font-semibold text-foreground">{key.name}</p>

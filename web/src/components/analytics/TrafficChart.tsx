@@ -49,7 +49,7 @@ function CustomTooltip({ active, payload, label }: any) {
         return (
           <div key={entry.dataKey} className="flex items-center justify-between gap-8 py-0.5">
             <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-lg-full flex-shrink-0" style={{ background: entry.color }} />
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: entry.color }} />
               <span className="text-muted-foreground">{meta[entry.dataKey] ?? entry.dataKey}</span>
             </div>
             <span className="font-semibold tabular-nums text-foreground">{formatNumber(entry.value)}</span>

@@ -35,8 +35,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 function LiveVisitorsBadge({ count = 142 }: { count?: number }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg-full bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-sm font-medium">
-      <span className="h-2 w-2 rounded-lg-full bg-green-500 animate-pulse" />
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 text-sm font-medium">
+      <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
       {count.toLocaleString()} live
     </span>
   );
@@ -44,7 +44,7 @@ function LiveVisitorsBadge({ count = 142 }: { count?: number }) {
 
 function PageViewsBadge({ views = '12.4k' }: { views?: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
+    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-sm font-medium">
       <Eye className="h-3.5 w-3.5" />
       {views} views today
     </span>
@@ -103,8 +103,8 @@ function TopPagesWidget() {
             <span className="font-mono text-foreground">{p.url}</span>
             <span className="text-muted-foreground">{p.views.toLocaleString()}</span>
           </div>
-          <div className="h-1 bg-muted rounded-lg-full overflow-hidden">
-            <div className="h-full bg-primary rounded-lg-full" style={{ width: `${(p.views / max) * 100}%` }} />
+          <div className="h-1 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full" style={{ width: `${(p.views / max) * 100}%` }} />
           </div>
         </div>
       ))}
@@ -127,8 +127,8 @@ function CountryWidget() {
           <span className="text-base leading-none">{r.flag}</span>
           <span className="flex-1 text-foreground truncate">{r.country}</span>
           <div className="flex items-center gap-2">
-            <div className="w-16 h-1 bg-muted rounded-lg-full overflow-hidden">
-              <div className="h-full bg-primary/70 rounded-lg-full" style={{ width: `${r.pct}%` }} />
+            <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-primary/70 rounded-full" style={{ width: `${r.pct}%` }} />
             </div>
             <span className="text-muted-foreground w-6 text-right">{r.pct}%</span>
           </div>

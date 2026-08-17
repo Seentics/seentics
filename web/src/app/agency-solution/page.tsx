@@ -124,7 +124,7 @@ export default function AgencySolutionPage() {
             {/* Hero */}
             <section className="relative pt-32 pb-20 md:pt-40 md:pb-24 overflow-hidden">
                 <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-primary/10 blur-[150px] rounded-lg-full" />
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[500px] bg-primary/10 blur-[150px] rounded-full" />
                 </div>
 
                 <div className="container mx-auto px-6 relative z-10">
@@ -133,7 +133,7 @@ export default function AgencySolutionPage() {
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ duration: 0.5 }}
-                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg-full bg-amber-500/10 border border-amber-500/20 text-sm font-bold tracking-wide text-amber-500 mb-8"
+                            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-sm font-bold tracking-wide text-amber-500 mb-8"
                         >
                             <Building2 className="h-4 w-4" />
                             THE ENTERPRISE AGENCY PLATFORM
@@ -231,7 +231,7 @@ export default function AgencySolutionPage() {
                                 whileInView={{ opacity: 1, y: 0 }}
                                 transition={{ delay: i * 0.08 }}
                                 viewport={{ once: true }}
-                                className="bg-card border border-border/60 rounded-lg-3xl p-8 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300"
+                                className="bg-card border border-border/60 rounded-lg p-8 hover:border-primary/30 hover:shadow-2xl hover:shadow-primary/5 transition-all duration-300"
                             >
                                 <div className={cn('h-12 w-12 rounded-lg flex items-center justify-center mb-6', f.color)}>
                                     <f.icon className="h-6 w-6" />
@@ -249,7 +249,7 @@ export default function AgencySolutionPage() {
                 <div className="container mx-auto px-6">
                     <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-20 items-center">
                         <div>
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-xs font-bold uppercase tracking-widest mb-6">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 text-xs font-bold uppercase tracking-widest mb-6">
                                 <Code2 className="h-3.5 w-3.5" /> Developer First
                             </div>
                             <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground mb-5 leading-tight">
@@ -264,7 +264,7 @@ export default function AgencySolutionPage() {
                         </div>
 
                         {/* Endpoint list */}
-                        <div className="bg-card border border-border/50 rounded-lg-3xl overflow-hidden shadow-xl shadow-foreground/5">
+                        <div className="bg-card border border-border/50 rounded-lg overflow-hidden shadow-xl shadow-foreground/5">
                             <div className="px-6 py-4 border-b border-border/40 bg-zinc-950/5 flex items-center gap-2">
                                 <Zap className="h-4 w-4 text-emerald-500" />
                                 <span className="text-sm font-bold text-foreground">Available Endpoints</span>
@@ -299,7 +299,7 @@ export default function AgencySolutionPage() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             whileInView={{ opacity: 1, scale: 1 }}
                             viewport={{ once: true }}
-                            className="bg-card border border-border rounded-lg-3xl overflow-hidden shadow-2xl shadow-primary/5"
+                            className="bg-card border border-border rounded-lg overflow-hidden shadow-2xl shadow-primary/5"
                         >
                             <div className="px-6 py-5 border-b border-border/40 bg-muted/20">
                                 <p className="text-base font-bold text-foreground">Client Feature Customization</p>
@@ -321,11 +321,11 @@ export default function AgencySolutionPage() {
                                             <span className={cn("text-base font-semibold", item.enabled ? "text-foreground" : "text-muted-foreground")}>{item.label}</span>
                                         </div>
                                         <div className={cn(
-                                            'h-6 w-11 rounded-lg-full relative transition-colors shrink-0 shadow-inner',
+                                            'h-6 w-11 rounded-full relative transition-colors shrink-0 shadow-inner',
                                             item.enabled ? 'bg-primary' : 'bg-muted border border-border'
                                         )}>
                                             <div className={cn(
-                                                'absolute top-0.5 h-5 w-5 rounded-lg-full bg-white shadow-sm transition-all',
+                                                'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all',
                                                 item.enabled ? 'left-5' : 'left-0.5'
                                             )} />
                                         </div>
@@ -335,7 +335,7 @@ export default function AgencySolutionPage() {
                         </motion.div>
 
                         <div>
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg-full bg-rose-500/10 text-rose-500 border border-rose-500/20 text-xs font-bold uppercase tracking-widest mb-6">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 text-rose-500 border border-rose-500/20 text-xs font-bold uppercase tracking-widest mb-6">
                                 <Shield className="h-3.5 w-3.5" /> Granular Toggles
                             </div>
                             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-5 leading-tight">
@@ -351,7 +351,7 @@ export default function AgencySolutionPage() {
                                     'Clients only see the tools you allow them to use',
                                 ].map(point => (
                                     <li key={point} className="flex items-start gap-4 text-base font-medium text-muted-foreground">
-                                        <div className="h-6 w-6 rounded-lg-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                                        <div className="h-6 w-6 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
                                             <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                                         </div>
                                         {point}
@@ -366,7 +366,7 @@ export default function AgencySolutionPage() {
             {/* Pricing CTA */}
             <section id="agency-pricing" className="py-32 bg-card border-y border-border/40 relative overflow-hidden">
                 <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/5 blur-[120px] rounded-lg-full" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/5 blur-[120px] rounded-full" />
                 </div>
 
                 <div className="container mx-auto px-6 relative z-10">
@@ -385,9 +385,9 @@ export default function AgencySolutionPage() {
                         viewport={{ once: true }}
                         className="max-w-xl mx-auto"
                     >
-                        <div className="relative p-8 md:p-10 rounded-lg-3xl bg-background border-2 border-amber-500/50 shadow-2xl shadow-amber-500/10">
+                        <div className="relative p-8 md:p-10 rounded-lg bg-background border-2 border-amber-500/50 shadow-2xl shadow-amber-500/10">
                             {/* Badge */}
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-lg-full bg-amber-500 text-amber-950 text-sm font-bold flex items-center gap-2 shadow-lg shadow-amber-500/20">
+                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-amber-500 text-amber-950 text-sm font-bold flex items-center gap-2 shadow-lg shadow-amber-500/20">
                                 <Sparkles className="h-4 w-4" />
                                 ENTERPRISE PLAN
                             </div>
@@ -399,7 +399,7 @@ export default function AgencySolutionPage() {
                                 <p className="text-sm font-medium text-muted-foreground">$2/site/mo · $1.50/1K events · $5/1K recordings. Generous included quotas.</p>
                             </div>
 
-                            <div className="space-y-4 mb-10 bg-muted/20 rounded-lg-2xl p-6 border border-border/40">
+                            <div className="space-y-4 mb-10 bg-muted/20 rounded-lg p-6 border border-border/40">
                                 {ENTERPRISE_FEATURES.map(f => (
                                     <div key={f} className="flex items-start gap-3">
                                         <CheckCircle2 className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />

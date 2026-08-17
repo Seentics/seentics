@@ -121,7 +121,7 @@ export function RecentActivityFeed({
     if (activities.length === 0) {
       return (
         <div className={cn('text-center space-y-3', embed ? 'py-8' : 'py-12')}>
-          <div className="w-10 h-10 mx-auto rounded-lg-full bg-muted/50 flex items-center justify-center">
+          <div className="w-10 h-10 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
             <Globe className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
@@ -235,8 +235,8 @@ export function RecentActivityFeed({
                       >
                         {isRecent && (
                           <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden>
-                            <span className="absolute inline-flex h-full w-full rounded-lg-full bg-primary opacity-50 animate-ping" />
-                            <span className="relative inline-flex h-1.5 w-1.5 rounded-lg-full bg-primary" />
+                            <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-50 animate-ping" />
+                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary" />
                           </span>
                         )}
                         {ago}
@@ -298,8 +298,8 @@ export function RecentActivityFeed({
           {activities.length > 0 && (
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-lg">
               <span className="relative flex h-1.5 w-1.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-lg-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-lg-full h-1.5 w-1.5 bg-emerald-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
               </span>
               Live
             </div>
@@ -309,7 +309,7 @@ export function RecentActivityFeed({
 
       {activities.length === 0 ? (
         <div className={cn('text-center space-y-3', embed ? 'py-8' : 'py-12')}>
-          <div className="w-10 h-10 mx-auto rounded-lg-full bg-muted/50 flex items-center justify-center">
+          <div className="w-10 h-10 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
             <Globe className="h-5 w-5 text-muted-foreground" />
           </div>
           <div>
@@ -359,7 +359,7 @@ export function RecentActivityFeed({
                     {/* Left accent bar */}
                     <span
                       className={cn(
-                        'pointer-events-none absolute left-0 top-2 bottom-2 w-[2.5px] rounded-lg-full transition-colors',
+                        'pointer-events-none absolute left-0 top-2 bottom-2 w-[2.5px] rounded-full transition-colors',
                         embed && (isRecent
                           ? 'bg-emerald-500'
                           : 'bg-border/60 group-hover:bg-border'),
@@ -386,8 +386,8 @@ export function RecentActivityFeed({
                       >
                         {isRecent && (
                           <span className="relative flex h-1.5 w-1.5 shrink-0" aria-hidden>
-                            <span className="absolute inline-flex h-full w-full rounded-lg-full bg-emerald-500 opacity-50 animate-ping" />
-                            <span className="relative inline-flex h-1.5 w-1.5 rounded-lg-full bg-emerald-500" />
+                            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-50 animate-ping" />
+                            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
                           </span>
                         )}
                         {ago}

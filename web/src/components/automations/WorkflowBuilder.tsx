@@ -370,7 +370,7 @@ function WorkflowBuilderInner({
           />
         </ReactFlow>
 
-        <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 gap-2 rounded-lg-2xl border border-border/60 bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
+        <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 gap-2 rounded-lg border border-border/60 bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
           <Button
             variant="ghost"
             size="sm"
@@ -404,7 +404,7 @@ function WorkflowBuilderInner({
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="absolute bottom-24 left-4 top-4 z-[5] flex w-[20rem] flex-col overflow-hidden rounded-lg-2xl border border-border/60 bg-card/95 shadow-2xl backdrop-blur-md sm:w-[22rem]"
+              className="absolute bottom-24 left-4 top-4 z-[5] flex w-[20rem] flex-col overflow-hidden rounded-lg border border-border/60 bg-card/95 shadow-2xl backdrop-blur-md sm:w-[22rem]"
             >
               <div className="border-b border-border/50 bg-muted/25 px-4 py-4">
                 <div className="mb-3 flex items-center justify-between gap-2">

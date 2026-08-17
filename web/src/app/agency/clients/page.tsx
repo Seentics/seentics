@@ -228,7 +228,7 @@ function ClientCard({ client, onEdit, onDelete, isDeleting }: ClientCardProps) {
         {/* Header row */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+            <div className="h-10 w-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
               <span className="text-sm font-bold text-primary">
                 {client.name.charAt(0).toUpperCase()}
               </span>

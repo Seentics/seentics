@@ -40,12 +40,12 @@ export default async function SocialProof() {
             href={`https://github.com/${GITHUB_REPO}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="group inline-flex items-center gap-2 rounded-lg-full border border-border bg-card px-4 py-1.5 font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+            className="group inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5 font-semibold text-foreground transition-colors hover:border-primary/40 hover:text-primary"
           >
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
             <span>Star on GitHub</span>
             {stars != null && (
-              <span className="rounded-lg-full bg-muted px-2 py-0.5 text-xs font-bold tabular-nums text-muted-foreground group-hover:text-primary">
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold tabular-nums text-muted-foreground group-hover:text-primary">
                 {formatStars(stars)}
               </span>
             )}

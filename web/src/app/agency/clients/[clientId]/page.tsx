@@ -433,7 +433,7 @@ function PortalAccessTab({ client }: { client: AgencyClient }) {
                   const feature = FEATURE_LABELS.find(f => f.key === key);
                   return feature ? (
                     <li key={key} className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 rounded-lg-full bg-green-500 shrink-0" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
                       {feature.label}
                     </li>
                   ) : null;
@@ -539,7 +539,7 @@ export default function ClientDetailPage() {
           All Clients
         </Link>
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+          <div className="h-10 w-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
             <span className="text-sm font-bold text-primary">
               {client.name.charAt(0).toUpperCase()}
             </span>

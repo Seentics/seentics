@@ -200,14 +200,14 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
       <div
         key={plan.id}
         className={cn(
-          'relative flex flex-col rounded-lg-2xl border bg-card p-6 transition-all duration-300 hover:shadow-lg',
+          'relative flex flex-col rounded-lg border bg-card p-6 transition-all duration-300 hover:shadow-lg',
           'popular' in plan && plan.popular ? `border-2 ${plan.borderColor} shadow-md` : 'border-border/60',
           isCurrent && 'ring-2 ring-primary/20',
         )}
       >
         {'popular' in plan && plan.popular && (
           <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-            <span className={cn('text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-lg-full text-white', plan.bgColor)}>
+            <span className={cn('text-[10px] font-semibold uppercase tracking-wider px-3 py-1 rounded-full text-white', plan.bgColor)}>
               Most Popular
             </span>
           </div>
@@ -284,13 +284,13 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
         <button
           onClick={() => setBilling(billing === 'monthly' ? 'yearly' : 'monthly')}
           className={cn(
-            'relative w-10 h-5 rounded-lg-full transition-colors focus:outline-none',
+            'relative w-10 h-5 rounded-full transition-colors focus:outline-none',
             billing === 'yearly' ? 'bg-primary' : 'bg-muted',
           )}
           aria-label="Toggle billing period"
         >
           <span className={cn(
-            'absolute top-0.5 left-0.5 h-4 w-4 rounded-lg-full bg-white shadow-sm transition-transform',
+            'absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform',
             billing === 'yearly' && 'translate-x-5',
           )} />
         </button>
@@ -302,7 +302,7 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
           )}
         >
           Yearly
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-lg-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
             Save ~20%
           </span>
         </button>

@@ -137,7 +137,7 @@ export default function AdminStoragePage() {
             {data.tables.length > 0 && (
               <div className="bg-[#111116] border border-white/[0.06] rounded-lg p-5">
                 <p className="text-[11px] text-gray-500 uppercase tracking-wide font-medium mb-3">Storage Distribution</p>
-                <div className="flex h-3 rounded-lg-full overflow-hidden gap-px mb-4">
+                <div className="flex h-3 rounded-full overflow-hidden gap-px mb-4">
                   {data.tables.map((t) => {
                     const pct = totalTrackedBytes > 0 ? (t.totalBytes / totalTrackedBytes) * 100 : 0;
                     if (pct < 0.5) return null;
@@ -203,8 +203,8 @@ export default function AdminStoragePage() {
                         <td className="px-5 py-3.5 text-right text-white font-semibold tabular-nums">{fmtBytes(t.totalBytes)}</td>
                         <td className="px-5 py-3.5">
                           <div className="flex items-center gap-2">
-                            <div className="w-20 h-1.5 bg-white/5 rounded-lg-full overflow-hidden">
-                              <div className={`h-full rounded-lg-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
+                            <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, pct)}%` }} />
                             </div>
                             <span className="text-[11px] text-gray-500 tabular-nums w-10">{pct.toFixed(1)}%</span>
                           </div>

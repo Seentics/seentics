@@ -178,7 +178,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
       <div className="space-y-6 max-w-4xl">
         <Card className="border-border/60">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="h-14 w-14 rounded-lg-2xl bg-primary/10 flex items-center justify-center mb-5">
+            <div className="h-14 w-14 rounded-lg bg-primary/10 flex items-center justify-center mb-5">
               <Lock className="h-7 w-7 text-primary" />
             </div>
             <h3 className="text-lg font-bold mb-2">Raw Data API Access</h3>
@@ -284,7 +284,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
       {keys.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="h-12 w-12 rounded-lg-full bg-muted/50 flex items-center justify-center mb-4">
+            <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-4">
               <Key className="h-6 w-6 text-muted-foreground" />
             </div>
             <h4 className="text-sm font-medium mb-1">No API keys yet</h4>

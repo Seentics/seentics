@@ -82,7 +82,7 @@ export default function ClientPortalPage() {
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <Card className="max-w-md w-full border border-destructive/30">
           <CardContent className="pt-8 pb-8 text-center space-y-4">
-            <div className="h-12 w-12 rounded-lg-full bg-destructive/10 flex items-center justify-center mx-auto">
+            <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
               <AlertTriangle className="h-6 w-6 text-destructive" />
             </div>
             <div>
@@ -105,7 +105,7 @@ export default function ClientPortalPage() {
       {/* Header */}
       <div className="border-b border-border/60 bg-card">
         <div className="max-w-[900px] mx-auto px-6 py-4 flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+          <div className="h-9 w-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
             <span className="text-sm font-bold text-primary">
               {client.name.charAt(0).toUpperCase()}
             </span>
@@ -145,7 +145,7 @@ export default function ClientPortalPage() {
                   <span
                     key={key}
                     className={cn(
-                      'inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg-full border font-medium',
+                      'inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border font-medium',
                       enabled
                         ? 'bg-primary/10 text-primary border-primary/20'
                         : 'bg-muted/30 text-muted-foreground border-border/40 line-through opacity-50',
@@ -153,7 +153,7 @@ export default function ClientPortalPage() {
                   >
                     <span
                       className={cn(
-                        'h-1.5 w-1.5 rounded-lg-full shrink-0',
+                        'h-1.5 w-1.5 rounded-full shrink-0',
                         enabled ? 'bg-primary' : 'bg-muted-foreground/40',
                       )}
                     />

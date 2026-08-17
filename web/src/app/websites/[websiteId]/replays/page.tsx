@@ -212,8 +212,8 @@ export default function ReplaysPage() {
                 className="flex shrink-0 flex-col gap-1 pt-0.5"
                 title={[s.has_rage_clicks && 'Rage clicks', s.has_errors && 'Issues'].filter(Boolean).join(' · ')}
               >
-                {s.has_rage_clicks && <span className="size-1.5 rounded-lg-full bg-amber-500 shadow-sm" aria-hidden />}
-                {s.has_errors && <span className="size-1.5 rounded-lg-full bg-red-500 shadow-sm" aria-hidden />}
+                {s.has_rage_clicks && <span className="size-1.5 rounded-full bg-amber-500 shadow-sm" aria-hidden />}
+                {s.has_errors && <span className="size-1.5 rounded-full bg-red-500 shadow-sm" aria-hidden />}
               </span>
             )}
           </div>
