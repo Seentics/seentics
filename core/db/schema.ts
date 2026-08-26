@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   boolean,
   doublePrecision,
@@ -65,6 +66,49 @@ export const websites = pgTable(
   (t) => [
     index("ix_websites_user_id").on(t.userId),
     uniqueIndex("ix_websites_public_share_id").on(t.publicShareId),
+  ],
+);
+
+/**
+ * Transactional outbox for domain events.
+ *
+ * A module that must not lose an event inserts it here inside the same
+ * transaction as the business write, so the event and the state change commit
+ * or roll back together. `infrastructure/outbox` polls unpublished rows and
+ * hands them to the event bus after commit — closing the window where a crash
+ * between COMMIT and publish would drop the event permanently.
+ *
+ * Delivery is at-least-once: a crash after publish but before the row is marked
+ * published replays that event, so consumers of outboxed events must be
+ * idempotent.
+ */
+export const outbox = pgTable(
+  "outbox",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Entity the event is about — `websites.id`, `funnels.id`, … */
+    aggregateId: text("aggregate_id").notNull(),
+    /** Entity kind, e.g. "website". Scopes `aggregateId` and aids debugging. */
+    aggregateType: text("aggregate_type").notNull(),
+    /** A key of `EventMap`, e.g. "website.created". */
+    eventType: text("event_type").notNull(),
+    /** The `EventMap` payload, JSON-encoded. Dates revive as ISO strings. */
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /** NULL until handed to the event bus. */
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    /** Incremented on each failed publish; drives backoff and alerting. */
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+  },
+  (t) => [
+    // The polling query is `WHERE published_at IS NULL ORDER BY created_at`.
+    // Partial index keeps it proportional to the backlog, not the table, which
+    // matters because published rows accumulate until they are pruned.
+    index("ix_outbox_unpublished")
+      .on(t.createdAt)
+      .where(sql`${t.publishedAt} IS NULL`),
+    index("ix_outbox_aggregate").on(t.aggregateType, t.aggregateId),
   ],
 );
 

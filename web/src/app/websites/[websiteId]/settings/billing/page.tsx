@@ -294,7 +294,7 @@ export default function BillingSettingsPage() {
                   <ul className="space-y-2.5">
                     {(planFeatures[currentPlan] || planFeatures.starter).map((f, i) => (
                       <li key={i} className="flex items-start gap-2.5 text-xs text-muted-foreground">
-                        <div className="h-4 w-4 rounded-lg-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <div className="h-4 w-4 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0 mt-0.5">
                           <Check className="h-2.5 w-2.5 text-emerald-500" />
                         </div>
                         <span className="leading-relaxed">{f}</span>

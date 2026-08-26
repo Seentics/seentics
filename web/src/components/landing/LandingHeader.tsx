@@ -128,8 +128,8 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                 <Link href="/websites/demo" onClick={() => setMobileOpen(false)}>
                   <Button variant="outline" className="w-full h-10 text-sm font-medium rounded-lg gap-2 border-border/60 text-muted-foreground">
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-lg-full bg-emerald-400 opacity-75" />
-                      <span className="relative inline-flex rounded-lg-full h-2 w-2 bg-emerald-500" />
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                     </span>
                     Live Demo
                   </Button>
@@ -142,7 +142,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
                   </Link>
                 ) : (
                   <Link href="/signup" onClick={() => setMobileOpen(false)}>
-                    <Button size={'lg'} className="w-full   font-medium rounded-lg-2xl">
+                    <Button size={'lg'} className="w-full   font-medium rounded-lg">
                       Get Started
                     </Button>
                   </Link>

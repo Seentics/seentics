@@ -1,0 +1,47 @@
+name: CI
+
+# Runs on every pull request and on pushes to the long-lived branches. Without this
+# a contributor's PR is unverified: the typecheck and the 619 tests only help if
+# something runs them before review.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to the same PR cancels the previous run — no value in finishing a
+# check against code that has already been replaced.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: core (typecheck + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # `--frozen-lockfile` fails rather than silently resolving a different tree
+      # than the one committed, so CI tests what the lockfile describes.
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # Expected to be clean. It reached zero only recently, and the four real bugs
+      # it was hiding — including a Playwright call to a method that does not exist —
+      # are the argument for keeping it that way.
+      - name: Typecheck
+        run: bun run check
+
+      # No database or S3 required: every test runs against in-memory doubles of the
+      # module interfaces. Anything needing a live Postgres belongs in a separate
+      # integration job, not here.
+      - name: Test
+        run: bun test

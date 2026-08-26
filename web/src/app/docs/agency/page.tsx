@@ -61,7 +61,7 @@ export default function AgencyAPIDocs() {
                         { step: '3', title: 'Use it in your requests', desc: 'Add the key to the Authorization header of every agency API request. The key is shown only once — save it securely.' },
                     ].map(({ step, title, desc }) => (
                         <div key={step} className="flex gap-4 p-6 rounded-lg border bg-card">
-                            <span className="flex-shrink-0 w-8 h-8 rounded-lg-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-sm font-bold flex items-center justify-center">
+                            <span className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-sm font-bold flex items-center justify-center">
                                 {step}
                             </span>
                             <div className="space-y-1">
@@ -379,7 +379,7 @@ print(f"Temp password: {temp_password}")`}
                                 <tr key={feature}>
                                     <td className="px-4 py-3"><code className="bg-muted/60 px-1.5 py-0.5 rounded-lg text-xs font-mono">{feature}</code></td>
                                     <td className="px-4 py-3 text-xs">
-                                        <span className={`px-2 py-0.5 rounded-lg-full text-xs font-medium ${def === 'true' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${def === 'true' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
                                             {def}
                                         </span>
                                     </td>
@@ -452,7 +452,7 @@ print(f"Temp password: {temp_password}")`}
                         { step: '5', title: 'Agency retains full oversight', desc: 'The agency can view, manage, and impersonate any client account from the Agency → Client Accounts dashboard at any time.' },
                     ].map(({ step, title, desc }) => (
                         <div key={step} className="flex gap-4 p-6 rounded-lg border bg-card">
-                            <span className="flex-shrink-0 w-8 h-8 rounded-lg-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-sm font-bold flex items-center justify-center">
+                            <span className="flex-shrink-0 w-8 h-8 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-sm font-bold flex items-center justify-center">
                                 {step}
                             </span>
                             <div className="space-y-1">
@@ -471,7 +471,7 @@ print(f"Temp password: {temp_password}")`}
                     <div className="flex items-center gap-2">
                         <Globe className="w-5 h-5 text-violet-500" />
                         <h3 className="font-semibold text-lg">Fully branded for your clients</h3>
-                        <span className="text-xs px-2 py-0.5 rounded-lg-full bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium">Agency & Agency Pro</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium">Agency & Agency Pro</span>
                     </div>
                     <p className="text-muted-foreground leading-relaxed">
                         On Agency and Agency Pro plans, you can customize the entire platform for your clients so they never see the "Seentics" brand.
@@ -485,7 +485,7 @@ print(f"Temp password: {temp_password}")`}
                             'Support email shown in help sections and error pages',
                         ].map((item) => (
                             <li key={item} className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-lg-full bg-violet-500 mt-1.5 flex-shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-violet-500 mt-1.5 flex-shrink-0" />
                                 <span>{item}</span>
                             </li>
                         ))}
@@ -507,7 +507,7 @@ print(f"Temp password: {temp_password}")`}
                             { label: '200 website creations/hour', desc: 'POST /agency/api/users/:userId/websites' },
                         ].map(({ label, desc }) => (
                             <li key={label} className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-lg-full bg-primary mt-1.5 flex-shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 flex-shrink-0" />
                                 <span>
                                     <span className="font-semibold text-foreground">{label}</span> — {desc}
                                 </span>

@@ -221,7 +221,7 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2">
                             <Code2 className="w-5 h-5 text-indigo-500" />
                             <h3 className="font-semibold text-lg">API Key</h3>
-                            <span className="text-xs px-2 py-0.5 rounded-lg-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium">Server Components</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-medium">Server Components</span>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
                             Pass your website API key to <code className="bg-muted px-1 rounded-lg text-xs">SeenticsProvider</code>.
@@ -234,7 +234,7 @@ export default function Dashboard() {
                         <div className="flex items-center gap-2">
                             <Zap className="w-5 h-5 text-indigo-500" />
                             <h3 className="font-semibold text-lg">User Token</h3>
-                            <span className="text-xs px-2 py-0.5 rounded-lg-full bg-muted text-muted-foreground font-medium">Client Components</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Client Components</span>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
                             Pass a short-lived user JWT <code className="bg-muted px-1 rounded-lg text-xs">token</code> instead of{' '}
@@ -302,7 +302,7 @@ export default function AnalyticsPage() {
                             'Support email shown in error states inside blocks',
                         ].map((item) => (
                             <li key={item} className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 rounded-lg-full bg-indigo-500 mt-1.5 flex-shrink-0" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 mt-1.5 flex-shrink-0" />
                                 <span>{item}</span>
                             </li>
                         ))}

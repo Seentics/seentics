@@ -49,7 +49,7 @@ export default function QuickStart() {
 
                 {steps.map((step, i) => (
                     <div key={i} className="relative flex flex-col md:flex-row gap-8 items-start group">
-                        <div className="md:w-12 md:h-12 w-10 h-10 rounded-lg-full bg-background border-2 border-primary flex items-center justify-center shrink-0 z-10 md:mt-2 shadow-lg shadow-primary/10">
+                        <div className="md:w-12 md:h-12 w-10 h-10 rounded-full bg-background border-2 border-primary flex items-center justify-center shrink-0 z-10 md:mt-2 shadow-lg shadow-primary/10">
                             <span className="text-lg font-bold text-primary">{i + 1}</span>
                         </div>
                         <div className="flex-1 p-8 rounded-lg border bg-card hover:bg-muted/10 transition-all duration-300">

@@ -268,7 +268,7 @@ export default function AgencyOverviewPage() {
                 className="flex items-start gap-4 px-5 py-4 border-b border-border/40 last:border-0"
               >
                 {/* Avatar */}
-                <div className="h-9 w-9 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="h-9 w-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
                   <span className="text-xs font-bold text-primary">
                     {client.name.charAt(0).toUpperCase()}
                   </span>

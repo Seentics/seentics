@@ -155,7 +155,7 @@ function CreateClientUserDialog({ open, onOpenChange, onDone }: CreateClientUser
           </DialogHeader>
           <div className="p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg-full bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-800 flex items-center justify-center shrink-0">
+              <div className="h-10 w-10 rounded-full bg-green-100 dark:bg-green-950 border border-green-200 dark:border-green-800 flex items-center justify-center shrink-0">
                 <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <div>
@@ -365,7 +365,7 @@ function ClientUserRow({ user, onResetPassword, onDelete }: ClientUserRowProps) 
       {/* Name */}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+          <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
             <span className="text-xs font-bold text-primary">
               {user.name.charAt(0).toUpperCase()}
             </span>

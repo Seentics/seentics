@@ -51,7 +51,7 @@ export default function APIKeysDocs() {
                         { step: '3', title: 'Copy the key immediately', desc: 'The full key is only shown once at creation time. Copy it to a secure location — you will not be able to retrieve it again.' },
                     ].map(({ step, title, desc }) => (
                         <div key={step} className="flex gap-4 p-6 rounded-lg border bg-card">
-                            <span className="flex-shrink-0 w-8 h-8 rounded-lg-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-bold flex items-center justify-center">
+                            <span className="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-sm font-bold flex items-center justify-center">
                                 {step}
                             </span>
                             <div className="space-y-1">
@@ -108,7 +108,7 @@ export default function APIKeysDocs() {
                         <div className="flex items-center gap-2">
                             <Lock className="w-5 h-5 text-primary" />
                             <h3 className="font-semibold text-lg">Authorization Header</h3>
-                            <span className="text-xs px-2 py-0.5 rounded-lg-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">Recommended</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium">Recommended</span>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
                             Pass the key as a Bearer token in the Authorization header. This is the preferred method as it keeps the key out of logs and URLs.
@@ -120,7 +120,7 @@ export default function APIKeysDocs() {
                         <div className="flex items-center gap-2">
                             <Code2 className="w-5 h-5 text-muted-foreground" />
                             <h3 className="font-semibold text-lg">Query Parameter</h3>
-                            <span className="text-xs px-2 py-0.5 rounded-lg-full bg-muted text-muted-foreground font-medium">Less Secure</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Less Secure</span>
                         </div>
                         <p className="text-sm text-muted-foreground leading-relaxed">
                             Append the key as a query parameter. Avoid this in production — the key will appear in server logs and browser history.

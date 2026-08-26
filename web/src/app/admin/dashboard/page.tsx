@@ -37,7 +37,7 @@ const PLAN_COLORS: Record<string, string> = {
 function PlanBadge({ plan }: { plan: string }) {
   const cls = PLAN_COLORS[plan] ?? 'bg-gray-800 text-gray-300 border border-gray-700';
   return (
-    <span className={`text-[11px] px-2 py-0.5 rounded-lg-full font-medium capitalize ${cls}`}>
+    <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium capitalize ${cls}`}>
       {plan.replace('_', ' ')}
     </span>
   );
@@ -152,7 +152,7 @@ export default function AdminDashboardPage() {
           <div className="flex items-center justify-center h-64 text-gray-600 text-sm">Loading…</div>
         )}
         {error && (
-          <div className="bg-red-500/5 border border-red-500/20 text-red-400 rounded-lg-2xl p-4 text-sm mb-6">{error}</div>
+          <div className="bg-red-500/5 border border-red-500/20 text-red-400 rounded-lg p-4 text-sm mb-6">{error}</div>
         )}
 
         {stats && !loading && (
@@ -197,9 +197,9 @@ export default function AdminDashboardPage() {
                     {stats.subscriptions.byPlan.map((p) => (
                       <div key={p.plan} className="flex items-center gap-3">
                         <PlanBadge plan={p.plan} />
-                        <div className="flex-1 h-1 bg-white/5 rounded-lg-full overflow-hidden">
+                        <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-lg-full ${ACCENT[p.plan === 'starter' ? 'slate' : p.plan === 'growth' ? 'emerald' : p.plan === 'pro' ? 'violet' : 'indigo'].bar}`}
+                            className={`h-full rounded-full ${ACCENT[p.plan === 'starter' ? 'slate' : p.plan === 'growth' ? 'emerald' : p.plan === 'pro' ? 'violet' : 'indigo'].bar}`}
                             style={{ width: `${Math.min(100, (p.count / Math.max(1, totalSubs)) * 100)}%` }}
                           />
                         </div>

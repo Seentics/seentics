@@ -388,9 +388,9 @@ function HeatmapPreviewBrowserChrome({
   return (
     <div className="flex h-9 shrink-0 items-center gap-1 border-b border-zinc-800/90 bg-zinc-900 px-1.5">
       <div className="flex shrink-0 gap-1 px-0.5" aria-hidden>
-        <span className="h-2 w-2 rounded-lg-full bg-[#ff5f57]" />
-        <span className="h-2 w-2 rounded-lg-full bg-[#febc2e]" />
-        <span className="h-2 w-2 rounded-lg-full bg-[#28c840]" />
+        <span className="h-2 w-2 rounded-full bg-[#ff5f57]" />
+        <span className="h-2 w-2 rounded-full bg-[#febc2e]" />
+        <span className="h-2 w-2 rounded-full bg-[#28c840]" />
       </div>
       <button
         type="button"
@@ -687,7 +687,7 @@ function HeatmapViewer({
             {showLoadingOverlay && (
               <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-zinc-950/55 backdrop-blur-[1px]">
                 <div className="pointer-events-auto flex flex-col items-center gap-2 rounded-lg border border-white/10 bg-zinc-950/75 px-4 py-3 shadow-lg">
-                  <div className="h-6 w-6 animate-spin rounded-lg-full border-2 border-primary/40 border-t-primary" />
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary/40 border-t-primary" />
                   <p className="text-xs text-white/60">Loading screenshot…</p>
                   <p className="max-w-[220px] text-center text-[10px] leading-relaxed text-white/40">
                     Switch to <span className="text-white/55">Heat only</span> for an instant grid backdrop.
@@ -1113,7 +1113,7 @@ export default function HeatmapDetailPage() {
           {isLoading && (
             <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-background/50">
               <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5">
-                <div className="h-4 w-4 animate-spin rounded-lg-full border-2 border-primary/30 border-t-primary" />
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
                 <span className="text-xs font-medium text-foreground">Loading…</span>
               </div>
             </div>

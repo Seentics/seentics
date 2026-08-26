@@ -133,7 +133,7 @@ export default function WebsitesOnboardingPage() {
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="h-1.5 w-1.5 rounded-lg-full bg-primary/60 animate-bounce"
+                className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce"
                 style={{ animationDelay: `${i * 0.15}s` }}
               />
             ))}
@@ -146,8 +146,8 @@ export default function WebsitesOnboardingPage() {
   return (
     <div className="min-h-screen bg-background selection:bg-primary/20">
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 right-0 h-[420px] w-[420px] rounded-lg-full bg-primary/[0.07] blur-3xl" />
-        <div className="absolute bottom-0 left-0 h-[320px] w-[320px] rounded-lg-full bg-sky-500/[0.06] blur-3xl" />
+        <div className="absolute -top-40 right-0 h-[420px] w-[420px] rounded-full bg-primary/[0.07] blur-3xl" />
+        <div className="absolute bottom-0 left-0 h-[320px] w-[320px] rounded-full bg-sky-500/[0.06] blur-3xl" />
       </div>
 
       <div className="relative z-10 mx-auto flex min-h-screen max-w-lg flex-col px-4 pb-10 pt-6 sm:px-6 sm:pt-10">
@@ -183,7 +183,7 @@ export default function WebsitesOnboardingPage() {
                 transition={{ duration: 0.2 }}
                 className="w-full"
               >
-                <Card className="border-border/80 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-lg-2xl">
+                <Card className="border-border/80 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-lg">
                   <CardHeader className="space-y-3 px-6 pb-2 pt-8 sm:px-8">
                     <CardTitle className="text-2xl font-bold tracking-tight">Add your website</CardTitle>
                     <CardDescription className="text-sm leading-relaxed">
@@ -263,9 +263,9 @@ export default function WebsitesOnboardingPage() {
                 transition={{ duration: 0.2 }}
                 className="w-full"
               >
-                <Card className="border-border/80 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-lg-2xl">
+                <Card className="border-border/80 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-lg">
                   <CardHeader className="space-y-3 pb-2 pt-8 text-center">
-                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-lg-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                       <CheckCircle className="h-5 w-5" strokeWidth={2} />
                     </div>
                     <CardTitle className="text-2xl font-bold tracking-tight">Tracking code</CardTitle>

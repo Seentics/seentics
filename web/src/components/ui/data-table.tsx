@@ -397,7 +397,7 @@ export function DataTable<TData>({
         /* Empty state */
         <div className="flex flex-col items-center justify-center py-20 text-center px-4">
           {emptyIcon && (
-            <div className="h-14 w-14 bg-muted/40 rounded-lg-2xl flex items-center justify-center mb-4 text-muted-foreground/40">
+            <div className="h-14 w-14 bg-muted/40 rounded-lg flex items-center justify-center mb-4 text-muted-foreground/40">
               {emptyIcon}
             </div>
           )}

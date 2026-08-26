@@ -60,8 +60,8 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
           <>
             <div className="w-5 h-full rounded-lg-sm bg-primary/20 border border-primary/30" />
             <div className="flex-1 space-y-1 pt-1">
-              <div className="h-1.5 w-3/4 rounded-lg-full bg-muted-foreground/10" />
-              <div className="h-1.5 w-1/2 rounded-lg-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-2">
                 <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
                 <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
@@ -72,22 +72,22 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
         {mode === 'dock' && (
           <div className="flex-1 relative">
             <div className="space-y-1 pt-1">
-              <div className="h-1.5 w-3/4 rounded-lg-full bg-muted-foreground/10" />
-              <div className="h-1.5 w-1/2 rounded-lg-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-2">
                 <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
                 <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
               </div>
             </div>
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-3 rounded-lg-full bg-primary/20 border border-primary/30" />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-3 rounded-full bg-primary/20 border border-primary/30" />
           </div>
         )}
         {mode === 'header' && (
           <div className="flex-1 flex flex-col">
             <div className="w-full h-3 rounded-lg-sm bg-primary/20 border border-primary/30 mb-1.5" />
             <div className="space-y-1">
-              <div className="h-1.5 w-3/4 rounded-lg-full bg-muted-foreground/10" />
-              <div className="h-1.5 w-1/2 rounded-lg-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-1">
                 <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
                 <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
@@ -97,10 +97,10 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
         )}
         {mode === 'floating-header' && (
           <div className="flex-1 flex flex-col items-center">
-            <div className="w-3/4 h-3 rounded-lg-full bg-primary/20 border border-primary/30 mt-0.5 mb-1.5" />
+            <div className="w-3/4 h-3 rounded-full bg-primary/20 border border-primary/30 mt-0.5 mb-1.5" />
             <div className="w-full space-y-1">
-              <div className="h-1.5 w-3/4 rounded-lg-full bg-muted-foreground/10" />
-              <div className="h-1.5 w-1/2 rounded-lg-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
+              <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-1">
                 <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
                 <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
@@ -178,7 +178,7 @@ export function LayoutSettingsComponent() {
                   <p className="text-xs text-muted-foreground">{option.description}</p>
                 </div>
                 {selectedMode === option.id && (
-                  <div className="absolute top-2 right-2 h-5 w-5 rounded-lg-full bg-primary flex items-center justify-center">
+                  <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
                     <Check className="h-3 w-3 text-primary-foreground" />
                   </div>
                 )}

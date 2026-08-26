@@ -30,7 +30,7 @@ export default function FunnelDocs() {
                             { text: 'Identify loyal user segments', icon: Target },
                         ].map((item, i) => (
                             <li key={i} className="flex items-start gap-3 group">
-                                <div className="mt-1 w-6 h-6 rounded-lg-full bg-indigo-500/10 flex items-center justify-center shrink-0">
+                                <div className="mt-1 w-6 h-6 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
                                     <item.icon className="w-3 h-3 text-indigo-500" />
                                 </div>
                                 <span className="text-muted-foreground group-hover:text-foreground transition-colors">{item.text}</span>

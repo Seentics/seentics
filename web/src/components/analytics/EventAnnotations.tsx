@@ -139,7 +139,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
                       type="button"
                       onClick={() => setColor(c.value)}
                       className={cn(
-                        'w-8 h-8 rounded-lg-full border-2 transition-all',
+                        'w-8 h-8 rounded-full border-2 transition-all',
                         color === c.value ? 'border-foreground scale-110' : 'border-transparent'
                       )}
                       style={{ backgroundColor: c.value }}
@@ -174,7 +174,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div
-                          className="w-3 h-3 rounded-lg-full flex-shrink-0"
+                          className="w-3 h-3 rounded-full flex-shrink-0"
                           style={{ backgroundColor: annotation.color }}
                         />
                         <div className="flex-1 min-w-0">

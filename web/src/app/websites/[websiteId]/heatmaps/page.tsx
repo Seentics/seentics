@@ -174,7 +174,7 @@ export default function HeatmapsPage() {
             <div className="flex items-center gap-2 min-w-0">
               <span
                 className={cn(
-                  'h-1.5 w-1.5 rounded-lg-full shrink-0 mt-px',
+                  'h-1.5 w-1.5 rounded-full shrink-0 mt-px',
                   row.original.active ? 'bg-emerald-500/90' : 'bg-muted-foreground/35',
                 )}
                 title={row.original.active ? 'Receiving data' : 'Inactive'}

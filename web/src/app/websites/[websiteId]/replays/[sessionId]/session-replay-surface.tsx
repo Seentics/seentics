@@ -891,7 +891,7 @@ function ReplayScrubberTrack({
       aria-valuenow={Math.round(currentMs)}
       className={cn(
         'relative flex h-4 w-full min-w-0 cursor-pointer touch-none items-center outline-none',
-        'rounded-lg-full focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900',
+        'rounded-full focus-visible:ring-2 focus-visible:ring-white/30 focus-visible:ring-offset-1 focus-visible:ring-offset-zinc-900',
       )}
       onClick={onTrackClick}
       onPointerDown={onTrackPointerDown}
@@ -900,13 +900,13 @@ function ReplayScrubberTrack({
       onPointerCancel={endDrag}
       onKeyDown={onTrackKeyDown}
     >
-      <div className="pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-lg-full bg-zinc-700/50" />
+      <div className="pointer-events-none absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-zinc-700/50" />
       <div
-        className="pointer-events-none absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-lg-full bg-white/85 shadow-[0_0_8px_rgba(255,255,255,0.12)]"
+        className="pointer-events-none absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-white/85 shadow-[0_0_8px_rgba(255,255,255,0.12)]"
         style={{ width: `${pct}%`, maxWidth: '100%' }}
       />
       <div
-        className="pointer-events-none absolute top-1/2 z-[1] h-3.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-lg-full border border-zinc-900 bg-white shadow-sm"
+        className="pointer-events-none absolute top-1/2 z-[1] h-3.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border border-zinc-900 bg-white shadow-sm"
         style={{ left: `${pct}%` }}
       />
     </div>
@@ -953,7 +953,7 @@ function SessionReplayTransportBar({
           <Button
             type="button"
             size="icon"
-            className="h-8 w-8 shrink-0 rounded-lg-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+            className="h-8 w-8 shrink-0 rounded-full bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
             aria-label={playing ? 'Pause' : 'Play'}
             onClick={() => {
               try {

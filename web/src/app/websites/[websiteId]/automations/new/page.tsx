@@ -52,7 +52,7 @@ export default function NewAutomationPage() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 w-9 shrink-0 rounded-lg-full"
+            className="h-9 w-9 shrink-0 rounded-full"
             onClick={() => router.push(`/websites/${websiteId}/automations`)}
             aria-label="Back to automations"
           >

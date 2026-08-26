@@ -55,12 +55,12 @@ export default function LifetimeDeal() {
   return (
     <section id="lifetime-deal" className="relative overflow-hidden bg-background py-24 md:py-32">
       {/* Ambient glow */}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[720px] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-lg-full bg-blue-500/10 blur-[120px]" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-[420px] w-[720px] max-w-full -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/10 blur-[120px]" />
 
       <div className="container relative mx-auto px-6">
         {/* Header */}
         <div className="mx-auto mb-14 max-w-4xl text-center">
-          <div className="mb-6 inline-flex items-center gap-1.5 rounded-lg-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5">
+          <div className="mb-6 inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5">
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
             <span className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Limited Time</span>
           </div>
@@ -78,7 +78,7 @@ export default function LifetimeDeal() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.45 }}
-          className="group relative mx-auto max-w-4xl overflow-hidden rounded-lg-3xl border border-blue-500/25 bg-card shadow-2xl shadow-blue-500/10 transition-shadow duration-300 hover:shadow-blue-500/20"
+          className="group relative mx-auto max-w-4xl overflow-hidden rounded-lg border border-blue-500/25 bg-card shadow-2xl shadow-blue-500/10 transition-shadow duration-300 hover:shadow-blue-500/20"
         >
           {/* Top accent line */}
           <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-400" />
@@ -87,7 +87,7 @@ export default function LifetimeDeal() {
             {/* Left — value */}
             <div className="p-8 md:p-10">
               <div className="mb-6 flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg-2xl border border-blue-500/20 bg-blue-600/15">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-blue-500/20 bg-blue-600/15">
                   <Zap className="h-6 w-6 text-blue-500" />
                 </div>
                 <div>
@@ -99,7 +99,7 @@ export default function LifetimeDeal() {
               <ul className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                 {FEATURES.map((f) => (
                   <li key={f} className="flex items-center gap-2.5">
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-lg-full bg-blue-600/15">
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-600/15">
                       <Check className="h-3 w-3 text-blue-500" strokeWidth={3} />
                     </div>
                     <span className="text-sm text-foreground/80">{f}</span>
@@ -114,7 +114,7 @@ export default function LifetimeDeal() {
               <div className="mb-6">
                 <div className="mb-1 flex items-center gap-2">
                   <span className="text-sm text-muted-foreground line-through">$588/yr value</span>
-                  <span className="rounded-lg-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
                     Save 66%
                   </span>
                 </div>

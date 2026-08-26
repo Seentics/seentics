@@ -26,9 +26,9 @@ export default function WebsitesLayout({
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4 text-center">
-          <div className="relative flex h-14 w-14 items-center justify-center rounded-lg-2xl bg-primary/10">
+          <div className="relative flex h-14 w-14 items-center justify-center rounded-lg bg-primary/10">
             <BarChart3 className="h-7 w-7 text-primary" />
-            <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-lg-full border-2 border-background bg-primary animate-pulse" />
+            <span className="absolute -bottom-1 -right-1 h-3.5 w-3.5 rounded-full border-2 border-background bg-primary animate-pulse" />
           </div>
           <div>
             <p className="text-sm font-semibold text-foreground">Loading your dashboard</p>
@@ -38,7 +38,7 @@ export default function WebsitesLayout({
             {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="h-1.5 w-1.5 rounded-lg-full bg-primary/60 animate-bounce"
+                className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce"
                 style={{ animationDelay: `${i * 0.15}s` }}
               />
             ))}

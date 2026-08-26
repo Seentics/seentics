@@ -193,7 +193,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
                     <Skeleton className="h-4 w-12 ml-auto" />
                     <Skeleton className="h-3 w-8 ml-auto" />
                 </div>
-                <Skeleton className="w-16 h-2 rounded-lg-full" />
+                <Skeleton className="w-16 h-2 rounded-full" />
             </div>
           </div>
         ))}
@@ -241,9 +241,9 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
                     <p className="font-bold text-sm leading-tight">{(item.visitors || 0).toLocaleString()}</p>
                     <p className="text-[9px] font-bold text-muted-foreground uppercase opacity-40 tracking-wider font-mono">{item.percentage}%</p>
                 </div>
-                <div className="w-16 h-1.5 bg-accent/20 rounded-lg-full overflow-hidden shrink-0">
+                <div className="w-16 h-1.5 bg-accent/20 rounded-full overflow-hidden shrink-0">
                 <div
-                    className="h-full rounded-lg-full transition-all duration-300"
+                    className="h-full rounded-full transition-all duration-300"
                     style={{
                     width: `${item.percentage}%`,
                     backgroundColor: item.color

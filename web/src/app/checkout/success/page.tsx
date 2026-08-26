@@ -58,7 +58,7 @@ export default function CheckoutSuccessPage() {
         {status === 'waiting' && (
           <>
             <div className="flex justify-center mb-4">
-              <div className="h-14 w-14 rounded-lg-full bg-primary/10 flex items-center justify-center">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
                 <Loader2 className="h-7 w-7 text-primary animate-spin" />
               </div>
             </div>
@@ -70,7 +70,7 @@ export default function CheckoutSuccessPage() {
         {status === 'done' && (
           <>
             <div className="flex justify-center mb-4">
-              <div className="h-14 w-14 rounded-lg-full bg-emerald-500/10 flex items-center justify-center">
+              <div className="h-14 w-14 rounded-full bg-emerald-500/10 flex items-center justify-center">
                 <CheckCircle className="h-7 w-7 text-emerald-500" />
               </div>
             </div>
@@ -82,7 +82,7 @@ export default function CheckoutSuccessPage() {
         {status === 'timeout' && (
           <>
             <div className="flex justify-center mb-4">
-              <div className="h-14 w-14 rounded-lg-full bg-primary/10 flex items-center justify-center">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center">
                 <CheckCircle className="h-7 w-7 text-primary" />
               </div>
             </div>

@@ -263,7 +263,7 @@ export default function ApiKeysPage() {
               )}>
                 {/* Status dot */}
                 <div className={cn(
-                  'mt-1.5 h-2 w-2 rounded-lg-full shrink-0',
+                  'mt-1.5 h-2 w-2 rounded-full shrink-0',
                   key.is_active ? 'bg-green-500' : 'bg-muted-foreground/40',
                 )} />
 

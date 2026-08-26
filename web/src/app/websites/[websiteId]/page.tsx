@@ -555,7 +555,7 @@ export default function WebsiteDashboardPage() {
               <button
                 key={key}
                 onClick={() => removeFilter(key)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
               >
                 <span className="text-muted-foreground">{key}:</span>
                 <span>{String(value)}</span>

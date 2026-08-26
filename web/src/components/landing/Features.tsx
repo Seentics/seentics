@@ -95,9 +95,9 @@ export default function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.45, delay: index * 0.08 }}
-              className="group flex flex-col p-10 rounded-lg-3xl border border-border/50 bg-card shadow-xl shadow-black/[0.05] transition-all duration-300 hover:-translate-y-1 hover:border-border hover:shadow-2xl hover:shadow-black/[0.10]"
+              className="group flex flex-col p-10 rounded-lg  bg-card shadow-xl shadow-black/[0.05] transition-all duration-300 hover:-translate-y-1 hover:border-border hover:shadow-2xl hover:shadow-black/[0.10]"
             >
-              <div className={`h-16 w-16 rounded-lg-2xl flex items-center justify-center mb-6 shrink-0 ${pillar.color}`}>
+              <div className={`h-16 w-16 rounded-lg flex items-center justify-center mb-6 shrink-0 ${pillar.color}`}>
                 <pillar.icon className="h-8 w-8" />
               </div>
 

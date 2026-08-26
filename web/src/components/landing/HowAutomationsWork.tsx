@@ -72,7 +72,7 @@ export default function HowAutomationsWork() {
       <div className="container mx-auto px-6">
         {/* Header */}
         <div className="mx-auto mb-16 max-w-4xl text-center">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-lg-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-500">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-500/20 bg-indigo-500/10 px-3 py-1 text-xs font-semibold text-indigo-500">
             <Zap className="h-3 w-3" />
             Automations
           </div>
@@ -98,8 +98,8 @@ export default function HowAutomationsWork() {
 
           <div className="my-4 flex flex-col items-center">
             <div className="h-5 w-px bg-border" />
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-lg-full bg-primary text-primary-foreground shadow-lg shadow-primary/30">
-              <span className="absolute inset-0 rounded-lg-full bg-primary/30" style={{ animation: 'seenticsPulse 2s ease-in-out infinite' }} />
+            <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30">
+              <span className="absolute inset-0 rounded-full bg-primary/30" style={{ animation: 'seenticsPulse 2s ease-in-out infinite' }} />
               <Zap className="relative h-6 w-6 fill-current" />
             </div>
             <p className="mt-1.5 text-xs font-bold text-foreground">Seentics</p>
@@ -121,7 +121,7 @@ export default function HowAutomationsWork() {
           <div className="relative mx-auto aspect-[1000/560] w-full min-w-[860px] max-w-6xl">
             {/* Soft glow behind the hub */}
             <div
-              className="pointer-events-none absolute h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-lg-full bg-primary/20 blur-3xl"
+              className="pointer-events-none absolute h-40 w-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/20 blur-3xl"
               style={{ left: pctLeft(HUB.x), top: pctTop(HUB.y) }}
             />
 
@@ -203,9 +203,9 @@ export default function HowAutomationsWork() {
               style={{ left: pctLeft(HUB.x), top: pctTop(HUB.y) }}
             >
               <div className="relative flex h-24 w-24 items-center justify-center">
-                <span className="absolute inset-0 rounded-lg-full bg-primary/30" style={{ animation: 'seenticsPulse 2s ease-in-out infinite' }} />
-                <span className="absolute inset-2 rounded-lg-full bg-primary/20" style={{ animation: 'seenticsPulse 2s ease-in-out infinite', animationDelay: '.4s' }} />
-                <div className="relative flex h-16 w-16 flex-col items-center justify-center rounded-lg-full bg-primary text-primary-foreground shadow-xl shadow-primary/30">
+                <span className="absolute inset-0 rounded-full bg-primary/30" style={{ animation: 'seenticsPulse 2s ease-in-out infinite' }} />
+                <span className="absolute inset-2 rounded-full bg-primary/20" style={{ animation: 'seenticsPulse 2s ease-in-out infinite', animationDelay: '.4s' }} />
+                <div className="relative flex h-16 w-16 flex-col items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30">
                   <Zap className="h-6 w-6 fill-current" />
                 </div>
               </div>

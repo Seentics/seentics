@@ -135,7 +135,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
           <div className="space-y-4">
             <DialogHeader>
               <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-lg-full bg-emerald-500/10 flex items-center justify-center">
+                <div className="h-8 w-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
                   <Check className="h-4 w-4 text-emerald-500" />
                 </div>
                 <DialogTitle>Goal Created</DialogTitle>

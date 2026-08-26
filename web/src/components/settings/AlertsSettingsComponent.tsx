@@ -241,7 +241,7 @@ export function AlertsSettingsComponent() {
           {rules.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="h-12 w-12 rounded-lg-full bg-muted/50 flex items-center justify-center mb-4">
+                <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-4">
                   <Bell className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <h4 className="text-sm font-medium mb-1">No alert rules yet</h4>
@@ -323,7 +323,7 @@ export function AlertsSettingsComponent() {
           {events.length === 0 ? (
             <Card className="border-dashed">
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="h-12 w-12 rounded-lg-full bg-muted/50 flex items-center justify-center mb-4">
+                <div className="h-12 w-12 rounded-full bg-muted/50 flex items-center justify-center mb-4">
                   <History className="h-6 w-6 text-muted-foreground" />
                 </div>
                 <h4 className="text-sm font-medium mb-1">No alert history</h4>
