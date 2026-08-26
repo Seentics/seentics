@@ -60,7 +60,9 @@ export async function createScreenshotPage(): Promise<Page> {
   let context;
   let page: Page;
   try {
-    context = await browser.createBrowserContext({
+    // `newContext`, not `createBrowserContext` — the latter does not exist on
+    // Playwright's `Browser` and threw on every capture that reached this line.
+    context = await browser.newContext({
       viewport: { width: 1920, height: 1080 },
       javaScriptEnabled: true,
       ignoreHTTPSErrors: true,

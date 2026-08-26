@@ -68,6 +68,24 @@ function pageview(overrides: Record<string, unknown> = {}): any {
   };
 }
 
+/**
+ * The rows handed to the mocked `.values(...)` call.
+ *
+ * A helper rather than `mockValues.mock.calls[0][0]` at each site: that indexes a
+ * possibly-empty tuple, which TypeScript rightly rejects, and a test asserting on
+ * `undefined[0]` fails with an unhelpful message anyway. The `any` is a deliberate
+ * test-only escape — these are driver row objects with no exported type — and it is
+ * confined to this one place instead of repeated six times.
+ */
+function insertedRows(): any[] {
+  // `mock.calls` is typed as a list of empty tuples because the mock was created
+  // without argument types, so the recorded arguments have to be widened to be read
+  // at all. Done once, here.
+  const call = mockValues.mock.calls[0] as unknown[] | undefined;
+  if (!call) throw new Error("expected the batch insert to have called values()");
+  return call[0] as any[];
+}
+
 describe("ingestAnalyticsBatch", () => {
   it("returns 0 for an empty event array without touching DB", async () => {
     const result = await ingestAnalyticsBatch("site1", []);
@@ -96,28 +114,28 @@ describe("ingestAnalyticsBatch", () => {
   it("promotes custom event data.name to event_type", async () => {
     const event = pageview({ type: "custom", data: { name: "purchase", value: 49.99 } });
     await ingestAnalyticsBatch("site1", [event]);
-    const rows = mockValues.mock.calls[0][0] as any[];
+    const rows = insertedRows();
     expect(rows[0].eventType).toBe("purchase");
   });
 
   it("caps event_type at 64 characters", async () => {
     const event = pageview({ type: "a".repeat(100) });
     await ingestAnalyticsBatch("site1", [event]);
-    const rows = mockValues.mock.calls[0][0] as any[];
+    const rows = insertedRows();
     expect(rows[0].eventType.length).toBe(64);
   });
 
   it("caps page URL at 2048 characters", async () => {
     const event = pageview({ url: "/" + "x".repeat(3000) });
     await ingestAnalyticsBatch("site1", [event]);
-    const rows = mockValues.mock.calls[0][0] as any[];
+    const rows = insertedRows();
     expect(rows[0].page.length).toBe(2048);
   });
 
   it("replaces oversized properties (>32KB) with { _truncated: true }", async () => {
     const event = pageview({ data: { payload: "x".repeat(33 * 1024) } });
     await ingestAnalyticsBatch("site1", [event]);
-    const rows = mockValues.mock.calls[0][0] as any[];
+    const rows = insertedRows();
     expect(rows[0].properties).toEqual({ _truncated: true });
   });
 
@@ -125,7 +143,7 @@ describe("ingestAnalyticsBatch", () => {
     const data = { plan: "pro", value: 99 };
     const event = pageview({ data });
     await ingestAnalyticsBatch("site1", [event]);
-    const rows = mockValues.mock.calls[0][0] as any[];
+    const rows = insertedRows();
     expect(rows[0].properties).toMatchObject(data);
   });
 
@@ -160,7 +178,7 @@ describe("ingestAnalyticsBatch", () => {
       ingestMeta: { country: "US", region: "CA", city: "SF", browser: "Chrome", device: "desktop", os: "macOS" },
     });
     await ingestAnalyticsBatch("site1", [event]);
-    const rows = mockValues.mock.calls[0][0] as any[];
+    const rows = insertedRows();
     expect(rows[0].country).toBe("US");
     expect(rows[0].region).toBe("CA");
     expect(rows[0].browser).toBe("Chrome");

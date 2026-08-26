@@ -76,7 +76,16 @@ class ScreenshotCache {
    * Store screenshot in cache.
    * Automatically evicts oldest entry if cache is full.
    */
-  set(websiteUuid: string, pagePath: string, screenshot: CachedScreenshot): void {
+  /**
+   * `expiresAt` is omitted from the parameter because this method derives it from
+   * the cache's own TTL below. Requiring callers to pass a value it immediately
+   * overwrites was the source of three type errors at the call sites.
+   */
+  set(
+    websiteUuid: string,
+    pagePath: string,
+    screenshot: Omit<CachedScreenshot, "expiresAt">,
+  ): void {
     const key = this.cacheKey(websiteUuid, pagePath);
 
     // Update expiration time

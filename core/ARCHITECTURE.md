@@ -8,23 +8,38 @@ to each other through **explicit interfaces** when they need an answer, and thro
 
 ```
 core/
+├── index.ts                  Process entry: serve, migrate, health gate, signals
+├── config.ts
 ├── app/
 │   └── bootstrap.ts          Composition root — the only place the graph is wired
 ├── infrastructure/
 │   ├── events/               EventBus interface, typed EventMap, InMemoryEventBus
 │   └── outbox/               Transactional outbox for events that must not be lost
-├── modules/
+├── modules/                  Owns a table
 │   ├── websites/             Websites, membership, public share links
-│   ├── analytics/            Ingestion write path + all dashboard read models
+│   ├── analytics/            Dashboard read models + the analytics_events writer
+│   ├── ingest/               /collect buffering and the batch flush
 │   ├── recordings/           Session replay capture, storage, playback
 │   ├── heatmaps/
 │   ├── funnels/
-│   └── automations/
-├── db/                       Schema and migrations (shared; modules own their tables)
-├── lib/                      Genuinely shared utilities (s3, logger, geo, ids)
-├── middleware/               Cross-cutting HTTP middleware
-└── index.ts                  HTTP server; mounts routes from the composed graph
+│   ├── automations/
+│   ├── ai/                   Natural-language querying (owns ai_queries)
+│   └── auth/                 Identity (owns users)
+├── platform/                 Owns no table
+│   ├── middleware/           Cross-cutting HTTP middleware
+│   ├── validation/           Shared zod helpers
+│   ├── lib/                  Shared utilities (s3, logger, geo, ids, types)
+│   ├── scheduler.ts
+│   ├── retention/            Data-retention policy; modules do their own deletes
+│   ├── raw-data/             Machine-facing API over other modules' reads
+│   ├── internal/             Operational endpoints behind the global API key
+│   └── http/                 Small composite routers (privacy, profiles, user branch)
+└── db/                       Schema and migrations
 ```
+
+**Placement rule:** a concern that owns a table is a module; one that owns none is
+platform. Auth owns `users`, so it is a module — but JWT *verification* owns nothing
+and lives in `platform/middleware/auth.ts`.
 
 Each module follows the same shape. Not every module needs every directory — an
 empty `repositories/` that only re-exports is worse than no directory at all.
@@ -53,9 +68,16 @@ const website = await this.websites.getById(websiteRef);
 
 Consumers depend on the narrowest interface that covers what they use.
 `modules/websites/interfaces/` exposes `WebsiteQuery` (reads), `WebsiteMutations`
-(writes), `WebsitePublicSharing` (share links) and `WebsiteIngestionSettings`
-(tracker config) rather than one `IWebsitesModule` — automations has no business
-being able to delete a website, and its constructor should say so.
+(writes) and `WebsitePublicSharing` (share links) rather than one `IWebsitesModule`
+— six modules take `WebsiteQuery`, and none of them has any business being able to
+delete a website. Their constructors say so.
+
+**Split only where a consumer needs a strict subset, and name that consumer.** If you
+cannot name one, it is one interface. Analytics originally had eight capability
+interfaces grouped by subject matter; both of its consumers need essentially the whole
+surface, so the split bought nothing and went unused. A privilege boundary
+(`WebsiteQuery` vs `WebsiteMutations`, `HeatmapScreenshotCapture` vs
+`HeatmapScreenshotMaintenance`) is a real reason to split. Taxonomy is not.
 
 ### Announcing a fact → event
 
@@ -122,7 +144,7 @@ HTTP → routes → services → interfaces ← implementations → infrastructu
 
 Business logic depends on interfaces, never on Postgres, S3, or Hono. That is what
 makes services unit-testable with in-memory doubles — see
-`tests/modules/websites/website.service.test.ts`, where the whole suite runs with no
+`modules/websites/tests/website.service.test.ts`, where the whole suite runs with no
 database.
 
 ## Composition, not service location
@@ -173,8 +195,8 @@ has nowhere to receive an injected port from.
 
 | Where | Called by |
 |---|---|
-| `captureHeatmapScreenshot` in `modules/heatmaps/services/screenshot.service.ts` | `routes/tracker.ts` |
-| the batch flush in `modules/recordings/services/recording-engine.service.ts` | `services/ingest/queues.ts` |
+| `captureHeatmapScreenshot` in `modules/heatmaps/services/screenshot.service.ts` | `modules/ingest/routes.ts` |
+| the batch flush in `modules/recordings/services/recording-engine.service.ts` | the ingest flush |
 
 Both are marked in their own doc comments. Modularising ingest and the tracker is
 what closes them — until then, do not copy the pattern into new code.
