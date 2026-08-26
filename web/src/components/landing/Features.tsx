@@ -55,7 +55,7 @@ const pillars = [
 
 export default function Features() {
   return (
-    <section id="features" className="py-24 md:py-32 bg-background">
+    <section id="features" className="py-24 md:py-32">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-4xl mx-auto mb-16">
           <motion.p
@@ -95,7 +95,7 @@ export default function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.45, delay: index * 0.08 }}
-              className="group flex flex-col p-10 rounded-lg  bg-card shadow-xl shadow-black/[0.05] transition-all duration-300 hover:-translate-y-1 hover:border-border hover:shadow-2xl hover:shadow-black/[0.10]"
+              className="group flex flex-col p-10 rounded-lg border border-border bg-card shadow-sm shadow-black/[0.03] transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-xl hover:shadow-black/[0.06]"
             >
               <div className={`h-16 w-16 rounded-lg flex items-center justify-center mb-6 shrink-0 ${pillar.color}`}>
                 <pillar.icon className="h-8 w-8" />
@@ -104,7 +104,7 @@ export default function Features() {
               <h3 className="text-2xl font-bold tracking-tight text-foreground mb-3 flex items-center gap-2.5">
                 {pillar.title}
                 {'badge' in pillar && pillar.badge && (
-                  <span className="rounded-lg bg-indigo-500/15 px-2 py-0.5 text-[10px] font-bold text-indigo-400 tracking-wide">
+                  <span className="rounded-lg bg-indigo-500/15 px-2 py-0.5 text-[10px] font-bold text-indigo-600 tracking-wide dark:text-indigo-400">
                     {pillar.badge}
                   </span>
                 )}

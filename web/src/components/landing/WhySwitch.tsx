@@ -38,7 +38,7 @@ function CellMark({ value }: { value: Cell }) {
     );
   }
   return (
-    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-muted">
+    <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border bg-muted dark:border-transparent">
       <X className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={3} />
     </span>
   );
@@ -49,7 +49,7 @@ function ToolCell({ label, value, highlight }: { label: string; value: Cell; hig
     <div
       className={cn(
         'flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5',
-        highlight ? 'border-primary/30 bg-primary/[0.06]' : 'border-border/50',
+        highlight ? 'border-primary/30 bg-primary/[0.06]' : 'border-border dark:border-border/50',
       )}
     >
       <span className={cn('text-xs font-medium', highlight ? 'text-primary' : 'text-muted-foreground')}>{label}</span>
@@ -79,7 +79,7 @@ export default function WhySwitch() {
         {/* Comparison matrix — mobile (stacked cards) */}
         <div className="mx-auto max-w-md space-y-3 md:hidden">
           {ROWS.map((row) => (
-            <div key={row.feature} className="rounded-lg border border-border/60 bg-card p-4 shadow-sm">
+            <div key={row.feature} className="rounded-lg border border-border bg-card p-4 shadow-sm dark:border-border/60">
               <p className="mb-3 text-sm font-semibold text-foreground">{row.feature}</p>
               <div className="grid grid-cols-2 gap-2">
                 <ToolCell label="Seentics" value={row.seentics} highlight />
@@ -118,11 +118,11 @@ export default function WhySwitch() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.3, delay: i * 0.04 }}
                 >
-                  <td className="border-b border-border/50 py-3 pr-4 text-sm font-medium text-foreground">
+                  <td className="border-b border-border dark:border-border/50 py-3 pr-4 text-sm font-medium text-foreground">
                     {row.feature}
                   </td>
                   <td
-                    className={`border-b border-border/50 px-2 py-3 text-center bg-primary/[0.07] ${
+                    className={`border-b border-border dark:border-border/50 px-2 py-3 text-center bg-primary/[0.07] ${
                       i === ROWS.length - 1 ? 'rounded-lg-b-xl' : ''
                     }`}
                   >
@@ -130,17 +130,17 @@ export default function WhySwitch() {
                       <CellMark value={row.seentics} />
                     </div>
                   </td>
-                  <td className="border-b border-border/50 px-2 py-3 text-center">
+                  <td className="border-b border-border dark:border-border/50 px-2 py-3 text-center">
                     <div className="flex justify-center">
                       <CellMark value={row.ga4} />
                     </div>
                   </td>
-                  <td className="border-b border-border/50 px-2 py-3 text-center">
+                  <td className="border-b border-border dark:border-border/50 px-2 py-3 text-center">
                     <div className="flex justify-center">
                       <CellMark value={row.plausible} />
                     </div>
                   </td>
-                  <td className="border-b border-border/50 px-2 py-3 text-center">
+                  <td className="border-b border-border dark:border-border/50 px-2 py-3 text-center">
                     <div className="flex justify-center">
                       <CellMark value={row.hotjar} />
                     </div>

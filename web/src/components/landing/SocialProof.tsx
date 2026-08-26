@@ -35,7 +35,7 @@ export default async function SocialProof() {
   const stars = await getGitHubStars();
 
   return (
-    <section className="border-y border-border/40 bg-muted/20 py-6">
+    <section className="border-y border-border bg-muted/50 py-6 dark:border-border/40 dark:bg-muted/20">
       <div className="container mx-auto px-6">
         <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm">
           <Link
@@ -47,7 +47,7 @@ export default async function SocialProof() {
             <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
             <span>Star on GitHub</span>
             {stars != null && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold tabular-nums text-muted-foreground group-hover:text-primary">
+              <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-bold tabular-nums text-muted-foreground group-hover:text-primary dark:border-transparent">
                 {formatStars(stars)}
               </span>
             )}

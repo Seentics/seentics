@@ -93,7 +93,7 @@ export default function Pricing() {
   }
 
   return (
-    <section id="pricing" className="py-24 md:py-32 bg-background">
+    <section id="pricing" className="py-24 md:py-32 border-y border-border bg-muted/50 dark:border-transparent dark:bg-background">
       <div className="container mx-auto px-6">
         {/* Header */}
         <div className="text-center max-w-4xl mx-auto mb-10">
@@ -134,13 +134,13 @@ export default function Pricing() {
           transition={{ duration: 0.4, delay: 0.15 }}
           className="flex justify-center mb-10"
         >
-          <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/60 rounded-lg">
+          <div className="flex items-center gap-1 p-1 bg-black/[0.04] border border-border rounded-lg dark:bg-muted/50 dark:border-border/60">
             <button
               onClick={() => setMode('individual')}
               className={cn(
                 'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all',
                 mode === 'individual'
-                  ? 'bg-background text-foreground shadow-sm border border-border/60'
+                  ? 'bg-background text-foreground shadow-sm border border-border dark:border-border/60'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >
@@ -152,7 +152,7 @@ export default function Pricing() {
               className={cn(
                 'flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium transition-all',
                 mode === 'agency'
-                  ? 'bg-background text-foreground shadow-sm border border-border/60'
+                  ? 'bg-background text-foreground shadow-sm border border-border dark:border-border/60'
                   : 'text-muted-foreground hover:text-foreground',
               )}
             >

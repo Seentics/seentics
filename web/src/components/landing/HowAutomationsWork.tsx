@@ -49,7 +49,7 @@ type FlowNode = { icon: typeof Zap; label: string; desc: string; color: string; 
 
 function FlowChip({ item }: { item: FlowNode }) {
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-border/60 bg-card p-2.5 shadow-sm">
+    <div className="flex items-center gap-2 rounded-lg border border-border bg-card p-2.5 shadow-sm dark:border-border/60">
       <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${item.bg}`}>
         <item.icon className={`h-4 w-4 ${item.color}`} />
       </div>
@@ -63,7 +63,7 @@ function FlowChip({ item }: { item: FlowNode }) {
 
 export default function HowAutomationsWork() {
   return (
-    <section className="relative overflow-hidden bg-transparent py-24 md:py-32">
+    <section className="relative overflow-hidden border-y border-border bg-muted/50 py-24 md:py-32 dark:border-transparent dark:bg-transparent">
       <style>{`
         @keyframes seenticsFlow { to { stroke-dashoffset: -28; } }
         @keyframes seenticsPulse { 0%,100% { opacity: .35; transform: scale(1); } 50% { opacity: .7; transform: scale(1.08); } }
@@ -184,7 +184,7 @@ export default function HowAutomationsWork() {
             {TRIGGERS.map((t) => (
               <div
                 key={t.label}
-                className="absolute flex w-[190px] -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-lg border border-border/60 bg-card/90 px-3 py-2.5 shadow-lg shadow-black/[0.06] backdrop-blur"
+                className="absolute flex w-[190px] -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2.5 shadow-md shadow-black/[0.05] backdrop-blur dark:border-border/60 dark:bg-card/90"
                 style={{ left: pctLeft(TRIG_X), top: pctTop(t.y) }}
               >
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.bg}`}>
@@ -216,7 +216,7 @@ export default function HowAutomationsWork() {
             {ACTIONS.map((a) => (
               <div
                 key={a.label}
-                className="absolute flex w-[190px] -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-lg border border-border/60 bg-card/90 px-3 py-2.5 shadow-lg shadow-black/[0.06] backdrop-blur"
+                className="absolute flex w-[190px] -translate-x-1/2 -translate-y-1/2 items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2.5 shadow-md shadow-black/[0.05] backdrop-blur dark:border-border/60 dark:bg-card/90"
                 style={{ left: pctLeft(ACT_X), top: pctTop(a.y) }}
               >
                 <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${a.bg}`}>

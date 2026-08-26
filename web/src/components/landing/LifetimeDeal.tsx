@@ -78,7 +78,7 @@ export default function LifetimeDeal() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.45 }}
-          className="group relative mx-auto max-w-4xl overflow-hidden rounded-lg border border-blue-500/25 bg-card shadow-2xl shadow-blue-500/10 transition-shadow duration-300 hover:shadow-blue-500/20"
+          className="group relative mx-auto max-w-4xl overflow-hidden rounded-lg border border-blue-500/30 bg-card shadow-2xl shadow-blue-500/15 transition-shadow duration-300 hover:shadow-blue-500/25 dark:border-blue-500/25 dark:shadow-blue-500/10"
         >
           {/* Top accent line */}
           <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-400" />
@@ -109,7 +109,7 @@ export default function LifetimeDeal() {
             </div>
 
             {/* Right — price + CTA */}
-            <div className="flex flex-col justify-center border-t border-border/50 bg-gradient-to-b from-blue-500/[0.06] to-transparent p-8 md:border-l md:border-t-0 md:p-10">
+            <div className="flex flex-col justify-center border-t border-border bg-gradient-to-b from-blue-500/[0.06] to-transparent p-8 dark:border-border/50 md:border-l md:border-t-0 md:p-10">
               {/* Price */}
               <div className="mb-6">
                 <div className="mb-1 flex items-center gap-2">

@@ -6,7 +6,10 @@ const HERO_TRUST = ['No credit card required', '100% open source', 'No cookies',
 
 export default function Hero() {
   return (
-    <section className="relative pt-32 pb-24 md:pt-44 md:pb-32 bg-muted/40 overflow-hidden">
+    <section className="relative pt-32 pb-24 md:pt-44 md:pb-32  overflow-hidden">
+      {/* Soft wash behind the headline — on the white canvas a flat section reads
+          as unfinished, so the colour comes from a tint rather than a fill. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[640px] bg-gradient-to-b from-primary/[0.06] via-primary/[0.02] to-transparent" />
       {/* Fade edge into page background */}
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-background" />
 

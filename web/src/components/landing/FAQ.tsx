@@ -70,7 +70,9 @@ export default function FAQ() {
   const { isAuthenticated } = useAuth();
 
   return (
-    <section id="faq" className="py-24 md:py-32 bg-background">
+    // Only a top border: the footer's own border-t closes this band, and a
+    // border-y here would stack against it into a 2px rule.
+    <section id="faq" className="py-24 md:py-32 border-t border-border bg-muted/50 dark:border-transparent dark:bg-background">
       <div className="container mx-auto px-6">
         <div className="text-center max-w-4xl mx-auto mb-16">
           <motion.p
@@ -114,7 +116,7 @@ export default function FAQ() {
               >
                 <AccordionItem
                   value={`item-${index}`}
-                  className="rounded-lg border border-border/60 bg-card px-5 shadow-sm transition-colors data-[state=open]:border-primary/30 data-[state=open]:bg-primary/[0.03]"
+                  className="rounded-lg border border-border bg-card px-5 shadow-sm transition-colors data-[state=open]:border-primary/30 data-[state=open]:bg-primary/[0.03] dark:border-border/60"
                 >
                   <AccordionTrigger className="py-4 text-left text-base font-semibold text-foreground hover:no-underline sm:text-lg">
                     {faq.question}
@@ -134,7 +136,7 @@ export default function FAQ() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="relative mx-auto max-w-3xl overflow-hidden rounded-lg border border-border/60 bg-gradient-to-b from-primary/[0.07] to-transparent px-6 py-12 text-center sm:px-12"
+          className="relative mx-auto max-w-3xl overflow-hidden rounded-lg border border-border bg-card bg-gradient-to-b from-primary/[0.07] to-transparent px-6 py-12 text-center shadow-sm dark:border-border/60 dark:bg-transparent dark:shadow-none sm:px-12"
         >
           <h3 className="mb-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
             Still have questions?

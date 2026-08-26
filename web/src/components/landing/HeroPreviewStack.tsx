@@ -390,9 +390,9 @@ const PANELS = [
  * and flatter as they recede — the same cue a real stack of paper gives.
  */
 const SLOTS = [
-  { w: 88, ty: 0, z: 40, sc: 1.01, dim: 1, sat: 1 }, // front / active — untouched
-  { w: 94, ty: 52, z: 20, sc: 1, dim: 0.82, sat: 0.7 },
-  { w: 100, ty: 104, z: 10, sc: 1, dim: 0.66, sat: 0.45 },
+  { w: 60, ty: 0, z: 40, sc: 1.01, dim: 1, sat: 1 }, // front / active — untouched
+  { w: 67, ty: 52, z: 20, sc: 1, dim: 0.82, sat: 0.7 },
+  { w: 74, ty: 104, z: 10, sc: 1, dim: 0.66, sat: 0.45 },
 ];
 
 export default function HeroPreviewStack() {
@@ -425,8 +425,9 @@ export default function HeroPreviewStack() {
         ))}
       </div>
 
-      {/* Stack container — layers are absolutely positioned against this. */}
-      <div className="relative md:h-[760px]">
+      {/* Stack container — layers are absolutely positioned against this, so it has
+          to clear the tallest layer plus the deepest slot's translateY (740 + 104). */}
+      <div className="relative md:h-[870px]">
         {PANELS.map((p, i) => {
         const rank = i === active ? 0 : inactive.indexOf(i) + 1; // 0 = front
         const slot = SLOTS[rank];
@@ -453,23 +454,28 @@ export default function HeroPreviewStack() {
               ['--sat' as string]: slot.sat,
             }}
             className={cn(
-              'group relative h-[420px] w-full overflow-hidden rounded-xl border border-border bg-card outline-none sm:h-[480px]',
+              // `app-surface` restores the app's own tokens inside the white landing
+              // canvas, so each mock matches the screen it depicts (see globals.css).
+              'app-surface group relative h-[480px] w-full overflow-hidden rounded-xl border border-border bg-background outline-none sm:h-[560px]',
               'ring-1 ring-inset ring-foreground/[0.04]',
-              'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
+              // Two shadow scales: the heavy alphas below read as depth against the
+              // dark canvas but go muddy on white, so light mode gets ~1/3 the alpha.
+              'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.13),0_12px_24px_-8px_rgba(0,0,0,0.08)]',
+              'dark:shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
               'transition-all duration-500 ease-out md:cursor-pointer',
               // Mobile: only the selected preview is shown (tabs switch it).
               i !== active && 'hidden md:block',
               // Desktop: slot-based cascade — width, offset, z and scale come from the slot,
               // so activating a layer animates every layer to its new slot.
-              'md:absolute md:left-1/2 md:top-0 md:h-[600px] md:[width:var(--w)] md:[transform:translateX(-50%)_translateY(var(--ty))_scale(var(--sc))] md:[z-index:var(--z)]',
+              'md:absolute md:left-1/2 md:top-0 md:h-[740px] md:[width:var(--w)] md:[transform:translateX(-50%)_translateY(var(--ty))_scale(var(--sc))] md:[z-index:var(--z)]',
               // Depth: the front layer keeps full colour and the deepest shadow; the
               // ones behind step down in brightness, saturation and shadow together.
               'md:[filter:brightness(var(--dim))_saturate(var(--sat))]',
               isActive
-                ? 'md:shadow-[0_45px_90px_-18px_rgba(0,0,0,0.55)] md:shadow-primary/10'
+                ? 'md:shadow-[0_45px_90px_-18px_rgba(0,0,0,0.18)] dark:md:shadow-[0_45px_90px_-18px_rgba(0,0,0,0.55)] md:shadow-primary/10'
                 : rank === 1
-                  ? 'md:shadow-[0_24px_48px_-16px_rgba(0,0,0,0.35)]'
-                  : 'md:shadow-[0_14px_28px_-14px_rgba(0,0,0,0.25)]',
+                  ? 'md:shadow-[0_24px_48px_-16px_rgba(0,0,0,0.12)] dark:md:shadow-[0_24px_48px_-16px_rgba(0,0,0,0.35)]'
+                  : 'md:shadow-[0_14px_28px_-14px_rgba(0,0,0,0.09)] dark:md:shadow-[0_14px_28px_-14px_rgba(0,0,0,0.25)]',
               'md:focus-visible:ring-2 md:focus-visible:ring-primary/50',
             )}
           >

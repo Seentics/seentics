@@ -39,7 +39,7 @@ export default function LandingHeader({ alwaysBordered = false }: { alwaysBorder
     <header
       className={`fixed left-0 right-0 z-[100] transition-all duration-300 ${
         scrolled || alwaysBordered
-          ? 'top-0 bg-background/70 border-b border-border/30 backdrop-blur-xl h-14'
+          ? 'top-0 bg-background/80 border-b border-border backdrop-blur-xl h-14 dark:bg-background/70 dark:border-border/30'
           : 'top-0 bg-transparent h-16'
       }`}
     >

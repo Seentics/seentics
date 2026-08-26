@@ -19,7 +19,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-background relative overflow-x-hidden">
+    <div className="landing-light min-h-screen bg-background relative overflow-x-hidden">
       <LandingHeader />
       <main>
         <Hero />

@@ -93,6 +93,38 @@
 }
 
 @layer base {
+  /* The marketing pages run on a pure-white canvas in light mode, while the app
+     keeps the tinted --background that separates its cards from the page. These
+     overrides are scoped to the landing tree so the dashboard is untouched, and
+     the :not(.dark) guard keeps them out of dark mode entirely (the class sits
+     below <html>, so an unguarded override would outrank .dark). */
+  :root:not(.dark) .landing-light {
+    --background: 0 0% 100%;
+    --card: 0 0% 100%;
+    --popover: 0 0% 100%;
+
+    /* Cards no longer sit a fill-step above the page, so the border carries the
+       separation on its own and is darkened to stay legible against white.
+       --muted deliberately keeps its root value: it still has to read as a fill
+       on small controls (toggle tracks, count chips), and the alternating page
+       bands tint themselves with bg-muted/50 rather than moving the token. */
+    --border: 220 13% 89%;
+    --input: 220 13% 89%;
+  }
+
+  /* The hero previews are mocks of real app screens, so they opt back out of the
+     white canvas and into the app's own tokens. Without this the analytics
+     preview would render on white while the real dashboard renders on the tinted
+     --background, and the mock would stop matching the product it depicts. */
+  :root:not(.dark) .landing-light .app-surface {
+    --background: 210 30% 92%;
+    --card: 0 0% 100%;
+    --border: 220 13% 85%;
+    --input: 220 13% 85%;
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }
