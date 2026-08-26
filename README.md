@@ -5,91 +5,36 @@
 <h1 align="center">Seentics</h1>
 
 <p align="center">
-  Open-source, privacy-first web analytics platform — featuring real-time dashboards, session replays,<br />
-  heatmaps, funnels, revenue tracking, behavioral automations, and AI-powered natural language queries.
+  Open-source, privacy-first web analytics — real-time dashboards, session replays,<br />
+  heatmaps, funnels, revenue tracking, behavioral automations, and natural-language queries.
 </p>
 
 <p align="center">
-  <a href="#-quick-start">Quick Start</a> ·
-  <a href="#-features">Features</a> ·
-  <a href="#-tracking">Tracking</a> ·
-  <a href="#-seenticsui">@seentics/ui</a> ·
-  <a href="#-self-hosting">Self-Hosting</a> ·
-  <a href="#-contributing">Contributing</a>
+  <a href="#quick-start">Quick Start</a> ·
+  <a href="#tracking">Tracking</a> ·
+  <a href="#project-layout">Layout</a> ·
+  <a href="#contributing">Contributing</a> ·
+  <a href="DEPLOYMENT.md">Deployment</a>
 </p>
-
-<p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--v3-blue.svg" alt="License: AGPL v3" /></a>
-  <img src="https://img.shields.io/badge/Bun-000000?logo=bun&logoColor=white" alt="Bun" />
-  <img src="https://img.shields.io/badge/Next.js-15-black?logo=next.js" alt="Next.js" />
-  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/PostgreSQL-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL" />
-  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker" />
-  <img src="https://img.shields.io/badge/AI-GPT--4o--mini-6366f1?logo=openai&logoColor=white" alt="AI" />
-</p>
-
-<br />
-
-<table>
-  <tr>
-    <td width="50%">
-      <img src="web/public/images/app/photo-1.png" alt="Analytics dashboard" width="100%" />
-    </td>
-    <td width="50%">
-      <img src="web/public/images/app/photo-2.png" alt="Session replays" width="100%" />
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <img src="web/public/images/app/photo-3.png" alt="Heatmaps" width="100%" />
-    </td>
-    <td width="50%">
-      <img src="web/public/images/app/photo-4.png" alt="Funnels & revenue" width="100%" />
-    </td>
-  </tr>
-</table>
 
 ---
 
-## What is Seentics?
+Self-hosted analytics without cookies, fingerprinting, or third-party data sharing.
+Your data stays on your infrastructure.
 
-Seentics is a fully self-hosted analytics platform. It gives you everything you need to understand your visitors and improve your product — without cookies, fingerprinting, or sharing data with third parties.
+## Features
 
-You own your data. It runs on your infrastructure. Deploy in minutes with Docker.
-
----
-
-## ✨ Features
-
-- **Seentics AI** — ask anything about your data in plain English; AI generates SQL and renders charts across analytics, revenue, replays, heatmaps, funnels, and automations (`⌘K`)
-- **Real-time analytics** — live visitor map, active pages, and traffic as it happens
-- **Session replays** — watch full recordings with rage-click and JS error detection
-- **Heatmaps** — click maps, scroll depth, and captured page screenshots
+- **Seentics AI** — ask questions in plain English; generates SQL and renders charts across analytics, revenue, replays, heatmaps, funnels and automations (`⌘K`)
+- **Real-time analytics** — live visitor map, active pages, traffic as it happens
+- **Session replays** — full recordings with rage-click and JS error detection
+- **Heatmaps** — click maps, scroll depth, captured page screenshots
 - **Funnels** — multi-step conversion analysis with drop-off rates
-- **Revenue tracking** — orders, AOV, ARPU, and UTM channel attribution
-- **Custom events** — track any action with typed properties and filtering
-- **Goals** — page visit, custom event, or CSS selector click conversions
-- **Behavioral automations** — trigger webhooks or emails based on visitor actions
-- **Path analysis** — visualize how users move between pages
-- **Privacy-first** — no cookies, no fingerprinting, fully self-hosted
+- **Revenue** — orders, AOV, ARPU, UTM channel attribution
+- **Custom events and goals** — typed properties; page, event or CSS-selector conversions
+- **Behavioral automations** — trigger webhooks or emails from visitor actions
+- **Path analysis** — how users move between pages
 
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Backend API | Bun · Hono · Drizzle ORM (TypeScript) |
-| Frontend | Next.js 15 · Tailwind CSS · shadcn/ui |
-| Database | PostgreSQL 16 |
-| Object Storage | S3-compatible (MinIO in Docker Compose) |
-| Session Replays | rrweb |
-
----
-
-## 🚀 Quick Start
-
-**Requirements:** [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/)
+## Quick Start
 
 ```bash
 git clone https://github.com/Seentics/seentics.git
@@ -97,16 +42,14 @@ cd seentics
 docker compose up -d --build
 ```
 
-Open **[http://localhost:3000](http://localhost:3000)** to access the dashboard.  
-The API is available at **[http://localhost:8080/api/v1](http://localhost:8080/api/v1)**.
+Brings up PostgreSQL, MinIO, the API on `:8080` and the dashboard on `:3000`.
+Create a website in the dashboard, then add the tracking script below.
 
----
+For production, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
-## 📡 Tracking
+## Tracking
 
-### Add the Script
-
-After creating a website in the dashboard, add to your `<head>`:
+Add to your `<head>`:
 
 ```html
 <script
@@ -116,213 +59,106 @@ After creating a website in the dashboard, add to your `<head>`:
 ></script>
 ```
 
-Pageviews are tracked automatically. The website ID is the UUID shown in your dashboard.
+Pageviews, scroll depth, exit intent and rage clicks are captured automatically.
+`YOUR_WEBSITE_ID` is the id shown on your website's settings page.
 
-### Custom Events
-
-```javascript
-// Simple event
-seentics.track('signup_click')
-
-// Event with properties
-seentics.track('purchase', {
-  value:    49.99,
-  currency: 'USD',
-  order_id: 'ORD-1234',
-  plan:     'pro',
-})
-
-// Identify a user (optional)
-seentics.identify({ email: 'user@example.com', plan: 'pro' })
-```
-
-### Revenue Tracking
-
-Call `seentics.track('purchase', { ... })` on your checkout confirmation page:
+### JavaScript API
 
 ```javascript
-seentics.track('purchase', {
-  value:        99.00,
-  currency:     'USD',
-  order_id:     'ORD-5678',   // used for deduplication
-  product_name: 'Pro Plan',   // shows in Product breakdown
-  user_type:    'new',        // 'new' | 'returning'
-})
+// Custom event, with optional properties
+seentics.track('signup_click');
+seentics.track('purchase', { value: 49.99, currency: 'USD', order_id: 'ORD-1234' });
+
+// Identify a visitor. Note the argument order: id first, then traits.
+seentics.identify('user_123', { email: 'user@example.com', plan: 'pro' });
+
+seentics.page();   // manual pageview, if auto-tracking is off
+seentics.flush();  // send queued events immediately
 ```
 
-Attribution is resolved automatically from the visitor's session UTM parameters using last-non-direct touch.
+Revenue reporting keys off `value` and `currency` on any event; goals are configured
+in the dashboard rather than in code.
 
-### Goal Tracking
-
-Create goals in **Settings → Goals**:
-
-| Type | How it fires |
-|---|---|
-| Page visit | Visitor hits a URL path (e.g. `/thank-you`) |
-| Custom event | Your code calls `seentics.track('event_name')` |
-| CSS selector | Visitor clicks a matching element (e.g. `#signup-btn`) |
-
----
-
-## 🗂 Project Structure
+## Project Layout
 
 ```
 seentics/
-├── core/                   # Bun + Hono API — analytics ingest, replays, heatmaps
-│   ├── routes/             # API route handlers
-│   ├── services/           # Business logic
-│   ├── lib/                # Shared utilities
-│   └── db/                 # Drizzle schema + migrations
+├── core/          Bun + Hono API — a modular monolith
+│   ├── app/       Composition root: the one place the graph is wired
+│   ├── modules/   Domain modules, each owning a table
+│   │              websites · analytics · ingest · recordings
+│   │              heatmaps · funnels · automations · ai · auth
+│   ├── platform/  Cross-cutting, owns no table
+│   │              middleware · validation · lib · scheduler
+│   │              retention · raw-data · internal
+│   ├── infrastructure/  Event bus, transactional outbox
+│   └── db/        Drizzle schema and migrations
 │
-├── web/                    # Next.js dashboard
-│   ├── public/
-│   │   └── trackers/       # seentics.js tracker script
-│   └── src/
-│       ├── app/
-│       │   └── websites/[websiteId]/
-│       │       ├── page.tsx         # Analytics overview
-│       │       ├── realtime/        # Live dashboard
-│       │       ├── heatmaps/        # Heatmaps
-│       │       ├── replays/         # Session replays
-│       │       ├── funnels/         # Funnels
-│       │       ├── revenue/         # Revenue & orders
-│       │       ├── events/          # Custom events
-│       │       ├── paths/           # Path analysis
-│       │       ├── automations/     # Behavioral automations
-│       │       └── settings/        # Goals, team, API keys, alerts
-│       ├── components/     # Reusable UI components
-│       ├── lib/            # API clients
-│       └── hooks/          # Custom React hooks
+├── web/           Next.js dashboard
+│   ├── public/trackers/   seentics.js — the tracking script
+│   └── src/app/websites/[websiteId]/   analytics, replays, heatmaps,
+│                                       funnels, revenue, automations, settings
 │
-├── ui/
-│   └── blocks/             # @seentics/ui — embeddable React UI blocks (MIT)
-│
-└── docker-compose.yml
+└── ui/blocks/     @seentics/ui — embeddable React blocks (MIT)
 ```
 
----
+Modules talk to each other through explicit interfaces for synchronous calls and
+typed domain events for asynchronous ones. **Read
+[core/ARCHITECTURE.md](core/ARCHITECTURE.md) before changing `core/`** — it covers the
+module boundaries, the event bus guarantees, and the known gaps.
 
-## 📦 @seentics/ui
+## Architecture
 
-Drop Seentics analytics charts and widgets directly into your own React app — no dashboard login required.
-
-```bash
-npm install @seentics/ui
+```
+Browser ──┬─ tracker ──▶ POST /api/v1/tracker/collect ─┐
+          └─ dashboard ─▶ Next.js :3000 ───────────────┤
+                                                        ▼
+                                              Bun API :8080
+                                                 │        │
+                                          PostgreSQL   S3 / MinIO
+                                        (events, meta) (replays, heatmaps)
 ```
 
-```tsx
-import { SeenticsProvider, TrafficChart, AnalyticsSummary, HeatmapViewer, SessionReplayPlayer } from '@seentics/ui'
+Tracker events are buffered in memory and flushed in batches, so `/collect` returns
+without waiting on the database. Replay chunks and heatmap screenshots go to
+S3-compatible storage.
 
-export default function MyDashboard() {
-  return (
-    <SeenticsProvider apiKey="sk_..." baseUrl="https://your-seentics-domain.com">
-      <AnalyticsSummary siteId="site_abc" days={30} />
-      <TrafficChart     siteId="site_abc" days={30} />
-      <HeatmapViewer    siteId="site_abc" pageUrl="/pricing" />
-    </SeenticsProvider>
-  )
-}
-```
-
-**Available blocks:**
-
-| Block | Description |
+| Layer | Stack |
 |---|---|
-| `<AnalyticsSummary />` | Pageviews, visitors, bounce rate, session duration cards |
-| `<TrafficChart />` | Daily traffic timeseries chart |
-| `<TopPages />` | Top pages by pageviews |
-| `<TopSources />` | Referrer / UTM source breakdown |
-| `<GoalConversions />` | Goal completion rates |
-| `<FunnelChart />` | Multi-step funnel with drop-off |
-| `<RealtimeCounter />` | Live visitor count |
-| `<HeatmapViewer />` | Click and scroll heatmap overlay |
-| `<SessionReplayPlayer />` | Embedded rrweb session replay player |
+| API | Bun · Hono · Drizzle ORM |
+| Dashboard | Next.js 15 · Tailwind · shadcn/ui |
+| Data | PostgreSQL 16 · S3-compatible object storage |
+| Replays | rrweb |
 
-Source lives in [`ui/blocks/`](ui/blocks). Licensed under MIT — use it in any project.
-
----
-
-## 🏠 Self-Hosting
-
-### Local Development
+## Contributing
 
 ```bash
-docker compose up -d --build
+cd core
+bun install
+bun run check   # typecheck — expected to be clean
+bun test        # ~630 tests, no database or S3 required
+bun run dev
 ```
 
-Starts PostgreSQL, MinIO, the Bun API, and the Next.js app with hot reload.
+CI runs `check` and `test` on every pull request, and both are expected to pass.
+Tests use in-memory doubles of the module interfaces, so no services are needed.
 
-### Production
+Two things worth knowing before you write tests: `mock.module` is process-global in
+Bun, so an incomplete stub becomes the real module for every later test file — make
+stubs complete. And `core/ARCHITECTURE.md` lists the current known gaps if you are
+looking for something to pick up.
 
-Copy and configure the environment variables, then run behind a reverse proxy (nginx, Caddy, Traefik) with HTTPS.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the PR process.
 
-```bash
-cp .env.example .env
-# Edit .env with your values
-docker compose -f docker-compose.prod.yml up -d --build
-```
+## License
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for a full production setup guide.
-
-### Environment Variables
-
-| Variable | Description |
-|---|---|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `JWT_SECRET` | Secret key for session tokens |
-| `GLOBAL_API_KEY` | Internal service-to-service auth key |
-| `S3_ENDPOINT` | S3-compatible endpoint (MinIO URL in Docker) |
-| `S3_BUCKET` | Bucket name for replay and heatmap storage |
-| `S3_ACCESS_KEY` / `S3_SECRET_KEY` | S3 credentials |
-| `S3_PUBLIC` | Public base URL for presigned asset access |
-| `CORS_ALLOWED_ORIGINS` | Comma-separated browser origins allowed to call the API |
-| `TRUST_PROXY` | Set `true` when behind a reverse proxy to trust forwarded IP headers |
-| `ENVIRONMENT` | `production` \| `development` |
-
----
-
-## 🏗 Architecture
-
-```
-Browser / App
-     │
-     ├─ Dashboard ──▶ Next.js :3000
-     │                     │
-     └─ Tracker ───────────┤
-                           ▼
-                    Bun API :8080
-                    /api/v1/...
-                       │       │
-                  PostgreSQL  MinIO (S3)
-               (events, meta) (replays, heatmaps)
-```
-
-The tracker and dashboard both talk to the **`core`** API. Analytics events and metadata are stored in **PostgreSQL**. Session replay chunks and heatmap screenshots are stored in **S3-compatible** object storage.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome — bug reports, feature requests, docs improvements, and pull requests.
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feat/my-feature`
-3. Commit your changes: `git commit -m 'feat: add my feature'`
-4. Push and open a pull request
-
-Please open an issue first for significant changes so we can discuss the approach.
-
----
-
-## 📄 License
-
-Seentics is licensed under the [GNU AGPL v3.0](LICENSE).  
-You may self-host freely. Any modifications must be released under the same license.
-
-The [`@seentics/ui`](ui/blocks) package is separately licensed under the [MIT License](ui/blocks/LICENSE).
+[GNU AGPL v3.0](LICENSE) — self-host freely; modifications must be released under
+the same license. The [`@seentics/ui`](ui/blocks) package is separately
+[MIT](ui/blocks/LICENSE).
 
 ---
 
 <p align="center">
-  Built by the <a href="https://github.com/Seentics">Seentics</a> team · <a href="https://github.com/Seentics/seentics/issues">Report an issue</a>
+  Built by the <a href="https://github.com/Seentics">Seentics</a> team ·
+  <a href="https://github.com/Seentics/seentics/issues">Report an issue</a>
 </p>
