@@ -258,6 +258,8 @@ const SESSION_SUMMARY = [
   { label: 'Device / OS', value: 'Desktop · macOS' },
   { label: 'Country', value: 'United States' },
   { label: 'Entry page', value: '/pricing', mono: true },
+  { label: 'Exit page', value: '/checkout/success', mono: true },
+  { label: 'Started', value: 'Today at 2:41 PM' },
   { label: 'Recording length', value: '3m 12s' },
   { label: 'Pages viewed', value: '4' },
 ];
@@ -266,7 +268,7 @@ function ReplayPanel() {
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Player card — capped width so the tab bar below always stays visible */}
-      <div className="mx-auto w-full max-w-xl p-3">
+      <div className="mx-auto w-full max-w-2xl p-3">
         <div className="overflow-hidden rounded-lg border border-border/60 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
           {/* Viewport (always dark, like the real player) */}
           <div className="relative aspect-[16/9] overflow-hidden bg-black">
@@ -343,10 +345,13 @@ function ReplayPanel() {
         {/* Summary tab content */}
         <div className="min-h-0 flex-1 overflow-hidden p-3">
           <div className="rounded-lg border border-border/60 bg-card p-3 shadow-sm">
-            <p className="mb-2.5 text-xs font-semibold text-foreground">Session summary</p>
-            <dl className="space-y-2">
+            <p className="text-xs font-semibold text-foreground">Session summary</p>
+            <p className="mb-3 mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+              Who this was, where they started, and how long the recording runs.
+            </p>
+            <dl className="grid gap-2 sm:grid-cols-2 sm:gap-x-8">
               {SESSION_SUMMARY.map((f) => (
-                <div key={f.label} className="grid grid-cols-[6.5rem_1fr] items-baseline gap-x-3">
+                <div key={f.label} className="grid grid-cols-[8rem_1fr] items-baseline gap-x-4">
                   <dt className="text-[11px] text-muted-foreground">{f.label}</dt>
                   <dd className={`min-w-0 truncate text-[11px] font-medium text-foreground ${f.mono ? 'font-mono' : ''}`}>
                     {f.value}
@@ -385,8 +390,8 @@ const PANELS = [
  * and flatter as they recede — the same cue a real stack of paper gives.
  */
 const SLOTS = [
-  { w: 80, ty: 0, z: 40, sc: 1.02, dim: 1, sat: 1 }, // front / active — untouched
-  { w: 90, ty: 52, z: 20, sc: 1, dim: 0.82, sat: 0.7 },
+  { w: 88, ty: 0, z: 40, sc: 1.01, dim: 1, sat: 1 }, // front / active — untouched
+  { w: 94, ty: 52, z: 20, sc: 1, dim: 0.82, sat: 0.7 },
   { w: 100, ty: 104, z: 10, sc: 1, dim: 0.66, sat: 0.45 },
 ];
 
@@ -397,10 +402,10 @@ export default function HeroPreviewStack() {
   const inactive = PANELS.map((_, idx) => idx).filter((idx) => idx !== active);
 
   return (
-    <div className="relative md:h-[760px]">
-      {/* Mobile tab switcher — the desktop cascade/click interaction needs pointer + space,
-          so on small screens we show one preview at a time with tabs. */}
-      <div className="mb-4 grid grid-cols-3 gap-2 md:hidden">
+    <div>
+      {/* Preview switcher. On mobile it is the only way to change preview (one shows at
+          a time); on desktop it labels the cascade and mirrors clicking a layer. */}
+      <div className="mb-4 grid grid-cols-3 gap-2 md:mx-auto md:mb-5 md:flex md:w-fit md:gap-1 md:rounded-full md:border md:border-border/60 md:bg-card md:p-1 md:shadow-sm">
         {PANELS.map((p, i) => (
           <button
             key={p.key}
@@ -409,9 +414,10 @@ export default function HeroPreviewStack() {
             aria-pressed={active === i}
             className={cn(
               'rounded-lg border px-2 py-2 text-[11px] font-semibold transition-colors',
+              'md:rounded-full md:border-transparent md:px-4 md:py-1.5 md:text-xs',
               active === i
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-border/60 bg-card text-muted-foreground',
+                ? 'border-primary bg-primary/10 text-primary md:bg-primary md:text-primary-foreground'
+                : 'border-border/60 bg-card text-muted-foreground md:bg-transparent md:hover:text-foreground',
             )}
           >
             {p.label}
@@ -419,7 +425,9 @@ export default function HeroPreviewStack() {
         ))}
       </div>
 
-      {PANELS.map((p, i) => {
+      {/* Stack container — layers are absolutely positioned against this. */}
+      <div className="relative md:h-[760px]">
+        {PANELS.map((p, i) => {
         const rank = i === active ? 0 : inactive.indexOf(i) + 1; // 0 = front
         const slot = SLOTS[rank];
         const isActive = rank === 0;
@@ -445,7 +453,8 @@ export default function HeroPreviewStack() {
               ['--sat' as string]: slot.sat,
             }}
             className={cn(
-              'group relative h-[420px] w-full overflow-hidden rounded-lg border border-border/60 bg-card outline-none sm:h-[480px]',
+              'group relative h-[420px] w-full overflow-hidden rounded-xl border border-border bg-card outline-none sm:h-[480px]',
+              'ring-1 ring-inset ring-foreground/[0.04]',
               'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
               'transition-all duration-500 ease-out md:cursor-pointer',
               // Mobile: only the selected preview is shown (tabs switch it).
@@ -466,11 +475,6 @@ export default function HeroPreviewStack() {
           >
             {p.node}
 
-            {/* Corner label — desktop only (mobile uses the tab bar) */}
-            <span className="pointer-events-none absolute left-3 top-3 z-20 hidden rounded-full border border-border/60 bg-background/85 px-2.5 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur md:block">
-              {p.label}
-            </span>
-
             {/* Hover cue — prompt to click (desktop, non-front layers) */}
             {!isActive && (
               <span className="pointer-events-none absolute left-1/2 bottom-3 z-30 hidden -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-foreground/90 px-3 py-1.5 text-[11px] font-semibold text-background opacity-0 shadow-lg backdrop-blur transition-opacity duration-200 md:flex md:group-hover:opacity-100">
@@ -480,7 +484,8 @@ export default function HeroPreviewStack() {
             )}
           </div>
         );
-      })}
+        })}
+      </div>
     </div>
   );
 }

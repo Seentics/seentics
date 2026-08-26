@@ -38,10 +38,10 @@ export default function HeroDashboardPreview() {
       <div
         className="pointer-events-none select-none"
         style={{
-          transform: 'scale(0.55)',
+          transform: 'scale(0.85)',
           transformOrigin: 'top center',
-          width: `${100 / 0.55}%`,
-          marginLeft: `${-(100 / 0.55 - 100) / 2}%`,
+          width: `${100 / 0.85}%`,
+          marginLeft: `${-(100 / 0.85 - 100) / 2}%`,
         }}
       >
         {/* Dashboard Header */}

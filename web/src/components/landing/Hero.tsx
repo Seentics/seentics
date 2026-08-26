@@ -36,7 +36,7 @@ export default function Hero() {
         </div>
 
         {/* Product preview — full-width section, three squared mocks side by side */}
-        <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 [animation-delay:200ms] relative mt-16 max-w-7xl mx-auto">
+        <div className="animate-in fade-in slide-in-from-bottom-6 duration-700 [animation-delay:200ms] relative mt-16 max-w-[1600px] mx-auto">
           <HeroPreviewStack />
         </div>
       </div>
