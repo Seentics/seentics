@@ -6,6 +6,27 @@ const log = baseLog.child({ category: "replay" });
 
 const maxEventsPerSession = 500_000;
 
+/**
+ * Byte budget per session, tracked alongside the event count.
+ *
+ * The count alone is a poor proxy for memory: rrweb envelopes range from tens of
+ * bytes for a mouse move to hundreds of kilobytes for a canvas or a large DOM
+ * mutation, so 500k events could mean 50MB or several gigabytes. A canvas-heavy
+ * single-page app was the realistic way to exhaust the process.
+ */
+const maxBytesPerSession = 32 * 1024 * 1024;
+
+/** Rough retained size of an envelope. JSON length is close enough and cheap. */
+function approximateBytes(ev: Record<string, unknown>): number {
+  try {
+    return JSON.stringify(ev).length;
+  } catch {
+    // Circular or otherwise unserializable: charge a nominal cost rather than
+    // letting it in for free.
+    return 1024;
+  }
+}
+
 /** Drop idle empty sessions so the spool map cannot grow forever after visitors leave. */
 const EMPTY_SESSION_IDLE_PURGE_MS = 45 * 60 * 1000;
 
@@ -23,6 +44,8 @@ type SessionState = {
   lastTouchedMs: number;
   /** Serializes flushes per session — two concurrent flushes would reuse the same chunk sequence and overwrite each other in S3. */
   inflight: Promise<void> | null;
+  /** Approximate retained bytes of `events`; reset whenever the tail is flushed. */
+  approxBytes: number;
 };
 
 function mapKey(siteId: string, sessionId: string): string {
@@ -102,9 +125,20 @@ export class ReplaySpool {
         nextChunkSeq: null,
         lastTouchedMs: now,
         inflight: null,
+        approxBytes: 0,
       };
       this.sessions.set(k, st);
     }
+    if (st.approxBytes >= maxBytesPerSession) {
+      log.warn({
+        msg: "replay_spool_byte_overflow_drop",
+        session_id: sessionId,
+        dropped: events.length,
+        approx_bytes: st.approxBytes,
+      });
+      return;
+    }
+
     const room = maxEventsPerSession - st.events.length;
     if (room <= 0) {
       log.warn({ msg: "replay_spool_overflow_drop", session_id: sessionId, dropped: events.length });
@@ -116,6 +150,7 @@ export class ReplaySpool {
     }
     const wasEmpty = st.events.length === 0;
     Array.prototype.push.apply(st.events, events);
+    for (const ev of events) st.approxBytes += approximateBytes(ev);
     st.lastTouchedMs = Date.now();
     if (wasEmpty) {
       st.chunkWindowStart = Date.now();
@@ -180,6 +215,7 @@ export class ReplaySpool {
     st.finalizing = true;
     const batch = st.events;
     st.events = [];
+    st.approxBytes = 0;
     st.dirty = false;
     st.chunkWindowStart = null;
     try {

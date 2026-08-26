@@ -245,6 +245,32 @@ through that path reaches nobody. It survives because the event that matters,
 `AutomationEvaluationService` in `app/bootstrap.ts` and inject it once the tracker
 routes are composed.
 
+## Session recordings: what is and is not optimised
+
+Playback fidelity is handled carefully — event ordering prefers rrweb's own
+`data.timestamp` over the envelope `ts` (mixing them scrambles the timeline, since
+`session_error` uses wall-clock), and page counts come from URL transitions rather
+than FullSnapshots, which the tracker checkpoints every 60s.
+
+Storage is where the cost is. A recording becomes one immutable S3 object per flush
+window, and the playback endpoint presigns **every** chunk for the player:
+
+| Session length | Objects at 10s (old) | at 30s (now) |
+|---|---|---|
+| 5 min | ~30 | ~10 |
+| 1 hour | ~360 | ~120 |
+
+Presigning is local HMAC, so it costs nothing server-side, but the player issues one
+GET per chunk. Raising the window was the cheap 3x win; it is capped below at 5s.
+
+**Compaction is built but not wired.** `uploadSessionBundleGzip`, `locateBundle` and
+the `replay_storage: "bundle"` read branch all exist, and nothing calls the writer —
+so chunk counts still grow linearly with session length. Wiring it needs two things:
+a definition of when a session is finished, and a change of read precedence. Today
+chunks win over the bundle, which makes compaction unsafe: a partial chunk delete
+would leave the reader treating a surviving subset as the whole recording. Prefer the
+bundle first and a partial delete becomes harmless.
+
 ## Adding a module
 
 1. Write `interfaces/` first — the contract, split by capability. If an interface

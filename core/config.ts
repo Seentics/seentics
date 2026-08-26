@@ -37,7 +37,12 @@ export function env() {
   );
   const spoolIdleMs = Number(process.env.REPLAY_SPOOL_IDLE_MS ?? "60000");
   const spoolMaxAgeMs = Number(process.env.REPLAY_SPOOL_MAX_AGE_MS ?? String(30 * 60 * 1000));
-  const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 10_000);
+  // 30s, not 10s. The flush window sets how many immutable S3 objects a recording
+// becomes: at 10s a one-hour session produced ~360 chunks, and the playback endpoint
+// presigns every one of them, so the player issued ~360 GETs. 30s cuts that 3x. The
+// cost is the loss window — the spool is in-memory, so an unclean exit loses up to
+// this much of a live session, which is an easy trade for replay.
+const replayChunkFlushMs = parseIntEnv(process.env.REPLAY_CHUNK_FLUSH_MS, 30_000);
 
   const corsAllowedOrigins =
     process.env.CORS_ALLOWED_ORIGINS ??
