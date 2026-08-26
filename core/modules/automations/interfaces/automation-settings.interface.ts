@@ -3,8 +3,8 @@ import type { AutomationRow } from "./automation.interface";
 /**
  * What the tracker needs to know about a website's automations.
  *
- * Separate from `AutomationCrud` for the same reason `WebsiteIngestionSettings`
- * is separate from `WebsiteQuery`: the caller is the anonymous tracker init
+ * Separate from `AutomationCrud` for the same reason `WebsiteQuery` is separate
+ * from `WebsiteMutations`: the caller is the anonymous tracker init
  * endpoint, it runs on every first page view of every session, and it needs
  * exactly one read. Handing that path an interface with `delete` on it would be
  * the widest unauthenticated surface in the module.

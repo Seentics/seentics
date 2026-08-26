@@ -181,10 +181,21 @@ what closes them — until then, do not copy the pattern into new code.
 
 ### Event coverage
 
-Every `EventMap` entry must have a real publisher. An entry without one reads as a
-working integration point to anyone who subscribes, which is worse than its absence
-— `analytics.batch_ingested` had exactly that problem: automation evaluation
-subscribed to it while nothing published it, so the whole wire was dead.
+Every `EventMap` entry must have a real publisher, and every subscription must
+actually be registered. Either half missing reads as a working integration point.
+
+`analytics.batch_ingested` illustrated both failure modes. It had no publisher, so
+ingest now publishes it after a durable write. It also *appeared* to have a
+subscriber — but the `subscribe` call lived inside an `AutomationEventSubscriber.subscribeToIngest()`
+that nothing ever called, and which by its own admission only incremented a counter:
+it could not trigger an automation, because the event payload carries a site id and a
+count while evaluation needs a visitor, a session and a trigger. That placeholder has
+been removed rather than wired, since wiring it would have added a counter nobody
+reads while still looking like a live integration.
+
+So the event currently has a publisher and no consumer. That is a normal, honest
+state — a fact worth announcing before anyone listens. What is not acceptable is the
+reverse.
 
 Three declarations were removed rather than left dangling; the reasoning is recorded
 at the top of `event-map.ts` so they are not re-added on spec alone.
@@ -195,6 +206,9 @@ Still unpublished:
 |---|---|
 | `funnel.step_reached` | ingest wiring — a step is reached in `collect-handlers` |
 | `recording.completed` | the recordings engine takes no `EventBus` yet |
+
+Consumers would have to be idempotent for anything delivered through the outbox, so
+adding one is a design decision rather than a wiring task.
 
 Nothing subscribes to most published events yet, which is fine — a fact with no
 current consumer is still worth announcing. The exception to watch is the reverse:

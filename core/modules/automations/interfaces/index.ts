@@ -40,10 +40,8 @@ export type { AutomationTrackerSettings } from "./automation-settings.interface"
 
 export type {
   AutomationEvaluation,
-  AutomationEventSubscriber,
   ClientAction,
   EvaluateRequest,
   EvaluateResult,
   IdentifyPayload,
-  VisitorProfileWriter,
 } from "./automation-evaluation.interface";

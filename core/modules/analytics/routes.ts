@@ -86,6 +86,7 @@ export function createAnalyticsRoutes(deps: {
       return c.json((await read(c, websiteRef)) as object);
     };
   }
+  
 
   // ─── Public (unauthenticated) ─────────────────────────────────────────────
   // Registered before the auth middleware, since the whole point of a share link

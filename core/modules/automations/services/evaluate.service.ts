@@ -14,17 +14,15 @@
 import { and, eq, sql as rawSql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { automationEvents, db, userProfiles } from '../../../db';
-import { InMemoryEventBus, type EventBus, type Unsubscribe } from '../../../infrastructure/events';
+import { InMemoryEventBus, type EventBus } from '../../../infrastructure/events';
 import { enqueueEvent } from '../../../infrastructure/outbox';
 import { log } from '../../../platform/lib/logger';
 import type {
   AutomationEvaluation,
-  AutomationEventSubscriber,
   ClientAction,
   EvaluateRequest,
   EvaluateResult,
   IdentifyPayload,
-  VisitorProfileWriter,
 } from '../interfaces';
 import { listActiveAutomationsByPriority } from '../repositories/postgres-automation.repository';
 import type { Conditions } from './condition-evaluator';
@@ -186,11 +184,8 @@ type FiredAutomation = { automationId: string; runId: string; visitorId: string 
  * in-process or a broker.
  */
 export class AutomationEvaluationService
-  implements AutomationEvaluation, VisitorProfileWriter, AutomationEventSubscriber
+  implements AutomationEvaluation
 {
-  /** Batches seen through `subscribeToIngest`. Diagnostics and tests only. */
-  private observedIngestBatches = 0;
-
   constructor(private readonly eventBus: EventBus) {}
 
   async evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
@@ -345,32 +340,15 @@ export class AutomationEvaluationService
     });
   }
 
-  // ─── AutomationEventSubscriber ─────────────────────────────────────────────
 
   /**
-   * Observe `analytics.batch_ingested`.
+   * Write visitor profile facts.
    *
-   * The seam for an ingest-driven trigger, deliberately inert. It cannot evaluate
-   * anything today: the payload carries a `siteId` and a count, while
-   * `EvaluateRequest` needs a visitor, a session and a trigger. Making it fire
-   * automations would mean widening that event to carry per-visitor detail, which
-   * is a change to when automations run — a behavioural decision for whoever wires
-   * `app/bootstrap.ts`, not a side effect of moving files.
-   *
-   * Nothing subscribes to this yet; see the module's report notes.
+   * No caller today — there is no `/identify` endpoint, and there never was one in
+   * the pre-refactor code either. Kept because it is real behaviour an endpoint
+   * could be wired to, unlike the inert `subscribeToIngest` placeholder that was
+   * removed alongside it. Delete it if that endpoint is not coming.
    */
-  subscribeToIngest(): Unsubscribe {
-    return this.eventBus.subscribe('analytics.batch_ingested', () => {
-      this.observedIngestBatches++;
-    });
-  }
-
-  /** Ingest batches observed since construction. Diagnostics and tests only. */
-  ingestBatchesObserved(): number {
-    return this.observedIngestBatches;
-  }
-
-  // ─── VisitorProfileWriter ──────────────────────────────────────────────────
 
   async upsertUserProfile(payload: IdentifyPayload): Promise<void> {
     const { websiteId, anonymousId, userId, properties = {}, meta = {} } = payload;

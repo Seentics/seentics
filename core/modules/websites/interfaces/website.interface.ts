@@ -146,22 +146,3 @@ export interface WebsitePublicSharing {
   ): Promise<{ websiteId: string; siteId: string } | null>;
 }
 
-/**
- * Tracker-facing settings, resolved per ingest request.
- *
- * Separate from `WebsiteQuery` because the ingest path reads it on every
- * incoming event and cares only about these flags — not the whole entity.
- */
-export interface WebsiteIngestionSettings {
-  /** `null` when the website is unknown or inactive, i.e. reject the event. */
-  getIngestionSettings(siteId: string): Promise<{
-    websiteId: string;
-    trackingEnabled: boolean;
-    replayEnabled: boolean;
-    replaySamplingRate: number;
-    heatmapEnabled: boolean;
-    funnelEnabled: boolean;
-    automationEnabled: boolean;
-    respectDoNotTrack: boolean;
-  } | null>;
-}

@@ -8,6 +8,5 @@ export type {
   RecordingDetail,
   RecordingMutations,
   RecordingQuery,
-  RecordingSettings,
   RecordingSummary,
 } from "./recording.interface";

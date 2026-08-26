@@ -83,22 +83,6 @@ export interface AutomationEvaluation {
 }
 
 /**
- * Visitor profile writes.
- *
- * Its own interface because the caller is the ingest `identify` path, which has
- * no business being able to fire automations — it only contributes the facts
- * that later conditions are evaluated against.
- */
-export interface VisitorProfileWriter {
-  /**
-   * Upsert the profile behind an `anonymousId`. Best-effort: a failure here is
-   * logged and swallowed, because losing a profile attribute must not fail an
-   * ingest batch.
-   */
-  upsertUserProfile(payload: IdentifyPayload): Promise<void>;
-}
-
-/**
  * Consuming other modules' events.
  *
  * Automations are the one module in the system that is naturally an event

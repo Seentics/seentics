@@ -79,12 +79,3 @@ export interface RecordingMutations {
   batchDelete(websiteRef: string, sessionIds: string[]): Promise<void>;
 }
 
-/**
- * Per-website recording configuration, read on the ingest path.
- *
- * The tracker asks on every session whether to record and at what rate, so this
- * is deliberately the narrowest possible interface.
- */
-export interface RecordingSettings {
-  isEnabledFor(siteId: string): Promise<{ enabled: boolean; samplingRate: number }>;
-}

@@ -9,7 +9,6 @@ export type {
   CreateWebsiteInput,
   UpdateWebsiteInput,
   Website,
-  WebsiteIngestionSettings,
   WebsiteMutations,
   WebsitePublicSharing,
   WebsiteQuery,
