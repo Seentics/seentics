@@ -11,6 +11,8 @@
  * nothing in common except the table, and no consumer needs both.
  */
 
+import type { TrackerEvent } from "../../../platform/lib/types";
+
 /** Summary of one recorded session, as the session list renders it. */
 export type RecordingSummary = {
   sessionId: string;
@@ -79,3 +81,49 @@ export interface RecordingMutations {
   batchDelete(websiteRef: string, sessionIds: string[]): Promise<void>;
 }
 
+
+/**
+ * The ingest write path.
+ *
+ * The recordings engine consumes raw tracker events; ingest holds this interface
+ * rather than the engine, which is what removed its `getReplayEngine()` call — a
+ * reach into this module's process-wide singleton that no test could substitute.
+ */
+export interface RecordingIngest {
+  /** `batchId` is stable across redeliveries, so the metadata write can skip a repeat. */
+  processEvents(batchId: string, events: TrackerEvent[]): Promise<void>;
+}
+
+/**
+ * Reads for the raw API.
+ *
+ * Separate from `RecordingQuery` for the same reason as `HeatmapRawReads`: the raw API
+ * is a data-export surface with its own projection. `platform/raw-data` used to import
+ * `services/session-list.service` directly.
+ */
+export interface RecordingRawReads {
+  listSessionsRaw(
+    websiteId: string,
+    limit: number,
+    offset: number,
+  ): Promise<{
+    /** Echoed back clamped, so the caller can see what it actually got. */
+    limit: number;
+    offset: number;
+    /** Wire shape (snake_case) — this is a data-export surface. */
+    sessions: Array<{
+      session_id: string;
+      website_id: string;
+      browser: string;
+      device: string;
+      os: string;
+      country: string;
+      entry_page: string;
+      started_at: string;
+      duration_seconds: number;
+      pages_viewed: number;
+      has_rage_clicks: boolean;
+      has_errors: boolean;
+    }>;
+  }>;
+}

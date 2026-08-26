@@ -3,7 +3,7 @@ import type { AuthLoginJson, AuthRefreshJson, AuthRegisterJson } from "../../pla
 import type { JsonRequestContext } from "./lib/hono-types";
 import { authMiddleware, type AuthVars } from "../../platform/middleware/auth";
 import * as authSvc from "./services/auth.service";
-import { toFrontendUser } from "../../platform/lib/user-mapper";
+import { toFrontendUser } from "./services/user-mapper";
 import { parseJson, validationErrorResponse } from "../../platform/validation";
 import {
   authLoginSchema,

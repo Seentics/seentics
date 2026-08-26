@@ -26,7 +26,6 @@ function makeBus() {
 
 const websitePayload = {
   websiteId: "11111111-1111-1111-1111-111111111111",
-  siteId: "site_abc",
   ownerId: "user_1",
   url: "example.com",
   occurredAt: new Date("2026-01-01T00:00:00Z"),

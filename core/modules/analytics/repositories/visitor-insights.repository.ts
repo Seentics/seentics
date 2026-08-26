@@ -2,7 +2,7 @@ import { sql as pgSql } from "../../../db";
 import { parseDays } from "./shared";
 
 export async function getVisitorInsightsAnalytics(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
@@ -23,7 +23,7 @@ export async function getVisitorInsightsAnalytics(
     WITH base AS (
       SELECT session_id, page, visitor_id, occurred_at, id
       FROM analytics_events
-      WHERE website_id  = ${siteId}
+      WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
@@ -72,7 +72,7 @@ export async function getVisitorInsightsAnalytics(
     prev_vids AS (
       SELECT DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id) AS vid
       FROM analytics_events
-      WHERE website_id  = ${siteId}
+      WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${lookbackIso}
         AND occurred_at <  ${startIso}
@@ -94,7 +94,7 @@ export async function getVisitorInsightsAnalytics(
 
   const row = rows[0];
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${days}d`,
     visitor_insights: {
       new_visitors:       Number(row?.new_visitors       ?? 0),

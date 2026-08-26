@@ -7,5 +7,7 @@ export type {
   RetentionCutoffs,
   RetentionOptions,
   RetentionPurge,
+  RetentionRunner,
+  RetentionSiteSource,
   RetentionTarget,
 } from "./retention.interface";

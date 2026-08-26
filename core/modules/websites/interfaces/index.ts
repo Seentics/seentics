@@ -2,9 +2,11 @@
  * Public contracts for the websites module.
  *
  * Peer modules should import from here and from nowhere deeper — the service and
- * repository implementations are internal. `WebsiteQuery` is what almost every
- * consumer wants.
+ * repository implementations are internal. `WebsitesModule` is the whole surface and
+ * what a peer receives at composition time; `WebsiteQuery` is the one capability
+ * almost every consumer actually uses.
  */
+export type { WebsitesModule } from "./websites.module";
 export type {
   CreateWebsiteInput,
   UpdateWebsiteInput,
@@ -14,9 +16,18 @@ export type {
   WebsiteQuery,
   WebsiteRole,
   WebsiteSettings,
+  WebsiteTrafficReads,
+  WebsiteUserMutations,
+  WebsiteWithTraffic,
 } from "./website.interface";
 
 export type { WebsiteRepository } from "./website-repository.interface";
 
-export type { TrafficSummary, TrafficSummaryProvider } from "./traffic-summary.interface";
-export { emptyTrafficSummary } from "./traffic-summary.interface";
+export type { WebsiteInvitations } from "./website-invitations.interface";
+
+export type {
+  TrackerGoal,
+  TrackerWebsites,
+  WebsiteTrackerRow,
+} from "./tracker-website.interface";
+

@@ -50,8 +50,8 @@ import { getVisitorInsightsAnalytics } from "../repositories/visitor-insights.re
  */
 export class UnknownWebsiteError extends Error {
   readonly status = 404;
-  constructor(websiteRef: string) {
-    super(`unknown website: ${websiteRef}`);
+  constructor(websiteId: string) {
+    super(`unknown website: ${websiteId}`);
     this.name = "UnknownWebsiteError";
   }
 }
@@ -60,12 +60,12 @@ export class UnknownWebsiteError extends Error {
  * The analytics read path.
  *
  * Its one structural job is to resolve a website reference exactly once per
- * request and hand the resolved `siteId` to the repositories. Every query used to
+ * request and hand the resolved `websiteId` to the repositories. Every query used to
  * do that resolution itself, which meant analytics read the `websites` table
  * directly — a cross-module table read — and paid for the lookup again on every
  * call. Resolution now goes through the injected `WebsiteQuery` port.
  *
- * That change is type-invisible: `websiteRef` and `siteId` are both `string`, so
+ * That change is type-invisible: `websiteId` and `websiteId` are both `string`, so
  * the compiler cannot catch a route that passes an unresolved reference straight
  * to a repository. This service existing as the *only* caller of the repositories
  * is what enforces it — routes must not import from `../repositories`.
@@ -83,182 +83,184 @@ export class AnalyticsQueryService
   constructor(private readonly websites: WebsiteQuery) {}
 
   /**
-   * Turn a loose website reference (UUID or `siteId`) into the identifiers the
-   * repositories need.
+   * Reject a query for a website that does not exist.
    *
-   * Analytics rows are keyed by the short `siteId`; the `goals` table is keyed by
-   * the website UUID. Returning both means a query that spans them does not have
-   * to resolve twice.
+   * This used to be a `resolve` that turned a loose reference into the two identifiers
+   * the repositories needed — analytics rows were keyed by a short public id while
+   * `goals` used the UUID. With a single identifier there is nothing to translate, so
+   * what remains is the check that was always the other half of its job: a query
+   * against an unknown website must fail rather than return a confident empty result.
    */
-  private async resolve(websiteRef: string): Promise<{ siteId: string; websiteUuid: string }> {
-    const website = await this.websites.getById(websiteRef);
-    if (!website) throw new UnknownWebsiteError(websiteRef);
-    return { siteId: website.siteId, websiteUuid: website.id };
+  private async assertExists(websiteId: string): Promise<void> {
+    if (!(await this.websites.getById(websiteId))) throw new UnknownWebsiteError(websiteId);
   }
 
   // ─── AnalyticsDashboard ──────────────────────────────────────────────────
 
-  async getDashboard(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getDashboardStats(siteId, query);
+  async getDashboard(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getDashboardStats(websiteId, query);
   }
 
-  async getTrafficSummary(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getTrafficSummaryStats(siteId, query);
+  async getTrafficSummary(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getTrafficSummaryStats(websiteId, query);
   }
 
-  async getDailyStats(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getDailyStatsAnalytics(siteId, query);
+  async getDailyStats(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getDailyStatsAnalytics(websiteId, query);
   }
 
-  async getHourlyStats(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getHourlyStatsAnalytics(siteId, query);
+  async getHourlyStats(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getHourlyStatsAnalytics(websiteId, query);
   }
 
   // ─── AnalyticsDimensions ─────────────────────────────────────────────────
 
-  async getPages(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getPagesAnalytics(siteId, query);
+  async getPages(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getPagesAnalytics(websiteId, query);
   }
 
-  async getReferrers(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getReferrersAnalytics(siteId, query);
+  async getReferrers(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getReferrersAnalytics(websiteId, query);
   }
 
-  async getSources(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getSourcesAnalytics(siteId, query);
+  async getSources(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getSourcesAnalytics(websiteId, query);
   }
 
-  async getBrowsers(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getBrowsersAnalytics(siteId, query);
+  async getBrowsers(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getBrowsersAnalytics(websiteId, query);
   }
 
-  async getDevices(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getDevicesAnalytics(siteId, query);
+  async getDevices(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getDevicesAnalytics(websiteId, query);
   }
 
-  async getOperatingSystems(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getOsAnalytics(siteId, query);
+  async getOperatingSystems(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getOsAnalytics(websiteId, query);
   }
 
-  async getCountries(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getCountriesAnalytics(siteId, query);
+  async getCountries(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getCountriesAnalytics(websiteId, query);
   }
 
-  async getCities(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getCitiesAnalytics(siteId, query);
+  async getCities(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getCitiesAnalytics(websiteId, query);
   }
 
-  async getLanguages(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getLanguagesAnalytics(siteId, query);
+  async getLanguages(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getLanguagesAnalytics(websiteId, query);
   }
 
-  async getResolutions(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getResolutionsAnalytics(siteId, query);
+  async getResolutions(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getResolutionsAnalytics(websiteId, query);
   }
 
-  async getGeolocation(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getGeolocationAnalytics(siteId, query);
+  async getGeolocation(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getGeolocationAnalytics(websiteId, query);
   }
 
-  async getPageUtmBreakdown(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getPageUtmBreakdownAnalytics(siteId, query);
+  async getPageUtmBreakdown(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getPageUtmBreakdownAnalytics(websiteId, query);
   }
 
-  async getDimensionsBulk(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getDimensionsBulkAnalytics(siteId, query);
+  async getDimensionsBulk(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getDimensionsBulkAnalytics(websiteId, query);
   }
 
   // ─── AnalyticsRealtime ───────────────────────────────────────────────────
 
-  async getRealtime(websiteRef: string): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getRealtimeStats(siteId);
+  async getRealtime(websiteId: string): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getRealtimeStats(websiteId);
   }
 
   async getRealtimeGeo(
-    websiteRef: string,
+    websiteId: string,
     opts?: { withinMinutes?: number },
   ): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getRealtimeGeoAnalytics(siteId, opts);
+    await this.assertExists(websiteId);
+    return getRealtimeGeoAnalytics(websiteId, opts);
   }
 
-  async getLiveVisitors(websiteRef: string): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getLiveVisitorsStats(siteId);
+  async getLiveVisitors(websiteId: string): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getLiveVisitorsStats(websiteId);
   }
 
   async getRecentActivity(
-    websiteRef: string,
+    websiteId: string,
     limit: number,
     opts?: { withinMinutes?: number },
   ): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getRecentActivityAnalytics(siteId, limit, opts);
+    await this.assertExists(websiteId);
+    return getRecentActivityAnalytics(websiteId, limit, opts);
   }
 
-  async getActivityTrends(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getActivityTrendsStats(siteId, query);
+  async getActivityTrends(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getActivityTrendsStats(websiteId, query);
   }
 
   // ─── AnalyticsBehaviour ──────────────────────────────────────────────────
 
-  async getPathAnalysis(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getPathAnalysisAnalytics(siteId, query);
+  async getPathAnalysis(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getPathAnalysisAnalytics(websiteId, query);
   }
 
-  async getVisitorInsights(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getVisitorInsightsAnalytics(siteId, query);
+  async getVisitorInsights(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getVisitorInsightsAnalytics(websiteId, query);
   }
 
-  async getCustomEvents(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getCustomEventsAnalytics(siteId, query);
+  async getCustomEvents(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getCustomEventsAnalytics(websiteId, query);
   }
 
   // ─── AnalyticsGoals ──────────────────────────────────────────────────────
 
   /**
-   * Goal conversions. Needs both identifiers: goal definitions live in `goals`
-   * keyed by the website UUID, while the conversions they are matched against
-   * live in `analytics_events` keyed by `siteId`.
+   * Goal conversions.
+   *
+   * This one used to need both identifiers: goal definitions live in `goals`, keyed by
+   * the website UUID, and the events they are matched against live in
+   * `analytics_events`, which was keyed by a different, shorter id. The join now works
+   * off one column.
    */
-  async getGoals(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId, websiteUuid } = await this.resolve(websiteRef);
-    return getGoalsStats(siteId, websiteUuid, query);
+  async getGoals(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getGoalsStats(websiteId, query);
   }
 
   // ─── AnalyticsRevenue ────────────────────────────────────────────────────
 
-  async getRevenueDashboard(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getRevenueDashboard(siteId, query);
+  async getRevenueDashboard(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getRevenueDashboard(websiteId, query);
   }
 
   // ─── AnalyticsExport ─────────────────────────────────────────────────────
 
-  async exportEvents(websiteRef: string, query: AnalyticsQueryParams): Promise<unknown> {
-    const { siteId } = await this.resolve(websiteRef);
-    return getExportAnalytics(siteId, query);
+  async exportEvents(websiteId: string, query: AnalyticsQueryParams): Promise<unknown> {
+    await this.assertExists(websiteId);
+    return getExportAnalytics(websiteId, query);
   }
 }

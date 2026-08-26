@@ -8,8 +8,7 @@ import { replayNotReady, timestampToIso } from "./shared";
 /** Merge chunk listings from canonical site id and uuid folder (legacy paths). */
 async function collectSessionChunkRows(
   bucket: string,
-  siteId: string,
-  uuidStr: string,
+  websiteId: string,
   sessionId: string,
 ): Promise<{ sequence: number; key: string }[]> {
   const bySeq = new Map<number, string>();
@@ -20,8 +19,8 @@ async function collectSessionChunkRows(
     }
   };
   await Promise.all([
-    ingest(siteId),
-    ...(uuidStr !== siteId ? [ingest(uuidStr)] : []),
+    ingest(websiteId),
+    ...(websiteId !== websiteId ? [ingest(websiteId)] : []),
   ]);
   return [...bySeq.entries()]
     .sort((a, b) => a[0] - b[0])
@@ -138,15 +137,14 @@ export type ReplaySessionDetail =
  * see `collectSessionChunkRows`.
  */
 export async function getReplaySessionDetail(
-  siteId: string,
-  uuidStr: string,
+  websiteId: string,
   sessionId: string,
 ): Promise<ReplaySessionDetail> {
   const sid = sessionId.trim();
   const engine = getReplayEngine();
   const cfg = env();
 
-  const metaRow = await getSessionMeta(siteId, uuidStr, sid);
+  const metaRow = await getSessionMeta(websiteId, sid);
   const meta = metaRow
     ? {
         sessionId: metaRow.sessionId,
@@ -165,13 +163,13 @@ export async function getReplaySessionDetail(
     : null;
 
   const warm =
-    engine.warmChunks(siteId, sid) ?? (uuidStr !== siteId ? engine.warmChunks(uuidStr, sid) : null);
+    engine.warmChunks(websiteId, sid) ?? (websiteId !== websiteId ? engine.warmChunks(websiteId, sid) : null);
 
   const bucket = cfg.s3.bucket;
   const expMs = cfg.presignTtlMs;
   const deadline = new Date(Date.now() + expMs).toISOString();
 
-  const chunkRows = await collectSessionChunkRows(bucket, siteId, uuidStr, sid);
+  const chunkRows = await collectSessionChunkRows(bucket, websiteId, sid);
 
   const warmFlat: Record<string, unknown>[] = [];
   if (warm) {
@@ -216,7 +214,7 @@ export async function getReplaySessionDetail(
     };
   }
 
-  const key = await locateBundle(bucket, siteId, uuidStr, sid);
+  const key = await locateBundle(bucket, websiteId, sid);
 
   /** Legacy single bundle merged with warm tail. */
   if (warmFlat.length > 0) {

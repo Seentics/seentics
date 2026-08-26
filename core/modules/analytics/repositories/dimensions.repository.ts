@@ -2,7 +2,7 @@ import { sql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 
 async function topDimensionAnalytics(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
   col: "country" | "browser" | "device" | "os",
 ) {
@@ -22,7 +22,7 @@ async function topDimensionAnalytics(
       count(*)::int AS views,
       count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
     FROM analytics_events
-    WHERE website_id = ${siteId}
+    WHERE website_id = ${websiteId}
       AND event_type = 'pageview'
       AND occurred_at >= ${startIso}
       AND ${colIdent} IS NOT NULL
@@ -49,11 +49,11 @@ async function topDimensionAnalytics(
   };
 }
 
-export const getCountriesAnalytics = (siteId: string, q: Record<string, string | undefined>) =>
-  topDimensionAnalytics(siteId, q, "country");
-export const getBrowsersAnalytics = (siteId: string, q: Record<string, string | undefined>) =>
-  topDimensionAnalytics(siteId, q, "browser");
-export const getDevicesAnalytics = (siteId: string, q: Record<string, string | undefined>) =>
-  topDimensionAnalytics(siteId, q, "device");
-export const getOsAnalytics = (siteId: string, q: Record<string, string | undefined>) =>
-  topDimensionAnalytics(siteId, q, "os");
+export const getCountriesAnalytics = (websiteId: string, q: Record<string, string | undefined>) =>
+  topDimensionAnalytics(websiteId, q, "country");
+export const getBrowsersAnalytics = (websiteId: string, q: Record<string, string | undefined>) =>
+  topDimensionAnalytics(websiteId, q, "browser");
+export const getDevicesAnalytics = (websiteId: string, q: Record<string, string | undefined>) =>
+  topDimensionAnalytics(websiteId, q, "device");
+export const getOsAnalytics = (websiteId: string, q: Record<string, string | undefined>) =>
+  topDimensionAnalytics(websiteId, q, "os");

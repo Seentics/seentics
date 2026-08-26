@@ -25,8 +25,7 @@ export class HeatmapSettingsService implements HeatmapSettings {
     const website = await this.websites.getById(websiteRef);
     if (!website) return null;
     return {
-      siteId: website.siteId,
-      websiteUuid: website.id,
+      websiteId: website.id,
       siteUrl: website.url,
       layoutEnabled: website.heatmapLayoutEnabled,
     };

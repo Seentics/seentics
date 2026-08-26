@@ -67,16 +67,6 @@ import { REPLAYS_PROMPT, REPLAYS_TABLES } from "./domains/replays";
 import { HEATMAPS_PROMPT, HEATMAPS_TABLES } from "./domains/heatmaps";
 import { FUNNELS_PROMPT, FUNNELS_TABLES } from "./domains/funnels";
 import { AUTOMATIONS_PROMPT, AUTOMATIONS_TABLES } from "./domains/automations";
-// TODO(modules): the AI module resolves website references and runs its own
-// access check by querying `websites` directly. Both belong behind the websites
-// module's `WebsiteQuery` port; this keeps working until the AI module is migrated.
-import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
-
-/** Adapter for the shape this module already expects: `{ siteId, uuid }`. */
-async function resolveSiteId(websiteRef: string): Promise<{ siteId: string; uuid: string }> {
-  const { siteId, uuidStr } = await resolveWebsiteIds(websiteRef);
-  return { siteId, uuid: uuidStr };
-}
 
 // ─── OpenAI singleton ─────────────────────────────────────────────────────────
 let _openai: OpenAI | null = null;
@@ -131,18 +121,18 @@ async function detectDomain(prompt: string): Promise<AIDomain> {
  * Run one natural-language query.
  *
  * Takes both resolved identifiers because `ID_STRATEGY` below binds each domain to a
- * specific one — analytics, revenue and replays are keyed by the short `siteId`,
+ * specific one — analytics, revenue and replays are keyed by the short `websiteId`,
  * heatmaps, funnels and automations by the website UUID. Passing the wrong one
  * produces a syntactically valid query that matches nothing.
  */
 export async function runAIQuery(
   userId: string,
-  resolved: { siteId: string; uuid: string },
+  resolved: { websiteId: string; uuid: string },
   prompt: string,
   initialDomain: AIDomain | 'auto' = "auto",
 ): Promise<AIQueryResult> {
   const startedAt = Date.now();
-  const { siteId, uuid } = resolved;
+  const { websiteId, uuid } = resolved;
 
   const [domain] = await Promise.all([
     initialDomain === 'auto' ? detectDomain(prompt) : Promise.resolve(initialDomain),
@@ -152,18 +142,18 @@ export async function runAIQuery(
 
   // ── Intelligent ID Resolution ──────────────────────────────────────────────
   // Map domains to their required ID format:
-  // - Legacy 'site_id' string for Analytics, Revenue, and Replays.
+  // - Legacy 'website_id' string for Analytics, Revenue, and Replays.
   // - Modern 'uuid' for Heatmaps, Funnels, and Automations.
-  const ID_STRATEGY: Record<AIDomain, "site_id" | "uuid"> = {
-    analytics: "site_id",
-    revenue: "site_id",
-    replays: "site_id",
+  const ID_STRATEGY: Record<AIDomain, "website_id" | "uuid"> = {
+    analytics: "website_id",
+    revenue: "website_id",
+    replays: "website_id",
     heatmaps: "uuid",
     funnels: "uuid",
     automations: "uuid",
   };
 
-  const dbBoundId = ID_STRATEGY[domain] === "site_id" ? siteId : uuid;
+  const dbBoundId = ID_STRATEGY[domain] === "website_id" ? websiteId : uuid;
 
   // Fast path: identical recent question → return cached result (no LLM, no DB scan).
   const cacheKey = aiCacheKey(dbBoundId, domain, prompt);
@@ -320,7 +310,7 @@ export async function runAIQuery(
  */
 export async function getAIQueryHistory(
   userId: string,
-  resolved: { siteId: string; uuid: string },
+  resolved: { websiteId: string; uuid: string },
   limit = 8,
 ): Promise<AIHistoryItem[]> {
   const rows = await db
@@ -336,7 +326,7 @@ export async function getAIQueryHistory(
     .where(
       and(
         eq(aiQueries.userId, userId),
-        or(eq(aiQueries.websiteId, resolved.uuid), eq(aiQueries.websiteId, resolved.siteId)),
+        or(eq(aiQueries.websiteId, resolved.uuid), eq(aiQueries.websiteId, resolved.websiteId)),
       ),
     )
     .orderBy(desc(aiQueries.createdAt))

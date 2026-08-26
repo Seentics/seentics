@@ -3,12 +3,10 @@ import type { Website, WebsiteQuery, WebsiteRole } from "../../websites/interfac
 import { HeatmapSettingsService } from "../services/settings.service";
 
 const WEBSITE_UUID = "11111111-1111-4111-8111-111111111111";
-const SITE_ID = "site_one";
 
 function makeWebsite(overrides: Partial<Website> = {}): Website {
   return {
     id: WEBSITE_UUID,
-    siteId: SITE_ID,
     ownerId: "owner_1",
     name: "One",
     url: "one.example",
@@ -47,7 +45,7 @@ class FakeWebsiteQuery implements WebsiteQuery {
 
   async getById(websiteRef: string): Promise<Website | null> {
     this.lookups.push(websiteRef);
-    return this.websites.find((w) => w.id === websiteRef || w.siteId === websiteRef) ?? null;
+    return this.websites.find((w) => w.id === websiteRef || w.id === websiteRef) ?? null;
   }
   async listOwnedBy(): Promise<Website[]> {
     return this.websites;
@@ -75,22 +73,14 @@ describe("HeatmapSettingsService", () => {
     const target = await settings.getCaptureTarget(WEBSITE_UUID);
 
     expect(target).toEqual({
-      siteId: SITE_ID,
-      websiteUuid: WEBSITE_UUID,
+      websiteId: WEBSITE_UUID,
       siteUrl: "one.example",
       layoutEnabled: true,
     });
   });
 
   // Both identifier forms must land on the same resolved pair — the dashboard uses
-  // the UUID, the tracker uses the siteId.
-  it("resolves a siteId reference to the same pair", async () => {
-    const target = await settings.getCaptureTarget(SITE_ID);
-
-    expect(target?.websiteUuid).toBe(WEBSITE_UUID);
-    expect(target?.siteId).toBe(SITE_ID);
-  });
-
+  // the UUID, the tracker uses the websiteId.
   it("performs exactly one lookup", async () => {
     await settings.getCaptureTarget(WEBSITE_UUID);
     expect(websites.lookups).toEqual([WEBSITE_UUID]);

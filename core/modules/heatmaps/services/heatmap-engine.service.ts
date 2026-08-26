@@ -8,11 +8,15 @@ import { extractPath, normalizeHeatmapPagePath } from "../lib/paths";
 import { heatmapScreenshotKey, heatmapHtmlSnapshotKey, layoutPathSlot } from "../lib/keys";
 import { validateScreenshotTargetUrl } from "../../../platform/lib/origin";
 import { putJpeg, putHtml } from "../../../platform/lib/s3";
-import { resolveWebsiteForTracker } from "../../../platform/lib/website-for-tracker";
-import { getSiteIdByWebsiteUuid } from "../lib/website-site";
 import { captureAndStoreScreenshot } from "../lib/playwright-screenshots";
 import type { HeatmapIngestEvent, HeatmapPointRow, ScreenshotJob } from "../../../platform/lib/types";
+import { applyBatchOnceSql } from "../../../infrastructure/idempotency";
 import type { HeatmapIngest } from "../interfaces";
+import {
+  trackerRowsToHeatmapEvents,
+  type HeatmapTrackerEvent,
+} from "./tracker-mapping";
+import type { TrackerWebsites } from "../../websites/interfaces";
 import { log as baseLog } from "../../../platform/lib/logger";
 import { isJpeg } from "./shared";
 
@@ -103,7 +107,7 @@ function eventsToPoints(events: HeatmapIngestEvent[]): HeatmapPointRow[] {
   return points;
 }
 
-function eventsToScreenshotJobs(siteId: string, events: HeatmapIngestEvent[]): ScreenshotJob[] {
+function eventsToScreenshotJobs(websiteId: string, events: HeatmapIngestEvent[]): ScreenshotJob[] {
   const jobs: ScreenshotJob[] = [];
   for (const ev of events) {
     if (ev.type !== "heatmap_screenshot") continue;
@@ -117,7 +121,6 @@ function eventsToScreenshotJobs(siteId: string, events: HeatmapIngestEvent[]): S
     if (dwData > 0) dw = dwData;
     if (dhData > 0) dh = dhData;
     jobs.push({
-      siteId,
       websiteId: ev.websiteId,
       heatmapLayoutEnabled: ev.heatmapLayoutEnabled ?? false,
       url: ev.url ?? "",
@@ -148,7 +151,16 @@ function toInt(v: unknown): number {
  * reacting to rows a later failure dropped.
  */
 export class HeatmapEngine implements HeatmapIngest {
-  private pointBuf: HeatmapPointRow[] = [];
+  /**
+   * Buffered points, each tagged with the ingest batch it arrived in.
+   *
+   * The tag is what makes the additive upsert replay-safe. This engine re-batches on its
+   * own timer, so one ingest batch's points can span several flushes and one flush can
+   * span several batches — a marker keyed on the flush would be meaningless. Grouping by
+   * `batchId` at flush time means each write covers whole batches and can be skipped as a
+   * unit on redelivery.
+   */
+  private pointBuf: (HeatmapPointRow & { batchId: string })[] = [];
   private shotBuf: ScreenshotJob[] = [];
   private pgTimer: ReturnType<typeof setInterval>;
   private bucket: string;
@@ -157,11 +169,24 @@ export class HeatmapEngine implements HeatmapIngest {
 
   /**
    * `null` when the engine was created lazily by `getHeatmapEngine()` rather than
-   * by a composition root. The ingest path is reached from module-level route
-   * files that have nowhere to inject from, so publishing is best-effort: call
-   * `initHeatmapEngine(bus)` at startup to get the events.
+   * through `initHeatmapEngine(bus)`. The composed application always calls the
+   * latter from `initHeatmapsModule().start`, so in a running process the bus is
+   * present; a bus-less engine is what a test or a stray early ingest gets, and
+   * publishing is best-effort there rather than a failure.
    */
-  constructor(private readonly eventBus: EventBus | null = null) {
+  constructor(
+    private readonly eventBus: EventBus | null = null,
+    /**
+     * Resolves the website before a Playwright capture, so the SSRF guard can check
+     * the target URL against the site's registered domain.
+     *
+     * Injected rather than imported from `platform/lib/website-for-tracker`, which is
+     * where this lookup used to live — shared code holding raw SQL against the
+     * websites module's table. `null` on a lazily-created engine, in which case an
+     * auto-capture is skipped rather than performed unguarded.
+     */
+    private readonly websites: TrackerWebsites | null = null,
+  ) {
     this.bucket = env().s3.bucket;
     // Both points and screenshots are flushed by the same timer so screenshots
     // are never left stranded in the buffer between processEvents calls.
@@ -169,6 +194,20 @@ export class HeatmapEngine implements HeatmapIngest {
       void this.flushPoints();
       void this.flushScreenshots();
     }, pgBatchMs);
+  }
+
+  /**
+   * The site id behind a website UUID, via the injected websites port.
+   *
+   * Replaces `lib/website-site.ts`, which was a fourth in-process cache of the
+   * `websites` table — inside heatmaps, keyed differently from the other three, and
+   * invalidated by nothing. `TrackerWebsites.resolve` already caches and already
+   * returns `website_id`.
+   */
+  private async siteIdFor(websiteId: string): Promise<string | null> {
+    if (!this.websites) return null;
+    const row = await this.websites.resolve(websiteId);
+    return row?.id ?? null;
   }
 
   async shutdown(): Promise<void> {
@@ -180,18 +219,25 @@ export class HeatmapEngine implements HeatmapIngest {
   private async flushPoints(): Promise<void> {
     if (this.pointBuf.length === 0) return;
     // Drain the full buffer so a single timer tick clears large spikes.
-    const batch = this.pointBuf.splice(0);
-    const CHUNK = 500;
-    const chunks: HeatmapPointRow[][] = [];
-    for (let i = 0; i < batch.length; i += CHUNK) chunks.push(batch.slice(i, i + CHUNK));
+    const drained = this.pointBuf.splice(0);
+
+    // Grouped by originating batch, not sliced by size: the marker guards a whole batch,
+    // so a batch must not be split across two guarded writes.
+    const byBatch = new Map<string, HeatmapPointRow[]>();
+    for (const { batchId, ...row } of drained) {
+      const group = byBatch.get(batchId);
+      if (group) group.push(row);
+      else byBatch.set(batchId, [row]);
+    }
+
     const settled = await Promise.all(
-      chunks.map((chunk) =>
-        batchUpsertPoints(chunk)
-          .then(() => chunk)
+      [...byBatch].map(([batchId, chunk]) =>
+        applyBatchOnceSql(batchId, "heatmaps", (tx) => batchUpsertPoints(tx, chunk))
+          .then(({ applied }) => (applied ? chunk : null))
           .catch((e: unknown) => {
             log.error({ msg: "heatmap_pg_batch_failed", n: chunk.length, err: String(e) });
-            // Returning null rather than rethrowing keeps sibling chunks alive and
-            // keeps the failed rows out of the event below.
+            // Returning null rather than rethrowing keeps sibling batches alive and keeps
+            // the failed rows out of the event below.
             return null;
           }),
       ),
@@ -224,14 +270,14 @@ export class HeatmapEngine implements HeatmapIngest {
     }
   }
 
-  private enqueuePoints(rows: HeatmapPointRow[]): void {
+  private enqueuePoints(batchId: string, rows: HeatmapPointRow[]): void {
     let dropped = 0;
     for (const row of rows) {
       if (this.pointBuf.length >= pgQueueCap) {
         dropped++;
         continue;
       }
-      this.pointBuf.push(row);
+      this.pointBuf.push({ ...row, batchId });
     }
     if (dropped > 0) {
       log.warn({ msg: "heatmap_point_buffer_full_drop", dropped, cap: pgQueueCap });
@@ -263,16 +309,23 @@ export class HeatmapEngine implements HeatmapIngest {
     await Promise.all(workers);
   }
 
-  private triggerPlaywrightCapture(websiteId: string, siteId: string, norm: string, url: string): void {
+  private triggerPlaywrightCapture(websiteId: string, norm: string, url: string): void {
     const key = `${websiteId}:${norm}`;
     if (this.playwrightTriggered.has(key)) return;
     this.playwrightTriggered.add(key);
-    resolveWebsiteForTracker(websiteId)
+    if (!this.websites) {
+      // No resolver means no way to validate the target domain. Skipping is the only
+      // safe option: capturing unguarded would be an SSRF.
+      log.warn({ msg: "heatmap_playwright_auto_skipped_no_resolver", norm });
+      return;
+    }
+    this.websites
+      .resolve(websiteId)
       .then((website) => {
         // SSRF guard: only capture URLs on the website's registered domain — never
         // IP literals, localhost, or internal hosts. Skip silently otherwise.
         if (!website || !validateScreenshotTargetUrl(url, website.url)) return;
-        return captureAndStoreScreenshot(url, this.bucket, siteId, norm, websiteId, { force: true })
+        return captureAndStoreScreenshot(url, this.bucket, websiteId, norm, { force: true })
           .then(r => {
             if (r?.stored) log.info({ msg: "heatmap_playwright_auto_captured", url, norm });
           });
@@ -281,8 +334,8 @@ export class HeatmapEngine implements HeatmapIngest {
   }
 
   private async ingestOneScreenshot(j: ScreenshotJob): Promise<void> {
-    if (!j.siteId || !j.websiteId || !j.heatmapLayoutEnabled || j.jpeg.length < 400 || !isJpeg(j.jpeg)) {
-      log.info({ msg: "heatmap_tracker_screenshot_skipped", url: j.url, site_id: j.siteId, website_id: j.websiteId, layout_enabled: j.heatmapLayoutEnabled, jpeg_bytes: j.jpeg.length });
+    if (!j.websiteId || !j.heatmapLayoutEnabled || j.jpeg.length < 400 || !isJpeg(j.jpeg)) {
+      log.info({ msg: "heatmap_tracker_screenshot_skipped", url: j.url, website_id: j.websiteId, layout_enabled: j.heatmapLayoutEnabled, jpeg_bytes: j.jpeg.length });
       return;
     }
 
@@ -292,7 +345,7 @@ export class HeatmapEngine implements HeatmapIngest {
     // Use the real URL from the tracker event to automatically capture a Playwright
     // screenshot in the background. html2canvas quality is limited; Playwright gives
     // a full, accurate page screenshot. Runs once per path per server lifecycle.
-    this.triggerPlaywrightCapture(j.websiteId, j.siteId, norm, j.url);
+    this.triggerPlaywrightCapture(j.websiteId, norm, j.url);
     const sum = createHash("sha256").update(j.jpeg).digest("hex");
 
     const cachedSha256 = getCachedSnapshotSha256(j.websiteId, norm);
@@ -304,7 +357,7 @@ export class HeatmapEngine implements HeatmapIngest {
       if (existing?.content_sha256 === sum) return;
     }
 
-    const key = heatmapScreenshotKey(j.siteId, layoutPathSlot(j.siteId, norm));
+    const key = heatmapScreenshotKey(j.websiteId, layoutPathSlot(j.websiteId, norm));
     await putJpeg(this.bucket, key, j.jpeg);
 
     let dW = j.docW;
@@ -323,7 +376,6 @@ export class HeatmapEngine implements HeatmapIngest {
 
     await this.eventBus?.publish("heatmap.screenshot_captured", {
       websiteId: j.websiteId,
-      siteId: j.siteId,
       pagePath: norm,
       s3Key: key,
       source: "tracker",
@@ -332,7 +384,7 @@ export class HeatmapEngine implements HeatmapIngest {
   }
 
   private async ingestOneDomSnapshot(ev: HeatmapIngestEvent): Promise<void> {
-    if (!ev.siteId || !ev.websiteId || !ev.heatmapLayoutEnabled) return;
+    if (!ev.websiteId || !ev.websiteId || !ev.heatmapLayoutEnabled) return;
 
     const html = typeof ev.data?.html === "string" ? ev.data.html : null;
     if (!html || html.length < 100) return;
@@ -350,16 +402,19 @@ export class HeatmapEngine implements HeatmapIngest {
     if (dW < 200) dW = 1280;
     if (dH < 200) dH = 800;
 
-    const key = heatmapHtmlSnapshotKey(ev.siteId, layoutPathSlot(ev.siteId, norm));
+    const key = heatmapHtmlSnapshotKey(ev.websiteId, layoutPathSlot(ev.websiteId, norm));
     await putHtml(this.bucket, key, html);
     await upsertLayoutHtmlSnapshot(ev.websiteId, norm, key, sum, dW, dH);
     log.info({ msg: "heatmap_dom_snapshot_stored", url: ev.url, norm, website_id: ev.websiteId, s3_key: key });
   }
 
-  /** Ingest tracker-shaped rows; each must include `websiteId` (UUID). Screenshots resolve `site_id` via DB from that UUID. */
-  async processEvents(events: HeatmapIngestEvent[]): Promise<void> {
+  /** Ingest tracker-shaped rows; each must include `websiteId` (UUID). Screenshots resolve `website_id` via DB from that UUID. */
+  async processEvents(batchId: string, raw: readonly HeatmapTrackerEvent[]): Promise<void> {
+    // Projection and type-filtering happen here, not in ingest: the column naming and the
+    // set of heatmap event types are both this module's knowledge.
+    const events = trackerRowsToHeatmapEvents(raw);
     if (events.length === 0) return;
-    this.enqueuePoints(eventsToPoints(events));
+    this.enqueuePoints(batchId, eventsToPoints(events));
 
     // Process DOM snapshots inline (not queued — they're rare, one per page per session).
     const domSnapshots = events.filter((e) => e.type === "heatmap_dom_snapshot" && e.heatmapLayoutEnabled);
@@ -369,16 +424,16 @@ export class HeatmapEngine implements HeatmapIngest {
       );
     }
 
-    // Only process screenshots where layout capture is enabled — skip siteId resolution otherwise.
+    // Only process screenshots where layout capture is enabled — skip websiteId resolution otherwise.
     const shots = events.filter((e) => e.type === "heatmap_screenshot" && e.heatmapLayoutEnabled);
     if (shots.length > 0) {
       // Resolve all screenshot site IDs in parallel instead of serially.
       const sids = await Promise.all(
         shots.map((ev) =>
-          ev.siteId
-            ? Promise.resolve(ev.siteId)
+          ev.websiteId
+            ? Promise.resolve(ev.websiteId)
             : ev.websiteId
-              ? getSiteIdByWebsiteUuid(ev.websiteId)
+              ? this.siteIdFor(ev.websiteId)
               : Promise.resolve(null),
         ),
       );
@@ -407,14 +462,17 @@ export function getHeatmapEngine(): HeatmapEngine {
 }
 
 /**
- * Create the engine with an event bus. Call from the composition root before
+ * Create the engine with an event bus. Called by `initHeatmapsModule().start` before
  * anything can ingest; returns the same instance `getHeatmapEngine()` will hand out.
  *
  * Replaces an already-created engine rather than merging into it, because the only
  * legitimate caller runs at startup — calling it later would strand whatever the
  * previous engine had buffered.
  */
-export function initHeatmapEngine(eventBus: EventBus): HeatmapEngine {
-  _engine = new HeatmapEngine(eventBus);
+export function initHeatmapEngine(
+  eventBus: EventBus,
+  websites: TrackerWebsites,
+): HeatmapEngine {
+  _engine = new HeatmapEngine(eventBus, websites);
   return _engine;
 }

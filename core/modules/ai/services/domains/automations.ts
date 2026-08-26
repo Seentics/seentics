@@ -40,7 +40,7 @@ AUTOMATION_EVENTS TABLE — execution log:
   For trigger volume:      filter record_type = 'client_trigger'
 
 IMPORTANT ID FORMAT:
-• automations.website_id is UUID (NOT the text site_id)
+• automations.website_id is UUID (NOT the text website_id)
 • Always join automation_events to automations to apply the website filter:
   JOIN automations a ON ae.automation_id = a.id WHERE a.website_id::text = $1
 

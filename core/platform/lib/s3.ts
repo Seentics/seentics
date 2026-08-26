@@ -11,7 +11,6 @@ import { gunzipSync, gzipSync } from "node:zlib";
 import type { S3ClientConfig } from "@aws-sdk/client-s3";
 import { env } from "../../config";
 import { sessionBundleKey, sessionChunkKey, sessionPrefix } from "./s3-keys";
-import { compareReplayEnvelopeEvents } from "../../modules/recordings/services/event-order";
 
 function createS3ClientForEndpoint(endpoint: string | undefined): S3Client {
   const c = env().s3;
@@ -168,27 +167,6 @@ export async function uploadSessionChunkGzip(
   await putGzipJson(bucket, key, events);
 }
 
-export async function uploadSessionBundleGzip(
-  bucket: string,
-  websiteId: string,
-  sessionId: string,
-  newEvents: Record<string, unknown>[],
-  locks: ReturnType<typeof createBundleLocks>,
-): Promise<void> {
-  if (newEvents.length === 0) return;
-  const key = sessionBundleKey(websiteId, sessionId);
-  const mu = locks.lockFor(key);
-  await mu.runExclusive(async () => {
-    let merged: Record<string, unknown>[] = [];
-    if (await objectExists(bucket, key)) {
-      merged = await getJsonGzip(bucket, key);
-    }
-    merged = merged.concat(newEvents);
-    merged.sort(compareReplayEnvelopeEvents);
-    await putGzipJson(bucket, key, merged);
-  });
-}
-
 /** Serialize read-modify-write per bundle key (same idea as Go fnv shard mutex). */
 export function createBundleLocks(shardCount = 32) {
   const mutexes = Array.from({ length: shardCount }, () => new Mutex());
@@ -249,12 +227,11 @@ export async function deleteSessionPrefix(bucket: string, websiteId: string, ses
 
 export async function locateBundle(
   bucket: string,
-  siteId: string,
-  uuidStr: string,
+  websiteId: string,
   sessionId: string,
 ): Promise<string | null> {
-  const keys = [sessionBundleKey(siteId, sessionId)];
-  if (uuidStr && uuidStr !== siteId) keys.push(sessionBundleKey(uuidStr, sessionId));
+  const keys = [sessionBundleKey(websiteId, sessionId)];
+  if (websiteId && websiteId !== websiteId) keys.push(sessionBundleKey(websiteId, sessionId));
   for (const k of keys) {
     if (await objectExists(bucket, k)) return k;
   }

@@ -1,3 +1,4 @@
+import { batchIdFor } from "../../../infrastructure/idempotency/batch-id";
 import type { AppConfig } from "../../../config";
 import type { EventBus } from "../../../infrastructure/events";
 import { log as baseLog } from "../../../platform/lib/logger";
@@ -8,7 +9,12 @@ import type {
   HeatmapIngestEvent,
   TrackerEvent,
 } from "../../../platform/lib/types";
-import type { IngestFlusher, IngestQueue, IngestSinks } from "../interfaces";
+import type {
+  BatchQueueStore,
+  IngestCategory,
+  IngestFlusher,
+  IngestQueue,
+} from "../interfaces";
 
 /** Failed flush attempts per site before that site's snapshot is dropped. */
 const MAX_FLUSH_ATTEMPTS = 3;
@@ -97,7 +103,14 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
   private flushChain: Promise<void> = Promise.resolve();
 
   constructor(
-    private readonly sinks: IngestSinks,
+    /**
+     * Where a flushed batch is handed off.
+     *
+     * A queue row, not the sinks: the batch is committed to `ingest_batches` before any
+     * module write is attempted, which is what moves the durability boundary in front of
+     * these in-memory buffers. `IngestWorker` drains it.
+     */
+    private readonly queue: BatchQueueStore,
     private readonly eventBus: EventBus,
     logger: Logger = baseLog,
   ) {
@@ -145,7 +158,7 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
 
   // ── IngestQueue ───────────────────────────────────────────────────────────
 
-  enqueueEvents(siteId: string, events: AnalyticsIngestEvent[]): void {
+  enqueueEvents(websiteId: string, events: AnalyticsIngestEvent[]): void {
     if (!events.length) return;
     const accepted = this.acceptUpToCap(
       events,
@@ -155,15 +168,15 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
     );
     if (!accepted.length) return;
 
-    const current = this.eventsBySite.get(siteId) ?? [];
+    const current = this.eventsBySite.get(websiteId) ?? [];
     pushAll(current, accepted);
-    this.eventsBySite.set(siteId, current);
+    this.eventsBySite.set(websiteId, current);
     this.queuedEventsCount += accepted.length;
 
     if (this.queuedEventsCount >= this.thresholds.events) void this.scheduleFlush();
   }
 
-  enqueueFunnels(siteId: string, events: AnalyticsIngestEvent[]): void {
+  enqueueFunnels(websiteId: string, events: AnalyticsIngestEvent[]): void {
     if (!events.length) return;
     const accepted = this.acceptUpToCap(
       events,
@@ -173,9 +186,9 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
     );
     if (!accepted.length) return;
 
-    const current = this.funnelsBySite.get(siteId) ?? [];
+    const current = this.funnelsBySite.get(websiteId) ?? [];
     pushAll(current, accepted);
-    this.funnelsBySite.set(siteId, current);
+    this.funnelsBySite.set(websiteId, current);
     this.queuedFunnelsCount += accepted.length;
 
     if (this.queuedFunnelsCount >= this.thresholds.funnels) void this.scheduleFlush();
@@ -245,16 +258,24 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
     // All five branches are independent, so they run concurrently. Each contains
     // its own failures: one sink being down must not stop the other four.
     await Promise.all([
-      ...[...evMap.entries()].map(([siteId, events]) =>
-        this.flushAnalytics(siteId, events, "events"),
+      ...[...evMap.entries()].map(([websiteId, events]) =>
+        this.flushAnalytics(websiteId, events, "events"),
       ),
-      ...[...funnelMap.entries()].map(([siteId, events]) =>
-        this.flushAnalytics(siteId, events, "funnels"),
+      ...[...funnelMap.entries()].map(([websiteId, events]) =>
+        this.flushAnalytics(websiteId, events, "funnels"),
       ),
-      this.flushBranch("recordings", recordings, (batch) => this.sinks.processRecordings(batch)),
-      this.flushBranch("heatmaps", heatmaps, (batch) => this.sinks.processHeatmaps(batch)),
-      this.flushBranch("automations", automations, (batch) =>
-        this.sinks.writeAutomationTriggers(batch),
+      // Recordings partition by session, so one session's chunks are never applied
+      // concurrently — sequences are assigned per session. The rest are commutative.
+      ...groupBySession(recordings).map(([sessionId, batch]) =>
+        this.flushBranch("recordings", batch, (id, rows) =>
+          this.enqueue(id, "recordings", sessionId, { events: rows }, rows.length),
+        ),
+      ),
+      this.flushBranch("heatmaps", heatmaps, (id, batch) =>
+        this.enqueue(id, "heatmaps", partitionOf(batch), { events: batch }, batch.length),
+      ),
+      this.flushBranch("automations", automations, (id, batch) =>
+        this.enqueue(id, "automations", partitionOf(batch), { rows: batch }, batch.length),
       ),
     ]);
   }
@@ -267,7 +288,7 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
    * degrades a visualisation, a dropped analytics row corrupts a count.
    */
   private async flushAnalytics(
-    siteId: string,
+    websiteId: string,
     events: AnalyticsIngestEvent[],
     kind: "events" | "funnels",
   ): Promise<void> {
@@ -277,30 +298,35 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
     const liveMap = kind === "events" ? this.eventsBySite : this.funnelsBySite;
 
     try {
-      const inserted = await this.sinks.writeAnalyticsBatch(siteId, events);
-      attempts.delete(siteId);
+      // Enqueued rather than written: the worker applies it. `inserted` is the rows
+      // accepted onto the queue, which is what this side can honestly report.
+      await this.enqueue(
+        batchIdFor(events),
+        kind === "events" ? "analytics" : "funnels",
+        websiteId,
+        { websiteId, events },
+        events.length,
+      );
+      const inserted = events.length;
+      attempts.delete(websiteId);
       this.log.debug({
         msg: `ingest_flush_${kind}`,
-        site_id: siteId,
+        website_id: websiteId,
         batch_in: events.length,
         inserted,
       });
       if (inserted > 0) {
         this.log.info({
           msg: kind === "events" ? "analytics_rows_persisted" : "analytics_rows_persisted_funnel",
-          site_id: siteId,
+          website_id: websiteId,
           rows: inserted,
         });
       }
 
-      // Announced only after the rows are durably written, never on enqueue — a
-      // consumer must not react to events that a later failure drops. Automation
-      // evaluation subscribes to this to know a site has fresh data.
-      await this.eventBus.publish("analytics.batch_ingested", {
-        siteId,
-        eventCount: inserted,
-        occurredAt: new Date(),
-      });
+      // `analytics.batch_ingested` is published by `IngestWorker`, not here. The event
+      // means "rows are in the table", and this side only knows the batch is queued —
+      // announcing at this point would have consumers reacting to rows that a parked
+      // batch never wrote.
     } catch (err) {
       this.requeueFailedAnalytics(
         kind === "events"
@@ -308,7 +334,7 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
           : "ingest_funnel_analytics_batch_failed",
         attempts,
         liveMap,
-        siteId,
+        websiteId,
         events,
         err,
       );
@@ -324,11 +350,13 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
   private async flushBranch<T>(
     name: string,
     batch: T[],
-    write: (batch: T[]) => Promise<void>,
+    write: (batchId: string, batch: T[]) => Promise<void>,
   ): Promise<void> {
     if (!batch.length) return;
     try {
-      await write(batch);
+      // Derived from the batch's contents, so a redelivery of these exact rows carries
+      // the same id and the write can skip it. See `batchIdFor`.
+      await write(batchIdFor(batch), batch);
       this.log.debug({ msg: `ingest_flush_${name}`, n: batch.length });
     } catch (err) {
       // Not requeued: these carry no retry counter, and re-adding them on every
@@ -349,23 +377,23 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
     msg: string,
     attemptsBySite: Map<string, number>,
     liveMap: Map<string, AnalyticsIngestEvent[]>,
-    siteId: string,
+    websiteId: string,
     events: AnalyticsIngestEvent[],
     err: unknown,
   ): void {
     const error = errText(err);
-    const attempts = (attemptsBySite.get(siteId) ?? 0) + 1;
+    const attempts = (attemptsBySite.get(websiteId) ?? 0) + 1;
 
     if (attempts >= MAX_FLUSH_ATTEMPTS) {
-      attemptsBySite.delete(siteId);
-      this.log.error({ msg, site_id: siteId, attempts, dropped: events.length, error });
+      attemptsBySite.delete(websiteId);
+      this.log.error({ msg, website_id: websiteId, attempts, dropped: events.length, error });
       return;
     }
 
-    attemptsBySite.set(siteId, attempts);
-    const current = liveMap.get(siteId);
-    liveMap.set(siteId, current?.length ? [...events, ...current] : events);
-    this.log.error({ msg, site_id: siteId, attempt: attempts, requeued: events.length, error });
+    attemptsBySite.set(websiteId, attempts);
+    const current = liveMap.get(websiteId);
+    liveMap.set(websiteId, current?.length ? [...events, ...current] : events);
+    this.log.error({ msg, website_id: websiteId, attempt: attempts, requeued: events.length, error });
   }
 
   // ── Snapshots ─────────────────────────────────────────────────────────────
@@ -414,6 +442,22 @@ export class IngestQueueService implements IngestQueue, IngestFlusher {
     this.log.warn({ msg, dropped, queued, cap });
     return room > 0 ? src.slice(0, room) : [];
   }
+  /**
+   * Put one batch on the durable queue.
+   *
+   * Enqueue is idempotent on the content-derived id, so a flush that writes the row and
+   * then fails before clearing its buffer does not queue the batch twice.
+   */
+  private async enqueue(
+    batchId: string,
+    category: IngestCategory,
+    partitionKey: string,
+    payload: Record<string, unknown>,
+    rowCount: number,
+  ): Promise<void> {
+    await this.queue.enqueue({ batchId, category, partitionKey, payload, rowCount });
+  }
+
 }
 
 /**
@@ -434,4 +478,36 @@ function totalOf(map: Map<string, AnalyticsIngestEvent[]>): number {
 
 function errText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+
+
+/**
+ * Group recording events by session.
+ *
+ * The one category with an ordering requirement: chunk sequences are assigned per session,
+ * so two batches for the same session must never be applied concurrently. Grouping here
+ * means each queued batch has a single session as its partition key, and the claim query
+ * serialises them.
+ */
+function groupBySession(events: TrackerEvent[]): [string, TrackerEvent[]][] {
+  const bySession = new Map<string, TrackerEvent[]>();
+  for (const ev of events) {
+    const key = ev.sid ?? "";
+    const group = bySession.get(key);
+    if (group) group.push(ev);
+    else bySession.set(key, [ev]);
+  }
+  return [...bySession];
+}
+
+/**
+ * The website a batch belongs to, for partitioning.
+ *
+ * These categories are commutative — an append or an aggregate does not care what order
+ * batches arrive in — so the key exists for fairness rather than ordering: one busy site
+ * cannot monopolise the queue ahead of every other.
+ */
+function partitionOf(rows: readonly { websiteId?: string }[]): string {
+  return rows[0]?.websiteId ?? "";
 }

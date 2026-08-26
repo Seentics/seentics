@@ -1,21 +1,20 @@
 import { randomHex } from "../lib/ids";
 import type { EventBus } from "../../../infrastructure/events";
-import {
-  emptyTrafficSummary,
-  type CreateWebsiteInput,
-  type TrafficSummary,
-  type TrafficSummaryProvider,
-  type UpdateWebsiteInput,
-  type Website,
-  type WebsiteMutations,
-  type WebsitePublicSharing,
-  type WebsiteQuery,
-  type WebsiteRepository,
-  type WebsiteRole,
+import { emptyTrafficSummary } from "../../analytics/interfaces";
+import type { AnalyticsModule } from "../../analytics/interfaces";
+import type {
+  CreateWebsiteInput,
+  UpdateWebsiteInput,
+  Website,
+  WebsiteMutations,
+  WebsitePublicSharing,
+  WebsiteQuery,
+  WebsiteRepository,
+  WebsiteRole,
+  WebsiteTrafficReads,
+  WebsiteUserMutations,
+  WebsiteWithTraffic,
 } from "../interfaces";
-
-/** A website plus its trailing-30-day traffic, as the dashboard renders it. */
-export type WebsiteWithTraffic = Website & { traffic: TrafficSummary };
 
 /**
  * Raised when a caller lacks access to a website.
@@ -38,65 +37,68 @@ export class WebsiteAccessError extends Error {
  *
  * Dependencies arrive through the constructor as interfaces, so this class knows
  * nothing about Postgres, Hono, or how traffic figures are computed. That is what
- * makes it unit-testable with doubles and what would let the traffic provider
- * become a remote call without touching this file.
+ * makes it unit-testable with doubles and what would let analytics become a remote
+ * call without touching this file.
  */
-export class WebsiteService implements WebsiteQuery, WebsiteMutations, WebsitePublicSharing {
+export class WebsiteService
+  implements
+    WebsiteQuery,
+    WebsiteMutations,
+    WebsitePublicSharing,
+    WebsiteTrafficReads,
+    WebsiteUserMutations
+{
+  /**
+   * `analyticsModule` is a getter, not the module.
+   *
+   * The two modules genuinely need each other — the website list embeds pageview
+   * counts, and every analytics query resolves a website — so one of them has to be
+   * constructible before the other exists. Reading the handle lazily is what makes
+   * that possible: it is only ever called while serving a request, long after both
+   * modules are built. Nothing here touches it during construction, so composing the
+   * graph stays order-independent.
+   */
   constructor(
     private readonly repository: WebsiteRepository,
-    private readonly traffic: TrafficSummaryProvider,
+    private readonly analyticsModule: () => AnalyticsModule,
     private readonly eventBus: EventBus,
   ) {}
 
   // ─── WebsitePublicSharing ────────────────────────────────────────────────
 
-  async resolvePublicShareId(
-    publicShareId: string,
-  ): Promise<{ websiteId: string; siteId: string } | null> {
+  async resolvePublicShareId(publicShareId: string): Promise<{ websiteId: string } | null> {
     return this.repository.findByPublicShareId(publicShareId);
   }
 
   // ─── WebsiteQuery ────────────────────────────────────────────────────────
 
-  async getById(websiteRef: string): Promise<Website | null> {
-    const resolved = await this.repository.resolveRef(websiteRef);
-    if (!resolved) return null;
-    return this.repository.findById(resolved.id);
+  async getById(websiteId: string): Promise<Website | null> {
+    return this.repository.findById(websiteId);
   }
 
   async listOwnedBy(ownerId: string): Promise<Website[]> {
     return this.repository.listOwnedBy(ownerId);
   }
 
-  async getRole(websiteRef: string, userId: string): Promise<WebsiteRole | null> {
-    const resolved = await this.repository.resolveRef(websiteRef);
-    if (!resolved) return null;
-    return this.repository.findRole(resolved.id, userId);
+  async getRole(websiteId: string, userId: string): Promise<WebsiteRole | null> {
+    return this.repository.findRole(websiteId, userId);
   }
 
   // ─── Access ──────────────────────────────────────────────────────────────
 
   /**
-   * Resolve a reference and assert the user may act on it, returning the
-   * canonical ids.
+   * Assert the user may act on this website.
    *
-   * Every authenticated entry point funnels through here so the
-   * resolve-then-check order is applied consistently — checking access against
-   * an unresolved reference is how a `siteId`-shaped path parameter slips past an
-   * owner comparison.
+   * Every authenticated entry point funnels through here, so the check is applied in
+   * one place. It used to resolve a reference first and hand back a pair of ids; with a
+   * single identifier there is nothing to resolve, and the hazard that ordering guarded
+   * against — checking access against an unresolved reference — cannot occur.
    */
-  private async authorize(
-    websiteRef: string,
-    userId: string,
-  ): Promise<{ id: string; siteId: string }> {
-    const resolved = await this.repository.resolveRef(websiteRef);
-    if (!resolved) throw new WebsiteAccessError();
-
-    const role = await this.repository.findRole(resolved.id, userId);
+  private async authorize(websiteId: string, userId: string): Promise<void> {
+    const role = await this.repository.findRole(websiteId, userId);
     if (!role) throw new WebsiteAccessError();
-
-    return resolved;
   }
+
 
   // ─── Reads with traffic ──────────────────────────────────────────────────
 
@@ -110,22 +112,22 @@ export class WebsiteService implements WebsiteQuery, WebsiteMutations, WebsitePu
     const owned = await this.repository.listOwnedBy(ownerId);
     if (owned.length === 0) return [];
 
-    const summaries = await this.traffic.summarizeSites(owned.map((w) => w.siteId));
+    const summaries = await this.analyticsModule().getTrafficSummary(owned.map((w) => w.id));
     return owned.map((website) => ({
       ...website,
-      traffic: summaries.get(website.siteId) ?? emptyTrafficSummary(),
+      traffic: summaries.get(website.id) ?? emptyTrafficSummary(),
     }));
   }
 
   /** One website with traffic, after an access check. */
-  async getWithTraffic(websiteRef: string, userId: string): Promise<WebsiteWithTraffic | null> {
-    const { id, siteId } = await this.authorize(websiteRef, userId);
+  async getWithTraffic(websiteId: string, userId: string): Promise<WebsiteWithTraffic | null> {
+    await this.authorize(websiteId, userId);
 
-    const website = await this.repository.findById(id);
+    const website = await this.repository.findById(websiteId);
     if (!website) return null;
 
-    const summaries = await this.traffic.summarizeSites([siteId]);
-    return { ...website, traffic: summaries.get(siteId) ?? emptyTrafficSummary() };
+    const summaries = await this.analyticsModule().getTrafficSummary([websiteId]);
+    return { ...website, traffic: summaries.get(websiteId) ?? emptyTrafficSummary() };
   }
 
   // ─── WebsiteMutations ────────────────────────────────────────────────────
@@ -144,7 +146,6 @@ export class WebsiteService implements WebsiteQuery, WebsiteMutations, WebsitePu
 
     await this.eventBus.publish("website.created", {
       websiteId: website.id,
-      siteId: website.siteId,
       ownerId,
       url: website.url,
       occurredAt: new Date(),
@@ -153,60 +154,52 @@ export class WebsiteService implements WebsiteQuery, WebsiteMutations, WebsitePu
     return website;
   }
 
-  async update(websiteRef: string, input: UpdateWebsiteInput): Promise<Website | null> {
-    const resolved = await this.repository.resolveRef(websiteRef);
-    if (!resolved) return null;
-    return this.repository.update(resolved.id, input);
+  async update(websiteId: string, input: UpdateWebsiteInput): Promise<Website | null> {
+    return this.repository.update(websiteId, input);
   }
 
   /** Update after an access check. Used by the authenticated HTTP layer. */
   async updateForUser(
-    websiteRef: string,
+    websiteId: string,
     userId: string,
     input: UpdateWebsiteInput,
   ): Promise<Website | null> {
-    const { id } = await this.authorize(websiteRef, userId);
-    return this.repository.update(id, input);
+    await this.authorize(websiteId, userId);
+    return this.repository.update(websiteId, input);
   }
 
-  async delete(websiteRef: string): Promise<boolean> {
-    const resolved = await this.repository.resolveRef(websiteRef);
-    if (!resolved) return false;
-    return this.repository.delete(resolved.id);
+  async delete(websiteId: string): Promise<boolean> {
+    return this.repository.delete(websiteId);
   }
 
   /** Delete after an access check. Used by the authenticated HTTP layer. */
-  async deleteForUser(websiteRef: string, userId: string): Promise<boolean> {
-    const { id } = await this.authorize(websiteRef, userId);
-    return this.repository.delete(id);
+  async deleteForUser(websiteId: string, userId: string): Promise<boolean> {
+    await this.authorize(websiteId, userId);
+    return this.repository.delete(websiteId);
   }
 
-  async setPublicSharing(websiteRef: string, enabled: boolean): Promise<string | null> {
-    const resolved = await this.repository.resolveRef(websiteRef);
-    if (!resolved) return null;
-    return this.applySharing(resolved.id, resolved.siteId, enabled);
+  async setPublicSharing(websiteId: string, enabled: boolean): Promise<string | null> {
+    return this.applySharing(websiteId, enabled);
   }
 
   /** Toggle public sharing after an access check. */
   async setPublicSharingForUser(
-    websiteRef: string,
+    websiteId: string,
     userId: string,
     enabled: boolean,
   ): Promise<string | null> {
-    const { id, siteId } = await this.authorize(websiteRef, userId);
-    return this.applySharing(id, siteId, enabled);
+    await this.authorize(websiteId, userId);
+    return this.applySharing(websiteId, enabled);
   }
 
   private async applySharing(
     websiteId: string,
-    siteId: string,
     enabled: boolean,
   ): Promise<string | null> {
     if (!enabled) {
       const cleared = await this.repository.setPublicShareId(websiteId, null);
       await this.eventBus.publish("website.share_toggled", {
         websiteId,
-        siteId,
         enabled: false,
         occurredAt: new Date(),
       });
@@ -221,7 +214,6 @@ export class WebsiteService implements WebsiteQuery, WebsiteMutations, WebsitePu
     const shareId = await this.repository.setPublicShareId(websiteId, randomHex(12));
     await this.eventBus.publish("website.share_toggled", {
       websiteId,
-      siteId,
       enabled: true,
       occurredAt: new Date(),
     });

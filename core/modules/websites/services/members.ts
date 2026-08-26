@@ -1,12 +1,24 @@
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
-import { db, users, websiteMembers, websiteInvitations, websites } from "../../../db";
+import { db, websiteMembers, websiteInvitations, websites } from "../../../db";
+import type { UserDirectory } from "../../auth/interfaces";
 import type { AddWebsiteMemberBody } from "../../../platform/lib/api-types";
-import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
 import { assertWebsiteAccess } from "./access";
 
-export async function listMembers(userId: string, websiteParam: string) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+/**
+ * Members of a website, with each person's name and email.
+ *
+ * Two queries rather than one `innerJoin` on `users`: that table belongs to auth, so
+ * names come through `UserDirectory.listByIds`, which is batched precisely so this stays
+ * two round trips instead of one per member. A member whose user row has since been
+ * deleted keeps its membership row and reports empty strings, matching what the join
+ * would have dropped silently.
+ */
+export async function listMembers(
+  userId: string,
+  websiteId: string,
+  directory: UserDirectory,
+) {
+  await assertWebsiteAccess(userId, websiteId);
   const rows = await db
     .select({
       id: websiteMembers.id,
@@ -14,13 +26,12 @@ export async function listMembers(userId: string, websiteParam: string) {
       userId: websiteMembers.userId,
       role: websiteMembers.role,
       createdAt: websiteMembers.createdAt,
-      userName: users.name,
-      userEmail: users.email,
     })
     .from(websiteMembers)
-    .innerJoin(users, eq(users.id, websiteMembers.userId))
-    .where(eq(websiteMembers.websiteId, uuidStr))
+    .where(eq(websiteMembers.websiteId, websiteId))
     .orderBy(asc(websiteMembers.createdAt));
+
+  const people = await directory.listByIds(rows.map((m) => m.userId));
 
   return {
     data: rows.map((m) => ({
@@ -29,31 +40,31 @@ export async function listMembers(userId: string, websiteParam: string) {
       userId: m.userId,
       role: m.role,
       createdAt: m.createdAt.toISOString(),
-      userName: m.userName,
-      userEmail: m.userEmail,
+      userName: people.get(m.userId)?.name ?? "",
+      userEmail: people.get(m.userId)?.email ?? "",
     })),
   };
 }
 
-export async function addMember(userId: string, websiteParam: string, body: AddWebsiteMemberBody) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
-  const [target] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, body.email.trim().toLowerCase()))
-    .limit(1);
+export async function addMember(
+  userId: string,
+  websiteId: string,
+  body: AddWebsiteMemberBody,
+  directory: UserDirectory,
+) {
+  await assertWebsiteAccess(userId, websiteId);
+  const target = await directory.findByEmail(body.email);
   if (!target) throw new Error("user not found");
   const [existing] = await db
     .select()
     .from(websiteMembers)
-    .where(and(eq(websiteMembers.websiteId, uuidStr), eq(websiteMembers.userId, target.id)))
+    .where(and(eq(websiteMembers.websiteId, websiteId), eq(websiteMembers.userId, target.id)))
     .limit(1);
   if (existing) return { data: existing };
   const [m] = await db
     .insert(websiteMembers)
     .values({
-      websiteId: uuidStr,
+      websiteId: websiteId,
       userId: target.id,
       role: body.role ?? "viewer",
     })
@@ -61,41 +72,38 @@ export async function addMember(userId: string, websiteParam: string, body: AddW
   return { data: m };
 }
 
-export async function removeMember(userId: string, websiteParam: string, memberUserId: string) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+export async function removeMember(userId: string, websiteId: string, memberUserId: string) {
+  await assertWebsiteAccess(userId, websiteId);
   await db
     .delete(websiteMembers)
-    .where(and(eq(websiteMembers.websiteId, uuidStr), eq(websiteMembers.userId, memberUserId)));
+    .where(and(eq(websiteMembers.websiteId, websiteId), eq(websiteMembers.userId, memberUserId)));
 }
 
 export async function updateMemberRole(
   userId: string,
-  websiteParam: string,
+  websiteId: string,
   memberUserId: string,
   role: string,
 ) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+  await assertWebsiteAccess(userId, websiteId);
   await db
     .update(websiteMembers)
     .set({ role, updatedAt: new Date() })
-    .where(and(eq(websiteMembers.websiteId, uuidStr), eq(websiteMembers.userId, memberUserId)));
+    .where(and(eq(websiteMembers.websiteId, websiteId), eq(websiteMembers.userId, memberUserId)));
 }
 
-export async function getMyRole(userId: string, websiteParam: string) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+export async function getMyRole(userId: string, websiteId: string) {
+  await assertWebsiteAccess(userId, websiteId);
   const [m] = await db
     .select({ role: websiteMembers.role })
     .from(websiteMembers)
-    .where(and(eq(websiteMembers.websiteId, uuidStr), eq(websiteMembers.userId, userId)))
+    .where(and(eq(websiteMembers.websiteId, websiteId), eq(websiteMembers.userId, userId)))
     .limit(1);
   if (m) return { data: { role: m.role } };
   const [w] = await db
     .select({ id: websites.id })
     .from(websites)
-    .where(and(eq(websites.id, uuidStr), eq(websites.userId, userId)))
+    .where(and(eq(websites.id, websiteId), eq(websites.userId, userId)))
     .limit(1);
   if (w) return { data: { role: "owner" } };
   return { data: { role: "viewer" } };
@@ -125,11 +133,10 @@ function mapInvitation(r: typeof websiteInvitations.$inferSelect) {
 
 export async function createInvitation(
   userId: string,
-  websiteParam: string,
+  websiteId: string,
   body: { email: string; role: string },
 ) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+  await assertWebsiteAccess(userId, websiteId);
   const email = body.email.trim().toLowerCase();
 
   // Delete any existing pending invitation for this email+website so the new one replaces it
@@ -137,7 +144,7 @@ export async function createInvitation(
     .delete(websiteInvitations)
     .where(
       and(
-        eq(websiteInvitations.websiteId, uuidStr),
+        eq(websiteInvitations.websiteId, websiteId),
         eq(websiteInvitations.email, email),
         isNull(websiteInvitations.acceptedAt),
       ),
@@ -148,36 +155,38 @@ export async function createInvitation(
 
   const [inv] = await db
     .insert(websiteInvitations)
-    .values({ websiteId: uuidStr, email, role: body.role ?? "viewer", token, invitedBy: userId, expiresAt })
+    .values({ websiteId: websiteId, email, role: body.role ?? "viewer", token, invitedBy: userId, expiresAt })
     .returning();
 
   return { data: mapInvitation(inv!) };
 }
 
-export async function listInvitations(userId: string, websiteParam: string) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+export async function listInvitations(userId: string, websiteId: string) {
+  await assertWebsiteAccess(userId, websiteId);
   const rows = await db
     .select()
     .from(websiteInvitations)
-    .where(and(eq(websiteInvitations.websiteId, uuidStr), isNull(websiteInvitations.acceptedAt)))
+    .where(and(eq(websiteInvitations.websiteId, websiteId), isNull(websiteInvitations.acceptedAt)))
     .orderBy(desc(websiteInvitations.createdAt));
   return { data: rows.map(mapInvitation) };
 }
 
 export async function revokeInvitation(
   userId: string,
-  websiteParam: string,
+  websiteId: string,
   invitationId: string,
 ) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+  await assertWebsiteAccess(userId, websiteId);
   await db
     .delete(websiteInvitations)
-    .where(and(eq(websiteInvitations.id, invitationId), eq(websiteInvitations.websiteId, uuidStr)));
+    .where(and(eq(websiteInvitations.id, invitationId), eq(websiteInvitations.websiteId, websiteId)));
 }
 
-export async function acceptInvitationByToken(userId: string, token: string) {
+export async function acceptInvitationByToken(
+  userId: string,
+  token: string,
+  directory: UserDirectory,
+) {
   const [inv] = await db
     .select()
     .from(websiteInvitations)
@@ -188,7 +197,7 @@ export async function acceptInvitationByToken(userId: string, token: string) {
   if (inv.acceptedAt) { const e = new Error("Invitation has already been accepted"); (e as any).status = 400; throw e; }
   if (new Date() > inv.expiresAt) { const e = new Error("Invitation has expired"); (e as any).status = 400; throw e; }
 
-  const [u] = await db.select({ email: users.email }).from(users).where(eq(users.id, userId)).limit(1);
+  const u = await directory.getById(userId);
   if (!u) { const e = new Error("User not found"); (e as any).status = 404; throw e; }
   if (u.email.toLowerCase() !== inv.email.toLowerCase()) {
     const e = new Error(`This invitation was sent to ${inv.email}. Please sign in with that account.`);

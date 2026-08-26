@@ -1,14 +1,13 @@
 import type { TrackerCollectBody } from "../../../platform/lib/api-types";
 import type { AnalyticsIngestMeta } from "../../../platform/lib/analytics-ingest-meta";
-import type { WebsiteTrackerRow } from "../../../platform/lib/website-for-tracker";
+import type { WebsiteTrackerRow } from "../../websites/interfaces";
 import type {
-  AnalyticsIngestEvent,
   AutomationTriggerQueued,
-  HeatmapIngestEvent,
   TrackerEvent,
 } from "../../../platform/lib/types";
 import { clampClientTs } from "../../../platform/lib/client-timestamp";
 import { TRACKER_FUNNEL_EVENT_TYPES } from "../../funnels/interfaces";
+import type { HeatmapTrackerEvent } from "../../heatmaps/interfaces";
 import type { IngestQueue } from "../interfaces";
 import { log as baseLog } from "../../../platform/lib/logger";
 
@@ -66,114 +65,19 @@ export function parseCollectEvents(raw: unknown[]): TrackerEvent[] {
   return out;
 }
 
-function collectPrepareSessions(
-  evs: TrackerEvent[],
-  siteId: string,
-  ingestMeta: AnalyticsIngestMeta,
-): TrackerEvent[] {
-  const out: TrackerEvent[] = [];
-  for (const e of evs) {
-    if (e.type !== "rrweb" && e.type !== "session_error" && e.type !== "console_event" && e.type !== "network_event") continue;
-    if (!e.sid) continue;
-    out.push({ ...e, websiteId: siteId, data: e.data ?? {}, ingestMeta });
-  }
-  return out;
-}
-
-function collectPrepareHeatmaps(
-  evs: TrackerEvent[],
-  websiteUuid: string,
-  clientUA: string,
-): HeatmapIngestEvent[] {
-  const out: HeatmapIngestEvent[] = [];
-  for (const e of evs) {
-    if (e.type !== "heatmap_click" && e.type !== "heatmap_scroll") continue;
-    out.push({
-      type: e.type,
-      data: e.data ?? {},
-      ts: e.ts,
-      url: e.url,
-      sid: e.sid,
-      vid: e.vid,
-      websiteId: websiteUuid,
-      clientUa: clientUA,
-      docW: e.doc_w,
-      docH: e.doc_h,
-    });
-  }
-  return out;
-}
-
-function collectPrepareHeatmapScreenshots(
-  evs: TrackerEvent[],
-  websiteUuid: string,
-  siteId: string,
-  heatmapLayoutEnabled: boolean,
-  clientUA: string,
-): HeatmapIngestEvent[] {
-  const out: HeatmapIngestEvent[] = [];
-  for (const e of evs) {
-    if (e.type !== "heatmap_screenshot") continue;
-    out.push({
-      type: "heatmap_screenshot",
-      data: e.data ?? {},
-      ts: e.ts,
-      url: e.url,
-      sid: e.sid,
-      vid: e.vid,
-      websiteId: websiteUuid,
-      siteId,
-      heatmapLayoutEnabled,
-      clientUa: clientUA,
-      docW: e.doc_w,
-      docH: e.doc_h,
-    });
-  }
-  return out;
-}
-
-function collectPrepareDomSnapshots(
-  evs: TrackerEvent[],
-  websiteUuid: string,
-  siteId: string,
-  heatmapLayoutEnabled: boolean,
-  clientUA: string,
-): HeatmapIngestEvent[] {
-  const out: HeatmapIngestEvent[] = [];
-  for (const e of evs) {
-    if (e.type !== "heatmap_dom_snapshot") continue;
-    out.push({
-      type: "heatmap_dom_snapshot",
-      data: e.data ?? {},
-      ts: e.ts,
-      url: e.url,
-      sid: e.sid,
-      vid: e.vid,
-      websiteId: websiteUuid,
-      siteId,
-      heatmapLayoutEnabled,
-      clientUa: clientUA,
-      docW: e.doc_w,
-      docH: e.doc_h,
-    });
-  }
-  return out;
-}
-
 function sortByTs<T extends { ts: number }>(rows: T[]): T[] {
   return [...rows].sort((a, b) => a.ts - b.ts);
 }
 
-function trackerRowsToAnalytics(rows: TrackerEvent[], ingestMeta: AnalyticsIngestMeta): AnalyticsIngestEvent[] {
-  return rows.map((e) => ({
-    type: e.type,
-    data: e.data,
-    ts: e.ts,
-    url: e.url,
-    sid: e.sid,
-    vid: e.vid,
-    ingestMeta,
-  }));
+/**
+ * Stamp the request's server-derived metadata onto each event.
+ *
+ * Per event rather than per batch because the buffer accumulates across requests and each
+ * one has its own geo and device. This is ingest's job — the values come from the request,
+ * never from the payload — where projecting into a module's row shape was not.
+ */
+function withIngestMeta(rows: TrackerEvent[], ingestMeta: AnalyticsIngestMeta): TrackerEvent[] {
+  return rows.map((e) => ({ ...e, ingestMeta }));
 }
 
 export type CollectHandlerContext = {
@@ -192,16 +96,23 @@ export type CollectHandlerContext = {
   queue: IngestQueue;
 };
 
-/** Attach `ctx.ingestMeta` (geo + device from /collect) to each event and queue for DB insert. */
+/**
+ * Route the plain-event slice of a `/collect` body to the analytics buffer.
+ *
+ * Sorts, filters by category, and attaches the request's server-derived `ingestMeta` —
+ * ingest's three genuine jobs. It no longer *projects* the rows into
+ * `analytics_events`' shape: that is analytics' own column layout, and it belongs with the
+ * table now that a buffered batch becomes a durable queue row.
+ */
 export function handleEvents(ctx: CollectHandlerContext): void {
   const page = parseCollectEvents(Array.isArray(ctx.body.events) ? ctx.body.events : []);
   const filtered = page.filter(
     (e) => !TRACKER_FUNNEL_EVENT_TYPES.has(e.type) && !ROUTED_TO_AUTOMATIONS.has(e.type),
   );
   if (!filtered.length) return;
-  const forDb = trackerRowsToAnalytics(sortByTs(filtered), ctx.ingestMeta);
-  ctx.queue.enqueueEvents(ctx.website.site_id, forDb);
-  log.debug({ msg: "events_queued", site_id: ctx.website.site_id, n: forDb.length });
+  const forDb = withIngestMeta(sortByTs(filtered), ctx.ingestMeta);
+  ctx.queue.enqueueEvents(ctx.website.id, forDb);
+  log.debug({ msg: "events_queued", website_id: ctx.website.id, n: forDb.length });
 }
 
 export function handleFunnels(ctx: CollectHandlerContext): void {
@@ -209,9 +120,9 @@ export function handleFunnels(ctx: CollectHandlerContext): void {
   const raw = parseCollectEvents(Array.isArray(ctx.body.funnels) ? ctx.body.funnels : []);
   const only = raw.filter((e) => TRACKER_FUNNEL_EVENT_TYPES.has(e.type) && e.sid);
   if (!only.length) return;
-  const forDb = trackerRowsToAnalytics(sortByTs(only), ctx.ingestMeta);
-  ctx.queue.enqueueFunnels(ctx.website.site_id, forDb);
-  log.debug({ msg: "funnel_events_queued", site_id: ctx.website.site_id, n: forDb.length });
+  const forDb = withIngestMeta(sortByTs(only), ctx.ingestMeta);
+  ctx.queue.enqueueFunnels(ctx.website.id, forDb);
+  log.debug({ msg: "funnel_events_queued", website_id: ctx.website.id, n: forDb.length });
 }
 
 export function handleAutomations(ctx: CollectHandlerContext): void {
@@ -238,7 +149,7 @@ export function handleAutomations(ctx: CollectHandlerContext): void {
       detail.props = dm.props;
     }
     rows.push({
-      websiteUuid: ctx.website.id,
+      websiteId: ctx.website.id,
       automationId: aid,
       occurredAt: new Date(ts),
       detail,
@@ -252,39 +163,46 @@ export function handleAutomations(ctx: CollectHandlerContext): void {
 export function handleRecordings(ctx: CollectHandlerContext): void {
   if (!ctx.website.replay_enabled) return;
   const sessions = parseCollectEvents(Array.isArray(ctx.body.session) ? ctx.body.session : []);
-  const prepared = sortByTs(collectPrepareSessions(sessions, ctx.website.site_id, ctx.ingestMeta));
+  // Context attached, nothing filtered: recordings decides which types are its own.
+  const prepared = sortByTs(
+    sessions.map((e) => ({
+      ...e,
+      websiteId: ctx.website.id,
+      data: e.data ?? {},
+      ingestMeta: ctx.ingestMeta,
+    })),
+  );
   if (!prepared.length) return;
   ctx.queue.enqueueRecordings(prepared);
-  log.debug({ msg: "recordings_queued", site_id: ctx.website.site_id, n: prepared.length });
+  log.debug({ msg: "recordings_queued", website_id: ctx.website.id, n: prepared.length });
 }
 
 export function handleHeatmaps(ctx: CollectHandlerContext): void {
   if (!ctx.website.heatmap_enabled) return;
-  const heatmaps = parseCollectEvents(Array.isArray(ctx.body.heatmaps) ? ctx.body.heatmaps : []);
-  const screenshots = parseCollectEvents(
-    Array.isArray(ctx.body.heatmap_screenshot) ? ctx.body.heatmap_screenshot : [],
-  );
-  const domSnapshots = parseCollectEvents(
-    Array.isArray(ctx.body.heatmap_dom_snapshot) ? ctx.body.heatmap_dom_snapshot : [],
-  );
-  const merged: HeatmapIngestEvent[] = [
-    ...collectPrepareHeatmaps(heatmaps, ctx.website.id, ctx.userAgent),
-    ...collectPrepareHeatmapScreenshots(
-      screenshots,
-      ctx.website.id,
-      ctx.website.site_id,
-      ctx.website.heatmap_layout_enabled,
-      ctx.userAgent,
+
+  // One pass over all four heatmap slices of the body. Which of those types this module
+  // owns, and what its rows look like, is heatmaps' knowledge — so everything here is
+  // routing: parse, attach the per-request context, buffer.
+  const raw = [
+    ...parseCollectEvents(Array.isArray(ctx.body.heatmaps) ? ctx.body.heatmaps : []),
+    ...parseCollectEvents(
+      Array.isArray(ctx.body.heatmap_screenshot) ? ctx.body.heatmap_screenshot : [],
     ),
-    ...collectPrepareDomSnapshots(
-      domSnapshots,
-      ctx.website.id,
-      ctx.website.site_id,
-      ctx.website.heatmap_layout_enabled,
-      ctx.userAgent,
+    ...parseCollectEvents(
+      Array.isArray(ctx.body.heatmap_dom_snapshot) ? ctx.body.heatmap_dom_snapshot : [],
     ),
   ];
-  if (!merged.length) return;
-  ctx.queue.enqueueHeatmaps(sortByTs(merged));
-  log.debug({ msg: "heatmaps_queued", website_id: ctx.website.id, n: merged.length });
+  if (!raw.length) return;
+
+  // Per event, not per batch: the buffer accumulates across requests, so it holds events
+  // from many visitors and many websites at once.
+  const withContext: HeatmapTrackerEvent[] = raw.map((e) => ({
+    ...e,
+    websiteId: ctx.website.id,
+    clientUa: ctx.userAgent,
+    heatmapLayoutEnabled: ctx.website.heatmap_layout_enabled,
+  }));
+
+  ctx.queue.enqueueHeatmaps(sortByTs(withContext));
+  log.debug({ msg: "heatmaps_queued", website_id: ctx.website.id, n: withContext.length });
 }

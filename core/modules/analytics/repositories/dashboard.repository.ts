@@ -5,7 +5,7 @@ import { parseDays } from "./shared";
 import { LIVE_VISITOR_WINDOW_MS } from "./realtime.repository";
 
 export async function getDashboardStats(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
@@ -60,7 +60,7 @@ export async function getDashboardStats(
           0
         )::int AS prev_uv
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND occurred_at >= ${prevStartIso}
         AND occurred_at <= ${endIso}
     `,
@@ -77,7 +77,7 @@ export async function getDashboardStats(
       WITH e AS (
         SELECT session_id, event_type, occurred_at
         FROM analytics_events
-        WHERE website_id = ${siteId}
+        WHERE website_id = ${websiteId}
           AND occurred_at >= ${prevStartIso}
           AND occurred_at <= ${endIso}
       ),
@@ -148,7 +148,7 @@ export async function getDashboardStats(
     pgSql<{ c: number }[]>`
       SELECT count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS c
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${new Date(Date.now() - LIVE_VISITOR_WINDOW_MS).toISOString()}
     `,
@@ -178,7 +178,7 @@ export async function getDashboardStats(
 
   log.debug({
     msg: "analytics_dashboard_stats",
-    site_id: siteId,
+    website_id: websiteId,
     days,
     page_views: pageViews,
     unique_visitors: uniqueVisitors,
@@ -190,13 +190,13 @@ export async function getDashboardStats(
   if (pageViews === 0 && uniqueVisitors === 0 && sessionCnt === 0) {
     log.debug({
       msg: "analytics_dashboard_zero_in_range",
-      site_id: siteId,
-      hint: "No rows in analytics_events for this site_id in the selected window. Confirm ingest logs (analytics_ingest_inserted) and DATABASE_URL.",
+      website_id: websiteId,
+      hint: "No rows in analytics_events for this website_id in the selected window. Confirm ingest logs (analytics_ingest_inserted) and DATABASE_URL.",
     });
   }
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${days}d`,
     total_visitors: uniqueVisitors,
     unique_visitors: uniqueVisitors,

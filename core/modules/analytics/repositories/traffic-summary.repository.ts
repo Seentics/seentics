@@ -12,7 +12,7 @@ const SEARCH_HOST_PATTERN =
   "^https?://([^/]*\\.)?(google|bing|duckduckgo|yahoo|baidu|yandex|ecosia|brave)\\.";
 
 export async function getTrafficSummaryStats(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
@@ -40,7 +40,7 @@ export async function getTrafficSummaryStats(
         END AS channel,
         coalesce(nullif(trim(visitor_id), ''), session_id) AS vkey
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${startIso}
     ),
@@ -67,7 +67,7 @@ export async function getTrafficSummaryStats(
   }));
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${days}d`,
     channels,
     total_views: channels.reduce((s, c) => s + c.views, 0),

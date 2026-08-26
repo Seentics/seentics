@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { InMemoryEventBus, type EventBus, type EventName } from "../../../infrastructure/events";
 import type {
-  CreateWebsiteInput,
+  AnalyticsModule,
   TrafficSummary,
-  TrafficSummaryProvider,
+} from "../../../modules/analytics/interfaces";
+import type {
+  CreateWebsiteInput,
   UpdateWebsiteInput,
   Website,
   WebsiteRepository,
@@ -28,7 +30,6 @@ const silentLogger: Logger = {
 function makeWebsite(overrides: Partial<Website> = {}): Website {
   return {
     id: "11111111-1111-4111-8111-111111111111",
-    siteId: "site_one",
     ownerId: "owner_1",
     name: "One",
     url: "one.example",
@@ -85,21 +86,10 @@ class FakeWebsiteRepository implements WebsiteRepository {
     return this.websites.get(websiteId) ?? null;
   }
 
-  async findBySiteId(siteId: string): Promise<Website | null> {
-    return [...this.websites.values()].find((w) => w.siteId === siteId) ?? null;
-  }
-
   async listOwnedBy(ownerId: string): Promise<Website[]> {
     return [...this.websites.values()]
       .filter((w) => w.ownerId === ownerId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-  }
-
-  async resolveRef(websiteRef: string): Promise<{ id: string; siteId: string } | null> {
-    const match =
-      this.websites.get(websiteRef) ??
-      [...this.websites.values()].find((w) => w.siteId === websiteRef);
-    return match ? { id: match.id, siteId: match.siteId } : null;
   }
 
   async findRole(websiteId: string, userId: string): Promise<WebsiteRole | null> {
@@ -108,15 +98,14 @@ class FakeWebsiteRepository implements WebsiteRepository {
 
   async findByPublicShareId(
     publicShareId: string,
-  ): Promise<{ websiteId: string; siteId: string } | null> {
+  ): Promise<{ websiteId: string } | null> {
     const match = [...this.websites.values()].find((w) => w.publicShareId === publicShareId);
-    return match ? { websiteId: match.id, siteId: match.siteId } : null;
+    return match ? { websiteId: match.id } : null;
   }
 
   async create(ownerId: string, input: CreateWebsiteInput): Promise<Website> {
     const created = makeWebsite({
       id: `id_${this.websites.size + 1}`,
-      siteId: `site_${this.websites.size + 1}`,
       ownerId,
       name: input.name,
       url: input.url,
@@ -147,19 +136,33 @@ class FakeWebsiteRepository implements WebsiteRepository {
   }
 }
 
-class FakeTrafficProvider implements TrafficSummaryProvider {
+/**
+ * Stands in for the analytics module.
+ *
+ * `WebsiteService` calls exactly one method on it, so the other six members of
+ * `AnalyticsModule` are left off and the cast below narrows what the service is
+ * actually allowed to touch. Stubbing them with throwing placeholders would be worse:
+ * it would imply this test cares about them, and the cast is the honest statement that
+ * it does not.
+ */
+class FakeAnalytics {
   summaries = new Map<string, TrafficSummary>();
   calls: string[][] = [];
 
-  async summarizeSites(siteIds: string[]): Promise<Map<string, TrafficSummary>> {
-    this.calls.push(siteIds);
+  async getTrafficSummary(websiteIds: string[]): Promise<Map<string, TrafficSummary>> {
+    this.calls.push(websiteIds);
     const out = new Map<string, TrafficSummary>();
-    for (const id of siteIds) {
+    for (const id of websiteIds) {
       const found = this.summaries.get(id);
       if (found) out.set(id, found);
     }
     return out;
   }
+}
+
+/** The lazy handle `WebsiteService` takes, over a fake. */
+function analyticsHandle(fake: FakeAnalytics): () => AnalyticsModule {
+  return () => fake as Pick<AnalyticsModule, "getTrafficSummary"> as AnalyticsModule;
 }
 
 /** Records every publish so tests can assert on emitted facts. */
@@ -178,29 +181,22 @@ function recordingBus(): { bus: EventBus; published: { type: EventName; payload:
 
 describe("WebsiteService", () => {
   let repo: FakeWebsiteRepository;
-  let traffic: FakeTrafficProvider;
+  let traffic: FakeAnalytics;
   let published: { type: EventName; payload: unknown }[];
   let service: WebsiteService;
 
   beforeEach(() => {
     repo = new FakeWebsiteRepository();
-    traffic = new FakeTrafficProvider();
+    traffic = new FakeAnalytics();
     const rec = recordingBus();
     published = rec.published;
-    service = new WebsiteService(repo, traffic, rec.bus);
+    service = new WebsiteService(repo, analyticsHandle(traffic), rec.bus);
   });
 
   describe("getById", () => {
-    it("resolves a UUID reference", async () => {
+    it("returns the website for its id", async () => {
       const site = repo.seed(makeWebsite());
       expect(await service.getById(site.id)).toEqual(site);
-    });
-
-    // The dual-identifier scheme is the subtle part of this domain: most API
-    // paths accept either form, so both must resolve to the same website.
-    it("resolves a siteId reference", async () => {
-      const site = repo.seed(makeWebsite());
-      expect(await service.getById(site.siteId)).toEqual(site);
     });
 
     it("returns null for an unknown reference", async () => {
@@ -244,7 +240,6 @@ describe("WebsiteService", () => {
       expect(published[0]?.type).toBe("website.created");
       expect(published[0]?.payload).toMatchObject({
         websiteId: created.id,
-        siteId: created.siteId,
         ownerId: "owner_9",
       });
     });
@@ -258,19 +253,19 @@ describe("WebsiteService", () => {
 
     // The N+1 guard: one batched call regardless of how many sites are owned.
     it("requests traffic for every site in a single call", async () => {
-      repo.seed(makeWebsite({ id: "a", siteId: "site_a", ownerId: "owner_1" }));
-      repo.seed(makeWebsite({ id: "b", siteId: "site_b", ownerId: "owner_1" }));
-      repo.seed(makeWebsite({ id: "c", siteId: "site_c", ownerId: "owner_1" }));
+      repo.seed(makeWebsite({ id: "a", ownerId: "owner_1" }));
+      repo.seed(makeWebsite({ id: "b", ownerId: "owner_1" }));
+      repo.seed(makeWebsite({ id: "c", ownerId: "owner_1" }));
 
       await service.listOwnedWithTraffic("owner_1");
 
       expect(traffic.calls).toHaveLength(1);
-      expect(traffic.calls[0]).toEqual(["site_a", "site_b", "site_c"]);
+      expect(traffic.calls[0]).toEqual(["a", "b", "c"]);
     });
 
     it("attaches the matching summary to each site", async () => {
-      repo.seed(makeWebsite({ id: "a", siteId: "site_a", ownerId: "owner_1" }));
-      traffic.summaries.set("site_a", {
+      repo.seed(makeWebsite({ id: "a", ownerId: "owner_1" }));
+      traffic.summaries.set("a", {
         totalPageviews: 42,
         uniqueVisitors: 7,
         averageSessionDuration: 0,
@@ -284,7 +279,7 @@ describe("WebsiteService", () => {
 
     // Absence of traffic is normal for a new site, not an error.
     it("falls back to zeros for a site with no traffic", async () => {
-      repo.seed(makeWebsite({ id: "a", siteId: "site_a", ownerId: "owner_1" }));
+      repo.seed(makeWebsite({ id: "a", ownerId: "owner_1" }));
 
       const [first] = await service.listOwnedWithTraffic("owner_1");
       expect(first?.traffic).toEqual({
@@ -296,8 +291,8 @@ describe("WebsiteService", () => {
     });
 
     it("excludes websites owned by others", async () => {
-      repo.seed(makeWebsite({ id: "a", siteId: "site_a", ownerId: "owner_1" }));
-      repo.seed(makeWebsite({ id: "b", siteId: "site_b", ownerId: "owner_2" }));
+      repo.seed(makeWebsite({ id: "a", ownerId: "owner_1" }));
+      repo.seed(makeWebsite({ id: "b", ownerId: "owner_2" }));
 
       const result = await service.listOwnedWithTraffic("owner_1");
       expect(result.map((w) => w.id)).toEqual(["a"]);
@@ -348,15 +343,15 @@ describe("WebsiteService", () => {
       expect(repo.deleted).toEqual([]);
     });
 
-    // Guards the resolve-then-check order: a siteId-shaped reference must be
+    // Guards the resolve-then-check order: a websiteId-shaped reference must be
     // resolved to its UUID before the role lookup, or the check reads a role for
     // an id that does not exist and lets the request through.
-    it("enforces access when the reference is a siteId", async () => {
+    it("enforces access when the reference is a websiteId", async () => {
       const site = repo.seed(makeWebsite());
-      await expect(service.deleteForUser(site.siteId, "stranger")).rejects.toBeInstanceOf(
+      await expect(service.deleteForUser(site.id, "stranger")).rejects.toBeInstanceOf(
         WebsiteAccessError,
       );
-      await expect(service.deleteForUser(site.siteId, "owner_1")).resolves.toBe(true);
+      await expect(service.deleteForUser(site.id, "owner_1")).resolves.toBe(true);
     });
   });
 

@@ -62,7 +62,7 @@ type MainRow = {
 };
 
 export async function getRevenueDashboard(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days, 30);
@@ -132,7 +132,7 @@ export async function getRevenueDashboard(
         ) AS order_id,
         properties->'items' AS items_json
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND (
           event_type IN (
             'purchase', 'order_completed', 'checkout_completed',
@@ -212,7 +212,7 @@ export async function getRevenueDashboard(
         ae.utm_campaign AS attr_campaign
       FROM cur_purchases p
       JOIN analytics_events ae
-        ON ae.website_id  = ${siteId}
+        ON ae.website_id  = ${websiteId}
        AND ae.session_id  = p.session_id
        AND ae.event_type  = 'pageview'
        AND ae.utm_source  IS NOT NULL
@@ -240,7 +240,7 @@ export async function getRevenueDashboard(
         ) AS attr_referrer_domain
       FROM cur_purchases p
       JOIN analytics_events ae
-        ON ae.website_id  = ${siteId}
+        ON ae.website_id  = ${websiteId}
        AND ae.session_id  = p.session_id
        AND ae.event_type  = 'pageview'
        AND ae.referrer    IS NOT NULL
@@ -316,7 +316,7 @@ export async function getRevenueDashboard(
     session_cnt AS (
       SELECT COUNT(DISTINCT session_id)::int AS sessions
       FROM analytics_events
-      WHERE website_id  = ${siteId}
+      WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
@@ -326,7 +326,7 @@ export async function getRevenueDashboard(
     visitor_cnt AS (
       SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(visitor_id), ''), session_id))::int AS unique_visitors
       FROM analytics_events
-      WHERE website_id  = ${siteId}
+      WHERE website_id  = ${websiteId}
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
     ),
@@ -422,7 +422,7 @@ export async function getRevenueDashboard(
   `;
 
   if (!row) {
-    return emptyRevenueDashboard(siteId, days);
+    return emptyRevenueDashboard(websiteId, days);
   }
 
   // ── Shape the response ────────────────────────────────────────────────────────
@@ -485,7 +485,7 @@ export async function getRevenueDashboard(
         : undefined;
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     days,
     data_quality: dataQuality,
     ...(dataNote ? { data_note: dataNote } : {}),

@@ -6,8 +6,8 @@ export type FunnelStepCount = { step_order: number | null; cnt: number };
 /**
  * Tracker funnel events, bucketed by step.
  *
- * Takes `siteId` — the short public id — because `analytics_events.website_id` is a
- * `text` column that the ingest path writes from `website.site_id`. This is the one
+ * Takes `websiteId` — the short public id — because `analytics_events.website_id` is a
+ * `text` column that the ingest path writes from `website.website_id`. This is the one
  * query in the module that is *not* keyed by the website UUID, and passing the UUID
  * here returns zero rows rather than an error.
  *
@@ -17,7 +17,7 @@ export type FunnelStepCount = { step_order: number | null; cnt: number };
  * makes the conversion rate a people rate rather than an event rate.
  */
 export async function countFunnelStepVisitors(
-  siteId: string,
+  websiteId: string,
   funnelId: string,
   startIso: string,
   endIso: string,
@@ -28,7 +28,7 @@ export async function countFunnelStepVisitors(
            ELSE (properties->>'step')::int END AS step_order,
       COUNT(DISTINCT COALESCE(NULLIF(TRIM(visitor_id), ''), session_id))::int AS cnt
     FROM analytics_events
-    WHERE website_id = ${siteId}
+    WHERE website_id = ${websiteId}
       AND event_type IN ('funnel_step', 'funnel_complete')
       AND properties->>'funnel_id' = ${funnelId}
       AND occurred_at >= ${startIso}::timestamptz

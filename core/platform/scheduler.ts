@@ -1,6 +1,6 @@
 import { Cron } from "croner";
 import type { AppConfig } from "../config";
-import type { RetentionService } from "./retention";
+import type { RetentionRunner } from "./retention";
 import type { HeatmapScreenshotMaintenance } from "../modules/heatmaps/interfaces";
 import { log as baseLog } from "./lib/logger";
 
@@ -19,7 +19,7 @@ export function startScheduler(
   cfg: AppConfig,
   deps?: {
     heatmapScreenshots?: HeatmapScreenshotMaintenance;
-    retention?: RetentionService;
+    retention?: RetentionRunner;
   },
 ): void {
   if (jobs.length > 0) {

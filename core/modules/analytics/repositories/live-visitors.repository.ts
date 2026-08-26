@@ -1,7 +1,7 @@
 import { sql as pgSql } from "../../../db";
 import { LIVE_VISITOR_WINDOW_MS, REALTIME_WINDOW_MS } from "./realtime.repository";
 
-export async function getLiveVisitorsStats(siteId: string) {
+export async function getLiveVisitorsStats(websiteId: string) {
   // live = pageview in the last 30 seconds; active = last 30 minutes.
   const liveSinceIso = new Date(Date.now() - LIVE_VISITOR_WINDOW_MS).toISOString();
   const activeSinceIso = new Date(Date.now() - REALTIME_WINDOW_MS).toISOString();
@@ -13,7 +13,7 @@ export async function getLiveVisitorsStats(siteId: string) {
           FILTER (WHERE occurred_at >= ${liveSinceIso})::int AS live_visitors,
         count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS active_visitors
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${activeSinceIso}
     `,
@@ -35,7 +35,7 @@ export async function getLiveVisitorsStats(siteId: string) {
         device,
         occurred_at
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${liveSinceIso}
         AND session_id IS NOT NULL
@@ -45,7 +45,7 @@ export async function getLiveVisitorsStats(siteId: string) {
   ]);
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     live_visitors: Number(countRows[0]?.live_visitors ?? 0),
     active_visitors: Number(countRows[0]?.active_visitors ?? 0),
     visitors: recentVisitors.map((v) => ({

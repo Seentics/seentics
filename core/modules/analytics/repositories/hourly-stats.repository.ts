@@ -2,7 +2,7 @@ import { sql as pgSql } from "../../../db";
 import { parseDays, sanitizeTimezone, windowStartIso } from "./shared";
 
 export async function getHourlyStatsAnalytics(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = Math.min(parseDays(query.days, 1), 7);
@@ -17,7 +17,7 @@ export async function getHourlyStatsAnalytics(
       count(*)::int AS views,
       count(distinct coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique
     FROM analytics_events
-    WHERE website_id = ${siteId}
+    WHERE website_id = ${websiteId}
       AND event_type = 'pageview'
       AND occurred_at >= ${start}
     GROUP BY 1
@@ -28,7 +28,7 @@ export async function getHourlyStatsAnalytics(
   // range (potentially multiple days), so a single absolute timestamp per bucket
   // is meaningless. The dashboard chart only consumes hour/hour_label/views/unique.
   return {
-    website_id: siteId,
+    website_id: websiteId,
     hourly_stats: rows.map((x) => ({
       hour: x.h,
       views: x.views,

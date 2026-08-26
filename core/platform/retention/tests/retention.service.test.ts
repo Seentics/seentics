@@ -15,7 +15,18 @@ import type {
  * Must export everything `db/index.ts` does: Bun's module mocks are process-global, so
  * a partial stub becomes the `db` module for every later test file.
  */
-const websiteRows: { id: string; site_id: string }[] = [];
+const websiteRows: { id: string; website_id: string }[] = [];
+
+/**
+ * The site list arrives through `RetentionSiteSource` now, so this no longer has to
+ * mock the database module to control it — the sweep never touches `websites` itself.
+ */
+const siteSource = {
+  async listAllSites() {
+    return websiteRows.map((r) => ({ websiteId: r.id}));
+  },
+};
+
 mock.module("../../../db", () => ({
   sql: mock(async () => websiteRows),
   db: {},
@@ -91,9 +102,9 @@ describe("RetentionService", () => {
   describe("enablement", () => {
     it("does nothing when retention is disabled", async () => {
       const purge = new FakePurge("analytics");
-      websiteRows.push({ id: "u1", site_id: "s1" });
+      websiteRows.push({ id: "u1", website_id: "s1" });
 
-      const stats = await new RetentionService([purge]).runSafely(cfg({ enabled: false }));
+      const stats = await new RetentionService(siteSource, [purge]).runSafely(cfg({ enabled: false }));
 
       expect(stats).toBeNull();
       expect(purge.calls).toEqual([]);
@@ -104,9 +115,9 @@ describe("RetentionService", () => {
     it("purges every website through every purger", async () => {
       const a = new FakePurge("analytics");
       const b = new FakePurge("heatmaps");
-      websiteRows.push({ id: "u1", site_id: "s1" }, { id: "u2", site_id: "s2" });
+      websiteRows.push({ id: "u1", website_id: "s1" }, { id: "u2", website_id: "s2" });
 
-      const stats = await new RetentionService([a, b]).runSafely(cfg());
+      const stats = await new RetentionService(siteSource, [a, b]).runSafely(cfg());
 
       expect(stats?.websitesProcessed).toBe(2);
       expect(a.calls).toHaveLength(2);
@@ -114,18 +125,18 @@ describe("RetentionService", () => {
     });
 
     // Both identifiers are handed over because the tables are keyed differently:
-    // analytics_events by site_id, heatmap_points by the UUID.
+    // analytics_events by website_id, heatmap_points by the UUID.
     it("passes both identifiers for each website", async () => {
       const purge = new FakePurge("analytics");
-      websiteRows.push({ id: "uuid-1", site_id: "site-1" });
+      websiteRows.push({ id: "uuid-1", website_id: "site-1" });
 
-      await new RetentionService([purge]).runSafely(cfg());
+      await new RetentionService(siteSource, [purge]).runSafely(cfg());
 
-      expect(purge.calls[0]?.target).toEqual({ websiteUuid: "uuid-1", siteId: "site-1" });
+      expect(purge.calls[0]?.target).toEqual({ websiteId: "uuid-1"});
     });
 
     it("reports zero websites processed when there are none", async () => {
-      const stats = await new RetentionService([new FakePurge("a")]).runSafely(cfg());
+      const stats = await new RetentionService(siteSource, [new FakePurge("a")]).runSafely(cfg());
       expect(stats?.websitesProcessed).toBe(0);
     });
   });
@@ -133,10 +144,10 @@ describe("RetentionService", () => {
   describe("cut-offs", () => {
     it("derives one cut-off per data kind from the configured days", async () => {
       const purge = new FakePurge("analytics");
-      websiteRows.push({ id: "u1", site_id: "s1" });
+      websiteRows.push({ id: "u1", website_id: "s1" });
 
       const before = Date.now();
-      await new RetentionService([purge]).runSafely(cfg());
+      await new RetentionService(siteSource, [purge]).runSafely(cfg());
       const cutoffs = purge.calls[0]!.cutoffs;
 
       // Each is `now - days`, within a second of when the sweep started.
@@ -152,11 +163,11 @@ describe("RetentionService", () => {
     // Per-website overrides are the reason retention owns policy at all.
     it("lets a per-website override win over the deployment default", async () => {
       const purge = new FakePurge("analytics");
-      websiteRows.push({ id: "u1", site_id: "s1" });
+      websiteRows.push({ id: "u1", website_id: "s1" });
       overrideRows.set("u1", { analytics_days: 7 });
 
       const before = Date.now();
-      await new RetentionService([purge]).runSafely(cfg());
+      await new RetentionService(siteSource, [purge]).runSafely(cfg());
       const cutoffs = purge.calls[0]!.cutoffs;
 
       expect(Math.abs(before - 7 * DAY - cutoffs.analytics.getTime())).toBeLessThan(1000);
@@ -166,10 +177,10 @@ describe("RetentionService", () => {
 
     it("applies an override only to the website it names", async () => {
       const purge = new FakePurge("analytics");
-      websiteRows.push({ id: "u1", site_id: "s1" }, { id: "u2", site_id: "s2" });
+      websiteRows.push({ id: "u1", website_id: "s1" }, { id: "u2", website_id: "s2" });
       overrideRows.set("u1", { analytics_days: 7 });
 
-      await new RetentionService([purge]).runSafely(cfg());
+      await new RetentionService(siteSource, [purge]).runSafely(cfg());
 
       const [first, second] = purge.calls;
       expect(first!.cutoffs.analytics.getTime()).toBeGreaterThan(
@@ -181,26 +192,26 @@ describe("RetentionService", () => {
   describe("batch size", () => {
     it("clamps a too-small batch size up to the floor", async () => {
       const purge = new FakePurge("recordings");
-      websiteRows.push({ id: "u1", site_id: "s1" });
+      websiteRows.push({ id: "u1", website_id: "s1" });
 
-      await new RetentionService([purge]).runSafely(cfg({ replayDeleteBatchSize: 1 }));
+      await new RetentionService(siteSource, [purge]).runSafely(cfg({ replayDeleteBatchSize: 1 }));
       expect(purge.calls[0]?.options.batchSize).toBe(50);
     });
 
     // Unbounded would hold a transaction open across thousands of storage deletes.
     it("clamps a too-large batch size down to the ceiling", async () => {
       const purge = new FakePurge("recordings");
-      websiteRows.push({ id: "u1", site_id: "s1" });
+      websiteRows.push({ id: "u1", website_id: "s1" });
 
-      await new RetentionService([purge]).runSafely(cfg({ replayDeleteBatchSize: 999_999 }));
+      await new RetentionService(siteSource, [purge]).runSafely(cfg({ replayDeleteBatchSize: 999_999 }));
       expect(purge.calls[0]?.options.batchSize).toBe(2000);
     });
 
     it("passes the bucket through", async () => {
       const purge = new FakePurge("recordings");
-      websiteRows.push({ id: "u1", site_id: "s1" });
+      websiteRows.push({ id: "u1", website_id: "s1" });
 
-      await new RetentionService([purge]).runSafely(cfg());
+      await new RetentionService(siteSource, [purge]).runSafely(cfg());
       expect(purge.calls[0]?.options.bucket).toBe("test-bucket");
     });
   });
@@ -208,15 +219,15 @@ describe("RetentionService", () => {
   describe("stats", () => {
     it("sums each metric across websites", async () => {
       const purge = new FakePurge("analytics", { analyticsGeneralRows: 3 });
-      websiteRows.push({ id: "u1", site_id: "s1" }, { id: "u2", site_id: "s2" });
+      websiteRows.push({ id: "u1", website_id: "s1" }, { id: "u2", website_id: "s2" });
 
-      const stats = await new RetentionService([purge]).runSafely(cfg());
+      const stats = await new RetentionService(siteSource, [purge]).runSafely(cfg());
       expect(stats?.analyticsGeneralRows).toBe(6);
     });
 
     it("merges metrics from different purgers", async () => {
-      websiteRows.push({ id: "u1", site_id: "s1" });
-      const stats = await new RetentionService([
+      websiteRows.push({ id: "u1", website_id: "s1" });
+      const stats = await new RetentionService(siteSource, [
         new FakePurge("analytics", { analyticsGeneralRows: 2 }),
         new FakePurge("heatmaps", { heatmapPointRows: 5 }),
       ]).runSafely(cfg());
@@ -234,9 +245,9 @@ describe("RetentionService", () => {
       const failing = new FakePurge("recordings");
       failing.failing = true;
       const healthy = new FakePurge("heatmaps", { heatmapPointRows: 4 });
-      websiteRows.push({ id: "u1", site_id: "s1" });
+      websiteRows.push({ id: "u1", website_id: "s1" });
 
-      const stats = await new RetentionService([failing, healthy]).runSafely(cfg());
+      const stats = await new RetentionService(siteSource, [failing, healthy]).runSafely(cfg());
 
       expect(healthy.calls).toHaveLength(1);
       expect(stats?.heatmapPointRows).toBe(4);
@@ -245,9 +256,9 @@ describe("RetentionService", () => {
     it("continues to the next website after a failure", async () => {
       const failing = new FakePurge("recordings");
       failing.failing = true;
-      websiteRows.push({ id: "u1", site_id: "s1" }, { id: "u2", site_id: "s2" });
+      websiteRows.push({ id: "u1", website_id: "s1" }, { id: "u2", website_id: "s2" });
 
-      const stats = await new RetentionService([failing]).runSafely(cfg());
+      const stats = await new RetentionService(siteSource, [failing]).runSafely(cfg());
 
       expect(failing.calls).toHaveLength(2);
       expect(stats?.websitesProcessed).toBe(2);
@@ -256,9 +267,9 @@ describe("RetentionService", () => {
     it("still resolves rather than rejecting", async () => {
       const failing = new FakePurge("recordings");
       failing.failing = true;
-      websiteRows.push({ id: "u1", site_id: "s1" });
+      websiteRows.push({ id: "u1", website_id: "s1" });
 
-      await expect(new RetentionService([failing]).runSafely(cfg())).resolves.toBeTruthy();
+      await expect(new RetentionService(siteSource, [failing]).runSafely(cfg())).resolves.toBeTruthy();
     });
   });
 
@@ -266,7 +277,7 @@ describe("RetentionService", () => {
   // would race on the same batches.
   describe("single flight", () => {
     it("refuses a second concurrent sweep", async () => {
-      websiteRows.push({ id: "u1", site_id: "s1" });
+      websiteRows.push({ id: "u1", website_id: "s1" });
 
       let release: (() => void) | undefined;
       const slow: RetentionPurge = {
@@ -276,7 +287,7 @@ describe("RetentionService", () => {
           return {};
         },
       };
-      const service = new RetentionService([slow]);
+      const service = new RetentionService(siteSource, [slow]);
 
       const first = service.runSafely(cfg());
       await new Promise((r) => setTimeout(r, 5));
@@ -289,8 +300,8 @@ describe("RetentionService", () => {
     });
 
     it("allows a sweep after the previous one finishes", async () => {
-      websiteRows.push({ id: "u1", site_id: "s1" });
-      const service = new RetentionService([new FakePurge("a")]);
+      websiteRows.push({ id: "u1", website_id: "s1" });
+      const service = new RetentionService(siteSource, [new FakePurge("a")]);
 
       await service.runSafely(cfg());
       expect(await service.runSafely(cfg())).toBeTruthy();
@@ -299,14 +310,14 @@ describe("RetentionService", () => {
     // The flag must clear even when the sweep throws, or one failure wedges retention
     // shut for the lifetime of the process.
     it("clears the in-flight flag when a sweep throws", async () => {
-      websiteRows.push({ id: "u1", site_id: "s1" });
+      websiteRows.push({ id: "u1", website_id: "s1" });
       const exploding: RetentionPurge = {
         name: "boom",
         purge: async () => {
           throw new Error("nope");
         },
       };
-      const service = new RetentionService([exploding]);
+      const service = new RetentionService(siteSource, [exploding]);
 
       await service.runSafely(cfg());
       expect(await service.runSafely(cfg())).toBeTruthy();

@@ -16,8 +16,8 @@ import type {
  * `PostgresAutomationRepository` is the production implementation.
  *
  * **Every `websiteId` here is the resolved `websites.id` UUID**, never the loose
- * "UUID or siteId" reference the HTTP layer accepts and never the short public
- * `siteId`. `automations.website_id` is a uuid column: passing a `siteId` would
+ * "UUID or websiteId" reference the HTTP layer accepts and never the short public
+ * `websiteId`. `automations.website_id` is a uuid column: passing a `websiteId` would
  * not error, it would match zero rows and read as "this website has no
  * automations". Resolution happens once, in the service, so every method here can
  * assume a canonical id.

@@ -54,7 +54,7 @@ function toIsoString(value: Date | string): string {
  * holds the resolved website UUID from validating the request origin, so calling
  * this directly costs one query instead of resolving the reference again.
  *
- * @param websiteId resolved `websites.id` UUID — a `siteId` here matches nothing.
+ * @param websiteId resolved `websites.id` UUID — a `websiteId` here matches nothing.
  */
 export async function listActiveAutomations(websiteId: string): Promise<AutomationRow[]> {
   return db

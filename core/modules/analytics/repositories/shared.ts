@@ -6,7 +6,7 @@
  * reaching directly into another module's storage, and a redundant lookup on
  * every request. Resolution now happens once at the service boundary through the
  * injected `WebsiteQuery` interface, and repositories receive an already-resolved
- * `siteId`.
+ * `websiteId`.
  */
 
 /**

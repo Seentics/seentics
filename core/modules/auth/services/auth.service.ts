@@ -2,7 +2,7 @@ import { count, eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db, users } from "../../../db";
 import { signAccessToken, signRefreshToken } from "../../../platform/lib/auth-jwt";
-import { toFrontendUser } from "../../../platform/lib/user-mapper";
+import { toFrontendUser } from "./user-mapper";
 import type { LoginUserInput, RegisterUserInput } from "../../../platform/lib/api-types";
 
 export async function countUsers(): Promise<number> {

@@ -1,11 +1,11 @@
 import { extractPath, normalizeHeatmapPagePath } from "../lib/paths";
 import { log as baseLog } from "../../../platform/lib/logger";
-import { listRecentPageviewUrls } from "../repositories/pageview-url.repository";
 import type {
   CaptureScreenshotRequest,
   CaptureScreenshotResult,
   ResolvedWebsite,
 } from "../interfaces";
+import type { AnalyticsPageviewUrls } from "../../analytics/interfaces";
 import { pageUrlOnSite } from "./shared";
 
 const log = baseLog.child({ category: "heatmap_screenshot" });
@@ -37,10 +37,18 @@ export type CaptureForResolved = (
  * concurrency exhausts the container's memory long before it exhausts the queue.
  */
 export class HeatmapAutoCapture {
-  /** `websiteUuid:normalizedPath` of captures currently running. */
+  /** `websiteId:normalizedPath` of captures currently running. */
   private readonly inFlight = new Set<string>();
 
-  constructor(private readonly capture: CaptureForResolved) {}
+  constructor(
+    private readonly capture: CaptureForResolved,
+    /**
+     * Fallback source of real URLs to screenshot, for sites whose stored `url` is
+     * blank. Injected because `analytics_events` belongs to analytics — this used to be
+     * a heatmaps-owned query against that table.
+     */
+    private readonly pageviewUrls: AnalyticsPageviewUrls,
+  ) {}
 
   /**
    * Queue a capture and return immediately.
@@ -58,24 +66,24 @@ export class HeatmapAutoCapture {
     norm: string,
     force: boolean,
   ): Promise<void> {
-    const captureKey = `${resolved.websiteUuid}:${norm}`;
+    const captureKey = `${resolved.websiteId}:${norm}`;
     if (this.inFlight.has(captureKey)) {
       log.info({
         msg: "heatmap_autocapture_skipped_in_flight",
-        website_uuid: resolved.websiteUuid,
+        website_uuid: resolved.websiteId,
         norm,
       });
       return;
     }
     this.inFlight.add(captureKey);
-    log.info({ msg: "heatmap_autocapture_start", website_uuid: resolved.websiteUuid, norm });
+    log.info({ msg: "heatmap_autocapture_start", website_uuid: resolved.websiteId, norm });
 
     try {
       const pageUrl = await this.resolvePageUrl(resolved, norm);
       if (!pageUrl) {
         log.warn({
           msg: "heatmap_autocapture_no_matching_url",
-          website_uuid: resolved.websiteUuid,
+          website_uuid: resolved.websiteId,
           norm,
         });
         return;
@@ -83,7 +91,7 @@ export class HeatmapAutoCapture {
 
       log.info({
         msg: "heatmap_autocapture_playwright_start",
-        website_uuid: resolved.websiteUuid,
+        website_uuid: resolved.websiteId,
         norm,
         page_url: pageUrl,
       });
@@ -91,7 +99,7 @@ export class HeatmapAutoCapture {
         const result = await this.capture(resolved, { pageUrl, pagePath: norm, force });
         log.info({
           msg: "heatmap_autocapture_playwright_done",
-          website_uuid: resolved.websiteUuid,
+          website_uuid: resolved.websiteId,
           norm,
           stored: result.stored,
           s3_key: result.s3Key,
@@ -101,7 +109,7 @@ export class HeatmapAutoCapture {
         // that 404 since the visit. Warn and move on; the next poll retries.
         log.warn({
           msg: "heatmap_autocapture_playwright_failed",
-          website_uuid: resolved.websiteUuid,
+          website_uuid: resolved.websiteId,
           norm,
           page_url: pageUrl,
           err: String(captureErr),
@@ -110,7 +118,7 @@ export class HeatmapAutoCapture {
     } catch (err) {
       log.error({
         msg: "heatmap_autocapture_error",
-        website_uuid: resolved.websiteUuid,
+        website_uuid: resolved.websiteId,
         norm,
         err: String(err),
       });
@@ -124,8 +132,8 @@ export class HeatmapAutoCapture {
    *
    * The website's registered domain is preferred: it is already resolved, it is
    * the domain the tracker validates against, and it needs no query. Scanning real
-   * pageview URLs is the fallback for sites whose stored `url` is blank — it costs
-   * a query into `analytics_events` and only finds pages someone actually visited.
+   * pageview URLs is the fallback for sites whose stored `url` is blank — it costs a
+   * call into analytics and only finds pages someone actually visited.
    */
   private async resolvePageUrl(
     resolved: ResolvedWebsite,
@@ -135,17 +143,17 @@ export class HeatmapAutoCapture {
     if (fromSite) {
       log.info({
         msg: "heatmap_autocapture_url_from_website",
-        website_uuid: resolved.websiteUuid,
+        website_uuid: resolved.websiteId,
         norm,
         page_url: fromSite,
       });
       return fromSite;
     }
 
-    const pages = await listRecentPageviewUrls(resolved.siteId);
+    const pages = await this.pageviewUrls.listRecentPageviewUrls(resolved.websiteId);
     log.info({
       msg: "heatmap_autocapture_events_query",
-      website_uuid: resolved.websiteUuid,
+      website_uuid: resolved.websiteId,
       norm,
       rows_found: pages.length,
       sample: pages.slice(0, 3),

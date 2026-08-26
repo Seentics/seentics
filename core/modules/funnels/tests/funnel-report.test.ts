@@ -4,7 +4,7 @@ import {
   clampReportDays,
   reportWindow,
 } from "../services/funnel-report";
-import type { FunnelStepCount } from "../repositories/funnel-report.repository";
+import type { FunnelStepCount } from "../interfaces";
 
 const steps = [{ name: "View" }, { name: "Cart" }, { name: "Pay" }];
 

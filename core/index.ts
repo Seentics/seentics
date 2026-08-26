@@ -4,11 +4,9 @@ import { runCoreMigrations } from "./db/migrate";
 import { configureLogger, log } from "./platform/lib/logger";
 import { SEENTICS_PEER_IP_HEADER } from "./platform/lib/client-ip";
 import { bootstrap } from "./app/bootstrap";
-import { analyticsCacheMiddleware } from "./modules/analytics/middleware/analytics-cache";
 import { corsMiddleware } from "./platform/middleware/cors";
 import { rateLimitMiddleware } from "./platform/middleware/rate-limit";
 import { requestLogMiddleware } from "./platform/middleware/request-log";
-import { authRoutes } from "./modules/auth/routes";
 import { privacyRoutes } from "./platform/http/privacy";
 import { createRawDataRoutes } from "./platform/raw-data/routes";
 import { createUserBranchRoutes } from "./platform/http/user-branch";
@@ -39,24 +37,47 @@ let ready = false;
 
 const app = new Hono();
 
+// Compose the modular graph: infrastructure, then modules, then their routes. Each
+// module is built by its own `init.ts` and receives its peer modules plus the event bus
+// — and because every member of an `XModule` interface is itself an interface, no
+// module is handed another's service, repository or engine. Nothing reaches back into a
+// registry at call time. See app/bootstrap.ts.
+//
+// Before the middleware, not after: the analytics response cache is one of the things
+// the graph provides, and composing is side-effect free, so there is nothing to gain
+// by deferring it.
+const application = bootstrap(cfg, core_log);
+
 app.use("*", requestLogMiddleware(cfg));
 app.use("*", rateLimitMiddleware(cfg));
 app.use("*", corsMiddleware(cfg.corsAllowedOrigins));
-app.use("*", analyticsCacheMiddleware(cfg));
+app.use("*", application.modules.analytics.cacheMiddleware);
 
 // Return 503 while migrations are running so the healthcheck waits without counting failures
 app.get("/health", (c) => ready ? c.text("ok") : c.text("starting", 503));
 
-// Compose the modular graph: infrastructure, then modules, then their routes.
-// Everything a module needs arrives through its constructor here — nothing
-// reaches back into a registry at call time. See app/bootstrap.ts.
-const application = bootstrap(cfg, core_log);
-
-app.route("/api/v1/auth", authRoutes);
-app.route("/api/v1/user", createUserBranchRoutes({ websites: application.routes.websites }));
+app.route("/api/v1/auth", application.modules.auth.routes);
+app.route(
+  "/api/v1/user",
+  createUserBranchRoutes({
+    websites: application.routes.websites,
+    invitations: application.modules.websites.invitations,
+    authModule: application.modules.auth,
+  }),
+);
 app.route("/api/v1/ai", application.routes.ai);
 app.route("/api/v1/analytics", application.routes.analytics);
-app.route("/api/v1/raw", createRawDataRoutes({ analytics: application.analytics }));
+app.route(
+  "/api/v1/raw",
+  createRawDataRoutes({
+    analytics: application.modules.analytics.reads,
+    ports: {
+      analyticsEvents: application.modules.analytics.rawEvents,
+      heatmaps: application.modules.heatmaps.rawReads,
+      recordings: application.modules.recordings.rawReads,
+    },
+  }),
+);
 app.route("/api/v1/privacy", privacyRoutes);
 app.route("/api/v1/internal", application.routes.internal);
 

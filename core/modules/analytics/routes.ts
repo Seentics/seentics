@@ -11,9 +11,11 @@ import {
   analyticsRecentActivityQuerySchema,
 } from "./validators/analytics.schema";
 import type { WebsiteQuery } from "../websites/interfaces";
-import type { AnalyticsQueryParams } from "./interfaces";
-import type { AnalyticsQueryService } from "./services/analytics-query.service";
-import type { PublicDashboardService } from "./services/public-dashboard.service";
+import type {
+  AnalyticsPublicDashboard,
+  AnalyticsQueryParams,
+  AnalyticsReads,
+} from "./interfaces";
 
 type AnalyticsContext = Context<{ Variables: AuthVars }>;
 
@@ -25,8 +27,8 @@ type AnalyticsContext = Context<{ Variables: AuthVars }>;
  * lets these routes run against a stubbed service in a test.
  */
 export function createAnalyticsRoutes(deps: {
-  analytics: AnalyticsQueryService;
-  publicDashboard: PublicDashboardService;
+  analytics: AnalyticsReads;
+  publicDashboard: AnalyticsPublicDashboard;
   websites: WebsiteQuery;
 }) {
   const { analytics, publicDashboard, websites } = deps;

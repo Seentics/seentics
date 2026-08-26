@@ -2,7 +2,7 @@ import { sql as pgSql } from "../../../db";
 import { parseDays, sanitizeTimezone, windowStartIso } from "./shared";
 
 export async function getDailyStatsAnalytics(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days, 30);
@@ -19,7 +19,7 @@ export async function getDailyStatsAnalytics(
       count(*)::int AS views,
       count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
     FROM analytics_events
-    WHERE website_id = ${siteId}
+    WHERE website_id = ${websiteId}
       AND event_type = 'pageview'
       AND occurred_at >= ${startIso}
     GROUP BY 1

@@ -28,7 +28,7 @@ function buildUtcTimeline(
  * Live stats for the last {@link REALTIME_WINDOW_MS}.
  * Single CTE query — one table scan instead of 9 round trips.
  */
-export async function getRealtimeStats(siteId: string) {
+export async function getRealtimeStats(websiteId: string) {
   const since = new Date(Date.now() - REALTIME_WINDOW_MS);
   const sinceIso = since.toISOString();
   const liveSinceIso = new Date(Date.now() - LIVE_VISITOR_WINDOW_MS).toISOString();
@@ -58,7 +58,7 @@ export async function getRealtimeStats(siteId: string) {
         occurred_at,
         date_trunc('minute', occurred_at AT TIME ZONE 'UTC') AS grp_at
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${sinceIso}
     ),
@@ -162,7 +162,7 @@ export async function getRealtimeStats(siteId: string) {
   );
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     active_visitors: activeCount,
     live_visitors:   liveCount,
     pageviews,

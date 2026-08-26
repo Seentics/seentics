@@ -2,7 +2,7 @@ import { sql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 
 export async function getPathAnalysisAnalytics(
-  siteId: string,
+  websiteId: string,
   query?: Record<string, string | undefined>,
 ) {
   const days = parseDays(query?.days, 7);
@@ -20,7 +20,7 @@ export async function getPathAnalysisAnalytics(
         page,
         ROW_NUMBER() OVER (PARTITION BY session_id ORDER BY occurred_at ASC, id ASC) AS step
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${startIso}
         AND session_id IS NOT NULL
@@ -53,7 +53,7 @@ export async function getPathAnalysisAnalytics(
   `;
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${days}d`,
     paths: paths.map((r) => ({
       page_1: r.page_1,

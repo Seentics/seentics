@@ -25,7 +25,7 @@ function affectedRows(result: unknown): number {
 /**
  * Deletes aged heatmap aggregates and layout snapshots.
  *
- * Both tables are keyed by the website UUID and cast it explicitly — a `siteId` here
+ * Both tables are keyed by the website UUID and cast it explicitly — a `websiteId` here
  * would be a type error at the driver rather than a silent no-match, which is the one
  * place in this codebase where the two-identifier confusion fails loudly.
  *
@@ -41,11 +41,11 @@ export class HeatmapRetentionPurge implements RetentionPurge {
     cutoffs: RetentionCutoffs,
     options: RetentionOptions,
   ): Promise<Record<string, number>> {
-    const websiteUuid = target.websiteUuid;
+    const websiteId = target.websiteId;
 
     const points = await sql`
       DELETE FROM heatmap_points
-      WHERE website_id = ${websiteUuid}::uuid
+      WHERE website_id = ${websiteId}::uuid
         AND last_updated < ${cutoffs.heatmap}
     `;
 
@@ -54,7 +54,7 @@ export class HeatmapRetentionPurge implements RetentionPurge {
 
     const shots = await sql<{ s3_key: string }[]>`
       SELECT s3_key FROM heatmap_page_snapshots
-      WHERE website_id = ${websiteUuid}::uuid
+      WHERE website_id = ${websiteId}::uuid
         AND updated_at < ${cutoffs.heatmap}
     `;
 
@@ -66,7 +66,7 @@ export class HeatmapRetentionPurge implements RetentionPurge {
       } catch (e) {
         log.warn({
           msg: "retention_heatmap_snapshot_s3_failed",
-          website_id: websiteUuid,
+          website_id: websiteId,
           n: keys.length,
           err: String(e),
         });
@@ -74,7 +74,7 @@ export class HeatmapRetentionPurge implements RetentionPurge {
 
       const deleted = await sql`
         DELETE FROM heatmap_page_snapshots
-        WHERE website_id = ${websiteUuid}::uuid
+        WHERE website_id = ${websiteId}::uuid
           AND updated_at < ${cutoffs.heatmap}
       `;
       snapshotRows += affectedRows(deleted);

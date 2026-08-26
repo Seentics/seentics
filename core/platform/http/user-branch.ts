@@ -1,27 +1,35 @@
 import { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { userAuthRoutes } from "../../modules/auth/routes";
-import { userProfileRoutes } from "./user-profiles";
+import type { AuthModule } from "../../modules/auth/interfaces";
+import { createUserProfileRoutes } from "./user-profiles";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
-import { acceptInvitationByToken } from "../../modules/websites/services/members";
+import type { WebsiteInvitations } from "../../modules/websites/interfaces";
 
 /**
  * The `/api/v1/user` branch: auth, profiles, and a second mount of the websites
  * router.
  *
- * A factory because the websites router is built by the composition root and can no
- * longer be imported — it needs `WebsiteService` injected. `auth` and `user-profiles`
- * are still module-level routers; they become parameters here when those areas are
- * migrated.
+ * A factory because every router mounted here is built by the composition root — each
+ * needs its dependencies injected, and this file holds none of them itself.
  */
 export function createUserBranchRoutes(deps: {
   websites: Hono<{ Variables: AuthVars }>;
+  /**
+   * Invitation acceptance, as a port.
+   *
+   * This file used to import `acceptInvitationByToken` out of
+   * `modules/websites/services/members` — a platform-layer HTTP file reaching into a
+   * module's internals for one function on a write path.
+   */
+  invitations: WebsiteInvitations;
+  /** Auth's two contributions here: its session router and the user lookup. */
+  authModule: AuthModule;
 }) {
   const user = new Hono<{ Variables: AuthVars }>();
 
-  user.route("/auth", userAuthRoutes);
+  user.route("/auth", deps.authModule.userRoutes);
   user.route("/websites", deps.websites);
-  user.route("/users", userProfileRoutes);
+  user.route("/users", createUserProfileRoutes({ users: deps.authModule.users }));
 
   /**
    * Accepting an invitation is deliberately outside the websites router: the caller
@@ -36,7 +44,7 @@ export function createUserBranchRoutes(deps: {
     if (!body.token) return c.json({ error: "token is required" }, 400);
 
     try {
-      return c.json(await acceptInvitationByToken(userId, body.token));
+      return c.json(await deps.invitations.acceptByToken(userId, body.token));
     } catch (e) {
       const status = (e as Error & { status?: number }).status ?? 400;
       return c.json(

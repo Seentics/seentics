@@ -17,7 +17,7 @@ function iso3166Alpha2ToName(iso2: string): string {
 }
 
 export async function getGeolocationAnalytics(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
@@ -28,7 +28,7 @@ export async function getGeolocationAnalytics(
       SELECT
         count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS uv
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${startIso}
     `,
@@ -44,7 +44,7 @@ export async function getGeolocationAnalytics(
         count(*)::int AS views,
         count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${startIso}
         AND country IS NOT NULL
@@ -67,7 +67,7 @@ export async function getGeolocationAnalytics(
         count(*)::int AS views,
         count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${startIso}
         AND city IS NOT NULL
@@ -102,7 +102,7 @@ export async function getGeolocationAnalytics(
   });
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${days}d`,
     countries,
     cities,

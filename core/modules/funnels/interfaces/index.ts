@@ -12,9 +12,13 @@ export type {
   FunnelPerformance,
   FunnelQuery,
   FunnelReport,
+  FunnelStepCount,
   FunnelStep,
   FunnelTrackerConfig,
   UpdateFunnelInput,
 } from "./funnel.interface";
 
 export { TRACKER_FUNNEL_EVENT_TYPES } from "./funnel.interface";
+
+/** The whole module surface, as a peer receives it at composition time. */
+export type { FunnelsModule } from "./funnels.module";

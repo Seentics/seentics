@@ -24,6 +24,9 @@
  */
 
 import type { HeatmapIngestEvent, HeatmapPointOut } from "../../../platform/lib/types";
+import type { HeatmapTrackerEvent } from "../services/tracker-mapping";
+
+export type { HeatmapTrackerEvent };
 
 export type { HeatmapPointOut };
 
@@ -63,14 +66,13 @@ export type HeatmapLayout = {
  *
  * The two ids are the subtle part of this domain and both are `string`, so a
  * mix-up is invisible to the compiler:
- * - `websiteUuid` (`websites.id`) keys `heatmap_points` and
+ * - `websiteId` (`websites.id`) keys `heatmap_points` and
  *   `heatmap_page_snapshots` — both cast it to `uuid` in SQL.
- * - `siteId` (`websites.site_id`) keys `analytics_events` rows and every S3
+ * - `websiteId` (`websites.website_id`) keys `analytics_events` rows and every S3
  *   object path under `heatmap-screenshots/`.
  */
 export type ResolvedWebsite = {
-  siteId: string;
-  websiteUuid: string;
+  websiteId: string;
   /** `websites.url` — bare hostname, no scheme. Empty when resolution failed. */
   siteUrl: string;
 };
@@ -143,7 +145,20 @@ export interface HeatmapMutations {
  * queued, and `shutdown` is the only way to force a drain.
  */
 export interface HeatmapIngest {
-  processEvents(events: HeatmapIngestEventInput[]): Promise<void>;
+  /**
+   * Ingest a batch of interaction events.
+   *
+   * Takes raw tracker events with per-request context attached; this module filters them
+   * by type and projects them onto its own row shape. That projection used to live in
+   * ingest, which meant ingest knew both this module's column names and which event types
+   * are heatmap types.
+   *
+   * `batchId` must be stable across redeliveries. It is carried through this module's
+   * internal buffer and used to guard the upsert, because `heatmap_points` aggregates
+   * additively — a replayed batch inflates click counts rather than duplicating rows,
+   * which nothing downstream can distinguish from real traffic.
+   */
+  processEvents(batchId: string, events: readonly HeatmapTrackerEvent[]): Promise<void>;
 
   /** Flush buffers and stop the timer. Call once, on process shutdown. */
   shutdown(): Promise<void>;
@@ -271,4 +286,27 @@ export interface HeatmapSettings {
   getCaptureTarget(
     websiteRef: string,
   ): Promise<(ResolvedWebsite & { layoutEnabled: boolean }) | null>;
+}
+
+/**
+ * Reads for the raw API.
+ *
+ * Separate from `HeatmapQuery` because the raw API returns unmerged, unnormalised rows
+ * — it is a data-export surface, not the dashboard's. `platform/raw-data` used to import
+ * `services/page-query.service` directly to get at these.
+ */
+export interface HeatmapRawReads {
+  listPagesRaw(websiteId: string): Promise<{ pages: HeatmapPageSummary[] }>;
+
+  getPointsRaw(
+    websiteId: string,
+    pagePath: string,
+    eventType: string,
+  ): Promise<{
+    /** The normalised path actually queried — may differ from the one requested. */
+    page_path: string;
+    /** Defaults to `click` when the caller sends none. */
+    event_type: string;
+    points: HeatmapPointOut[];
+  }>;
 }

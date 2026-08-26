@@ -40,7 +40,6 @@ export const websites = pgTable(
   "websites",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    siteId: text("site_id").notNull().unique(),
     userId: uuid("user_id").notNull(),
     name: text("name").notNull(),
     url: text("url").notNull(),
@@ -67,6 +66,83 @@ export const websites = pgTable(
     index("ix_websites_user_id").on(t.userId),
     uniqueIndex("ix_websites_public_share_id").on(t.publicShareId),
   ],
+);
+
+/**
+ * Durable ingest queue.
+ *
+ * The buffers in `IngestQueueService` are memory: anything not yet flushed dies with the
+ * process, which is the durability trade `IngestFlusher` documents. This table moves the
+ * boundary forward — the flush writes a row here instead of calling the module sinks, and
+ * a worker claims and applies it. A crash now costs at most one in-flight batch rather
+ * than every buffer.
+ *
+ * Modelled directly on `outbox`: claim with `FOR UPDATE SKIP LOCKED`, count attempts, and
+ * park a batch that exhausts them instead of dropping it. That pattern is already proven
+ * here by `OutboxPublisher`, and it needs no broker — which for a Postgres-and-MinIO stack
+ * is the difference between shipping this and adding Kafka to run it.
+ *
+ * `partition_key` is what keeps ordering-sensitive work correct. Recordings must not be
+ * applied concurrently within one session (chunk sequences are assigned per session), so
+ * their key is the session id; everything else is commutative and keys on the website.
+ * The worker claims at most one batch per key at a time.
+ */
+export const ingestBatches = pgTable(
+  "ingest_batches",
+  {
+    /** Content-derived, so a redelivery of the same rows reuses the row. See `batchIdFor`. */
+    batchId: text("batch_id").primaryKey(),
+    /** `analytics` | `funnels` | `automations` | `recordings` | `heatmaps`. */
+    category: varchar("category", { length: 32 }).notNull(),
+    /** Session id for recordings, website id otherwise. Serialises work within a key. */
+    partitionKey: text("partition_key").notNull(),
+    /** The batch itself, as the sink expects it. */
+    payload: jsonb("payload").notNull().$type<Record<string, unknown>>(),
+    /** Rows in the payload, so a queue-depth query needs no jsonb inspection. */
+    rowCount: integer("row_count").notNull().default(0),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    /** Null while pending. Set once a worker has applied it. */
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    // The claim query: pending rows of one category, oldest first.
+    index("ix_ingest_batches_claim").on(t.category, t.completedAt, t.createdAt),
+    // Pruning completed rows, and finding parked ones.
+    index("ix_ingest_batches_completed").on(t.completedAt),
+  ],
+);
+
+/**
+ * Applied ingest batches, for exactly-once effect under at-least-once delivery.
+ *
+ * Every ingest write path is retried — the flush retries in process, and a durable queue
+ * retries across processes — and none of the four target tables is naturally idempotent:
+ * `analytics_events` is a plain insert with no natural key, `heatmap_points` upserts
+ * additively (`intensity = intensity + EXCLUDED.intensity`), and a replayed batch there
+ * compounds silently and unboundedly.
+ *
+ * Rather than three different per-table strategies, one marker covers all of them: the
+ * writer inserts its `batch_id` here inside the *same transaction* as the data, so the
+ * marker and the rows commit or roll back together. A repeat insert conflicts, the
+ * writer sees it was already applied, and skips.
+ *
+ * `applied_at` exists to be pruned — these rows are only useful for as long as a
+ * redelivery is possible.
+ */
+export const ingestAppliedBatches = pgTable(
+  "ingest_applied_batches",
+  {
+    /** Stable across every redelivery of the same batch. Assigned by the producer. */
+    batchId: text("batch_id").primaryKey(),
+    /** Which write path applied it — `analytics`, `heatmaps`, `recordings`, `automations`. */
+    category: varchar("category", { length: 32 }).notNull(),
+    /** Rows the batch actually wrote, for diagnosing a suspicious replay. */
+    rowCount: integer("row_count").notNull().default(0),
+    appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ix_ingest_applied_at").on(t.appliedAt)],
 );
 
 /**
@@ -257,7 +333,7 @@ export const analyticsEvents = pgTable(
   "analytics_events",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    websiteId: text("website_id").notNull(),
+    websiteId: uuid("website_id").notNull(),
     eventType: varchar("event_type", { length: 64 }).notNull(),
     page: text("page"),
     visitorId: text("visitor_id"),
@@ -304,11 +380,11 @@ export const apiKeys = pgTable(
   ],
 );
 
-/** Session replay metadata (chunks / bundles may live in S3). `website_id` matches tracker `site_id` or UUID string. */
+/** Session replay metadata (chunks / bundles may live in S3). */
 export const sessionReplays = pgTable(
   "session_replays",
   {
-    websiteId: text("website_id").notNull(),
+    websiteId: uuid("website_id").notNull(),
     sessionId: text("session_id").notNull(),
     sequence: integer("sequence").notNull(),
     data: jsonb("data").notNull().$type<Record<string, unknown>>(),
@@ -366,7 +442,7 @@ export const aiQueries = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").notNull(),
-    websiteId: text("website_id").notNull(),
+    websiteId: uuid("website_id").notNull(),
     prompt: text("prompt").notNull(),
     systemContext: text("system_context"),
     generatedSql: text("generated_sql"),

@@ -31,7 +31,7 @@ function approximateBytes(ev: Record<string, unknown>): number {
 const EMPTY_SESSION_IDLE_PURGE_MS = 45 * 60 * 1000;
 
 type SessionState = {
-  siteId: string;
+  websiteId: string;
   sessionId: string;
   events: Record<string, unknown>[];
   dirty: boolean;
@@ -48,8 +48,8 @@ type SessionState = {
   approxBytes: number;
 };
 
-function mapKey(siteId: string, sessionId: string): string {
-  return `${siteId}\0${sessionId}`;
+function mapKey(websiteId: string, sessionId: string): string {
+  return `${websiteId}\0${sessionId}`;
 }
 
 function sortEvents(events: Record<string, unknown>[]): void {
@@ -65,18 +65,18 @@ export class ReplaySpool {
   private chunkFlushMs: number;
   private timer: ReturnType<typeof setInterval> | null = null;
   private onChunkFlush: (
-    siteId: string,
+    websiteId: string,
     sessionId: string,
     sequence: number,
     events: Record<string, unknown>[],
   ) => Promise<void>;
-  private getInitialSequence: (siteId: string, sessionId: string) => Promise<number>;
+  private getInitialSequence: (websiteId: string, sessionId: string) => Promise<number>;
 
   constructor(opts: {
     chunkFlushMs: number;
-    getInitialSequence: (siteId: string, sessionId: string) => Promise<number>;
+    getInitialSequence: (websiteId: string, sessionId: string) => Promise<number>;
     onChunkFlush: (
-      siteId: string,
+      websiteId: string,
       sessionId: string,
       sequence: number,
       events: Record<string, unknown>[],
@@ -109,14 +109,14 @@ export class ReplaySpool {
     }));
   }
 
-  push(siteId: string, sessionId: string, events: Record<string, unknown>[]): void {
-    if (!siteId || !sessionId || events.length === 0) return;
-    const k = mapKey(siteId, sessionId);
+  push(websiteId: string, sessionId: string, events: Record<string, unknown>[]): void {
+    if (!websiteId || !sessionId || events.length === 0) return;
+    const k = mapKey(websiteId, sessionId);
     let st = this.sessions.get(k);
     if (!st) {
       const now = Date.now();
       st = {
-        siteId,
+        websiteId,
         sessionId,
         events: [],
         dirty: false,
@@ -159,8 +159,8 @@ export class ReplaySpool {
   }
 
   /** Unflushed tail only; detail API assigns sequence using max S3 chunk index + 1. */
-  warmChunks(siteId: string, sessionId: string): ReplayChunk[] | null {
-    const st = this.sessions.get(mapKey(siteId, sessionId));
+  warmChunks(websiteId: string, sessionId: string): ReplayChunk[] | null {
+    const st = this.sessions.get(mapKey(websiteId, sessionId));
     if (!st) return null;
     if (st.dirty) {
       sortEvents(st.events);
@@ -171,8 +171,8 @@ export class ReplaySpool {
     return [{ sequence: 0, data: st.events as unknown[], timestamp: new Date() }];
   }
 
-  remove(siteId: string, sessionId: string): void {
-    this.sessions.delete(mapKey(siteId, sessionId));
+  remove(websiteId: string, sessionId: string): void {
+    this.sessions.delete(mapKey(websiteId, sessionId));
   }
 
   private async tick(): Promise<void> {
@@ -220,11 +220,11 @@ export class ReplaySpool {
     st.chunkWindowStart = null;
     try {
       if (st.nextChunkSeq === null) {
-        st.nextChunkSeq = await this.getInitialSequence(st.siteId, st.sessionId);
+        st.nextChunkSeq = await this.getInitialSequence(st.websiteId, st.sessionId);
       }
       const seq = st.nextChunkSeq;
       sortEvents(batch);
-      await this.onChunkFlush(st.siteId, st.sessionId, seq, batch);
+      await this.onChunkFlush(st.websiteId, st.sessionId, seq, batch);
       st.nextChunkSeq = seq + 1;
       st.lastTouchedMs = Date.now();
     } catch (e) {

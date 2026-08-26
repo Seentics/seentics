@@ -2,14 +2,14 @@
  * In-memory cache for heatmap page screenshots to avoid redundant DB lookups.
  * Caches layout snapshot metadata with TTL-based expiration.
  *
- * Cache key: `${websiteUuid}:${normalizedPagePath}` — the website UUID, because
- * that is what `heatmap_page_snapshots` is keyed by. A `siteId` here would produce
+ * Cache key: `${websiteId}:${normalizedPagePath}` — the website UUID, because
+ * that is what `heatmap_page_snapshots` is keyed by. A `websiteId` here would produce
  * a permanent miss rather than an error.
  *
  * Still reached through a module-level singleton rather than injected, because
  * `lib/playwright-browser.ts`'s capture helper (`lib/playwright-screenshots.ts`)
  * reads it and is shared infrastructure that recordings and retention also use.
- * `configureHeatmapScreenshotCache` is the seam a composition root should call.
+ * `initHeatmapsModule().start` is what calls it.
  */
 
 import type { AppConfig } from "../../../config";
@@ -43,16 +43,16 @@ class ScreenshotCache {
   /**
    * Generate cache key from website UUID and page path.
    */
-  private cacheKey(websiteUuid: string, pagePath: string): string {
-    return `${websiteUuid}:${pagePath}`;
+  private cacheKey(websiteId: string, pagePath: string): string {
+    return `${websiteId}:${pagePath}`;
   }
 
   /**
    * Get screenshot from cache if it exists and hasn't expired.
    * Updates cache hit/miss stats.
    */
-  get(websiteUuid: string, pagePath: string): CachedScreenshot | null {
-    const key = this.cacheKey(websiteUuid, pagePath);
+  get(websiteId: string, pagePath: string): CachedScreenshot | null {
+    const key = this.cacheKey(websiteId, pagePath);
     const entry = this.cache.get(key);
 
     if (!entry) {
@@ -82,11 +82,11 @@ class ScreenshotCache {
    * overwrites was the source of three type errors at the call sites.
    */
   set(
-    websiteUuid: string,
+    websiteId: string,
     pagePath: string,
     screenshot: Omit<CachedScreenshot, "expiresAt">,
   ): void {
-    const key = this.cacheKey(websiteUuid, pagePath);
+    const key = this.cacheKey(websiteId, pagePath);
 
     // Update expiration time
     const updated = {
@@ -110,8 +110,8 @@ class ScreenshotCache {
   /**
    * Invalidate cache entry (call when new screenshot is captured/stored).
    */
-  invalidate(websiteUuid: string, pagePath: string): void {
-    const key = this.cacheKey(websiteUuid, pagePath);
+  invalidate(websiteId: string, pagePath: string): void {
+    const key = this.cacheKey(websiteId, pagePath);
     if (this.cache.has(key)) {
       this.cache.delete(key);
       this.stats.size = this.cache.size;
@@ -122,8 +122,8 @@ class ScreenshotCache {
    * Invalidate all cache entries for a website.
    * Useful when website is updated.
    */
-  invalidateWebsite(websiteUuid: string): void {
-    const prefix = `${websiteUuid}:`;
+  invalidateWebsite(websiteId: string): void {
+    const prefix = `${websiteId}:`;
     for (const key of this.cache.keys()) {
       if (key.startsWith(prefix)) {
         this.cache.delete(key);

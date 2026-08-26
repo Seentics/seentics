@@ -55,11 +55,11 @@ export class HeatmapScreenshotRefreshService implements HeatmapScreenshotMainten
       // One resolution per row, which is also where the site URL to screenshot
       // comes from — the previous version resolved the ids and then queried
       // `websites.url` separately inside the capture.
-      const target = await this.settings.getCaptureTarget(row.websiteUuid);
+      const target = await this.settings.getCaptureTarget(row.websiteId);
       if (!target) {
         log.warn({
           msg: "heatmap_stale_refresh_resolve_failed",
-          website_id: row.websiteUuid,
+          website_id: row.websiteId,
           page_path: row.pagePath,
         });
         continue;

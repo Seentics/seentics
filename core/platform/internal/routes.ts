@@ -8,12 +8,13 @@ import type {
 } from "../lib/api-types";
 import { buildAnalyticsIngestMeta } from "../lib/analytics-ingest-meta";
 import { clientIpForIngest } from "../lib/client-ip";
+import { batchIdFor } from "../../infrastructure/idempotency/batch-id";
 import { isGlobalApiKeyValid } from "../lib/global-key";
-import type { AnalyticsIngestEvent } from "../lib/types";
-import type { RetentionService } from "../retention";
+import type { AnalyticsIngestEvent, TrackerEvent } from "../lib/types";
+import type { RetentionRunner } from "../retention";
 import type { IngestSinks } from "../../modules/ingest/interfaces";
-import { resolveWebsiteForTracker } from "../lib/website-for-tracker";
-import { getUserResourceCounts } from "../lib/user-resource-counts";
+import type { TrackerWebsites } from "../../modules/websites/interfaces";
+import type { UserUsageService } from "../usage";
 import { parseJson } from "../../platform/validation";
 import {
   internalCollectAnalyticsSchema,
@@ -37,7 +38,11 @@ function requireGlobalKey(c: Pick<Context, "req">) {
 export function createInternalRoutes(deps: {
   /** The same write targets ingest flushes to; reused rather than re-derived. */
   sinks: IngestSinks;
-  retention: RetentionService;
+  retention: RetentionRunner;
+  /** Tracker-shaped website lookup for the `/website-owner` collector. */
+  trackerWebsites: TrackerWebsites;
+  /** Per-user usage, assembled from each module's own count. */
+  usage: UserUsageService;
 }) {
   const { sinks, retention } = deps;
   const internalRoutes = new Hono();
@@ -51,7 +56,7 @@ internalRoutes.get("/user-resource-counts", async (c) => {
   const userId = c.req.query("user_id")?.trim() ?? "";
   if (!userId) return c.json({ error: "user_id required" }, 400);
   try {
-    const counts = await getUserResourceCounts(userId);
+    const counts = await deps.usage.countForUser(userId);
     return c.json({ data: counts });
   } catch (e) {
     return c.json({ error: "failed to fetch counts", detail: String(e) }, 500);
@@ -62,7 +67,7 @@ internalRoutes.get("/system/stats", (c) => c.json({ data: {} }));
 internalRoutes.get("/website-owner", async (c) => {
   const websiteId = c.req.query("website_id")?.trim() ?? "";
   if (!websiteId) return c.json({ error: "website_id required" }, 400);
-  const website = await resolveWebsiteForTracker(websiteId);
+  const website = await deps.trackerWebsites.resolve(websiteId);
   if (!website) return c.json({ data: null });
   return c.json({ data: { user_id: website.user_id } });
 });
@@ -81,7 +86,7 @@ internalRoutes.post("/collect/analytics", async (c) => {
   const body = parsed.data as unknown as InternalCollectAnalyticsBody;
   const wid = (body as { website_id?: string }).website_id?.trim();
   if (!wid) return c.json({ error: "website_id required" }, 400);
-  const website = await resolveWebsiteForTracker(wid);
+  const website = await deps.trackerWebsites.resolve(wid);
   if (!website) return c.json({ error: "unknown website" }, 404);
   const raw = Array.isArray(body?.events) ? body!.events! : [];
   const cfg = env();
@@ -91,8 +96,12 @@ internalRoutes.post("/collect/analytics", async (c) => {
     acceptLanguage: c.req.header("Accept-Language") ?? "",
     headers: c.req.raw.headers,
   });
-  const events: AnalyticsIngestEvent[] = raw.map((item) => {
-    if (!item || typeof item !== "object") return { type: "event", ts: Date.now(), data: {}, ingestMeta };
+  // Normalised to tracker shape, not to `analytics_events`' projection — this collector
+  // feeds the same sink as `/collect`, and that sink now owns the projection.
+  const events: TrackerEvent[] = raw.map((item) => {
+    if (!item || typeof item !== "object") {
+      return { type: "event", ts: Date.now(), sid: "", websiteId: website.id, data: {}, ingestMeta };
+    }
     const o = item as Record<string, unknown>;
     return {
       type: String(o.type ?? "event"),
@@ -100,11 +109,12 @@ internalRoutes.post("/collect/analytics", async (c) => {
       url: typeof o.url === "string" ? o.url : "",
       sid: typeof o.sid === "string" ? o.sid : "",
       vid: typeof o.vid === "string" ? o.vid : "",
+      websiteId: website.id,
       data: (o.data as Record<string, unknown>) ?? {},
       ingestMeta,
     };
   });
-  await sinks.writeAnalyticsBatch(website.site_id, events);
+  await sinks.writeAnalyticsBatch(batchIdFor(events), website.id, events);
   return c.body(null, 204);
 });
 
@@ -123,7 +133,10 @@ internalRoutes.post("/collect/replay-events", async (c) => {
     headers: c.req.raw.headers,
   });
   const enriched = events.map((e) => ({ ...(e as Record<string, unknown>), ingestMeta }));
-  await sinks.processRecordings(enriched as Parameters<IngestSinks["processRecordings"]>[0]);
+  await sinks.processRecordings(
+    batchIdFor(enriched),
+    enriched as Parameters<IngestSinks["processRecordings"]>[1],
+  );
   return c.json({ ok: true });
 });
 
@@ -134,7 +147,10 @@ internalRoutes.post("/collect/heatmap-events", async (c) => {
   const body = parsed.data as unknown as InternalCollectHeatmapEventsBody;
   const events = (body as { events?: unknown[] }).events;
   if (!events?.length) return c.json({ error: "events required" }, 400);
-  await sinks.processHeatmaps(events as Parameters<IngestSinks["processHeatmaps"]>[0]);
+  await sinks.processHeatmaps(
+    batchIdFor(events),
+    events as Parameters<IngestSinks["processHeatmaps"]>[1],
+  );
   return c.json({ ok: true });
 });
 

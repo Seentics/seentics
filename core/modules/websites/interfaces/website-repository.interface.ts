@@ -12,22 +12,15 @@ import type {
  * keeps business logic free of query building and lets tests substitute an
  * in-memory double. `PostgresWebsiteRepository` is the production implementation.
  *
- * Methods take a resolved UUID (`websiteId`), not the loose "UUID or siteId"
- * reference the HTTP layer accepts — resolution happens once in the service so
- * every repository method can assume a canonical id.
+ * Methods take the website UUID, and there is no second identifier. Every table in
+ * the system keys on `website_id`, so nothing here resolves anything: the old
+ * `resolveRef` / `findBySiteId` pair existed only to translate between `websites.id`
+ * and a short `website_id` that three tables used instead, and both are gone with it.
  */
 export interface WebsiteRepository {
   findById(websiteId: string): Promise<Website | null>;
 
-  findBySiteId(siteId: string): Promise<Website | null>;
-
   listOwnedBy(ownerId: string): Promise<Website[]>;
-
-  /**
-   * Resolve a UUID-or-siteId reference to both identifiers.
-   * `null` when no website matches.
-   */
-  resolveRef(websiteRef: string): Promise<{ id: string; siteId: string } | null>;
 
   /** The user's role, or `null` when they have neither ownership nor membership. */
   findRole(websiteId: string, userId: string): Promise<WebsiteRole | null>;
@@ -38,7 +31,7 @@ export interface WebsiteRepository {
    */
   findByPublicShareId(
     publicShareId: string,
-  ): Promise<{ websiteId: string; siteId: string } | null>;
+  ): Promise<{ websiteId: string } | null>;
 
   /**
    * Insert the website, its owner membership row, and a `website.created`

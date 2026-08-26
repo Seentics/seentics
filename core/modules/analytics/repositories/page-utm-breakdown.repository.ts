@@ -2,7 +2,7 @@ import { sql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 
 export async function getPageUtmBreakdownAnalytics(
-  siteId: string,
+  websiteId: string,
   query?: Record<string, string | undefined>,
 ) {
   const days = parseDays(query?.days, 7);
@@ -24,7 +24,7 @@ export async function getPageUtmBreakdownAnalytics(
       count(*)::int AS views,
       count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
     FROM analytics_events
-    WHERE website_id = ${siteId}
+    WHERE website_id = ${websiteId}
       AND event_type = 'pageview'
       AND occurred_at >= ${startIso}
       AND (utm_source IS NOT NULL OR utm_medium IS NOT NULL OR utm_campaign IS NOT NULL)
@@ -35,7 +35,7 @@ export async function getPageUtmBreakdownAnalytics(
   `;
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${days}d`,
     breakdown: rows.map((r) => ({
       page: r.page,

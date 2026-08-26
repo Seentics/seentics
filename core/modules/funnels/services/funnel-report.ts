@@ -1,5 +1,5 @@
 import type { FunnelReport, FunnelStep } from "../interfaces";
-import type { FunnelStepCount } from "../repositories/funnel-report.repository";
+import type { FunnelStepCount } from "../interfaces";
 
 /** Widest window the report will look back over, in days. */
 const MAX_REPORT_DAYS = 366;

@@ -2,7 +2,7 @@ import { sql as pgSql } from "../../../db";
 import { occurredAtToIso, parseDays, windowStartIso } from "./shared";
 
 export async function getExportAnalytics(
-  siteId: string,
+  websiteId: string,
   query?: Record<string, string | undefined>,
 ) {
   const days = parseDays(query?.days, 30);
@@ -46,14 +46,14 @@ export async function getExportAnalytics(
       screen_height,
       occurred_at
     FROM analytics_events
-    WHERE website_id  = ${siteId}
+    WHERE website_id  = ${websiteId}
       AND occurred_at >= ${startIso}
     ORDER BY occurred_at DESC
     LIMIT 10000
   `;
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${days}d`,
     format:     "json",
     total:      rows.length,

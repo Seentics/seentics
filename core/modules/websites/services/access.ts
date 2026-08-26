@@ -1,21 +1,19 @@
 import { and, eq } from "drizzle-orm";
 import { db, websiteMembers, websites } from "../../../db";
-import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
 
-export async function assertWebsiteAccess(userId: string, websiteParam: string) {
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+export async function assertWebsiteAccess(userId: string, websiteId: string) {
   const [m] = await db
     .select({ id: websiteMembers.id })
     .from(websiteMembers)
-    .where(and(eq(websiteMembers.userId, userId), eq(websiteMembers.websiteId, uuidStr)))
+    .where(and(eq(websiteMembers.userId, userId), eq(websiteMembers.websiteId, websiteId)))
     .limit(1);
-  if (m) return uuidStr;
+  if (m) return websiteId;
   const [o] = await db
     .select({ id: websites.id })
     .from(websites)
-    .where(and(eq(websites.id, uuidStr), eq(websites.userId, userId)))
+    .where(and(eq(websites.id, websiteId), eq(websites.userId, userId)))
     .limit(1);
-  if (o) return uuidStr;
+  if (o) return websiteId;
   const err = new Error("forbidden");
   (err as Error & { status: number }).status = 403;
   throw err;

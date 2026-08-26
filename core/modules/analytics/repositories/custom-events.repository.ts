@@ -2,7 +2,7 @@ import { sql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 
 export async function getCustomEventsAnalytics(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
@@ -20,7 +20,7 @@ export async function getCustomEventsAnalytics(
         count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int           AS unique_visitors,
         count(DISTINCT session_id)::int                                                   AS unique_sessions
       FROM analytics_events
-      WHERE website_id  = ${siteId}
+      WHERE website_id  = ${websiteId}
         AND event_type <> 'pageview'
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
@@ -35,7 +35,7 @@ export async function getCustomEventsAnalytics(
         count(*)::int                                                                      AS visits,
         count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int            AS unique_visitors
       FROM analytics_events
-      WHERE website_id  = ${siteId}
+      WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
@@ -52,7 +52,7 @@ export async function getCustomEventsAnalytics(
         count(*)::int                                                                      AS visits,
         count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int            AS unique_visitors
       FROM analytics_events
-      WHERE website_id  = ${siteId}
+      WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
@@ -69,7 +69,7 @@ export async function getCustomEventsAnalytics(
         count(*)::int                                                                      AS visits,
         count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int            AS unique_visitors
       FROM analytics_events
-      WHERE website_id  = ${siteId}
+      WHERE website_id  = ${websiteId}
         AND event_type  = 'pageview'
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
@@ -99,7 +99,7 @@ export async function getCustomEventsAnalytics(
   const campaigns = campaignRows.map((r) => ({ campaign: r.label, unique_visitors: Number(r.unique_visitors ?? 0), visits: Number(r.visits ?? 0) }));
 
   return {
-    website_id:       siteId,
+    website_id:       websiteId,
     events:           eventPayload,
     top_events:       eventPayload,
     utm_performance: {

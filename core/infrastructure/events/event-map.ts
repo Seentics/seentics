@@ -19,8 +19,6 @@
 type WebsiteRef = {
   /** `websites.id` — the canonical UUID primary key. */
   websiteId: string;
-  /** `websites.site_id` — the short public id used to key analytics rows. */
-  siteId: string;
 };
 
 /**
@@ -71,14 +69,14 @@ export interface EventMap {
    * consumers never react to events that were later dropped.
    */
   "analytics.batch_ingested": {
-    siteId: string;
+    websiteId: string;
     eventCount: number;
     occurredAt: Date;
   };
 
   // ─── recordings ──────────────────────────────────────────────────────────
   "recording.completed": {
-    siteId: string;
+    websiteId: string;
     recordingId: string;
     visitorId: string;
     durationMs: number;
@@ -92,7 +90,7 @@ export interface EventMap {
    * write failed.
    *
    * Carries only `websiteId`: the tracker sends the website UUID with heatmap
-   * events and `heatmap_points` is keyed by it, so the publisher has no `siteId`
+   * events and `heatmap_points` is keyed by it, so the publisher has no `websiteId`
    * to hand over without a lookup it does not otherwise need.
    */
   "heatmap.data_collected": {
@@ -128,7 +126,7 @@ export interface EventMap {
 
   // ─── funnels ─────────────────────────────────────────────────────────────
   "funnel.step_reached": {
-    siteId: string;
+    websiteId: string;
     funnelId: string;
     visitorId: string;
     stepIndex: number;
@@ -139,7 +137,7 @@ export interface EventMap {
    * Definition lifecycle. Carries both website identifiers because the interested
    * consumers are split across them: cache invalidation for the tracker's
    * `/init` payload keys on `websiteId`, while anything correlating against
-   * `analytics_events` needs `siteId`. Resolving one from the other is a database
+   * `analytics_events` needs `websiteId`. Resolving one from the other is a database
    * lookup the publisher has already done.
    */
   "funnel.created": WebsiteRef & {
@@ -178,7 +176,7 @@ export interface EventMap {
    * redeliveries.
    */
   "automation.triggered": {
-    siteId: string;
+    websiteId: string;
     automationId: string;
     /** Correlates this firing with its `automation_events` rows. Idempotency key. */
     runId: string;
@@ -195,7 +193,7 @@ export interface EventMap {
    * whose loss costs nothing, and it fires once per action.
    */
   "automation.action_executed": {
-    siteId: string;
+    websiteId: string;
     automationId: string;
     runId: string;
     /** Action position within the definition, e.g. `webhook_0`. */

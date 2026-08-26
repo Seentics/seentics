@@ -6,7 +6,13 @@
  */
 export type {
   RecordingDetail,
+  RecordingIngest,
   RecordingMutations,
   RecordingQuery,
   RecordingSummary,
 } from "./recording.interface";
+
+/** The whole module surface, as a peer receives it at composition time. */
+export type { RecordingsModule } from "./recordings.module";
+
+export type { RecordingRawReads } from "./recording.interface";

@@ -38,7 +38,7 @@ export class AutomationRetentionPurge implements RetentionPurge {
       DELETE FROM automation_events AS ae
       USING automations AS a
       WHERE ae.automation_id = a.id
-        AND a.website_id = ${target.websiteUuid}::uuid
+        AND a.website_id = ${target.websiteId}::uuid
         AND ae.created_at < ${cutoffs.funnelAutomation}
     `;
 

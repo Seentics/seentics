@@ -14,7 +14,7 @@
 import { and, eq, sql as rawSql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { automationEvents, db, userProfiles } from '../../../db';
-import { InMemoryEventBus, type EventBus } from '../../../infrastructure/events';
+import type { EventBus } from '../../../infrastructure/events';
 import { enqueueEvent } from '../../../infrastructure/outbox';
 import { log } from '../../../platform/lib/logger';
 import type {
@@ -189,7 +189,7 @@ export class AutomationEvaluationService
   constructor(private readonly eventBus: EventBus) {}
 
   async evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
-    const { websiteId, siteId, anonymousId, userId, sessionId, trigger, context } = req;
+    const { websiteId, anonymousId, userId, sessionId, trigger, context } = req;
 
     // Load user profile facts to merge into condition context
     const profileFacts = await loadUserProfile(websiteId, anonymousId);
@@ -249,13 +249,13 @@ export class AutomationEvaluationService
             .then(() => {
               const ms = Date.now() - t0;
               void logActionResult(auto.id, runId, actionKey, 'success', ms);
-              this.announceAction(siteId, auto.id, runId, actionKey, 'success', ms);
+              this.announceAction(websiteId, auto.id, runId, actionKey, 'success', ms);
             })
             .catch((err: unknown) => {
               const ms = Date.now() - t0;
               log.warn({ msg: 'webhook_action_error', automationId: auto.id, err });
               void logActionResult(auto.id, runId, actionKey, 'failed', ms, String(err));
-              this.announceAction(siteId, auto.id, runId, actionKey, 'failed', ms);
+              this.announceAction(websiteId, auto.id, runId, actionKey, 'failed', ms);
             });
           continue;
         }
@@ -271,14 +271,14 @@ export class AutomationEvaluationService
         });
 
         void logActionResult(auto.id, runId, actionKey, 'success', 0);
-        this.announceAction(siteId, auto.id, runId, actionKey, 'success', 0);
+        this.announceAction(websiteId, auto.id, runId, actionKey, 'success', 0);
       }
     }
 
     // Persist all impressions from this evaluate in a single insert, with the
     // `automation.triggered` events alongside them so the two cannot disagree.
     if (impressions.length > 0) {
-      await this.commitImpressions(siteId, impressions, fired);
+      await this.commitImpressions(websiteId, impressions, fired);
     }
 
     return { matched, actions: clientActions };
@@ -293,7 +293,7 @@ export class AutomationEvaluationService
    * dying immediately after COMMIT.
    */
   private async commitImpressions(
-    siteId: string,
+    websiteId: string,
     impressions: ImpressionMeta[],
     fired: FiredAutomation[],
   ): Promise<void> {
@@ -302,7 +302,7 @@ export class AutomationEvaluationService
       await recordImpressions(impressions, tx);
       for (const { automationId, runId, visitorId } of fired) {
         await enqueueEvent(tx, 'automation', automationId, 'automation.triggered', {
-          siteId,
+          websiteId,
           automationId,
           runId,
           // The anonymous id, which is the only visitor identity this path always
@@ -322,7 +322,7 @@ export class AutomationEvaluationService
    * A rejected publish is swallowed by the bus itself.
    */
   private announceAction(
-    siteId: string,
+    websiteId: string,
     automationId: string,
     runId: string,
     actionKey: string,
@@ -330,7 +330,7 @@ export class AutomationEvaluationService
     durationMs: number,
   ): void {
     void this.eventBus.publish('automation.action_executed', {
-      siteId,
+      websiteId,
       automationId,
       runId,
       actionKey,
@@ -385,37 +385,4 @@ export class AutomationEvaluationService
       log.warn({ msg: 'upsert_user_profile_failed', anonymousId, err });
     }
   }
-}
-
-// ─── Legacy entry point ───────────────────────────────────────────────────────
-
-/**
- * Instance backing the free functions below.
- *
- * Exists only because `routes/tracker.ts` is still a module-level singleton router
- * mounted directly in `index.ts`: it has no constructor to receive a service
- * through. Its bus therefore has no subscribers, which is survivable precisely
- * because the event that matters — `automation.triggered` — goes through the
- * outbox and is published by the real bus in `app/bootstrap.ts` after commit. The
- * best-effort `automation.action_executed` is the only thing this path drops.
- *
- * Replacing this means turning the tracker routes into a factory and constructing
- * `AutomationEvaluationService` in `app/bootstrap.ts`; both files are owned
- * elsewhere.
- */
-let legacyInstance: AutomationEvaluationService | null = null;
-
-function legacyEvaluation(): AutomationEvaluationService {
-  legacyInstance ??= new AutomationEvaluationService(new InMemoryEventBus(log));
-  return legacyInstance;
-}
-
-/** @deprecated Construct `AutomationEvaluationService` and inject it instead. */
-export function evaluate(req: EvaluateRequest): Promise<EvaluateResult> {
-  return legacyEvaluation().evaluate(req);
-}
-
-/** @deprecated Construct `AutomationEvaluationService` and inject it instead. */
-export function upsertUserProfile(payload: IdentifyPayload): Promise<void> {
-  return legacyEvaluation().upsertUserProfile(payload);
 }

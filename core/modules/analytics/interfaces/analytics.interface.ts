@@ -13,6 +13,8 @@
  * from becoming a duplicate of every SQL projection.
  */
 
+import type { AnalyticsIngestEvent, TrackerEvent } from "../../../platform/lib/types";
+
 /** Query parameters common to the windowed analytics endpoints. */
 export type AnalyticsWindow = {
   /** Trailing window in days. Clamped to 1–365; defaults per endpoint. */
@@ -32,10 +34,10 @@ export type AnalyticsQueryParams = Record<string, string | undefined>;
  * in the product.
  */
 export interface AnalyticsDashboard {
-  getDashboard(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getTrafficSummary(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getDailyStats(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getHourlyStats(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getDashboard(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getTrafficSummary(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getDailyStats(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getHourlyStats(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
 }
 
 /**
@@ -45,19 +47,19 @@ export interface AnalyticsDashboard {
  * rendering a dashboard that needs more than two breakdowns at once.
  */
 export interface AnalyticsDimensions {
-  getPages(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getReferrers(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getSources(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getBrowsers(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getDevices(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getOperatingSystems(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getCountries(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getCities(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getLanguages(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getResolutions(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getGeolocation(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getPageUtmBreakdown(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getDimensionsBulk(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getPages(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getReferrers(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getSources(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getBrowsers(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getDevices(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getOperatingSystems(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getCountries(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getCities(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getLanguages(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getResolutions(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getGeolocation(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getPageUtmBreakdown(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getDimensionsBulk(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
 }
 
 /**
@@ -95,24 +97,24 @@ export interface AnalyticsRealtime {
 
 /** Journey and per-visitor analysis. */
 export interface AnalyticsBehaviour {
-  getPathAnalysis(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getVisitorInsights(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
-  getCustomEvents(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getPathAnalysis(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getVisitorInsights(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getCustomEvents(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
 }
 
 /** Goal conversion reporting. */
 export interface AnalyticsGoals {
-  getGoals(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getGoals(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
 }
 
 /** Revenue and monetisation reporting. */
 export interface AnalyticsRevenue {
-  getRevenueDashboard(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  getRevenueDashboard(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
 }
 
 /** Bulk data extraction. */
 export interface AnalyticsExport {
-  exportEvents(siteId: string, query: AnalyticsQueryParams): Promise<unknown>;
+  exportEvents(websiteId: string, query: AnalyticsQueryParams): Promise<unknown>;
 }
 
 /**
@@ -124,4 +126,130 @@ export interface AnalyticsExport {
  */
 export interface AnalyticsPublicDashboard {
   getPublicDashboard(publicShareId: string, query: AnalyticsQueryParams): Promise<unknown | null>;
+}
+
+/**
+ * The ingest write path.
+ *
+ * Declared here so the ingest module can hand a flushed batch to analytics
+ * without importing `repositories/analytics-batch.repository` — which is what it
+ * used to do, and which meant a module that only buffers events had a compile-time
+ * dependency on how analytics rows are written.
+ *
+ * `writeBatch` is retried by the queue on a throw, so it must not partially commit
+ * and then fail; the returned count can be lower than the input after
+ * de-duplication.
+ */
+export interface AnalyticsIngestWriter {
+  /**
+   * Persist a batch, exactly once.
+   *
+   * `batchId` must be stable across every redelivery of the same rows. The write records
+   * it and skips a repeat, which is what makes the queue's retry safe:
+   * `analytics_events` is a plain insert with no natural key, so a replayed batch would
+   * otherwise duplicate every pageview.
+   *
+   * Returns the rows actually written — 0 for a batch already applied, and possibly
+   * fewer than the input after non-analytics event types are filtered out.
+   */
+  writeBatch(
+    batchId: string,
+    websiteId: string,
+    /**
+     * Raw tracker events, exactly as the tracker sent them.
+     *
+     * Not this module's row shape: mapping happens inside the writer, so a queued batch
+     * carries the tracker's wire format rather than `analytics_events`' projection. The
+     * queue is durable, so anything in that payload is a stored contract — and this
+     * module's column layout has no business being one.
+     */
+    events: readonly TrackerEvent[],
+  ): Promise<number>;
+}
+
+/**
+ * The whole authenticated read surface, as one alias.
+ *
+ * For callers that genuinely expose all of it — the analytics router and the raw
+ * API — and no one else. A peer module taking this instead of the one capability it
+ * uses is the mistake the split above exists to prevent; the alias is a convenience
+ * for the two HTTP surfaces that really are a thin pass-through over every method,
+ * not a re-merged `IAnalyticsModule`.
+ */
+export type AnalyticsReads = AnalyticsDashboard &
+  AnalyticsDimensions &
+  AnalyticsRealtime &
+  AnalyticsBehaviour &
+  AnalyticsGoals &
+  AnalyticsRevenue &
+  AnalyticsExport;
+
+/**
+ * Recent pageview URLs for a site, newest first.
+ *
+ * A port because heatmaps needs it and `analytics_events` is analytics-owned. Heatmaps
+ * used to hold its own query against that table — `repositories/pageview-url.repository.ts`,
+ * whose own comment called itself "one import to delete when analytics grows a port
+ * for it". This is that port.
+ *
+ * Takes `websiteId`: `analytics_events.website_id` stores the short public id, not the
+ * website UUID. Passing a UUID returns an empty array rather than an error, which is
+ * exactly the silent-empty failure this parameter name exists to prevent.
+ */
+export interface AnalyticsPageviewUrls {
+  listRecentPageviewUrls(websiteId: string): Promise<string[]>;
+}
+
+/**
+ * The raw event feed behind `/api/v1/raw`.
+ *
+ * A port because the raw API is a platform-level HTTP surface, and the projection it
+ * returns is a view of `analytics_events`. `platform/raw-data/raw-data.service.ts` used
+ * to hold this query itself, which put a Drizzle projection of this module's table in
+ * shared code where a schema change would break it silently.
+ *
+ * `websiteId`, not the UUID: `analytics_events.website_id` stores the short public id.
+ */
+export interface AnalyticsRawEvents {
+  listRawEvents(
+    websiteId: string,
+    q: {
+      from?: Date;
+      to?: Date;
+      limit: number;
+      offset: number;
+      eventType?: string;
+    },
+  ): Promise<
+    Array<{
+      id: string;
+      event_type: string;
+      page: string | null;
+      visitor_id: string | null;
+      session_id: string | null;
+      occurred_at: string;
+      properties: unknown;
+    }>
+  >;
+}
+
+/**
+ * Tracker funnel events, bucketed by step.
+ *
+ * The funnels module owns funnel *definitions*; the events land in `analytics_events`
+ * like everything else the tracker sends, so the aggregation belongs here. Funnels held
+ * this query itself until the table's owner grew a port for it.
+ *
+ * `funnel_complete` rows bucket to `step_order = -1`; `funnel_step` rows to their
+ * `properties->>'step'` index. Counts are of distinct visitors — falling back to the
+ * session when the tracker sent no visitor id — which is what makes the conversion rate
+ * a people rate rather than an event rate.
+ */
+export interface AnalyticsFunnelEvents {
+  countFunnelStepVisitors(
+    websiteId: string,
+    funnelId: string,
+    startIso: string,
+    endIso: string,
+  ): Promise<Array<{ step_order: number | null; cnt: number }>>;
 }

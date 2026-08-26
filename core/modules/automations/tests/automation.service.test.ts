@@ -21,7 +21,6 @@ const SITE_ID = "site_one";
 function makeWebsite(): Website {
   return {
     id: WEBSITE_UUID,
-    siteId: SITE_ID,
     ownerId: "owner_1",
     name: "One",
     url: "one.example",
@@ -60,7 +59,7 @@ class FakeWebsiteQuery implements WebsiteQuery {
 
   async getById(websiteRef: string): Promise<Website | null> {
     this.lookups.push(websiteRef);
-    return this.websites.find((w) => w.id === websiteRef || w.siteId === websiteRef) ?? null;
+    return this.websites.find((w) => w.id === websiteRef || w.id === websiteRef) ?? null;
   }
   async listOwnedBy(): Promise<Website[]> {
     return this.websites;
@@ -73,7 +72,6 @@ class FakeWebsiteQuery implements WebsiteQuery {
 function makeRow(overrides: Partial<AutomationRow> = {}): AutomationRow {
   return {
     id: "auto_1",
-    websiteId: WEBSITE_UUID,
     name: "Welcome",
     isActive: true,
     ...overrides,
@@ -84,7 +82,7 @@ function makeRow(overrides: Partial<AutomationRow> = {}): AutomationRow {
  * In-memory repository that records the website id it was handed for every call.
  *
  * That recording is the point of most tests here: `automations.website_id` is a
- * uuid column, so a `siteId` reaching it matches zero rows *without erroring* and
+ * uuid column, so a `websiteId` reaching it matches zero rows *without erroring* and
  * looks exactly like "this website has no automations".
  */
 class FakeAutomationRepository implements AutomationRepository {
@@ -185,28 +183,27 @@ describe("AutomationService", () => {
     });
   });
 
-  // The load-bearing assertion for this module: `automations.website_id` is a uuid
-  // column, and a siteId predicate against it silently matches nothing.
+  /**
+   * This block used to assert that a short public id was translated to the UUID before
+   * reaching the repository — `automations.website_id` is a uuid column, and the wrong
+   * predicate against it silently matched nothing. There is only one identifier now, so
+   * what is left to prove is that the service passes it through untouched: no
+   * translation, and none needed.
+   */
   describe("identifier routing", () => {
-    it("hands the repository the UUID when given a UUID", async () => {
+    it("passes the caller's website id to the repository unchanged", async () => {
       await service.list(WEBSITE_UUID);
       expect(repo.receivedWebsiteIds).toEqual([WEBSITE_UUID]);
     });
 
-    it("hands the repository the UUID when given a siteId", async () => {
-      await service.list(SITE_ID);
+    it("passes it through on a write too", async () => {
+      await service.create(WEBSITE_UUID, "owner_1", { name: "New" } as CreateAutomationInput);
       expect(repo.receivedWebsiteIds).toEqual([WEBSITE_UUID]);
     });
 
-    it("never leaks a siteId into the repository on a write", async () => {
-      await service.create(SITE_ID, "owner_1", { name: "New" } as CreateAutomationInput);
-      expect(repo.receivedWebsiteIds).toEqual([WEBSITE_UUID]);
-      expect(repo.receivedWebsiteIds).not.toContain(SITE_ID);
-    });
-
-    it("scopes a delete to the resolved UUID", async () => {
+    it("scopes a delete to that same id", async () => {
       repo.rows.push(makeRow());
-      await service.remove(SITE_ID, "auto_1");
+      await service.remove(WEBSITE_UUID, "auto_1");
       expect(repo.deleted).toEqual([[WEBSITE_UUID, "auto_1"]]);
     });
   });

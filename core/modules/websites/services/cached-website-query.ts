@@ -26,7 +26,7 @@ type CacheEntry = { website: Website | null; expiresAt: number };
  * still has access is not a trade worth making for one indexed lookup.
  */
 export class CachedWebsiteQuery implements WebsiteQuery {
-  /** Keyed by the caller's reference, since both a UUID and a siteId resolve here. */
+  /** Keyed by the caller's reference, since both a UUID and a websiteId resolve here. */
   private readonly cache = new Map<string, CacheEntry>();
 
   constructor(
@@ -46,9 +46,9 @@ export class CachedWebsiteQuery implements WebsiteQuery {
     this.cache.set(websiteRef, { website, expiresAt: now + this.ttlMs });
 
     // Both identifiers point at the same entity, so warm the other key as well —
-    // the tracker uses siteId while the dashboard uses the UUID.
+    // the tracker uses websiteId while the dashboard uses the UUID.
     if (website) {
-      const alias = websiteRef === website.id ? website.siteId : website.id;
+      const alias = websiteRef === website.id ? website.id : website.id;
       this.cache.set(alias, { website, expiresAt: now + this.ttlMs });
     }
 

@@ -18,7 +18,7 @@ HOW THE DATA IS STRUCTURED:
   and cannot be reliably joined in this domain. Stick to funnel metadata queries only.
 
 IMPORTANT ID FORMAT:
-• funnels.website_id is UUID type (NOT the text site_id used in analytics_events)
+• funnels.website_id is UUID type (NOT the text website_id used in analytics_events)
 • The $1 parameter is the website's UUID — ALWAYS use: WHERE website_id::text = $1
 • When selecting the funnel id column, cast it: id::text AS id
 

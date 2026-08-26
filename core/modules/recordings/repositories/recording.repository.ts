@@ -142,8 +142,7 @@ export async function upsertSessionMetaBatch(inputRows: SessionUpsertRow[]): Pro
 }
 
 export async function listSessions(
-  siteId: string,
-  uuidStr: string,
+  websiteId: string,
   limit: number,
   offset: number,
 ): Promise<SessionMetaRow[]> {
@@ -156,9 +155,9 @@ export async function listSessions(
         timestamp AS "startedAt", has_rage_clicks AS "hasRageClicks", has_errors AS "hasErrors",
         duration_seconds AS "durationSeconds", pages_viewed AS "pagesViewed"
       FROM (
-        SELECT * FROM session_replays WHERE website_id = ${siteId} AND sequence = 0
+        SELECT * FROM session_replays WHERE website_id = ${websiteId} AND sequence = 0
         UNION ALL
-        SELECT * FROM session_replays WHERE website_id = ${uuidStr} AND sequence = 0 AND ${uuidStr} <> ${siteId}
+        SELECT * FROM session_replays WHERE website_id = ${websiteId} AND sequence = 0 AND ${websiteId} <> ${websiteId}
       ) raw
       ORDER BY "sessionId", timestamp DESC
     ) deduped
@@ -168,13 +167,12 @@ export async function listSessions(
 }
 
 export async function getSessionMeta(
-  siteId: string,
-  uuidStr: string,
+  websiteId: string,
   sessionId: string,
 ): Promise<SessionMetaRow | null> {
   /**
    * One row per (website_id, session_id, sequence=0). Match either resolved id
-   * (short `site_id` or UUID) so list + detail never disagree. Avoid `UNION … LIMIT 1`
+   * (short `website_id` or UUID) so list + detail never disagree. Avoid `UNION … LIMIT 1`
    * edge cases with driver/PLAN behavior.
    */
   const rows = await pgSql<SessionMetaRow[]>`
@@ -185,19 +183,22 @@ export async function getSessionMeta(
       duration_seconds as "durationSeconds", pages_viewed as "pagesViewed"
     FROM session_replays
     WHERE session_id = ${sessionId} AND sequence = 0
-      AND (website_id = ${siteId} OR website_id = ${uuidStr})
+      AND website_id = ${websiteId}
     LIMIT 1
   `;
   return rows[0] ?? null;
 }
 
-export async function deleteSessionByEitherId(
-  primaryId: string,
-  fallbackId: string,
-  sessionId: string,
-): Promise<void> {
+/**
+ * Delete one session's rows.
+ *
+ * Was `deleteSessionByEitherId`, matching two identifier forms because
+ * `session_replays.website_id` had historically been written as either the short public
+ * id or the UUID. One column, one form, one predicate.
+ */
+export async function deleteSession(websiteId: string, sessionId: string): Promise<void> {
   await pgSql`
     DELETE FROM session_replays
-    WHERE (website_id = ${primaryId} OR website_id = ${fallbackId}) AND session_id = ${sessionId}
+    WHERE website_id = ${websiteId} AND session_id = ${sessionId}
   `;
 }

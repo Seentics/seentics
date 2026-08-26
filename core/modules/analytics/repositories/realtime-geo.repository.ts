@@ -25,7 +25,7 @@ export interface RealtimeGeoData {
 }
 
 export async function getRealtimeGeoAnalytics(
-  siteId: string,
+  websiteId: string,
   opts?: { withinMinutes?: number },
 ): Promise<RealtimeGeoData> {
   const withinMin = opts?.withinMinutes ?? REALTIME_GEO_DEFAULT_MINUTES;
@@ -36,7 +36,7 @@ export async function getRealtimeGeoAnalytics(
       country,
       count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS count
     FROM analytics_events
-    WHERE website_id  = ${siteId}
+    WHERE website_id  = ${websiteId}
       AND event_type  = 'pageview'
       AND occurred_at >= ${startIso}
     GROUP BY country
@@ -59,7 +59,7 @@ export async function getRealtimeGeoAnalytics(
     .sort((a, b) => b.count - a.count);
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${withinMin}m`,
     visitors,
   };

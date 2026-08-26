@@ -1,6 +1,6 @@
 import { env } from "../../../config";
 import { getReplayEngine } from "./recording-engine.service";
-import { deleteSessionByEitherId } from "../repositories/recording.repository";
+import { deleteSession } from "../repositories/recording.repository";
 import { deleteSessionPrefix } from "../../../platform/lib/s3";
 
 /**
@@ -10,8 +10,7 @@ import { deleteSessionPrefix } from "../../../platform/lib/s3";
  * written under either, so cleaning up only one leaves orphans behind.
  */
 export async function batchDeleteReplaySessions(
-  siteId: string,
-  uuidStr: string,
+  websiteId: string,
   sessionIds: string[],
 ) {
   const engine = getReplayEngine();
@@ -19,19 +18,19 @@ export async function batchDeleteReplaySessions(
 
   // Remove all in-memory spools first (synchronous, no await)
   for (const sid of sessionIds) {
-    engine.removeSpool(siteId, sid);
-    if (uuidStr !== siteId) engine.removeSpool(uuidStr, sid);
+    engine.removeSpool(websiteId, sid);
+    if (websiteId !== websiteId) engine.removeSpool(websiteId, sid);
   }
 
   // Delete S3 objects and DB records for all sessions in parallel
   await Promise.all(
     sessionIds.map(async (sid) => {
       try {
-        await deleteSessionPrefix(bucket, siteId, sid);
+        await deleteSessionPrefix(bucket, websiteId, sid);
       } catch {
         // S3 delete is best-effort — still remove the DB record
       }
-      await deleteSessionByEitherId(siteId, uuidStr, sid);
+      await deleteSession(websiteId, sid);
     }),
   );
 }

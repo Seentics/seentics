@@ -2,7 +2,7 @@ import { sql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 
 export async function getResolutionsAnalytics(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
@@ -13,7 +13,7 @@ export async function getResolutionsAnalytics(
       count(*)::int AS views,
       count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique
     FROM analytics_events
-    WHERE website_id = ${siteId}
+    WHERE website_id = ${websiteId}
       AND event_type = 'pageview'
       AND occurred_at >= ${startIso}
       AND screen_width IS NOT NULL
@@ -23,7 +23,7 @@ export async function getResolutionsAnalytics(
     LIMIT 30
   `;
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${days}d`,
     top_resolutions: rows.map((r) => ({
       resolution: r.resolution,

@@ -45,7 +45,6 @@ export type HeatmapIngestEvent = {
   sid?: string;
   vid?: string;
   websiteId: string;
-  siteId?: string;
   heatmapLayoutEnabled?: boolean;
   clientUa?: string;
   docW?: number;
@@ -86,7 +85,6 @@ export type PageSummaryRow = {
 };
 
 export type ScreenshotJob = {
-  siteId: string;
   websiteId: string;
   heatmapLayoutEnabled: boolean;
   url: string;
@@ -109,7 +107,7 @@ export type AnalyticsIngestEvent = {
 
 /** Batched `automation_trigger` rows → `automation_events` ingest queue. */
 export type AutomationTriggerQueued = {
-  websiteUuid: string;
+  websiteId: string;
   automationId: string;
   occurredAt: Date;
   detail: Record<string, unknown>;

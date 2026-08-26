@@ -25,7 +25,7 @@ INTERACTION TYPES (event_type column):
   'mousemove' — mouse movement (used in move heatmaps)
   'scroll'    — scroll position tracking
 
-IMPORTANT: website_id in this table is UUID type (not the text site_id).
+IMPORTANT: website_id in this table is UUID type (not the text website_id).
 The $1 parameter is already the correct UUID — use: WHERE website_id::text = $1
 
 ═══════════════════════════════════════════════════════════════

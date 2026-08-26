@@ -1,5 +1,5 @@
-import type { TrafficSummary, Website } from "../interfaces";
-import type { WebsiteWithTraffic } from "../services/website.service";
+import type { TrafficSummary } from "../../analytics/interfaces";
+import type { Website, WebsiteWithTraffic } from "../interfaces";
 
 /**
  * Domain model → HTTP response body.
@@ -13,7 +13,7 @@ import type { WebsiteWithTraffic } from "../services/website.service";
 
 export type WebsiteResponse = {
   id: string;
-  site_id: string;
+  website_id: string;
   user_id: string;
   name: string;
   url: string;
@@ -53,7 +53,7 @@ export function presentWebsite(
 
   return {
     id: website.id,
-    site_id: website.siteId,
+    website_id: website.id,
     user_id: website.ownerId,
     name: website.name,
     url: website.url,

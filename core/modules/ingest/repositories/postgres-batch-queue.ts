@@ -1,0 +1,27 @@
+import {
+  claimPendingBatches,
+  countPendingBatches,
+  countParkedBatches,
+  enqueueBatch,
+  markBatchCompleted,
+  markBatchFailed,
+  pruneCompletedBatches,
+} from "./batch-queue.repository";
+import type { BatchQueueStore } from "../interfaces";
+
+/**
+ * The production `BatchQueueStore`, backed by Postgres.
+ *
+ * Separate from the worker on purpose: this module reaches the database connection through
+ * `batch-queue.repository`, and keeping it out of the worker's import graph is what lets
+ * the worker be unit-tested without one. Same arrangement as `postgresOutboxStore`.
+ */
+export const postgresBatchQueue: BatchQueueStore = {
+  enqueue: enqueueBatch,
+  claimPending: claimPendingBatches,
+  markCompleted: markBatchCompleted,
+  markFailed: markBatchFailed,
+  countPending: countPendingBatches,
+  countParked: countParkedBatches,
+  pruneCompleted: pruneCompletedBatches,
+};

@@ -23,10 +23,10 @@ export class AiService implements AiQuery, AiAccessCheck {
    */
   private async resolve(
     websiteRef: string,
-  ): Promise<{ siteId: string; uuid: string } | null> {
+  ): Promise<{ websiteId: string; uuid: string } | null> {
     const website = await this.websites.getById(websiteRef);
     if (!website) return null;
-    return { siteId: website.siteId, uuid: website.id };
+    return { websiteId: website.id, uuid: website.id };
   }
 
   async runQuery(

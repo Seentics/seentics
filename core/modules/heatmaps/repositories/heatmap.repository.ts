@@ -1,3 +1,4 @@
+import type { TransactionSql } from "postgres";
 import { sql } from "../../../db";
 import type { HeatmapPointOut, HeatmapPointRow, PageSummaryRow } from "../../../platform/lib/types";
 
@@ -5,8 +6,8 @@ import type { HeatmapPointOut, HeatmapPointRow, PageSummaryRow } from "../../../
  * SQL for `heatmap_points` and the stale-snapshot scan over
  * `heatmap_page_snapshots`.
  *
- * Every `websiteUuid` here is `websites.id` — the queries cast it to `uuid`, so
- * passing a short `site_id` raises a Postgres syntax error rather than returning
+ * Every `websiteId` here is `websites.id` — the queries cast it to `uuid`, so
+ * passing a short `website_id` raises a Postgres syntax error rather than returning
  * the wrong rows. The parameter is named for the identifier it needs because both
  * forms are `string` and the compiler cannot tell them apart.
  *
@@ -23,8 +24,17 @@ function pgTimestampToIso(v: unknown): string {
   return new Date(0).toISOString();
 }
 
-export async function batchUpsertPoints(rows: HeatmapPointRow[]): Promise<void> {
-  if (rows.length === 0) return;
+export async function batchUpsertPoints(
+  /**
+   * The caller's transaction, so the upsert commits with the batch marker that makes it
+   * replay-safe. This is the least forgiving write in the system: the `ON CONFLICT` below
+   * *adds* to `intensity`, so a replayed batch does not duplicate a row — it inflates a
+   * number, indistinguishably from real traffic.
+   */
+  tx: TransactionSql,
+  rows: HeatmapPointRow[],
+): Promise<number> {
+  if (rows.length === 0) return 0;
 
   // Aggregate duplicate cells within the batch so the DB sees intensity=N instead of
   // N separate single-count rows for the same (website, page, type, device, x, y, selector).
@@ -48,7 +58,7 @@ export async function batchUpsertPoints(rows: HeatmapPointRow[]): Promise<void> 
   const CHUNK = 500;
   for (let i = 0; i < agg.length; i += CHUNK) {
     const chunk = agg.slice(i, i + CHUNK);
-    await sql`
+    await tx`
       INSERT INTO heatmap_points
         (website_id, page_path, event_type, device_type, x_percent, y_percent, intensity, target_selector, cap_vw, cap_vh, last_updated)
       SELECT
@@ -73,6 +83,10 @@ export async function batchUpsertPoints(rows: HeatmapPointRow[]): Promise<void> 
         cap_vh       = COALESCE(EXCLUDED.cap_vh, heatmap_points.cap_vh)
     `;
   }
+
+  // The aggregated cell count, not the input row count: N clicks on one cell became one
+  // row with intensity=N, and that is the number the batch marker should record.
+  return agg.length;
 }
 
 /**
@@ -92,7 +106,7 @@ const NORM_PAGE_PATH_EXPR = sql.unsafe(`
 `);
 
 export async function getHeatmapData(
-  websiteUuid: string,
+  websiteId: string,
   pagePath: string,
   eventType: string,
 ): Promise<HeatmapPointOut[]> {
@@ -101,7 +115,7 @@ export async function getHeatmapData(
            COALESCE(target_selector, '') AS target_selector,
            cap_vw, cap_vh
     FROM heatmap_points
-    WHERE website_id = ${websiteUuid}::uuid
+    WHERE website_id = ${websiteId}::uuid
       AND event_type = ${eventType}
       AND (
         regexp_replace(COALESCE(NULLIF(BTRIM(page_path), ''), '/'), '/$', '')
@@ -124,7 +138,7 @@ export async function getHeatmapData(
   }));
 }
 
-export async function listPages(websiteUuid: string): Promise<PageSummaryRow[]> {
+export async function listPages(websiteId: string): Promise<PageSummaryRow[]> {
   const rows = await sql`
     SELECT page_path,
            COALESCE(SUM(CASE WHEN event_type = 'click'  THEN intensity ELSE 0 END), 0)::int AS click_count,
@@ -132,7 +146,7 @@ export async function listPages(websiteUuid: string): Promise<PageSummaryRow[]> 
            COALESCE(AVG(CASE WHEN event_type = 'scroll' THEN y_percent END), 0)::int AS avg_scroll_raw,
            MAX(last_updated) AS last_seen
     FROM heatmap_points
-    WHERE website_id = ${websiteUuid}::uuid
+    WHERE website_id = ${websiteId}::uuid
     GROUP BY page_path
     ORDER BY click_count DESC
   `;
@@ -145,11 +159,11 @@ export async function listPages(websiteUuid: string): Promise<PageSummaryRow[]> 
   }));
 }
 
-export async function deleteHeatmaps(websiteUuid: string, pagePaths: string[]): Promise<void> {
+export async function deleteHeatmaps(websiteId: string, pagePaths: string[]): Promise<void> {
   if (pagePaths.length === 0) return;
   await sql`
     DELETE FROM heatmap_points
-    WHERE website_id = ${websiteUuid}::uuid
+    WHERE website_id = ${websiteId}::uuid
       AND (
         page_path = ANY(${pagePaths})
         OR ${NORM_PAGE_PATH_EXPR} = ANY(${pagePaths})
@@ -165,13 +179,13 @@ export async function deleteHeatmaps(websiteUuid: string, pagePaths: string[]): 
  * excluded — there is nothing to refresh, and the dashboard already triggers a
  * first capture on its own miss.
  *
- * `websiteUuid` here comes back out of the table, so callers must resolve it to a
- * `site_id` before touching S3 or `analytics_events`.
+ * `websiteId` here comes back out of the table, so callers must resolve it to a
+ * `website_id` before touching S3 or `analytics_events`.
  */
 export async function listStalePageSnapshots(
   staleBefore: Date,
   limit: number,
-): Promise<{ websiteUuid: string; pagePath: string }[]> {
+): Promise<{ websiteId: string; pagePath: string }[]> {
   const rows = await sql<{ website_id: string; page_path: string }[]>`
     SELECT DISTINCT ON (website_id, page_path) website_id::text AS website_id, page_path
     FROM heatmap_page_snapshots
@@ -179,5 +193,5 @@ export async function listStalePageSnapshots(
       AND (s3_key <> '' OR html_s3_key IS NOT NULL)
     LIMIT ${limit}
   `;
-  return rows.map((r) => ({ websiteUuid: r.website_id, pagePath: r.page_path }));
+  return rows.map((r) => ({ websiteId: r.website_id, pagePath: r.page_path }));
 }

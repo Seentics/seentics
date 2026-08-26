@@ -8,7 +8,7 @@ import type {
   TrackerEvent,
 } from "../../../platform/lib/types";
 import { InMemoryEventBus, type EventName } from "../../../infrastructure/events";
-import type { IngestSinks } from "../interfaces";
+import type { BatchQueueStore, IngestCategory } from "../interfaces";
 import { IngestQueueService } from "../services/ingest-queue.service";
 
 function makeLogger(): { logger: Logger; lines: Record<string, unknown>[] } {
@@ -30,41 +30,86 @@ function makeLogger(): { logger: Logger; lines: Record<string, unknown>[] } {
 }
 
 /**
- * Recording sinks. `failAnalyticsFor` drives the retry path, which is the behaviour
- * most worth pinning here and which the previous `mock.module`-based tests could not
- * reach.
+ * Recording queue store.
+ *
+ * The service enqueues durable batches now rather than calling the sinks, so this fake
+ * stands in for `BatchQueueStore`. It decodes each batch by category into the same
+ * accessors the assertions below already used — what those tests care about is which rows
+ * reach which category, and that is unchanged by moving the hand-off to a queue row.
+ *
+ * `failAnalyticsFor` drives the retry path, which is the behaviour most worth pinning here
+ * and which the earlier `mock.module`-based tests could not reach.
  */
-class FakeSinks implements IngestSinks {
-  analyticsCalls: { siteId: string; count: number }[] = [];
+class FakeBatchQueue implements BatchQueueStore {
+  analyticsCalls: { websiteId: string; count: number }[] = [];
   automationCalls: AutomationTriggerQueued[][] = [];
   recordingCalls: TrackerEvent[][] = [];
   heatmapCalls: HeatmapIngestEvent[][] = [];
+
+  /** Every batch id seen, so a test can assert the same rows reuse one id. */
+  batchIds: string[] = [];
+  /** Partition keys, so the recordings-per-session split is assertable. */
+  partitionKeys: string[] = [];
 
   failAnalyticsFor = new Set<string>();
   failRecordings = false;
   failHeatmaps = false;
   failAutomations = false;
-  /** Rows reported inserted; lower than input models de-duplication. */
+  /** Unused now the worker reports insert counts; kept so callers need not change. */
   insertedOverride: number | null = null;
 
-  async writeAnalyticsBatch(siteId: string, events: AnalyticsIngestEvent[]): Promise<number> {
-    this.analyticsCalls.push({ siteId, count: events.length });
-    if (this.failAnalyticsFor.has(siteId)) throw new Error("insert failed");
-    return this.insertedOverride ?? events.length;
+  async enqueue(batch: {
+    batchId: string;
+    category: IngestCategory;
+    partitionKey: string;
+    payload: Record<string, unknown>;
+    rowCount: number;
+  }): Promise<void> {
+    this.batchIds.push(batch.batchId);
+    this.partitionKeys.push(batch.partitionKey);
+
+    switch (batch.category) {
+      case "analytics":
+      case "funnels": {
+        const websiteId = batch.payload.websiteId as string;
+        // Recorded before the throw: these tests count *attempts*, and the retry path is
+        // the behaviour they exist to pin.
+        this.analyticsCalls.push({ websiteId, count: batch.rowCount });
+        if (this.failAnalyticsFor.has(websiteId)) throw new Error("insert failed");
+        return;
+      }
+      case "automations":
+        this.automationCalls.push(batch.payload.rows as AutomationTriggerQueued[]);
+        if (this.failAutomations) throw new Error("automations sink down");
+        return;
+      case "recordings":
+        this.recordingCalls.push(batch.payload.events as TrackerEvent[]);
+        if (this.failRecordings) throw new Error("replay engine down");
+        return;
+      case "heatmaps":
+        this.heatmapCalls.push(batch.payload.events as HeatmapIngestEvent[]);
+        if (this.failHeatmaps) throw new Error("heatmap engine down");
+        return;
+    }
   }
-  async writeAutomationTriggers(rows: AutomationTriggerQueued[]): Promise<void> {
-    this.automationCalls.push(rows);
-    if (this.failAutomations) throw new Error("automations sink down");
+
+  // The service only enqueues; draining is the worker's job and is tested separately.
+  async claimPending(): Promise<never[]> {
+    return [];
   }
-  async processRecordings(events: TrackerEvent[]): Promise<void> {
-    this.recordingCalls.push(events);
-    if (this.failRecordings) throw new Error("replay engine down");
+  async markCompleted(): Promise<void> {}
+  async markFailed(): Promise<void> {}
+  async countPending(): Promise<number> {
+    return 0;
   }
-  async processHeatmaps(events: HeatmapIngestEvent[]): Promise<void> {
-    this.heatmapCalls.push(events);
-    if (this.failHeatmaps) throw new Error("heatmap engine down");
+  async countParked(): Promise<number> {
+    return 0;
+  }
+  async pruneCompleted(): Promise<number> {
+    return 0;
   }
 }
+
 
 function ev(n = 1): AnalyticsIngestEvent[] {
   return Array.from({ length: n }, (_, i) => ({ eventType: "pageview", i }) as unknown as AnalyticsIngestEvent);
@@ -86,13 +131,13 @@ function cfgWith(overrides: Partial<Record<string, number>> = {}): AppConfig {
 }
 
 describe("IngestQueueService", () => {
-  let sinks: FakeSinks;
+  let sinks: FakeBatchQueue;
   let lines: Record<string, unknown>[];
   let queue: IngestQueueService;
   let published: { type: EventName; payload: unknown }[];
 
   beforeEach(() => {
-    sinks = new FakeSinks();
+    sinks = new FakeBatchQueue();
     const l = makeLogger();
     lines = l.lines;
     const inner = new InMemoryEventBus(l.logger);
@@ -118,14 +163,14 @@ describe("IngestQueueService", () => {
     it("writes enqueued events on flush", async () => {
       queue.enqueueEvents("site_a", ev(3));
       await queue.flushNow();
-      expect(sinks.analyticsCalls).toEqual([{ siteId: "site_a", count: 3 }]);
+      expect(sinks.analyticsCalls).toEqual([{ websiteId: "site_a", count: 3 }]);
     });
 
     it("accumulates events for one site into a single write", async () => {
       queue.enqueueEvents("site_a", ev(2));
       queue.enqueueEvents("site_a", ev(3));
       await queue.flushNow();
-      expect(sinks.analyticsCalls).toEqual([{ siteId: "site_a", count: 5 }]);
+      expect(sinks.analyticsCalls).toEqual([{ websiteId: "site_a", count: 5 }]);
     });
 
     it("writes each site separately", async () => {
@@ -134,7 +179,7 @@ describe("IngestQueueService", () => {
       await queue.flushNow();
 
       expect(sinks.analyticsCalls).toHaveLength(2);
-      expect(sinks.analyticsCalls.map((c) => c.siteId).sort()).toEqual(["site_a", "site_b"]);
+      expect(sinks.analyticsCalls.map((c) => c.websiteId).sort()).toEqual(["site_a", "site_b"]);
     });
 
     // The snapshot-swap guard: `clear()`ing the returned reference instead of
@@ -191,7 +236,7 @@ describe("IngestQueueService", () => {
       queue.enqueueEvents("site_b", ev(10));
       await queue.flushNow();
 
-      expect(sinks.analyticsCalls.map((c) => c.siteId)).toEqual(["site_a"]);
+      expect(sinks.analyticsCalls.map((c) => c.websiteId)).toEqual(["site_a"]);
     });
   });
 
@@ -257,7 +302,7 @@ describe("IngestQueueService", () => {
       await queue.flushNow();
 
       // Retried rows plus the newly enqueued one, in one write.
-      expect(sinks.analyticsCalls[1]).toEqual({ siteId: "site_a", count: 3 });
+      expect(sinks.analyticsCalls[1]).toEqual({ websiteId: "site_a", count: 3 });
     });
   });
 
@@ -271,7 +316,7 @@ describe("IngestQueueService", () => {
     it("writes funnel events through the analytics sink", async () => {
       queue.enqueueFunnels("site_a", ev(2));
       await queue.flushNow();
-      expect(sinks.analyticsCalls).toEqual([{ siteId: "site_a", count: 2 }]);
+      expect(sinks.analyticsCalls).toEqual([{ websiteId: "site_a", count: 2 }]);
     });
 
     it("writes each site separately", async () => {
@@ -448,49 +493,21 @@ describe("IngestQueueService", () => {
    * `analytics.batch_ingested` already had a subscriber — automation evaluation —
    * but nothing published it, so that wiring was dead. These pin the contract.
    */
-  describe("analytics.batch_ingested", () => {
-    it("announces a successful flush", async () => {
+  /**
+   * `analytics.batch_ingested` moved to `IngestWorker`.
+   *
+   * The event means rows are queryable, and this side only knows a batch was queued — a
+   * batch that later parks never wrote anything. Its assertions live in
+   * `ingest-worker.service.test.ts`; what remains here is that the queue itself announces
+   * nothing.
+   */
+  describe("announcements", () => {
+    it("publishes nothing on its own", async () => {
       queue.enqueueEvents("site_a", ev(3));
-      await queue.flushNow();
-
-      const e = published.find((p) => p.type === "analytics.batch_ingested");
-      expect(e?.payload).toMatchObject({ siteId: "site_a", eventCount: 3 });
-    });
-
-    it("reports the inserted count, not the submitted count", async () => {
-      sinks.insertedOverride = 2;
-      queue.enqueueEvents("site_a", ev(5));
-      await queue.flushNow();
-
-      const e = published.find((p) => p.type === "analytics.batch_ingested");
-      expect(e?.payload).toMatchObject({ eventCount: 2 });
-    });
-
-    // Announcing on enqueue would have consumers reacting to rows a later failure
-    // drops. Nothing is announced until the write succeeded.
-    it("announces nothing when the write failed", async () => {
-      sinks.failAnalyticsFor.add("site_a");
-      queue.enqueueEvents("site_a", ev(3));
-      await queue.flushNow();
-
-      expect(published.filter((p) => p.type === "analytics.batch_ingested")).toEqual([]);
-    });
-
-    it("announces once per site", async () => {
-      queue.enqueueEvents("site_a", ev(1));
       queue.enqueueEvents("site_b", ev(1));
       await queue.flushNow();
 
-      const sites = published
-        .filter((p) => p.type === "analytics.batch_ingested")
-        .map((p) => (p.payload as { siteId: string }).siteId)
-        .sort();
-      expect(sites).toEqual(["site_a", "site_b"]);
-    });
-
-    it("announces nothing when there was nothing to flush", async () => {
-      await queue.flushNow();
-      expect(published).toEqual([]);
+      expect(published.filter((p) => p.type === "analytics.batch_ingested")).toEqual([]);
     });
   });
 

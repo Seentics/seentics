@@ -222,9 +222,8 @@ export interface StoreScreenshotOptions extends Partial<ScreenshotOptions> {
  *
  * @param url The webpage URL to capture
  * @param s3Bucket S3 bucket name
- * @param siteId Website/site ID for S3 key generation
+ * @param websiteId Website UUID — keys both the S3 object path and the DB lookups
  * @param pagePath Normalized page path for S3 key generation
- * @param websiteUuid Website UUID for DB lookups
  * @param options Additional screenshot capture options (including force/checkOnly)
  *
  * @returns Object containing S3 key, hash, and image dimensions, or null if skipped/not found
@@ -232,9 +231,8 @@ export interface StoreScreenshotOptions extends Partial<ScreenshotOptions> {
 export async function captureAndStoreScreenshot(
   url: string,
   s3Bucket: string,
-  siteId: string,
+  websiteId: string,
   pagePath: string,
-  websiteUuid: string,
   options?: StoreScreenshotOptions,
 ): Promise<{
   s3Key: string;
@@ -254,7 +252,7 @@ export async function captureAndStoreScreenshot(
     const cache = getScreenshotCache();
 
     // FIRST: Check in-memory cache (ultra-fast, no DB call)
-    const cachedScreenshot = cache.get(websiteUuid, pagePath);
+    const cachedScreenshot = cache.get(websiteId, pagePath);
     if (cachedScreenshot && (checkOnly || !force)) {
       // Found in cache - return immediately without DB call
       return {
@@ -269,13 +267,13 @@ export async function captureAndStoreScreenshot(
 
     // SECOND: Check database if cache miss
     // This avoids launching Playwright if we already have the screenshot!
-    const existing = await getLayoutSnapshot(websiteUuid, pagePath);
+    const existing = await getLayoutSnapshot(websiteId, pagePath);
 
     // If screenshot exists and we're not forcing re-capture
     if (existing?.s3_key && existing?.content_sha256) {
       if (checkOnly || !force) {
         // Cache the result for next time
-        cache.set(websiteUuid, pagePath, {
+        cache.set(websiteId, pagePath, {
           s3Key: existing.s3_key,
           hash: existing.content_sha256,
           docWidth: existing.doc_width,
@@ -308,11 +306,11 @@ export async function captureAndStoreScreenshot(
     });
 
     // Store in S3
-    const s3Key = heatmapScreenshotKey(siteId, layoutPathSlot(siteId, pagePath));
+    const s3Key = heatmapScreenshotKey(websiteId, layoutPathSlot(websiteId, pagePath));
     await putJpeg(s3Bucket, s3Key, result.buffer);
 
     // Cache the newly stored screenshot
-    cache.set(websiteUuid, pagePath, {
+    cache.set(websiteId, pagePath, {
       s3Key,
       hash: result.hash,
       docWidth: result.width,
@@ -349,12 +347,12 @@ export async function captureAndStoreScreenshot(
       ...options,
     });
 
-    const s3Key = heatmapScreenshotKey(siteId, layoutPathSlot(siteId, pagePath));
+    const s3Key = heatmapScreenshotKey(websiteId, layoutPathSlot(websiteId, pagePath));
     await putJpeg(s3Bucket, s3Key, result.buffer);
 
     // Cache the newly stored screenshot
     const cache = getScreenshotCache();
-    cache.set(websiteUuid, pagePath, {
+    cache.set(websiteId, pagePath, {
       s3Key,
       hash: result.hash,
       docWidth: result.width,

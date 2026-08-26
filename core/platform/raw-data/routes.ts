@@ -13,7 +13,7 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
 import { rawApiAuthMiddleware } from "../../platform/middleware/raw-api-auth";
-import type { AnalyticsQueryService } from "../../modules/analytics/services/analytics-query.service";
+import type { AnalyticsReads } from "../../modules/analytics/interfaces";
 import * as raw from "./raw-data.service";
 import { parseQuery } from "../../platform/validation";
 import {
@@ -26,11 +26,17 @@ import {
 /**
  * Machine-facing data API.
  *
- * A factory so the analytics service arrives by injection rather than through a
- * module-level import — the same reason `modules/analytics/routes.ts` is one.
+ * A factory so every module surface arrives by injection rather than through a
+ * module-level import — the same reason `modules/analytics/routes.ts` is one. Before
+ * this, the read layer behind these handlers held its own `analytics_events` query and
+ * imported the heatmaps and recordings services directly.
  */
-export function createRawDataRoutes(deps: { analytics: AnalyticsQueryService }) {
-const { analytics } = deps;
+export function createRawDataRoutes(deps: {
+  analytics: AnalyticsReads;
+  /** The three module ports the read layer fans out to. */
+  ports: raw.RawDataPorts;
+}) {
+const { analytics, ports } = deps;
 const r = new Hono();
 
 /** Every path on this router requires a valid website API key (defense in depth vs per-route middleware). */
@@ -50,12 +56,12 @@ function rawAnalyticsQs(c: { req: { query: (n: string) => string | undefined } }
 }
 
 function jsonWithMeta(
-  c: { get: (k: "rawApi") => { websiteUuid: string; siteId: string }; json: (b: object) => Response },
+  c: { get: (k: "rawApi") => { websiteId: string }; json: (b: object) => Response },
   data: unknown,
 ) {
   const ctx = c.get("rawApi");
   return c.json({
-    meta: { website_id: ctx.websiteUuid, site_id: ctx.siteId },
+    meta: { website_id: ctx.websiteId },
     data,
   });
 }
@@ -144,7 +150,7 @@ r.get("/v1/websites/:website_id/analytics/events", async (c) => {
   try {
     const q = parseQuery(c, rawEventsQuerySchema);
     if (!q.ok) return q.res;
-    const out = await raw.rawAnalyticsEvents(websiteId(c), {
+    const out = await raw.rawAnalyticsEvents(ports, ctx.websiteId, {
       from: q.data.from || undefined,
       to: q.data.to || undefined,
       limit: q.data.limit,
@@ -153,8 +159,7 @@ r.get("/v1/websites/:website_id/analytics/events", async (c) => {
     });
     return c.json({
       meta: {
-        website_id: ctx.websiteUuid,
-        site_id: ctx.siteId,
+        website_id: ctx.websiteId,
         limit: out.limit,
         offset: out.offset,
         returned: out.returned,
@@ -173,18 +178,18 @@ r.get("/v1/websites/:website_id/sessions", async (c) => {
   const q = parseQuery(c, rawSessionsQuerySchema);
   if (!q.ok) return q.res;
   const { limit, offset } = q.data;
-  const out = await raw.rawSessions(ctx.siteId, ctx.websiteUuid, limit, offset);
+  const out = await raw.rawSessions(ports, ctx.websiteId, limit, offset);
   return c.json({
-    meta: { website_id: ctx.websiteUuid, site_id: ctx.siteId, limit: out.limit, offset: out.offset },
+    meta: { website_id: ctx.websiteId, limit: out.limit, offset: out.offset },
     sessions: out.sessions,
   });
 });
 
 r.get("/v1/websites/:website_id/heatmap/pages", async (c) => {
   const ctx = c.get("rawApi");
-  const out = await raw.rawHeatmapPages(ctx.websiteUuid);
+  const out = await raw.rawHeatmapPages(ports, ctx.websiteId);
   return c.json({
-    meta: { website_id: ctx.websiteUuid, site_id: ctx.siteId },
+    meta: { website_id: ctx.websiteId },
     pages: out.pages,
   });
 });
@@ -193,11 +198,10 @@ r.get("/v1/websites/:website_id/heatmap/points", async (c) => {
   const ctx = c.get("rawApi");
   const q = parseQuery(c, rawHeatmapPointsQuerySchema);
   if (!q.ok) return q.res;
-  const out = await raw.rawHeatmapPoints(ctx.websiteUuid, q.data.page_path, q.data.event_type);
+  const out = await raw.rawHeatmapPoints(ports, ctx.websiteId, q.data.page_path, q.data.event_type);
   return c.json({
     meta: {
-      website_id: ctx.websiteUuid,
-      site_id: ctx.siteId,
+      website_id: ctx.websiteId,
       page_path: out.page_path,
       event_type: out.event_type,
     },

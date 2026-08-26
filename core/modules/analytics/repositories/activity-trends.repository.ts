@@ -1,8 +1,8 @@
 import { getDailyStatsAnalytics } from "./daily-stats.repository";
 
 export async function getActivityTrendsStats(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
-  return getDailyStatsAnalytics(siteId, query);
+  return getDailyStatsAnalytics(websiteId, query);
 }

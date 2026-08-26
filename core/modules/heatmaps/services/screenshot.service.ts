@@ -3,8 +3,6 @@ import type { EventBus } from "../../../infrastructure/events";
 import { upsertLayoutSnapshot } from "../lib/layout-db";
 import { normalizeHeatmapPagePath } from "../lib/paths";
 import { captureAndStoreScreenshot } from "../lib/playwright-screenshots";
-import { getWebsiteBySiteId } from "../lib/website-site";
-import { resolveWebsiteIds, resolveWebsiteIdsLenient } from "../../../platform/lib/website-resolve";
 import type {
   BatchCaptureScreenshotResult,
   CaptureScreenshotRequest,
@@ -21,7 +19,7 @@ const CAPTURE_TIMEOUT_MS = 30_000;
  * Capture a page with Playwright and record the result as the page's layout
  * snapshot.
  *
- * Takes already-resolved identifiers: `siteId` namespaces the S3 object, the
+ * Takes already-resolved identifiers: `websiteId` namespaces the S3 object, the
  * website UUID keys the snapshot row, and the two are not interchangeable. The
  * caller is responsible for having established that the website exists — this
  * function would otherwise happily write a snapshot row under a dangling id.
@@ -40,9 +38,8 @@ async function captureAndUpsert(
   const result = await captureAndStoreScreenshot(
     request.pageUrl,
     config.s3.bucket,
-    resolved.siteId,
+    resolved.websiteId,
     normalizedPagePath,
-    resolved.websiteUuid,
     {
       viewportWidth: request.viewportWidth,
       viewportHeight: request.viewportHeight,
@@ -66,7 +63,7 @@ async function captureAndUpsert(
   // Idempotent: re-running a capture for the same page rewrites the same row.
   if (result.s3Key) {
     await upsertLayoutSnapshot(
-      resolved.websiteUuid,
+      resolved.websiteId,
       normalizedPagePath,
       result.s3Key,
       result.hash,
@@ -133,8 +130,7 @@ export class HeatmapScreenshotService implements HeatmapScreenshotCapture {
     // any consumer counting captures wrong.
     if (result.stored && result.s3Key) {
       await this.eventBus.publish("heatmap.screenshot_captured", {
-        websiteId: resolved.websiteUuid,
-        siteId: resolved.siteId,
+        websiteId: resolved.websiteId,
         pagePath: normalizeHeatmapPagePath(request.pagePath),
         s3Key: result.s3Key,
         source: "playwright",
@@ -180,36 +176,6 @@ export class HeatmapScreenshotService implements HeatmapScreenshotCapture {
     }
     return results;
   }
-}
-
-/**
- * Capture entry point for the tracker ingest path.
- *
- * Kept as a free function using `lib/website-resolve` because its caller —
- * `routes/tracker.ts` — is a module-level Hono app with no composition root to
- * inject `HeatmapSettings` from. `ReplayEngine` resolves the same way for the same
- * reason. It publishes no event for the same reason: no bus reaches here.
- *
- * The existence check stays after resolution rather than replacing it: lenient
- * resolution returns the reference for both identifiers when the website is
- * unknown, and writing a snapshot row under that would create rows nothing can
- * ever read.
- */
-export async function captureHeatmapScreenshot(
-  websiteRef: string,
-  request: CaptureScreenshotRequest,
-  opts: { lenientResolve: boolean },
-): Promise<CaptureScreenshotResult> {
-  const { uuidStr, siteId } = opts.lenientResolve
-    ? await resolveWebsiteIdsLenient(websiteRef)
-    : await resolveWebsiteIds(websiteRef);
-
-  const website = await getWebsiteBySiteId(siteId);
-  if (!website) {
-    throw new Error("Website not found");
-  }
-
-  return captureAndUpsert({ siteId, websiteUuid: uuidStr, siteUrl: "" }, request);
 }
 
 export type { CaptureScreenshotRequest, CaptureScreenshotResult };

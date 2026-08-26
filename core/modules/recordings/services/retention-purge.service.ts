@@ -54,7 +54,7 @@ export class RecordingRetentionPurge implements RetentionPurge {
         FROM session_replays
         WHERE sequence = 0
           AND timestamp < ${cutoffs.replay}
-          AND (website_id = ${target.siteId} OR website_id = ${target.websiteUuid})
+          AND (website_id = ${target.websiteId} OR website_id = ${target.websiteId})
         LIMIT ${options.batchSize}
       `;
       if (oldSessions.length === 0) break;

@@ -1,7 +1,7 @@
 import { sql as pgSql } from "../../../db";
 import { parseDays } from "./shared";
 
-export async function getGoalsStats(siteId: string, websiteUuid: string, query: Record<string, string | undefined>) {
+export async function getGoalsStats(websiteId: string, query: Record<string, string | undefined>) {
   const days = parseDays(query.days);
   const end = new Date();
   const start = new Date(end.getTime() - days * 86400000);
@@ -16,7 +16,7 @@ export async function getGoalsStats(siteId: string, websiteUuid: string, query: 
           0
         )::int AS uv
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${startIso}
         AND occurred_at <= ${endIso}
@@ -42,13 +42,13 @@ export async function getGoalsStats(siteId: string, websiteUuid: string, query: 
           coalesce(nullif(trim(ae.visitor_id), ''), ae.session_id) AS vkey
         FROM goals g
         JOIN analytics_events ae
-          ON ae.website_id = ${siteId}
+          ON ae.website_id = ${websiteId}
           AND ae.event_type = 'pageview'
           AND ae.occurred_at >= ${startIso}
           AND ae.occurred_at <= ${endIso}
           AND coalesce(nullif(rtrim(ae.page, '/'), ''), '/')
               = coalesce(nullif(rtrim(g.identifier, '/'), ''), '/')
-        WHERE g.website_id = ${websiteUuid}::uuid
+        WHERE g.website_id = ${websiteId}::uuid
           AND g."type" = 'pageview'
       ),
       -- Event/click goals: matched on event_type = identifier (new data), plus the
@@ -60,14 +60,14 @@ export async function getGoalsStats(siteId: string, websiteUuid: string, query: 
           coalesce(nullif(trim(ae.visitor_id), ''), ae.session_id) AS vkey
         FROM goals g
         JOIN analytics_events ae
-          ON ae.website_id = ${siteId}
+          ON ae.website_id = ${websiteId}
           AND ae.occurred_at >= ${startIso}
           AND ae.occurred_at <= ${endIso}
           AND (
             ae.event_type = g.identifier
             OR (ae.event_type = 'custom' AND coalesce(ae.properties->>'name', '') = g.identifier)
           )
-        WHERE g.website_id = ${websiteUuid}::uuid
+        WHERE g.website_id = ${websiteId}::uuid
           AND (g."type" = 'event' OR g."type" = 'click')
       ),
       hits AS (
@@ -84,7 +84,7 @@ export async function getGoalsStats(siteId: string, websiteUuid: string, query: 
         count(DISTINCT h.vkey) FILTER (WHERE h.event_id IS NOT NULL)::int AS unique_visitors
       FROM goals g
       LEFT JOIN hits h ON h.goal_id = g.id
-      WHERE g.website_id = ${websiteUuid}::uuid
+      WHERE g.website_id = ${websiteId}::uuid
       GROUP BY g.id, g.name, g."type", g.identifier
       ORDER BY min(g.created_at) ASC
     `,
@@ -93,7 +93,7 @@ export async function getGoalsStats(siteId: string, websiteUuid: string, query: 
   const denom = siteUv > 0 ? siteUv : 0;
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${days}d`,
     goals: rows.map((r) => {
       const uv = Number(r.unique_visitors ?? 0);

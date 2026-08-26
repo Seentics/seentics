@@ -1,8 +1,13 @@
 import { Hono } from "hono";
 import { authMiddleware, requireUser, type AuthVars } from "../../platform/middleware/auth";
-import { getUserById } from "../../modules/auth/services/auth.service";
-import { toFrontendUser } from "../lib/user-mapper";
+import type { UserDirectory } from "../../modules/auth/interfaces";
 
+/**
+ * A factory now, so the user lookup arrives as a port. This file used to import
+ * `getUserById` out of `services/auth.service.ts` — the module that also holds password
+ * hashing and token signing.
+ */
+export function createUserProfileRoutes(deps: { users: UserDirectory }) {
 const r = new Hono<{ Variables: AuthVars }>();
 r.use("*", authMiddleware);
 
@@ -10,9 +15,9 @@ r.put("/profile", async (c) => {
   const uid = requireUser(c);
   if (!uid) return c.json({ error: "unauthorized" }, 401);
   void c.req.json().catch(() => null);
-  const row = await getUserById(uid);
-  if (!row) return c.json({ error: "not found" }, 404);
-  return c.json({ data: { user: toFrontendUser(row) } });
+  const user = await deps.users.getProfileForClient(uid);
+  if (!user) return c.json({ error: "not found" }, 404);
+  return c.json({ data: { user } });
 });
 
 r.put("/change-password", async (c) => {
@@ -35,4 +40,5 @@ r.put("/preferences", async (c) => {
   return c.json({ data: { ok: true } });
 });
 
-export const userProfileRoutes = r;
+return r;
+}

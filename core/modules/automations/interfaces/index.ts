@@ -1,7 +1,7 @@
 /**
  * Public contracts for the automations module.
  *
- * Four capabilities, deliberately not one `IAutomationsModule`, because four
+ * Five capabilities, deliberately not one `IAutomationsModule`, because five
  * different callers reach this module and they overlap in nothing but the table:
  *
  * - `AutomationCrud` / `AutomationInsights` — the dashboard, authenticated, one
@@ -10,17 +10,16 @@
  *   session, one indexed read.
  * - `AutomationEvaluation` / `VisitorProfileWriter` — the ingest edge, per
  *   trigger, the only surface with outbound side effects.
+ * - `AutomationTriggerWriter` — the ingest flush path.
+ *   `ingestAutomationTriggersBatch` used to be imported straight out of
+ *   `repositories/automation-batch.repository.ts` by the ingest queue; now that
+ *   ingest has a composed graph, that function is wrapped behind this port and the
+ *   import is gone.
  * - `AutomationEventSubscriber` — automations as a consumer of other modules'
  *   events, which is the seam a scheduled or ingest-driven trigger would use.
  *
  * Peer modules should import from here and no deeper; the services and
  * repositories behind these types are internal.
- *
- * The ingest write path is the one capability with no interface here:
- * `ingestAutomationTriggersBatch` stays a plain function in
- * `repositories/automation-batch.repository.ts` because the ingest queue imports
- * it directly and has no constructor to inject into. When ingest becomes a
- * module with a composed graph, that function is the thing to wrap.
  */
 export type {
   AutomationCrud,
@@ -38,6 +37,8 @@ export type { AutomationRepository } from "./automation-repository.interface";
 
 export type { AutomationTrackerSettings } from "./automation-settings.interface";
 
+export type { AutomationTriggerWriter } from "./automation-ingest.interface";
+
 export type {
   AutomationEvaluation,
   ClientAction,
@@ -45,3 +46,6 @@ export type {
   EvaluateResult,
   IdentifyPayload,
 } from "./automation-evaluation.interface";
+
+/** The whole module surface, as a peer receives it at composition time. */
+export type { AutomationsModule } from "./automations.module";

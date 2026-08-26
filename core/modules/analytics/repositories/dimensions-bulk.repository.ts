@@ -7,7 +7,7 @@ import { parseDays, windowStartIso } from "./shared";
  * all data in one API call to cut 6 HTTP round trips down to 1.
  */
 export async function getDimensionsBulkAnalytics(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
@@ -25,7 +25,7 @@ export async function getDimensionsBulkAnalytics(
                count(*)::int AS views,
                count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
         FROM analytics_events
-        WHERE website_id  = ${siteId}
+        WHERE website_id  = ${websiteId}
           AND event_type  = 'pageview'
           AND occurred_at >= ${startIso}
           AND page IS NOT NULL AND length(trim(page)) > 0
@@ -39,7 +39,7 @@ export async function getDimensionsBulkAnalytics(
                  coalesce(nullif(trim(visitor_id), ''), session_id) AS vid,
                  occurred_at, id
           FROM analytics_events
-          WHERE website_id  = ${siteId}
+          WHERE website_id  = ${websiteId}
             AND event_type  = 'pageview'
             AND occurred_at >= ${startIso}
             AND session_id IS NOT NULL AND length(trim(session_id)) > 0
@@ -63,7 +63,7 @@ export async function getDimensionsBulkAnalytics(
                count(*)::int AS views,
                count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
         FROM analytics_events
-        WHERE website_id  = ${siteId}
+        WHERE website_id  = ${websiteId}
           AND event_type  = 'pageview'
           AND occurred_at >= ${startIso}
           AND country IS NOT NULL AND length(trim(country)) > 0
@@ -76,7 +76,7 @@ export async function getDimensionsBulkAnalytics(
                count(*)::int AS views,
                count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
         FROM analytics_events
-        WHERE website_id  = ${siteId}
+        WHERE website_id  = ${websiteId}
           AND event_type  = 'pageview'
           AND occurred_at >= ${startIso}
           AND browser IS NOT NULL AND length(trim(browser)) > 0
@@ -89,7 +89,7 @@ export async function getDimensionsBulkAnalytics(
                count(*)::int AS views,
                count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
         FROM analytics_events
-        WHERE website_id  = ${siteId}
+        WHERE website_id  = ${websiteId}
           AND event_type  = 'pageview'
           AND occurred_at >= ${startIso}
           AND device IS NOT NULL AND length(trim(device)) > 0
@@ -102,7 +102,7 @@ export async function getDimensionsBulkAnalytics(
                count(*)::int AS views,
                count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
         FROM analytics_events
-        WHERE website_id  = ${siteId}
+        WHERE website_id  = ${websiteId}
           AND event_type  = 'pageview'
           AND occurred_at >= ${startIso}
           AND os IS NOT NULL AND length(trim(os)) > 0
@@ -113,7 +113,7 @@ export async function getDimensionsBulkAnalytics(
     ]);
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range: `${days}d`,
     top_pages:     pageRows.map(r => ({ page:    r.k!, views: Number(r.views), unique: Number(r.unique_visitors) })),
     top_referrers: refRows.map(r  => ({ referrer: r.referrer, views: Number(r.views), unique: Number(r.unique_visitors) })),

@@ -1,5 +1,5 @@
 import { describe, it, expect, mock, beforeAll } from "bun:test";
-import type { WebsiteTrackerRow, TrackerGoal } from "../../../platform/lib/website-for-tracker";
+import type { WebsiteTrackerRow, TrackerGoal } from "../interfaces";
 
 // website-for-tracker.ts imports `sql` from "../../../db" at the module level.
 // Mock the DB before dynamically importing the module.
@@ -15,14 +15,13 @@ mock.module("../../../db", () => ({
 let buildPublicTrackerConfig: (w: WebsiteTrackerRow, goals: TrackerGoal[]) => Promise<Record<string, unknown>>;
 
 beforeAll(async () => {
-  const mod = await import("../../../platform/lib/website-for-tracker");
+  const mod = await import("../repositories/tracker-website.repository");
   buildPublicTrackerConfig = mod.buildPublicTrackerConfig;
 });
 
 function makeWebsite(overrides: Partial<WebsiteTrackerRow> = {}): WebsiteTrackerRow {
   return {
     id: "550e8400-e29b-41d4-a716-446655440000",
-    site_id: "site_abc123",
     user_id: "user1",
     url: "https://example.com",
     is_active: true,

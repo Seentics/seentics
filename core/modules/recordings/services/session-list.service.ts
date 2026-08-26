@@ -9,13 +9,12 @@ import { clampListParams, timestampToIso } from "./shared";
  * `RecordingService`'s job, done once per request through the websites port.
  */
 export async function listReplaySessions(
-  siteId: string,
-  uuidStr: string,
+  websiteId: string,
   limit: number,
   offset: number,
 ) {
   const { limit: lim, offset: off } = clampListParams(limit, offset);
-  const sessions = await listSessions(siteId, uuidStr, lim, off);
+  const sessions = await listSessions(websiteId, lim, off);
   const out = sessions.map((s) => ({
     sessionId: s.sessionId,
     websiteId: s.websiteId,
@@ -41,13 +40,12 @@ export async function listReplaySessions(
  * resolving again here was a second lookup for an answer the caller was holding.
  */
 export async function listReplaySessionsRaw(
-  siteId: string,
-  uuidStr: string,
+  websiteId: string,
   limit: number,
   offset: number,
 ) {
   const { limit: lim, offset: off } = clampListParams(limit, offset);
-  const sessions = await listSessions(siteId, uuidStr, lim, off);
+  const sessions = await listSessions(websiteId, lim, off);
   return {
     limit: lim,
     offset: off,

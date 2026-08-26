@@ -20,5 +20,11 @@ export type {
   HeatmapScreenshotCapture,
   HeatmapScreenshotMaintenance,
   HeatmapSettings,
+  HeatmapTrackerEvent,
   ResolvedWebsite,
 } from "./heatmap.interface";
+
+/** The whole module surface, as a peer receives it at composition time. */
+export type { HeatmapsModule } from "./heatmaps.module";
+
+export type { HeatmapRawReads } from "./heatmap.interface";

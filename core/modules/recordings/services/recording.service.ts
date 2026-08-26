@@ -11,8 +11,6 @@ import { listReplaySessions } from "./session-list.service";
  * Recording rows are keyed by whichever identifier the tracker happened to send,
  * so every query has to match on both — see `listSessions` in the repository.
  */
-type ResolvedIds = { siteId: string; websiteUuid: string };
-
 /**
  * The recordings read/write facade.
  *
@@ -40,10 +38,17 @@ export class RecordingService implements RecordingQuery, RecordingMutations {
    * Access is checked by the route before this runs, so a bogus reference here
    * yields an empty result rather than exposing anything.
    */
-  private async resolve(websiteRef: string): Promise<ResolvedIds> {
+  /**
+   * The website's id, or the reference itself when the website is unknown.
+   *
+   * Lenient on purpose: `session_replays` rows outlive the website row they belong to
+   * until retention sweeps them, and refusing to list them would hide data the user can
+   * still legitimately see. This used to return a pair, because the table could have
+   * been keyed by either identifier.
+   */
+  private async resolve(websiteRef: string): Promise<string> {
     const website = await this.websites.getById(websiteRef);
-    if (website) return { siteId: website.siteId, websiteUuid: website.id };
-    return { siteId: websiteRef, websiteUuid: websiteRef };
+    return website?.id ?? websiteRef;
   }
 
   async listSessions(
@@ -51,17 +56,17 @@ export class RecordingService implements RecordingQuery, RecordingMutations {
     limit: number,
     offset: number,
   ): Promise<{ sessions: RecordingSummary[]; limit: number; offset: number }> {
-    const { siteId, websiteUuid } = await this.resolve(websiteRef);
-    return listReplaySessions(siteId, websiteUuid, limit, offset);
+    const websiteId = await this.resolve(websiteRef);
+    return listReplaySessions(websiteId, limit, offset);
   }
 
   async getSessionDetail(websiteRef: string, sessionId: string): Promise<ReplaySessionDetail> {
-    const { siteId, websiteUuid } = await this.resolve(websiteRef);
-    return getReplaySessionDetail(siteId, websiteUuid, sessionId);
+    const websiteId = await this.resolve(websiteRef);
+    return getReplaySessionDetail(websiteId, sessionId);
   }
 
   async batchDelete(websiteRef: string, sessionIds: string[]): Promise<void> {
-    const { siteId, websiteUuid } = await this.resolve(websiteRef);
-    await batchDeleteReplaySessions(siteId, websiteUuid, sessionIds);
+    const websiteId = await this.resolve(websiteRef);
+    await batchDeleteReplaySessions(websiteId, sessionIds);
   }
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, mock, beforeAll, beforeEach  } from "bun:test";
-import type { WebsiteTrackerRow } from "../../../platform/lib/website-for-tracker";
+import type { WebsiteTrackerRow } from "../../websites/interfaces";
 import type {
   AutomationEvaluation,
   AutomationRow,
@@ -76,7 +76,6 @@ mock.module("../services/ingest-meta.service", () => ({
 
 const ACTIVE_WEBSITE: WebsiteTrackerRow = {
   id: "550e8400-e29b-41d4-a716-446655440000",
-  site_id: "site_abc",
   user_id: "user1",
   url: "https://example.com",
   is_active: true,
@@ -104,8 +103,8 @@ class FakeFunnelConfig implements FunnelTrackerConfig {
   fail = false;
   calls: string[] = [];
 
-  async activeForTracker(websiteUuid: string): Promise<Funnel[]> {
-    this.calls.push(websiteUuid);
+  async activeForTracker(websiteId: string): Promise<Funnel[]> {
+    this.calls.push(websiteId);
     if (this.fail) throw new Error("DB down");
     return this.rows as Funnel[];
   }
@@ -668,11 +667,10 @@ describe("POST /automations/evaluate", () => {
     expect(body.matched).toBe(1);
     expect(body.actions).toHaveLength(1);
     // Both identifiers are passed through already resolved — the UUID keys the
-    // tables the evaluation reads, the siteId only labels the events it publishes.
+    // tables the evaluation reads, the websiteId only labels the events it publishes.
     expect(automationEvaluation.requests).toEqual([
       {
         websiteId: ACTIVE_WEBSITE.id,
-        siteId: ACTIVE_WEBSITE.site_id,
         anonymousId: "anon_1",
         userId: null,
         sessionId: "sess_1",

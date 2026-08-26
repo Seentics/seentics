@@ -10,7 +10,7 @@ import type {
   FunnelTrackerConfig,
   UpdateFunnelInput,
 } from "../interfaces";
-import { countFunnelStepVisitors } from "../repositories/funnel-report.repository";
+import type { AnalyticsFunnelEvents } from "../../analytics/interfaces";
 import {
   deleteFunnel,
   deleteFunnels,
@@ -27,14 +27,14 @@ import { buildFunnelReport, clampReportDays, reportWindow } from "./funnel-repor
  *
  * Both are `string` and they are not interchangeable, which is the whole reason this
  * type exists instead of two positional arguments:
- * - `websiteUuid` (`websites.id`) keys `funnels`, `goals` and `automations`.
- * - `siteId` (`websites.site_id`) keys `analytics_events`, which is where the funnel
+ * - `websiteId` (`websites.id`) keys `funnels`, `goals` and `automations`.
+ * - `websiteId` (`websites.website_id`) keys `analytics_events`, which is where the funnel
  *   report's numbers come from.
  *
  * Crossing them compiles cleanly and returns an empty result set, so the report
  * silently reads as "no conversions" instead of failing.
  */
-type ResolvedIds = { siteId: string; websiteUuid: string };
+type ResolvedIds = { websiteId: string };
 
 /**
  * The funnels read/write facade.
@@ -56,6 +56,12 @@ export class FunnelService
 {
   constructor(
     private readonly websites: WebsiteQuery,
+    /**
+     * Funnel step counts come from analytics: the definitions are this module's, but
+     * the events land in `analytics_events` like everything else the tracker sends, so
+     * the aggregation belongs to the module that owns that table.
+     */
+    private readonly analyticsEvents: AnalyticsFunnelEvents,
     private readonly eventBus: EventBus,
   ) {}
 
@@ -71,19 +77,19 @@ export class FunnelService
   private async resolve(websiteRef: string): Promise<ResolvedIds | null> {
     const website = await this.websites.getById(websiteRef);
     if (!website) return null;
-    return { siteId: website.siteId, websiteUuid: website.id };
+    return { websiteId: website.id };
   }
 
   async list(websiteRef: string): Promise<Funnel[]> {
     const ids = await this.resolve(websiteRef);
     if (!ids) return [];
-    return listFunnels(ids.websiteUuid);
+    return listFunnels(ids.websiteId);
   }
 
   async get(websiteRef: string, funnelId: string): Promise<Funnel | null> {
     const ids = await this.resolve(websiteRef);
     if (!ids) return null;
-    return findFunnel(ids.websiteUuid, funnelId);
+    return findFunnel(ids.websiteId, funnelId);
   }
 
   async create(websiteRef: string, userId: string, input: CreateFunnelInput): Promise<Funnel> {
@@ -93,10 +99,9 @@ export class FunnelService
     // request the client can correct.
     if (!ids) throw new Error("website not found");
 
-    const created = await insertFunnel(ids.websiteUuid, userId, input);
+    const created = await insertFunnel(ids.websiteId, userId, input);
     await this.eventBus.publish("funnel.created", {
-      websiteId: ids.websiteUuid,
-      siteId: ids.siteId,
+      websiteId: ids.websiteId,
       funnelId: created.id,
       name: created.name,
       stepCount: created.steps.length,
@@ -113,12 +118,11 @@ export class FunnelService
     const ids = await this.resolve(websiteRef);
     if (!ids) return null;
 
-    const updated = await updateFunnel(ids.websiteUuid, funnelId, input);
+    const updated = await updateFunnel(ids.websiteId, funnelId, input);
     if (!updated) return null;
 
     await this.eventBus.publish("funnel.updated", {
-      websiteId: ids.websiteUuid,
-      siteId: ids.siteId,
+      websiteId: ids.websiteId,
       funnelId,
       // The patch as submitted, not a diff against the previous row: computing a
       // real diff would need an extra read on every save, and consumers so far only
@@ -133,7 +137,7 @@ export class FunnelService
     const ids = await this.resolve(websiteRef);
     if (!ids) return;
 
-    await deleteFunnel(ids.websiteUuid, funnelId);
+    await deleteFunnel(ids.websiteId, funnelId);
     await this.publishDeleted(ids, [funnelId]);
   }
 
@@ -144,7 +148,7 @@ export class FunnelService
     const ids = await this.resolve(websiteRef);
     if (!ids) return;
 
-    await deleteFunnels(ids.websiteUuid, funnelIds);
+    await deleteFunnels(ids.websiteId, funnelIds);
     await this.publishDeleted(ids, funnelIds);
   }
 
@@ -160,8 +164,7 @@ export class FunnelService
     const occurredAt = new Date();
     for (const funnelId of funnelIds) {
       await this.eventBus.publish("funnel.deleted", {
-        websiteId: ids.websiteUuid,
-        siteId: ids.siteId,
+        websiteId: ids.websiteId,
         funnelId,
         occurredAt,
       });
@@ -179,12 +182,17 @@ export class FunnelService
     // The definition supplies the step names and, crucially, the step count — the
     // aggregation only returns buckets that have events, so a step nobody reached
     // exists in the report only because it exists in the definition.
-    const funnel = await findFunnel(ids.websiteUuid, funnelId);
+    const funnel = await findFunnel(ids.websiteId, funnelId);
     if (!funnel) return null;
 
     const { startIso, endIso } = reportWindow(clampReportDays(days));
-    // `siteId`, not `websiteUuid` — see `ResolvedIds`.
-    const counts = await countFunnelStepVisitors(ids.siteId, funnelId, startIso, endIso);
+    // `websiteId`, not `websiteId` — see `ResolvedIds`.
+    const counts = await this.analyticsEvents.countFunnelStepVisitors(
+      ids.websiteId,
+      funnelId,
+      startIso,
+      endIso,
+    );
     return buildFunnelReport(funnel.steps, counts);
   }
 
@@ -192,13 +200,13 @@ export class FunnelService
    * Takes the resolved UUID, not a reference — the tracker's `/init` handler has
    * already loaded the website row, so there is nothing left to resolve.
    */
-  async activeForTracker(websiteUuid: string): Promise<Funnel[]> {
-    return listActiveFunnels(websiteUuid);
+  async activeForTracker(websiteId: string): Promise<Funnel[]> {
+    return listActiveFunnels(websiteId);
   }
 
   async activeForWebsiteRef(websiteRef: string): Promise<Funnel[]> {
     const ids = await this.resolve(websiteRef);
     if (!ids) return [];
-    return listActiveFunnels(ids.websiteUuid);
+    return listActiveFunnels(ids.websiteId);
   }
 }

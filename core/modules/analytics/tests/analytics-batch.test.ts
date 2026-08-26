@@ -3,20 +3,22 @@ import { describe, it, expect, mock, beforeAll, beforeEach } from "bun:test";
 // mock.module must be called before any dynamic import of the module under test.
 // Use dynamic import in beforeAll so these mocks are in place when analytics-batch loads.
 
+/**
+ * The repository writes on a caller-supplied transaction now, so the fake tx *is* the
+ * seam — no `db.transaction` mock needed. That transaction comes from `applyBatchOnce`,
+ * which is what makes the insert replay-safe; this file tests the projection and
+ * chunking, not the guard.
+ */
 const mockValues = mock(() => Promise.resolve());
 const mockInsert = mock(() => ({ values: mockValues }));
-const mockTxValues = mock(() => Promise.resolve());
-const mockTxInsert = mock(() => ({ values: mockTxValues }));
-const mockTransaction = mock((fn: (tx: any) => Promise<void>) =>
-  fn({ insert: mockTxInsert })
-);
+const fakeTx = { insert: mockInsert };
 
 // Must export everything `db/index.ts` does, `sql` included. Bun's module mocks are
 // process-global, so an incomplete stub here is not a local shortcut — it becomes the
 // `db` module for every test file that runs after this one, and anything importing a
 // missing export fails to load entirely.
 mock.module("../../../db", () => ({
-  db: { insert: mockInsert, transaction: mockTransaction },
+  db: { insert: mockInsert },
   sql: mock(async () => []),
   analyticsEvents: {},
   outbox: {},
@@ -39,7 +41,7 @@ mock.module("../../../platform/lib/logger", () => {
 });
 
 // Dynamic import ensures mocks above are registered before the module loads.
-let ingestAnalyticsBatch: (siteId: string, events: any[]) => Promise<number>;
+let ingestAnalyticsBatch: (tx: any, websiteId: string, events: any[]) => Promise<number>;
 
 beforeAll(async () => {
   const mod = await import("../repositories/analytics-batch.repository");
@@ -49,9 +51,6 @@ beforeAll(async () => {
 beforeEach(() => {
   mockInsert.mockClear();
   mockValues.mockClear();
-  mockTransaction.mockClear();
-  mockTxInsert.mockClear();
-  mockTxValues.mockClear();
 });
 
 const NOW = Date.now();
@@ -88,13 +87,13 @@ function insertedRows(): any[] {
 
 describe("ingestAnalyticsBatch", () => {
   it("returns 0 for an empty event array without touching DB", async () => {
-    const result = await ingestAnalyticsBatch("site1", []);
+    const result = await ingestAnalyticsBatch(fakeTx, "site1", []);
     expect(result).toBe(0);
     expect(mockInsert).not.toHaveBeenCalled();
   });
 
   it("inserts a single pageview and returns 1", async () => {
-    const result = await ingestAnalyticsBatch("site1", [pageview()]);
+    const result = await ingestAnalyticsBatch(fakeTx, "site1", [pageview()]);
     expect(result).toBe(1);
     expect(mockInsert).toHaveBeenCalledTimes(1);
   });
@@ -106,35 +105,35 @@ describe("ingestAnalyticsBatch", () => {
       "heatmap_dom_snapshot", "automation_trigger",
     ];
     const events = skipped.map((type) => pageview({ type }));
-    const result = await ingestAnalyticsBatch("site1", events);
+    const result = await ingestAnalyticsBatch(fakeTx, "site1", events);
     expect(result).toBe(0);
     expect(mockInsert).not.toHaveBeenCalled();
   });
 
   it("promotes custom event data.name to event_type", async () => {
     const event = pageview({ type: "custom", data: { name: "purchase", value: 49.99 } });
-    await ingestAnalyticsBatch("site1", [event]);
+    await ingestAnalyticsBatch(fakeTx, "site1", [event]);
     const rows = insertedRows();
     expect(rows[0].eventType).toBe("purchase");
   });
 
   it("caps event_type at 64 characters", async () => {
     const event = pageview({ type: "a".repeat(100) });
-    await ingestAnalyticsBatch("site1", [event]);
+    await ingestAnalyticsBatch(fakeTx, "site1", [event]);
     const rows = insertedRows();
     expect(rows[0].eventType.length).toBe(64);
   });
 
   it("caps page URL at 2048 characters", async () => {
     const event = pageview({ url: "/" + "x".repeat(3000) });
-    await ingestAnalyticsBatch("site1", [event]);
+    await ingestAnalyticsBatch(fakeTx, "site1", [event]);
     const rows = insertedRows();
     expect(rows[0].page.length).toBe(2048);
   });
 
   it("replaces oversized properties (>32KB) with { _truncated: true }", async () => {
     const event = pageview({ data: { payload: "x".repeat(33 * 1024) } });
-    await ingestAnalyticsBatch("site1", [event]);
+    await ingestAnalyticsBatch(fakeTx, "site1", [event]);
     const rows = insertedRows();
     expect(rows[0].properties).toEqual({ _truncated: true });
   });
@@ -142,24 +141,28 @@ describe("ingestAnalyticsBatch", () => {
   it("keeps small properties object intact", async () => {
     const data = { plan: "pro", value: 99 };
     const event = pageview({ data });
-    await ingestAnalyticsBatch("site1", [event]);
+    await ingestAnalyticsBatch(fakeTx, "site1", [event]);
     const rows = insertedRows();
     expect(rows[0].properties).toMatchObject(data);
   });
 
-  it("uses a transaction for batches over CHUNK_SIZE (3000 rows)", async () => {
+  /**
+   * Chunked for the driver's parameter limit, all on the caller's transaction. There is
+   * no inner transaction any more: `applyBatchOnce` already wraps this, so a partial
+   * failure rolls the whole batch back together with the marker that would otherwise
+   * record it as applied.
+   */
+  it("chunks batches over CHUNK_SIZE across several inserts on one transaction", async () => {
     const events = Array.from({ length: 3001 }, () => pageview());
-    const result = await ingestAnalyticsBatch("site1", events);
+    const result = await ingestAnalyticsBatch(fakeTx, "site1", events);
     expect(result).toBe(3001);
-    expect(mockTransaction).toHaveBeenCalledTimes(1);
-    expect(mockInsert).not.toHaveBeenCalled();
+    expect(mockInsert).toHaveBeenCalledTimes(2);
   });
 
   it("uses a single insert for batches at or below CHUNK_SIZE", async () => {
     const events = Array.from({ length: 100 }, () => pageview());
-    await ingestAnalyticsBatch("site1", events);
+    await ingestAnalyticsBatch(fakeTx, "site1", events);
     expect(mockInsert).toHaveBeenCalledTimes(1);
-    expect(mockTransaction).not.toHaveBeenCalled();
   });
 
   it("counts only non-skipped events in mixed batch", async () => {
@@ -169,7 +172,7 @@ describe("ingestAnalyticsBatch", () => {
       pageview({ type: "heatmap_click" }),
       pageview({ type: "custom", data: { name: "signup" } }),
     ];
-    const result = await ingestAnalyticsBatch("site1", events);
+    const result = await ingestAnalyticsBatch(fakeTx, "site1", events);
     expect(result).toBe(2);
   });
 
@@ -177,7 +180,7 @@ describe("ingestAnalyticsBatch", () => {
     const event = pageview({
       ingestMeta: { country: "US", region: "CA", city: "SF", browser: "Chrome", device: "desktop", os: "macOS" },
     });
-    await ingestAnalyticsBatch("site1", [event]);
+    await ingestAnalyticsBatch(fakeTx, "site1", [event]);
     const rows = insertedRows();
     expect(rows[0].country).toBe("US");
     expect(rows[0].region).toBe("CA");

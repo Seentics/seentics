@@ -32,10 +32,10 @@ const MIN_PLAUSIBLE_DOC_PX = 200;
  * the read and the presign.
  */
 export async function readLayoutSnapshot(
-  websiteUuid: string,
+  websiteId: string,
   normalizedPath: string,
 ): Promise<{ layout: HeatmapLayout | null; missing: boolean; stale: boolean }> {
-  const row = await getLayoutSnapshot(websiteUuid, normalizedPath);
+  const row = await getLayoutSnapshot(websiteId, normalizedPath);
 
   // A row counts as present if either a JPEG (`s3_key`) or a DOM HTML snapshot
   // (`html_s3_key`) is stored. `upsertLayoutHtmlSnapshot` inserts with `s3_key=''`,
@@ -106,7 +106,7 @@ export function decodeJpegUpload(imageBase64: string): Buffer {
  * Store a screenshot and point the page's snapshot row at it.
  *
  * Both identifiers are needed and they are not interchangeable: the S3 key is
- * namespaced by `siteId`, the snapshot row is keyed by the website UUID. Returns
+ * namespaced by `websiteId`, the snapshot row is keyed by the website UUID. Returns
  * the key so the caller can report what it wrote.
  */
 export async function storeDashboardScreenshot(
@@ -127,8 +127,8 @@ export async function storeDashboardScreenshot(
   if (dW < MIN_PLAUSIBLE_DOC_PX) dW = FALLBACK_DOC_WIDTH;
   if (dH < MIN_PLAUSIBLE_DOC_PX) dH = FALLBACK_DOC_HEIGHT;
 
-  const key = heatmapScreenshotKey(resolved.siteId, layoutPathSlot(resolved.siteId, normalizedPath));
+  const key = heatmapScreenshotKey(resolved.websiteId, layoutPathSlot(resolved.websiteId, normalizedPath));
   await putJpeg(cfg.s3.bucket, key, jpeg);
-  await upsertLayoutSnapshot(resolved.websiteUuid, normalizedPath, key, sum, dW, dH);
+  await upsertLayoutSnapshot(resolved.websiteId, normalizedPath, key, sum, dW, dH);
   return key;
 }

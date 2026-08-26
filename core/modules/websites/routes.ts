@@ -17,10 +17,15 @@ import {
 // Migrating them is what lets `services/websites/` be deleted.
 import * as goalsSvc from "./services/goals";
 import * as membersSvc from "./services/members";
-import type { WebsiteMutations, WebsiteQuery } from "./interfaces";
+import type { UserDirectory } from "../auth/interfaces";
+import type {
+  WebsiteMutations,
+  WebsiteQuery,
+  WebsiteTrafficReads,
+  WebsiteUserMutations,
+} from "./interfaces";
 import { toUpdateWebsiteInput } from "./routes/patch-mapping";
 import { presentWebsite, presentWebsites } from "./routes/website-presenter";
-import type { WebsiteService } from "./services/website.service";
 
 /**
  * HTTP surface for websites, mounted at `/api/v1/websites`.
@@ -33,7 +38,20 @@ import type { WebsiteService } from "./services/website.service";
  * an update. Two write paths existed; only one of them announced anything.
  */
 export function createWebsiteRoutes(deps: {
-  websites: WebsiteService & WebsiteQuery & WebsiteMutations;
+  /**
+   * Interfaces rather than `WebsiteService`, and `Pick` on the unchecked writes on
+   * purpose: `WebsiteMutations.update` / `.delete` / `.setPublicSharing` skip the
+   * access check, and a handler reaching for one of those instead of its `ForUser`
+   * counterpart is a missing authorization check that no test would necessarily
+   * catch. Only `create` is exposed, which has no existing website to authorize
+   * against.
+   */
+  websites: WebsiteQuery &
+    WebsiteTrafficReads &
+    WebsiteUserMutations &
+    Pick<WebsiteMutations, "create">;
+  /** Names and emails for the member list — `users` belongs to auth. */
+  users: UserDirectory;
 }) {
   const { websites } = deps;
   const r = new Hono<{ Variables: AuthVars }>();
@@ -228,7 +246,7 @@ export function createWebsiteRoutes(deps: {
   }));
 
   r.get("/:id/members", authed(async (c, userId) => {
-    return c.json(await membersSvc.listMembers(userId, param(c, "id")));
+    return c.json(await membersSvc.listMembers(userId, param(c, "id"), deps.users));
   }));
 
   r.post("/:id/members", async (c) => {
@@ -238,10 +256,12 @@ export function createWebsiteRoutes(deps: {
     if (!parsed.ok) return parsed.res;
     try {
       return c.json(
-        await membersSvc.addMember(userId, param(c, "id"), {
-          email: parsed.data.email,
-          role: parsed.data.role,
-        }),
+        await membersSvc.addMember(
+          userId,
+          param(c, "id"),
+          { email: parsed.data.email, role: parsed.data.role },
+          deps.users,
+        ),
         201,
       );
     } catch (e) {
@@ -325,10 +345,10 @@ export function createWebsiteRoutes(deps: {
   // Present so the client gets a shaped answer rather than a 404; unimplemented
   // server-side. Preserved verbatim from the previous router.
 
-  r.get("/:siteId/privacy", (c) =>
-    c.json({ data: { site_id: c.req.param("siteId"), settings: {} } }),
+  r.get("/:websiteId/privacy", (c) =>
+    c.json({ data: { website_id: c.req.param("websiteId"), settings: {} } }),
   );
-  r.put("/:siteId/privacy", (c) => c.json({ data: { ok: true } }));
+  r.put("/:websiteId/privacy", (c) => c.json({ data: { ok: true } }));
 
   r.get("/:websiteId/api-keys", (c) => c.json({ data: [] }));
   r.post("/:websiteId/api-keys", (c) => c.json({ error: "not implemented" }, 501));

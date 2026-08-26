@@ -2,7 +2,7 @@ import { sql as pgSql } from "../../../db";
 import { parseDays, windowStartIso } from "./shared";
 
 export async function getReferrersAnalytics(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
@@ -21,7 +21,7 @@ export async function getReferrersAnalytics(
         coalesce(nullif(trim(visitor_id), ''), session_id) AS vid,
         occurred_at
       FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type = 'pageview'
         AND occurred_at >= ${startIso}
         AND session_id IS NOT NULL

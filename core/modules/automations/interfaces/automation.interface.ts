@@ -19,7 +19,7 @@
  * it.
  *
  * `websiteId` is the website **UUID** (`websites.id`), never the short public
- * `siteId` — the `automations` table is keyed by the UUID. Both are `string`, so
+ * `websiteId` — the `automations` table is keyed by the UUID. Both are `string`, so
  * nothing but discipline stops a mix-up; see `AutomationRepository` on why
  * resolution happens exactly once, above this type.
  */
@@ -111,7 +111,7 @@ export type UpdateAutomationInput = Partial<{
 /**
  * Create, read, update and delete — the dashboard's surface.
  *
- * Every method takes a loose `websiteRef` (a UUID or a `siteId`, whichever the
+ * Every method takes a loose `websiteRef` (a UUID or a `websiteId`, whichever the
  * URL carried) and resolves it once. Authorization is *not* this interface's
  * job: routes check the caller's role against the websites module before
  * calling, and the implementation assumes that already happened.

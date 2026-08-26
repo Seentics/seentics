@@ -29,6 +29,6 @@ export class PublicDashboardService implements AnalyticsPublicDashboard {
     const resolved = await this.sharing.resolvePublicShareId(publicShareId);
     if (!resolved) return null;
 
-    return getDashboardStats(resolved.siteId, query);
+    return getDashboardStats(resolved.websiteId, query);
   }
 }

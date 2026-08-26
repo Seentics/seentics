@@ -9,7 +9,6 @@ import { CachedWebsiteQuery } from "../../../modules/websites/services/cached-we
 function makeWebsite(overrides: Partial<Website> = {}): Website {
   return {
     id: "11111111-1111-4111-8111-111111111111",
-    siteId: "site_one",
     ownerId: "owner_1",
     name: "One",
     url: "one.example",
@@ -53,7 +52,7 @@ class CountingWebsiteQuery implements WebsiteQuery {
   async getById(websiteRef: string): Promise<Website | null> {
     this.getByIdCalls.push(websiteRef);
     return (
-      this.websites.find((w) => w.id === websiteRef || w.siteId === websiteRef) ?? null
+      this.websites.find((w) => w.id === websiteRef || w.id === websiteRef) ?? null
     );
   }
 
@@ -64,7 +63,7 @@ class CountingWebsiteQuery implements WebsiteQuery {
 
   async getRole(websiteRef: string, userId: string): Promise<WebsiteRole | null> {
     this.roleCalls.push([websiteRef, userId]);
-    const found = this.websites.find((w) => w.id === websiteRef || w.siteId === websiteRef);
+    const found = this.websites.find((w) => w.id === websiteRef || w.id === websiteRef);
     if (!found) return null;
     return found.ownerId === userId ? "owner" : null;
   }
@@ -92,21 +91,21 @@ describe("CachedWebsiteQuery", () => {
       expect(inner.getByIdCalls).toEqual([site.id]);
     });
 
-    // The tracker addresses sites by siteId while the dashboard uses the UUID.
+    // The tracker addresses sites by websiteId while the dashboard uses the UUID.
     // Warming both keys means the second surface does not pay for a lookup the
     // first already did.
     it("warms the sibling identifier so either form hits cache", async () => {
       await cached.getById(site.id);
-      await cached.getById(site.siteId);
+      await cached.getById(site.id);
 
       expect(inner.getByIdCalls).toEqual([site.id]);
     });
 
-    it("warms the UUID when first asked by siteId", async () => {
-      await cached.getById(site.siteId);
+    it("warms the UUID when first asked by websiteId", async () => {
+      await cached.getById(site.id);
       await cached.getById(site.id);
 
-      expect(inner.getByIdCalls).toEqual([site.siteId]);
+      expect(inner.getByIdCalls).toEqual([site.id]);
     });
 
     // A dashboard polling a deleted site would otherwise hit the database on
@@ -168,16 +167,16 @@ describe("CachedWebsiteQuery", () => {
     // serving stale data — which is why bootstrap passes both ids.
     it("clears both identifiers when both are given", async () => {
       await cached.getById(site.id);
-      await cached.getById(site.siteId);
+      await cached.getById(site.id);
 
-      cached.invalidate(site.id, site.siteId);
+      cached.invalidate(site.id, site.id);
 
-      await cached.getById(site.siteId);
-      expect(inner.getByIdCalls).toEqual([site.id, site.siteId]);
+      await cached.getById(site.id);
+      expect(inner.getByIdCalls).toEqual([site.id, site.id]);
     });
 
     it("leaves other websites cached", async () => {
-      const other = makeWebsite({ id: "other-id", siteId: "site_two" });
+      const other = makeWebsite({ id: "other-id" });
       inner = new CountingWebsiteQuery([site, other]);
       cached = new CachedWebsiteQuery(inner);
 

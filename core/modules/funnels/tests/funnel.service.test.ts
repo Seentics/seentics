@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, mock } from "bun:test";
 import { InMemoryEventBus, type EventBus, type EventName } from "../../../infrastructure/events";
 import type { Logger } from "../../../platform/lib/logger";
+import type { AnalyticsFunnelEvents } from "../../analytics/interfaces";
 import type { Website, WebsiteQuery, WebsiteRole } from "../../websites/interfaces";
 import type { Funnel } from "../interfaces";
 
@@ -9,41 +10,41 @@ import type { Funnel } from "../interfaces";
 // The repositories are the module's only database contact, so faking them at the
 // module boundary is what keeps every test in this file DB-free. Each fake records
 // the *identifier it was called with*: that is the assertion these tests exist for,
-// since `siteId` and the website UUID are both `string` and the compiler cannot tell
+// since `websiteId` and the website UUID are both `string` and the compiler cannot tell
 // a mixed-up pair from a correct one.
 
-type RepoCall = { fn: string; websiteUuid: string };
+type RepoCall = { fn: string; websiteId: string };
 
 const repoCalls: RepoCall[] = [];
-const reportCalls: { siteId: string; funnelId: string; startIso: string; endIso: string }[] = [];
+const reportCalls: { websiteId: string; funnelId: string; startIso: string; endIso: string }[] = [];
 
 let funnelRows: Funnel[] = [];
 
 function record(fn: string) {
-  return (websiteUuid: string, ...rest: unknown[]) => {
-    repoCalls.push({ fn, websiteUuid });
+  return (websiteId: string, ...rest: unknown[]) => {
+    repoCalls.push({ fn, websiteId });
     void rest;
   };
 }
 
-const mockListFunnels = mock(async (websiteUuid: string) => {
-  record("listFunnels")(websiteUuid);
+const mockListFunnels = mock(async (websiteId: string) => {
+  record("listFunnels")(websiteId);
   return funnelRows;
 });
-const mockListActiveFunnels = mock(async (websiteUuid: string) => {
-  record("listActiveFunnels")(websiteUuid);
+const mockListActiveFunnels = mock(async (websiteId: string) => {
+  record("listActiveFunnels")(websiteId);
   return funnelRows.filter((f) => f.is_active);
 });
-const mockFindFunnel = mock(async (websiteUuid: string, funnelId: string) => {
-  record("findFunnel")(websiteUuid);
+const mockFindFunnel = mock(async (websiteId: string, funnelId: string) => {
+  record("findFunnel")(websiteId);
   return funnelRows.find((f) => f.id === funnelId) ?? null;
 });
-const mockInsertFunnel = mock(async (websiteUuid: string, userId: string, input: unknown) => {
-  record("insertFunnel")(websiteUuid);
+const mockInsertFunnel = mock(async (websiteId: string, userId: string, input: unknown) => {
+  record("insertFunnel")(websiteId);
   const body = input as { name?: string; steps?: unknown[] };
   const created = makeFunnel({
     id: "fn_new",
-    website_id: websiteUuid,
+    website_id: websiteId,
     user_id: userId,
     name: body.name ?? "",
     steps: (body.steps ?? []).map((_s, i) => ({
@@ -57,15 +58,15 @@ const mockInsertFunnel = mock(async (websiteUuid: string, userId: string, input:
   funnelRows.push(created);
   return created;
 });
-const mockUpdateFunnel = mock(async (websiteUuid: string, funnelId: string, _patch: unknown) => {
-  record("updateFunnel")(websiteUuid);
+const mockUpdateFunnel = mock(async (websiteId: string, funnelId: string, _patch: unknown) => {
+  record("updateFunnel")(websiteId);
   return funnelRows.find((f) => f.id === funnelId) ?? null;
 });
-const mockDeleteFunnel = mock(async (websiteUuid: string, _funnelId: string) => {
-  record("deleteFunnel")(websiteUuid);
+const mockDeleteFunnel = mock(async (websiteId: string, _funnelId: string) => {
+  record("deleteFunnel")(websiteId);
 });
-const mockDeleteFunnels = mock(async (websiteUuid: string, _funnelIds: string[]) => {
-  record("deleteFunnels")(websiteUuid);
+const mockDeleteFunnels = mock(async (websiteId: string, _funnelIds: string[]) => {
+  record("deleteFunnels")(websiteId);
 });
 
 mock.module("../repositories/funnel.repository", () => ({
@@ -78,22 +79,24 @@ mock.module("../repositories/funnel.repository", () => ({
   deleteFunnels: mockDeleteFunnels,
 }));
 
-mock.module("../repositories/funnel-report.repository", () => ({
-  countFunnelStepVisitors: mock(
-    async (siteId: string, funnelId: string, startIso: string, endIso: string) => {
-      reportCalls.push({ siteId, funnelId, startIso, endIso });
-      return [
-        { step_order: -1, cnt: 4 },
-        { step_order: 0, cnt: 10 },
-      ];
-    },
-  ),
-}));
+/**
+ * Step counts arrive through `AnalyticsFunnelEvents` now — the events live in
+ * `analytics_events`, so the aggregation belongs to that module. A plain object
+ * replaces what used to be a `mock.module` of a funnels-owned repository.
+ */
+const analyticsEvents: AnalyticsFunnelEvents = {
+  async countFunnelStepVisitors(websiteId, funnelId, startIso, endIso) {
+    reportCalls.push({ websiteId, funnelId, startIso, endIso });
+    return [
+      { step_order: -1, cnt: 4 },
+      { step_order: 0, cnt: 10 },
+    ];
+  },
+};
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
 const WEBSITE_UUID = "11111111-1111-4111-8111-111111111111";
-const SITE_ID = "site_abc";
 
 const silentLogger: Logger = {
   debug() {},
@@ -128,7 +131,6 @@ function makeFunnel(overrides: Partial<Funnel> = {}): Funnel {
 function makeWebsite(): Website {
   return {
     id: WEBSITE_UUID,
-    siteId: SITE_ID,
     ownerId: "user_1",
     name: "One",
     url: "one.example",
@@ -172,7 +174,7 @@ class FakeWebsiteQuery implements WebsiteQuery {
 
   seed(website: Website): Website {
     this.known.set(website.id, website);
-    this.known.set(website.siteId, website);
+    this.known.set(website.id, website);
     return website;
   }
 
@@ -226,7 +228,7 @@ describe("FunnelService", () => {
     websites.seed(makeWebsite());
     const rec = recordingBus();
     published = rec.published;
-    service = new FunnelService(websites, rec.bus);
+    service = new FunnelService(websites, analyticsEvents, rec.bus);
   });
 
   describe("website reference resolution", () => {
@@ -237,10 +239,6 @@ describe("FunnelService", () => {
     // The dual-identifier scheme is the subtle part of this domain: the dashboard
     // links by UUID while the tracker snippet carries the short public id, and both
     // reach the same routes.
-    it("resolves a siteId reference to the same funnels", async () => {
-      expect(await service.list(SITE_ID)).toHaveLength(1);
-    });
-
     it("resolves exactly once per request", async () => {
       await service.list(WEBSITE_UUID);
       expect(websites.lookups).toEqual([WEBSITE_UUID]);
@@ -266,37 +264,37 @@ describe("FunnelService", () => {
   /**
    * The failure this whole refactor is designed to prevent: definitions live in
    * `funnels` keyed by the website UUID, the events they are measured against live
-   * in `analytics_events` keyed by the short `siteId`. Both are `string`, so
+   * in `analytics_events` keyed by the short `websiteId`. Both are `string`, so
    * swapping them compiles and silently returns nothing.
    */
+  /**
+   * This block used to prove the two identifiers never got crossed: funnel definitions
+   * were keyed by the website UUID while the events they aggregate were keyed by a
+   * shorter public id, so a report needed both and using the wrong one returned zero
+   * rows with no error. One column keys both now, and these assert that the same id
+   * reaches the definition repository and the events aggregation.
+   */
   describe("identifier routing", () => {
-    it("queries funnel definitions by the website UUID", async () => {
-      await service.list(SITE_ID);
-      expect(repoCalls).toEqual([{ fn: "listFunnels", websiteUuid: WEBSITE_UUID }]);
+    it("queries funnel definitions by the website id", async () => {
+      await service.list(WEBSITE_UUID);
+      expect(repoCalls).toEqual([{ fn: "listFunnels", websiteId: WEBSITE_UUID }]);
     });
 
-    it("queries the events aggregation by siteId, not the UUID", async () => {
+    it("reads the definition and the events aggregation by the same id", async () => {
       await service.report(WEBSITE_UUID, "fn_1");
 
+      expect(repoCalls).toEqual([{ fn: "findFunnel", websiteId: WEBSITE_UUID }]);
       expect(reportCalls).toHaveLength(1);
-      expect(reportCalls[0]?.siteId).toBe(SITE_ID);
-      expect(reportCalls[0]?.siteId).not.toBe(WEBSITE_UUID);
+      expect(reportCalls[0]?.websiteId).toBe(WEBSITE_UUID);
     });
 
-    it("reads the definition by UUID while reading events by siteId, in one call", async () => {
-      await service.report(SITE_ID, "fn_1");
+    it("routes every mutation by that id", async () => {
+      await service.create(WEBSITE_UUID, "user_1", { name: "New" });
+      await service.update(WEBSITE_UUID, "fn_1", { name: "Renamed" });
+      await service.remove(WEBSITE_UUID, "fn_1");
+      await service.bulkRemove(WEBSITE_UUID, ["fn_1", "fn_2"]);
 
-      expect(repoCalls).toEqual([{ fn: "findFunnel", websiteUuid: WEBSITE_UUID }]);
-      expect(reportCalls[0]?.siteId).toBe(SITE_ID);
-    });
-
-    it("routes every mutation by the website UUID", async () => {
-      await service.create(SITE_ID, "user_1", { name: "New" });
-      await service.update(SITE_ID, "fn_1", { name: "Renamed" });
-      await service.remove(SITE_ID, "fn_1");
-      await service.bulkRemove(SITE_ID, ["fn_1", "fn_2"]);
-
-      expect(repoCalls.map((c) => c.websiteUuid)).toEqual([
+      expect(repoCalls.map((c) => c.websiteId)).toEqual([
         WEBSITE_UUID,
         WEBSITE_UUID,
         WEBSITE_UUID,
@@ -304,18 +302,13 @@ describe("FunnelService", () => {
       ]);
     });
 
-    it("passes the resolved UUID to the tracker path without re-resolving", async () => {
+    // The tracker path is on the hottest public endpoint, so it must not spend a
+    // website lookup it does not need.
+    it("does not look the website up on the tracker path", async () => {
       await service.activeForTracker(WEBSITE_UUID);
 
       expect(websites.lookups).toEqual([]);
-      expect(repoCalls).toEqual([{ fn: "listActiveFunnels", websiteUuid: WEBSITE_UUID }]);
-    });
-
-    it("resolves for the public active endpoint, which only has a loose reference", async () => {
-      await service.activeForWebsiteRef(SITE_ID);
-
-      expect(websites.lookups).toEqual([SITE_ID]);
-      expect(repoCalls).toEqual([{ fn: "listActiveFunnels", websiteUuid: WEBSITE_UUID }]);
+      expect(repoCalls).toEqual([{ fn: "listActiveFunnels", websiteId: WEBSITE_UUID }]);
     });
 
     it("returns an empty list from the public active endpoint for an unknown site", async () => {
@@ -360,7 +353,6 @@ describe("FunnelService", () => {
       expect(published[0]?.type).toBe("funnel.created");
       expect(published[0]?.payload).toMatchObject({
         websiteId: WEBSITE_UUID,
-        siteId: SITE_ID,
         funnelId: created.id,
         name: "New",
         stepCount: 2,
@@ -382,7 +374,7 @@ describe("FunnelService", () => {
 
       expect(published).toHaveLength(1);
       expect(published[0]?.type).toBe("funnel.deleted");
-      expect(published[0]?.payload).toMatchObject({ funnelId: "fn_1", siteId: SITE_ID });
+      expect(published[0]?.payload).toMatchObject({ funnelId: "fn_1", websiteId: WEBSITE_UUID });
     });
 
     // One event per funnel, never a batched shape — consumers get a single code path.

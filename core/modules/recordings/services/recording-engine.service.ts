@@ -3,10 +3,11 @@ import { getNextReplayChunkSequence, uploadSessionChunkGzip } from "../../../pla
 import { ReplaySpool } from "./spool";
 import { upsertSessionMetaBatch, type SessionUpsertRow } from "../repositories/recording.repository";
 import { clampClientTs } from "../../../platform/lib/client-timestamp";
-import { resolveWebsiteIdsLenient } from "../../../platform/lib/website-resolve";
 import { compareReplayEnvelopeEvents } from "./event-order";
 import type { AnalyticsIngestMeta } from "../../../platform/lib/analytics-ingest-meta";
 import type { TrackerEvent } from "../../../platform/lib/types";
+import type { RecordingIngest } from "../interfaces";
+import { recordingEventsIn } from "./tracker-mapping";
 import { log as baseLog } from "../../../platform/lib/logger";
 
 const log = baseLog.child({ category: "replay" });
@@ -121,25 +122,56 @@ function normalizeReplayPageUrl(u: unknown): string {
   }
 }
 
-export class ReplayEngine {
+export class ReplayEngine implements RecordingIngest {
   private spool: ReplaySpool;
   private pgBuf: SessionUpsertRow[] = [];
+
+  /**
+   * The batch currently being ingested, stamped onto buffered metadata rows.
+   *
+   * Empty when a row was buffered outside a `processEvents` call, in which case the
+   * upsert runs unguarded — acceptable because session metadata is an upsert on
+   * (website, session, sequence), so a repeat overwrites rather than accumulates.
+   */
+  private currentBatchId = "";
   private pgTimer: ReturnType<typeof setInterval>;
   private bucket: string;
 
+  /**
+   * `websites` resolves the identifier pair per flush.
+   *
+   * Injected rather than imported: the lookup used to come from
+   * `platform/lib/website-resolve`, so this engine did raw resolution against a table
+   * the websites module owns. That injection is gone with the second identifier: every
+   * table keys on `website_id`, so the flush needs no lookup to know what to write.
+   */
   constructor() {
     const c = env();
     this.bucket = c.s3.bucket;
     this.spool = new ReplaySpool({
       chunkFlushMs: c.replayChunkFlushMs,
-      getInitialSequence: async (siteId, sessionId) =>
-        getNextReplayChunkSequence(this.bucket, siteId, sessionId),
-      onChunkFlush: async (siteId, sessionId, sequence, events) => {
-        await uploadSessionChunkGzip(this.bucket, siteId, sessionId, sequence, events);
+      getInitialSequence: async (websiteId, sessionId) =>
+        getNextReplayChunkSequence(this.bucket, websiteId, sessionId),
+      onChunkFlush: async (websiteId, sessionId, sequence, events) => {
+        await uploadSessionChunkGzip(this.bucket, websiteId, sessionId, sequence, events);
       },
     });
     this.spool.start();
     this.pgTimer = setInterval(() => void this.flushPg(), pgBatchMs);
+  }
+
+  /**
+   * Lenient resolution: the reference stands in for both identifiers when the lookup
+   * fails or no resolver was injected. A flush must not be dropped because one website
+   * row is missing.
+   */
+  /**
+   * Kept as a seam even though it is now the identity: the flush maps a batch's website
+   * reference to the id its rows are keyed by, and that used to be a lookup. One
+   * identifier makes it a no-op rather than making the concept disappear.
+   */
+  private async resolveIds(websiteId: string): Promise<{ websiteId: string }> {
+    return { websiteId };
   }
 
   async shutdown(): Promise<void> {
@@ -173,7 +205,14 @@ export class ReplayEngine {
   }
 
   /** Ingest tracker-shaped events (same envelope as Go TrackerEvent). */
-  async processEvents(events: TrackerEvent[]): Promise<void> {
+  async processEvents(batchId: string, events: TrackerEvent[]): Promise<void> {
+    // Tag the batch so the metadata upsert can skip a redelivery. The chunk uploads
+    // themselves need no marker: an S3 key is (session, sequence), so replaying one
+    // overwrites the same object rather than adding a second.
+    this.currentBatchId = batchId;
+    // Which types make up a recording is this module's answer, so the filter is here
+    // rather than in ingest.
+    events = recordingEventsIn(events);
     const grouped = new Map<string, SessionBatch>();
 
     for (const ev of events) {
@@ -292,12 +331,12 @@ export class ReplayEngine {
 
     // Resolve all unique website IDs in parallel rather than sequentially.
     const uniqueWids = [...new Set(work.map((w) => w.batch.websiteId))];
-    const resolved = await Promise.all(uniqueWids.map((wid) => resolveWebsiteIdsLenient(wid)));
+    const resolved = await Promise.all(uniqueWids.map((wid) => this.resolveIds(wid)));
     const ctx = new Map(uniqueWids.map((wid, i) => [wid, resolved[i]!]));
 
     for (const w of work) {
       const wid = w.batch.websiteId;
-      const { siteId: storageWebsiteId } = ctx.get(wid)!;
+      const { websiteId: storageWebsiteId } = ctx.get(wid)!;
 
       try {
         this.spool.push(storageWebsiteId, w.sessionId, w.batch.events);
@@ -328,12 +367,12 @@ export class ReplayEngine {
     }
   }
 
-  warmChunks(siteId: string, sessionId: string) {
-    return this.spool.warmChunks(siteId, sessionId);
+  warmChunks(websiteId: string, sessionId: string) {
+    return this.spool.warmChunks(websiteId, sessionId);
   }
 
-  removeSpool(siteId: string, sessionId: string): void {
-    this.spool.remove(siteId, sessionId);
+  removeSpool(websiteId: string, sessionId: string): void {
+    this.spool.remove(websiteId, sessionId);
   }
 }
 
@@ -356,7 +395,23 @@ function hasRageClickPattern(clicks: RageClick[]): boolean {
 }
 
 let _engine: ReplayEngine | null = null;
+
+/**
+ * The process-wide engine.
+ *
+ * Creates a resolver-less engine if nothing initialised one first, so an early ingest
+ * degrades to lenient resolution rather than throwing.
+ */
 export function getReplayEngine(): ReplayEngine {
   if (!_engine) _engine = new ReplayEngine();
+  return _engine;
+}
+
+/**
+ * Create the engine with its website resolver. Called by `initRecordingsModule().start`
+ * before anything can ingest; returns the same instance `getReplayEngine()` hands out.
+ */
+export function initReplayEngine(): ReplayEngine {
+  _engine = new ReplayEngine();
   return _engine;
 }

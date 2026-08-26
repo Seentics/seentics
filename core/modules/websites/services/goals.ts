@@ -1,16 +1,14 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db, goals } from "../../../db";
 import type { CreateGoalBody, UpdateGoalPatch } from "../../../platform/lib/api-types";
-import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
 import { assertWebsiteAccess } from "./access";
 
-export async function listGoals(userId: string, websiteParam: string) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+export async function listGoals(userId: string, websiteId: string) {
+  await assertWebsiteAccess(userId, websiteId);
   const rows = await db
     .select()
     .from(goals)
-    .where(eq(goals.websiteId, uuidStr))
+    .where(eq(goals.websiteId, websiteId))
     .orderBy(asc(goals.createdAt));
   return {
     data: rows.map((g) => ({
@@ -28,13 +26,12 @@ export async function listGoals(userId: string, websiteParam: string) {
   };
 }
 
-export async function createGoal(userId: string, websiteParam: string, body: CreateGoalBody) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+export async function createGoal(userId: string, websiteId: string, body: CreateGoalBody) {
+  await assertWebsiteAccess(userId, websiteId);
   const [g] = await db
     .insert(goals)
     .values({
-      websiteId: uuidStr,
+      websiteId: websiteId,
       name: body.name,
       type: body.type,
       identifier: body.identifier,
@@ -46,12 +43,11 @@ export async function createGoal(userId: string, websiteParam: string, body: Cre
 
 export async function updateGoal(
   userId: string,
-  websiteParam: string,
+  websiteId: string,
   goalId: string,
   body: UpdateGoalPatch,
 ) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+  await assertWebsiteAccess(userId, websiteId);
   const [g] = await db
     .update(goals)
     .set({
@@ -61,13 +57,12 @@ export async function updateGoal(
       ...(body.selector !== undefined ? { selector: body.selector } : {}),
       updatedAt: new Date(),
     })
-    .where(and(eq(goals.id, goalId), eq(goals.websiteId, uuidStr)))
+    .where(and(eq(goals.id, goalId), eq(goals.websiteId, websiteId)))
     .returning();
   return g ? { data: g } : null;
 }
 
-export async function deleteGoal(userId: string, websiteParam: string, goalId: string) {
-  await assertWebsiteAccess(userId, websiteParam);
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
-  await db.delete(goals).where(and(eq(goals.id, goalId), eq(goals.websiteId, uuidStr)));
+export async function deleteGoal(userId: string, websiteId: string, goalId: string) {
+  await assertWebsiteAccess(userId, websiteId);
+  await db.delete(goals).where(and(eq(goals.id, goalId), eq(goals.websiteId, websiteId)));
 }

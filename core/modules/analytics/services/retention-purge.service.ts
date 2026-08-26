@@ -36,19 +36,19 @@ export class AnalyticsRetentionPurge implements RetentionPurge {
     cutoffs: RetentionCutoffs,
     _options: RetentionOptions,
   ): Promise<Record<string, number>> {
-    // Keyed by the short site_id — `analytics_events.website_id` is text, not the UUID.
-    const siteId = target.siteId;
+    // Keyed by the short website_id — `analytics_events.website_id` is text, not the UUID.
+    const websiteId = target.websiteId;
 
     const funnel = await sql`
       DELETE FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND event_type IN ('funnel_step', 'funnel_complete')
         AND occurred_at < ${cutoffs.funnelAutomation}
     `;
 
     const general = await sql`
       DELETE FROM analytics_events
-      WHERE website_id = ${siteId}
+      WHERE website_id = ${websiteId}
         AND (
           event_type IS NULL
           OR event_type NOT IN ('funnel_step', 'funnel_complete')

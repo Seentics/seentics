@@ -14,6 +14,8 @@ export type {
   RetentionCutoffs,
   RetentionOptions,
   RetentionPurge,
+  RetentionRunner,
+  RetentionSiteSource,
   RetentionTarget,
 } from "./interfaces";
 export type { WebsiteRetentionOverride } from "./overrides";

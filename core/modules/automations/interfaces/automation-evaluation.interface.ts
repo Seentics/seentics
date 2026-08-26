@@ -21,14 +21,12 @@ import type { Unsubscribe } from "../../../infrastructure/events";
  * failing, so:
  * - `websiteId` is `websites.id`, the UUID that keys `automations`,
  *   `automation_impressions` and `user_profiles`.
- * - `siteId` is `websites.site_id`, the short public id, used only to label
- *   published events (every event payload in `EventMap` is keyed by `siteId`).
+ * - `websiteId` is `websites.website_id`, the short public id, used only to label
+ *   published events (every event payload in `EventMap` is keyed by `websiteId`).
  */
 export interface EvaluateRequest {
   /** Website **UUID**. Keys every table this path reads or writes. */
   websiteId: string;
-  /** Short public site id. Event payloads only — never a query predicate here. */
-  siteId: string;
   anonymousId: string;
   userId?: string | null;
   sessionId: string;

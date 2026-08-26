@@ -109,7 +109,6 @@ function makeBus(logger: Logger) {
 
 const websitePayload = {
   websiteId: "w1",
-  siteId: "s1",
   ownerId: "u1",
   url: "example.com",
   occurredAt: "2026-01-01T00:00:00.000Z",
@@ -158,7 +157,7 @@ describe("OutboxPublisher", () => {
 
     it("publishes every row in the batch", async () => {
       store.seed("website.created", { ...websitePayload });
-      store.seed("website.deleted", { websiteId: "w2", siteId: "s2", ownerId: "u1", occurredAt: "2026-01-01T00:00:00.000Z" });
+      store.seed("website.deleted", { websiteId: "w2", ownerId: "u1", occurredAt: "2026-01-01T00:00:00.000Z" });
 
       expect(await publisher.drainOnce()).toBe(2);
       expect(bus.delivered.map((d) => d.type)).toEqual(["website.created", "website.deleted"]);
@@ -195,10 +194,10 @@ describe("OutboxPublisher", () => {
     });
 
     it("leaves a payload without occurredAt untouched", async () => {
-      store.seed("analytics.batch_ingested", { siteId: "s1", eventCount: 3 });
+      store.seed("analytics.batch_ingested", { websiteId: "s1", eventCount: 3 });
       await publisher.drainOnce();
 
-      expect(bus.delivered[0]?.payload).toEqual({ siteId: "s1", eventCount: 3 });
+      expect(bus.delivered[0]?.payload).toEqual({ websiteId: "s1", eventCount: 3 });
     });
   });
 
@@ -246,7 +245,7 @@ describe("OutboxPublisher", () => {
 
     it("keeps delivering healthy rows while another is parked", async () => {
       store.seed("website.created", { ...websitePayload }, 3); // already parked
-      store.seed("website.deleted", { websiteId: "w2", siteId: "s2", ownerId: "u1", occurredAt: "2026-01-01T00:00:00.000Z" });
+      store.seed("website.deleted", { websiteId: "w2", ownerId: "u1", occurredAt: "2026-01-01T00:00:00.000Z" });
 
       expect(await publisher.drainOnce()).toBe(1);
       expect(bus.delivered[0]?.type).toBe("website.deleted");

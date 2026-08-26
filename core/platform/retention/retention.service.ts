@@ -1,7 +1,11 @@
 import type { AppConfig } from "../../config";
-import { sql } from "../../db";
 import { log as baseLog } from "../lib/logger";
-import type { RetentionCutoffs, RetentionPurge, RetentionTarget } from "./interfaces";
+import type {
+  RetentionCutoffs,
+  RetentionPurge,
+  RetentionSiteSource,
+  RetentionTarget,
+} from "./interfaces";
 import { fetchRetentionOverrides, type WebsiteRetentionOverride } from "./overrides";
 
 const log = baseLog.child({ category: "retention" });
@@ -25,10 +29,10 @@ type EffectivePolicy = {
 /** Per-website overrides win over the deployment default, field by field. */
 function mergePolicy(
   base: AppConfig["dataRetention"],
-  websiteUuid: string,
+  websiteId: string,
   overrides: Map<string, WebsiteRetentionOverride>,
 ): EffectivePolicy {
-  const o = overrides.get(websiteUuid);
+  const o = overrides.get(websiteId);
   return {
     analyticsDays: typeof o?.analytics_days === "number" ? o.analytics_days : base.analyticsDays,
     replayDays: typeof o?.replay_days === "number" ? o.replay_days : base.replayDays,
@@ -63,7 +67,11 @@ function cutoffsFrom(policy: EffectivePolicy, now: number): RetentionCutoffs {
 export class RetentionService {
   private inFlight = false;
 
-  constructor(private readonly purgers: readonly RetentionPurge[]) {}
+  constructor(
+    /** Where the site list comes from. Websites owns that table; this reads it. */
+    private readonly sites: RetentionSiteSource,
+    private readonly purgers: readonly RetentionPurge[],
+  ) {}
 
   /**
    * Run a sweep, or return `null` if retention is disabled or one is already running.
@@ -100,11 +108,7 @@ export class RetentionService {
 
     const overrides = await fetchRetentionOverrides(cfg);
 
-    // The one table retention reads directly, and only for the id pairs it must
-    // iterate. It writes nothing here.
-    const sites = await sql<{ id: string; site_id: string }[]>`
-      SELECT id::text AS id, site_id FROM websites
-    `;
+    const sites = await this.sites.listAllSites();
 
     const options = {
       // Clamped: too small multiplies round trips, too large holds a transaction open
@@ -113,9 +117,11 @@ export class RetentionService {
       bucket: cfg.s3.bucket,
     };
 
-    for (const site of sites) {
-      const target: RetentionTarget = { websiteUuid: site.id, siteId: site.site_id };
-      const cutoffs = cutoffsFrom(mergePolicy(cfg.dataRetention, site.id, overrides), Date.now());
+    for (const target of sites) {
+      const cutoffs = cutoffsFrom(
+        mergePolicy(cfg.dataRetention, target.websiteId, overrides),
+        Date.now(),
+      );
 
       for (const purger of this.purgers) {
         try {
@@ -129,7 +135,7 @@ export class RetentionService {
           log.error({
             msg: "retention_purge_failed",
             purger: purger.name,
-            website_id: site.id,
+            website_id: target.websiteId,
             err: String(e),
           });
         }

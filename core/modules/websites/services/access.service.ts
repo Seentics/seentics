@@ -1,14 +1,12 @@
 import { and, eq, or, sql } from "drizzle-orm";
 import { db, websiteMembers, websites } from "../../../db";
-import { resolveWebsiteIds } from "../../../platform/lib/website-resolve";
 
 /**
  * Grant access if the user owns the website (websites.user_id) OR is a member
  * (website_members). One query via LEFT JOIN instead of two sequential lookups —
  * this runs on nearly every authenticated request.
  */
-export async function assertOwnerOrMember(userId: string, websiteParam: string): Promise<void> {
-  const { uuidStr } = await resolveWebsiteIds(websiteParam);
+export async function assertOwnerOrMember(userId: string, websiteId: string): Promise<void> {
   const rows = await db
     .select({ ok: sql<number>`1` })
     .from(websites)
@@ -18,7 +16,7 @@ export async function assertOwnerOrMember(userId: string, websiteParam: string):
     )
     .where(
       and(
-        eq(websites.id, uuidStr),
+        eq(websites.id, websiteId),
         or(eq(websites.userId, userId), sql`${websiteMembers.id} IS NOT NULL`),
       ),
     )

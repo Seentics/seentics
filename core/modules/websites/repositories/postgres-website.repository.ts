@@ -9,7 +9,7 @@ import {
   websites,
 } from "../../../db";
 import { enqueueEvent } from "../../../infrastructure/outbox";
-import { newSiteId, newTrackingId, newVerificationToken } from "../lib/ids";
+import { newTrackingId, newVerificationToken } from "../lib/ids";
 import type {
   CreateWebsiteInput,
   UpdateWebsiteInput,
@@ -44,7 +44,6 @@ function defaultSettings(): WebsiteSettings {
 function toDomain(row: WebsiteRow): Website {
   return {
     id: row.id,
-    siteId: row.siteId,
     ownerId: row.userId,
     name: row.name,
     url: row.url,
@@ -69,16 +68,9 @@ function toDomain(row: WebsiteRow): Website {
   };
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 export class PostgresWebsiteRepository implements WebsiteRepository {
   async findById(websiteId: string): Promise<Website | null> {
     const [row] = await db.select().from(websites).where(eq(websites.id, websiteId)).limit(1);
-    return row ? toDomain(row) : null;
-  }
-
-  async findBySiteId(siteId: string): Promise<Website | null> {
-    const [row] = await db.select().from(websites).where(eq(websites.siteId, siteId)).limit(1);
     return row ? toDomain(row) : null;
   }
 
@@ -89,23 +81,6 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
       .where(eq(websites.userId, ownerId))
       .orderBy(asc(websites.createdAt));
     return rows.map(toDomain);
-  }
-
-  async resolveRef(websiteRef: string): Promise<{ id: string; siteId: string } | null> {
-    // One query for either identifier. Branching on the UUID shape first would
-    // save nothing — the column is indexed either way — and would mean a
-    // siteId that happens to look like a UUID resolves to nothing instead of
-    // falling through to the siteId lookup.
-    const [row] = await db
-      .select({ id: websites.id, siteId: websites.siteId })
-      .from(websites)
-      .where(
-        UUID_RE.test(websiteRef)
-          ? or(eq(websites.id, websiteRef), eq(websites.siteId, websiteRef))
-          : eq(websites.siteId, websiteRef),
-      )
-      .limit(1);
-    return row ?? null;
   }
 
   async findRole(websiteId: string, userId: string): Promise<WebsiteRole | null> {
@@ -131,12 +106,12 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
 
   async findByPublicShareId(
     publicShareId: string,
-  ): Promise<{ websiteId: string; siteId: string } | null> {
+  ): Promise<{ websiteId: string } | null> {
     // The `IS NOT NULL` guard matters: a revoked link sets `publicShareId` to
     // NULL, and without it a caller passing an empty-ish value could match
     // those rows and reopen a dashboard the owner deliberately closed.
     const [row] = await db
-      .select({ websiteId: websites.id, siteId: websites.siteId })
+      .select({ websiteId: websites.id })
       .from(websites)
       .where(
         and(eq(websites.publicShareId, publicShareId), sql`${websites.publicShareId} IS NOT NULL`),
@@ -155,7 +130,6 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
       const [row] = await tx
         .insert(websites)
         .values({
-          siteId: newSiteId(),
           userId: ownerId,
           name: input.name.trim(),
           url: host,
@@ -176,7 +150,6 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
 
       await enqueueEvent(tx, "website", created.id, "website.created", {
         websiteId: created.id,
-        siteId: created.siteId,
         ownerId,
         url: created.url,
         occurredAt: new Date(),
@@ -205,7 +178,6 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
 
       await enqueueEvent(tx, "website", updated.id, "website.updated", {
         websiteId: updated.id,
-        siteId: updated.siteId,
         changes: patch,
         occurredAt: new Date(),
       });
@@ -219,10 +191,10 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
       const [row] = await tx.select().from(websites).where(eq(websites.id, websiteId)).limit(1);
       if (!row) return false;
 
-      // Analytics rows are keyed by the short siteId, everything else by the
-      // UUID. Getting these two mixed up silently deletes nothing, so read the
-      // row first rather than trusting the caller's identifier.
-      await tx.delete(analyticsEvents).where(eq(analyticsEvents.websiteId, row.siteId));
+      // One identifier reaches every table. This block used to carry a warning that
+      // `analytics_events` was keyed by a shorter id than the other four — mixing them
+      // up deleted nothing and still reported success.
+      await tx.delete(analyticsEvents).where(eq(analyticsEvents.websiteId, websiteId));
       await tx.delete(automations).where(eq(automations.websiteId, websiteId));
       await tx.delete(funnels).where(eq(funnels.websiteId, websiteId));
       await tx.delete(goals).where(eq(goals.websiteId, websiteId));
@@ -230,7 +202,6 @@ export class PostgresWebsiteRepository implements WebsiteRepository {
 
       await enqueueEvent(tx, "website", websiteId, "website.deleted", {
         websiteId,
-        siteId: row.siteId,
         ownerId: row.userId,
         occurredAt: new Date(),
       });

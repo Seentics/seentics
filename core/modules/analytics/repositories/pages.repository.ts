@@ -4,11 +4,11 @@ import { orNotSet, parseDays, windowStartIso } from "./shared";
 /**
  * Top pages by pageview count over the trailing window.
  *
- * Takes an already-resolved `siteId` — resolution is the service's job, done once
+ * Takes an already-resolved `websiteId` — resolution is the service's job, done once
  * per request against the websites module rather than repeated here.
  */
 export async function getPagesAnalytics(
-  siteId: string,
+  websiteId: string,
   query: Record<string, string | undefined>,
 ) {
   const days = parseDays(query.days);
@@ -25,7 +25,7 @@ export async function getPagesAnalytics(
       count(*)::int AS views,
       count(DISTINCT coalesce(nullif(trim(visitor_id), ''), session_id))::int AS unique_visitors
     FROM analytics_events
-    WHERE website_id = ${siteId}
+    WHERE website_id = ${websiteId}
       AND event_type = 'pageview'
       AND occurred_at >= ${windowStartIso(days)}
       AND page IS NOT NULL

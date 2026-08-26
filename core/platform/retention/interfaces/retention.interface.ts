@@ -12,12 +12,18 @@
  * per-website overrides) and each module owns the *deletion* of its own rows.
  */
 
-/** The website being swept, with both identifiers its tables might be keyed by. */
+import type { AppConfig } from "../../../config";
+
+/**
+ * The website being swept.
+ *
+ * One identifier: `websites.id`, which every table keys on. This used to carry two,
+ * because `analytics_events` and `session_replays` were keyed by a shorter public id
+ * while everything else used the UUID — and a purge that mixed them up deleted nothing
+ * and reported success.
+ */
 export type RetentionTarget = {
-  /** `websites.id`. Keys `heatmap_points`, `heatmap_page_snapshots`, `automations`. */
-  websiteUuid: string;
-  /** `websites.site_id`. Keys `analytics_events`; `session_replays` may use either. */
-  siteId: string;
+  websiteId: string;
 };
 
 /**
@@ -79,4 +85,38 @@ export interface RetentionPurge {
     cutoffs: RetentionCutoffs,
     options: RetentionOptions,
   ): Promise<Record<string, number>>;
+}
+
+/**
+ * Triggering a sweep, as the scheduler and the internal route see it.
+ *
+ * Both used to name `RetentionService` itself, which made a cron job and an HTTP
+ * handler depend on the class that holds the policy, the single-flight guard and the
+ * per-module fan-out. They only ever call one method.
+ */
+export interface RetentionRunner {
+  /**
+   * Run a sweep, or return `null` when retention is disabled or one is already
+   * in flight. The already-running case is not an error: the nightly cron and a
+   * manual trigger are both expected to fire.
+   */
+  runSafely(cfg: AppConfig): Promise<({ websitesProcessed: number } & Record<string, number>) | null>;
+}
+
+/**
+ * The websites retention iterates over.
+ *
+ * The one table retention used to read directly — a `SELECT id, website_id FROM websites`
+ * in `retention.service.ts`, against a table the websites module owns. Declared here
+ * because retention is the consumer and dictates the shape it needs: both identifiers,
+ * every website, no filtering.
+ */
+export interface RetentionSiteSource {
+  /**
+   * Every website in the deployment, as id pairs.
+   *
+   * Unfiltered on purpose: retention sweeps everything, and a website excluded here
+   * would silently keep its data forever.
+   */
+  listAllSites(): Promise<readonly RetentionTarget[]>;
 }

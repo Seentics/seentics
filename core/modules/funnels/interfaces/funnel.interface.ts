@@ -7,7 +7,7 @@
  *
  * - the dashboard lists and opens funnel definitions (`funnels`, keyed by website UUID)
  * - the builder creates, edits and deletes them (same table, write side)
- * - the funnel report aggregates tracker events (`analytics_events`, keyed by `siteId`)
+ * - the funnel report aggregates tracker events (`analytics_events`, keyed by `websiteId`)
  * - the tracker asks, on every page load, which funnels are live
  *
  * That last one is why the split is not cosmetic: the tracker is unauthenticated
@@ -101,7 +101,7 @@ export type UpdateFunnelInput = {
 /**
  * Read access to funnel definitions, for the dashboard.
  *
- * Every method takes the loose `websiteRef` the URL carries (UUID or `siteId`) and
+ * Every method takes the loose `websiteRef` the URL carries (UUID or `websiteId`) and
  * resolves it internally — see `FunnelService`. Callers must not pre-resolve, or
  * the resolution happens twice.
  */
@@ -138,7 +138,7 @@ export interface FunnelMutations {
  *
  * Separate from `FunnelQuery` because it reads a different table under a different
  * identifier: definitions live in `funnels` keyed by the website UUID, while the
- * events being counted live in `analytics_events` keyed by the short `siteId`.
+ * events being counted live in `analytics_events` keyed by the short `websiteId`.
  * Both identifiers are `string`, so nothing but this boundary stops the two from
  * being crossed — and crossing them returns zeroes rather than an error.
  */
@@ -166,7 +166,7 @@ export interface FunnelTrackerConfig {
    * the resolved `websites.id` UUID and does no lookup. Re-resolving here would add
    * a query to the hottest public endpoint in the product.
    */
-  activeForTracker(websiteUuid: string): Promise<Funnel[]>;
+  activeForTracker(websiteId: string): Promise<Funnel[]>;
 
   /**
    * For `/api/v1/funnels/active`, which has only a query parameter that may be
@@ -190,3 +190,13 @@ export const TRACKER_FUNNEL_EVENT_TYPES: ReadonlySet<string> = new Set([
   "funnel_step",
   "funnel_complete",
 ]);
+
+/**
+ * One bucket of the step aggregation: a step index (or `-1`) and its distinct visitors.
+ *
+ * Declared here even though analytics runs the query, because the shape is a funnels
+ * concept — `-1` meaning "completed" is this module's encoding. `AnalyticsFunnelEvents`
+ * declares the same shape structurally rather than importing this, so neither module's
+ * interfaces depend on the other's.
+ */
+export type FunnelStepCount = { step_order: number | null; cnt: number };

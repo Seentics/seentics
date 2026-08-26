@@ -6,21 +6,19 @@
  * it has no business being able to delete one, and its constructor should say so.
  */
 
+import type { TrafficSummary } from "../../analytics/interfaces";
+
 /**
  * A website in domain form — camelCase, no persistence or transport concerns.
  *
- * Two identifiers, both load-bearing:
- * - `id` is the UUID primary key; `website_members`, `funnels`, `automations`
- *   and `goals` are keyed by it.
- * - `siteId` is the short public id embedded in the tracker snippet; analytics
- *   rows are keyed by it.
- *
- * Most API paths accept either and resolve to the pair. Keep both on the domain
- * model so callers never have to re-resolve.
+ * One identifier: `id`, the UUID primary key, which every table in the system keys on.
+ * There used to be a second — a short `website_id` that `analytics_events`,
+ * `session_replays` and `ai_queries` used instead — and every read path paid for it
+ * with a resolve step that turned one reference into a pair. Both columns and the
+ * resolution are gone.
  */
 export type Website = {
   id: string;
-  siteId: string;
   ownerId: string;
   name: string;
   /** Bare hostname, no scheme and no leading `www.` — see `normalizeHostname`. */
@@ -97,8 +95,8 @@ export type UpdateWebsiteInput = {
  * ```
  */
 export interface WebsiteQuery {
-  /** `null` when no website matches. Accepts a UUID or a `siteId`. */
-  getById(websiteRef: string): Promise<Website | null>;
+  /** `null` when no website matches. */
+  getById(websiteId: string): Promise<Website | null>;
 
   /** Every website the user owns, oldest first. */
   listOwnedBy(ownerId: string): Promise<Website[]>;
@@ -109,7 +107,7 @@ export interface WebsiteQuery {
    * Prefer this over comparing `ownerId` yourself — it also covers members,
    * which owner comparison silently excludes.
    */
-  getRole(websiteRef: string, userId: string): Promise<WebsiteRole | null>;
+  getRole(websiteId: string, userId: string): Promise<WebsiteRole | null>;
 }
 
 /** Write access. Held by the websites module's own routes, not by peer modules. */
@@ -117,13 +115,13 @@ export interface WebsiteMutations {
   create(ownerId: string, input: CreateWebsiteInput): Promise<Website>;
 
   /** `null` when the website does not exist. */
-  update(websiteRef: string, input: UpdateWebsiteInput): Promise<Website | null>;
+  update(websiteId: string, input: UpdateWebsiteInput): Promise<Website | null>;
 
   /** `false` when there was nothing to delete. */
-  delete(websiteRef: string): Promise<boolean>;
+  delete(websiteId: string): Promise<boolean>;
 
   /** Enable or disable the public dashboard link; returns the share id or null. */
-  setPublicSharing(websiteRef: string, enabled: boolean): Promise<string | null>;
+  setPublicSharing(websiteId: string, enabled: boolean): Promise<string | null>;
 }
 
 /**
@@ -135,14 +133,56 @@ export interface WebsiteMutations {
  */
 export interface WebsitePublicSharing {
   /**
-   * Identifiers behind an active share link, or `null` when the link is unknown
-   * or has been revoked.
+   * The website behind an active share link, or `null` when the link is unknown or
+   * has been revoked.
    *
-   * Returns only the ids — a public caller has no business receiving the owner,
+   * Returns only the id — a public caller has no business receiving the owner,
    * verification token, or settings that the full `Website` carries.
    */
-  resolvePublicShareId(
-    publicShareId: string,
-  ): Promise<{ websiteId: string; siteId: string } | null>;
+  resolvePublicShareId(publicShareId: string): Promise<{ websiteId: string } | null>;
 }
 
+
+/** A website with its trailing-30-day figures attached. */
+export type WebsiteWithTraffic = Website & { traffic: TrafficSummary };
+
+/**
+ * Reads that embed traffic figures.
+ *
+ * Separate from `WebsiteQuery` because these are the only reads that fan out to
+ * the analytics port, and because no peer module wants them — the dashboard's own
+ * routes are the sole caller.
+ */
+export interface WebsiteTrafficReads {
+  /** Every website the user owns, each with its summary. Batched, not N+1. */
+  listOwnedWithTraffic(ownerId: string): Promise<WebsiteWithTraffic[]>;
+
+  /** One website with traffic, after an access check. */
+  getWithTraffic(websiteId: string, userId: string): Promise<WebsiteWithTraffic | null>;
+}
+
+/**
+ * Writes that check the caller's access first.
+ *
+ * The authenticated HTTP layer holds this rather than `WebsiteMutations`: the
+ * unchecked variants exist for the outbox and internal paths, and a route reaching
+ * for `update` instead of `updateForUser` is a missing authorization check that
+ * types would not otherwise catch. Keeping them in separate interfaces is what makes
+ * that mistake impossible from the router.
+ */
+export interface WebsiteUserMutations {
+  updateForUser(
+    websiteId: string,
+    userId: string,
+    input: UpdateWebsiteInput,
+  ): Promise<Website | null>;
+
+  deleteForUser(websiteId: string, userId: string): Promise<boolean>;
+
+  /** Toggle the public dashboard link; returns the share id, or `null` when off. */
+  setPublicSharingForUser(
+    websiteId: string,
+    userId: string,
+    enabled: boolean,
+  ): Promise<string | null>;
+}

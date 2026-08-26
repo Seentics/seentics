@@ -26,13 +26,13 @@ describe("layoutPathSlot", () => {
     expect(a).not.toBe(b);
   });
 
-  it("different siteIds produce different slots for same path", () => {
+  it("different websiteIds produce different slots for same path", () => {
     const a = layoutPathSlot("site1", "/home");
     const b = layoutPathSlot("site2", "/home");
     expect(a).not.toBe(b);
   });
 
-  it("includes the siteId as a prefix before the underscore separator", () => {
+  it("includes the websiteId as a prefix before the underscore separator", () => {
     const slot = layoutPathSlot("my_site_123", "/");
     expect(slot.startsWith("my_site_123_")).toBe(true);
   });
@@ -64,7 +64,7 @@ describe("heatmapScreenshotKey", () => {
     expect(heatmapScreenshotKey("a", "b")).toBe(heatmapScreenshotKey("a", "b"));
   });
 
-  it("different siteIds produce different keys", () => {
+  it("different websiteIds produce different keys", () => {
     expect(heatmapScreenshotKey("site1", "slot")).not.toBe(
       heatmapScreenshotKey("site2", "slot")
     );
@@ -90,10 +90,10 @@ describe("heatmapHtmlSnapshotKey", () => {
   });
 
   it("screenshot and html keys share the same prefix path", () => {
-    const siteId = "my-site";
+    const websiteId = "my-site";
     const pathSlot = "abc123";
-    const screenshotKey = heatmapScreenshotKey(siteId, pathSlot);
-    const htmlKey = heatmapHtmlSnapshotKey(siteId, pathSlot);
+    const screenshotKey = heatmapScreenshotKey(websiteId, pathSlot);
+    const htmlKey = heatmapHtmlSnapshotKey(websiteId, pathSlot);
     const screenshotBase = screenshotKey.replace(/\.jpg$/, "");
     const htmlBase = htmlKey.replace(/\.html$/, "");
     expect(screenshotBase).toBe(htmlBase);
@@ -105,17 +105,17 @@ describe("heatmapHtmlSnapshotKey", () => {
 });
 
 describe("layoutPathSlot + key generation (integration)", () => {
-  it("produces valid screenshot key from siteId and path", () => {
-    const siteId = "site_abc";
-    const pathSlot = layoutPathSlot(siteId, "/blog/post");
-    const key = heatmapScreenshotKey(siteId, pathSlot);
+  it("produces valid screenshot key from websiteId and path", () => {
+    const websiteId = "site_abc";
+    const pathSlot = layoutPathSlot(websiteId, "/blog/post");
+    const key = heatmapScreenshotKey(websiteId, pathSlot);
     expect(key).toMatch(/^heatmap-screenshots\/site_abc\/site_abc_[0-9a-f]{24}\.jpg$/);
   });
 
-  it("produces valid html snapshot key from siteId and path", () => {
-    const siteId = "site_abc";
-    const pathSlot = layoutPathSlot(siteId, "/blog/post");
-    const key = heatmapHtmlSnapshotKey(siteId, pathSlot);
+  it("produces valid html snapshot key from websiteId and path", () => {
+    const websiteId = "site_abc";
+    const pathSlot = layoutPathSlot(websiteId, "/blog/post");
+    const key = heatmapHtmlSnapshotKey(websiteId, pathSlot);
     expect(key).toMatch(/^heatmap-screenshots\/site_abc\/site_abc_[0-9a-f]{24}\.html$/);
   });
 });

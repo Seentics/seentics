@@ -1,27 +1,28 @@
-import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { describe, it, expect, beforeEach } from "bun:test";
+import type { AnalyticsPageviewUrls } from "../../analytics/interfaces";
+import { HeatmapAutoCapture } from "../services/auto-capture.service";
 
 /**
- * The pageview-URL fallback is the only database reach in this file's graph, so it
- * is stubbed before the module under test is imported. Everything else here is pure
- * — which is the point of `HeatmapAutoCapture` taking its capture step as a plain
- * function.
+ * The pageview-URL fallback used to be the only database reach in this file's graph,
+ * stubbed with `mock.module` before importing the module under test. It is now an
+ * injected port, so a plain object does the job — which also removes the
+ * process-global `mock.module` call and the deferred import it forced.
  */
 const recentPageviewUrls: string[] = [];
-mock.module("../repositories/pageview-url.repository", () => ({
-  listRecentPageviewUrls: async () => recentPageviewUrls,
-}));
-
-const { HeatmapAutoCapture } = await import("../services/auto-capture.service");
+const pageviewUrls: AnalyticsPageviewUrls = {
+  async listRecentPageviewUrls() {
+    return recentPageviewUrls;
+  },
+};
 type CaptureCall = {
-  websiteUuid: string;
+  websiteId: string;
   pagePath: string;
   pageUrl: string;
   force: boolean;
 };
 
 const RESOLVED = {
-  siteId: "site_one",
-  websiteUuid: "11111111-1111-4111-8111-111111111111",
+  websiteId: "11111111-1111-4111-8111-111111111111",
   siteUrl: "one.example",
 };
 
@@ -36,7 +37,7 @@ function makeCapture() {
     request: { pageUrl: string; pagePath: string; force?: boolean },
   ) => {
     calls.push({
-      websiteUuid: resolved.websiteUuid,
+      websiteId: resolved.websiteId,
       pagePath: request.pagePath,
       pageUrl: request.pageUrl,
       force: request.force ?? false,
@@ -73,7 +74,7 @@ describe("HeatmapAutoCapture", () => {
   beforeEach(() => {
     recentPageviewUrls.length = 0;
     cap = makeCapture();
-    autoCapture = new HeatmapAutoCapture(cap.capture);
+    autoCapture = new HeatmapAutoCapture(cap.capture, pageviewUrls);
   });
 
   describe("scheduling", () => {
@@ -92,11 +93,11 @@ describe("HeatmapAutoCapture", () => {
       expect(cap.calls[0]?.pagePath).toBe("/pricing");
     });
 
-    it("passes the resolved UUID through, never the siteId", async () => {
+    it("passes the resolved UUID through, never the websiteId", async () => {
       autoCapture.schedule(RESOLVED, "/pricing");
       await settle();
 
-      expect(cap.calls[0]?.websiteUuid).toBe(RESOLVED.websiteUuid);
+      expect(cap.calls[0]?.websiteId).toBe(RESOLVED.websiteId);
     });
 
     it("defaults force to false", async () => {
@@ -146,10 +147,10 @@ describe("HeatmapAutoCapture", () => {
       cap.letGo();
     });
 
-    // The key is `websiteUuid:path`, so the same path on two sites must not collide.
+    // The key is `websiteId:path`, so the same path on two sites must not collide.
     it("allows the same path on a different website", async () => {
       cap.hold();
-      const other = { ...RESOLVED, websiteUuid: "22222222-2222-4222-8222-222222222222" };
+      const other = { ...RESOLVED, websiteId: "22222222-2222-4222-8222-222222222222" };
 
       autoCapture.schedule(RESOLVED, "/pricing");
       await settle();

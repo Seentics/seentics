@@ -42,10 +42,10 @@ export class UnknownWebsiteError extends Error {
  * cross-module table read — and paid for the lookup again on every call, twice in
  * the endpoints that also asserted access.
  *
- * That change is type-invisible: a website reference, a `siteId` and a website
+ * That change is type-invisible: a website reference, a `websiteId` and a website
  * UUID are all `string`, so the compiler cannot catch a caller that hands a
  * repository an unresolved reference. `automations.website_id` is a uuid column
- * and a `siteId` predicate against it matches zero rows *without erroring* — the
+ * and a `websiteId` predicate against it matches zero rows *without erroring* — the
  * failure looks like "this website has no automations". This class being the only
  * caller of the repository is what keeps that honest, which is why the repository
  * is internal to the module and its interface says "resolved UUID" on every
@@ -60,7 +60,7 @@ export class AutomationService
   ) {}
 
   /**
-   * Resolve a website reference (UUID or `siteId`) to the website UUID.
+   * Resolve a website reference (UUID or `websiteId`) to the website UUID.
    *
    * `null` when the website is unknown. Routes authorize before calling, and the
    * role check already answers 403 for a website that does not exist, so a `null`

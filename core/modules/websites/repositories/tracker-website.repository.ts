@@ -1,24 +1,8 @@
-import type { AppConfig } from "../../config";
-import { sql } from "../../db";
-import { MemoryCache } from "./memory-cache";
+import type { AppConfig } from "../../../config";
+import { sql } from "../../../db";
+import { MemoryCache } from "../../../platform/lib/memory-cache";
+import type { TrackerGoal, WebsiteTrackerRow } from "../interfaces";
 
-export type WebsiteTrackerRow = {
-  id: string;
-  site_id: string;
-  user_id: string;
-  url: string;
-  is_active: boolean;
-  funnel_enabled: boolean;
-  heatmap_enabled: boolean;
-  heatmap_include_patterns: string | null;
-  heatmap_exclude_patterns: string | null;
-  heatmap_layout_enabled: boolean;
-  replay_enabled: boolean;
-  replay_sampling_rate: number;
-  replay_include_patterns: string | null;
-  replay_exclude_patterns: string | null;
-  automation_enabled: boolean;
-};
 
 const uuidRe =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -37,7 +21,7 @@ export function configureTrackerWebsiteCache(cfg: AppConfig): void {
 }
 
 /**
- * Load a website by the id the tracker sends: either `websites.id` (UUID) or `websites.site_id`.
+ * Load a website by the id the tracker sends: either `websites.id` (UUID) or `websites.website_id`.
  * Uses an in-memory TTL cache when `configureTrackerWebsiteCache` ran with cache enabled.
  */
 export async function resolveWebsiteForTracker(
@@ -56,7 +40,6 @@ export async function resolveWebsiteForTracker(
     ? await sql<WebsiteTrackerRow[]>`
         SELECT
           id::text,
-          site_id,
           user_id::text,
           url,
           is_active,
@@ -76,7 +59,6 @@ export async function resolveWebsiteForTracker(
     : await sql<WebsiteTrackerRow[]>`
         SELECT
           id::text,
-          site_id,
           user_id::text,
           url,
           is_active,
@@ -91,7 +73,7 @@ export async function resolveWebsiteForTracker(
           replay_exclude_patterns,
           automation_enabled
         FROM websites
-        WHERE site_id = ${p}
+        WHERE website_id = ${p}
         LIMIT 1
       `;
 
@@ -102,13 +84,12 @@ export async function resolveWebsiteForTracker(
   return row;
 }
 
-export type TrackerGoal = { id: string; name: string; selector: string };
 
-export async function listTrackerGoals(websiteUuid: string): Promise<TrackerGoal[]> {
+export async function listTrackerGoals(websiteId: string): Promise<TrackerGoal[]> {
   return sql<TrackerGoal[]>`
     SELECT id::text AS id, identifier AS name, selector AS selector
     FROM goals
-    WHERE website_id = ${websiteUuid}::uuid
+    WHERE website_id = ${websiteId}::uuid
       AND type = 'event'
       AND selector IS NOT NULL
       AND btrim(selector) <> ''

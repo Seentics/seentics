@@ -1,4 +1,5 @@
 import { analyticsEvents, db } from "../../../db";
+import type { BatchTx } from "../../../infrastructure/idempotency";
 import type { AnalyticsIngestEvent } from "../../../platform/lib/types";
 import { clampClientTs } from "../../../platform/lib/client-timestamp";
 import { log as baseLog } from "../../../platform/lib/logger";
@@ -44,8 +45,17 @@ function capProperties(dm: Record<string, unknown>): Record<string, unknown> {
 const INSERT_COLUMN_COUNT = 20;
 const CHUNK_SIZE = Math.floor(60_000 / INSERT_COLUMN_COUNT);
 
-/** Insert analytics rows from tracker collect (`site_id` = websites.site_id). Returns rows inserted. */
-export async function ingestAnalyticsBatch(siteId: string, events: AnalyticsIngestEvent[]): Promise<number> {
+/** Insert analytics rows from tracker collect (`website_id` = websites.website_id). Returns rows inserted. */
+export async function ingestAnalyticsBatch(
+  /**
+   * The caller's transaction, so the insert commits with the batch marker that makes it
+   * replay-safe. Never reach for the ambient `db` here — that would put these rows
+   * outside the marker and reintroduce the double-write it prevents.
+   */
+  tx: BatchTx,
+  websiteId: string,
+  events: AnalyticsIngestEvent[],
+): Promise<number> {
   if (!events.length) return 0;
   const now = Date.now();
   const rows: (typeof analyticsEvents.$inferInsert)[] = [];
@@ -67,7 +77,7 @@ export async function ingestAnalyticsBatch(siteId: string, events: AnalyticsInge
     const ts = new Date(clampClientTs(e.ts, now));
     const utm = pickUtmColumns(dm);
     rows.push({
-      websiteId: siteId,
+      websiteId: websiteId,
       eventType: t,
       page: capStr(e.url ?? "", MAX_TEXT_LEN) ?? "",
       visitorId: capStr(e.vid || e.sid || null, MAX_ID_LEN),
@@ -93,26 +103,21 @@ export async function ingestAnalyticsBatch(siteId: string, events: AnalyticsInge
     const types = [...new Set(events.map((ev) => ev.type || "(empty)"))];
     log.warn({
       msg: "analytics_ingest_all_filtered",
-      site_id: siteId,
+      website_id: websiteId,
       n_in: events.length,
       event_types: types.slice(0, 25),
     });
     return 0;
   }
-  if (rows.length <= CHUNK_SIZE) {
-    await db.insert(analyticsEvents).values(rows);
-  } else {
-    // Wrap multi-chunk inserts in a transaction so a partial failure doesn't
-    // leave half a batch committed with the rest silently dropped.
-    await db.transaction(async (tx) => {
-      for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
-        await tx.insert(analyticsEvents).values(rows.slice(i, i + CHUNK_SIZE));
-      }
-    });
+  // Chunked because a single multi-row insert past a few thousand rows exceeds the
+  // driver's parameter limit. No inner transaction: the caller's already wraps this, so a
+  // partial failure rolls the whole batch back along with its marker.
+  for (let i = 0; i < rows.length; i += CHUNK_SIZE) {
+    await tx.insert(analyticsEvents).values(rows.slice(i, i + CHUNK_SIZE));
   }
   log.debug({
     msg: "analytics_ingest_inserted",
-    site_id: siteId,
+    website_id: websiteId,
     rows: rows.length,
     pageviews: rows.filter((r) => r.eventType === "pageview").length,
   });

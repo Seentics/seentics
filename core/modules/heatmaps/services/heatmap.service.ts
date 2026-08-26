@@ -31,7 +31,7 @@ const log = baseLog.child({ category: "heatmap_screenshot" });
  * these operations used to call `resolveWebsiteIdsLenient` itself, so the heatmaps
  * module read the `websites` table directly and paid for the lookup again per call.
  *
- * That change is type-invisible: `websiteRef`, `siteId` and `websiteUuid` are all
+ * That change is type-invisible: `websiteRef`, `websiteId` and `websiteId` are all
  * `string`, so nothing stops a caller passing the wrong one and getting an empty
  * result. What enforces it is that this class is the only caller of the read
  * functions and the repository — routes must not import from `../repositories`.
@@ -58,12 +58,12 @@ export class HeatmapService implements HeatmapQuery, HeatmapMutations {
   private async resolve(websiteRef: string): Promise<ResolvedWebsite> {
     const target = await this.settings.getCaptureTarget(websiteRef);
     if (target) return target;
-    return { siteId: websiteRef, websiteUuid: websiteRef, siteUrl: "" };
+    return { websiteId: websiteRef, siteUrl: "" };
   }
 
   async listPages(websiteRef: string): Promise<{ pages: HeatmapPageSummary[] }> {
-    const { websiteUuid } = await this.resolve(websiteRef);
-    return listHeatmapPages(websiteUuid);
+    const { websiteId } = await this.resolve(websiteRef);
+    return listHeatmapPages(websiteId);
   }
 
   async getPoints(
@@ -71,8 +71,8 @@ export class HeatmapService implements HeatmapQuery, HeatmapMutations {
     pagePath: string,
     eventType: string,
   ): Promise<{ page_path: string; points: HeatmapPointOut[] }> {
-    const { websiteUuid } = await this.resolve(websiteRef);
-    return getHeatmapPoints(websiteUuid, pagePath, eventType);
+    const { websiteId } = await this.resolve(websiteRef);
+    return getHeatmapPoints(websiteId, pagePath, eventType);
   }
 
   async getLayoutSnapshot(
@@ -81,12 +81,12 @@ export class HeatmapService implements HeatmapQuery, HeatmapMutations {
   ): Promise<{ layout: HeatmapLayout | null }> {
     const resolved = await this.resolve(websiteRef);
     const norm = normalizeHeatmapPagePath(pagePath);
-    const snapshot = await readLayoutSnapshot(resolved.websiteUuid, norm);
+    const snapshot = await readLayoutSnapshot(resolved.websiteId, norm);
 
     if (snapshot.missing) {
       log.info({
         msg: "heatmap_snapshot_miss",
-        website_uuid: resolved.websiteUuid,
+        website_uuid: resolved.websiteId,
         norm,
         triggering_autocapture: true,
       });
@@ -97,7 +97,7 @@ export class HeatmapService implements HeatmapQuery, HeatmapMutations {
     }
 
     if (snapshot.stale) {
-      log.info({ msg: "heatmap_snapshot_stale_refresh", website_uuid: resolved.websiteUuid, norm });
+      log.info({ msg: "heatmap_snapshot_stale_refresh", website_uuid: resolved.websiteId, norm });
       // Forced, because a stale image still matches its own content hash and
       // would otherwise be deduplicated away.
       this.autoCapture.schedule(resolved, norm, true);
@@ -134,8 +134,7 @@ export class HeatmapService implements HeatmapQuery, HeatmapMutations {
     const s3Key = await storeDashboardScreenshot(target, norm, jpeg, docWidth, docHeight);
 
     await this.eventBus.publish("heatmap.screenshot_captured", {
-      websiteId: target.websiteUuid,
-      siteId: target.siteId,
+      websiteId: target.websiteId,
       pagePath: norm,
       s3Key,
       source: "dashboard",
@@ -145,13 +144,12 @@ export class HeatmapService implements HeatmapQuery, HeatmapMutations {
 
   async bulkDeletePages(websiteRef: string, pagePaths: string[]): Promise<void> {
     const resolved = await this.resolve(websiteRef);
-    await deleteHeatmaps(resolved.websiteUuid, pagePaths);
+    await deleteHeatmaps(resolved.websiteId, pagePaths);
 
     // Published after the delete, never before: retention accounting and any
     // cache invalidation downstream must not act on a deletion that failed.
     await this.eventBus.publish("heatmap.pages_deleted", {
-      websiteId: resolved.websiteUuid,
-      siteId: resolved.siteId,
+      websiteId: resolved.websiteId,
       pagePaths,
       occurredAt: new Date(),
     });

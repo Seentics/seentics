@@ -10,9 +10,9 @@ import type {
 /**
  * Persistence for funnel definitions.
  *
- * Every function here takes `websiteUuid` — `funnels.website_id` is a `uuid` column
- * referencing `websites.id`, never the short `site_id`. The parameter is named for
- * the identifier rather than for the caller's URL segment so a `siteId` slipping in
+ * Every function here takes `websiteId` — `funnels.website_id` is a `uuid` column
+ * referencing `websites.id`, never the short `website_id`. The parameter is named for
+ * the identifier rather than for the caller's URL segment so a `websiteId` slipping in
  * is visible at the call site; the compiler cannot help, both are `string`.
  */
 
@@ -42,7 +42,7 @@ function mapFunnel(row: typeof funnels.$inferSelect): Funnel {
   const steps = mapSteps(row.steps as Record<string, unknown>[]);
   return {
     id: row.id,
-    website_id: row.websiteId,
+    website_id: row.id,
     user_id: row.userId,
     name: row.name,
     description: row.description ?? "",
@@ -66,35 +66,35 @@ function mapFunnel(row: typeof funnels.$inferSelect): Funnel {
   };
 }
 
-export async function listFunnels(websiteUuid: string): Promise<Funnel[]> {
+export async function listFunnels(websiteId: string): Promise<Funnel[]> {
   const rows = await db
     .select()
     .from(funnels)
-    .where(eq(funnels.websiteId, websiteUuid))
+    .where(eq(funnels.websiteId, websiteId))
     .orderBy(desc(funnels.createdAt));
   return rows.map(mapFunnel);
 }
 
-export async function findFunnel(websiteUuid: string, funnelId: string): Promise<Funnel | null> {
+export async function findFunnel(websiteId: string, funnelId: string): Promise<Funnel | null> {
   const [row] = await db
     .select()
     .from(funnels)
     // Scoped by website as well as id so a funnel id guessed from another account
     // reads as "not found" rather than leaking the definition.
-    .where(and(eq(funnels.id, funnelId), eq(funnels.websiteId, websiteUuid)))
+    .where(and(eq(funnels.id, funnelId), eq(funnels.websiteId, websiteId)))
     .limit(1);
   return row ? mapFunnel(row) : null;
 }
 
 export async function insertFunnel(
-  websiteUuid: string,
+  websiteId: string,
   userId: string,
   input: CreateFunnelInput,
 ): Promise<Funnel> {
   const [row] = await db
     .insert(funnels)
     .values({
-      websiteId: websiteUuid,
+      websiteId: websiteId,
       userId,
       name: input.name,
       description: input.description ?? null,
@@ -106,7 +106,7 @@ export async function insertFunnel(
 }
 
 export async function updateFunnel(
-  websiteUuid: string,
+  websiteId: string,
   funnelId: string,
   patch: UpdateFunnelInput,
 ): Promise<Funnel | null> {
@@ -122,22 +122,22 @@ export async function updateFunnel(
       ...(patch.steps != null ? { steps: patch.steps } : {}),
       updatedAt: new Date(),
     })
-    .where(and(eq(funnels.id, funnelId), eq(funnels.websiteId, websiteUuid)))
+    .where(and(eq(funnels.id, funnelId), eq(funnels.websiteId, websiteId)))
     .returning();
   return row ? mapFunnel(row) : null;
 }
 
-export async function deleteFunnel(websiteUuid: string, funnelId: string): Promise<void> {
-  await db.delete(funnels).where(and(eq(funnels.id, funnelId), eq(funnels.websiteId, websiteUuid)));
+export async function deleteFunnel(websiteId: string, funnelId: string): Promise<void> {
+  await db.delete(funnels).where(and(eq(funnels.id, funnelId), eq(funnels.websiteId, websiteId)));
 }
 
-export async function deleteFunnels(websiteUuid: string, funnelIds: string[]): Promise<void> {
+export async function deleteFunnels(websiteId: string, funnelIds: string[]): Promise<void> {
   // Guarded here as well as in the service: an empty `inArray` is a query builder
   // edge case, and getting it wrong deletes the website's whole funnel list.
   if (funnelIds.length === 0) return;
   await db
     .delete(funnels)
-    .where(and(inArray(funnels.id, funnelIds), eq(funnels.websiteId, websiteUuid)));
+    .where(and(inArray(funnels.id, funnelIds), eq(funnels.websiteId, websiteId)));
 }
 
 /**
@@ -146,11 +146,11 @@ export async function deleteFunnels(websiteUuid: string, funnelIds: string[]): P
  * Ordering differs from `listFunnels` on purpose — the tracker evaluates them in a
  * stable order that does not shuffle when a new funnel is added.
  */
-export async function listActiveFunnels(websiteUuid: string): Promise<Funnel[]> {
+export async function listActiveFunnels(websiteId: string): Promise<Funnel[]> {
   const rows = await db
     .select()
     .from(funnels)
-    .where(and(eq(funnels.websiteId, websiteUuid), eq(funnels.isActive, true)))
+    .where(and(eq(funnels.websiteId, websiteId), eq(funnels.isActive, true)))
     .orderBy(asc(funnels.createdAt));
   return rows.map(mapFunnel);
 }

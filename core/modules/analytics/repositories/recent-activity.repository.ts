@@ -4,7 +4,7 @@ import { occurredAtToIso, windowStartIso } from "./shared";
 const RECENT_ACTIVITY_DEFAULT_DAYS = 30;
 
 export async function getRecentActivityAnalytics(
-  siteId: string,
+  websiteId: string,
   limit: number,
   opts?: { withinMinutes?: number },
 ) {
@@ -39,14 +39,14 @@ export async function getRecentActivityAnalytics(
       referrer,
       occurred_at
     FROM analytics_events
-    WHERE website_id  = ${siteId}
+    WHERE website_id  = ${websiteId}
       AND occurred_at >= ${startIso}
     ORDER BY occurred_at DESC
     LIMIT ${cap}
   `;
 
   return {
-    website_id: siteId,
+    website_id: websiteId,
     date_range:
       typeof withinMin === "number" && withinMin > 0 && withinMin <= 24 * 60
         ? `${withinMin}m`

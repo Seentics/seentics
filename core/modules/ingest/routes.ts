@@ -7,15 +7,11 @@ import type { TrackerCollectBody } from "../../platform/lib/api-types";
 import { clientIpForIngest } from "../../platform/lib/client-ip";
 import { log } from "../../platform/lib/logger";
 import { originFromRequest, validateOriginDomain, validateScreenshotTargetUrl } from "../../platform/lib/origin";
-import type {
-  buildPublicTrackerConfig as BuildPublicTrackerConfig,
-  listTrackerGoals as ListTrackerGoals,
-  resolveWebsiteForTracker as ResolveWebsiteForTracker,
-} from "../../platform/lib/website-for-tracker";
 import { validationErrorResponse } from "../../platform/validation";
 import type { AutomationEvaluation, AutomationTrackerSettings } from "../automations/interfaces";
 import type { FunnelTrackerConfig } from "../funnels/interfaces";
 import type { HeatmapScreenshotCapture } from "../heatmaps/interfaces";
+import type { TrackerWebsites } from "../websites/interfaces";
 // The `/collect` sorters are internal to this module — ingest's own code, not a peer
 // module's — so they stay plain imports. Everything they hand a batch to is behind
 // `IngestSinks`, which is where ingest's cross-module coupling is declared.
@@ -53,9 +49,10 @@ const gunzip = promisify(gunzipCallback);
  *
  * - the funnels and automations halves of `/init` were free functions wrapping their
  *   modules' repositories;
- * - server-side evaluation went through a deprecated free `evaluate()` backed by a
+ * - server-side evaluation went through a free `evaluate()` (since deleted) backed by a
  *   lazily-constructed service whose event bus had no subscribers;
- * - `/request-screenshot` called a free `captureHeatmapScreenshot`, which resolved
+ * - `/request-screenshot` called a free `captureHeatmapScreenshot` (since deleted),
+ *   which resolved
  *   the website itself through `lib/website-resolve` — a second read of a table this
  *   handler had already read, from a module that should not touch it at all.
  *
@@ -91,11 +88,7 @@ export function createTrackerRoutes(deps: {
    * shared platform module — `mock.module` is process-global in Bun, so doing that
    * leaked into the suite that exercises the real implementation.
    */
-  trackerWebsites: {
-    resolve: typeof ResolveWebsiteForTracker;
-    listGoals: typeof ListTrackerGoals;
-    buildConfig: typeof BuildPublicTrackerConfig;
-  };
+  trackerWebsites: TrackerWebsites;
 }) {
   const { queue, automations, automationEvaluation, funnels, screenshots } = deps;
   const {
@@ -294,7 +287,7 @@ export function createTrackerRoutes(deps: {
       msg: "tracker_collect" as const,
       website_param: websiteId,
       website_uuid: website.id,
-      site_id: website.site_id,
+      website_id: website.id,
       origin,
       len_events: lenEvents,
       len_session: lenSession,
@@ -420,11 +413,10 @@ export function createTrackerRoutes(deps: {
     try {
       const result = await automationEvaluation.evaluate({
         // Both identifiers, already resolved by the origin check above: the UUID
-        // keys every table the evaluation touches, the siteId only labels the events
+        // keys every table the evaluation touches, the websiteId only labels the events
         // it publishes. Passing both is what keeps the automations module out of the
         // `websites` table.
         websiteId:   website.id,
-        siteId:      website.site_id,
         anonymousId,
         userId:      typeof body.user_id === "string" ? body.user_id : null,
         sessionId,
