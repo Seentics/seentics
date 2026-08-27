@@ -62,8 +62,8 @@ function countryFlag(code: string) {
 function RealtimeTimelineChart({ timeline, isLoading }: { timeline?: RealtimeMinute[]; isLoading: boolean }) {
   if (isLoading) {
     return (
-      <div className="border-none shadow-sm rounded-lg overflow-hidden">
-        <div className="px-4 py-3 border-b border-border/50">
+      <div className="surface overflow-hidden">
+        <div className="px-4 py-3 border-b border-border">
           <div className="h-4 w-36 bg-muted/50 animate-pulse rounded-lg" />
         </div>
         <div className="p-4 md:p-5 h-40 bg-muted/20 animate-pulse" />
@@ -73,8 +73,8 @@ function RealtimeTimelineChart({ timeline, isLoading }: { timeline?: RealtimeMin
   const data = timeline ?? [];
   const hasData = data.some(d => d.views > 0 || d.visitors > 0);
   return (
-    <div className="border-none shadow-sm rounded-lg overflow-hidden bg-card">
-      <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border/50 flex items-center justify-between">
+    <div className="surface overflow-hidden">
+      <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border flex items-center justify-between">
         <div>
           <h3 className=" font-semibold text-foreground">Last 30 minutes</h3>
           <p className="text-xs text-muted-foreground mt-0.5">Pageviews and unique visitors per minute.</p>
@@ -128,8 +128,8 @@ function TopList({ title, rows, isLoading, type = 'pages' }: {
   const items = rows ?? [];
   const max = items[0]?.visitors ?? 1;
   return (
-    <div className="border-none shadow-sm rounded-lg overflow-hidden flex flex-col bg-card">
-      <div className="px-4 py-3 border-b border-border/50">
+    <div className="surface overflow-hidden flex flex-col">
+      <div className="px-4 py-3 border-b border-border">
         <h3 className="text-sm font-medium tracking-tight text-foreground">{title}</h3>
       </div>
       <div className="p-3 flex-1 space-y-1">
@@ -233,16 +233,15 @@ export function RealtimeDashboardSection({ websiteId }: { websiteId: string }) {
                   label: 'Active now',
                   value: data?.active_visitors ?? 0,
                   icon: Radio,
-                  iconColor: 'text-primary',
-                  valueColor: 'text-primary',
+                  tone: 'success' as const,
                 },
-                { label: 'Pageviews', value: data?.pageviews ?? 0, icon: Eye },
-                { label: 'Sessions', value: data?.sessions ?? 0, icon: Users },
+                { label: 'Pageviews', value: data?.pageviews ?? 0, icon: Eye, tone: 'info' as const },
+                { label: 'Sessions', value: data?.sessions ?? 0, icon: Users, tone: 'accent' as const },
                 {
                   label: 'Pages / visitor',
                   value: pps,
                   icon: Layers,
-                  iconColor: 'text-muted-foreground',
+                  tone: 'warning' as const,
                 },
               ]
         }
@@ -255,8 +254,8 @@ export function RealtimeDashboardSection({ websiteId }: { websiteId: string }) {
         <TopList title="Top countries" rows={data?.top_countries} isLoading={statsLoading} type="countries" />
       </div>
 
-      <div className="mt-6  shadow-sm rounded-lg overflow-hidden bg-card">
-        <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border/50">
+      <div className="mt-6  rounded-lg overflow-hidden bg-card">
+        <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border">
           <h3 className="text-base font-medium tracking-tight text-foreground">Activity log</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
             Page URL, country, device, OS, browser, source, and time. Updates about every 12 seconds.

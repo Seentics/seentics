@@ -127,7 +127,7 @@ function SessionSummaryCard({
               <SummaryField label="Pages viewed">{String(session.pagesViewed)}</SummaryField>
             </dl>
             {(session.hasErrors || session.hasRageClicks) && (
-              <div className="flex flex-wrap gap-2 border-t border-border/60 pt-3">
+              <div className="flex flex-wrap gap-2 border-t border-border pt-3">
                 {session.hasErrors && (
                   <Badge
                     variant="outline"
@@ -176,7 +176,7 @@ function ErrorRow({
     : null;
 
   return (
-    <li className="border-b border-border/50 last:border-b-0">
+    <li className="border-b border-border last:border-b-0">
       <div className="flex w-full min-w-0 items-start gap-2 px-2.5 py-2">
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-red-400" />
         <div className="min-w-0 flex-1 space-y-0.5">
@@ -306,7 +306,7 @@ function TimelineCard({ replayBridge }: { replayBridge: SessionReplayBridge | nu
             player={replayBridge.player}
           />
         ) : (
-          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/10 px-4 py-12 text-center">
+          <div className="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border bg-muted/10 px-4 py-12 text-center">
             <p className="text-xs font-medium text-muted-foreground">Preparing playback…</p>
           </div>
         )}
@@ -342,7 +342,7 @@ function ConsoleRow({
   const message = entry.args.join(' ');
 
   return (
-    <li className={cn('border-b border-border/40 last:border-b-0', styles.row)}>
+    <li className={cn('border-b border-border last:border-b-0', styles.row)}>
       <div className="flex w-full min-w-0 items-start gap-2 px-2.5 py-1.5">
         <IconEl className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', styles.iconCls)} />
         <span className="min-w-0 flex-1 font-mono text-[11px] text-foreground break-words leading-relaxed">
@@ -408,7 +408,7 @@ function NetworkRow({
   })();
 
   return (
-    <li className={cn('border-b border-border/40 last:border-b-0', hasError ? 'bg-red-500/5' : 'hover:bg-muted/40')}>
+    <li className={cn('border-b border-border last:border-b-0', hasError ? 'bg-red-500/5' : 'hover:bg-muted/40')}>
       <div className="flex w-full min-w-0 items-center gap-2 px-2.5 py-1.5">
         <span className={cn('shrink-0 rounded-lg px-1 py-px text-[10px] font-semibold uppercase leading-none tabular-nums', methodBadgeColor(entry.method))}>
           {entry.method}
@@ -502,9 +502,9 @@ export function ReplaySessionSidebar({
   ];
 
   return (
-    <section className="shrink-0 border-t border-border/60 bg-background/60">
+    <section className="shrink-0 border-t border-border bg-background/60">
       {/* Tab bar */}
-      <div className="border-b border-border/60 bg-background/80 px-3 sm:px-5">
+      <div className="border-b border-border bg-background/80 px-3 sm:px-5">
         <div className="mx-auto w-full flex items-center gap-0 overflow-x-auto" style={{ maxWidth: 'calc(68dvh * 16 / 9)' }}>
             {tabs.map(tab => (
               <button
@@ -587,7 +587,7 @@ export function ReplaySessionSidebar({
           ) : (
             <Card className="shadow-sm rounded-lg overflow-hidden">
               <CardContent className="p-0">
-                <div className="flex items-center gap-3 px-2.5 py-1.5 border-b border-border/40 text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wide">
+                <div className="flex items-center gap-3 px-2.5 py-1.5 border-b border-border text-[10px] font-medium text-muted-foreground/70 uppercase tracking-wide">
                   <span className="w-10 shrink-0">Method</span>
                   <span className="flex-1 min-w-0">URL</span>
                   <span className="w-8 text-right shrink-0">Status</span>

@@ -295,7 +295,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
                   "h-full flex flex-col rounded-lg border bg-card p-5 transition-all duration-200",
                   'popular' in plan && plan.popular
                     ? `border-2 ${colors.border} shadow-md`
-                    : 'border-border/60'
+                    : 'border-border'
                 )}>
                   <div className="mb-4">
                     <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center mb-3", colors.light)}>
@@ -340,7 +340,7 @@ export const UpgradePlanModal: React.FC<UpgradePlanModalProps> = ({
           })}
         </div>
 
-        <div className="mt-5 pt-4 border-t border-border/50 text-center">
+        <div className="mt-5 pt-4 border-t border-border text-center">
           <p className="text-xs text-muted-foreground flex items-center justify-center gap-4 flex-wrap">
             <span>Cancel anytime</span>
             <span className="opacity-30">|</span>

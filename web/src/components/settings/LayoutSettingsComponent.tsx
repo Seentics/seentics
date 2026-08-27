@@ -53,7 +53,7 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
 
 function LayoutPreview({ mode }: { mode: LayoutMode }) {
   return (
-    <div className="w-full h-24 rounded-lg bg-muted/30 border border-border/40 relative overflow-hidden">
+    <div className="w-full h-24 rounded-lg bg-muted/30 border border-border relative overflow-hidden">
       {/* Content area placeholder */}
       <div className="absolute inset-2 flex gap-1">
         {mode === 'sidebar' && (
@@ -63,8 +63,8 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
               <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
               <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-2">
-                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
-                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border" />
               </div>
             </div>
           </>
@@ -75,8 +75,8 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
               <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
               <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-2">
-                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
-                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-6 rounded-lg-sm bg-muted-foreground/5 border border-border" />
               </div>
             </div>
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2/3 h-3 rounded-full bg-primary/20 border border-primary/30" />
@@ -89,8 +89,8 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
               <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
               <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-1">
-                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
-                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border" />
               </div>
             </div>
           </div>
@@ -102,8 +102,8 @@ function LayoutPreview({ mode }: { mode: LayoutMode }) {
               <div className="h-1.5 w-3/4 rounded-full bg-muted-foreground/10" />
               <div className="h-1.5 w-1/2 rounded-full bg-muted-foreground/10" />
               <div className="grid grid-cols-2 gap-1 mt-1">
-                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
-                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border/30" />
+                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border" />
+                <div className="h-5 rounded-lg-sm bg-muted-foreground/5 border border-border" />
               </div>
             </div>
           </div>

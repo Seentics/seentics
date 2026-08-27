@@ -19,7 +19,7 @@ import { Logo } from '@/components/ui/logo';
    tall on desktop, so this is what decides how much of the page is on screen:
    at 0.5 roughly 1480px of dashboard fits, which carries past Pages & Sources,
    through the map, and into the Devices/UTM row under the bottom fade. */
-const PREVIEW_SCALE = 0.5;
+const PREVIEW_SCALE = 0.8;
 
 /* Mirrors the demo branch of `transformedTopResolutions` on the real analytics
    page, which inlines these rather than reading them off the demo dataset. */
@@ -145,7 +145,7 @@ export default function HeroDashboardPreview() {
           <div className="space-y-4">
             {/* Pages & Sources */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <Card className="border-none bg-card shadow-sm">
+              <Card className="border border-border bg-card">
                 <CardContent className="p-5">
                   <ChartErrorBoundary label="Top Pages">
                     <TopPagesChart
@@ -158,7 +158,7 @@ export default function HeroDashboardPreview() {
                 </CardContent>
               </Card>
 
-              <Card className="border-none bg-card shadow-sm">
+              <Card className="border border-border bg-card">
                 <CardContent className="p-5">
                   <ChartErrorBoundary label="Top Sources">
                     <TopSourcesChart data={transformedTopReferrers} isLoading={false} />
@@ -175,7 +175,7 @@ export default function HeroDashboardPreview() {
 
             {/* Devices + UTM — 2-col grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <Card className="border-none bg-card shadow-sm">
+              <Card className="border border-border bg-card">
                 <CardContent className="p-5">
                   <ChartErrorBoundary label="Top Devices">
                     <TopDevicesChart
@@ -189,7 +189,7 @@ export default function HeroDashboardPreview() {
                 </CardContent>
               </Card>
 
-              <Card className="border-none bg-card shadow-sm overflow-hidden">
+              <Card className="border border-border bg-card overflow-hidden">
                 <CardHeader className="p-5 pb-3 border-b border-border/60">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div className="min-w-0 shrink-0">

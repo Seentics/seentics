@@ -144,7 +144,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
           members.map((member: WebsiteMember) => (
             <div
               key={member.id}
-              className="group bg-card/50 backdrop-blur-sm p-4 rounded-lg flex items-center justify-between border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80"
+              className="group bg-card/50 backdrop-blur-sm p-4 rounded-lg flex items-center justify-between border border-border hover:border-primary/30 transition-all hover:bg-card/80"
             >
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
@@ -232,7 +232,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
           </h3>
           <div className="grid grid-cols-1 gap-2">
             {pendingInvitations.map((inv: WebsiteInvitation) => (
-              <div key={inv.id} className="bg-muted/20 p-3 rounded-lg flex items-center justify-between border border-dashed border-border/50">
+              <div key={inv.id} className="bg-muted/20 p-3 rounded-lg flex items-center justify-between border border-dashed border-border">
                 <div className="flex items-center gap-3">
                   <Mail className="h-4 w-4 text-muted-foreground" />
                   <div>
@@ -257,7 +257,7 @@ export function TeamSettingsComponent({ websiteId }: TeamSettingsComponentProps)
         </div>
       )}
 
-      <div className="bg-muted/30 p-4 rounded-lg border border-border/50 flex gap-4">
+      <div className="bg-muted/30 p-4 rounded-lg border border-border flex gap-4">
         <Shield className="h-5 w-5 text-muted-foreground shrink-0" />
         <div className="space-y-1">
           <p className="text-xs font-bold text-foreground">Advanced Permissions</p>

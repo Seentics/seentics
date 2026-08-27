@@ -16,12 +16,14 @@ export default function Hero() {
       <div className="container mx-auto px-6 relative z-10">
         <div className="max-w-4xl mx-auto text-center">
           <h1 className="animate-in fade-in slide-in-from-bottom-3 duration-500 mb-6">
-            <span className="block text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold tracking-tighter text-foreground leading-[1.1]">
-              Understand Users Behavior  <span className="text-primary">Take automated action.</span>
-            </span>
+            {/* Two blocks, not one wrapped line: at the smaller type size the
+                sentences ran together mid-line ("…Behavior Take / automated action"),
+                so each clause owns its own line at every width. */}
+            <span className="landing-h1 block">Understand Users Behavior</span>
+            <span className="landing-h1 block text-primary">Take automated action.</span>
           </h1>
 
-          <p className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:80ms] text-xl text-muted-foreground max-w-3xl mx-auto mb-10 leading-relaxed">
+          <p className="animate-in fade-in slide-in-from-bottom-3 duration-500 [animation-delay:80ms] landing-lead max-w-3xl mx-auto mb-10">
             Seentics gives you the analytics to understand your users and the automation to act on what you discover—all in one open-source platform.
           </p>
 

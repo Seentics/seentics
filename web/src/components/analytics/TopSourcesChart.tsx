@@ -170,7 +170,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
       };
 
       return (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border/60">
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border">
           <Layers className="h-10 w-10 mb-2 opacity-20" />
           <p className="text-xs font-medium text-muted-foreground">{emptyMessages[type]}</p>
         </div>
@@ -184,7 +184,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
           const sourceImg = !directIcon ? getSourceImage(item.label) : null;
 
           return (
-            <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ utm_source: item.label })}>
+            <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ utm_source: item.label })}>
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                   {directIcon ? (
@@ -248,7 +248,7 @@ export function TopSourcesChart({ data, isLoading, onViewMore, onFilter }: TopSo
   return (
     <div className="h-[500px] flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border shrink-0">
            <div>
               <h3 className="text-base font-semibold tracking-tight">Traffic Sources</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Main acquisition channels</p>

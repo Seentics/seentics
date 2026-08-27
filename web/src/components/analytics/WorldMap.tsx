@@ -348,7 +348,7 @@ function FlatMapView({ data }: { data: TopItem[] }) {
 // ── Legend ────────────────────────────────────────────────────────────────────
 function Legend() {
     return (
-        <div className="absolute bottom-3 left-3 flex flex-col gap-1.5 bg-background/90 backdrop-blur-md border border-border/50 rounded-lg px-3 py-2.5 text-[10px]">
+        <div className="absolute bottom-3 left-3 flex flex-col gap-1.5 bg-background/90 backdrop-blur-md border border-border rounded-lg px-3 py-2.5 text-[10px]">
             <div className="font-semibold text-foreground mb-0.5 text-[11px]">Traffic share</div>
             {[
                 { bg: '#dbeafe', label: '< 8%' },

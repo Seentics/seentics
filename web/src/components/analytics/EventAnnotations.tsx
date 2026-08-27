@@ -170,7 +170,7 @@ export function EventAnnotations({ annotations, onAdd, onDelete }: EventAnnotati
                   .map((annotation) => (
                     <div
                       key={annotation.id}
-                      className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div

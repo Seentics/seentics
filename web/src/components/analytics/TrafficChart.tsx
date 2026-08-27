@@ -42,8 +42,8 @@ function CustomTooltip({ active, payload, label }: any) {
   };
 
   return (
-    <div className="bg-popover border border-border/60 rounded-lg shadow-xl px-3.5 py-3 text-xs min-w-[160px]">
-      <p className="text-[11px] font-medium text-muted-foreground mb-2.5 pb-2 border-b border-border/40">{date}</p>
+    <div className="bg-popover border border-border rounded-lg shadow-xl px-3.5 py-3 text-xs min-w-[160px]">
+      <p className="text-[11px] font-medium text-muted-foreground mb-2.5 pb-2 border-b border-border">{date}</p>
       {sorted.map((entry: any) => {
         if (entry.value == null) return null;
         return (

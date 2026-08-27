@@ -72,7 +72,7 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <Card className="border border-border/60 bg-card shadow-sm">
+      <Card className="surface">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -109,7 +109,7 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
               <Textarea
                 id="include-patterns"
                 placeholder="e.g. /products/*, /pricing"
-                className="min-h-[80px] text-sm bg-muted/20 border-border/50"
+                className="min-h-[80px] text-sm bg-muted/20 border-border"
                 value={includePatterns}
                 onChange={(e) => setIncludePatterns(e.target.value)}
               />
@@ -125,7 +125,7 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
               <Textarea
                 id="exclude-patterns"
                 placeholder="e.g. /admin/*, /checkout/success"
-                className="min-h-[80px] text-sm bg-muted/20 border-border/50"
+                className="min-h-[80px] text-sm bg-muted/20 border-border"
                 value={excludePatterns}
                 onChange={(e) => setExcludePatterns(e.target.value)}
               />
@@ -135,7 +135,7 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
             </div>
           </div>
 
-          <div className="flex justify-end pt-4 mt-4 border-t border-border/40">
+          <div className="flex justify-end pt-4 mt-4 border-t border-border">
             <Button
               onClick={handleSave}
               size="sm"
@@ -154,7 +154,7 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card className="border border-border/60 bg-card shadow-sm">
+        <Card className="surface">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -168,7 +168,7 @@ export function HeatmapSettingsComponent({ websiteId }: HeatmapSettingsProps) {
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60 bg-card shadow-sm">
+        <Card className="surface">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <XCircle className="h-3.5 w-3.5 text-rose-500" />

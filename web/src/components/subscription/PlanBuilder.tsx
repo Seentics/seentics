@@ -200,8 +200,11 @@ export function PlanBuilder({ onSubscribe, loading, currentPlan, mode = 'individ
       <div
         key={plan.id}
         className={cn(
-          'relative flex flex-col rounded-lg border bg-card p-6 transition-all duration-300 hover:shadow-lg',
-          'popular' in plan && plan.popular ? `border-2 ${plan.borderColor} shadow-md` : 'border-border/60',
+          // rounded-xl, not lg: these are tall p-6 cards, and 8px reads square at
+          // that height. xl rather than the landing's 2xl because PlanBuilder is
+          // shared with the billing page and has to sit inside the dashboard too.
+          'relative flex flex-col rounded-xl border bg-card p-6 transition-all duration-300 hover:shadow-lg',
+          'popular' in plan && plan.popular ? `border-2 ${plan.borderColor}` : 'border-border',
           isCurrent && 'ring-2 ring-primary/20',
         )}
       >

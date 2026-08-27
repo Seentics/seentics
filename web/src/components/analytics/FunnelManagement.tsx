@@ -126,8 +126,8 @@ function FunnelDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl border border-border/60 bg-card rounded-lg shadow-xl p-0 gap-0">
-        <DialogHeader className="p-5 pb-3 border-b border-border/60">
+      <DialogContent className="max-w-2xl border border-border bg-card rounded-lg shadow-xl p-0 gap-0">
+        <DialogHeader className="p-5 pb-3 border-b border-border">
           <DialogTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
             {funnel.name}
             <Badge variant={funnel.is_active ? 'default' : 'secondary'} className="text-[10px] h-5">
@@ -153,9 +153,9 @@ function FunnelDetailModal({
                 <StatCards
                   cols={3}
                   cards={[
-                    { label: 'Entries', value: analytics.total_starts || 0, icon: Users },
-                    { label: 'Conversion', value: `${analytics.conversion_rate?.toFixed(1) || '0'}%`, icon: TrendingUp, iconColor: 'text-green-600', valueColor: 'text-green-600' },
-                    { label: 'Drop-off', value: `${analytics.drop_off_rate?.toFixed(1) || '0'}%`, icon: TrendingDown, iconColor: 'text-orange-600', valueColor: 'text-orange-600' },
+                    { label: 'Entries', value: analytics.total_starts || 0, icon: Users, tone: 'info' as const },
+                    { label: 'Conversion', value: `${analytics.conversion_rate?.toFixed(1) || '0'}%`, icon: TrendingUp, tone: 'success' as const },
+                    { label: 'Drop-off', value: `${analytics.drop_off_rate?.toFixed(1) || '0'}%`, icon: TrendingDown, tone: 'warning' as const },
                   ]}
                 />
               )}
@@ -163,7 +163,7 @@ function FunnelDetailModal({
               {/* Step-by-step funnel visualization */}
               <div className="space-y-1.5">
                 <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Funnel Steps</h4>
-                <div className="bg-muted/20 border border-border/40 rounded-lg p-4 space-y-0">
+                <div className="bg-muted/20 border border-border rounded-lg p-4 space-y-0">
                   {steps.map((step, i) => {
                     const isLast = i === steps.length - 1;
                     const widthPct = steps.length > 1 ? 100 - (i * (60 / (steps.length - 1))) : 100;
@@ -202,7 +202,7 @@ function FunnelDetailModal({
                 </div>
               </div>
 
-              <div className="text-[11px] text-muted-foreground pt-2 border-t border-border/60">
+              <div className="text-[11px] text-muted-foreground pt-2 border-t border-border">
                 Created {new Date(funnel.created_at).toLocaleDateString()} · {steps.length} steps
               </div>
             </div>
@@ -262,7 +262,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
 
   if (funnelsLoading) {
     return (
-      <Card className="border border-border/60 bg-card shadow-sm">
+      <Card className="border border-border bg-card">
         <CardContent className="p-5">
           <div className="space-y-3">
             {[...Array(2)].map((_, i) => (
@@ -276,7 +276,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
 
   if (funnelsError) {
     return (
-      <Card className="border border-border/60 bg-card shadow-sm">
+      <Card className="border border-border bg-card">
         <CardContent className="p-5 text-center">
           <p className="text-sm text-muted-foreground">Failed to load funnels.</p>
           <Button onClick={() => window.location.reload()} size="sm" variant="outline" className="mt-3 h-7 text-xs">
@@ -289,8 +289,8 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
 
   return (
     <>
-      <Card className="border border-border/60 bg-card shadow-sm">
-        <CardHeader className="p-5 pb-3 border-b border-border/60">
+      <Card className="border border-border bg-card">
+        <CardHeader className="p-5 pb-3 border-b border-border">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-base font-semibold tracking-tight">Conversion Funnels</h3>
@@ -327,7 +327,7 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
               </Button>
             </div>
           ) : (
-            <div className="divide-y divide-border/40">
+            <div className="divide-y divide-border">
               {funnels.map((funnel) => (
                 <div
                   key={funnel.id}
@@ -423,8 +423,8 @@ export function FunnelManagement({ websiteId, dateRange, onCreateWorkflow }: Fun
 
       {/* Create/Edit Funnel Modal */}
       <Dialog open={isBuilderOpen} onOpenChange={setIsBuilderOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto border border-border/60 bg-card rounded-lg shadow-xl p-0 gap-0">
-          <DialogHeader className="p-5 pb-3 border-b border-border/60">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto border border-border bg-card rounded-lg shadow-xl p-0 gap-0">
+          <DialogHeader className="p-5 pb-3 border-b border-border">
             <DialogTitle className="text-base font-semibold tracking-tight">
               {editingFunnel ? 'Edit Funnel' : 'Create New Funnel'}
             </DialogTitle>

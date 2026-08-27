@@ -64,7 +64,7 @@ export function PagePerformanceTable({ data, isLoading }: PagePerformanceTablePr
 
   if (pages.length === 0) {
     return (
-      <div className="h-64 flex flex-col items-center justify-center text-center opacity-50 bg-accent/5 rounded-lg border border-dashed border-border/60">
+      <div className="h-64 flex flex-col items-center justify-center text-center opacity-50 bg-accent/5 rounded-lg border border-dashed border-border">
         <BarChart3 className="h-8 w-8 text-muted-foreground opacity-20 mb-3" />
         <p className="text-sm font-semibold text-muted-foreground">No performance data</p>
         <p className="text-xs text-muted-foreground/60 mt-1">Page metrics will appear as visitors browse your site</p>
@@ -102,7 +102,7 @@ export function PagePerformanceTable({ data, isLoading }: PagePerformanceTablePr
   return (
     <div className="space-y-1">
       {/* Header */}
-      <div className="flex items-center px-4 py-2 border-b border-border/40">
+      <div className="flex items-center px-4 py-2 border-b border-border">
         <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex-1 min-w-0">Page</span>
         <div className="flex items-center shrink-0">
           <div className="w-20 flex justify-end"><SortHeader label="Views" field="views" icon={Eye} /></div>

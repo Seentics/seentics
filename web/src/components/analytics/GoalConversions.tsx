@@ -23,7 +23,7 @@ export function GoalConversions({ items, totalVisitors = 0, isLoading }: GoalCon
     return (
       <div className="space-y-0">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0">
+          <div key={i} className="flex items-center justify-between py-3 border-b border-border last:border-0">
             <div className="flex items-center gap-3">
               <Skeleton className="h-8 w-8 rounded-lg" />
               <div className="space-y-1.5">
@@ -40,7 +40,7 @@ export function GoalConversions({ items, totalVisitors = 0, isLoading }: GoalCon
 
   if (!items || items.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border/60">
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border">
         <Target className="h-10 w-10 mb-2 opacity-20" />
         <p className="text-xs font-medium text-muted-foreground/60">No goals configured</p>
       </div>
@@ -73,7 +73,7 @@ export function GoalConversions({ items, totalVisitors = 0, isLoading }: GoalCon
           return (
             <div
               key={`${item.event_type}-${index}`}
-              className="group relative flex items-center justify-between py-3 px-1 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors"
+              className="group relative flex items-center justify-between py-3 px-1 border-b border-border last:border-0 hover:bg-accent/5 transition-colors"
             >
               {/* Background bar */}
               <div

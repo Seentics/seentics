@@ -79,7 +79,7 @@ export const TopBrowsersChart: React.FC<TopBrowsersChartProps> = ({ data, isLoad
           const percentage = ((item.visitors / totalVisitors) * 100).toFixed(1);
 
           return (
-            <div key={index} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
+            <div key={index} className="flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-accent/5 transition-colors group px-1">
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="flex-shrink-0">
                   <BrowserIcon browser={item.browser} />

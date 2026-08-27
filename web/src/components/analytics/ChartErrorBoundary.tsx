@@ -21,7 +21,7 @@ export class ChartErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="h-full flex items-center justify-center rounded-lg border border-border/40 bg-muted/20">
+        <div className="h-full flex items-center justify-center rounded-lg border border-border bg-muted/20">
           <div className="text-center space-y-2 px-6 py-8">
             <AlertTriangle className="h-8 w-8 text-muted-foreground/40 mx-auto" />
             <p className="text-sm font-medium text-muted-foreground">

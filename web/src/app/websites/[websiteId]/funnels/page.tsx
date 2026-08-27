@@ -197,21 +197,21 @@ export default function FunnelsPage() {
   const summary = useMemo(() => {
     if (isDemoMode) {
       return [
-        { label: 'Active Funnels', value: 3, icon: GitBranch },
-        { label: 'Avg Completion', value: '24.3%', icon: TrendingUp, iconColor: 'text-blue-600' },
-        { label: 'Total Entries', value: '48,291', icon: Users },
-        { label: 'Conversions', value: '11,726', icon: Target, iconColor: 'text-green-600', valueColor: 'text-green-600' },
+        { label: 'Active Funnels', value: 3, icon: GitBranch, tone: 'success' as const },
+        { label: 'Avg Completion', value: '24.3%', icon: TrendingUp, tone: 'accent' as const },
+        { label: 'Total Entries', value: '48,291', icon: Users, tone: 'info' as const },
+        { label: 'Conversions', value: '11,726', icon: Target, tone: 'success' as const },
       ];
     }
     return [
-      { label: 'Active Funnels', value: funnels.filter(f => f.is_active).length, icon: GitBranch },
-      { label: 'Total Funnels', value: funnels.length, icon: BarChart3 },
-      { label: 'Total Steps', value: funnels.reduce((s, f) => s + (f.steps?.length || 0), 0), icon: Target },
+      { label: 'Active Funnels', value: funnels.filter(f => f.is_active).length, icon: GitBranch, tone: 'success' as const },
+      { label: 'Total Funnels', value: funnels.length, icon: BarChart3, tone: 'info' as const },
+      { label: 'Total Steps', value: funnels.reduce((s, f) => s + (f.steps?.length || 0), 0), icon: Target, tone: 'warning' as const },
       {
-        label:      'Avg. conversion',
-        value:     funnelIds.length === 0 ? '—' : avgConversionStr,
-        icon:       TrendingUp,
-        iconColor: 'text-blue-600',
+        label: 'Avg. conversion',
+        value: funnelIds.length === 0 ? '—' : avgConversionStr,
+        icon:  TrendingUp,
+        tone:  'accent' as const,
       },
     ];
   }, [isDemoMode, funnels, funnelIds.length, avgConversionStr]);
@@ -270,7 +270,7 @@ export default function FunnelsPage() {
             </div>
           }
           toolbarRight={
-            <div className="relative w-64 h-8 bg-card border border-border/40 rounded-lg overflow-hidden flex items-center px-2.5 gap-2 group focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/40 transition-all">
+            <div className="relative w-64 h-8 bg-card border border-border rounded-lg overflow-hidden flex items-center px-2.5 gap-2 group focus-within:ring-1 focus-within:ring-primary/20 focus-within:border-primary/40 transition-all">
               <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
               <input
                 type="text"

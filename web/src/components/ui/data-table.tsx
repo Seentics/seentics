@@ -188,7 +188,7 @@ function TablePagination({
   }
 
   return (
-    <div className="px-4 py-3 border-t border-border/30 bg-muted/5 flex flex-col sm:flex-row items-center justify-between gap-3">
+    <div className="px-4 py-3 border-t border-border bg-muted/5 flex flex-col sm:flex-row items-center justify-between gap-3">
       <p className="text-xs text-muted-foreground">
         {totalRows === 0
           ? 'No results'
@@ -360,10 +360,10 @@ export function DataTable<TData>({
       : table.getFilteredRowModel().rows.length);
 
   return (
-    <div className={cn('border-none bg-card shadow-sm rounded-lg overflow-hidden', className)}>
+    <div className={cn('surface overflow-hidden', className)}>
       {/* ── Toolbar ──────────────────────────────────────────────────── */}
       {(toolbarLeft || toolbarRight || selectionActions) && (
-        <div className="px-5 py-4 border-b border-border/40 bg-muted/5">
+        <div className="px-5 py-4 border-b border-border bg-muted/5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             {/* Left slot — replaced by selection actions when rows are selected */}
             <div className="flex items-center gap-4 min-w-0">
@@ -414,7 +414,7 @@ export function DataTable<TData>({
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow
                 key={headerGroup.id}
-                className="bg-muted/20 hover:bg-muted/20 border-b border-border/30"
+                className="bg-muted/20 hover:bg-muted/20 border-b border-border"
               >
                 {headerGroup.headers.map((header) => (
                   <TableHead
@@ -442,7 +442,7 @@ export function DataTable<TData>({
                 key={row.id}
                 data-state={row.getIsSelected() ? 'selected' : undefined}
                 className={cn(
-                  'border-b border-border/20 transition-colors',
+                  'border-b border-border transition-colors',
                   onRowClick && 'cursor-pointer',
                   row.getIsSelected() && 'bg-primary/[0.03]',
                   rowClassName?.(row.original),

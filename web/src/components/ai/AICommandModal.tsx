@@ -434,7 +434,7 @@ function ResultTable({ rows, columns }: { rows: Record<string, unknown>[]; colum
               i % 2 === 0 ? 'bg-transparent' : 'bg-muted/30',
             )}>
               {columns.map((col) => (
-                <td key={col.key} className="px-4 py-2.5 text-foreground/90 whitespace-nowrap border-b border-border/40 text-sm">
+                <td key={col.key} className="px-4 py-2.5 text-foreground/90 whitespace-nowrap border-b border-border text-sm">
                   {formatValue(row[col.key])}
                 </td>
               ))}
@@ -622,7 +622,7 @@ function AIResultModal({ result, open, onOpenChange, onNewQuery, prompt }: {
 
           {/* SQL drawer */}
           {sqlOpen && sql && (
-            <div className="border-t border-border/60 px-4 sm:px-6 py-3 bg-muted/60 dark:bg-muted/30 max-h-36 overflow-auto">
+            <div className="border-t border-border px-4 sm:px-6 py-3 bg-muted/60 dark:bg-muted/30 max-h-36 overflow-auto">
               <pre className="text-[11px] text-foreground/70 font-mono leading-relaxed whitespace-pre-wrap break-all">
                 {sql}
               </pre>
@@ -1246,7 +1246,7 @@ export function AICommandModal({ websiteId, open, onOpenChange, aiUsage }: Props
                           'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all',
                           done ? 'border-emerald-500/50 bg-emerald-500/15' :
                           active ? 'border-indigo-400 bg-indigo-100 dark:border-indigo-500/60 dark:bg-indigo-500/15' :
-                          'border-border/40 bg-transparent',
+                          'border-border bg-transparent',
                         )}>
                           {done
                             ? <CheckCircle2 className="h-3 w-3 text-emerald-500 dark:text-emerald-400" />

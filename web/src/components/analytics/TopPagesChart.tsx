@@ -147,7 +147,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   const PageList = ({ items, type }: { items: any[], type: 'top' | 'entry' | 'exit' }) => {
     if (items.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border/60">
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border">
           <FileText className="h-10 w-10 mb-2 opacity-20" />
           <p className="text-xs font-medium text-muted-foreground/60">No page data</p>
         </div>
@@ -167,7 +167,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
           const secondaryMetric = type === 'top' ? null : item.bounce_rate !== undefined ? `${item.bounce_rate}% bounce` : item.exit_rate !== undefined ? `${item.exit_rate}% exit` : null;
 
           return (
-            <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ page_path: path })}>
+            <div key={index} className={cn("flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ page_path: path })}>
               <div className="flex items-center space-x-4 flex-1 min-w-0">
                 <div className="flex-shrink-0 p-2 bg-accent/10 rounded-lg group-hover:bg-primary/10 transition-colors">
                   {getPageIcon(item.page)}
@@ -202,7 +202,7 @@ export const TopPagesChart: React.FC<TopPagesChartProps> = ({
   return (
     <div className="h-[500px] flex flex-col">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border shrink-0">
            <div>
               <h3 className="text-base font-semibold tracking-tight">Top Pages</h3>
               <p className="text-xs text-muted-foreground mt-0.5">Most visited & landing destinations</p>

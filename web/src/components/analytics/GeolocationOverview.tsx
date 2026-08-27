@@ -67,7 +67,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
 
     if (isLoading) {
         return (
-            <Card className={cn("border-none bg-card shadow-sm rounded-lg overflow-hidden mb-6", className)}>
+            <Card className={cn("surface overflow-hidden mb-6", className)}>
                 <CardHeader>
                     <div className="animate-pulse space-y-2">
                         <div className="h-6 bg-accent/10 rounded-lg w-48 mb-2"></div>
@@ -82,8 +82,8 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
     }
 
     return (
-        <Card className={cn("border-none bg-card shadow-sm overflow-hidden", className)}>
-            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-border/40">
+        <Card className={cn("surface overflow-hidden", className)}>
+            <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-border">
                 <div className="space-y-1">
                     <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
                         Geographic Intelligence
@@ -104,7 +104,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
             <CardContent className=" pt-2">
                 <div className="min-h-[400px]">
                     {!hasGeoBreakdown && !isLoading ? (
-                        <div className="flex flex-col items-center justify-center py-20 px-4 text-center  rounded-lg border border-dashed border-border/60">
+                        <div className="flex flex-col items-center justify-center py-20 px-4 text-center  rounded-lg border border-dashed border-border">
                             <Globe className="h-14 w-14 mb-4 text-muted-foreground/25" />
                             <p className="text-sm font-medium text-muted-foreground mb-1">No geographic data yet</p>
                             <p className="text-xs text-muted-foreground/80 max-w-sm leading-relaxed">
@@ -139,10 +139,10 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     {geoTab === 'countries' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
                             {displayData?.countries?.slice(0, 14).map((country, index) => (
-                                <div key={country.name} className={cn("flex items-center justify-between py-3 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ country: country.name })}>
+                                <div key={country.name} className={cn("flex items-center justify-between py-3 border-b border-border hover:bg-accent/5 transition-colors group px-1", onFilter && "cursor-pointer")} onClick={() => onFilter?.({ country: country.name })}>
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
-                                        <div className="relative w-8 h-6 rounded-lg-sm overflow-hidden shadow-sm border border-border/40">
+                                        <div className="relative w-8 h-6 rounded-lg-sm overflow-hidden shadow-sm border border-border">
                                             <Image
                                                 src={getCountryFlag(country.name)}
                                                 alt={`${country.name} flag`}
@@ -185,11 +185,11 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                                 </div>
                             )}
                             {displayData?.cities?.slice(0, 14).map((city, index) => (
-                                <div key={city.name} className="flex items-center justify-between py-3 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1">
+                                <div key={city.name} className="flex items-center justify-between py-3 border-b border-border hover:bg-accent/5 transition-colors group px-1">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         {city.code ? (
-                                            <div className="relative w-8 h-6 rounded-lg-sm overflow-hidden shadow-sm border border-border/40">
+                                            <div className="relative w-8 h-6 rounded-lg-sm overflow-hidden shadow-sm border border-border">
                                                 <Image
                                                     src={`/images/country/${city.code.toLowerCase()}.png`}
                                                     alt={`${city.code} flag`}
@@ -228,7 +228,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
                     {geoTab === 'continents' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-0">
                             {displayData?.continents?.map((continent, index) => (
-                                <div key={continent.name} className="flex items-center justify-between py-3 border-b border-border/40 hover:bg-accent/5 transition-colors group px-1">
+                                <div key={continent.name} className="flex items-center justify-between py-3 border-b border-border hover:bg-accent/5 transition-colors group px-1">
                                     <div className="flex items-center gap-4 min-w-0">
                                         <span className="text-[10px] font-bold text-muted-foreground/30 w-4">{(index + 1).toString().padStart(2, '0')}</span>
                                         <div className="p-2 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent hover:scale-110 transition-all duration-300" >

@@ -390,9 +390,9 @@ const PANELS = [
  * and flatter as they recede — the same cue a real stack of paper gives.
  */
 const SLOTS = [
-  { w: 60, ty: 0, z: 40, sc: 1.01, dim: 1, sat: 1 }, // front / active — untouched
-  { w: 67, ty: 52, z: 20, sc: 1, dim: 0.82, sat: 0.7 },
-  { w: 74, ty: 104, z: 10, sc: 1, dim: 0.66, sat: 0.45 },
+  { w: 82, ty: 0, z: 40, sc: 1.01, dim: 1, sat: 1 }, // front / active — untouched
+  { w: 88, ty: 52, z: 20, sc: 1, dim: 0.82, sat: 0.7 },
+  { w: 94, ty: 104, z: 10, sc: 1, dim: 0.66, sat: 0.45 },
 ];
 
 export default function HeroPreviewStack() {
@@ -402,29 +402,10 @@ export default function HeroPreviewStack() {
   const inactive = PANELS.map((_, idx) => idx).filter((idx) => idx !== active);
 
   return (
-    <div>
-      {/* Preview switcher. On mobile it is the only way to change preview (one shows at
-          a time); on desktop it labels the cascade and mirrors clicking a layer. */}
-      <div className="mb-4 grid grid-cols-3 gap-2 md:mx-auto md:mb-5 md:flex md:w-fit md:gap-1 md:rounded-full md:border md:border-border/60 md:bg-card md:p-1 md:shadow-sm">
-        {PANELS.map((p, i) => (
-          <button
-            key={p.key}
-            type="button"
-            onClick={() => setActive(i)}
-            aria-pressed={active === i}
-            className={cn(
-              'rounded-lg border px-2 py-2 text-[11px] font-semibold transition-colors',
-              'md:rounded-full md:border-transparent md:px-4 md:py-1.5 md:text-xs',
-              active === i
-                ? 'border-primary bg-primary/10 text-primary md:bg-primary md:text-primary-foreground'
-                : 'border-border/60 bg-card text-muted-foreground md:bg-transparent md:hover:text-foreground',
-            )}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
-
+    // Desktop only. The cascade needs the horizontal room to read as a stack, and
+    // the mocks are full dashboard screens — at phone width they were unreadable
+    // whichever way they were arranged.
+    <div className="hidden md:block">
       {/* Stack container — layers are absolutely positioned against this, so it has
           to clear the tallest layer plus the deepest slot's translateY (740 + 104). */}
       <div className="relative md:h-[870px]">
@@ -438,6 +419,9 @@ export default function HeroPreviewStack() {
             role="button"
             tabIndex={0}
             aria-pressed={isActive}
+            // The visible tab labels are gone, so this is now the only accessible
+            // name distinguishing one layer from another.
+            aria-label={`${p.label} preview`}
             onClick={() => setActive(i)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -463,14 +447,14 @@ export default function HeroPreviewStack() {
               'shadow-[0_30px_60px_-12px_rgba(0,0,0,0.13),0_12px_24px_-8px_rgba(0,0,0,0.08)]',
               'dark:shadow-[0_30px_60px_-12px_rgba(0,0,0,0.4),0_12px_24px_-8px_rgba(0,0,0,0.25)]',
               'transition-all duration-500 ease-out md:cursor-pointer',
-              // Mobile: only the selected preview is shown (tabs switch it).
-              i !== active && 'hidden md:block',
               // Desktop: slot-based cascade — width, offset, z and scale come from the slot,
               // so activating a layer animates every layer to its new slot.
               'md:absolute md:left-1/2 md:top-0 md:h-[740px] md:[width:var(--w)] md:[transform:translateX(-50%)_translateY(var(--ty))_scale(var(--sc))] md:[z-index:var(--z)]',
-              // Depth: the front layer keeps full colour and the deepest shadow; the
-              // ones behind step down in brightness, saturation and shadow together.
-              'md:[filter:brightness(var(--dim))_saturate(var(--sat))]',
+              // Light mode: every layer keeps the same surface colour, so the only thing
+              // marking the front one is z-order, offset and shadow — like a stack of
+              // identical sheets. Dark mode still dims the ones behind, where darkening
+              // reads as distance instead of turning the surface grey.
+              'md:dark:[filter:brightness(var(--dim))_saturate(var(--sat))]',
               isActive
                 ? 'md:shadow-[0_45px_90px_-18px_rgba(0,0,0,0.18)] dark:md:shadow-[0_45px_90px_-18px_rgba(0,0,0,0.55)] md:shadow-primary/10'
                 : rank === 1

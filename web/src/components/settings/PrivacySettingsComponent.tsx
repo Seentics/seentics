@@ -97,7 +97,7 @@ function PrivacyToggleCard({
   disabled?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between p-4 rounded-lg border border-border/60 bg-card/50 hover:bg-card/80 transition-all group">
+    <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-card/50 hover:bg-card/80 transition-all group">
       <div className="flex items-center gap-3.5">
         <div className={cn('h-10 w-10 rounded-lg flex items-center justify-center shrink-0 transition-transform group-hover:scale-105', bgColor)}>
           <Icon className={cn('h-4.5 w-4.5', color)} />
@@ -407,7 +407,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
 
         {/* Enterprise mode: per-website settings */}
         {isEnterprise && websiteId && privacySettings && (
-          <Card className="border-border/60 bg-card">
+          <Card className="border-border bg-card">
             <CardContent className="p-5 space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -467,7 +467,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
               <Separator className="bg-border/40" />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between rounded-lg border border-border/60 p-4 bg-card/50">
+                <div className="flex items-center justify-between rounded-lg border border-border p-4 bg-card/50">
                   <div>
                     <Label className="text-xs font-semibold flex items-center gap-1.5">
                       <Globe className="h-3 w-3 text-indigo-500" />
@@ -519,7 +519,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {/* Export All Data */}
-          <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
+          <Card className="border-border bg-card hover:shadow-md transition-shadow">
             <CardContent className="p-5 flex flex-col h-full">
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -548,7 +548,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
 
           {/* Export Website Data */}
           {websiteId && (
-            <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
+            <Card className="border-border bg-card hover:shadow-md transition-shadow">
               <CardContent className="p-5 flex flex-col h-full">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="h-9 w-9 rounded-lg bg-indigo-500/10 flex items-center justify-center">
@@ -578,7 +578,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
 
           {/* Import Data */}
           {websiteId && (
-            <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
+            <Card className="border-border bg-card hover:shadow-md transition-shadow">
               <CardContent className="p-5 flex flex-col h-full">
                 <div className="flex items-center gap-2.5 mb-3">
                   <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
@@ -644,7 +644,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
 
         <div className="grid sm:grid-cols-2 gap-3">
           {/* Anonymize */}
-          <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
+          <Card className="border-border bg-card hover:shadow-md transition-shadow">
             <CardContent className="p-5 flex flex-col h-full">
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
@@ -672,7 +672,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           </Card>
 
           {/* Delete */}
-          <Card className="border-border/60 bg-card hover:shadow-md transition-shadow">
+          <Card className="border-border bg-card hover:shadow-md transition-shadow">
             <CardContent className="p-5 flex flex-col h-full">
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="h-9 w-9 rounded-lg bg-red-500/10 flex items-center justify-center">
@@ -731,7 +731,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
           ) : gdprRequests.length === 0 ? (
-            <Card className="border-dashed border-border/60">
+            <Card className="border-dashed border-border">
               <CardContent className="flex flex-col items-center justify-center py-10 text-center">
                 <div className="h-12 w-12 rounded-full bg-muted/30 flex items-center justify-center mb-3">
                   <Shield className="h-6 w-6 text-muted-foreground/30" />
@@ -745,7 +745,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
           ) : (
             <div className="space-y-2">
               {gdprRequests.map((req) => (
-                <Card key={req.id} className="border-border/60 bg-card">
+                <Card key={req.id} className="border-border bg-card">
                   <CardContent className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className={cn(
@@ -808,7 +808,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
             { label: 'Replays', value: '30 days', icon: FileText },
             { label: 'Cleanup', value: 'Weekly', icon: RefreshCw },
           ].map((item) => (
-            <Card key={item.label} className="border-border/60 bg-card/50">
+            <Card key={item.label} className="border-border bg-card/50">
               <CardContent className="p-4 flex items-center gap-3">
                 <item.icon className="h-4 w-4 text-muted-foreground/50 shrink-0" />
                 <div>
@@ -822,7 +822,7 @@ export function PrivacySettingsComponent({ websiteId }: PrivacySettingsProps) {
       </div>
 
       {/* ====== Privacy Info ====== */}
-      <div className="bg-gradient-to-r from-emerald-500/5 via-transparent to-indigo-500/5 border border-border/40 rounded-lg p-5">
+      <div className="bg-gradient-to-r from-emerald-500/5 via-transparent to-indigo-500/5 border border-border rounded-lg p-5">
         <div className="flex gap-4">
           <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
             <Info className="h-4.5 w-4.5 text-emerald-600" />

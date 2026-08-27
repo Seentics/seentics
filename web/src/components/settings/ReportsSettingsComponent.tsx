@@ -239,7 +239,7 @@ export function ReportsSettingsComponent() {
       ) : (
         <div className="space-y-2">
           {reports.map((report) => (
-            <Card key={report.id} className="border-border/60">
+            <Card key={report.id} className="border-border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">

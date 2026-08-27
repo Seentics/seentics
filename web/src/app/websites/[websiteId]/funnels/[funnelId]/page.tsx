@@ -93,28 +93,27 @@ export default function FunnelDetailPage() {
             label: 'Conversions',
             value: analytics?.total_conversions || 0,
             icon: Target,
-            iconColor: 'text-green-600',
-            valueColor: 'text-green-600'
+            tone: 'success',
           },
           {
             label: 'Avg Conv. Rate',
             value: `${(analytics?.conversion_rate || 0).toFixed(1)}%`,
             icon: TrendingUp,
-            iconColor: 'text-blue-600'
+            tone: 'accent',
           },
           {
             label: 'Drop-off Rate',
             value: `${(analytics?.drop_off_rate || 0).toFixed(1)}%`,
             icon: TrendingDown,
-            iconColor: 'text-orange-600'
+            tone: 'warning',
           },
         ]}
       />
 
       {/* Funnel Visualization */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border border-border/60 bg-card shadow-sm overflow-hidden">
-          <CardHeader className="px-5 py-4 border-b border-border/40 bg-muted/20">
+        <Card className="lg:col-span-2 border border-border bg-card overflow-hidden">
+          <CardHeader className="px-5 py-4 border-b border-border bg-muted/20">
             <CardTitle className="text-sm font-semibold">Funnel Steps Visualization</CardTitle>
           </CardHeader>
           <CardContent className="p-5">
@@ -173,7 +172,7 @@ export default function FunnelDetailPage() {
                     </div>
                     
                     {!isLast && (
-                        <div className="ml-4 pl-4 py-2 border-l-2 border-dashed border-border/60">
+                        <div className="ml-4 pl-4 py-2 border-l-2 border-dashed border-border">
                             <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-medium uppercase tracking-widest pl-2">
                                 <ArrowRight size={10} /> Next step
                             </div>
@@ -187,8 +186,8 @@ export default function FunnelDetailPage() {
         </Card>
 
         <div className="space-y-6">
-          <Card className="border border-border/60 bg-card shadow-sm">
-            <CardHeader className="px-5 py-4 border-b border-border/40">
+          <Card className="border border-border bg-card">
+            <CardHeader className="px-5 py-4 border-b border-border">
               <CardTitle className="text-sm font-semibold">Step Conversion</CardTitle>
             </CardHeader>
             <CardContent className="p-5">
@@ -215,18 +214,18 @@ export default function FunnelDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="border border-border/60 bg-card shadow-sm">
-            <CardHeader className="px-5 py-4 border-b border-border/40">
+          <Card className="border border-border bg-card">
+            <CardHeader className="px-5 py-4 border-b border-border">
               <CardTitle className="text-sm font-semibold font-mono">Conditions</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {steps.map((step, i) => (
-                <div key={step.id || i} className="px-5 py-4 border-b border-border/30 last:border-0 hover:bg-muted/10 transition-colors">
+                <div key={step.id || i} className="px-5 py-4 border-b border-border last:border-0 hover:bg-muted/10 transition-colors">
                   <div className="flex items-center gap-1.5 mb-1.5">
                     <span className="text-[10px] font-bold text-primary/70">{i + 1}</span>
                     <span className="text-xs font-semibold">{step.name}</span>
                   </div>
-                   <div className="font-mono text-[10px] p-2 rounded-lg bg-muted/30 border border-border/40 overflow-x-auto whitespace-pre">
+                   <div className="font-mono text-[10px] p-2 rounded-lg bg-muted/30 border border-border overflow-x-auto whitespace-pre">
                     {JSON.stringify(step.condition, null, 2)}
                   </div>
                 </div>

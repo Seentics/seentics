@@ -124,8 +124,8 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, v
 
   if (isLoading || !data) {
     return (
-      <div className="bg-card shadow-sm rounded-lg overflow-hidden mb-6">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/40">
+      <div className="surface overflow-hidden mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-y divide-border lg:divide-y-0">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="p-5">
               <Skeleton className="h-3 w-20 mb-4 rounded-lg" />
@@ -181,8 +181,11 @@ export function SummaryCards({ data, websiteId, isDemo, isLoading, dailyStats, v
   ];
 
   return (
-    <div className="bg-card shadow-sm rounded-lg overflow-hidden mb-6 border-none">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-border/40">
+    <div className="surface overflow-hidden mb-6">
+      {/* divide-y as well as divide-x: the grid wraps to 2 and 3 columns below lg,
+          and without it the wrapped rows ran together. Dividers are full-strength —
+          at /40 they were invisible against a white card. */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 divide-x divide-y divide-border lg:divide-y-0">
         {cards.map((card, i) => (
           <SummaryCard key={i} {...card} />
         ))}

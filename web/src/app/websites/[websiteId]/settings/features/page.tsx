@@ -20,7 +20,7 @@ export default function TrackingFeaturesSettingsPage() {
         description="Turn heatmaps, session replay, funnels, and automations on or off. URL patterns here apply the next time visitors load your site with the tracker."
       />
 
-      <Alert className="border border-border/50 bg-blue-50 dark:bg-blue-950/30">
+      <Alert className="border border-border bg-blue-50 dark:bg-blue-950/30">
         <Info className="h-4 w-4" />
         <AlertTitle className="text-sm">Heatmaps look empty?</AlertTitle>
         <AlertDescription className="text-xs text-muted-foreground leading-relaxed">

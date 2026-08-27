@@ -72,7 +72,7 @@ export default function Features() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]"
+            className="landing-h2 mb-4"
           >
             Analyze. Explore. <span className="text-primary">Automate.</span>
           </motion.h2>
@@ -81,7 +81,7 @@ export default function Features() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-muted-foreground text-lg"
+            className="landing-lead"
           >
             Three pillars, one open-source platform — from understanding your users to acting on what you discover.
           </motion.p>
@@ -95,9 +95,9 @@ export default function Features() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.45, delay: index * 0.08 }}
-              className="group flex flex-col p-10 rounded-lg border border-border bg-card shadow-sm shadow-black/[0.03] transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-xl hover:shadow-black/[0.06]"
+              className="landing-card group flex flex-col p-10 transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-xl hover:shadow-black/[0.06]"
             >
-              <div className={`h-16 w-16 rounded-lg flex items-center justify-center mb-6 shrink-0 ${pillar.color}`}>
+              <div className={`h-16 w-16 rounded-xl flex items-center justify-center mb-6 shrink-0 ${pillar.color}`}>
                 <pillar.icon className="h-8 w-8" />
               </div>
 

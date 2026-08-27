@@ -56,7 +56,7 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
     return (
       <div className="space-y-0 mt-4 h-[400px]">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between py-3 border-b border-border/40 animate-pulse px-1">
+          <div key={i} className="flex items-center justify-between py-3 border-b border-border animate-pulse px-1">
             <div className="flex items-center space-x-4">
               <div className="w-10 h-10 bg-muted rounded-lg" />
               <div className="space-y-2">
@@ -99,7 +99,7 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
 
   if (!data || listData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border/60">
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border">
         <Layers className="h-10 w-10 mb-2 opacity-20" />
         <p className="text-xs font-medium text-muted-foreground">No campaign data available</p>
       </div>
@@ -110,7 +110,7 @@ export function UTMPerformanceChart({ data, isLoading = false, controlledTab, on
     <div className="h-[400px] overflow-y-auto pr-1 custom-scrollbar border-none">
       <div className="space-y-0">
         {listData.map((item, idx) => (
-          <div key={idx} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
+          <div key={idx} className="flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-accent/5 transition-colors group px-1">
             <div className="flex items-center space-x-4 flex-1 min-w-0">
               <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center shadow-sm overflow-hidden p-1.5 group-hover:bg-primary/10 transition-colors">
                 <Image

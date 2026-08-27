@@ -164,7 +164,7 @@ export default function BillingSettingsPage() {
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
 
-              <Card className="border border-border/60">
+              <Card className="border border-border">
                 <CardContent className="p-6">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                     <div>
@@ -194,7 +194,7 @@ export default function BillingSettingsPage() {
                     </div>
 
                     {!isFreePlan && subscription?.currentPeriodEnd && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-border/40 rounded-lg px-3 py-2 shrink-0">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-border rounded-lg px-3 py-2 shrink-0">
                         <Calendar className="h-3.5 w-3.5 shrink-0" />
                         <span>Renews {fmtDate(subscription.currentPeriodEnd)}</span>
                       </div>
@@ -242,7 +242,7 @@ export default function BillingSettingsPage() {
                     const isAt = pct >= 100 && !isUnlimited;
 
                     return (
-                      <Card key={resource.name} className="border border-border/60">
+                      <Card key={resource.name} className="border border-border">
                         <CardContent className="p-4">
                           <div className="flex items-center gap-2.5 mb-3">
                             <div className="h-8 w-8 rounded-lg bg-primary/5 flex items-center justify-center">
@@ -286,7 +286,7 @@ export default function BillingSettingsPage() {
             </div>
 
             <div className="space-y-5">
-              <Card className="border border-border/60">
+              <Card className="border border-border">
                 <CardContent className="p-5">
                   <h4 className="text-sm font-semibold mb-4">
                     Included in <span className="capitalize">{subscription?.isCustomPlan ? 'Custom' : displayName}</span>
@@ -304,13 +304,13 @@ export default function BillingSettingsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="border border-border/60">
+              <Card className="border border-border">
                 <CardContent className="p-5 space-y-4">
                   <h4 className="text-sm font-semibold">Billing Support</h4>
                   <p className="text-xs text-muted-foreground">
                     Questions about your invoice or need a custom plan?
                   </p>
-                  <div className="p-3 rounded-lg bg-muted/30 border border-border/40">
+                  <div className="p-3 rounded-lg bg-muted/30 border border-border">
                     <p className="text-xs text-muted-foreground mb-0.5">Contact</p>
                     <p className="text-sm font-medium text-primary">billing@seentics.com</p>
                   </div>
@@ -327,14 +327,14 @@ export default function BillingSettingsPage() {
         <TabsContent value="plans">
           <div className="space-y-6">
             <div className="flex justify-center">
-              <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border/60 rounded-lg">
+              <div className="flex items-center gap-1 p-1 bg-muted/50 border border-border rounded-lg">
                 <button
                   type="button"
                   onClick={() => setPlanMode('individual')}
                   className={cn(
                     'flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all',
                     planMode === 'individual'
-                      ? 'bg-background text-foreground shadow-sm border border-border/60'
+                      ? 'bg-background text-foreground shadow-sm border border-border'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
@@ -347,7 +347,7 @@ export default function BillingSettingsPage() {
                   className={cn(
                     'flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-medium transition-all',
                     planMode === 'agency'
-                      ? 'bg-background text-foreground shadow-sm border border-border/60'
+                      ? 'bg-background text-foreground shadow-sm border border-border'
                       : 'text-muted-foreground hover:text-foreground',
                   )}
                 >

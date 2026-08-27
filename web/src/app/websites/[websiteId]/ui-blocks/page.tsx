@@ -439,7 +439,7 @@ export default function UiBlocksPage() {
 
                 <CardContent className="p-5 space-y-4">
                   {/* Preview */}
-                  <div className="flex items-center justify-center min-h-[80px] rounded-lg bg-muted/20 border border-border/50 p-4">
+                  <div className="flex items-center justify-center min-h-[80px] rounded-lg bg-muted/20 border border-border p-4">
                     {block.preview}
                   </div>
 

@@ -219,7 +219,7 @@ export const FunnelBuilder = () => {
                                         </div>
                                     )}
 
-                                    <Card className="border border-border/60 bg-card shadow-sm">
+                                    <Card className="surface">
                                         <CardContent className="p-4">
                                             <div className="flex items-start gap-3">
                                                 {/* Step number */}
@@ -333,7 +333,7 @@ export const FunnelBuilder = () => {
 
                         {/* Summary */}
                         {steps.length >= 2 && (
-                            <div className="mt-6 p-4 bg-muted/30 border border-border/60 rounded-lg">
+                            <div className="mt-6 p-4 bg-muted/30 border border-border rounded-lg">
                                 <div className="flex items-center gap-2 mb-3">
                                     <Activity className="h-4 w-4 text-primary" />
                                     <h3 className="text-sm font-medium">Summary</h3>

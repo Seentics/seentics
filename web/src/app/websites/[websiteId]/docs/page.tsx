@@ -20,12 +20,12 @@ function CodeBlock({ code, lang = 'typescript' }: { code: string; lang?: string 
   };
   return (
     <div className="relative group">
-      <pre className="bg-muted/60 border border-border/60 rounded-lg px-4 py-3 overflow-x-auto text-[12px] leading-relaxed font-mono text-foreground/90 whitespace-pre">
+      <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 overflow-x-auto text-[12px] leading-relaxed font-mono text-foreground/90 whitespace-pre">
         {code}
       </pre>
       <button
         onClick={copy}
-        className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-lg bg-background border border-border/60 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-lg bg-background border border-border text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
       >
         {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
       </button>
@@ -138,7 +138,7 @@ export default function DocsPage() {
       />
 
       {/* SDK tabs */}
-      <div className="flex items-center gap-1 mb-8 bg-muted/40 border border-border/60 rounded-lg p-1 w-fit">
+      <div className="flex items-center gap-1 mb-8 bg-muted/40 border border-border rounded-lg p-1 w-fit">
         {TABS.map(t => (
           <button
             key={t}
@@ -146,7 +146,7 @@ export default function DocsPage() {
             className={cn(
               'px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors',
               tab === t
-                ? 'bg-background text-foreground shadow-sm border border-border/60'
+                ? 'bg-background text-foreground shadow-sm border border-border'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -195,7 +195,7 @@ export default function DocsPage() {
 
       {/* API reference */}
       <Section title="HTTP API Reference" icon={BookOpen}>
-        <Card className="border border-border/60">
+        <Card className="border border-border">
           <CardContent className="p-0">
             {[
               { method: 'POST', path: '/api/v1/collect',                        desc: 'Ingest pageview or custom event' },
@@ -206,7 +206,7 @@ export default function DocsPage() {
               { method: 'GET',  path: '/api/v1/websites/:id/funnels/:funnelId', desc: 'Funnel step-by-step conversion data' },
               { method: 'GET',  path: '/api/v1/websites/:id/realtime',          desc: 'Live active visitor count and current pages' },
             ].map((r, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 last:border-0">
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
                 <Badge
                   variant="outline"
                   className={cn(

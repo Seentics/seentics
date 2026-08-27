@@ -78,7 +78,7 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
 
       <div className="space-y-3">
         {toggles.map((item) => (
-          <Card key={item.id} className="border border-border/60 bg-card shadow-sm">
+          <Card key={item.id} className="surface">
             <CardContent className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={cn("h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0", item.bgColor)}>
@@ -100,7 +100,7 @@ export function ScriptSettingsComponent({ websiteId }: { websiteId: string }) {
         ))}
       </div>
 
-      <div className="bg-muted/30 border border-border/40 rounded-lg p-4">
+      <div className="bg-muted/30 border border-border rounded-lg p-4">
         <div className="flex items-center gap-2 mb-1.5">
           <Info className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="text-xs font-medium">Dynamic Loading</span>

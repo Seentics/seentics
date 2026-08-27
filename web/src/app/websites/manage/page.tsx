@@ -17,7 +17,7 @@ export default function WebsitesManagePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border/60 bg-card/30">
+      <header className="border-b border-border bg-card/30">
         <div className={cn(websiteWorkspaceShellClass, 'flex flex-wrap items-center justify-between gap-4 py-4')}>
           <div className="flex min-w-0 items-center gap-3">
             <Link href="/" className="flex shrink-0 items-center gap-2">

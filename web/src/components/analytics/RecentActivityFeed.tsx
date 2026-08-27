@@ -99,8 +99,8 @@ export function RecentActivityFeed({
   if (rowLayout === 'table') {
     if (isLoading) {
       return (
-        <div className="rounded-lg border border-border/50 overflow-hidden">
-          <div className="grid grid-cols-[minmax(8rem,2fr)_repeat(6,minmax(4rem,1fr))] gap-2 p-3 bg-muted/20 border-b border-border/40">
+        <div className="rounded-lg border border-border overflow-hidden">
+          <div className="grid grid-cols-[minmax(8rem,2fr)_repeat(6,minmax(4rem,1fr))] gap-2 p-3 bg-muted/20 border-b border-border">
             {[...Array(7)].map((_, i) => (
               <Skeleton key={i} className="h-3 rounded-lg" />
             ))}
@@ -108,7 +108,7 @@ export function RecentActivityFeed({
           {[...Array(8)].map((_, i) => (
             <div
               key={i}
-              className="grid grid-cols-[minmax(8rem,2fr)_repeat(6,minmax(4rem,1fr))] gap-2 p-3 border-b border-border/30 last:border-b-0"
+              className="grid grid-cols-[minmax(8rem,2fr)_repeat(6,minmax(4rem,1fr))] gap-2 p-3 border-b border-border last:border-b-0"
             >
               {[...Array(7)].map((_, j) => (
                 <Skeleton key={j} className="h-3.5 rounded-lg" />
@@ -137,13 +137,13 @@ export function RecentActivityFeed({
       <div className="relative">
         <div
           className={cn(
-            'overflow-x-auto overflow-y-auto rounded-lg border border-border/50',
+            'overflow-x-auto overflow-y-auto rounded-lg border border-border',
             embed ? 'max-h-[min(28rem,55vh)]' : 'max-h-[420px]',
             tableScrollClassName,
           )}
         >
           <table className="w-full min-w-[640px] text-left text-[11px]">
-            <thead className="sticky top-0 z-10 bg-muted/40 backdrop-blur-sm border-b border-border/60">
+            <thead className="sticky top-0 z-10 bg-muted/40 backdrop-blur-sm border-b border-border">
               <tr className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 <th className="px-3 py-2.5 font-medium">Page</th>
                 <th className="px-2 py-2.5 font-medium whitespace-nowrap">Country</th>
@@ -154,7 +154,7 @@ export function RecentActivityFeed({
                 <th className="px-3 py-2.5 font-medium text-right whitespace-nowrap w-[4.5rem]">Time</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border/40">
+            <tbody className="divide-y divide-border">
               {activities.map((item, i) => {
                 const flag = getCountryFlag(item.country);
                 const ago = timeAgo(item.timestamp);
@@ -267,7 +267,7 @@ export function RecentActivityFeed({
             <Skeleton className="h-3 w-44" />
           </>
         )}
-        <div className="divide-y divide-border/40">
+        <div className="divide-y divide-border">
           {[...Array(embed ? 6 : 7)].map((_, i) => (
             <div key={i} className={cn('flex flex-col gap-1.5', embed ? 'py-2.5 px-1' : 'py-3')}>
               <div className="flex items-center gap-2">
@@ -290,7 +290,7 @@ export function RecentActivityFeed({
   return (
     <div>
       {!embed && (
-        <div className="flex items-center justify-between pb-4 mb-2 border-b border-border/60">
+        <div className="flex items-center justify-between pb-4 mb-2 border-b border-border">
           <div>
             <h3 className="text-base font-semibold tracking-tight">Live Activity</h3>
             <p className="text-xs text-muted-foreground mt-0.5">Recent page views on your site</p>
@@ -329,7 +329,7 @@ export function RecentActivityFeed({
                 : 'max-h-[420px]',
             )}
           >
-            <div className="divide-y divide-border/40">
+            <div className="divide-y divide-border">
               {activities.map((item, i) => {
                 const flag = getCountryFlag(item.country);
                 const ago = timeAgo(item.timestamp);

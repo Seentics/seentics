@@ -534,7 +534,7 @@ function NodeCard({
       onDrop={onDrop}
       className={cn(
         'group relative w-72 cursor-pointer select-none rounded-lg border bg-card p-4 shadow-sm transition-all duration-150',
-        selected ? 'border-primary ring-2 ring-primary/20' : 'border-border/70 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md',
+        selected ? 'border-primary ring-2 ring-primary/20' : 'border-border hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md',
         dragIndicator && 'border-emerald-500/60 ring-2 ring-emerald-500/20',
       )}
       onClick={onClick}
@@ -827,11 +827,11 @@ function AddNodeModal({
         initial={{ opacity: 0, scale: 0.96, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-        className="relative flex max-h-[86dvh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border/60 bg-card shadow-2xl"
+        className="relative flex max-h-[86dvh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-card shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-border/60 px-6 py-5">
+        <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
           <div>
             <h3 className="text-lg font-bold tracking-tight text-foreground">Add a node</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">Choose what happens next in your automation.</p>
@@ -876,7 +876,7 @@ function AddNodeModal({
           {tab === 'condition' && !hasCondition && (
             <button
               type="button"
-              className="group flex w-full items-center gap-4 rounded-lg border border-border/60 bg-background p-5 text-left transition-all hover:-translate-y-0.5 hover:border-amber-500/40 hover:shadow-md"
+              className="group flex w-full items-center gap-4 rounded-lg border border-border bg-background p-5 text-left transition-all hover:-translate-y-0.5 hover:border-amber-500/40 hover:shadow-md"
               onClick={() => onAdd({ nodeKind: 'condition' })}
             >
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-amber-500/15">
@@ -896,7 +896,7 @@ function AddNodeModal({
                   <button
                     key={at.value}
                     type="button"
-                    className="group flex items-center gap-3.5 rounded-lg border border-border/60 bg-background p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
+                    className="group flex items-center gap-3.5 rounded-lg border border-border bg-background p-4 text-left transition-all duration-150 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md"
                     onClick={() => onAdd({ nodeKind: 'action', actionType: at.value })}
                   >
                     <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105', at.iconBg)}>
@@ -1050,7 +1050,7 @@ function PaletteRow({
       draggable
       onDragStart={onDragStart}
       onClick={onClick}
-      className="group flex cursor-grab select-none items-center gap-3 rounded-lg border border-border/60 bg-background px-3 py-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md active:cursor-grabbing"
+      className="group flex cursor-grab select-none items-center gap-3 rounded-lg border border-border bg-background px-3 py-2.5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md active:cursor-grabbing"
     >
       <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', iconBg)}>
         <Icon className={cn('h-4 w-4', iconColor)} />
@@ -1077,7 +1077,7 @@ function NodePalette({
 }) {
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 border-b border-border/60 p-4">
+      <div className="shrink-0 border-b border-border p-4">
         <div className="flex items-start justify-between gap-2">
           <div>
             <h3 className="text-sm font-semibold text-foreground">Add a node</h3>
@@ -1141,7 +1141,7 @@ function NodePalette({
           <button
             type="button"
             onClick={onAddCondition}
-            className="mt-2 flex w-full items-center gap-3 rounded-lg border border-dashed border-border/70 bg-transparent px-3 py-2.5 text-left transition-colors hover:border-amber-500/50 hover:bg-amber-500/[0.04]"
+            className="mt-2 flex w-full items-center gap-3 rounded-lg border border-dashed border-border bg-transparent px-3 py-2.5 text-left transition-colors hover:border-amber-500/50 hover:bg-amber-500/[0.04]"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
               <Filter className="h-4 w-4 text-amber-500" />
@@ -1519,7 +1519,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
       </div>
 
       {/* Right sidebar — node palette (triggers & actions) */}
-      <aside className="flex w-[280px] shrink-0 flex-col overflow-hidden border-l border-border/60 bg-card lg:w-[320px]">
+      <aside className="flex w-[280px] shrink-0 flex-col overflow-hidden border-l border-border bg-card lg:w-[320px]">
         <NodePalette
           tab={paletteTab}
           onTab={setPaletteTab}
@@ -1538,11 +1538,11 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-            className="relative flex max-h-[86dvh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border/60 bg-card shadow-2xl"
+            className="relative flex max-h-[86dvh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-border bg-card shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-5 py-4">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-5 py-4">
               {(() => {
                 const at = selected.kind === 'action' ? getActionType(definition.actions[selected.index]?.type ?? '') : null;
                 const tdSel = selected.kind === 'trigger' ? getTriggerType(triggers[selected.index]?.type ?? '') : null;
@@ -1608,7 +1608,7 @@ export function AutomationBuilder({ initialDefinition, onSave, isSaving, classNa
             </div>
 
             {/* Footer */}
-            <div className="shrink-0 border-t border-border/60 bg-muted/20 p-3">
+            <div className="shrink-0 border-t border-border bg-muted/20 p-3">
               <Button className="h-10 w-full font-semibold" onClick={() => setSelected(null)}>Done</Button>
             </div>
           </motion.div>

@@ -84,7 +84,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
           goals.map((goal: Goal) => (
             <div 
               key={goal.id} 
-              className="group bg-card/50 backdrop-blur-sm p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-border/50 hover:border-primary/30 transition-all hover:bg-card/80"
+              className="group bg-card/50 backdrop-blur-sm p-4 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-border hover:border-primary/30 transition-all hover:bg-card/80"
             >
               <div className="flex items-center gap-4">
                 <div className={cn(
@@ -132,7 +132,7 @@ export function GoalsSettingsComponent({ websiteId }: GoalsSettingsComponentProp
         ))}
       </div>
 
-      <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border/50">
+      <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 border border-border">
         <Info className="h-5 w-5 text-muted-foreground shrink-0" />
         <p className="text-xs text-muted-foreground font-medium">
           New goals may take up to 5 minutes to appear in your dashboard after the first event is received.

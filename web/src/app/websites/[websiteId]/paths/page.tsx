@@ -19,10 +19,10 @@ export default function PathsPage() {
       />
       <StatCards
         cards={[
-          { label: 'Avg Path Length', value: '3.4', icon: Route, iconColor: 'text-indigo-600' },
-          { label: 'Sessions Analyzed', value: '12,543', icon: Users },
-          { label: 'Top Journey', value: '/ → /pricing', icon: TrendingUp, iconColor: 'text-blue-600' },
-          { label: 'Avg Time', value: '4m 12s', icon: Clock },
+          { label: 'Avg Path Length', value: '3.4', icon: Route, tone: 'accent' },
+          { label: 'Sessions Analyzed', value: '12,543', icon: Users, tone: 'info' },
+          { label: 'Top Journey', value: '/ → /pricing', icon: TrendingUp, tone: 'success' },
+          { label: 'Avg Time', value: '4m 12s', icon: Clock, tone: 'warning' },
         ]}
       />
       

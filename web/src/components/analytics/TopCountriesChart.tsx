@@ -180,7 +180,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
     return (
       <div className="space-y-3 h-[400px]">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-4 rounded-lg border border-border/20">
+          <div key={i} className="flex items-center justify-between p-4 rounded-lg border border-border">
             <div className="flex items-center gap-4">
               <Skeleton className="w-8 h-6 rounded-lg" />
               <div className="space-y-2">
@@ -203,7 +203,7 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
 
   if (!data?.top_countries || data.top_countries.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border/60">
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground/40 bg-accent/5 rounded-lg border border-dashed border-border">
         <Globe className="h-10 w-10 mb-2 opacity-20" />
         <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">No country data</p>
       </div>
@@ -212,9 +212,9 @@ export function TopCountriesChart({ data, isLoading, onViewMore }: TopCountriesC
   return (
     <div className="space-y-0 h-[400px] overflow-y-auto pr-1 custom-scrollbar">
         {countryData.slice(0, 30).map((item, index) => (
-        <div key={item.country} className="flex items-center justify-between py-3 border-b border-border/40 last:border-0 hover:bg-accent/5 transition-colors group px-1">
+        <div key={item.country} className="flex items-center justify-between py-3 border-b border-border last:border-0 hover:bg-accent/5 transition-colors group px-1">
             <div className="flex items-center gap-4">
-                <div className="relative w-8 h-6 rounded-lg overflow-hidden shadow-sm border border-border/20">
+                <div className="relative w-8 h-6 rounded-lg overflow-hidden shadow-sm border border-border">
                 <Image
                     src={item.flag}
                     alt={`${item.country} flag`}

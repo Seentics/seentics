@@ -85,7 +85,7 @@ export default function ProfileSettingsPage() {
           <User className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">Account</h2>
         </div>
-        <Card className="border border-border/40 bg-card shadow-md hover:shadow-lg transition-all duration-200">
+        <Card className="border border-border bg-card shadow-md hover:shadow-lg transition-all duration-200">
           <CardContent className="space-y-4 p-6">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Display name</label>
@@ -111,7 +111,7 @@ export default function ProfileSettingsPage() {
           <Lock className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">Change password</h2>
         </div>
-        <Card className="border border-border/40 bg-card shadow-md hover:shadow-lg transition-all duration-200">
+        <Card className="border border-border bg-card shadow-md hover:shadow-lg transition-all duration-200">
           <CardContent className="space-y-4 p-6">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Current password</label>

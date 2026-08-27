@@ -75,7 +75,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
           <nav
             className={cn(
-              'bg-card border border-border/40 rounded-lg p-2 w-fit',
+              'bg-card border border-border rounded-lg p-2 w-fit',
               'flex flex-wrap gap-1 overflow-x-auto',
               '[scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden',
             )}

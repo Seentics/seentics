@@ -239,7 +239,7 @@ export default function ReplaysPage() {
         const { display, title } = entryPathDisplay(getValue() as string, websiteId);
         return (
           <span
-            className="inline-flex max-w-full min-w-0 items-center rounded-lg border border-border/50 bg-muted/30 px-2.5 py-1.5 font-mono text-[11px] leading-snug text-foreground sm:text-xs"
+            className="inline-flex max-w-full min-w-0 items-center rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 font-mono text-[11px] leading-snug text-foreground sm:text-xs"
             title={title}
           >
             <span className="truncate">{display}</span>
@@ -331,16 +331,10 @@ export default function ReplaysPage() {
       </DashboardPageHeader>
 
       <StatCards cards={[
-        { label: 'Total Sessions', value: allSessions.length, icon: Users },
-        { label: 'Avg Duration', value: avgDuration > 0 ? formatDuration(avgDuration) : '—', icon: Clock, iconColor: 'text-blue-600', valueColor: 'text-blue-600' },
-        { label: 'With Errors', value: withErrors, icon: AlertTriangle, iconColor: 'text-red-500', valueColor: withErrors > 0 ? 'text-red-500' : undefined },
-        {
-          label: 'Rage clicks',
-          value: withRage,
-          icon: MousePointerClick,
-          iconColor: 'text-orange-500',
-          valueColor: withRage > 0 ? 'text-orange-500' : undefined,
-        },
+        { label: 'Total Sessions', value: allSessions.length, icon: Users, tone: 'info' },
+        { label: 'Avg Duration', value: avgDuration > 0 ? formatDuration(avgDuration) : '—', icon: Clock, tone: 'accent' },
+        { label: 'With Errors', value: withErrors, icon: AlertTriangle, tone: 'danger', toneWhen: withErrors > 0 },
+        { label: 'Rage clicks', value: withRage, icon: MousePointerClick, tone: 'warning', toneWhen: withRage > 0 },
       ]} />
 
       <DataTable

@@ -474,7 +474,7 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
     return (
       <div
         className={cn(
-          'flex flex-col items-center justify-center border border-dashed border-border/70 bg-muted/15 px-4 py-10 text-center',
+          'flex flex-col items-center justify-center border border-dashed border-border bg-muted/15 px-4 py-10 text-center',
           embedded ? 'rounded-lg' : 'rounded-lg',
         )}
       >
@@ -488,8 +488,8 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
       className={cn(
         'text-left',
         embedded
-          ? 'rounded-lg border border-border/60 bg-muted/20'
-          : 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border/80 bg-card shadow-sm',
+          ? 'rounded-lg border border-border bg-muted/20'
+          : 'flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card',
       )}
     >
       <ul
@@ -529,7 +529,7 @@ export const ReplaySessionTimelineLog = memo(function ReplaySessionTimelineLog({
           const kindLine = detail && detail !== e.title ? e.title : null;
 
           return (
-            <li key={e.id} className="border-b border-border/50 last:border-b-0">
+            <li key={e.id} className="border-b border-border last:border-b-0">
               <button
                 type="button"
                 disabled={!canSeek}

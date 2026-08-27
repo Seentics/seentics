@@ -201,7 +201,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
 
   if (listLoading && websites.length === 0) {
     return (
-      <div className="flex min-h-[280px] items-center justify-center rounded-lg border border-border/60 bg-card/30">
+      <div className="flex min-h-[280px] items-center justify-center rounded-lg border border-border bg-card/30">
         <div className="text-center">
           <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Loading websites…</p>
@@ -214,7 +214,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
     return (
       <div className="space-y-4">
         <AddWebsiteModal open={addOpen} onOpenChange={setAddOpen} onSuccess={() => refresh()} />
-        <Card className="border border-border/60 bg-card shadow-sm">
+        <Card className="surface">
           <CardContent className="flex flex-col items-center justify-center gap-4 py-14 text-center">
             <p className="text-sm text-muted-foreground max-w-sm">
               You don&apos;t have any websites yet. Add a property to get a tracking snippet and dashboard.
@@ -316,13 +316,13 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                 {snippetCopied ? 'Copied' : 'Copy'}
               </Button>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-border/50 bg-muted/30 p-4">
+            <div className="overflow-x-auto rounded-lg border border-border bg-muted/30 p-4">
               <pre className="text-xs font-mono leading-relaxed text-foreground sm:text-sm">
                 <code>{snippetText}</code>
               </pre>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex gap-2.5 rounded-lg border border-border/50 bg-muted/20 p-3">
+              <div className="flex gap-2.5 rounded-lg border border-border bg-muted/20 p-3">
                 <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <div>
                   <p className="text-xs font-medium text-foreground">Installation</p>
@@ -332,7 +332,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2.5 rounded-lg border border-border/50 bg-muted/20 p-3">
+              <div className="flex gap-2.5 rounded-lg border border-border bg-muted/20 p-3">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
                 <div>
                   <p className="text-xs font-medium text-foreground">Verification</p>
@@ -354,7 +354,7 @@ export function WebsitesSettingsPanel({ redirectWhenEmpty = false, hideAddButton
         </DialogContent>
       </Dialog>
 
-      <div className="overflow-hidden rounded-lg border border-border/60 bg-card shadow-sm">
+      <div className="surface overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="hover:bg-transparent">

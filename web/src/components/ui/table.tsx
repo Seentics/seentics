@@ -20,6 +20,9 @@ const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
+  // No fill: surfaces stay white and the header is defined by its bottom border and
+  // the uppercase muted label. It was tinted while borders were still washed out at
+  // /40–/60 opacity; now that they render at full strength the rule carries it.
   <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
 ))
 TableHeader.displayName = "TableHeader"

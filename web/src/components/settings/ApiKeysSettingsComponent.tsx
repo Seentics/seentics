@@ -176,7 +176,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
   if (!hasAccess) {
     return (
       <div className="space-y-6 max-w-4xl">
-        <Card className="border-border/60">
+        <Card className="border-border">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="h-14 w-14 rounded-lg bg-primary/10 flex items-center justify-center mb-5">
               <Lock className="h-7 w-7 text-primary" />
@@ -196,7 +196,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
         </Card>
 
         {/* Preview of available endpoints */}
-        <Card className="bg-muted/20 border-border/40">
+        <Card className="bg-muted/20 border-border">
           <CardContent className="p-4">
             <h4 className="text-sm font-medium mb-3">Available API Endpoints</h4>
             <div className="grid gap-3">
@@ -300,7 +300,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
       ) : (
         <div className="space-y-2">
           {keys.map((key) => (
-            <Card key={key.id} className="border-border/60">
+            <Card key={key.id} className="border-border">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
@@ -342,7 +342,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
       )}
 
       {/* API Endpoint Documentation */}
-      <Card className="bg-muted/20 border-border/40">
+      <Card className="bg-muted/20 border-border">
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -370,7 +370,7 @@ export function ApiKeysSettingsComponent({ websiteId }: ApiKeysSettingsComponent
           </code>
 
           {showEndpoints && (
-            <div className="space-y-4 mt-4 pt-4 border-t border-border/40">
+            <div className="space-y-4 mt-4 pt-4 border-t border-border">
               {API_SECTIONS.map((section) => {
                 const Icon = section.icon;
                 return (

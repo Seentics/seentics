@@ -105,7 +105,10 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
   return (
     <aside className={cn(
       'flex flex-col h-screen shrink-0 overflow-hidden select-none',
-      'bg-card',
+      // bg-sidebar, not bg-card: the sidebar is app chrome and belongs on the
+      // deepest layer. On bg-card it sat level with the panels it frames, which
+      // collapsed sidebar, page and cards into one flat surface.
+      'bg-sidebar border-r border-sidebar-border',
       'transition-[width] duration-200 ease-in-out',
       collapsed ? 'w-[64px]' : 'w-[248px]',
     )}>
@@ -190,13 +193,13 @@ export function Sidebar({ websiteId }: { websiteId: string }) {
             </button>
           </PopoverTrigger>
           <PopoverContent
-            className="w-64 border border-border/60 bg-card p-0 shadow-md"
+            className="w-64 border border-border bg-card p-0 shadow-md"
             side="right"
             align="end"
             sideOffset={10}
             collisionPadding={12}
           >
-            <div className="border-b border-border/60 bg-muted/25 px-3 py-3">
+            <div className="border-b border-border bg-muted/25 px-3 py-3">
               <p className="truncate text-sm font-semibold text-foreground">{user?.name?.trim() || 'Account'}</p>
               {user?.email ? (
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">{user.email}</p>

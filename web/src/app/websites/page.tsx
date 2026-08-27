@@ -183,7 +183,7 @@ export default function WebsitesOnboardingPage() {
                 transition={{ duration: 0.2 }}
                 className="w-full"
               >
-                <Card className="border-border/80 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-lg">
+                <Card className="border-border shadow-lg shadow-black/5 dark:shadow-black/20 rounded-lg">
                   <CardHeader className="space-y-3 px-6 pb-2 pt-8 sm:px-8">
                     <CardTitle className="text-2xl font-bold tracking-tight">Add your website</CardTitle>
                     <CardDescription className="text-sm leading-relaxed">
@@ -205,7 +205,7 @@ export default function WebsitesOnboardingPage() {
                           value={name}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
                           className={cn(
-                            'h-11 rounded-lg border-border/80 bg-background px-3.5 text-sm shadow-sm',
+                            'h-11 rounded-lg border-border bg-background px-3.5 text-sm shadow-sm',
                             'placeholder:text-muted-foreground/50',
                             'hover:border-muted-foreground/25',
                             'focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/20 focus-visible:ring-offset-0',
@@ -225,7 +225,7 @@ export default function WebsitesOnboardingPage() {
                           value={url}
                           onChange={(e: React.ChangeEvent<HTMLInputElement>) => setUrl(e.target.value)}
                           className={cn(
-                            'h-11 rounded-lg border-border/80 bg-background px-3.5 text-sm shadow-sm',
+                            'h-11 rounded-lg border-border bg-background px-3.5 text-sm shadow-sm',
                             'placeholder:text-muted-foreground/50',
                             'font-mono text-sm',
                             'hover:border-muted-foreground/25',
@@ -263,7 +263,7 @@ export default function WebsitesOnboardingPage() {
                 transition={{ duration: 0.2 }}
                 className="w-full"
               >
-                <Card className="border-border/80 shadow-lg shadow-black/5 dark:shadow-black/20 rounded-lg">
+                <Card className="border-border shadow-lg shadow-black/5 dark:shadow-black/20 rounded-lg">
                   <CardHeader className="space-y-3 pb-2 pt-8 text-center">
                     <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                       <CheckCircle className="h-5 w-5" strokeWidth={2} />

@@ -300,7 +300,7 @@ export default function AutomationTemplatesPage() {
         {filtered.map(tpl => (
           <div
             key={tpl.id}
-            className="flex flex-col rounded-lg border border-border/60 bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all"
+            className="flex flex-col rounded-lg border border-border bg-card p-5 hover:border-primary/40 hover:shadow-sm transition-all"
           >
             <div className="flex items-start justify-between gap-2 mb-3">
               <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -312,7 +312,7 @@ export default function AutomationTemplatesPage() {
             </div>
             <h3 className="text-sm font-semibold text-foreground mb-1">{tpl.name}</h3>
             <p className="text-xs text-muted-foreground leading-relaxed flex-1">{tpl.description}</p>
-            <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between gap-2">
+            <div className="mt-4 pt-3 border-t border-border flex items-center justify-between gap-2">
               <div className="flex flex-wrap gap-1">
                 <Badge variant="secondary" className="text-[9px] h-4">
                   {tpl.definition.trigger.type.replace('_', ' ')}

@@ -77,10 +77,10 @@ export default function HowAutomationsWork() {
             Automations
           </div>
             
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]">
+          <h2 className="landing-h2 mb-4">
            Automate Anything, <span className="text-primary">Instantly</span>
           </h2>
-          <p className="text-lg leading-relaxed text-muted-foreground">
+          <p className="landing-lead">
             Connect any visitor behavior to any action — no code required. Build rules visually, deploy in seconds. 
           </p>
         </div>

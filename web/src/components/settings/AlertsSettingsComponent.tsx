@@ -259,7 +259,7 @@ export function AlertsSettingsComponent() {
               {rules.map((rule) => {
                 const Icon = getConditionIcon(rule.conditionType);
                 return (
-                  <Card key={rule.id} className="border-border/60">
+                  <Card key={rule.id} className="border-border">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3 min-w-0">
@@ -335,7 +335,7 @@ export function AlertsSettingsComponent() {
           ) : (
             <div className="space-y-2">
               {events.map((event) => (
-                <Card key={event.id} className="border-border/60">
+                <Card key={event.id} className="border-border">
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0 mt-0.5">

@@ -161,7 +161,7 @@ function ChipGroup({
               'h-7 px-3 rounded-lg text-xs font-medium border transition-all duration-100 select-none flex items-center gap-1.5',
               isOn
                 ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-transparent text-muted-foreground border-border hover:border-border/80 hover:text-foreground hover:bg-muted/50',
+                : 'bg-transparent text-muted-foreground border-border hover:border-border hover:text-foreground hover:bg-muted/50',
             )}
           >
             {opt.icon && (
@@ -257,12 +257,12 @@ function CountrySelect({
       </PopoverTrigger>
 
       <PopoverContent
-        className="w-[260px] p-0 shadow-md border border-border/60 rounded-lg"
+        className="w-[260px] p-0 shadow-md border border-border rounded-lg"
         align="start"
         sideOffset={4}
       >
         {/* Search */}
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-border/50">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
           <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <input
             ref={searchRef}
@@ -283,7 +283,7 @@ function CountrySelect({
           <button
             type="button"
             onClick={() => { onChange(undefined); setOpen(false); }}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-muted/40 border-b border-border/40 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-muted/40 border-b border-border transition-colors"
           >
             <X className="h-3 w-3" />
             Clear selection
@@ -391,10 +391,10 @@ export function FilterModal({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-[580px] p-0 gap-0 max-h-[90vh] flex flex-col overflow-hidden rounded-lg border border-border/60 bg-card">
+      <DialogContent className="sm:max-w-[580px] p-0 gap-0 max-h-[90vh] flex flex-col overflow-hidden rounded-lg border border-border bg-card">
 
         {/* ── Header ── */}
-        <DialogHeader className="px-5 pt-5 pb-4 border-b border-border/50 shrink-0">
+        <DialogHeader className="px-5 pt-5 pb-4 border-b border-border shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div>
               <DialogTitle className="text-base font-semibold flex items-center gap-2">
@@ -419,7 +419,7 @@ export function FilterModal({
 
           {/* Active filter tags */}
           {activeDraftTags.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border/40">
+            <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border">
               {activeDraftTags.map(([key, value]) => (
                 <span
                   key={key}
@@ -454,7 +454,7 @@ export function FilterModal({
                       'h-7 px-3 rounded-lg text-xs font-medium border transition-all duration-100',
                       isActive
                         ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-transparent text-muted-foreground border-border hover:border-border/80 hover:text-foreground hover:bg-muted/50',
+                        : 'bg-transparent text-muted-foreground border-border hover:border-border hover:text-foreground hover:bg-muted/50',
                       p.value === 'custom' && !isActive && 'border-dashed',
                     )}
                   >
@@ -466,7 +466,7 @@ export function FilterModal({
             </div>
 
             {!isCustomRange && (
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border/50">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/40 border border-border">
                 <CalendarIcon className="h-3.5 w-3.5 text-primary shrink-0" />
                 <span className="text-xs text-foreground font-medium">
                   {DATE_PRESETS.find((p) => p.value === currentDateValue)?.label ?? 'Custom'}
@@ -481,7 +481,7 @@ export function FilterModal({
                     ? `${format(customStartDate, 'MMM d, yyyy')} → ${format(customEndDate, 'MMM d, yyyy')}`
                     : 'Select start and end dates'}
                 </p>
-                <div className="rounded-lg border border-border/60 overflow-hidden">
+                <div className="rounded-lg border border-border overflow-hidden">
                   <Calendar
                     initialFocus
                     mode="range"
@@ -576,7 +576,7 @@ export function FilterModal({
         </div>
 
         {/* ── Footer ── */}
-        <div className="px-5 py-3.5 border-t border-border/50 flex items-center justify-between gap-3 shrink-0 bg-muted/20">
+        <div className="px-5 py-3.5 border-t border-border flex items-center justify-between gap-3 shrink-0 bg-muted/20">
           <p className="text-xs text-muted-foreground">
             {advancedCount > 0
               ? `${advancedCount} filter${advancedCount > 1 ? 's' : ''} selected`

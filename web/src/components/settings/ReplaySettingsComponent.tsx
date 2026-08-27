@@ -86,7 +86,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <Card className="border border-border/60 bg-card shadow-sm">
+      <Card className="surface">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
@@ -148,7 +148,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
             </p>
 
             {/* URL Patterns */}
-            <div className="space-y-4 pt-4 border-t border-border/40">
+            <div className="space-y-4 pt-4 border-t border-border">
               <div className="space-y-1.5">
                 <Label htmlFor="include-patterns" className="text-xs font-medium text-muted-foreground">
                   Include Patterns
@@ -156,7 +156,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
                 <Textarea
                   id="include-patterns"
                   placeholder="e.g. /products/*, /pricing"
-                  className="min-h-[80px] text-sm bg-muted/20 border-border/50"
+                  className="min-h-[80px] text-sm bg-muted/20 border-border"
                   value={includePatterns}
                   onChange={(e) => setIncludePatterns(e.target.value)}
                 />
@@ -172,7 +172,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
                 <Textarea
                   id="exclude-patterns"
                   placeholder="e.g. /admin/*, /checkout/success"
-                  className="min-h-[80px] text-sm bg-muted/20 border-border/50"
+                  className="min-h-[80px] text-sm bg-muted/20 border-border"
                   value={excludePatterns}
                   onChange={(e) => setExcludePatterns(e.target.value)}
                 />
@@ -183,7 +183,7 @@ export function ReplaySettingsComponent({ websiteId }: ReplaySettingsComponentPr
             </div>
           </div>
 
-          <div className="flex justify-end pt-4 mt-4 border-t border-border/40">
+          <div className="flex justify-end pt-4 mt-4 border-t border-border">
             <Button
               onClick={handleSave}
               size="sm"

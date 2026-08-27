@@ -258,7 +258,7 @@ export default function ApiKeysPage() {
           ) : (
             keys.map(key => (
               <div key={key.id} className={cn(
-                'flex items-start gap-4 px-5 py-4 border-b border-border/60 last:border-0',
+                'flex items-start gap-4 px-5 py-4 border-b border-border last:border-0',
                 !key.is_active && 'opacity-50',
               )}>
                 {/* Status dot */}

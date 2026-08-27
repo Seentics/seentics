@@ -111,7 +111,7 @@ export default function Pricing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]"
+            className="landing-h2 mb-4"
           >
             Simple, transparent <span className="text-primary">pricing</span>
           </motion.h2>
@@ -120,7 +120,7 @@ export default function Pricing() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-muted-foreground text-lg"
+            className="landing-lead"
           >
             Unlimited websites on every plan. Pay only for events.
           </motion.p>

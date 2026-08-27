@@ -101,31 +101,32 @@ export default function GoalDetailPage() {
             label: 'Completions',
             value: goal.completions ?? 0,
             icon: CheckCircle2,
-            iconColor: 'text-green-600',
-            valueColor: 'text-green-600'
+            tone: 'success',
           },
           {
             label: 'Conversion Rate',
             value: `${(goal.conversion_rate || 0).toFixed(1)}%`,
             icon: TrendingUp,
-            iconColor: 'text-blue-600'
+            tone: 'accent',
           },
           {
             label: 'Unique Visitors',
             value: goal.unique_visitors || Math.floor((goal.completions || 0) * 0.8),
-            icon: Globe
+            icon: Globe,
+            tone: 'info',
           },
           {
             label: 'Last 30 days',
             value: goal.completions ?? 0,
-            icon: Calendar
+            icon: Calendar,
+            tone: 'warning',
           },
         ]}
       />
 
       {/* Chart */}
-      <Card className="border border-border/60 mb-6">
-        <CardHeader className="px-5 py-4 border-b border-border/40">
+      <Card className="border border-border mb-6">
+        <CardHeader className="px-5 py-4 border-b border-border">
           <CardTitle className="text-sm font-semibold">Completions over 30 days</CardTitle>
         </CardHeader>
         <CardContent className="p-5">
@@ -151,8 +152,8 @@ export default function GoalDetailPage() {
       </Card>
 
       {/* Conversion bar */}
-      <Card className="border border-border/60">
-        <CardHeader className="px-5 py-4 border-b border-border/40">
+      <Card className="border border-border">
+        <CardHeader className="px-5 py-4 border-b border-border">
           <CardTitle className="text-sm font-semibold">Conversion Rate</CardTitle>
         </CardHeader>
         <CardContent className="p-5">

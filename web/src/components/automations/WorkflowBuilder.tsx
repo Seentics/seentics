@@ -313,7 +313,7 @@ function WorkflowBuilderInner({
   return (
     <div
       className={cn(
-        'flex h-full w-full min-h-0 overflow-hidden border border-border/40 bg-muted/30 dark:bg-[hsl(220_16%_8%)]',
+        'flex h-full w-full min-h-0 overflow-hidden border border-border bg-muted/30 dark:bg-[hsl(220_16%_8%)]',
         className,
       )}
     >
@@ -366,11 +366,11 @@ function WorkflowBuilderInner({
           />
           <Controls
             showInteractive={false}
-            className="m-4 overflow-hidden rounded-lg border border-border/60 bg-card/95 shadow-lg backdrop-blur-sm [&_button]:border-0 [&_button]:bg-transparent [&_button:hover]:bg-muted"
+            className="m-4 overflow-hidden rounded-lg border border-border bg-card/95 shadow-lg backdrop-blur-sm [&_button]:border-0 [&_button]:bg-transparent [&_button:hover]:bg-muted"
           />
         </ReactFlow>
 
-        <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 gap-2 rounded-lg border border-border/60 bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
+        <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 gap-2 rounded-lg border border-border bg-card/90 p-1.5 shadow-xl backdrop-blur-md">
           <Button
             variant="ghost"
             size="sm"
@@ -404,9 +404,9 @@ function WorkflowBuilderInner({
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
               transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-              className="absolute bottom-24 left-4 top-4 z-[5] flex w-[20rem] flex-col overflow-hidden rounded-lg border border-border/60 bg-card/95 shadow-2xl backdrop-blur-md sm:w-[22rem]"
+              className="absolute bottom-24 left-4 top-4 z-[5] flex w-[20rem] flex-col overflow-hidden rounded-lg border border-border bg-card/95 shadow-2xl backdrop-blur-md sm:w-[22rem]"
             >
-              <div className="border-b border-border/50 bg-muted/25 px-4 py-4">
+              <div className="border-b border-border bg-muted/25 px-4 py-4">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">Parameters</h3>
                   <div className="flex shrink-0 items-center gap-1">
@@ -501,7 +501,7 @@ function WorkflowBuilderInner({
                   </p>
                 )}
               </div>
-              <div className="border-t border-border/50 bg-muted/20 p-3">
+              <div className="border-t border-border bg-muted/20 p-3">
                 <Button
                   className="h-10 w-full font-semibold"
                   type="button"

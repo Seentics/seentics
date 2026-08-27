@@ -92,7 +92,7 @@ export default function RevenueTransactionPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 mb-6">
-        <Card className="border border-border/60">
+        <Card className="border border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Share2 className="h-4 w-4 text-muted-foreground" />
@@ -120,7 +120,7 @@ export default function RevenueTransactionPage() {
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60">
+        <Card className="border border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Globe className="h-4 w-4 text-muted-foreground" />
@@ -133,7 +133,7 @@ export default function RevenueTransactionPage() {
         </Card>
       </div>
 
-      <Card className="border border-border/60">
+      <Card className="border border-border">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Package className="h-4 w-4 text-muted-foreground" />
@@ -144,7 +144,7 @@ export default function RevenueTransactionPage() {
           {items.length === 0 ? (
             <p className="text-sm text-muted-foreground">No line items</p>
           ) : (
-            <ul className="divide-y divide-border/50">
+            <ul className="divide-y divide-border">
               {items.map((it, i) => (
                 <li key={i} className="flex justify-between items-start gap-4 py-3 first:pt-0 text-sm">
                   <div>

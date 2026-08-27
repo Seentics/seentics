@@ -8,7 +8,25 @@
 
 @layer base {
   :root {
-    --background: 210 30% 92%;
+    /* Two light layers:
+         page     98.5% — the recessed canvas
+         surfaces 100%  — sidebar, stat cards, tables, panels
+       The page is the only tinted layer; everything you actually read sits white
+       on top of it, with --border drawing the edges. The step is deliberately
+       small — just enough to separate, not enough to read as a grey field. At 97%
+       and below it stopped looking like a canvas and started looking dirty, and
+       --border is what actually delineates surfaces anyway.
+       Shadows stay reserved for things that genuinely float (popovers, dialogs). */
+    /* --app-* is the single source of truth for the app's own surfaces. The
+       landing page overrides --background/--border for its white canvas, and the
+       hero previews have to restore the app values; pointing both at these means
+       there is one place to change them. Every time they were duplicated the two
+       drifted, and the hero started advertising a dashboard colour that no longer
+       shipped. Never override --app-* in a scoped block. */
+    --app-page: 220 20% 98.5%;
+    --app-border: 220 13% 86%;
+
+    --background: var(--app-page);
     --foreground: 224 71.4% 4.1%;
     --card: 0 0% 100%;
     --card-foreground: 224 71.4% 4.1%;
@@ -16,16 +34,18 @@
     --popover-foreground: 224 71.4% 4.1%;
     --primary: 221 83% 53%;
     --primary-foreground: 210 20% 98%;
-    --secondary: 226 20% 95%;
+    --secondary: 220 16% 96%;
     --secondary-foreground: 226 60% 30%;
-    --muted: 226 20% 94%;
-    --muted-foreground: 220 8.9% 46.1%;
-    --accent: 226 20% 94%;
+    /* Sits below the page so muted fills — table headers, hover rows, chips —
+       still register on a white card and on the page itself. */
+    --muted: 220 16% 96%;
+    --muted-foreground: 220 9% 42%;
+    --accent: 220 14% 93%;
     --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
-    --border: 220 13% 85%;
-    --input: 220 13% 85%;
+    --border: var(--app-border);
+    --input: var(--app-border);
     --ring: 221 83% 53%;
     --radius: 0.5rem;
 
@@ -35,13 +55,16 @@
     --chart-4: 200 70% 55%;
     --chart-5: 340 75% 55%;
 
+    /* White, level with cards and tables. The sidebar is a surface you read, not
+       chrome to push back — so the recessed layer is the page alone, and every
+       surface on top of it is white. */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 224 71.4% 4.1%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 210 20% 98%;
-    --sidebar-accent: 226 14% 96%;
+    --sidebar-accent: 220 16% 96%;
     --sidebar-accent-foreground: 220.9 39.3% 11%;
-    --sidebar-border: 220 13% 91%;
+    --sidebar-border: 220 13% 86%;
     --sidebar-ring: 221 83% 53%;
   }
 
@@ -93,34 +116,35 @@
 }
 
 @layer base {
-  /* The marketing pages run on a pure-white canvas in light mode, while the app
-     keeps the tinted --background that separates its cards from the page. These
-     overrides are scoped to the landing tree so the dashboard is untouched, and
-     the :not(.dark) guard keeps them out of dark mode entirely (the class sits
-     below <html>, so an unguarded override would outrank .dark). */
+  /* The marketing page runs on a pure-white canvas in light mode. This is not the
+     app palette and should not be unified with it: the hero's whole job is to hold
+     a screenshot of the product, and a screenshot cannot read as one when the page
+     behind it is the same colour as the app it depicts. White page, tinted product
+     shot — the shot is the figure, the page is the ground.
+
+     The :not(.dark) guard keeps this out of dark mode entirely: the class sits below
+     <html>, so an unguarded override would outrank .dark. */
   :root:not(.dark) .landing-light {
     --background: 0 0% 100%;
     --card: 0 0% 100%;
     --popover: 0 0% 100%;
 
     /* Cards no longer sit a fill-step above the page, so the border carries the
-       separation on its own and is darkened to stay legible against white.
-       --muted deliberately keeps its root value: it still has to read as a fill
-       on small controls (toggle tracks, count chips), and the alternating page
-       bands tint themselves with bg-muted/50 rather than moving the token. */
+       separation alone. --muted keeps its root value: it still has to read as a
+       fill on small controls, and the alternating bands tint with bg-muted/50
+       rather than moving the token. */
     --border: 220 13% 89%;
     --input: 220 13% 89%;
   }
 
   /* The hero previews are mocks of real app screens, so they opt back out of the
-     white canvas and into the app's own tokens. Without this the analytics
-     preview would render on white while the real dashboard renders on the tinted
-     --background, and the mock would stop matching the product it depicts. */
+     white canvas into the app's own surfaces. Reading --app-* rather than repeating
+     literals means the mock tracks the dashboard automatically — the values here
+     cannot fall behind :root the way duplicated ones did. */
   :root:not(.dark) .landing-light .app-surface {
-    --background: 210 30% 92%;
-    --card: 0 0% 100%;
-    --border: 220 13% 85%;
-    --input: 220 13% 85%;
+    --background: var(--app-page);
+    --border: var(--app-border);
+    --input: var(--app-border);
   }
 }
 
@@ -145,6 +169,52 @@
 }
 
 @layer components {
+
+  /* ── Surfaces ─────────────────────────────────────────────────────────────
+     One definition of what a panel looks like, so pages stop re-deriving
+     bg/border/radius at every call site and drifting apart.
+
+     Light mode: white panel on a near-white page, separated by a border.
+     Dark mode: the card fill already reads against the darker page, so the
+     border is dropped rather than doubling the edge.
+
+     Use .surface for any flat panel. Anything that genuinely floats above the
+     page — popover, dropdown, dialog — keeps its shadow and does not use this. */
+  .surface {
+    @apply rounded-lg border border-border bg-card dark:border-transparent;
+  }
+
+  /* Panel/table header. Kept white like every other surface — the rule below it
+     does the separating, so headers never introduce a second surface colour. */
+  .surface-header {
+    @apply border-b border-border;
+  }
+
+  /* ── Marketing type & surfaces ────────────────────────────────────────────
+     Six landing sections repeated the same heading string verbatim, so the type
+     scale could only be changed in six places at once. These own it.
+
+     Sizes are a step down from where they were (h1 topped out at text-7xl/72px,
+     h2 at text-6xl/60px), which read as oversized next to the product screenshots
+     the page is built around. */
+  .landing-h1 {
+    @apply text-3xl font-extrabold leading-[1.1] tracking-tighter text-foreground sm:text-4xl md:text-5xl;
+  }
+
+  .landing-h2 {
+    @apply text-2xl font-extrabold leading-[1.15] tracking-tighter text-foreground sm:text-3xl md:text-4xl;
+  }
+
+  .landing-lead {
+    @apply text-base leading-relaxed text-muted-foreground sm:text-lg;
+  }
+
+  /* Marketing panels are 3–4× the size of a dashboard card, and rounded-lg (8px)
+     that reads correctly on a dense table reads square on a 400px feature card.
+     Radius scales with the surface. */
+  .landing-card {
+    @apply rounded-2xl border border-border bg-card;
+  }
 
   /* Ultra-Premium Glassmorphism */
   .glass {

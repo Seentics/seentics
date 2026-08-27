@@ -282,10 +282,10 @@ export default function HeatmapsPage() {
       )}
 
       <StatCards cards={[
-        { label: 'Total Views',      value: totalViews,             icon: Eye },
-        { label: 'Total Clicks',     value: totalClicks,            icon: MousePointer, iconColor: 'text-primary' },
-        { label: 'Avg Scroll Depth', value: avgScroll > 0 ? `${avgScroll}%` : '—', icon: Move, iconColor: 'text-indigo-600' },
-        { label: 'Active Pages',     value: activePages,            icon: Activity, iconColor: 'text-green-600', valueColor: 'text-green-600' },
+        { label: 'Total Views',      value: totalViews,             icon: Eye, tone: 'info' },
+        { label: 'Total Clicks',     value: totalClicks,            icon: MousePointer, tone: 'accent' },
+        { label: 'Avg Scroll Depth', value: avgScroll > 0 ? `${avgScroll}%` : '—', icon: Move, tone: 'warning' },
+        { label: 'Active Pages',     value: activePages,            icon: Activity, tone: 'success' },
       ]} />
 
       <DataTable

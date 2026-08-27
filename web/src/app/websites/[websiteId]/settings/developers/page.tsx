@@ -188,7 +188,7 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
           { label: 'Active',     value: keys.filter(k => k.isActive).length,    icon: Shield,        color: 'text-green-600' },
           { label: 'Revoked',    value: keys.filter(k => !k.isActive).length,   icon: AlertTriangle, color: 'text-muted-foreground' },
         ].map(s => (
-          <Card key={s.label} className="border border-border/60">
+          <Card key={s.label} className="border border-border">
             <CardContent className="p-4 flex items-center gap-3">
               <s.icon className={cn('h-5 w-5 shrink-0', s.color)} />
               <div>
@@ -201,8 +201,8 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
       </div>
 
       {/* Keys list */}
-      <Card className="border border-border/60">
-        <CardHeader className="px-5 py-4 border-b border-border/40">
+      <Card className="border border-border">
+        <CardHeader className="px-5 py-4 border-b border-border">
           <CardTitle className="text-sm font-semibold">Keys</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -217,7 +217,7 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
             </div>
           ) : keys.map(key => (
             <div key={key.id} className={cn(
-              'flex items-start gap-4 px-5 py-4 border-b border-border/40 last:border-0',
+              'flex items-start gap-4 px-5 py-4 border-b border-border last:border-0',
               !key.isActive && 'opacity-50',
             )}>
               <div className={cn(
@@ -267,7 +267,7 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
       </Card>
 
       {/* Usage */}
-      <Card className="border border-border/60">
+      <Card className="border border-border">
         <CardContent className="p-5">
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" />
@@ -276,7 +276,7 @@ function ApiKeysTab({ websiteId }: { websiteId: string }) {
           <p className="text-xs text-muted-foreground mb-3">
             Pass your API key in the <code className="font-mono bg-muted px-1 py-0.5 rounded-lg">Authorization</code> header:
           </p>
-          <pre className="text-xs font-mono bg-muted/60 border border-border/60 rounded-lg px-4 py-3 text-foreground overflow-x-auto">
+          <pre className="text-xs font-mono bg-muted/60 border border-border rounded-lg px-4 py-3 text-foreground overflow-x-auto">
 {`curl https://api.seentics.com/raw/v1/${websiteId}/analytics/dashboard \\
   -H "Authorization: Bearer snc_live_..." \\
   -H "Content-Type: application/json"`}
@@ -303,7 +303,7 @@ const UI_BLOCKS = [
     category: 'badge',
     description: 'Embeddable badge showing current live visitor count.',
     preview: (
-      <div className="flex items-center gap-2 bg-card border border-border/60 rounded-lg px-3 py-2 w-fit">
+      <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2 w-fit">
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -321,7 +321,7 @@ const UI_BLOCKS = [
     category: 'badge',
     description: 'Shows total page views for today or a selected period.',
     preview: (
-      <div className="flex items-center gap-2 bg-card border border-border/60 rounded-lg px-3 py-2 w-fit">
+      <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2 w-fit">
         <span className="text-xs text-muted-foreground">Views today</span>
         <span className="text-sm font-bold text-primary">12,483</span>
       </div>
@@ -427,8 +427,8 @@ function UIBlocksTab({ websiteId }: { websiteId: string }) {
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filtered.map(block => (
-          <Card key={block.id} className="border border-border/60">
-            <CardHeader className="px-5 py-4 border-b border-border/40 flex flex-row items-start justify-between">
+          <Card key={block.id} className="border border-border">
+            <CardHeader className="px-5 py-4 border-b border-border flex flex-row items-start justify-between">
               <div>
                 <CardTitle className="text-sm font-semibold">{block.title}</CardTitle>
                 <p className="text-xs text-muted-foreground mt-0.5">{block.description}</p>
@@ -437,17 +437,17 @@ function UIBlocksTab({ websiteId }: { websiteId: string }) {
             </CardHeader>
             <CardContent className="p-5 space-y-4">
               {/* Preview */}
-              <div className="bg-muted/30 border border-border/40 rounded-lg p-4 flex items-center justify-center min-h-[60px]">
+              <div className="bg-muted/30 border border-border rounded-lg p-4 flex items-center justify-center min-h-[60px]">
                 {block.preview}
               </div>
               {/* Code */}
               <div className="relative group">
-                <pre className="bg-muted/60 border border-border/40 rounded-lg px-4 py-3 text-[11px] font-mono text-foreground/80 overflow-x-auto whitespace-pre">
+                <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 text-[11px] font-mono text-foreground/80 overflow-x-auto whitespace-pre">
                   {block.code.replace('YOUR_WEBSITE_ID', websiteId)}
                 </pre>
                 <button
                   onClick={() => copy(block.id, block.code.replace('YOUR_WEBSITE_ID', websiteId))}
-                  className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-lg bg-background border border-border/60 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-lg bg-background border border-border text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   {copied === block.id
                     ? <Check className="h-3 w-3 text-green-500" />
@@ -460,7 +460,7 @@ function UIBlocksTab({ websiteId }: { websiteId: string }) {
       </div>
 
       {/* CDN note */}
-      <Card className="border border-border/60 bg-primary/5">
+      <Card className="border border-border bg-primary/5">
         <CardContent className="p-4">
           <p className="text-xs text-muted-foreground">
             All widgets are served from <code className="font-mono bg-muted px-1 rounded-lg text-foreground">cdn.seentics.com</code> — no npm install required.
@@ -483,12 +483,12 @@ function CodeBlock({ code }: { code: string }) {
   };
   return (
     <div className="relative group">
-      <pre className="bg-muted/60 border border-border/60 rounded-lg px-4 py-3 overflow-x-auto text-[12px] leading-relaxed font-mono text-foreground/90 whitespace-pre">
+      <pre className="bg-muted/60 border border-border rounded-lg px-4 py-3 overflow-x-auto text-[12px] leading-relaxed font-mono text-foreground/90 whitespace-pre">
         {code}
       </pre>
       <button
         onClick={copy}
-        className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-lg bg-background border border-border/60 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-2 right-2 h-6 w-6 flex items-center justify-center rounded-lg bg-background border border-border text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
       >
         {copied ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
       </button>
@@ -541,7 +541,7 @@ function DocsTab({ websiteId }: { websiteId: string }) {
       </div>
 
       {/* SDK selector */}
-      <div className="flex items-center gap-1 bg-muted/40 border border-border/60 rounded-lg p-1 w-fit">
+      <div className="flex items-center gap-1 bg-muted/40 border border-border rounded-lg p-1 w-fit">
         {SDK_TABS.map(t => (
           <button
             key={t}
@@ -549,7 +549,7 @@ function DocsTab({ websiteId }: { websiteId: string }) {
             className={cn(
               'px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors',
               tab === t
-                ? 'bg-background text-foreground shadow-sm border border-border/60'
+                ? 'bg-background text-foreground shadow-sm border border-border'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
@@ -600,7 +600,7 @@ function DocsTab({ websiteId }: { websiteId: string }) {
           <BookOpen className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">HTTP API Reference</h3>
         </div>
-        <Card className="border border-border/60">
+        <Card className="border border-border">
           <CardContent className="p-0">
             {[
               { method: 'POST', path: '/api/v1/collect',                        desc: 'Ingest pageview or custom event' },
@@ -611,7 +611,7 @@ function DocsTab({ websiteId }: { websiteId: string }) {
               { method: 'GET',  path: '/api/v1/websites/:id/funnels/:funnelId', desc: 'Funnel step-by-step conversion data' },
               { method: 'GET',  path: '/api/v1/websites/:id/realtime',          desc: 'Live active visitor count and current pages' },
             ].map((r, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 last:border-0">
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
                 <Badge variant="outline" className={cn(
                   'text-[10px] w-12 justify-center shrink-0 font-mono',
                   r.method === 'POST' && 'border-blue-400/60 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-300',

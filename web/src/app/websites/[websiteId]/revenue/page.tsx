@@ -56,7 +56,7 @@ function DimTable({ rows, currency, emptyMessage }: {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border/40 text-left">
+          <tr className="border-b border-border text-left">
             <th className="py-2.5 pr-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Name</th>
             <th className="py-2.5 pr-4 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Revenue</th>
             <th className="py-2.5 pr-4 text-right text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Orders</th>
@@ -65,7 +65,7 @@ function DimTable({ rows, currency, emptyMessage }: {
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.name} className="border-b border-border/30 last:border-0 hover:bg-muted/20 transition-colors">
+            <tr key={r.name} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
               <td className="py-2.5 pr-4 font-medium text-foreground max-w-[180px] truncate" title={r.name}>{r.name}</td>
               <td className="py-2.5 pr-4 text-right tabular-nums font-semibold text-foreground">{formatMoney(r.revenue, currency)}</td>
               <td className="py-2.5 pr-4 text-right tabular-nums text-muted-foreground">{r.orders.toLocaleString()}</td>
@@ -111,7 +111,7 @@ export default function RevenuePage() {
         label: 'Total Revenue',
         value: formatMoney(summary.total_revenue, cur),
         icon: Banknote,
-        iconColor: 'text-emerald-600',
+        tone: 'success' as const,
         subtext: prior
           ? `${prior.change_pct >= 0 ? '+' : ''}${prior.change_pct.toFixed(1)}% vs prior period`
           : undefined,
@@ -120,7 +120,7 @@ export default function RevenuePage() {
         label: 'Orders',
         value: summary.orders,
         icon: ShoppingCart,
-        iconColor: 'text-primary',
+        tone: 'info' as const,
         subtext: orderChangePct !== undefined
           ? `${orderChangePct >= 0 ? '+' : ''}${orderChangePct.toFixed(1)}% vs prior period`
           : undefined,
@@ -129,14 +129,14 @@ export default function RevenuePage() {
         label: 'Avg. Order Value',
         value: formatMoney(summary.aov, cur),
         icon: Scale,
-        iconColor: 'text-amber-600',
+        tone: 'warning' as const,
         subtext: `ARPU ${formatMoney(summary.arpu, cur)}`,
       },
       {
         label: 'Revenue / Session',
         value: formatMoney(summary.revenue_per_session, cur),
         icon: BarChart2,
-        iconColor: 'text-sky-600',
+        tone: 'accent' as const,
         subtext: `${summary.sessions.toLocaleString()} sessions`,
       },
     ];
@@ -203,8 +203,8 @@ export default function RevenuePage() {
       <StatCards cards={topCards} cols={4} isLoading={false} cardClassName="p-3 sm:p-4" />
 
       {/* ── Revenue & orders chart ── */}
-      <Card className="border border-border/60 mb-6 rounded-lg">
-        <CardHeader className=" border-b border-border/40">
+      <Card className="border border-border mb-6 rounded-lg">
+        <CardHeader className=" border-b border-border">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <CardTitle className="text-sm font-semibold">Revenue & orders (daily)</CardTitle>
@@ -271,7 +271,7 @@ export default function RevenuePage() {
                   content={({ active, label, payload }) => {
                     if (!active || !payload?.length) return null;
                     return (
-                      <div className="bg-popover border border-border/60 rounded-lg shadow-lg px-3 py-2 text-xs min-w-[160px]">
+                      <div className="bg-popover border border-border rounded-lg shadow-lg px-3 py-2 text-xs min-w-[160px]">
                         <p className="text-[10px] font-medium text-muted-foreground mb-1.5">{label ? fmtDate(String(label)) : ''}</p>
                         {payload.map((p, i) => (
                           <div key={i} className="flex justify-between gap-6 py-0.5">
@@ -312,10 +312,10 @@ export default function RevenuePage() {
 
       {/* ── Attribution breakdown ── */}
       <h3 className="text-sm font-semibold text-foreground mb-2">Attribution breakdown</h3>
-      <Card className="border border-border/60 mb-8 rounded-lg">
+      <Card className="border border-border mb-8 rounded-lg">
         <CardContent className="p-0">
           <Tabs defaultValue="source" className="w-full">
-            <div className="border-b border-border/50 overflow-x-auto">
+            <div className="border-b border-border overflow-x-auto">
               <TabsList className="h-auto w-full justify-start rounded-lg-none bg-transparent p-0 min-w-max">
                 {([
                   ['source', 'Source / referrer'],
@@ -360,7 +360,7 @@ export default function RevenuePage() {
         <h3 className="text-sm font-semibold text-foreground">Recent transactions</h3>
         <p className="text-[11px] text-muted-foreground mt-0.5">Last 50 purchases — click a row for full attribution detail.</p>
       </div>
-      <Card className="border border-border/60 rounded-lg">
+      <Card className="border border-border rounded-lg">
         <CardContent className="p-0">
           {(!data?.recent_transactions || data.recent_transactions.length === 0) ? (
             <div className="py-14 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
@@ -372,7 +372,7 @@ export default function RevenuePage() {
             </div>
           ) : (
             <>
-              <div className="hidden md:grid grid-cols-[1fr_130px_110px_1fr_90px_80px] gap-2 px-5 py-2.5 bg-muted/20 border-b border-border/40 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              <div className="hidden md:grid grid-cols-[1fr_130px_110px_1fr_90px_80px] gap-2 px-5 py-2.5 bg-muted/20 border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 <span>Time</span>
                 <span>Order ID</span>
                 <span className="text-right">Value</span>
@@ -385,7 +385,7 @@ export default function RevenuePage() {
                   <li
                     key={tx.id}
                     onClick={() => setOpenTx(tx)}
-                    className="border-b border-border/30 last:border-0 px-5 py-3.5 flex flex-col md:grid md:grid-cols-[1fr_130px_110px_1fr_90px_80px] gap-1 md:gap-2 md:items-center hover:bg-muted/20 cursor-pointer transition-colors"
+                    className="border-b border-border last:border-0 px-5 py-3.5 flex flex-col md:grid md:grid-cols-[1fr_130px_110px_1fr_90px_80px] gap-1 md:gap-2 md:items-center hover:bg-muted/20 cursor-pointer transition-colors"
                   >
                     <span className="text-xs text-muted-foreground">{fmtTime(tx.occurred_at)}</span>
                     <span className="text-xs font-mono truncate" title={tx.order_id ?? ''}>{tx.order_id ?? '—'}</span>
@@ -419,8 +419,8 @@ export default function RevenuePage() {
 
       {/* ── Revenue docs modal ── */}
       <Dialog open={showDocs} onOpenChange={setShowDocs}>
-        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto border border-border/60 bg-card rounded-lg shadow-xl p-0 gap-0">
-          <DialogHeader className="p-5 pb-4 border-b border-border/60 sticky top-0 bg-card z-10">
+        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto border border-border bg-card rounded-lg shadow-xl p-0 gap-0">
+          <DialogHeader className="p-5 pb-4 border-b border-border sticky top-0 bg-card z-10">
             <DialogTitle className="text-base font-semibold tracking-tight flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-muted-foreground" />
               Revenue tracking
@@ -446,7 +446,7 @@ export default function RevenuePage() {
                   { step: '2', label: 'Checkout fires', desc: 'You call seentics.track("purchase", { … }) at conversion' },
                   { step: '3', label: 'Attribution resolved', desc: 'Last-non-direct touch is joined and the transaction stored' },
                 ].map(({ step, label, desc }) => (
-                  <div key={step} className="rounded-lg border border-border/50 bg-muted/20 p-3">
+                  <div key={step} className="rounded-lg border border-border bg-muted/20 p-3">
                     <div className="text-[10px] font-bold text-muted-foreground mb-1">Step {step}</div>
                     <div className="font-semibold text-foreground mb-1">{label}</div>
                     <div className="text-muted-foreground leading-snug">{desc}</div>
@@ -516,10 +516,10 @@ seentics.track('purchase', {
             {/* Properties reference */}
             <section>
               <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Properties reference</h3>
-              <div className="overflow-x-auto rounded-lg border border-border/50">
+              <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="bg-muted/30 border-b border-border/50">
+                    <tr className="bg-muted/30 border-b border-border">
                       <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">Property</th>
                       <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">Type</th>
                       <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">Required</th>
@@ -535,7 +535,7 @@ seentics.track('purchase', {
                       ['user_type', 'string', 'No', '"new" or "returning" — segments revenue by customer type.'],
                       ['items', 'array', 'No', 'Line items: [{ name, sku, qty, price }]. Shown in transaction detail.'],
                     ] as const).map(([prop, type, req, desc]) => (
-                      <tr key={prop} className="border-b border-border/30 last:border-0">
+                      <tr key={prop} className="border-b border-border last:border-0">
                         <td className="px-3 py-2.5 font-mono text-foreground">{prop}</td>
                         <td className="px-3 py-2.5 text-sky-600 dark:text-sky-400">{type}</td>
                         <td className="px-3 py-2.5">
@@ -577,10 +577,10 @@ seentics.track('purchase', {
 
       {/* ── Transaction detail dialog ── */}
       <Dialog open={!!openTx} onOpenChange={() => setOpenTx(null)}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto border border-border/60 bg-card rounded-lg shadow-xl p-0 gap-0">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto border border-border bg-card rounded-lg shadow-xl p-0 gap-0">
           {openTx && (
             <>
-              <DialogHeader className="p-5 pb-3 border-b border-border/60">
+              <DialogHeader className="p-5 pb-3 border-b border-border">
                 <DialogTitle className="text-base font-semibold tracking-tight flex items-center gap-2">
                   <Receipt className="h-4 w-4 text-muted-foreground" />
                   {openTx.order_id ? `Order #${openTx.order_id}` : 'Transaction'}
@@ -599,7 +599,7 @@ seentics.track('purchase', {
                     { label: 'Campaign', value: openTx.campaign ?? '—' },
                     { label: 'Customer', value: openTx.user_type === 'new' ? 'New' : openTx.user_type === 'returning' ? 'Returning' : '—' },
                   ].map(({ label, value }) => (
-                    <div key={label} className="rounded-lg border border-border/50 p-2.5">
+                    <div key={label} className="rounded-lg border border-border p-2.5">
                       <p className="text-muted-foreground">{label}</p>
                       <p className="font-medium mt-0.5">{value}</p>
                     </div>
@@ -613,7 +613,7 @@ seentics.track('purchase', {
                         ? openTx.items
                         : [{ sku: '', name: openTx.product_name, qty: 1, price: openTx.value }]
                       ).map((it, i) => (
-                        <li key={i} className="flex justify-between text-xs border border-border/40 rounded-lg px-3 py-2">
+                        <li key={i} className="flex justify-between text-xs border border-border rounded-lg px-3 py-2">
                           <span>
                             <span className="font-medium">{it.name}</span>
                             {it.sku && <span className="text-muted-foreground ml-1 font-mono">({it.sku})</span>}

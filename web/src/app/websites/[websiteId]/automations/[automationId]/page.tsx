@@ -245,17 +245,17 @@ export default function AutomationDetailPage() {
         <>
           <StatCards
             cards={[
-              { label: 'Total Runs',   value: automation.stats?.totalExecutions ?? 0,  icon: Activity },
-              { label: 'Success Rate', value: `${(automation.stats?.successRate ?? 0).toFixed(1)}%`, icon: CheckCircle2, iconColor: 'text-green-600', valueColor: 'text-green-600' },
-              { label: 'Last 30 days', value: automation.stats?.last30Days ?? 0,        icon: TrendingUp },
-              { label: 'Failures',     value: automation.stats?.failureCount ?? 0,      icon: XCircle, iconColor: 'text-red-500', valueColor: 'text-red-500' },
+              { label: 'Total Runs',   value: automation.stats?.totalExecutions ?? 0,  icon: Activity, tone: 'info' },
+              { label: 'Success Rate', value: `${(automation.stats?.successRate ?? 0).toFixed(1)}%`, icon: CheckCircle2, tone: 'success' },
+              { label: 'Last 30 days', value: automation.stats?.last30Days ?? 0,        icon: TrendingUp, tone: 'accent' },
+              { label: 'Failures',     value: automation.stats?.failureCount ?? 0,      icon: XCircle, tone: 'danger', toneWhen: (automation.stats?.failureCount ?? 0) > 0 },
             ]}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Chart */}
-            <Card className="lg:col-span-2 border border-border/60">
-              <CardHeader className="px-5 py-4 border-b border-border/40">
+            <Card className="lg:col-span-2 border border-border">
+              <CardHeader className="px-5 py-4 border-b border-border">
                 <CardTitle className="text-sm font-semibold">Run History (last 14 days)</CardTitle>
               </CardHeader>
               <CardContent className="p-5">
@@ -272,19 +272,19 @@ export default function AutomationDetailPage() {
             </Card>
 
             {/* Config */}
-            <Card className="border border-border/60">
-              <CardHeader className="px-5 py-4 border-b border-border/40">
+            <Card className="border border-border">
+              <CardHeader className="px-5 py-4 border-b border-border">
                 <CardTitle className="text-sm font-semibold">Configuration</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="flex items-start justify-between px-5 py-3 border-b border-border/30">
+                <div className="flex items-start justify-between px-5 py-3 border-b border-border">
                   <span className="text-xs text-muted-foreground">Trigger</span>
                   <div className="flex items-center gap-1.5 text-right">
                     <TriggerIcon className="h-3.5 w-3.5 text-primary shrink-0" />
                     <span className="text-xs font-medium">{TRIGGER_LABELS[automation.triggerType] ?? automation.triggerType}</span>
                   </div>
                 </div>
-                <div className="px-5 py-3 border-b border-border/30">
+                <div className="px-5 py-3 border-b border-border">
                   <span className="text-xs text-muted-foreground block mb-2">Actions</span>
                   <div className="flex flex-wrap gap-1.5">
                     {automation.actions.length === 0 ? (

@@ -596,7 +596,7 @@ export default function WebsiteDashboardPage() {
 
           {/* Pages & Sources */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card className="border-none bg-card shadow-sm">
+            <Card className="border border-border bg-card">
               <CardContent className="p-5">
                 <ChartErrorBoundary label="Top Pages">
                   <TopPagesChart
@@ -609,7 +609,7 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-none bg-card shadow-sm">
+            <Card className="border border-border bg-card">
               <CardContent className="p-5">
                 <ChartErrorBoundary label="Top Sources">
                   <TopSourcesChart data={transformedTopReferrers} isLoading={referrersLoading} />
@@ -628,7 +628,7 @@ export default function WebsiteDashboardPage() {
 
           {/* Devices + UTM — 2-col grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <Card className="border-none bg-card shadow-sm">
+            <Card className="border border-border bg-card">
               <CardContent className="p-5">
                 <ChartErrorBoundary label="Top Devices">
                   <TopDevicesChart
@@ -642,8 +642,8 @@ export default function WebsiteDashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-none bg-card shadow-sm overflow-hidden">
-              <CardHeader className="p-5 pb-3 border-b border-border/60">
+            <Card className="border border-border bg-card overflow-hidden">
+              <CardHeader className="p-5 pb-3 border-b border-border">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                   <div className="min-w-0 shrink-0">
                     <h3 className="text-base font-semibold tracking-tight whitespace-nowrap">UTM breakdown</h3>

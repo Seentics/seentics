@@ -9,7 +9,10 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-lg bg-card text-muted-foreground shadow-sm border dark:border-none",
+      // Border, not shadow: a card is a flat surface on the page, not a floating
+      // one. Shadows belong to things that actually lift off it — popovers,
+      // dropdowns, dialogs — and using them here left every surface faintly hazy.
+      "rounded-lg bg-card text-muted-foreground border dark:border-none",
       className
     )}
     {...props}

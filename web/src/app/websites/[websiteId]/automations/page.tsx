@@ -242,10 +242,10 @@ export default function AutomationsPage() {
       <StatCards
         isLoading={isLoading}
         cards={[
-          { label: 'Active',      value: active, icon: CheckCircle2, iconColor: 'text-green-600', valueColor: 'text-green-600' },
-          { label: 'Paused',      value: paused, icon: Pause, iconColor: 'text-muted-foreground' },
-          { label: 'Total Runs',  value: totalRuns, icon: Activity },
-          { label: 'Avg Success', value: `${avgSuccess.toFixed(1)}%`, icon: TrendingUp, iconColor: 'text-blue-600' },
+          { label: 'Active',      value: active, icon: CheckCircle2, tone: 'success' },
+          { label: 'Paused',      value: paused, icon: Pause, tone: 'warning', toneWhen: paused > 0 },
+          { label: 'Total Runs',  value: totalRuns, icon: Activity, tone: 'info' },
+          { label: 'Avg Success', value: `${avgSuccess.toFixed(1)}%`, icon: TrendingUp, tone: 'accent' },
         ]}
       />
 

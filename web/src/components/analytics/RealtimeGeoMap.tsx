@@ -37,8 +37,8 @@ export function RealtimeGeoMap({ data, isLoading: _isLoading }: RealtimeGeoMapPr
   }
 
   return (
-    <div className="border-none bg-card shadow-sm rounded-lg overflow-hidden">
-      <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border/50">
+    <div className="surface overflow-hidden">
+      <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border">
         <h3 className="text-base font-medium tracking-tight text-foreground">Live Visitor Locations</h3>
         <p className="text-xs text-muted-foreground mt-0.5">
           Real-time geographic distribution of active visitors.

@@ -64,10 +64,10 @@ export default function LifetimeDeal() {
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
             <span className="text-xs font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">Limited Time</span>
           </div>
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]">
+          <h2 className="landing-h2 mb-4">
             Pay once. Use <span className="text-primary">forever.</span>
           </h2>
-          <p className="text-lg leading-relaxed text-muted-foreground">
+          <p className="landing-lead">
             A one-time payment for lifetime access — no subscriptions, no recurring charges, ever.
           </p>
         </div>
@@ -78,7 +78,7 @@ export default function LifetimeDeal() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.45 }}
-          className="group relative mx-auto max-w-4xl overflow-hidden rounded-lg border border-blue-500/30 bg-card shadow-2xl shadow-blue-500/15 transition-shadow duration-300 hover:shadow-blue-500/25 dark:border-blue-500/25 dark:shadow-blue-500/10"
+          className="group relative mx-auto max-w-4xl overflow-hidden rounded-2xl border border-blue-500/30 bg-card shadow-2xl shadow-blue-500/15 transition-shadow duration-300 hover:shadow-blue-500/25 dark:border-blue-500/25 dark:shadow-blue-500/10"
         >
           {/* Top accent line */}
           <div className="h-1.5 w-full bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-400" />
@@ -119,7 +119,7 @@ export default function LifetimeDeal() {
                   </span>
                 </div>
                 <div className="flex items-end gap-2">
-                  <span className="text-6xl font-extrabold leading-none tracking-tight text-foreground md:text-7xl">$199</span>
+                  <span className="text-4xl font-extrabold leading-none tracking-tight text-foreground md:text-5xl">$199</span>
                   <span className="mb-2 text-base text-muted-foreground">one-time</span>
                 </div>
               </div>

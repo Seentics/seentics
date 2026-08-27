@@ -67,10 +67,10 @@ export default function WhySwitch() {
           <div className="mb-6 inline-block rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5">
             <span className="text-xs font-bold uppercase tracking-widest text-primary">Why switch</span>
           </div>
-          <h2 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]">
+          <h2 className="landing-h2 mb-4">
             Seentics Gives <span className="text-primary">Everything</span>
           </h2>
-          <p className="text-base leading-relaxed text-muted-foreground">
+          <p className="landing-lead">
             GA4, Plausible, Hotjar — each solves one piece of the puzzle. Seentics unifies analytics,
             recordings, heatmaps, funnels, and automations. Self-hosted, open source, no cookies.
           </p>

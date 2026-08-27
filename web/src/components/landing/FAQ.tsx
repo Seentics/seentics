@@ -89,7 +89,7 @@ export default function FAQ() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.05 }}
-            className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tighter text-foreground mb-4 leading-[1.05]"
+            className="landing-h2 mb-4"
           >
             Frequently asked questions
           </motion.h2>
@@ -98,7 +98,7 @@ export default function FAQ() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-muted-foreground text-lg"
+            className="landing-lead"
           >
             Everything you need to know before getting started.
           </motion.p>

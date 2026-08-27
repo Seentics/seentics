@@ -342,7 +342,7 @@ function HeatOnlyUnderlay() {
         }}
       />
       <div className="absolute inset-0 flex items-center justify-center p-6">
-        <div className="max-w-sm rounded-lg border border-border/70 bg-card/95 px-4 py-4 text-center">
+        <div className="max-w-sm rounded-lg border border-border bg-card/95 px-4 py-4 text-center">
           <p className="text-sm font-medium text-foreground">Heat layer only</p>
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
             Neutral grid under the heatmap. Open the live page in another tab to compare layout.

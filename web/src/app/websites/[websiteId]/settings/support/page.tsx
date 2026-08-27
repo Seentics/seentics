@@ -94,7 +94,7 @@ export default function SupportPage() {
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2 border-border/60 shadow-sm">
+        <Card className="lg:col-span-2 border-border shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-primary" />
@@ -106,7 +106,7 @@ export default function SupportPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="grid sm:grid-cols-2 gap-3 text-xs">
-            <div className="flex gap-2.5 rounded-lg border border-border/50 bg-muted/20 p-3">
+            <div className="flex gap-2.5 rounded-lg border border-border bg-muted/20 p-3">
               <Clock className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
               <div>
                 <p className="font-medium text-foreground">Response time</p>
@@ -115,7 +115,7 @@ export default function SupportPage() {
                 </p>
               </div>
             </div>
-            <div className="flex gap-2.5 rounded-lg border border-border/50 bg-muted/20 p-3">
+            <div className="flex gap-2.5 rounded-lg border border-border bg-muted/20 p-3">
               <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />
               <div>
                 <p className="font-medium text-foreground">Docs &amp; setup</p>
@@ -134,7 +134,7 @@ export default function SupportPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-sm bg-card">
+        <Card className="border-border bg-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Quick links</CardTitle>
           </CardHeader>
@@ -157,7 +157,7 @@ export default function SupportPage() {
         </Card>
       </div>
 
-      <div className="flex flex-wrap items-center gap-0.5 border-b border-border/60">
+      <div className="flex flex-wrap items-center gap-0.5 border-b border-border">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -203,7 +203,7 @@ export default function SupportPage() {
 
             <a
               href={`mailto:${SUPPORT_EMAIL}`}
-              className="flex items-center gap-3 p-4 rounded-lg border border-border/50 bg-card hover:bg-muted/30 transition-colors"
+              className="flex items-center gap-3 p-4 rounded-lg border border-border bg-card hover:bg-muted/30 transition-colors"
             >
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Mail className="h-5 w-5 text-primary" />
@@ -215,8 +215,8 @@ export default function SupportPage() {
             </a>
           </div>
 
-          <div className="border border-border/50 rounded-lg overflow-hidden bg-card shadow-sm">
-            <div className="px-5 py-4 border-b border-border/50 bg-muted/20">
+          <div className="border border-border rounded-lg overflow-hidden bg-card">
+            <div className="px-5 py-4 border-b border-border bg-muted/20">
               <h2 className="text-sm font-semibold">Send a message</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {isEnterprise
@@ -284,8 +284,8 @@ export default function SupportPage() {
 
       {activeTab === 'call' && (
         <div className="animate-in fade-in duration-200">
-          <div className="border border-border/50 rounded-lg overflow-hidden bg-card shadow-sm">
-            <div className="px-5 py-4 border-b border-border/50 bg-muted/20">
+          <div className="border border-border rounded-lg overflow-hidden bg-card">
+            <div className="px-5 py-4 border-b border-border bg-muted/20">
               <h2 className="text-sm font-semibold">Book a 30-minute call</h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Pick a time below. Prefer email first? Use the Contact tab.

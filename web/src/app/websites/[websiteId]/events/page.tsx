@@ -17,7 +17,7 @@ function EventRow({ event }: { event: any }) {
   const hasProps = event.top_properties && Object.keys(event.top_properties).length > 0;
 
   return (
-    <div className="border-b border-border/40 last:border-0">
+    <div className="border-b border-border last:border-0">
       <div
         className={cn('flex items-center gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors', hasProps && 'cursor-pointer')}
         onClick={() => hasProps && setOpen(o => !o)}
@@ -95,8 +95,8 @@ export default function EventsPage() {
       {!isLoading && filteredEvents.length > 0 && (
         <StatCards
           cards={[
-            { label: 'Event Types', value: filteredEvents.length, icon: Layers, iconColor: 'text-blue-600' },
-            { label: 'Total Occurrences', value: totalEvents, icon: Activity, iconColor: 'text-primary' },
+            { label: 'Event Types', value: filteredEvents.length, icon: Layers, tone: 'accent' },
+            { label: 'Total Occurrences', value: totalEvents, icon: Activity, tone: 'info' },
           ]}
           cols={2}
         />
@@ -107,9 +107,9 @@ export default function EventsPage() {
         <h3 className="text-sm font-semibold text-foreground">Custom Events</h3>
         <p className="text-[11px] text-muted-foreground mt-0.5">{filteredEvents.length} event type{filteredEvents.length !== 1 ? 's' : ''} tracked</p>
       </div>
-      <Card className="border border-border/60">
+      <Card className="border border-border">
         <CardContent className="p-0">
-          <div className="flex items-center gap-4 px-5 py-2.5 bg-muted/20 border-b border-border/40 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+          <div className="flex items-center gap-4 px-5 py-2.5 bg-muted/20 border-b border-border text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
             <span className="flex-1">Event</span>
             <span className="w-24 text-right">Count</span>
             <span className="w-28 text-right">Unique users</span>
@@ -118,7 +118,7 @@ export default function EventsPage() {
           {isLoading ? (
             <div>
               {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-4 px-5 py-4 border-b border-border/40">
+                <div key={i} className="flex items-center gap-4 px-5 py-4 border-b border-border">
                   <Skeleton className="h-4 flex-1" />
                   <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-28" />

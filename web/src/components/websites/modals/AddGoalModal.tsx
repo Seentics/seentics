@@ -156,7 +156,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
                   Add this to your site where the action happens:
                 </div>
                 <div className="relative group">
-                  <pre className="bg-muted/50 border border-border/50 rounded-lg p-4 text-sm font-mono text-foreground overflow-x-auto">
+                  <pre className="bg-muted/50 border border-border rounded-lg p-4 text-sm font-mono text-foreground overflow-x-auto">
                     <code>{`seentics.track('${createdGoal.identifier}')`}</code>
                   </pre>
                   <Button
@@ -176,7 +176,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
             )}
 
             {createdGoal.type === 'event' && createdGoal.selector && (
-              <div className="bg-muted/30 border border-border/50 rounded-lg p-3">
+              <div className="bg-muted/30 border border-border rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">
                   The tracker script will automatically fire <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.identifier}</code> when a user clicks on <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.selector}</code>.
                 </p>
@@ -184,7 +184,7 @@ export function AddGoalModal({ open, onOpenChange, websiteId, editingGoal = null
             )}
 
             {createdGoal.type === 'pageview' && (
-              <div className="bg-muted/30 border border-border/50 rounded-lg p-3">
+              <div className="bg-muted/30 border border-border rounded-lg p-3">
                 <p className="text-xs text-muted-foreground">
                   Conversions will be counted each time a visitor views <code className="bg-muted px-1 rounded-lg font-bold">{createdGoal.identifier}</code>. No code changes required.
                 </p>
