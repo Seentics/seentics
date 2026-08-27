@@ -43,41 +43,44 @@ export async function claimPendingBatches(
   limit: number,
   maxAttempts: number,
 ): Promise<QueuedBatch[]> {
-  const rows = await db
-    .select({
-      batchId: ingestBatches.batchId,
-      category: ingestBatches.category,
-      partitionKey: ingestBatches.partitionKey,
-      payload: ingestBatches.payload,
-      rowCount: ingestBatches.rowCount,
-      attempts: ingestBatches.attempts,
-    })
-    .from(ingestBatches)
-    .where(
-      and(
-        eq(ingestBatches.category, category),
-        isNull(ingestBatches.completedAt),
-        lt(ingestBatches.attempts, maxAttempts),
-        // One in-flight batch per key. `DISTINCT ON` would need a subquery; this is the
-        // cheaper form and reads as what it means.
-        raw`${ingestBatches.partitionKey} NOT IN (
-          SELECT partition_key FROM ingest_batches
-          WHERE category = ${category}
-            AND completed_at IS NULL
-            AND attempts > 0
-        )`,
-      ),
-    )
-    .orderBy(asc(ingestBatches.createdAt))
-    .limit(limit)
-    .for("update", { skipLocked: true });
+  // `DISTINCT ON (partition_key)` is what actually enforces the ordering guarantee: at
+  // most one batch per key comes back, so two batches for the same replay session can
+  // never be applied concurrently however many workers are running. An earlier version
+  // used `NOT IN (… WHERE attempts > 0)`, which only excluded keys that had already
+  // failed — two *fresh* batches for one session were still claimed together, and the
+  // guarantee it was supposed to provide did not hold.
+  //
+  // The outer ordering re-sorts by age, because `DISTINCT ON` must sort by its own key
+  // first. `FOR UPDATE SKIP LOCKED` on the inner select lets several workers share a
+  // category without coordination — each takes rows the others have not locked.
+  const rows = await db.execute<{
+    batch_id: string;
+    category: string;
+    partition_key: string;
+    payload: Record<string, unknown>;
+    row_count: number;
+    attempts: number;
+  }>(raw`
+    SELECT * FROM (
+      SELECT DISTINCT ON (partition_key)
+        batch_id, category, partition_key, payload, row_count, attempts, created_at
+      FROM ingest_batches
+      WHERE category = ${category}
+        AND completed_at IS NULL
+        AND attempts < ${maxAttempts}
+      ORDER BY partition_key, created_at ASC
+      FOR UPDATE SKIP LOCKED
+    ) claimed
+    ORDER BY created_at ASC
+    LIMIT ${limit}
+  `);
 
-  return rows.map((r) => ({
-    batchId: r.batchId,
+  return [...rows].map((r) => ({
+    batchId: r.batch_id,
     category: r.category as IngestCategory,
-    partitionKey: r.partitionKey,
+    partitionKey: r.partition_key,
     payload: r.payload,
-    rowCount: r.rowCount,
+    rowCount: r.row_count,
     attempts: r.attempts,
   }));
 }

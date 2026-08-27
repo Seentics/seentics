@@ -35,18 +35,42 @@ export async function applyAnalyticsEventsWebsiteIdMigration(): Promise<void> {
   }
 }
 
-async function isAnalyticsSchemaMissing(): Promise<boolean> {
+/**
+ * Tables that must exist for the process to run.
+ *
+ * Checking only `websites` was a real gap: push is skipped whenever that one table is
+ * present, so a table added to `schema.ts` afterwards was never created on any database
+ * that already existed. `outbox` and the two ingest tables all hit it — the process
+ * started, then logged a missing relation on every poll.
+ *
+ * Add new tables here as they are introduced. A `db/sql/` migration is still the
+ * preferred way to create one; this is the backstop that catches the ones that forget.
+ */
+const REQUIRED_TABLES = [
+  "websites",
+  "analytics_events",
+  "outbox",
+  "ingest_batches",
+  "ingest_applied_batches",
+] as const;
+
+/** Names from `REQUIRED_TABLES` that the database does not have. */
+async function missingCoreTables(): Promise<string[]> {
   const url = process.env.DATABASE_URL;
-  if (!url) return false;
+  if (!url) return [];
   const client = postgres(url, { max: 1, connect_timeout: 10 });
   try {
-    const rows = await client<{ ok: number }[]>`
-      SELECT 1 AS ok FROM information_schema.tables
-      WHERE table_schema = 'public' AND table_name = 'websites' LIMIT 1
+    const rows = await client<{ table_name: string }[]>`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ANY(${[...REQUIRED_TABLES]}::text[])
     `;
-    return rows.length === 0;
+    const present = new Set(rows.map((r) => r.table_name));
+    return REQUIRED_TABLES.filter((t) => !present.has(t));
   } catch {
-    return true;
+    // Unreachable database: treat as "everything missing" so the caller pushes and
+    // surfaces the real connection error rather than starting against nothing.
+    return [...REQUIRED_TABLES];
   } finally {
     await client.end({ timeout: 3 });
   }
@@ -137,7 +161,11 @@ export async function ensureCoreSchema(): Promise<void> {
   }
 
   const force = process.env.FORCE_DB_PUSH === "true" || process.env.FORCE_DB_PUSH === "1";
-  if (!force && !(await isAnalyticsSchemaMissing())) return;
+  if (!force) {
+    const missing = await missingCoreTables();
+    if (missing.length === 0) return;
+    console.log(`[schema] missing tables, running push: ${missing.join(", ")}`);
+  }
 
   const coreRoot = join(import.meta.dir, "..");
   const r = Bun.spawnSync(["bun", "run", "db:push:force"], {

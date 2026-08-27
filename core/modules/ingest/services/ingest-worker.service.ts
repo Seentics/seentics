@@ -24,6 +24,9 @@ export type IngestWorkerOptions = {
   retainCompletedMs?: number;
 };
 
+/** Ceiling for the claim-failure backoff. Long enough to stay quiet, short enough to recover promptly. */
+const MAX_CLAIM_BACKOFF_MS = 30_000;
+
 const DEFAULTS: Required<IngestWorkerOptions> = {
   batchSize: 20,
   idleIntervalMs: 250,
@@ -58,6 +61,16 @@ export class IngestWorker {
   private appliedCount = 0;
   private failedCount = 0;
   private lastPruneAt = 0;
+
+  /**
+   * Consecutive ticks where claiming failed outright.
+   *
+   * Drives an exponential backoff, and suppresses the log after the first. A claim
+   * failure means the database is unreachable or the table is missing — conditions that
+   * persist — so retrying at the idle interval produced twenty identical lines per second
+   * across five categories and buried everything else in the log.
+   */
+  private claimFailures = 0;
 
   constructor(
     private readonly store: BatchQueueStore,
@@ -127,10 +140,19 @@ export class IngestWorker {
     try {
       claimed = await this.store.claimPending(category, this.opts.batchSize, this.opts.maxAttempts);
     } catch (err) {
-      // A claim failure is the database being unreachable, not a bad batch. Log and let
-      // the next tick try — there is nothing to park.
-      this.log.error({ msg: "ingest_claim_failed", category, err: errText(err) });
+      // A claim failure is the database being unreachable or the table being absent, not
+      // a bad batch — there is nothing to park. Logged once per outage rather than per
+      // tick; `tick` backs off so the condition is not hammered.
+      if (this.claimFailures === 0) {
+        this.log.error({ msg: "ingest_claim_failed", category, err: errText(err) });
+      }
+      this.claimFailures += 1;
       return 0;
+    }
+
+    if (this.claimFailures > 0) {
+      this.log.info({ msg: "ingest_claim_recovered", category, after: this.claimFailures });
+      this.claimFailures = 0;
     }
 
     let applied = 0;
@@ -238,7 +260,18 @@ export class IngestWorker {
     if (this.stopped) return;
     const applied = await this.drainOnce();
     if (this.stopped) return;
-    // No delay while there is work: a backlog drains as fast as the sinks allow.
+
+    // No delay while there is work: a backlog drains as fast as the sinks allow. On a
+    // claim outage, back off exponentially to a ceiling — the condition is external and
+    // will not clear because we asked again sooner.
+    if (this.claimFailures > 0) {
+      const backoff = Math.min(
+        this.opts.idleIntervalMs * 2 ** Math.min(this.claimFailures, 6),
+        MAX_CLAIM_BACKOFF_MS,
+      );
+      this.schedule(backoff);
+      return;
+    }
     this.schedule(applied > 0 ? 0 : this.opts.idleIntervalMs);
   }
 }

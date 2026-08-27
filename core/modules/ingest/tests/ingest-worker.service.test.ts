@@ -47,11 +47,18 @@ class FakeQueue implements BatchQueueStore {
 
   async enqueue(): Promise<void> {}
 
+  /** Set to simulate an unreachable database or a missing table. */
+  claimError: Error | null = null;
+  /** How many times `claimPending` was called, to assert backoff behaviour. */
+  claimCalls = 0;
+
   async claimPending(
     category: IngestCategory,
     limit: number,
     maxAttempts: number,
   ): Promise<QueuedBatch[]> {
+    this.claimCalls += 1;
+    if (this.claimError) throw this.claimError;
     return this.rows
       .filter((r) => r.category === category && !r.completed && r.attempts < maxAttempts)
       .slice(0, limit);
@@ -375,4 +382,74 @@ describe("IngestWorker", () => {
       expect(worker.stats().failed).toBe(0);
     });
   });
+
+  /**
+   * Regression: the worker logged this error roughly twenty times a second — once per
+   * category per tick — when `ingest_batches` was missing, burying every other line in
+   * the log. A claim failure is an external condition that persists, so it is reported
+   * once and then backed off.
+   */
+  describe("claim failure", () => {
+    it("does not treat a claim failure as an applied batch", async () => {
+      queue.claimError = new Error('relation "ingest_batches" does not exist');
+      queue.seed({ category: "analytics", payload: { websiteId: "site_a", events: events(1) } });
+
+      expect(await worker.drainOnce()).toBe(0);
+      expect(sinks.analytics).toEqual([]);
+    });
+
+    it("logs the failure once rather than on every pass", async () => {
+      const lines: Record<string, unknown>[] = [];
+      const capturing: Logger = {
+        debug() {},
+        info() {},
+        warn() {},
+        error(fields) {
+          lines.push(fields as Record<string, unknown>);
+        },
+        child() {
+          return capturing;
+        },
+      };
+      const noisy = new IngestWorker(queue, sinks, quietBus(), capturing, { maxAttempts: 3 });
+      queue.claimError = new Error("connection refused");
+
+      await noisy.drainOnce();
+      await noisy.drainOnce();
+      await noisy.drainOnce();
+
+      expect(lines.filter((l) => l.msg === "ingest_claim_failed")).toHaveLength(1);
+    });
+
+    it("leaves the batch pending, with no attempt charged against it", async () => {
+      queue.claimError = new Error("connection refused");
+      const seeded = queue.seed({
+        category: "analytics",
+        payload: { websiteId: "site_a", events: events(1) },
+      });
+
+      await worker.drainOnce();
+
+      const row = queue.rows.find((r) => r.batchId === seeded.batchId);
+      expect(row?.attempts).toBe(0);
+      expect(row?.completed).toBe(false);
+    });
+
+    it("resumes once the database comes back", async () => {
+      queue.claimError = new Error("connection refused");
+      queue.seed({ category: "analytics", payload: { websiteId: "site_a", events: events(1) } });
+
+      await worker.drainOnce();
+      queue.claimError = null;
+      await worker.drainOnce();
+
+      expect(sinks.analytics).toHaveLength(1);
+    });
+  });
 });
+
+/** A bus that records nothing — for tests asserting on logs rather than events. */
+function quietBus(): EventBus {
+  const inner = new InMemoryEventBus(silentLogger);
+  return { publish: inner.publish.bind(inner), subscribe: inner.subscribe.bind(inner) };
+}
