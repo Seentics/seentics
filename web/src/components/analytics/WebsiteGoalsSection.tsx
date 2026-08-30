@@ -229,7 +229,7 @@ export function WebsiteGoalsSection({
 
   return (
     <>
-      <Card className="border border-border bg-card surface-raised overflow-hidden">
+      <Card className="border border-border bg-card overflow-hidden">
         <CardHeader className="p-5 pb-3 border-b border-border">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>

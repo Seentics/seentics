@@ -89,7 +89,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
       <ChartErrorBoundary label="Path Analysis">
         <div className="space-y-4">
           {/* <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card className="p-5 flex items-center gap-4 border border-border surface-raised">
+            <Card className="p-5 flex items-center gap-4 border border-border">
               <div className="w-11 h-11 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
                 <Route className="h-5 w-5 text-indigo-500" />
               </div>
@@ -106,7 +106,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
               </div>
             </Card>
 
-            <Card className="p-5 flex items-center gap-4 border border-border surface-raised">
+            <Card className="p-5 flex items-center gap-4 border border-border">
               <div className="w-11 h-11 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
                 <LogIn className="h-5 w-5 text-emerald-500" />
               </div>
@@ -122,7 +122,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
               </div>
             </Card>
 
-            <Card className="p-5 flex items-center gap-4 border border-border surface-raised">
+            <Card className="p-5 flex items-center gap-4 border border-border">
               <div className="w-11 h-11 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
                 <LogOut className="h-5 w-5 text-rose-500" />
               </div>
@@ -140,7 +140,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
           </div> */}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <Card className="overflow-hidden border border-border surface-raised">
+            <Card className="overflow-hidden border border-border">
               <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border">
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
                   <LogIn className="h-3.5 w-3.5 text-emerald-500" />
@@ -190,7 +190,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
               </div>
             </Card>
 
-            <Card className="overflow-hidden border border-border surface-raised">
+            <Card className="overflow-hidden border border-border">
               <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border">
                 <div className="w-7 h-7 rounded-lg bg-rose-500/10 flex items-center justify-center">
                   <LogOut className="h-3.5 w-3.5 text-rose-500" />
@@ -241,7 +241,7 @@ export function PathAnalysis({ websiteId, dateRange }: { websiteId: string; date
             </Card>
           </div>
 
-          <Card className="overflow-hidden border border-border surface-raised">
+          <Card className="overflow-hidden border border-border">
             <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border">
               <div className="w-7 h-7 rounded-lg bg-indigo-500/10 flex items-center justify-center">
                 <TrendingUp className="h-3.5 w-3.5 text-indigo-500" />

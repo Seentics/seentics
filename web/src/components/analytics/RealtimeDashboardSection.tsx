@@ -62,7 +62,7 @@ function countryFlag(code: string) {
 function RealtimeTimelineChart({ timeline, isLoading }: { timeline?: RealtimeMinute[]; isLoading: boolean }) {
   if (isLoading) {
     return (
-      <div className="surface surface-raised overflow-hidden">
+      <div className="surface overflow-hidden">
         <div className="px-4 py-3 border-b border-border">
           <div className="h-4 w-36 bg-muted/50 animate-pulse rounded-lg" />
         </div>
@@ -73,7 +73,7 @@ function RealtimeTimelineChart({ timeline, isLoading }: { timeline?: RealtimeMin
   const data = timeline ?? [];
   const hasData = data.some(d => d.views > 0 || d.visitors > 0);
   return (
-    <div className="surface surface-raised overflow-hidden">
+    <div className="surface overflow-hidden">
       <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border flex items-center justify-between">
         <div>
           <h3 className=" font-semibold text-foreground">Last 30 minutes</h3>
@@ -128,7 +128,7 @@ function TopList({ title, rows, isLoading, type = 'pages' }: {
   const items = rows ?? [];
   const max = items[0]?.visitors ?? 1;
   return (
-    <div className="surface surface-raised overflow-hidden flex flex-col">
+    <div className="surface overflow-hidden flex flex-col">
       <div className="px-4 py-3 border-b border-border">
         <h3 className="text-sm font-medium tracking-tight text-foreground">{title}</h3>
       </div>
@@ -254,7 +254,7 @@ export function RealtimeDashboardSection({ websiteId }: { websiteId: string }) {
         <TopList title="Top countries" rows={data?.top_countries} isLoading={statsLoading} type="countries" />
       </div>
 
-      <div className="surface surface-raised mt-6 overflow-hidden">
+      <div className="surface mt-6 overflow-hidden">
         <div className="px-4 py-3 md:px-5 md:py-3.5 border-b border-border">
           <h3 className="text-base font-medium tracking-tight text-foreground">Activity log</h3>
           <p className="text-xs text-muted-foreground mt-0.5">

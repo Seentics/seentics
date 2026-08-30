@@ -67,7 +67,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
 
     if (isLoading) {
         return (
-            <Card className={cn("surface surface-raised overflow-hidden mb-6", className)}>
+            <Card className={cn("surface overflow-hidden mb-6", className)}>
                 <CardHeader>
                     <div className="animate-pulse space-y-2">
                         <div className="h-6 bg-accent/10 rounded-lg w-48 mb-2"></div>
@@ -82,7 +82,7 @@ export function GeolocationOverview({ data, isLoading = false, className = '', o
     }
 
     return (
-        <Card className={cn("surface surface-raised overflow-hidden", className)}>
+        <Card className={cn("surface overflow-hidden", className)}>
             <CardHeader className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pb-4 border-b border-border">
                 <div className="space-y-1">
                     <CardTitle className="text-lg font-bold tracking-tight flex items-center gap-2">
