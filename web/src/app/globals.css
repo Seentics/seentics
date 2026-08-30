@@ -23,7 +23,7 @@
        there is one place to change them. Every time they were duplicated the two
        drifted, and the hero started advertising a dashboard colour that no longer
        shipped. Never override --app-* in a scoped block. */
-    --app-page: 220 20% 98.5%;
+    --app-page: 220 20% 99.5%;
     --app-border: 220 13% 86%;
 
     --background: var(--app-page);

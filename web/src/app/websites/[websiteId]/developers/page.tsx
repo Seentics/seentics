@@ -269,9 +269,10 @@ function DocsTab({ websiteId }: { websiteId: string }) {
   return (
     <div className="w-full space-y-8">
       <div>
-        <h2 className="text-sm font-semibold text-foreground">Documentation</h2>
+        <h2 className="text-sm font-semibold text-foreground">Server-side SDKs</h2>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Integrate Seentics into your services using the official SDKs and REST API.
+          For sending events from your own backend. To <em>read</em> data, see the API
+          Reference tab.
         </p>
       </div>
 
@@ -329,39 +330,20 @@ function DocsTab({ websiteId }: { websiteId: string }) {
         <CodeBlock code={QUICKSTART[tab]} />
       </div>
 
-      {/* HTTP API reference */}
-      <div>
-        <div className="flex items-center gap-2 mb-3">
-          <BookOpen className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">HTTP API Reference</h3>
-        </div>
-        <Card className="border border-border">
-          <CardContent className="p-0">
-            {[
-              { method: 'POST', path: '/api/v1/collect',                        desc: 'Ingest pageview or custom event' },
-              { method: 'GET',  path: '/api/v1/websites/:id/stats',             desc: 'Summary stats (visitors, pageviews, bounce rate)' },
-              { method: 'GET',  path: '/api/v1/websites/:id/pageviews',         desc: 'Pageview time series (hour|day|month)' },
-              { method: 'GET',  path: '/api/v1/websites/:id/events',            desc: 'Custom event counts and property breakdowns' },
-              { method: 'GET',  path: '/api/v1/websites/:id/goals',             desc: 'Goal list with conversion rates' },
-              { method: 'GET',  path: '/api/v1/websites/:id/funnels/:funnelId', desc: 'Funnel step-by-step conversion data' },
-              { method: 'GET',  path: '/api/v1/websites/:id/realtime',          desc: 'Live active visitor count and current pages' },
-            ].map((r, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0">
-                <Badge variant="outline" className={cn(
-                  'text-[10px] w-12 justify-center shrink-0 font-mono',
-                  r.method === 'POST' && 'border-blue-400/60 text-blue-600 bg-blue-50 dark:bg-blue-950 dark:text-blue-300',
-                  r.method === 'GET'  && 'border-green-400/60 text-green-600 bg-green-50 dark:bg-green-950 dark:text-green-300',
-                )}>
-                  {r.method}
-                </Badge>
-                <code className="text-[11px] font-mono text-foreground flex-1 min-w-0 truncate">{r.path}</code>
-                <span className="text-xs text-muted-foreground hidden md:block shrink-0 max-w-[260px] truncate">{r.desc}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-        <p className="text-xs text-muted-foreground mt-3">
-          All requests must include <code className="font-mono bg-muted px-1 rounded-lg">Authorization: Bearer &lt;apiKey&gt;</code>.
+      {/*
+        No endpoint table here.
+
+        This tab used to carry its own, listing seven paths that do not exist — a
+        `/api/v1/collect` that is really `/api/v1/tracker/collect`, and five
+        `/websites/:id/...` reads that were never built — under an
+        `Authorization: Bearer` header the API has never accepted. The reference now
+        comes from the server's catalogue, which a test compares against the router, so
+        there is one place that says what the API offers and it cannot drift.
+      */}
+      <div className="rounded-lg border border-border bg-muted/30 p-4">
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Every endpoint, with its parameters, scope and a copy-paste example, is in the{' '}
+          <strong className="text-foreground">API Reference</strong> tab.
         </p>
       </div>
     </div>
@@ -379,7 +361,7 @@ export default function DevelopersPage() {
       <DashboardPageHeader
         websiteId={websiteId}
         title="Developers"
-        description="Create API keys and read this site's data from your own tools."
+        description="Keys, endpoints and SDKs for reading this site's data from your own tools."
       />
 
       <Tabs defaultValue="api-keys">
@@ -392,13 +374,13 @@ export default function DevelopersPage() {
             <Terminal className="h-3.5 w-3.5" />
             API Reference
           </TabsTrigger>
+          <TabsTrigger value="sdks" className="gap-1.5">
+            <BookOpen className="h-3.5 w-3.5" />
+            SDKs
+          </TabsTrigger>
           <TabsTrigger value="ui-blocks" className="gap-1.5">
             <Layers className="h-3.5 w-3.5" />
             UI Blocks
-          </TabsTrigger>
-          <TabsTrigger value="docs" className="gap-1.5">
-            <BookOpen className="h-3.5 w-3.5" />
-            Docs
           </TabsTrigger>
         </TabsList>
 
@@ -414,7 +396,7 @@ export default function DevelopersPage() {
           <UIBlocksTab websiteId={websiteId} />
         </TabsContent>
 
-        <TabsContent value="docs">
+        <TabsContent value="sdks">
           <DocsTab websiteId={websiteId} />
         </TabsContent>
       </Tabs>

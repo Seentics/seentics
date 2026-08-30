@@ -31,14 +31,12 @@ function buildMainNav(websiteId: string): NavItem[] {
     { label: 'Heatmaps',    href: `/websites/${websiteId}/heatmaps`,    icon: Flame },
     { label: 'Funnels',     href: `/websites/${websiteId}/funnels`,     icon: GitBranch },
     { label: 'Revenue',     href: `/websites/${websiteId}/revenue`,     icon: Banknote },
+    { label: 'Developers',  href: `/websites/${websiteId}/developers`,  icon: Code2 },
   ];
 }
 
 function buildSecondaryNav(websiteId: string): NavItem[] {
   return [
-    // Linked explicitly: the developer tools existed but were reachable only by typing
-    // the URL, which is the same as not existing.
-    { label: 'Developers', href: `/websites/${websiteId}/settings/developers`, icon: Code2 },
     { label: 'Settings', href: `/websites/${websiteId}/settings`, icon: Settings },
   ];
 }

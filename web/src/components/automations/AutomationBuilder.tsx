@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -160,11 +160,20 @@ interface AutomationBuilderProps {
    * gets them without the builder becoming a controlled component.
    */
   onChange?: (definition: AutomationDefinition, errors: string[]) => void;
-  /** Opens the settings editor. Handed out so the header can offer it. */
-  onRequestSettings?: (open: () => void) => void;
-  /** Opens the JSON editor, same reason. */
-  onRequestJson?: (open: () => void) => void;
 }
+
+/**
+ * What the page can ask the builder to do.
+ *
+ * Settings and the JSON editor are the builder's own modals, but their buttons belong in
+ * the page header with Save — a bar floating over the canvas is in the way of the thing
+ * it is floating over. A ref is how a parent triggers a child's behaviour; passing the
+ * openers out through a callback would have React treating each one as a state updater.
+ */
+export type AutomationBuilderHandle = {
+  openSettings: () => void;
+  openJson: () => void;
+};
 
 /**
  * What the node editor is currently open on.
@@ -1612,9 +1621,8 @@ function newNode(kind: GraphNode['kind'], actionType?: string): GraphNode {
   }
 }
 
-export function AutomationBuilder({
-  initialDefinition, onSave, isSaving, className, onChange, onRequestSettings, onRequestJson,
-}: AutomationBuilderProps) {
+export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationBuilderProps>(
+  function AutomationBuilder({ initialDefinition, onSave, isSaving, className, onChange }, ref) {
   const [definition, setDefinition] = useState<AutomationDefinition>(() => {
     const base = initialDefinition ?? DEFAULT_DEFINITION;
     return {
@@ -1720,11 +1728,14 @@ export function AutomationBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [definition, onChange]);
 
-  // Handed out once so the header can open the editors the builder owns.
-  useEffect(() => {
-    onRequestSettings?.(() => setSelected({ kind: 'settings' }));
-    onRequestJson?.(() => setShowJson(true));
-  }, [onRequestSettings, onRequestJson]);
+  useImperativeHandle(
+    ref,
+    () => ({
+      openSettings: () => setSelected({ kind: 'settings' }),
+      openJson: () => setShowJson(true),
+    }),
+    [],
+  );
 
   const openPalette = (tab: PaletteTab) => {
     setSelected(null);
@@ -1806,6 +1817,25 @@ export function AutomationBuilder({
             onPaletteDrop={handlePaletteDrop}
             paletteMime={PALETTE_MIME}
           />
+        )}
+
+        {/*
+          A trigger but no nodes is a blank canvas, which looks the same as a broken one.
+          Overlaid rather than replacing the canvas so the palette's drop target is still
+          there underneath — the hint says to drag, so dragging has to work while it is
+          showing.
+        */}
+        {hasTrigger && graph.nodes.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="rounded-lg border-2 border-dashed border-border bg-background/80 px-6 py-5 text-center backdrop-blur-sm">
+              <Layers className="mx-auto h-6 w-6 text-muted-foreground" />
+              <p className="mt-2 text-sm font-semibold text-foreground">Add an action, condition or delay</p>
+              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                Drag one from the panel, then drag between the handles on each node to
+                connect them.
+              </p>
+            </div>
+          </div>
         )}
 
         {/*
@@ -1953,14 +1983,5 @@ export function AutomationBuilder({
       )}
     </div>
   );
-}
-
-/**
- * Where a node lands when the palette was used without picking an outlet.
- *
- * A linear graph has exactly one node with nothing after it, and appending there is what
- * someone building straight down expects. Anything else is ambiguous, so the node lands
- * unattached and the unconnected-node error tells the user to wire it.
- */
-
-/** What the palette says it is about to connect to, or null when it is just appending. */
+},
+);

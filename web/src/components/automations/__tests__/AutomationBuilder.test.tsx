@@ -14,10 +14,15 @@ import type { AutomationGraph, GraphNode } from '@/lib/automation-graph';
 /**
  * The automation builder.
  *
- * Layout and graph rules are settled in `lib/__tests__/automation-graph.test.ts`; this
- * file covers what the component adds on top — that every node kind can be placed and
- * edited, that a branch's "+" wires the next node to that branch rather than somewhere
- * arbitrary, and that a graph the server would reject cannot be saved.
+ * The graph itself — layout, validation, connecting, moving — is settled in
+ * `lib/__tests__/automation-graph.test.ts`, and the canvas interactions belong to
+ * ReactFlow. What is left for this file is what the component adds on top: that every
+ * node kind can be placed and edited, that editing reports back a definition the server
+ * would accept, and that a graph the server would reject is reported as unsaveable.
+ *
+ * Save now lives in the page's header rather than over the canvas, so "can this be
+ * saved" is asserted through the `onChange` report the header renders from, which is
+ * exactly what the page sees.
  */
 
 vi.mock('framer-motion', async () => {
@@ -58,14 +63,26 @@ function definition(over: Partial<AutomationDefinition> = {}): AutomationDefinit
   };
 }
 
+/**
+ * Render, capturing what the builder reports out.
+ *
+ * `latest()` is what the page's header would render Save from, so asserting on it is
+ * asserting on the thing that actually reaches the API.
+ */
 function setup(def: AutomationDefinition = definition()) {
+  const reports: Array<{ definition: AutomationDefinition; errors: string[] }> = [];
   const onSave = vi.fn();
-  const utils = render(<AutomationBuilder initialDefinition={def} onSave={onSave} />);
-  return { onSave, ...utils };
-}
 
-function saved(onSave: ReturnType<typeof vi.fn>): AutomationDefinition {
-  return onSave.mock.calls.at(-1)![0] as AutomationDefinition;
+  const utils = render(
+    <AutomationBuilder
+      initialDefinition={def}
+      onSave={onSave}
+      onChange={(definition, errors) => reports.push({ definition, errors })}
+    />,
+  );
+
+  const latest = () => reports[reports.length - 1]!;
+  return { onSave, latest, reports, ...utils };
 }
 
 /** Open the Conditions tab and return it as a query scope. */
@@ -83,13 +100,6 @@ describe('validateDefinition', () => {
 
   it('requires a trigger', () => {
     expect(validateDefinition(definition({ triggers: [] }))).toContain('Add at least one trigger.');
-  });
-
-  it('requires a reachable action', () => {
-    const def = definition({
-      graph: { entry: 'if1', nodes: [ifNode('if1'), delay('d')], edges: [edge('if1', 'd', 'true')] },
-    });
-    expect(validateDefinition(def).join(' ')).toContain('at least one action it can reach');
   });
 
   it('reports a branch wired to nothing', () => {
@@ -142,11 +152,17 @@ describe('canvas', () => {
   });
 
   it('prompts for a node when the graph is empty', () => {
+    // A trigger and a blank canvas looks the same as a broken canvas without this.
     setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
     expect(screen.getByText('Add an action, condition or delay')).toBeInTheDocument();
   });
 
-  it('labels each node kind distinctly', () => {
+  it('tells you how nodes are connected, since it is no longer automatic', () => {
+    setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
+    expect(screen.getByText(/drag between the handles on each node/i)).toBeInTheDocument();
+  });
+
+  it('renders a card per node', () => {
     setup(definition({
       graph: {
         entry: 'if1',
@@ -172,7 +188,7 @@ describe('canvas', () => {
     expect(screen.getByText('1 rule · AND')).toBeInTheDocument();
   });
 
-  it('draws a labelled edge per branch', () => {
+  it('names each outlet beneath its handle, so you know which one you are dragging', () => {
     setup(definition({
       graph: {
         entry: 'if1',
@@ -180,11 +196,11 @@ describe('canvas', () => {
         edges: [edge('if1', 'a', 'true'), edge('if1', 'b', 'false')],
       },
     }));
-    expect(screen.getByText('Yes')).toBeInTheDocument();
-    expect(screen.getByText('No')).toBeInTheDocument();
+    expect(screen.getAllByText('Yes').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No').length).toBeGreaterThan(0);
   });
 
-  it('names a switch case on its edge rather than showing the opaque id', () => {
+  it('names a switch case rather than showing its opaque id', () => {
     setup(definition({
       graph: {
         entry: 's',
@@ -192,74 +208,8 @@ describe('canvas', () => {
         edges: [edge('s', 'a', 'c0'), edge('s', 'b', 'default')],
       },
     }));
-    expect(screen.getByText('Pro users')).toBeInTheDocument();
-    expect(screen.getByText('Otherwise')).toBeInTheDocument();
-  });
-
-  it('counts triggers and nodes together', () => {
-    setup(definition({
-      triggers: [{ type: 'exit_intent' }, { type: 'page_view' }],
-      graph: { entry: 'if1', nodes: [ifNode('if1'), action('a'), action('b', 'show_toast')], edges: [edge('if1', 'a', 'true'), edge('if1', 'b', 'false')] },
-    }));
-    expect(screen.getByText('5 nodes')).toBeInTheDocument();
-  });
-});
-
-// -- Wiring ------------------------------------------------------------------
-
-describe('connecting nodes', () => {
-  it('offers a + for each unconnected branch, named after it', () => {
-    setup(definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [edge('if1', 'a', 'true')] } }));
-    expect(screen.getByRole('button', { name: /Add to the No branch/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Add to the Yes branch/i })).not.toBeInTheDocument();
-  });
-
-  it('tells the palette which branch it is connecting to', () => {
-    // Without it, clicking a palette row after pressing a branch "+" looks like it
-    // appended somewhere arbitrary.
-    setup(definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [edge('if1', 'a', 'true')] } }));
-    fireEvent.click(screen.getByRole('button', { name: /Add to the No branch/i }));
-    expect(screen.getByText(/Connecting to the No branch/)).toBeInTheDocument();
-  });
-
-  it('wires the next node to the branch its + was pressed on', () => {
-    const { onSave } = setup(
-      definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [edge('if1', 'a', 'true')] } }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: /Add to the No branch/i }));
-    fireEvent.click(screen.getByRole('button', { name: /^actions$/i }));
-    fireEvent.click(screen.getByText('Show Toast'));
-    fireEvent.click(screen.getByRole('button', { name: /save/i }));
-
-    const g = saved(onSave).graph;
-    const falseEdge = g.edges.find(e => e.from === 'if1' && e.branch === 'false');
-    expect(falseEdge).toBeDefined();
-    expect(g.nodes.find(n => n.id === falseEdge!.to)).toMatchObject({ kind: 'action' });
-  });
-
-  it('appends to the end of a linear graph when no branch was chosen', () => {
-    const { onSave } = setup(definition());
-    fireEvent.click(screen.getByRole('button', { name: /^actions$/i }));
-    fireEvent.click(screen.getByText('Show Toast'));
-    fireEvent.click(screen.getByRole('button', { name: /save/i }));
-
-    const g = saved(onSave).graph;
-    expect(g.nodes).toHaveLength(2);
-    expect(g.edges).toHaveLength(1);
-    expect(g.edges[0]!.from).toBe('a');
-  });
-
-  it('can cancel a pending connection', () => {
-    setup(definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [edge('if1', 'a', 'true')] } }));
-    fireEvent.click(screen.getByRole('button', { name: /Add to the No branch/i }));
-    fireEvent.click(screen.getByRole('button', { name: /cancel connection/i }));
-    expect(screen.queryByText(/Connecting to/)).not.toBeInTheDocument();
-  });
-
-  it('does not open the editor when a node is added', () => {
-    setup(definition());
-    fireEvent.click(within(flowTab()).getByText('Delay'));
-    expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Pro users').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Otherwise').length).toBeGreaterThan(0);
   });
 });
 
@@ -274,185 +224,217 @@ describe('palette', () => {
     }
   });
 
-  it('adds an if with both branches ready to wire', () => {
-    setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
-    fireEvent.click(within(flowTab()).getByText('If / else'));
+  it('adds a node of each flow-control kind', () => {
+    const kinds: Array<[string, string]> = [
+      ['If / else', 'if'],
+      ['Switch', 'switch'],
+      ['Wait until', 'wait_until'],
+      ['Delay', 'delay'],
+    ];
 
-    expect(screen.getByRole('button', { name: /Add to the Yes branch/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Add to the No branch/i })).toBeInTheDocument();
+    for (const [label, kind] of kinds) {
+      const { latest, unmount } = setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
+      fireEvent.click(within(flowTab()).getByText(label));
+      expect(latest().definition.graph.nodes[0]!.kind).toBe(kind);
+      unmount();
+    }
   });
 
-  it('adds a switch with a case and an otherwise branch', () => {
-    setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
-    fireEvent.click(within(flowTab()).getByText('Switch'));
+  it('adds an action of the type chosen', () => {
+    const { latest } = setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
+    fireEvent.click(screen.getByRole('button', { name: /^actions$/i }));
+    fireEvent.click(screen.getByText('Show Toast'));
 
-    expect(screen.getByRole('button', { name: /Add to the Otherwise branch/i })).toBeInTheDocument();
+    const node = latest().definition.graph.nodes[0]!;
+    expect(node.kind).toBe('action');
+    expect((node as Extract<GraphNode, { kind: 'action' }>).action.type).toBe('show_toast');
   });
 
-  it('adds a wait with met and timeout branches', () => {
-    setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
-    fireEvent.click(within(flowTab()).getByText('Wait until'));
+  it('makes the first node the entry, since nothing else could be', () => {
+    const { latest } = setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
+    fireEvent.click(screen.getByRole('button', { name: /^actions$/i }));
+    fireEvent.click(screen.getByText('Show Toast'));
 
-    expect(screen.getByRole('button', { name: /Add to the When true branch/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Add to the On timeout branch/i })).toBeInTheDocument();
+    const g = latest().definition.graph;
+    expect(g.entry).toBe(g.nodes[0]!.id);
+  });
+
+  it('adds nodes unconnected, leaving the wiring to a deliberate drag', () => {
+    // Guessing an attachment point would produce an edge nobody asked for, which then
+    // has to be found and deleted.
+    const { latest } = setup();
+    fireEvent.click(screen.getByRole('button', { name: /^actions$/i }));
+    fireEvent.click(screen.getByText('Show Toast'));
+
+    expect(latest().definition.graph.nodes).toHaveLength(2);
+    expect(latest().definition.graph.edges).toEqual([]);
+  });
+
+  it('does not open the editor when a node is added', () => {
+    // Placing a node and configuring it are separate intents.
+    setup();
+    fireEvent.click(within(flowTab()).getByText('Delay'));
+    expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument();
+  });
+
+  it('adds several nodes in a row without interruption', () => {
+    const { latest } = setup(definition({ graph: { entry: '', nodes: [], edges: [] } }));
+    fireEvent.click(screen.getByRole('button', { name: /^actions$/i }));
+
+    fireEvent.click(screen.getByText('Show Toast'));
+    fireEvent.click(screen.getByText('Show Banner'));
+    fireEvent.click(screen.getByText('Redirect'));
+
+    expect(latest().definition.graph.nodes.map(n =>
+      (n as Extract<GraphNode, { kind: 'action' }>).action.type,
+    )).toEqual(['show_toast', 'show_banner', 'redirect']);
   });
 });
 
 // -- Editors -----------------------------------------------------------------
 
 describe('node editors', () => {
-  function openFirstNode(def: AutomationDefinition, cardLabel: string) {
+  function openNode(def: AutomationDefinition, cardLabel: string) {
     const utils = setup(def);
     fireEvent.click(screen.getAllByText(cardLabel)[0]!);
     return utils;
   }
 
-  it('edits an if condition', () => {
-    const { onSave } = openFirstNode(
-      definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a'), action('b', 'show_toast')], edges: [edge('if1', 'a', 'true'), edge('if1', 'b', 'false')] } }),
-      'If / else',
-    );
-    fireEvent.change(screen.getByDisplayValue('page'), { target: { value: 'user.plan' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+  const branching = (node: GraphNode, a = 'true', b = 'false'): AutomationDefinition =>
+    definition({
+      graph: {
+        entry: node.id,
+        nodes: [node, action('x'), action('y', 'show_toast')],
+        edges: [edge(node.id, 'x', a), edge(node.id, 'y', b)],
+      },
+    });
 
-    const node = saved(onSave).graph.nodes.find(n => n.id === 'if1') as Extract<GraphNode, { kind: 'if' }>;
+  it('edits an if condition', () => {
+    const { latest } = openNode(branching(ifNode('if1')), 'If / else');
+    fireEvent.change(screen.getByDisplayValue('page'), { target: { value: 'user.plan' } });
+
+    const node = latest().definition.graph.nodes.find(n => n.id === 'if1') as Extract<GraphNode, { kind: 'if' }>;
     expect((node.group.rules[0] as { fact: string }).fact).toBe('user.plan');
   });
 
-  it('explains that both if branches can rejoin', () => {
-    openFirstNode(
-      definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a'), action('b', 'show_toast')], edges: [edge('if1', 'a', 'true'), edge('if1', 'b', 'false')] } }),
-      'If / else',
-    );
+  it('explains that if branches can rejoin', () => {
+    openNode(branching(ifNode('if1')), 'If / else');
     expect(screen.getByText(/Both branches can rejoin later/)).toBeInTheDocument();
+  });
+
+  it('states that switch cases are matched in order', () => {
+    openNode(branching(switchNode('s'), 'c0', 'default'), 'Switch');
+    expect(screen.getByText(/Cases are checked/)).toBeInTheDocument();
   });
 
   it('adds a case to a switch, surfacing a branch to wire', () => {
     // A new case is a new outlet with nothing on it, so the graph is deliberately not
-    // saveable until it is connected — that is the validator doing its job.
-    openFirstNode(
-      definition({ graph: { entry: 's', nodes: [switchNode('s'), action('a'), action('b', 'show_toast')], edges: [edge('s', 'a', 'c0'), edge('s', 'b', 'default')] } }),
-      'Switch',
-    );
+    // saveable until it is connected.
+    const { latest } = openNode(branching(switchNode('s'), 'c0', 'default'), 'Switch');
     fireEvent.click(screen.getByRole('button', { name: /add case/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
 
-    expect(screen.getByRole('button', { name: /Add to the Case 2 branch/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
+    const node = latest().definition.graph.nodes.find(n => n.id === 's') as Extract<GraphNode, { kind: 'switch' }>;
+    expect(node.cases).toHaveLength(2);
+    expect(latest().errors.join(' ')).toContain('nothing connected');
   });
 
-  it('removes a switch case and the edge that hung off it', () => {
-    // Whatever was on that branch is now orphaned rather than silently deleted — the
-    // user may want to rewire it — and the alert says exactly that.
-    setup(
+  it('drops the edge that hung off a removed switch case', () => {
+    // Otherwise the edge names a branch the node no longer has, and validation complains
+    // about a branch the user just deleted.
+    const twoCases: GraphNode = {
+      id: 's',
+      kind: 'switch',
+      cases: [{ id: 'c0', label: 'A', group: group() }, { id: 'c1', label: 'B', group: group() }],
+    };
+    const { latest } = openNode(
       definition({
         graph: {
           entry: 's',
-          nodes: [
-            { id: 's', kind: 'switch', cases: [{ id: 'c0', label: 'A', group: group() }, { id: 'c1', label: 'B', group: group() }] },
-            action('a'),
-            action('b', 'show_toast'),
-            action('d', 'redirect'),
-          ],
+          nodes: [twoCases, action('a'), action('b', 'show_toast'), action('d', 'redirect')],
           edges: [edge('s', 'a', 'c0'), edge('s', 'b', 'c1'), edge('s', 'd', 'default')],
         },
       }),
+      'Switch',
     );
-    fireEvent.click(screen.getAllByText('Switch')[0]!);
-    fireEvent.click(screen.getByRole('button', { name: /remove case 2/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
 
-    // The branch label is gone from the canvas, and no error mentions a "c1" branch.
-    expect(screen.queryByText('B')).not.toBeInTheDocument();
-    expect(screen.getByRole('alert')).not.toHaveTextContent('c1');
-    expect(screen.getByRole('alert')).toHaveTextContent('not connected to anything');
+    fireEvent.click(screen.getByRole('button', { name: /remove case 2/i }));
+    expect(latest().definition.graph.edges.some(e => e.branch === 'c1')).toBe(false);
+    expect(latest().errors.join(' ')).not.toContain('"c1"');
   });
 
   it('edits a wait timeout and warns about webhooks', () => {
-    const { onSave } = openFirstNode(
-      definition({ graph: { entry: 'w', nodes: [waitNode('w'), action('a'), action('b', 'show_toast')], edges: [edge('w', 'a', 'met'), edge('w', 'b', 'timeout')] } }),
-      'Wait until',
-    );
+    const { latest } = openNode(branching(waitNode('w'), 'met', 'timeout'), 'Wait until');
     expect(screen.getByText(/a webhook cannot come after it/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByDisplayValue('30'), { target: { value: '45' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-    fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
-    const node = saved(onSave).graph.nodes.find(n => n.id === 'w') as Extract<GraphNode, { kind: 'wait_until' }>;
+    const node = latest().definition.graph.nodes.find(n => n.id === 'w') as Extract<GraphNode, { kind: 'wait_until' }>;
     expect(node.timeoutSeconds).toBe(45);
   });
 
   it('edits a delay', () => {
-    const { onSave } = openFirstNode(
+    const { latest } = openNode(
       definition({ graph: { entry: 'd', nodes: [delay('d', 5), action('a')], edges: [edge('d', 'a')] } }),
       'Delay',
     );
     fireEvent.change(screen.getByDisplayValue('5'), { target: { value: '12' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
-    fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
-    const node = saved(onSave).graph.nodes.find(n => n.id === 'd') as Extract<GraphNode, { kind: 'delay' }>;
+    const node = latest().definition.graph.nodes.find(n => n.id === 'd') as Extract<GraphNode, { kind: 'delay' }>;
     expect(node.seconds).toBe(12);
   });
 
   it('deletes a node and every edge touching it', () => {
-    const { onSave } = openFirstNode(
+    const { latest } = openNode(
       definition({ graph: { entry: 'd', nodes: [delay('d', 5), action('a')], edges: [edge('d', 'a')] } }),
       'Delay',
     );
-    // Scoped to the editor: the card carries its own remove button, named after the kind.
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /delete node/i }));
-    fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
-    const g = saved(onSave).graph;
+    const g = latest().definition.graph;
     expect(g.nodes.map(n => n.id)).toEqual(['a']);
     expect(g.edges).toEqual([]);
   });
 });
 
-// -- Saving ------------------------------------------------------------------
+// -- What the page header renders Save from ----------------------------------
 
-describe('saving', () => {
+describe('reporting to the header', () => {
+  it('reports the definition and no errors for a valid graph', () => {
+    const { latest } = setup();
+    expect(latest().errors).toEqual([]);
+    expect(latest().definition.triggers).toEqual([{ type: 'exit_intent' }]);
+  });
+
+  it('reports the reason a graph cannot be saved', () => {
+    const { latest } = setup(
+      definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [edge('if1', 'a', 'true')] } }),
+    );
+    expect(latest().errors.join(' ')).toContain('nothing connected to its "false" branch');
+  });
+
+  it('shows the same reason on the canvas', () => {
+    setup(definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [edge('if1', 'a', 'true')] } }));
+    expect(screen.getByRole('alert')).toHaveTextContent('nothing connected to its "false" branch');
+  });
+
+  it('reports again after every edit, so the header never goes stale', () => {
+    const { reports } = setup();
+    const before = reports.length;
+
+    fireEvent.click(screen.getByRole('button', { name: /^actions$/i }));
+    fireEvent.click(screen.getByText('Show Toast'));
+
+    expect(reports.length).toBeGreaterThan(before);
+  });
+
   it('emits triggers and a graph, and no legacy fields', () => {
-    const { onSave } = setup();
-    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+    const { latest } = setup();
+    const def = latest().definition;
 
-    const def = saved(onSave);
-    expect(def.triggers).toEqual([{ type: 'exit_intent' }]);
     expect(def.graph.nodes).toHaveLength(1);
     expect(def).not.toHaveProperty('steps');
     expect(def).not.toHaveProperty('actions');
     expect(def).not.toHaveProperty('conditions');
-  });
-
-  it('refuses to save a graph the server would reject', () => {
-    const { onSave } = setup(
-      definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [edge('if1', 'a', 'true')] } }),
-    );
-    fireEvent.click(screen.getByRole('button', { name: /save/i }));
-    expect(onSave).not.toHaveBeenCalled();
-  });
-
-  it('disables the save button and says why', () => {
-    setup(definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [edge('if1', 'a', 'true')] } }));
-    expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
-    expect(screen.getByRole('alert')).toHaveTextContent('nothing connected to its "false" branch');
-  });
-
-  it('marks the offending node on the canvas, not only in the alert', () => {
-    // A message listing forty nodes is not actionable; the ring says which one.
-    const { container } = setup(
-      definition({ graph: { entry: 'if1', nodes: [ifNode('if1'), action('a')], edges: [edge('if1', 'a', 'true')] } }),
-    );
-    expect(container.querySelector('[data-node-id="if1"]')!.className).toContain('amber');
-  });
-
-  it('enables the save button for a valid graph and shows no alert', () => {
-    setup(definition());
-    expect(screen.getByRole('button', { name: /save/i })).not.toBeDisabled();
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });
 

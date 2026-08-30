@@ -1,11 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Bot, ArrowLeft, LayoutTemplate } from 'lucide-react';
+import { Bot, ArrowLeft, Braces, LayoutTemplate, Save, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AutomationBuilder, type AutomationDefinition } from '@/components/automations/AutomationBuilder';
+import {
+  AutomationBuilder,
+  type AutomationBuilderHandle,
+  type AutomationDefinition,
+} from '@/components/automations/AutomationBuilder';
 import { useCreateAutomation } from '@/lib/automations-api';
 
 const TPL_KEY = 'snc_auto_tpl';
@@ -17,6 +21,12 @@ export default function NewAutomationPage() {
 
   const [name, setName] = useState('Untitled Automation');
   const [initial, setInitial] = useState<AutomationDefinition | undefined>(undefined);
+
+  // The header renders Save, so it tracks what the builder currently holds and whether
+  // that is saveable. The builder stays uncontrolled; this is a report, not a source.
+  const builderRef = useRef<AutomationBuilderHandle>(null);
+  const [draft, setDraft] = useState<AutomationDefinition | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
   const createMutation = useCreateAutomation();
 
   // Load template pre-fill from localStorage (set by templates page)
@@ -74,23 +84,60 @@ export default function NewAutomationPage() {
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 text-xs"
-          onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}
-        >
-          <LayoutTemplate className="h-3.5 w-3.5" />
-          Browse templates
-        </Button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => router.push(`/websites/${websiteId}/automations/templates`)}
+          >
+            <LayoutTemplate className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Browse templates</span>
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => builderRef.current?.openSettings()}
+            title="Workflow settings"
+            aria-label="Workflow settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 w-8 p-0"
+            onClick={() => builderRef.current?.openJson()}
+            title="View or edit JSON"
+            aria-label="View or edit JSON"
+          >
+            <Braces className="h-4 w-4" />
+          </Button>
+
+          <Button
+            size="sm"
+            className="h-8 gap-1.5 text-xs"
+            onClick={() => draft && handleSave(draft)}
+            disabled={!draft || errors.length > 0 || createMutation.isPending}
+            title={errors[0] ?? 'Save automation'}
+          >
+            <Save className="h-3.5 w-3.5" />
+            {createMutation.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
       </header>
 
       <div className="relative min-h-0 flex-1">
         <AutomationBuilder
+          ref={builderRef}
           key={initial ? 'tpl' : 'empty'}
           initialDefinition={initial}
           onSave={handleSave}
           isSaving={createMutation.isPending}
+          onChange={(def, errs) => { setDraft(def); setErrors(errs); }}
           className="absolute inset-0"
         />
       </div>

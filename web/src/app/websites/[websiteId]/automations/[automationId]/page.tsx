@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,9 @@ import {
   MessageSquare, Bell, Megaphone, Highlighter, Info, Feather,
   ExternalLink, Tag, Eye, LogOut, Coffee, Flame, FileX,
   AlertTriangle, EyeOff, UserCheck, MousePointer2, ScrollText, Clock,
+  Settings,
+  Braces,
+  Save,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatCards } from '@/components/seentics-ui/StatCards';
@@ -19,7 +22,11 @@ import {
   useFetchAutomation, useToggleAutomation, useDeleteAutomation, useUpdateAutomation,
   useAutomationDailyStats,
 } from '@/lib/automations-api';
-import { AutomationBuilder, type AutomationDefinition } from '@/components/automations/AutomationBuilder';
+import {
+  AutomationBuilder,
+  type AutomationBuilderHandle,
+  type AutomationDefinition,
+} from '@/components/automations/AutomationBuilder';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
@@ -94,6 +101,12 @@ export default function AutomationDetailPage() {
   const automationId  = params?.automationId as string;
 
   const [editMode, setEditMode] = useState(false);
+
+  // In edit mode the header owns Save, so it tracks what the builder holds and whether
+  // that is saveable. The builder stays uncontrolled; this is a report, not a source.
+  const builderRef = useRef<AutomationBuilderHandle>(null);
+  const [draft, setDraft] = useState<AutomationDefinition | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
   const [editName, setEditName] = useState('');
 
   const { data: automation, isLoading }         = useFetchAutomation(websiteId, automationId);
@@ -196,7 +209,42 @@ export default function AutomationDetailPage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {editMode && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => builderRef.current?.openSettings()}
+                title="Workflow settings"
+                aria-label="Workflow settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={() => builderRef.current?.openJson()}
+                title="View or edit JSON"
+                aria-label="View or edit JSON"
+              >
+                <Braces className="h-4 w-4" />
+              </Button>
+              <Button
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => draft && handleEditSave(draft)}
+                disabled={!draft || errors.length > 0 || saving}
+                title={errors[0] ?? 'Save automation'}
+              >
+                <Save className="h-3.5 w-3.5" />
+                {saving ? 'Saving…' : 'Save'}
+              </Button>
+            </>
+          )}
+
           {!editMode && (
             <>
               <Button
@@ -234,10 +282,12 @@ export default function AutomationDetailPage() {
       {editMode ? (
         <div className="rounded-lg border border-border overflow-hidden" style={{ height: 'calc(100vh - 220px)' }}>
           <AutomationBuilder
+            ref={builderRef}
             key={`edit-${automationId}`}
             initialDefinition={rawDefinition}
             onSave={handleEditSave}
             isSaving={saving}
+            onChange={(def, errs) => { setDraft(def); setErrors(errs); }}
             className="h-full"
           />
         </div>

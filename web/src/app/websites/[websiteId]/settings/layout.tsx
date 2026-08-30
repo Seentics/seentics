@@ -5,7 +5,9 @@ import { useAuth } from '@/stores/useAuthStore';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo } from 'react';
-import { ArrowLeft, CreditCard, Shield, Users, LifeBuoy, LayoutGrid, User, Loader2, Layers } from 'lucide-react';
+import { ArrowLeft, CreditCard, Shield, Users, LifeBuoy, LayoutGrid, User, Loader2, Layers,
+  Code2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { websiteWorkspaceShellClass } from '@/lib/website-shell';
