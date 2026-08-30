@@ -40,7 +40,7 @@ export function TrafficOverview({
   const [view, setView] = useState<'chart' | 'hourly'>('chart');
 
   return (
-    <Card className={cn("col-span-full surface overflow-hidden pb-4", className)}>
+    <Card className={cn("col-span-full surface surface-raised overflow-hidden pb-4", className)}>
       <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4 pt-5 px-6 shrink-0 border-b border-border">
         <div>
           <h2 className="text-base font-semibold tracking-tight">Traffic Overview</h2>

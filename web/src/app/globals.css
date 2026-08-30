@@ -188,6 +188,31 @@
     @apply rounded-lg border border-border bg-card dark:border-transparent;
   }
 
+  /* Adds lift to a .surface. Opt-in, so the panels that want depth (analytics
+     stat cards, chart cards, data tables) can have it without the sidebar and
+     the landing hero — which also use .surface — picking it up.
+
+     Two stacked shadows, not one: a tight 1px contact shadow that reads as an
+     edge, plus a wider ambient one for the lift. A single blurred shadow at
+     this opacity comes out as haze rather than depth, which is exactly what got
+     shadows taken off .surface originally.
+
+     The tint is the page hue rather than black — a neutral grey shadow on a
+     faintly blue page looks dirty.
+
+     Light mode only. Dark mode already separates surfaces by lightness (page
+     7%, card 10%), and a black shadow on a near-black page is either invisible
+     or a smear. */
+  .surface-raised {
+    box-shadow:
+      0 1px 2px -1px hsl(220 25% 25% / 0.08),
+      0 2px 6px -1px hsl(220 25% 25% / 0.05);
+  }
+
+  .dark .surface-raised {
+    box-shadow: none;
+  }
+
   /* Panel/table header. Kept white like every other surface — the rule below it
      does the separating, so headers never introduce a second surface colour. */
   .surface-header {
