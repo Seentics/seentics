@@ -9,13 +9,15 @@
 @layer base {
   :root {
     /* Two light layers:
-         page     98.5% — the recessed canvas
+         page     97%   — the recessed canvas
          surfaces 100%  — sidebar, stat cards, tables, panels
        The page is the only tinted layer; everything you actually read sits white
-       on top of it, with --border drawing the edges. The step is deliberately
-       small — just enough to separate, not enough to read as a grey field. At 97%
-       and below it stopped looking like a canvas and started looking dirty, and
-       --border is what actually delineates surfaces anyway.
+       on top of it, with --border drawing the edges. The step needs to be small
+       enough not to read as a grey field but large enough to actually see: this
+       sat at 99.5% for a while — half a percent off the cards — which meant the
+       canvas and the surfaces on it were indistinguishable in light mode and
+       every panel lost its edge. Saturation drops with the lightness (20% → 14%)
+       because the same tint that is invisible at 99.5% reads as a blue cast at 97%.
        Shadows stay reserved for things that genuinely float (popovers, dialogs). */
     /* --app-* is the single source of truth for the app's own surfaces. The
        landing page overrides --background/--border for its white canvas, and the
@@ -23,7 +25,7 @@
        there is one place to change them. Every time they were duplicated the two
        drifted, and the hero started advertising a dashboard colour that no longer
        shipped. Never override --app-* in a scoped block. */
-    --app-page: 220 20% 99.5%;
+    --app-page: 220 14% 97%;
     --app-border: 220 13% 86%;
 
     --background: var(--app-page);
@@ -34,13 +36,15 @@
     --popover-foreground: 224 71.4% 4.1%;
     --primary: 221 83% 53%;
     --primary-foreground: 210 20% 98%;
-    --secondary: 220 16% 96%;
+    --secondary: 220 14% 94%;
     --secondary-foreground: 226 60% 30%;
     /* Sits below the page so muted fills — table headers, hover rows, chips —
-       still register on a white card and on the page itself. */
-    --muted: 220 16% 96%;
+       still register on a white card and on the page itself. Tracks --app-page
+       down: at 96% against a 97% page these were a one-percent step, which is a
+       hover state you cannot see. */
+    --muted: 220 14% 94%;
     --muted-foreground: 220 9% 42%;
-    --accent: 220 14% 93%;
+    --accent: 220 14% 91%;
     --accent-foreground: 220.9 39.3% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 20% 98%;
@@ -62,7 +66,7 @@
     --sidebar-foreground: 224 71.4% 4.1%;
     --sidebar-primary: 221 83% 53%;
     --sidebar-primary-foreground: 210 20% 98%;
-    --sidebar-accent: 220 16% 96%;
+    --sidebar-accent: 220 14% 94%;
     --sidebar-accent-foreground: 220.9 39.3% 11%;
     --sidebar-border: 220 13% 86%;
     --sidebar-ring: 221 83% 53%;
