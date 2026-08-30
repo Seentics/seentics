@@ -136,6 +136,14 @@ export type TriggerNodeData = {
   label: string;
   description: string;
   icon: React.ElementType;
+  /**
+   * Per-trigger-type icon colour, matching the palette row this node was dragged from.
+   *
+   * The emerald edge and handle below stay fixed — those say "trigger", and every trigger
+   * shares that. The chip says *which* trigger, which thirteen identical green squares did not.
+   */
+  iconBg?: string;
+  iconColor?: string;
   index: number;
   canDelete: boolean;
   onDelete: (index: number) => void;
@@ -160,8 +168,16 @@ export const TriggerNode = memo(function TriggerNode({ data, selected }: NodePro
       <span className="absolute inset-y-0 left-0 w-1.5 bg-emerald-500" aria-hidden />
 
       <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15">
-          <Icon className="h-5 w-5 text-emerald-400" style={{ width: 20, height: 20 }} />
+        <div
+          className={cn(
+            'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
+            data.iconBg ?? 'bg-emerald-500/15',
+          )}
+        >
+          <Icon
+            className={cn('h-5 w-5', data.iconColor ?? 'text-emerald-400')}
+            style={{ width: 20, height: 20 }}
+          />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">

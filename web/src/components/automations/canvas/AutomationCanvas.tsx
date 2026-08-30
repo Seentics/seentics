@@ -105,7 +105,15 @@ export type AutomationCanvasProps = {
   onGraphChange: (graph: AutomationGraph) => void;
 
   triggers: Array<{ type: string }>;
-  triggerMeta: (type: string) => { label: string; description: string; icon: React.ElementType };
+  triggerMeta: (
+    type: string,
+  ) => {
+    label: string;
+    description: string;
+    icon: React.ElementType;
+    iconBg: string;
+    iconColor: string;
+  };
   onDeleteTrigger: (index: number) => void;
   onSelectTrigger: (index: number) => void;
 
@@ -160,6 +168,8 @@ function AutomationCanvasInner({
           label: meta.label,
           description: meta.description,
           icon: meta.icon,
+          iconBg: meta.iconBg,
+          iconColor: meta.iconColor,
           index: i,
           canDelete: triggers.length > 1,
           onDelete: onDeleteTrigger,

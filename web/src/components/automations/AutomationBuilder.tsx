@@ -188,22 +188,38 @@ type SelectedNode =
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-type TriggerType = { value: string; label: string; icon: React.ElementType; description: string; hasConfig: boolean };
+/**
+ * A trigger in the palette.
+ *
+ * `iconBg`/`iconColor` are per type, like the actions': thirteen rows in one green were
+ * a wall to scan, and the icon is what people actually recognise. The *category* colour
+ * still exists — a trigger node keeps its emerald edge on the canvas — so the type is
+ * distinguishable without the node stopping looking like a trigger.
+ */
+type TriggerType = {
+  value: string;
+  label: string;
+  icon: React.ElementType;
+  description: string;
+  hasConfig: boolean;
+  iconBg: string;
+  iconColor: string;
+};
 
 const TRIGGER_TYPES: TriggerType[] = [
-  { value: 'page_view',    label: 'Page View',       icon: Globe,         description: 'Triggers when a user visits a specific page', hasConfig: true },
-  { value: 'click',        label: 'Click',            icon: MousePointer,  description: 'Triggers when a user clicks an element',      hasConfig: true },
-  { value: 'scroll_depth', label: 'Scroll Depth',     icon: TrendingDown,  description: 'Triggers when a user scrolls to a depth',     hasConfig: true },
-  { value: 'time_on_page', label: 'Time on Page',     icon: Clock,         description: 'Triggers after a user spends time on page',   hasConfig: true },
-  { value: 'exit_intent',  label: 'Exit Intent',      icon: LogOut,        description: 'Triggers when a user is about to leave',      hasConfig: false },
-  { value: 'inactivity',   label: 'Inactivity',       icon: Coffee,        description: 'Triggers after a user is inactive',           hasConfig: true },
-  { value: 'rage_click',   label: 'Rage Click',       icon: Zap,           description: 'Triggers on repeated rapid clicks',           hasConfig: false },
-  { value: 'form_abandon', label: 'Form Abandonment', icon: AlertTriangle, description: 'Triggers when a form is abandoned',           hasConfig: false },
-  { value: 'js_error',     label: 'JS Error',         icon: AlertTriangle, description: 'Triggers on a JavaScript error',              hasConfig: false },
-  { value: 'tab_hidden',   label: 'Tab Hidden',       icon: EyeOff,        description: 'Triggers when the tab is hidden',             hasConfig: false },
-  { value: 'tab_visible',  label: 'Tab Visible',      icon: Eye,           description: 'Triggers when the tab becomes visible again', hasConfig: false },
-  { value: 'custom_event', label: 'Custom Event',     icon: Zap,           description: 'Triggers on a named custom event',            hasConfig: true },
-  { value: 'identify',     label: 'Identify',         icon: UserCheck,     description: 'Triggers when a user is identified',          hasConfig: false },
+  { value: 'page_view',    label: 'Page View',       icon: Globe,         description: 'Triggers when a user visits a specific page', hasConfig: true, iconBg: 'bg-sky-500/10', iconColor: 'text-sky-500' },
+  { value: 'click',        label: 'Click',            icon: MousePointer,  description: 'Triggers when a user clicks an element',      hasConfig: true, iconBg: 'bg-indigo-500/10', iconColor: 'text-indigo-500' },
+  { value: 'scroll_depth', label: 'Scroll Depth',     icon: TrendingDown,  description: 'Triggers when a user scrolls to a depth',     hasConfig: true, iconBg: 'bg-teal-500/10', iconColor: 'text-teal-500' },
+  { value: 'time_on_page', label: 'Time on Page',     icon: Clock,         description: 'Triggers after a user spends time on page',   hasConfig: true, iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500' },
+  { value: 'exit_intent',  label: 'Exit Intent',      icon: LogOut,        description: 'Triggers when a user is about to leave',      hasConfig: false, iconBg: 'bg-rose-500/10', iconColor: 'text-rose-500' },
+  { value: 'inactivity',   label: 'Inactivity',       icon: Coffee,        description: 'Triggers after a user is inactive',           hasConfig: true, iconBg: 'bg-orange-500/10', iconColor: 'text-orange-500' },
+  { value: 'rage_click',   label: 'Rage Click',       icon: Zap,           description: 'Triggers on repeated rapid clicks',           hasConfig: false, iconBg: 'bg-red-500/10', iconColor: 'text-red-500' },
+  { value: 'form_abandon', label: 'Form Abandonment', icon: AlertTriangle, description: 'Triggers when a form is abandoned',           hasConfig: false, iconBg: 'bg-yellow-500/10', iconColor: 'text-yellow-600' },
+  { value: 'js_error',     label: 'JS Error',         icon: AlertTriangle, description: 'Triggers on a JavaScript error',              hasConfig: false, iconBg: 'bg-rose-600/10', iconColor: 'text-rose-600' },
+  { value: 'tab_hidden',   label: 'Tab Hidden',       icon: EyeOff,        description: 'Triggers when the tab is hidden',             hasConfig: false, iconBg: 'bg-slate-500/10', iconColor: 'text-slate-500' },
+  { value: 'tab_visible',  label: 'Tab Visible',      icon: Eye,           description: 'Triggers when the tab becomes visible again', hasConfig: false, iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500' },
+  { value: 'custom_event', label: 'Custom Event',     icon: Zap,           description: 'Triggers on a named custom event',            hasConfig: true, iconBg: 'bg-violet-500/10', iconColor: 'text-violet-500' },
+  { value: 'identify',     label: 'Identify',         icon: UserCheck,     description: 'Triggers when a user is identified',          hasConfig: false, iconBg: 'bg-fuchsia-500/10', iconColor: 'text-fuchsia-500' },
 ];
 
 type ActionType = {
@@ -1490,8 +1506,8 @@ function NodePalette({
               <PaletteRow
                 key={t.value}
                 icon={t.icon}
-                iconBg="bg-emerald-500/10"
-                iconColor="text-emerald-500"
+                iconBg={t.iconBg}
+                iconColor={t.iconColor}
                 label={t.label}
                 hint={t.description}
                 onDragStart={e => onDragStart(e, 'trigger', t.value)}
@@ -1664,7 +1680,13 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
 
   const triggerMeta = useCallback((type: string) => {
     const td = getTriggerType(type);
-    return { label: td.label, description: td.description, icon: td.icon };
+    return {
+      label: td.label,
+      description: td.description,
+      icon: td.icon,
+      iconBg: td.iconBg,
+      iconColor: td.iconColor,
+    };
   }, []);
 
   const selectTrigger = useCallback((index: number) => setSelected({ kind: 'trigger', index }), []);
@@ -1881,7 +1903,7 @@ export const AutomationBuilder = forwardRef<AutomationBuilderHandle, AutomationB
       </div>
 
       {/* Right sidebar — node palette */}
-      <aside className="flex w-[280px] shrink-0 flex-col overflow-hidden border-l border-border bg-card lg:w-[320px]">
+      <aside className="flex w-[320px] shrink-0 flex-col overflow-hidden border-l border-border bg-card lg:w-[380px] xl:w-[420px]">
         <NodePalette
           tab={paletteTab}
           onTab={setPaletteTab}
